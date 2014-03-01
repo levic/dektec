@@ -1,0 +1,15 @@
+# Not ignoring these since dektec distribute some .o binaries as part of the release
+
+# Compiled Object files
+#*.slo
+#*.lo
+#*.o
+
+# Compiled Dynamic libraries
+#*.so
+#*.dylib
+
+# Compiled Static libraries
+#*.lai
+#*.la
+#*.a
