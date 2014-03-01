@@ -203,6 +203,8 @@ DtStatus  DtaNonIpTxGetFlags(DtaNonIpPort* pNonIpPort, Int* pStatus, Int* pLatch
     // Return flags
     *pStatus = pNonIpPort->m_Flags;
     *pLatched = pNonIpPort->m_FlagsLatched;
+    if (pNonIpPort->m_TxUfl)
+        *pStatus |= DTA_TX_FIFO_UFL;
 
     DtSpinLockRelease(&pNonIpPort->m_FlagsSpinLock);
 
@@ -218,6 +220,8 @@ DtStatus  DtaNonIpTxClearFlags(DtaNonIpPort* pNonIpPort, Int FlagsToClear)
     // Clear latched flags
     pNonIpPort->m_Flags &= ~FlagsToClear;
     pNonIpPort->m_FlagsLatched &= ~FlagsToClear;
+    if ((FlagsToClear&DTA_TX_FIFO_UFL) != 0)
+        pNonIpPort->m_TxUfl = FALSE;
 
     // Also clear flags in Transmit Status register, to avoid that flags in
     // m_Latched are set again in next periodic interrupt.

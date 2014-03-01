@@ -912,6 +912,14 @@ static __inline UInt  DtaRegDvbSpiRxFreqGetFrequency(volatile UInt8* pBase) {
                                                               DT_SPIRXFREQ_FREQUENCY_SH);
 }
 
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Board ID +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+static __inline UInt64  DtaRegBoardId(volatile UInt8* pBase) {
+    UInt64  Id = (UInt64)READ_UINT(pBase, DT_GEN_REG_BOARDID0);
+    Id |= ((UInt64)READ_UINT(pBase, DT_GEN_REG_BOARDID1))<<32;
+    return Id;
+}
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ HD Genlock registers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 //-.-.-.-.-.-.-.-.-.- Genlock Clock Config register: Access Functions -.-.-.-.-.-.-.-.-.-.
@@ -2018,7 +2026,7 @@ static __inline UInt  DtaRegTxRfCtrl3GetRfClkSel(volatile UInt8* pBase) {
     return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL3, DT_TXRFCTRL3_RFCLKSEL_MSK, 
                                                                 DT_TXRFCTRL3_RFCLKSEL_SH);
 }
-static __inline void  DtaRegTxRfCtrl2SetRfClkSel(volatile UInt8* pBase, UInt RfClkSel) {
+static __inline void  DtaRegTxRfCtrl3SetRfClkSel(volatile UInt8* pBase, UInt RfClkSel) {
     WRITE_UINT_MASKED(RfClkSel, pBase, DT_TX_REG_RF_CONTROL3, DT_TXRFCTRL3_RFCLKSEL_MSK, 
                                                                 DT_TXRFCTRL3_RFCLKSEL_SH);
 }
@@ -4471,9 +4479,26 @@ static __inline Int64 DtaRegHdCurrentFrameGet(volatile UInt8* pBase)
 }
 static __inline void  DtaRegHdCurrentFrameSet(volatile UInt8* pBase, Int64  Val)
 {
-    // Read LSB part first
+    // Write LSB part first
     WRITE_UINT((UInt32)Val, pBase, DT_HD_REG_CURFRM_LSB);
     WRITE_UINT((UInt32)(Val>>32), pBase, DT_HD_REG_CURFRM_MSB);
+}
+
+//.-.-.-.-.-.-.-.- HD-Channel  ASI Byte Count register: Access Functions -.-.-.-.-.-.-.-.-
+
+static __inline Int64 DtaRegHdAsiByteCountGet(volatile UInt8* pBase)
+{
+    Int64  Frame = 0;
+    // Read LSB part first
+    Frame = (Int64)READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_LSB);
+    Frame |= ((Int64)READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_MSB))<<32;
+    return Frame;
+}
+static __inline void  DtaRegHdAsiByteCountSet(volatile UInt8* pBase, Int64  Val)
+{
+    // Write LSB part first
+    WRITE_UINT((UInt32)Val, pBase, DT_HD_REG_ASIBYTECNT_LSB);
+    WRITE_UINT((UInt32)(Val>>32), pBase, DT_HD_REG_ASIBYTECNT_MSB);
 }
 
 //-.-.-.-.-.-.-.-.-.- HD-Channel Last Frame register: Access Functions -.-.-.-.-.-.-.-.-.-
@@ -4626,6 +4651,13 @@ static __inline void  DtaRegHdMemTrControlSetScalingMode(volatile UInt8* pBase, 
 {
     WRITE_UINT_MASKED(Val, pBase, DT_HD_REG_MEMTRCTRL, DT_HD_MEMTRCTRL_SCMODE_MSK, 
                                                                DT_HD_MEMTRCTRL_SCMODE_SH);
+}
+
+// HD-Channel Memory Transfer Control register: Abort 
+static __inline void  DtaRegHdMemTrControlSetAbort(volatile UInt8* pBase, UInt32  Val)
+{
+    WRITE_UINT_MASKED(Val, pBase, DT_HD_REG_MEMTRCTRL, DT_HD_MEMTRCTRL_ABORT_MSK, 
+                                                                DT_HD_MEMTRCTRL_ABORT_SH);
 }
 
 // HD-Channel Memory Transfer Control register:  Ancillary Filter Mode
@@ -4891,6 +4923,133 @@ static __inline UInt32 DtaRegHdS1NextFrmAddrGet(volatile UInt8* pBase)
 static __inline void DtaRegHdS1NextFrmAddrSet(volatile UInt8* pBase, UInt32  Val)
 {
     WRITE_UINT(Val, pBase, DT_HD_REG_S1_NEXTFRM_ADDR);
+}
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ RS-411 registers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+// Rs422 Control register: Master (1) or Slave (0) mode
+static __inline Int  DtaRegRs422CtrlGetMaster(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_MASTER_MSK, 
+                                                                 DT_RS422_CTRL_MASTER_SH);
+}
+static __inline void  DtaRegRs422CtrlSetMaster(volatile UInt8* pBase, UInt  Master)
+{
+    WRITE_UINT_MASKED(Master, pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_MASTER_MSK,
+                                                                 DT_RS422_CTRL_MASTER_SH);
+}
+
+// Rs422 Control register: Polarity control
+static __inline Int  DtaRegRs422CtrlGetPolarity(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_POLINV_MSK, 
+                                                                 DT_RS422_CTRL_POLINV_SH);
+}
+static __inline void  DtaRegRs422CtrlSetPolarity(volatile UInt8* pBase, UInt  Inv)
+{
+    WRITE_UINT_MASKED(Inv, pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_POLINV_MSK,
+                                                                 DT_RS422_CTRL_POLINV_SH);
+}
+
+// Rs422 Control register: TX start
+static __inline void  DtaRegRs422CtrlSetTxStart(volatile UInt8* pBase)
+{
+    WRITE_UINT_MASKED(1, pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_TXSTART_MSK,
+                                                                DT_RS422_CTRL_TXSTART_SH);
+}
+
+// Rs422 Control register: RX enable
+static __inline Int  DtaRegRs422CtrlGetRxEnable(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_RXENA_MSK, 
+                                                                  DT_RS422_CTRL_RXENA_SH);
+}
+static __inline void  DtaRegRs422CtrlSetRxEnable(volatile UInt8* pBase, UInt  RxEnable)
+{
+    WRITE_UINT_MASKED(RxEnable, pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_RXENA_MSK,
+                                                                  DT_RS422_CTRL_RXENA_SH);
+}
+
+// Rs422 Control register: Clear RX fifo
+static __inline void  DtaRegRs422CtrlClrRxFifo(volatile UInt8* pBase)
+{
+    WRITE_UINT_MASKED(1, pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_RX_FIFO_CLR_MSK,
+                                                            DT_RS422_CTRL_RX_FIFO_CLR_SH);
+}
+
+// Rs422 Control register: Clear TX fifo
+static __inline void  DtaRegRs422CtrlClrTxFifo(volatile UInt8* pBase)
+{
+    WRITE_UINT_MASKED(1, pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_TX_FIFO_CLR_MSK,
+                                                            DT_RS422_CTRL_TX_FIFO_CLR_SH);
+}
+
+// Rs422 Control register: data received IRQ enable
+static __inline UInt  DtaRegRs422CtrlGetRxDataAvailIntEn(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_RX_DATA_INT_EN_MSK,
+                                                         DT_RS422_CTRL_RX_DATA_INT_EN_SH);
+
+}
+static __inline void  DtaRegRs422CtrlSetRxDataAvailIntEn(
+    volatile UInt8* pBase,
+    UInt IntEn)
+{
+    WRITE_UINT_MASKED(IntEn, pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_RX_DATA_INT_EN_MSK, 
+                                                         DT_RS422_CTRL_RX_DATA_INT_EN_SH);
+}
+
+// Rs422 Control register: data transmitted IRQ enable
+static __inline UInt  DtaRegRs422CtrlGetTxDataTransmitIntEn(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_TX_RDY_INT_EN_MSK,
+                                                          DT_RS422_CTRL_TX_RDY_INT_EN_SH);
+
+}
+static __inline void  DtaRegRs422CtrlSetTxDataTransmitIntEn(
+    volatile UInt8* pBase,
+    UInt IntEn)
+{
+    WRITE_UINT_MASKED(IntEn, pBase, DT_RS422_REG_CTRL, DT_RS422_CTRL_TX_RDY_INT_EN_MSK, 
+                                                          DT_RS422_CTRL_TX_RDY_INT_EN_SH);
+}
+
+// Rs422 TX data register: Write data to TX fifo.
+static __inline void  DtaRegRs422TxDataSet(volatile UInt8* pBase, UInt  TxData) {
+    WRITE_UINT(TxData, pBase, DT_RS422_REG_TX_DATA);
+}
+
+// Rs422 Status register: RX num bytes available
+static __inline UInt32  DtaRegRs422StatGetRxNumBytes(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_RS422_REG_STAT, DT_RS422_STAT_RX_NUMBYTES_MSK,
+                                                            DT_RS422_STAT_RX_NUMBYTES_SH);
+}
+
+// Rs422 Status register: RX data available interrupt
+static __inline UInt32  DtaRegRs422StatGetRxDataAvailInt(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_RS422_REG_STAT, DT_RS422_STAT_RX_DATA_INT_MSK,
+                                                            DT_RS422_STAT_RX_DATA_INT_SH);
+}
+static __inline void  DtaRegRs422StatClrRxDataAvailInt(volatile UInt8* pBase)
+{
+    WRITE_UINT(DT_RS422_STAT_RX_DATA_INT_MSK, pBase, DT_RS422_REG_STAT);
+}
+
+// Rs422 Status register: TX ready interrupt
+static __inline UInt32  DtaRegRs422StatGetTxReadyInt(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_RS422_REG_STAT, DT_RS422_STAT_TX_RDY_INT_MSK,
+                                                             DT_RS422_STAT_TX_RDY_INT_SH);
+}
+static __inline void  DtaRegRs422StatClrTxReadyInt(volatile UInt8* pBase)
+{
+    WRITE_UINT(DT_RS422_STAT_TX_RDY_INT_MSK, pBase, DT_RS422_REG_STAT);
+}
+
+// Rs422 RX data register: Read data from RX fifo.
+static __inline UInt8  DtaRegRs422RxDataGet(volatile UInt8* pBase) {
+    return (UInt8)READ_UINT_MASKED(pBase, DT_RS422_REG_RX_DATA, DT_RS422_RXDATA_MSK,
+                                                                      DT_RS422_RXDATA_SH);
 }
 
 #endif // __DTA_REGS_H

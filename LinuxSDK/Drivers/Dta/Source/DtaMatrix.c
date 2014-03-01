@@ -530,6 +530,9 @@ DtStatus  DtaMatrixIoctl(
                 }
             }
 
+            if (((UInt64)pBuffer)%8 != 0)
+                Status = DT_STATUS_INVALID_PARAMETER;
+
             if (DT_SUCCESS(Status))
                 Status = DtaNonIpMatrixPrepForDma(pNonIpPort, Size, &MemTrSetup, &Size);
 
@@ -595,12 +598,12 @@ DtStatus  DtaMatrixIoctl(
             DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI);
             if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_INPUT)
             {
-                pMatrixCmdOutput->m_Data.m_GetFifoLoad.m_FifoLoad = 
-                                     (Int)(DtaRegHdCurrentFrameGet(pNonIpPort->m_pTxRegs)-
-                                           pNonIpPort->m_Matrix.m_AsiDmaNumBytes);
-                pMatrixCmdOutput->m_Data.m_GetFifoLoad.m_FifoLoad &= ~0x1F;
-            } else {
-                Int64  NumBytesPlayed = DtaRegHdCurrentFrameGet(pNonIpPort->m_pTxRegs);
+                Status = DtaMatrixAsiRxGetFifoLoad(pNonIpPort,
+                                      &pMatrixCmdOutput->m_Data.m_GetFifoLoad.m_FifoLoad);
+            }
+            else 
+            {
+                Int64  NumBytesPlayed = DtaRegHdAsiByteCountGet(pNonIpPort->m_pTxRegs);
                 pMatrixCmdOutput->m_Data.m_GetFifoLoad.m_FifoLoad = 
                             (Int)(pNonIpPort->m_Matrix.m_AsiDmaNumBytes - NumBytesPlayed);
             }
@@ -614,15 +617,19 @@ DtStatus  DtaMatrixIoctl(
 
         case DTA_MATRIX_CMD_GET_FIFOSIZE_MAX:
             DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI);
-            //TODOTM: DTA_MATRIX_CMD_GET_FIFOSIZE_MAX
-            pMatrixCmdOutput->m_Data.m_GetFifoSizeMax.m_FifoSize = 32*1024*1024;
+            pMatrixCmdOutput->m_Data.m_GetFifoSizeMax.m_FifoSize = 16*1024*1024;
             break;
 
         case DTA_MATRIX_CMD_SET_FIFOSIZE:
             DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI);
-            pNonIpPort->m_Matrix.m_AsiFifoSize =
+            if (pMatrixCmdInput->m_Data.m_SetFifoSize.m_FifoSize%32 != 0)
+                Status = DT_STATUS_INVALID_PARAMETER;
+            else
+            {
+                pNonIpPort->m_Matrix.m_AsiFifoSize =
                                          pMatrixCmdInput->m_Data.m_SetFifoSize.m_FifoSize;
-            Status =  DtaNonIpMatrixConfigure(pNonIpPort, FALSE);
+                Status =  DtaNonIpMatrixConfigure(pNonIpPort, FALSE);
+            }
             break;
 
         case DTA_MATRIX_CMD_SET_ASI_CTRL:
@@ -760,6 +767,39 @@ DtStatus  DtaMatrixWaitFrame(
     // Return the current frame
     *pFrame = *pSofOrLastFrame;
 
+    return DT_STATUS_OK;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaMatrixAsiRxGetFifoLoad -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Get the fifoload for a matrix port configured as ASI input and set the overflow
+// flag if required.
+//
+DtStatus  DtaMatrixAsiRxGetFifoLoad(DtaNonIpPort*  pNonIpPort, Int*  pFifoLoad)
+{
+    Int64  RealLoad = (DtaRegHdAsiByteCountGet(pNonIpPort->m_pTxRegs) -
+                                        pNonIpPort->m_Matrix.m_AsiDmaNumBytes);
+                
+    // Can only transfer multiple of 32-byte, only count multiples of 32-byte
+    RealLoad &= ~0x1F;
+    // Worst case 32kB could be stuck in pipeline of the hardware and is not 
+    // ready for reading yet so do not include the last 32kB in the reported 
+    // FIFO load
+    if (RealLoad > 32*1024)
+    {
+        RealLoad -= 32*1024;
+        if (RealLoad > pNonIpPort->m_Matrix.m_AsiFifoSize)
+        {
+            RealLoad = pNonIpPort->m_Matrix.m_AsiFifoSize;
+            DtSpinLockAcquire(&pNonIpPort->m_FlagsSpinLock);
+            pNonIpPort->m_Flags |= DTA_RX_FIFO_OVF;
+            pNonIpPort->m_FlagsLatched |= DTA_RX_FIFO_OVF;
+            DtSpinLockRelease(&pNonIpPort->m_FlagsSpinLock);
+        }
+    } else
+        RealLoad = 0;
+
+    *pFifoLoad = (Int)RealLoad;
     return DT_STATUS_OK;
 }
 

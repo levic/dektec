@@ -81,6 +81,9 @@
 // GS2984 equaliser specific
 #define DT_RX_REG_GS2984CTRL           0x0074
 #define DT_RX_REG_GS2984STAT           0x0078
+// Board ID
+#define DT_GEN_REG_BOARDID0            0x0104
+#define DT_GEN_REG_BOARDID1            0x0108
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- General-Control register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-
 #define DT_GENCTRL_PE_MSK              0x00000001
@@ -106,6 +109,8 @@
 #define DT_GENCTRL_LED_RED             0x04000000
 #define DT_GENCTRL_LED_RED_MSK         0x04000000
 #define DT_GENCTRL_LED_RED_SH          26
+#define DT_GENCTRL_LED_BLUE_MSK        0x08000000
+#define DT_GENCTRL_LED_BLUE_SH         27
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- General Status Register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DT_GENSTAT_PERINT_MSK          0x00000010
@@ -924,8 +929,10 @@ typedef union _DT_TXRFDAC_CONTROL
 #define DT_HD_REG_CTRL2                 0x0004
 #define DT_HD_REG_STATUS                0x0008
 #define DT_HD_REG_LEDCTRL               0x000C
-#define DT_HD_REG_CURFRM_LSB            0x0010
-#define DT_HD_REG_CURFRM_MSB            0x0014
+#define DT_HD_REG_CURFRM_LSB            0x0010  // Legacy: this is the current frame 
+#define DT_HD_REG_ASIBYTECNT_LSB        0x0010  // New Style: this is the ASI byte count
+#define DT_HD_REG_CURFRM_MSB            0x0014  // Legacy: this is the current frame 
+#define DT_HD_REG_ASIBYTECNT_MSB        0x0014  // New Style: this is the ASI byte count
 #define DT_HD_REG_LASTFRM_LSB           0x0018
 #define DT_HD_REG_LASTFRM_MSB           0x001C
 #define DT_HD_REG_SOFFRM_LSB            0x0020
@@ -1180,6 +1187,8 @@ typedef union _DT_TXRFDAC_CONTROL
 #define DT_HD_MEMTRCTRL_SYMFLTMODE_SH   22
 #define DT_HD_MEMTRCTRL_SCMODE_MSK      0x06000000
 #define DT_HD_MEMTRCTRL_SCMODE_SH       25
+#define DT_HD_MEMTRCTRL_ABORT_MSK       0x08000000
+#define DT_HD_MEMTRCTRL_ABORT_SH        27
 #define DT_HD_MEMTRCTRL_ANCFLTMODE_MSK  0x70000000
 #define DT_HD_MEMTRCTRL_ANCFLTMODE_SH   28
 #define DT_HD_MEMTRCTRL_STRIDEMODE_MSK  0x80000000
@@ -1339,6 +1348,46 @@ typedef union _DT_TXRFDAC_CONTROL
 
 #define DT_HD_S1NEXTFRMADDR_ADDR_MSK      0xFFFFFFFF
 #define DT_HD_S1NEXTFRMADDR_ADDR_SH       0
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ RS-422 Registers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+#define DT_RS422_REG_CTRL               0x0000
+#define DT_RS422_REG_TX_DATA            0x0004
+#define DT_RS422_REG_STAT               0x0008
+#define DT_RS422_REG_RX_DATA            0x000C
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- RS-422 Control register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.-.-.
+
+#define DT_RS422_CTRL_MASTER_MSK         0x00000001
+#define DT_RS422_CTRL_MASTER_SH          0
+#define DT_RS422_CTRL_POLINV_MSK         0x00000002
+#define DT_RS422_CTRL_POLINV_SH          1
+#define DT_RS422_CTRL_TXSTART_MSK        0x00000010
+#define DT_RS422_CTRL_TXSTART_SH         4
+#define DT_RS422_CTRL_RXENA_MSK          0x00000020
+#define DT_RS422_CTRL_RXENA_SH           5
+#define DT_RS422_CTRL_RX_FIFO_CLR_MSK    0x00000100
+#define DT_RS422_CTRL_RX_FIFO_CLR_SH     8
+#define DT_RS422_CTRL_TX_FIFO_CLR_MSK    0x00000200
+#define DT_RS422_CTRL_TX_FIFO_CLR_SH     9
+#define DT_RS422_CTRL_RX_DATA_INT_EN_MSK 0x40000000
+#define DT_RS422_CTRL_RX_DATA_INT_EN_SH  30
+#define DT_RS422_CTRL_TX_RDY_INT_EN_MSK  0x80000000
+#define DT_RS422_CTRL_TX_RDY_INT_EN_SH   31
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- RS-422 Status register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.-.-.
+
+#define DT_RS422_STAT_RX_NUMBYTES_MSK    0x000000FF
+#define DT_RS422_STAT_RX_NUMBYTES_SH     0
+#define DT_RS422_STAT_RX_DATA_INT_MSK    0x40000000
+#define DT_RS422_STAT_RX_DATA_INT_SH     30
+#define DT_RS422_STAT_TX_RDY_INT_MSK     0x80000000
+#define DT_RS422_STAT_TX_RDY_INT_SH      31
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- RS-422 RX data register -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+#define DT_RS422_RXDATA_MSK              0x000000FF
+#define DT_RS422_RXDATA_SH               0
 
 //-.-.-.-.-.-.-.-.-.- Fast-flash programming interface register offsets -.-.-.-.-.-.-.-.-.
 

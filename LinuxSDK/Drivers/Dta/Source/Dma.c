@@ -1218,6 +1218,7 @@ UInt  DtaDmaGetBytesReceived(
 DtStatus  DtaDmaAbortDma(
     DmaChannel*  pDmaCh)
 {
+    DtStatus  Status = DT_STATUS_OK;
     volatile Int  OldState = pDmaCh->m_State;
     Bool  UsesDmaInFpga = pDmaCh->m_pDvcData->m_DmaOptions.m_UseDmaInFpga;
         
@@ -1253,6 +1254,8 @@ DtStatus  DtaDmaAbortDma(
     
     if ((pDmaCh->m_State & DTA_DMA_STATE_STARTED) != 0)
     {
+        Int  NonIpPortIndex = -1;
+        DtaNonIpPort*  pNonIpPort = NULL;
         UInt32  CmdStat;
         
         DtDbgOut(AVG, DMA, "Stop DMA channel");
@@ -1271,6 +1274,20 @@ DtStatus  DtaDmaAbortDma(
                 WRITE_UINT32(pDmaCh->m_pRegCmdStat, 0, CmdStat);
             else
                 WRITE_UINT8(pDmaCh->m_pRegCmdStat, 0, CmdStat);
+
+            // For Matrix capable ports, also need to set the mem-transfer abort bit
+            pNonIpPort = NULL; NonIpPortIndex=-1;
+            Status = DtaGetNonIpPortIndex(pDmaCh->m_pDvcData, pDmaCh->m_PortIndex, 
+                                                                         &NonIpPortIndex);
+            if (DT_SUCCESS(Status))
+            {
+                DT_ASSERT(NonIpPortIndex>=0 && 
+                                      NonIpPortIndex<pDmaCh->m_pDvcData->m_NumNonIpPorts);
+                pNonIpPort = &pDmaCh->m_pDvcData->m_pNonIpPorts[NonIpPortIndex];
+                DT_ASSERT(pNonIpPort != NULL);
+                if (pNonIpPort->m_CapMatrix)
+                    DtaRegHdMemTrControlSetAbort(pNonIpPort->m_pRxRegs, 1);
+            }
         }
     }
 

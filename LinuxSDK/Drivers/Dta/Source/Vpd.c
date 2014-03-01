@@ -1136,11 +1136,15 @@ static void  DtaVpdInitIdOffset(DtaDeviceData* pDvcData)
     p = &pVpd->m_pCache[pVpd->m_IdOffset];
     if (*p == VPD_IDSTRING_TAG)
     {
-        pVpd->m_IdLength = 3 + p[1] + (p[2]<<8);
-        pVpd->m_RoOffset = pVpd->m_IdOffset + pVpd->m_IdLength;
-        p = &pVpd->m_pCache[pVpd->m_RoOffset];
-        if (*p == VPD_R_TAG)
-            pVpd->m_RoLength = pVpd->m_RwOffset - pVpd->m_RoOffset;
+        Int  IdLength = 3 + p[1] + (p[2]<<8);
+        if (pVpd->m_IdOffset + IdLength < VPD_END)
+        {
+            pVpd->m_IdLength = IdLength;
+            pVpd->m_RoOffset = pVpd->m_IdOffset + pVpd->m_IdLength;
+            p = &pVpd->m_pCache[pVpd->m_RoOffset];
+            if (*p == VPD_R_TAG)
+                pVpd->m_RoLength = pVpd->m_RwOffset - pVpd->m_RoOffset;
+        }
     }
 
     i = VPD_END+1;
@@ -1191,7 +1195,7 @@ static DtStatus  DtaVpdUpdateCache(DtaDeviceData* pDvcData)
     switch (pDvcData->m_Vpd.m_EepromIoItf)
     {
     case VPD_EEPROM_IO_NOT_SUPP:
-        // NOTHING TO DO
+        DtMemZero(pDvcData->m_Vpd.m_pCache, pDvcData->m_Vpd.m_EepromSize);
         break;
     case VPD_EEPROM_IO_PLX:
         // Read entire content of VPD EEPROM (PLX) into cache buffer

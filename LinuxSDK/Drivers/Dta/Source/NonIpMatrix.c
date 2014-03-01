@@ -326,7 +326,7 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
         // a signal)
         if (*pVidStd==DT_VIDSTD_UNKNOWN && DtaRegHdStatGetCarrierDetect(pHdRegs)!=0)
         {
-            Int  VidStdToggle = DT_VIDSTD_UNKNOWN;
+            Int  l, VidStdToggle = DT_VIDSTD_UNKNOWN;
             DtaMatrixPortState  State;
 
             DtDbgOut(AVG, NONIP, "Cannot detect vidstd; will try toggling frac-mode"); 
@@ -373,20 +373,32 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
             DtaRegHdSdiFormatSetPictureRate(pHdRegs, PictRate);
             DtaRegHdSdiFormatSetProgressive(pHdRegs, Progressive);
 
-            DtDbgOut(AVG, NONIP, "Toggling SDI format: id=%d, r=%d, p=%d", VideoId, 
+            DtDbgOut(AVG, NONIP, "Toggling SDI format to: id=%d, r=%d, p=%d", VideoId, 
                                                                    PictRate, Progressive);
 
             //-.-.-.-.-.- Step 4: wait shortly and check which standard again  -.-.-.-.-.-
 
-            // Wait to allow channel time detect the standard
-            DtSleep(250);
-
-            VideoId = DtaRegHdSdiStatusGetVideoId(pHdRegs);
-            PictRate = DtaRegHdSdiStatusGetPictureRate(pHdRegs);
-            Progressive = DtaRegHdSdiStatusGetProgressive(pHdRegs);
+            // Initial wait to allow channel time to settle
+            DtSleep(100);
+            
+            // Check if we can detect a valid video standard (Max. 10x 40ms)
+            for (l=0; l<10; l++)
+            {
+                VideoId = DtaRegHdSdiStatusGetVideoId(pHdRegs);
+                PictRate = DtaRegHdSdiStatusGetPictureRate(pHdRegs);
+                Progressive = DtaRegHdSdiStatusGetProgressive(pHdRegs);
                
-            // Convert SMPTE video standard to our video standard
-            DtaNonIpMatrixSdiFormat2VidStd(VideoId, PictRate, Progressive, pVidStd);
+                // Convert SMPTE video standard to our video standard
+                DtaNonIpMatrixSdiFormat2VidStd(VideoId, PictRate, Progressive, pVidStd);
+                DtDbgOut(MAX, NONIP, "Loop %d: id=%d, r=%d, p=%d => std=%d", 
+                                             l, VideoId, PictRate, Progressive, *pVidStd);
+
+                if (*pVidStd != DT_VIDSTD_UNKNOWN)
+                    break;
+
+                // Nothing yet, so wait a little more and try again
+                DtSleep(40);
+            }
 
             //-.-.-.-.-.-.-.- Step 5: finally restore the original setting -.-.-.-.-.-.-.-
 
@@ -397,6 +409,9 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
             DtaRegHdSdiFormatSetVideoId(pHdRegs, VideoId);
             DtaRegHdSdiFormatSetPictureRate(pHdRegs, PictRate);
             DtaRegHdSdiFormatSetProgressive(pHdRegs, Progressive);
+
+            DtDbgOut(MAX, NONIP, "Restore SDI format to: id=%d, r=%d, p=%d", VideoId, 
+                                                                   PictRate, Progressive);
 
             // Release lock
             DtMutexRelease(&pMatrix->m_StateLock);
@@ -576,10 +591,10 @@ DtStatus  DtaNonIpMatrixAttachToRow(DtaNonIpPort* pNonIpPort, Int  RowIdx)
 //
 DtStatus  DtaNonIpMatrixSetAsiCtrl(DtaNonIpPort* pNonIpPort, Int  AsiCtrl)
 {
-    Int  RxTxMode;
+    Int  RxTxMode=0;
     if (pNonIpPort->m_Matrix.m_AsiCtrl == AsiCtrl)
         return DT_STATUS_OK;
-    
+   
     if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_INPUT)
     {
         switch (AsiCtrl)
@@ -600,20 +615,34 @@ DtStatus  DtaNonIpMatrixSetAsiCtrl(DtaNonIpPort* pNonIpPort, Int  AsiCtrl)
 
     if (pNonIpPort->m_Matrix.m_AsiCtrl == DT_TXCTRL_IDLE)
     {
-        UInt32  Addr;
         // From IDLE to HOLD or SEND/RCV: reset fifo buffer
         pNonIpPort->m_Matrix.m_AsiDmaNumBytes = 0;
         pNonIpPort->m_Matrix.m_AsiDmaOffset = 0;
-        DtaRegHdCurrentFrameSet(pNonIpPort->m_pTxRegs, 0);
-        Addr = DtaRegHdS0BeginAddrGet(pNonIpPort->m_pTxRegs);
-        DtDbgOut(ERR, DTA, "HdS0BeginAddr: 0x%08X", Addr);
+        // Channel reset to clear internal fifos
+        DtaRegHdCtrl1SetIoReset(pNonIpPort->m_pTxRegs, 1);
+        // WORKAROUND FOR FW BUG: clear ASI num bytes written count, to prevent that FW 
+        // thinks we already have written any data
+        DtaRegHdSetAsiControl1(pNonIpPort->m_pTxRegs, 0);
+        // Clear ASI byte count register
+        DtaRegHdAsiByteCountSet(pNonIpPort->m_pTxRegs, 0);
         // Initialize S0 next frame address.
         DtaRegHdS0NextFrmAddrSet(pNonIpPort->m_pTxRegs,
                                            DtaRegHdS0BeginAddrGet(pNonIpPort->m_pTxRegs));
     }
-    DtDbgOut(ERR, DTA, "New Asi ctrl: %d", AsiCtrl);
+
+    DtDbgOut(AVG, NONIP, "New Asi ctrl: %d", AsiCtrl);
     pNonIpPort->m_Matrix.m_AsiCtrl = AsiCtrl;
     DtaRegHdCtrl1SetRxTxCtrl(pNonIpPort->m_pTxRegs, RxTxMode);
+
+    if (AsiCtrl != DT_TXCTRL_SEND)
+    {
+        // Reset flags but not the latched flags
+        DtSpinLockAcquire(&pNonIpPort->m_FlagsSpinLock);
+        pNonIpPort->m_Flags = 0;
+        pNonIpPort->m_TxUfl = FALSE;
+        DtSpinLockRelease(&pNonIpPort->m_FlagsSpinLock);
+    }
+
     return DT_STATUS_OK;
 }
 
@@ -1218,8 +1247,10 @@ static void  DtaNonIpMatrixProcessRxFlags(DtaNonIpPort* pNonIpPort)
         // the current configuration.
         if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_INPUT)
             Status |= DTA_RX_FIFO_OVF;
-        else
+        else {
             Status |= DTA_TX_FIFO_UFL;
+            pNonIpPort->m_TxUfl = TRUE;
+        }
         DtaRegHdStatClrRxOvfErrInt(pNonIpPort->m_pRxRegs);
     }
 
@@ -1273,6 +1304,31 @@ static DtStatus  DtaNonIpMatrixConfigureForAsi(
     pHdRegs = pNonIpPort->m_pTxRegs;
     pSect0 = &pNonIpPort->m_Matrix.m_BufConfig.m_Sections[0];
 
+
+    //=+=+=+=+=+=+=+=+=+=+=+=+=+ TT #1637: BEGIN OF WORKAROUND +=+=+=+=+=+=+=+=+=+=+=+=+=+
+    //
+    // NOTE: the following is a workaround for TT defect #1637 (2154,FW V1: fractional 
+    // SDI to ASI switch, results in an invalid ASI signal)
+    //
+    if (!DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort))
+    {
+        Int  VideoId=0, PictRate=0, Progressive=0;
+        
+        // First switch to a non-fractional HD-standard. 
+        DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_DISABLE);
+        DtaRegHdCtrl1SetRxTxCtrl(pHdRegs, DT_HD_RXTXCTRL_IDLE);
+
+        DtaNonIpMatrixVidStd2SdiFormat(DT_VIDSTD_1080I50, &VideoId, &PictRate,
+                                                                            &Progressive);
+        DtaRegHdSdiFormatSetVideoId(pHdRegs, VideoId);
+        DtaRegHdSdiFormatSetPictureRate(pHdRegs, PictRate);
+        DtaRegHdSdiFormatSetProgressive(pHdRegs, Progressive);
+
+        DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_HD);
+    }
+    //
+    //+=+=+=+=+=+=+=+=+=+=+=+=+=+ TT #1637: END OF WORKAROUND +=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
     // Disable channel before configuring 
     DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_DISABLE);
     DtaRegHdCtrl1SetRxTxCtrl(pHdRegs, DT_HD_RXTXCTRL_IDLE);
@@ -1299,7 +1355,11 @@ static DtStatus  DtaNonIpMatrixConfigureForAsi(
     
     DtaRegHdS0BeginAddrSet(pHdRegs, pSect0->m_BeginAddr);
     DtaRegHdS0EndAddrSet(pHdRegs, pSect0->m_EndAddr);
-    
+
+    DtDbgOut(AVG, NONIP, "Frame Buffer Config  (PortIdx %d):", pNonIpPort->m_PortIndex);
+    DtDbgOut(AVG, NONIP, "- S0: sz=%d, begin,end[0x%08X:0x%08X]", 
+              pNonIpPort->m_Matrix.m_AsiFifoSize, pSect0->m_BeginAddr, pSect0->m_EndAddr);   
+        
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Enable relevant interrupts -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
     Status = DtaNonIpMatrixInterruptEnable(pNonIpPort);
@@ -1323,8 +1383,8 @@ static DtStatus  DtaNonIpMatrixConfigureForAsi(
 
     pNonIpPort->m_Matrix.m_AsiDmaNumBytes = 0;
     pNonIpPort->m_Matrix.m_AsiDmaOffset = 0;
-    pNonIpPort->m_Matrix.m_AsiCtrl = 0;
-    DtaRegHdCurrentFrameSet(pHdRegs, 0);
+    pNonIpPort->m_Matrix.m_AsiCtrl = DT_TXCTRL_IDLE; // Is the same as DT_RXCTRL_IDLE
+    DtaRegHdAsiByteCountSet(pHdRegs, 0);
 
     return Status;
 }
@@ -2434,6 +2494,15 @@ UInt  DtaNonIpMatrixDmaWriteFinished(DtaNonIpPort* pNonIpPort, Int TrCmd)
     pNonIpPort->m_Matrix.m_AsiDmaOffset %= pNonIpPort->m_Matrix.m_AsiFifoSize;
     pNonIpPort->m_Matrix.m_AsiDmaNumBytes += DmaNumBytes;
     return DmaNumBytes;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixPeriodicInt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtaNonIpMatrixPeriodicInt(DtaNonIpPort* pNonIpPort)
+{
+    Int  FifoLoad;
+    // The GetFifoLoad function will also set the overflow flag if an overflow occurred.
+    DtaMatrixAsiRxGetFifoLoad(pNonIpPort, &FifoLoad);
 }
 
 #ifdef _DEBUG

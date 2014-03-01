@@ -1640,24 +1640,20 @@ void  DtaIpTxRtGetLocalAddress(
 // status to down.
 // Expected is that the DMA header is already added.
 DtStatus  DtaIpTxWriteNDisPacket(
-    DtaIpPort*  pIpPort,    
+    DtaIpPort*  pIpPort,
     UInt8*  pBuf, 
     UInt  BufLen)
 {    
-    UInt8*  pDst;    
+    UInt8*  pDst;
     UInt  FreeSpaceUntilEnd;
     UInt  FreeSpaceFromBegin;
     DtaDmaTxHeader* pDmaHeader = NULL;
-        
-    DtaIpNrtChannels*  pNrtChannels = &pIpPort->m_NrtChannels;    
+
+    DtaIpNrtChannels*  pNrtChannels = &pIpPort->m_NrtChannels;
     DtaIpNwSharedBufInfo*  pSharedInfo = pNrtChannels->m_TxSharedBuf.m_pSharedInfo;
     UInt8* pNrtBuf = pNrtChannels->m_TxSharedBuf.m_pBuffer;
     UInt ReadOffset = 0;
     UInt WriteOffset = 0;
-    
-    // Tranmit one packet at a time: wait for the transmit thread to finish previous 
-    // transfers.
-    while(pSharedInfo->m_ReadOffset != pSharedInfo->m_WriteOffset);
 
     ReadOffset = pSharedInfo->m_ReadOffset;
     WriteOffset = pSharedInfo->m_WriteOffset;
@@ -1680,17 +1676,17 @@ DtStatus  DtaIpTxWriteNDisPacket(
         else
             FreeSpaceFromBegin = ReadOffset - 1;
     }
-    
+
     if (FreeSpaceUntilEnd >= BufLen)
     {
         pDst = pNrtBuf + WriteOffset;
         WriteOffset += BufLen;
     } else if (FreeSpaceFromBegin >= BufLen) 
     {
-        // Mark dummy bytes until end.        
+        // Mark dummy bytes until end.
         pNrtBuf[pSharedInfo->m_WriteOffset] = '*';
         pDst = pNrtBuf;
-        WriteOffset = BufLen;       
+        WriteOffset = BufLen;
     } else {
         // Not enough room, skip pakket
         DtDbgOut(ERR, IP_TX, "Transmit buffer full. Packet discarded");
@@ -1698,7 +1694,7 @@ DtStatus  DtaIpTxWriteNDisPacket(
     }
 
     DtMemCopy(pDst, pBuf, BufLen);
-        
+
     // Align data on DWORD's
     if (BufLen%4 != 0)
         WriteOffset += 4 - (BufLen % 4);
@@ -1708,12 +1704,12 @@ DtStatus  DtaIpTxWriteNDisPacket(
         DtDbgOut(ERR, IP_TX, "Write offset exceeds buffersize, setting offset to 0");
         WriteOffset = 0;
     }
-    
+
     pDmaHeader = (DtaDmaTxHeader *)pBuf; 
     pSharedInfo->m_WriteOffset = WriteOffset;
 
     DtAtomicIncrement(&pSharedInfo->m_DataAvailableCnt);
-    DtEventSet(&pSharedInfo->m_DataAvailableEvent);    
+    DtEventSet(&pSharedInfo->m_DataAvailableEvent);
     return DT_STATUS_OK;
 }
 

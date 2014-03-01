@@ -99,6 +99,7 @@ SRC    = $(SRCDIR)/Linux/DtaIal.o         \
          $(SRCDIR)/Lmh1982.o              \
          $(SRCDIR)/Lmh1983.o              \
          $(SRCDIR)/FpgaGenlock.o          \
+         $(SRCDIR)/Rs422.o                \
          $(SRCDIR)/Linux/DtaDeviceTable.o \
          Messages.o
 

@@ -36,10 +36,9 @@ void DtaI2cCompletedDpc(DtDpcArgs* pArgs);
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cInitValues -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtaI2cInitValues(
-    DtaDeviceData*  pDvcData,
     Bool  IsSupported, 
     Int  ClockFreq, 
-    Int  I2cOffset, 
+    UInt16  I2cOffset, 
     DtaI2c*  pI2c)
 {
     DtStatus  Status = DT_STATUS_OK;
@@ -47,10 +46,8 @@ DtStatus  DtaI2cInitValues(
     pI2c->m_IsSupported = IsSupported;
     pI2c->m_ClockFreq = ClockFreq;
 
-    if (IsSupported)    
-        pI2c->m_pI2cRegs = pDvcData->m_pGenRegs + I2cOffset;
-    else 
-        pI2c->m_pI2cRegs = NULL;
+    pI2c->m_RegOffset = I2cOffset;
+    pI2c->m_pI2cRegs = NULL;
 
     // Initialize additional I2cLock function
     pI2c->m_pI2cLockFunction = NULL;
@@ -82,7 +79,7 @@ DtStatus  DtaI2cInit(DtaDeviceData* pDvcData)
 {
     DtStatus  Status = DT_STATUS_OK;
     Int  i;
-    UInt16  I2cOffset = 0;
+    UInt16  I2cOffset = (UInt16)-1;
     Bool IsSupported = FALSE;
     Int  ClockFreq = 0;
 
@@ -104,7 +101,7 @@ DtStatus  DtaI2cInit(DtaDeviceData* pDvcData)
         return Status;
     
     // Initialise I2c on device level    
-    Status = DtaI2cInitValues(pDvcData, IsSupported, ClockFreq, DT_GEN_REG_I2CBASE, 
+    Status = DtaI2cInitValues(IsSupported, ClockFreq, DT_GEN_REG_I2CBASE, 
                                                                         &pDvcData->m_I2c);
     if (!DT_SUCCESS(Status))
         return Status;
@@ -124,11 +121,11 @@ DtStatus  DtaI2cInit(DtaDeviceData* pDvcData)
             I2cOffset = (UInt16)Value;
             IsSupported = TRUE;
         } else {
-            I2cOffset = 0;
+            I2cOffset = (UInt16)-1;
             IsSupported = FALSE;
         }
 
-        Status = DtaI2cInitValues(pDvcData, IsSupported, ClockFreq, I2cOffset, 
+        Status = DtaI2cInitValues(IsSupported, ClockFreq, I2cOffset, 
                                                        &pDvcData->m_pNonIpPorts[i].m_I2c);
         if (!DT_SUCCESS(Status))
             return Status;
@@ -178,6 +175,10 @@ DtStatus  DtaI2cPowerUp(DtaDeviceData* pDvcData)
     UInt  ClkDiv;
     Int  i;
     DtaI2c*  pI2c = &pDvcData->m_I2c;
+    if (pI2c->m_IsSupported)
+        pI2c->m_pI2cRegs = pDvcData->m_pGenRegs + pI2c->m_RegOffset;
+    else
+        pI2c->m_pI2cRegs = NULL;
     
     pI2cRegs = pI2c->m_pI2cRegs;
 
@@ -201,6 +202,10 @@ DtStatus  DtaI2cPowerUp(DtaDeviceData* pDvcData)
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {   
         pI2c = &pDvcData->m_pNonIpPorts[i].m_I2c;
+        if (pI2c->m_IsSupported)
+            pI2c->m_pI2cRegs = pDvcData->m_pGenRegs + pI2c->m_RegOffset;
+        else
+            pI2c->m_pI2cRegs = NULL;
         pI2cRegs = pI2c->m_pI2cRegs;
 
         if (pI2c->m_IsSupported && pI2c->m_ClockFreq > 0)

@@ -721,6 +721,7 @@ void  DtaNwEvtNewPacketRxCallback(
     if (pSkb == NULL)
     {
         DtDbgOut(ERR, IAL, "Error allocating new packet struct");
+        pDvcData->m_NwRcvNoBuffer++;
         pDvcData->m_IalData.m_NetStats.rx_dropped++;
         return;
     }

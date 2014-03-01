@@ -58,6 +58,8 @@
 #define  LOG_LEVEL_NONIP         LOG_AVG
 // MATRIX
 #define  LOG_LEVEL_MATRIX        LOG_AVG
+// RS-422
+#define  LOG_LEVEL_RS422         LOG_AVG
 // IP
 #define  LOG_LEVEL_IP            LOG_MAX
 // IP Rx

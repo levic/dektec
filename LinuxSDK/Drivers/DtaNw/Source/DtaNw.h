@@ -128,6 +128,9 @@ struct _DtaNwDeviceData
     Bool  m_CheckUdpChecksumIPv6Fw;     // Indicate Udp Rx checksum status
     Bool  m_CheckTcpChecksumIPv4Fw;     // Indicate Tcp Rx checksum status
     Bool  m_CheckTcpChecksumIPv6Fw;     // Indicate Tcp Rx checksum status
+
+    // Internal counters
+    UInt  m_NwRcvNoBuffer;
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTANW public interface -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

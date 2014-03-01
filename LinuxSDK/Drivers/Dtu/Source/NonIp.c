@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIp.c *#*#*#*#*#*#*#*#*#* (C) 2011-2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIp.c *#*#*#*#*#*#*#*#*#* (C) 2011-2013 DekTec
 //
 // Dtu driver - Non IP functionality - Implementation of generic non IP port functionality
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2012 DekTec Digital Video B.V.
+// Copyright (C) 2011-2013 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -1250,8 +1250,8 @@ DtStatus  DtuNonIpTxReset(DtuDeviceData*  pDvcData, DtuNonIpPort*  pNonIpPort,
 //
 DtStatus  DtuGetuFrameSize(DtuNonIpPort*  pNonIpPort, Int*  pUFrameSize)
 {
-    DtuDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
-    *pUFrameSize = pDvcData->m_AltSetting[pDvcData->m_CurAltSetting].m_uFrameSize;
+    // Hardcode request size at 512k blocks for now
+    *pUFrameSize = 512*1024;
     return DT_STATUS_OK;
 }
 
@@ -1291,6 +1291,7 @@ DtStatus  DtuNonIpSetIsoBw(DtuNonIpPort*  pNonIpPort, Int64*  pBw)
     {
         return DT_STATUS_OK;
     }
+    return DT_STATUS_OK;
 
     WDF_USB_INTERFACE_SELECT_SETTING_PARAMS_INIT_SETTING(&Params, (UCHAR)AltSetting);
     NtStatus = WdfUsbInterfaceSelectSetting(UsbInterface, WDF_NO_OBJECT_ATTRIBUTES,

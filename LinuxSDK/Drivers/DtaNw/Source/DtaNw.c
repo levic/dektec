@@ -86,7 +86,7 @@ DtStatus  DtaNwDeviceDataInit(DtaNwDeviceData* pDvcData)
     pDvcData->m_MacAddressOverride = FALSE;
     pDvcData->m_Support8021P_Priority = TRUE;
     pDvcData->m_Supports8021Q_Vlan = TRUE;
-    
+    pDvcData->m_NwRcvNoBuffer = 0;
     return DT_STATUS_OK;
 }
 
@@ -467,7 +467,9 @@ DtStatus  DtaNwGetStatisticCounter(
     UInt  StatisticId,
     UInt64*  pValue)
 {
-    return DtaNwGetStatisticCounterIoCtrl(pDvcData, StatisticId, pValue);
+    DtStatus  Status = DtaNwGetStatisticCounterIoCtrl(pDvcData, StatisticId, pValue);
+    *pValue+= pDvcData->m_NwRcvNoBuffer;
+    return Status;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwGetMaxMulticastList -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -611,6 +613,17 @@ void  DtaNwRxThread(DtThread* pThread, void* pContext)
             pDmaRxHeader = (DtaDmaRxHeader*)pPacket;
             DT_ASSERT(pDmaRxHeader->m_Tag==0x445441A0 && 
                                           pDmaRxHeader->m_Length==sizeof(DtaDmaTxHeader));
+
+            if (pDmaRxHeader->m_Tag!=0x445441A0 || pDmaRxHeader->m_Length!=sizeof(DtaDmaTxHeader) ||
+                pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength<12)
+            {
+                // Fatal error: clear RX buffer and log error.
+                pSharedInfo->m_ReadOffset = pSharedInfo->m_WriteOffset;
+                DtEvtLogReport(&pDvcData->m_Device.m_EvtObject, DTANW_LOG_FATAL_ERROR, NULL, NULL,
+                                                                                    NULL);
+
+                continue;
+            }
             //Calculate PacketLength: DmaRxHeader is not included in FrameLength
             DataLength = pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength;
             PacketSize = DataLength;

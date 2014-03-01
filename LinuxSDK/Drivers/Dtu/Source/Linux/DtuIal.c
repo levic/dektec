@@ -903,6 +903,9 @@ static void  DtuDisconnect(struct usb_interface* pUsbItf)
     // Deregister our device
     usb_deregister_dev(pUsbItf, &DtuClass);
 
+    // Remove attributes from device
+    device_remove_file(&pDvcData->m_Device.m_pUsbItf->dev, &dev_attr_serial);
+
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,38)
     // Unlock kerenel
     unlock_kernel();
@@ -1076,9 +1079,6 @@ void  DtuDevDelete(
     pDvcData = container_of(pIalData, DtuDeviceData, m_IalData);
     if (pDvcData == NULL)
         return;
-
-    // Remove attributes from device
-    device_remove_file(&pDvcData->m_Device.m_pUsbItf->dev, &dev_attr_serial);
     
     // Release link to USB device
     usb_put_dev(pDvcData->m_Device.m_pUsbDev);

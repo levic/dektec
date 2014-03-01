@@ -86,8 +86,11 @@
 // COMPATIBLE WITH USER APPLICATIONS THAT WERE COMPILED AGAINST AN OLD DRIVER!!
 enum {
     FUNC_DTANWAP_GET_GUIDVLAN = DTANWAP_IOCTL_BASE,
+    FUNC_DTANWAP_GET_DRIVER_VERSION,
 };
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTANWAP_IOCTL_GET_GUIDVLAN -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
 // Ioctl input data type
 typedef struct _DtaNwApIoctlGetGuidVlanInput {
     UInt8  m_MacAddress[6];                 // MAC address main network device
@@ -106,19 +109,34 @@ ASSERT_SIZE(DtaNwApIoctlGetGuidVlanOutput, 16)
                                                           FUNC_DTANWAP_GET_GUIDVLAN,     \
                                                           METHOD_BUFFERED, FILE_READ_DATA)
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwApIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//-.-.-.-.-.-.-.-.-.-.-.-.-.- DTANWAP_IOCTL_GET_DRIVER_VERSION -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtaNwApIoctlGetDriverVersionOutput {
+    Int  m_Major;
+    Int  m_Minor;
+    Int  m_Micro;
+    Int  m_Build;
+} DtaNwApIoctlGetDriverVersionOutput;
+ASSERT_SIZE(DtaNwApIoctlGetDriverVersionOutput, 16)
+
+#define DTANWAP_IOCTL_GET_DRIVER_VERSION  CTL_CODE(DTANWAP_DEVICE_TYPE, \
+                         FUNC_DTANWAP_GET_DRIVER_VERSION, METHOD_BUFFERED, FILE_READ_DATA)
+
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwApIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef union _DtaNwApIoctlInputData {
     DtaNwApIoctlGetGuidVlanInput  m_GetGuidVlan;
 } DtaNwApIoctlInputData;
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwApIoctlOutputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwApIoctlOutputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 typedef union _DtaNwApIoctlOutputData {
     DtaNwApIoctlGetGuidVlanOutput  m_GetGuidVlan;
+    DtaNwApIoctlGetDriverVersionOutput  m_GetDriverVersion;
 } DtaNwApIoctlOutputData;
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwApIoctlData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwApIoctlData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef union _DtaNwApIoctlData {
     DtaNwApIoctlInputData  m_Input;

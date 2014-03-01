@@ -127,7 +127,8 @@ enum {
     FUNC_DTA_GET_DEV_INFO2,
     FUNC_DTA_GET_PROPERTY3,
     FUNC_DTA_GET_STR_PROPERTY2,
-    FUNC_DTA_GET_TABLE2
+    FUNC_DTA_GET_TABLE2,
+    FUNC_DTA_RS422_CMD
 };
 
 // Ioctl input data type
@@ -1434,6 +1435,7 @@ ASSERT_SIZE(DtaIoctlIpRxCmdSetModeInput, 8)
 // Flags
 #define DTA_IP_V4                1
 #define DTA_IP_V6                2
+#define DTA_IP_TX_MANSRCPORT     4
 
 // DTA_IP_RX_CMD_SETIPPARS
 typedef struct _DtaIoctlIpRxCmdSetIpParsInput {
@@ -2288,6 +2290,74 @@ ASSERT_SIZE(DtaIoctlGetGenlockStateOutput, 8)
 
     #define DTA_IOCTL_GET_DEV_GENLOCKSTATE  _IOR(DTA_IOCTL_MAGIC, \
                                FUNC_DTA_GET_DEV_GENLOCKSTATE, DtaIoctlGetGenlockStateData)
+#endif
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_RS422_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+// Wrapper IOCTL for all RS-422 related commands
+//
+
+// Command definitions
+#define  DTA_RS422_CMD_WRITE              1     // Initiate a write to the RS-422 port
+#define  DTA_RS422_CMD_READ               2     // Read buffered data
+#define  DTA_RS422_CMD_FLUSH              3     // Flush input buffer
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_RS422_CMD_WRITE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctlRs422CmdWriteInput {
+    UInt8  m_Buf[256];          // Data to be transmitted
+    Int  m_NumBytes;            // Number of bytes in buffer
+    // Do NOT use Bool (defined different in DTAPI and Driver)
+    Int  m_Blocking;            // Wait for transmit to be finished?
+} DtaIoctlRs422CmdWriteInput;
+ASSERT_SIZE(DtaIoctlRs422CmdWriteInput, 264)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_RS422_CMD_READ -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctlRs422CmdReadInput {
+    Int  m_BytesToRead;         // Number of bytes to read
+    Int  m_Timeout;             // Timeout in ms to wait for the new data to arrive.
+                                // 0 means non-blocking, <0 is invalid.
+} DtaIoctlRs422CmdReadInput;
+ASSERT_SIZE(DtaIoctlRs422CmdReadInput, 8)
+
+typedef struct _DtaIoctlRs422CmdReadOutput {
+    UInt8  m_Buf[256];          // Data that has been received
+    Int  m_NumBytes;            // Number of bytes in buffer
+} DtaIoctlRs422CmdReadOutput;
+ASSERT_SIZE(DtaIoctlRs422CmdReadOutput, 260)
+
+// Ioctl input data type
+typedef struct _DtaIoctlRs422CmdInput {
+    Int  m_Cmd;
+    Int  m_PortIndex;
+    union {
+        DtaIoctlRs422CmdWriteInput  m_Write;
+        DtaIoctlRs422CmdReadInput  m_Read;
+    } m_Data;
+} DtaIoctlRs422CmdInput;
+ASSERT_SIZE(DtaIoctlRs422CmdInput, 272)
+    
+// Ioctl output data type
+typedef struct _DtaIoctlRs422CmdOutput {
+    union {
+        DtaIoctlRs422CmdReadOutput  m_Read;
+    } m_Data;
+} DtaIoctlRs422CmdOutput;
+ASSERT_SIZE(DtaIoctlRs422CmdOutput, 260)
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_RS422_CMD  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_RS422_CMD, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlRs422Cmd {
+        DtaIoctlRs422CmdInput  m_Input;
+        DtaIoctlRs422CmdOutput  m_Output;
+    } DtaIoctlRs422Cmd;
+
+    #define DTA_IOCTL_RS422_CMD  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_RS422_CMD, \
+                                                                         DtaIoctlRs422Cmd)
 #endif
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

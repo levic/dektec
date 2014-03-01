@@ -195,6 +195,19 @@ typedef struct _DtaMatrixPort
 
 } DtaMatrixPort;
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRs422Port -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtaRs422Port
+{
+    DtSpinLock  m_StateLock;       // Spinlock to protect state
+    DtDpc  m_IntDpc;
+    DtEvent  m_TxCmplEvent;
+    DtEvent  m_RxDataAvailEvent;
+    UInt8  m_RxBuf[256];
+    Int  m_RxNumBytes;
+    Int  m_TxState;
+} DtaRs422Port;
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpPort -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef struct _DtaNonIpPort
@@ -280,6 +293,7 @@ typedef struct _DtaNonIpPort
     Bool  m_CapGenLocked;
     Bool  m_CapGenRef;
     Bool  m_CapSwS2Apsk;
+    Bool  m_CapRs422;
 
     // Properties
     Bool  m_IsNonFuntional;     // A non-functional port (i.e. not an input or output)
@@ -299,16 +313,19 @@ typedef struct _DtaNonIpPort
     // Status flags
     Int  m_Flags;
     Int  m_FlagsLatched;
+    Bool  m_TxUfl;
     DtSpinLock  m_FlagsSpinLock;
 
     // Firmware register mapping
     UInt16  m_RxRegsOffset;
     UInt16  m_TxRegsOffset;
     UInt16  m_SpiRegsOffset;
+    UInt16  m_Rs422RegsOffset;
     UInt16  m_FifoOffset;
     volatile UInt8*  m_pRxRegs;
     volatile UInt8*  m_pTxRegs;
     volatile UInt8*  m_pSpiRegs;
+    volatile UInt8*  m_pRs422Regs;
 
     // DMA Channel
     DmaChannel  m_DmaChannel;
@@ -334,6 +351,8 @@ typedef struct _DtaNonIpPort
     // Port level I2C
     DtaI2c  m_I2c;
 
+    // RS-422 API
+    DtaRs422Port  m_Rs422;
 
 } DtaNonIpPort;
 
@@ -391,6 +410,11 @@ Int  DtaNonIpMatrixFrame2Index(DtaNonIpPort* pNonIpPort, Int64  Frame);
 Bool  DtaNonIpMatrixUsesLegacyHdChannelInterface(DtaNonIpPort* pNonIpPort);
 UInt  DtaNonIpMatrixDmaReadFinished(DtaNonIpPort* pNonIpPort, Int TrCmd);
 UInt  DtaNonIpMatrixDmaWriteFinished(DtaNonIpPort* pNonIpPort, Int TrCmd);
+void  DtaNonIpMatrixPeriodicInt(DtaNonIpPort* pNonIpPort);
+
+DtStatus  DtaNonIpRs422Init(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpRs422InterruptEnable(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpRs422InterruptDisable(DtaNonIpPort* pNonIpPort);
 
 #ifdef WINBUILD
 void  DtaNonIpDmaCompletedWindows(DmaChannel* pDmaChannel, void* pContext);

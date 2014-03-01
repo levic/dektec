@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuCommon.h *#*#*#*#*#*#*#*#* (C) 2011-2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuCommon.h *#*#*#*#*#*#*#*#* (C) 2011-2013 DekTec
 //
 // Dtu driver - Common file shared between Dtu driver and DTAPI
 //
@@ -7,7 +7,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2012 DekTec Digital Video B.V.
+// Copyright (C) 2011-2013 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -1183,6 +1183,23 @@ typedef union _DtuIoctlData {
     DtuIoctlOutputData  m_Output;
 } DtuIoctlData;
 ASSERT_SIZE(DtuIoctlData, 528)
+
+//+=+=+=+=+=+=+=+=+=+=+=+ DTU-351 shared buffer header definitions +=+=+=+=+=+=+=+=+=+=+=+
+
+typedef struct _Dtu351DataHdr
+{
+    volatile UInt32  m_Flags;              // 0: not valid yet, 1: contains data
+    volatile UInt32  m_NumValid;           // Number of bytes in this buffer
+} Dtu351DataHdr;
+
+typedef struct  _Dtu351BufHdr
+{
+    volatile UInt32  m_TotalBufSize;        // Total size of the buffer, including header
+    volatile UInt32  m_Overflow;
+    volatile UInt32  m_NumAsyncReads;       // Number of transfers to queue at same time
+    volatile UInt32  m_NumBuffers;          // Number of data buffers
+    volatile UInt32  m_FirstBuf;
+} Dtu351BufHdr;
 
 #pragma pack (pop)
 

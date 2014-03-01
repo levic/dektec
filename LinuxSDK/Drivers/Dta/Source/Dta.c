@@ -309,6 +309,11 @@ DtStatus  DtaDeviceInitPci905X(DtaDeviceData* pDvcData)
         WRITE_UINT32(p905XRegs, PCI905X_EEPROM_CTRL_STAT, CntrlReg);
     }
 
+	// For devices with a PLX set the DMA read and write command
+    // Write: B"0111" => PCI Write Command
+    // Read:  B"1100" => PCI Memory Read Multiple Command
+    WRITE_UINT8(p905XRegs, PCI905X_EEPROM_CTRL_STAT, 0x7C);
+
     return DT_STATUS_OK;
 }
 
@@ -460,20 +465,28 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
         Status = DtaInitUserMapping(pDvcData);
         if (!DT_SUCCESS(Status))
             return Status;
-
-        // Get serial number
-        pDvcData->m_DevInfo.m_Serial = -1;
-        BufLen = sizeof(Buffer);
-        Status = DtaVpdReadItemRo(pDvcData, 2, "SN", Buffer, &BufLen);
-        if (DT_SUCCESS(Status))
-            pDvcData->m_DevInfo.m_Serial = DtAnsiCharArrayToUInt64(Buffer, BufLen, 10);
-        else {
-            DtDbgOut(ERR, DTA, "Failed to read serial from VPD (0x%x)", Status);
-            DtEvtLogReport(&pDvcData->m_Device.m_EvtObject,
+        
+        if (pDvcData->m_DevInfo.m_SubDvc > 0)
+        {
+            // NOTE: we need a unique SN for persistence of IO-configs => since slaves do 
+            // not have a VPD with SN we use the board-ID as alternative
+            pDvcData->m_DevInfo.m_Serial = DtaRegBoardId(pDvcData->m_pGenRegs);
+            // Set MSB bit to make sure board ID does not conflict with a normal SN
+            pDvcData->m_DevInfo.m_Serial |= 0x8000000000000000LL;
+        } 
+        else 
+        {
+            // Get serial number
+            pDvcData->m_DevInfo.m_Serial = -1;
+            BufLen = sizeof(Buffer);
+            Status = DtaVpdReadItemRo(pDvcData, 2, "SN", Buffer, &BufLen);
+            if (DT_SUCCESS(Status))
+                pDvcData->m_DevInfo.m_Serial = DtAnsiCharArrayToUInt64(Buffer, BufLen,10);
+            else {
+                DtDbgOut(ERR, DTA, "Failed to read serial from VPD (0x%x)", Status);
+                DtEvtLogReport(&pDvcData->m_Device.m_EvtObject,
                                                  DTA_LOG_SERIAL_FAILED, NULL, NULL, NULL);
-            // Hardcode serial number for slaves
-            if (pDvcData->m_DevInfo.m_SubDvc>0)
-                pDvcData->m_DevInfo.m_Serial = 0; // hardcode to '0'
+            }
         }
                 
         // Get hardware revision from VPD "EC" resource
@@ -823,7 +836,7 @@ DtStatus  DtaDeviceInterruptDisable(DtaDeviceData* pDvcData)
 
     // Interrupts are down
     pDvcData->m_IntEnableState = INT_DISABLED;
-	return DT_STATUS_OK;
+    return DT_STATUS_OK;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDevicePowerDown -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1212,6 +1225,11 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
         InReqSize = sizeof(DtaIoctlGetProperty3Input);
         OutReqSize = sizeof(DtaIoctlGetPropertyOutput);
         break;
+    case DTA_IOCTL_RS422_CMD:
+        pIoctlStr = "DTA_IOCTL_RS422_CMD";
+        InReqSize = 0; // Checked later
+        OutReqSize = 0; // Checked later
+        break;
     default:
         Status = DT_STATUS_NOT_SUPPORTED;
         break;
@@ -1232,6 +1250,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
             case DTA_IOCTL_IP_RX_CMD:
             case DTA_IOCTL_SH_BUF_CMD:
             case DTA_IOCTL_MATRIX_CMD:
+            case DTA_IOCTL_RS422_CMD:
                 DtDbgOut(ERR, DTA, "%s: Skipping IOCTL because powerdown  occured!",
                                                                                pIoctlStr);
                 return DT_STATUS_POWERDOWN;
@@ -1946,6 +1965,10 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
             }
             break;
 
+        case DTA_IOCTL_RS422_CMD:
+            Status = DtaRs422Ioctl(pDvcData, pFile, pIoctl, PowerDownPending);
+            break;
+
         default:
             Status = DT_STATUS_NOT_SUPPORTED;
             break;
@@ -2406,6 +2429,25 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
         }
     }
 
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- RS-422 interrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+    //
+    for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
+    {
+        if (pDvcData->m_pNonIpPorts[i].m_CapRs422)
+        {
+            if (DtaRegRs422StatGetTxReadyInt(pDvcData->m_pNonIpPorts[i].m_pRs422Regs) || 
+                DtaRegRs422StatGetRxDataAvailInt(pDvcData->m_pNonIpPorts[i].m_pRs422Regs))
+            {
+                DtDpcArgs  DpcArgs;
+                DpcArgs.m_pContext = &pDvcData->m_pNonIpPorts[i];
+                // Schedule DPC to handle the interrupt. The DPC will clear the int flag.
+                DtDpcSchedule(&pDvcData->m_pNonIpPorts[i].m_Rs422.m_IntDpc, &DpcArgs);
+                // Interrupt was ours
+                IrqHandled = TRUE;
+            }
+        }
+    }
+
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DMA interrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
     //
     if (pDvcData->m_DmaOptions.m_UseDmaInFpga) 
@@ -2832,7 +2874,10 @@ static void  DtaGeneralPeriodicIntDpc(DtDpcArgs* pArgs)
     {
         // Skip ports with Matrix-API interface; below code does not apply to them
         if (pDvcData->m_pNonIpPorts[i].m_CapMatrix)
+        {
+            DtaNonIpMatrixPeriodicInt(&pDvcData->m_pNonIpPorts[i]);
             continue;
+        }
 
         DtaNonIpIoConfigGet(&pDvcData->m_pNonIpPorts[i], DT_IOCONFIG_IODIR, &CfgValue);
         if (CfgValue.m_Value == DT_IOCONFIG_OUTPUT)
@@ -2976,6 +3021,7 @@ DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData)
     DtStatus  Status = DT_STATUS_OK;
     Int  PortCount;
     Bool  CapAsi, CapSdi, CapHdSdi, CapSpi, CapIp, CapMod, CapDemod, CapIfAdc, CapGenRef;
+    Bool  CapRs422;
     Int  i;
     DtPropertyData*  pPropData = &pDvcData->m_PropData;
     
@@ -3004,8 +3050,9 @@ DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData)
         CapIp = DtPropertiesGetBool(pPropData, "CAP_IP", i);
         CapIfAdc = DtPropertiesGetBool(pPropData, "CAP_IFADC", i);
         CapGenRef = DtPropertiesGetBool(pPropData, "CAP_GENREF", i);
+        CapRs422 = DtPropertiesGetBool(pPropData, "CAP_RS422", i);
         if ((CapAsi || CapSdi || CapHdSdi || CapDemod || CapMod || CapSpi || 
-                                                         CapIfAdc || CapGenRef) && !CapIp)
+                                             CapIfAdc || CapGenRef || CapRs422) && !CapIp)
         {
             // Setup reverse lookup
             pDvcData->m_pPortLookup[i].m_PortType = DTA_PORT_TYPE_NONIP;

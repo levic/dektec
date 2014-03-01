@@ -58,5 +58,6 @@ typedef struct _DtaMatrix
 DtStatus  DtaMatrixInit(DtaDeviceData*  pDvcData);
 DtStatus  DtaMatrixIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
                                            DtIoctlObject* pIoctl, Bool  PowerDownPending);
+DtStatus  DtaMatrixAsiRxGetFifoLoad(DtaNonIpPort*  pNonIpPort, Int*  pFifoLoad);
 
 #endif // __DTA_MATRIX_H

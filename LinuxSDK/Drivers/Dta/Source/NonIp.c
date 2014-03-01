@@ -293,6 +293,8 @@ DtStatus  DtaNonIpInit(
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapSwS2Apsk = DtPropertiesGetBool(pPropData, "CAP_SWS2APSK",
                                                                  pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapRs422 = DtPropertiesGetBool(pPropData, "CAP_RS422",
+                                                                 pNonIpPort->m_PortIndex);
 
 
     // Implementation details properties
@@ -551,6 +553,7 @@ DtStatus  DtaNonIpInit(
     // Initialize status flags
     pNonIpPort->m_Flags = 0;
     pNonIpPort->m_FlagsLatched = 0;
+    pNonIpPort->m_TxUfl = FALSE;
     DtSpinLockInit(&pNonIpPort->m_FlagsSpinLock);
 
     // Init failsafe fields
@@ -602,6 +605,12 @@ DtStatus  DtaNonIpInit(
                                                 "REGISTERS_SPI", pNonIpPort->m_PortIndex);
     } else
         pNonIpPort->m_SpiRegsOffset = (UInt16)-1;
+    if (pNonIpPort->m_CapRs422)
+    {
+        pNonIpPort->m_Rs422RegsOffset = DtPropertiesGetUInt16(pPropData,
+                                              "REGISTERS_RS422", pNonIpPort->m_PortIndex);
+    } else
+        pNonIpPort->m_Rs422RegsOffset = (UInt16)-1;
     
     // Report configuration errors
     if (DT_SUCCESS(Status))
@@ -655,6 +664,15 @@ DtStatus  DtaNonIpInit(
         if (!DT_SUCCESS(Status))
             return Status;
     }
+
+    // RS-422 ports initialization
+    if (pNonIpPort->m_CapRs422)
+    {
+        Status = DtaNonIpRs422Init(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+
     return Status;
 }
 
@@ -668,7 +686,6 @@ DtStatus  DtaNonIpInit(
 //
 DtStatus  DtaNonIpInterruptEnable(DtaNonIpPort* pNonIpPort)
 {
-    DtStatus  Status = DT_STATUS_OK;
     DtaDeviceData*  pDvcData = NULL;
     DtIntEnableState  IntEnaState;
 
@@ -690,8 +707,13 @@ DtStatus  DtaNonIpInterruptEnable(DtaNonIpPort* pNonIpPort)
 
     // Enable Matrix specific interrupts
     if (pNonIpPort->m_CapMatrix)
-        Status = DtaNonIpMatrixInterruptEnable(pNonIpPort);
-    return Status;
+        DT_RETURN_ON_ERROR(DtaNonIpMatrixInterruptEnable(pNonIpPort));
+
+    // Enable RS-422 specific interrupts
+    if (pNonIpPort->m_CapRs422)
+        DT_RETURN_ON_ERROR(DtaNonIpRs422InterruptEnable(pNonIpPort));
+
+    return DT_STATUS_OK;
 }
 
 
@@ -704,8 +726,6 @@ DtStatus  DtaNonIpInterruptEnable(DtaNonIpPort* pNonIpPort)
 //
 DtStatus  DtaNonIpInterruptDisable(DtaNonIpPort* pNonIpPort)
 {
-    DtStatus  Status = DT_STATUS_OK;
-
     DT_ASSERT(pNonIpPort != NULL);
 
     // Disable I2c interrupt on port level
@@ -714,9 +734,13 @@ DtStatus  DtaNonIpInterruptDisable(DtaNonIpPort* pNonIpPort)
 
     // Disable Matrix specific interrupts
     if (pNonIpPort->m_CapMatrix)
-        Status = DtaNonIpMatrixInterruptDisable(pNonIpPort);
+        DT_RETURN_ON_ERROR(DtaNonIpMatrixInterruptDisable(pNonIpPort));
 
-    return Status;
+    // Disable RS-422 specific interrupts
+    if (pNonIpPort->m_CapRs422)
+        DT_RETURN_ON_ERROR(DtaNonIpRs422InterruptDisable(pNonIpPort));
+
+    return DT_STATUS_OK;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpDetermineDmaRegsOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -829,6 +853,9 @@ DtStatus  DtaNonIpPowerup(DtaNonIpPort* pNonIpPort)
     if (pNonIpPort->m_SpiRegsOffset != (UInt16)-1)
         pNonIpPort->m_pSpiRegs = pNonIpPort->m_pDvcData->m_pGenRegs +
                                                               pNonIpPort->m_SpiRegsOffset;
+    if (pNonIpPort->m_Rs422RegsOffset != (UInt16)-1)
+        pNonIpPort->m_pRs422Regs = pNonIpPort->m_pDvcData->m_pGenRegs +
+                                                            pNonIpPort->m_Rs422RegsOffset;
 
     // Skip init of DMA resources for a non-functional port
     if (!pNonIpPort->m_IsNonFuntional)
@@ -841,6 +868,7 @@ DtStatus  DtaNonIpPowerup(DtaNonIpPort* pNonIpPort)
     // Clear flags
     pNonIpPort->m_Flags = 0;
     pNonIpPort->m_FlagsLatched = 0;
+    pNonIpPort->m_TxUfl = FALSE;
 
     // Initialise bitrate measurement
     pNonIpPort->m_BitrateMeasure.m_NumValidSamps = 0;       // No valid samples yet
@@ -1709,21 +1737,34 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
     DtaIoConfigValue CfgValue)
 {
     DtStatus  Status = DT_STATUS_OK;
+    Bool  ForceConfig = FALSE;
     DtaIoConfigValue  OldCfgValue = pNonIpPort->m_IoCfg[Group];
     DtaIoConfigValue  IoDirValue;
     DtaNonIpIoConfigGet(pNonIpPort, DT_IOCONFIG_IODIR, &IoDirValue);
-
-    
+        
     switch (CfgValue.m_Value)
     {
     case DT_IOCONFIG_ASI:
     case DT_IOCONFIG_SPI:
         DT_ASSERT(pNonIpPort->m_CapAsi || pNonIpPort->m_CapSpi);
 
-        // For devices with matrix API interface there is nothing to do
+        // Configuration for Matrix capable ports
         if (pNonIpPort->m_CapMatrix)
-            break;
+        {
+            // Force a reconfig if IOSTD was not already ASI
+            ForceConfig = (OldCfgValue.m_Value != DT_IOCONFIG_ASI);
 
+            // Save new config, before apply-ing
+            pNonIpPort->m_IoCfg[Group] = CfgValue;
+            Status =  DtaNonIpMatrixConfigure(pNonIpPort, ForceConfig);
+            // Restore original config, if failed to apply new one
+            if (!DT_SUCCESS(Status))
+                pNonIpPort->m_IoCfg[Group] = OldCfgValue;   
+
+            break;
+        }
+        
+        // "Normal ASI" ports
         if (IoDirValue.m_Value == DT_IOCONFIG_OUTPUT)
             DtaRegTxCtrlSetSdiMode(pNonIpPort->m_pTxRegs, 0);
         else if (IoDirValue.m_Value == DT_IOCONFIG_INPUT)
@@ -1736,9 +1777,12 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
         if (!pNonIpPort->m_CapMatrix)
             break;  // Nothing to do for none matrix ports
 
+        // Force a reconfig if IOSTD was not already 3G-SDI
+        ForceConfig = (OldCfgValue.m_Value != DT_IOCONFIG_3GSDI);
+
         // Save new config, before apply-ing
         pNonIpPort->m_IoCfg[Group] = CfgValue;
-        Status =  DtaNonIpMatrixConfigure(pNonIpPort, FALSE);
+        Status =  DtaNonIpMatrixConfigure(pNonIpPort, ForceConfig);
         // Restore original config, if failed to apply new one
         if (!DT_SUCCESS(Status))
             pNonIpPort->m_IoCfg[Group] = OldCfgValue;   
@@ -1750,9 +1794,12 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
         if (!pNonIpPort->m_CapMatrix)
             break;  // Nothing to do for none matrix ports
         
+        // Force a reconfig if IOSTD was not already HD-SDI
+        ForceConfig = (OldCfgValue.m_Value != DT_IOCONFIG_HDSDI);
+
         // Save new config, before apply-ing
         pNonIpPort->m_IoCfg[Group] = CfgValue;
-        Status =  DtaNonIpMatrixConfigure(pNonIpPort, FALSE);
+        Status =  DtaNonIpMatrixConfigure(pNonIpPort, ForceConfig);
         // Restore original config, if failed to apply new one
         if (!DT_SUCCESS(Status))
             pNonIpPort->m_IoCfg[Group] = OldCfgValue;   
@@ -1763,9 +1810,12 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
 
         if (pNonIpPort->m_CapMatrix)
         {
+            // Force a reconfig if IOSTD was not already SDI
+            ForceConfig = (OldCfgValue.m_Value != DT_IOCONFIG_SDI);
+
             // Save new config, before apply-ing
             pNonIpPort->m_IoCfg[Group] = CfgValue;
-            Status =  DtaNonIpMatrixConfigure(pNonIpPort, FALSE);
+            Status =  DtaNonIpMatrixConfigure(pNonIpPort, ForceConfig);
             // Restore original config, if failed to apply new one
             if (!DT_SUCCESS(Status))
                 pNonIpPort->m_IoCfg[Group] = OldCfgValue;   
@@ -1873,12 +1923,12 @@ static DtStatus  DtaNonIpIoConfigSetRfClkSel(
         if (!pNonIpPort->m_CapRfClkExt)
             break;
         // Select internal clock
-        DtaRegTxRfCtrl2SetRfClkSel(pNonIpPort->m_pTxRegs, 1);
+        DtaRegTxRfCtrl3SetRfClkSel(pNonIpPort->m_pTxRegs, 1);
         break;
     case DT_IOCONFIG_RFCLKEXT:
         DT_ASSERT(pNonIpPort->m_CapRfClkExt);
         // Select external clock
-        DtaRegTxRfCtrl2SetRfClkSel(pNonIpPort->m_pTxRegs, 0);
+        DtaRegTxRfCtrl3SetRfClkSel(pNonIpPort->m_pTxRegs, 0);
         break;
     default:
         DtDbgOut(ERR, NONIP, "Invalid Config. Group: %d, Value: %d, SubValue: %d",

@@ -36,6 +36,8 @@ typedef struct _DtaI2c
     // I2c properties
     Bool  m_IsSupported;
 
+    
+    UInt16  m_RegOffset;
     // Start adress of the I2c controller
     volatile UInt8*  m_pI2cRegs;
 

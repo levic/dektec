@@ -840,24 +840,24 @@ static const DtTableLink  DtTableLink2139_0[] =
 //
 static const DtTableEntry  DtTable2154_0_000[] =
 {
-    { 1, 1 }, { 2, 2 }, { 5, 3 }
+    { 1, 1 }, { 2, 2 }, { 5, 3 }, { 6, 4 }
 };
 
 static const DtTableLink  DtTableLink2154_0[] = 
 {
-    { "SUBDVC_PORT_MAP", -1, 0, 0, 3, DtTable2154_0_000 }
+    { "SUBDVC_PORT_MAP", -1, 0, 0, 4, DtTable2154_0_000 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2154; Sub-device=1 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 static const DtTableEntry  DtTable2154_1_001[] =
 {
-    { 3, 1 }, { 4, 2 }
+    { 3, 1 }, { 4, 2 }, { 7, 3 }
 };
 
 static const DtTableLink  DtTableLink2154_1[] = 
 {
-    { "SUBDVC_PORT_MAP", -1, 0, 0, 2, DtTable2154_1_001 }
+    { "SUBDVC_PORT_MAP", -1, 0, 0, 3, DtTable2154_1_001 }
 };
 
 const Int  DtTableStoreCount = 12;

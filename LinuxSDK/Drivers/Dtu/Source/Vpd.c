@@ -1171,11 +1171,15 @@ static void  DtuVpdInitIdOffset(DtuDeviceData* pDvcData)
     p = &pVpd->m_pCache[pVpd->m_IdOffset];
     if (*p == VPD_IDSTRING_TAG)
     {
-        pVpd->m_IdLength = 3 + p[1] + (p[2]<<8);
-        pVpd->m_RoOffset = pVpd->m_IdOffset + pVpd->m_IdLength;
-        p = &pVpd->m_pCache[pVpd->m_RoOffset];
-        if (*p == VPD_R_TAG)
-            pVpd->m_RoLength = pVpd->m_RwOffset - pVpd->m_RoOffset;
+        Int  IdLength = 3 + p[1] + (p[2]<<8);
+        if ((Int)(pVpd->m_IdOffset + IdLength) < VpdEnd)
+        {
+            pVpd->m_IdLength = IdLength;
+            pVpd->m_RoOffset = pVpd->m_IdOffset + pVpd->m_IdLength;
+            p = &pVpd->m_pCache[pVpd->m_RoOffset];
+            if (*p == VPD_R_TAG)
+                pVpd->m_RoLength = pVpd->m_RwOffset - pVpd->m_RoOffset;
+        }
     }
 
     i = VpdEnd+1;

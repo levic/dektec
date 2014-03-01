@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dtu.c *#*#*#*#*#*#*#*#*#*# (C) 2011-2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dtu.c *#*#*#*#*#*#*#*#*#*# (C) 2011-2013 DekTec
 //
 // Dtu driver - Interface for the Dtu common driver, used by the IAL.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2012 DekTec Digital Video B.V.
+// Copyright (C) 2011-2013 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -182,21 +182,6 @@ DtStatus  DtuDeviceOpen(DtuDeviceData* pDvcData, DtFileObject* pFile)
 }
 
 #ifdef WINBUILD
-typedef struct Rx351Buf_
-{
-    volatile UInt32  m_Flags;              // 0: not valid yet, 1: contains data
-    volatile UInt32  m_NumValid;           // Number of bytes in this buffer
-} Rx351Buf;
-
-typedef struct  Rx351BufHeader_
-{
-    volatile UInt32  m_TotalBufSize;        // Total size of the buffer, including header
-    volatile UInt32  m_Overflow;
-    volatile UInt32  m_NumAsyncReads;       // Number of transfers to queue at same time
-    volatile UInt32  m_NumBuffers;          // Number of data buffers.
-    volatile UInt32  m_FirstBuf;
-} Rx351BufHeader;
-// m_TotalBufSize = sizeof(Rx351BufHeader) + m_NumBuffers * (sizeof(Rx351Buf) + sizeof(data_buffer))
 
 typedef struct  AsyncRequest_
 {
@@ -205,7 +190,7 @@ typedef struct  AsyncRequest_
     WDFREQUEST  m_WdfRequest;
     DtEvent  m_EvtRequestDone;
     BOOLEAN  m_IsValid;
-    Rx351Buf*  m_DataHeaders;
+    Dtu351DataHdr*  m_DataHeaders;
     Int  m_NumBuffers;
     Int  m_FirstIdx;
 } AsyncRequest;
@@ -218,34 +203,23 @@ void  Dtu351EvtComplete(
     )
 {
     AsyncRequest*  Req = (AsyncRequest*)pContext;
-    Int  NumPackets = Req->m_pUrb->UrbIsochronousTransfer.NumberOfPackets;
-    Int  i;
+    Int  NumPackets = 1;
 
     if (Params->IoStatus.Status != STATUS_SUCCESS)
     {
         DtDbgOut(ERR, DTU, "IoStatus: 0x%X", Params->IoStatus.Status);
+        Req->m_DataHeaders[Req->m_FirstIdx].m_NumValid = 0;
     }
-    if (Req->m_pUrb->UrbHeader.Status != USBD_STATUS_SUCCESS)
+    else if (Req->m_pUrb->UrbHeader.Status != USBD_STATUS_SUCCESS)
     {
         DtDbgOut(ERR, DTU, "UrbHeader.Status: 0x%X", Req->m_pUrb->UrbHeader.Status);
+        Req->m_DataHeaders[Req->m_FirstIdx].m_NumValid = 0;
+    } else {
+        Req->m_DataHeaders[Req->m_FirstIdx].m_NumValid = 
+                             Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBufferLength;
     }
 
-    for (i=0; i<NumPackets; i++)
-    {
-        Int  Idx = (Req->m_FirstIdx + i) % Req->m_NumBuffers;
-        if (Req->m_pUrb->UrbIsochronousTransfer.IsoPacket[i].Status==USBD_STATUS_SUCCESS)
-        {
-            Req->m_DataHeaders[Idx].m_NumValid = 
-                                  Req->m_pUrb->UrbIsochronousTransfer.IsoPacket[i].Length;
-        } else {
-            Req->m_DataHeaders[Idx].m_NumValid = 0;
-        }
-        // Unconditionally signal to the DTAPI that the buffer is valid. A zero-length
-        // buffer can be skipped by the DTAPI this way.
-        Req->m_DataHeaders[Idx].m_Flags = 1;
-    }
-    if (Req->m_pUrb->UrbIsochronousTransfer.ErrorCount != 0)
-        DtDbgOut(ERR, DTU, "ErrorCount: %d", Req->m_pUrb->UrbIsochronousTransfer.ErrorCount);
+    Req->m_DataHeaders[Req->m_FirstIdx].m_Flags = 1;
     
     DtEventSet(&Req->m_EvtRequestDone);
 }
@@ -397,7 +371,7 @@ void  Dtu351WorkerThreadReadData(
 #ifdef WINBUILD
     NTSTATUS  NtStatus = STATUS_SUCCESS;
     DtStatus  Status = DT_STATUS_OK;
-    Rx351BufHeader*  BufHeader;
+    Dtu351BufHdr*  BufHeader;
     UInt8*  Buf;
     Int  i, j;
     USBD_PIPE_HANDLE wdmhUSBPipe;
@@ -407,20 +381,28 @@ void  Dtu351WorkerThreadReadData(
     BOOLEAN  FatalError = FALSE;
     Int  NumAsyncRequests;
     Int  UrbSize = -1;
-    Rx351Buf*  DataBufHeaders;
+    Dtu351DataHdr*  DataBufHeaders;
     Int  DataBufSize;
-    Int  PacketsPerUrb = 8;
+    Int  PacketsPerUrb = 1;
     Int  NextBufIdx = 0;
     Bool  IsHd = FALSE;
     Int  LoopCtr = 0;
     Int  SingleDataBufSize;
     BOOLEAN  DataReceived = FALSE;
-    LARGE_INTEGER  TickCountStart, TickCountCur, TickCountFreq;
+    Int  OldPriority;
+    ULONG  NextIsoFrame, CurIsoFrame;
+    WDF_REQUEST_SEND_OPTIONS  SendOptions;
 
     DtDbgOut(MAX, SHBUF, "Start");
-    DtDbgOut(MAX, SHBUF, "Old priority: %d", KeSetPriorityThread(KeGetCurrentThread(), 30));
+    OldPriority = KeSetPriorityThread(KeGetCurrentThread(), 30);
+    DtDbgOut(MAX, SHBUF, "Old priority: %d", OldPriority);
 
     DT_ASSERT(pPort->m_SharedBuffer.m_Initialised);
+
+    // Initialize send options used for URB timeouts
+    WDF_REQUEST_SEND_OPTIONS_INIT(&SendOptions, WDF_REQUEST_SEND_OPTION_TIMEOUT);
+    // 100ms Timeout in 100ns units
+    WDF_REQUEST_SEND_OPTIONS_SET_TIMEOUT(&SendOptions, -10*1000*100);
     
     // Isochronous transfers are only started when the signal is valid. If the signal
     // turns out to be invalid we'll stop the transfers and detect it soon enough. While
@@ -441,10 +423,11 @@ void  Dtu351WorkerThreadReadData(
     Status = GetConfiguredVidStd(pPort, &pPort->m_DetVidStd, &IsHd);
     DT_ASSERT(DT_SUCCESS(Status));
 
-    BufHeader = (Rx351BufHeader*)pPort->m_SharedBuffer.m_pBuffer;
-    DataBufHeaders = (Rx351Buf*)(pPort->m_SharedBuffer.m_pBuffer + sizeof(Rx351BufHeader));
-    Buf = pPort->m_SharedBuffer.m_pBuffer + sizeof(Rx351BufHeader)
-                                               + BufHeader->m_NumBuffers*sizeof(Rx351Buf);
+    BufHeader = (Dtu351BufHdr*)pPort->m_SharedBuffer.m_pBuffer;
+    DataBufHeaders = (Dtu351DataHdr*)(pPort->m_SharedBuffer.m_pBuffer + 
+                                                                    sizeof(Dtu351BufHdr));
+    Buf = pPort->m_SharedBuffer.m_pBuffer + sizeof(Dtu351BufHdr)
+                                          + BufHeader->m_NumBuffers*sizeof(Dtu351DataHdr);
     
     DtDbgOut(MAX, SHBUF, "m_TotalBufSize = 0x%0X", BufHeader->m_TotalBufSize);
     DtDbgOut(MAX, SHBUF, "m_Overflow = 0x%0X", BufHeader->m_Overflow);
@@ -469,13 +452,12 @@ void  Dtu351WorkerThreadReadData(
 
     DtuGetuFrameSize(pPort, &SingleDataBufSize);
     DataBufSize = BufHeader->m_NumBuffers * SingleDataBufSize;
-    DT_ASSERT(BufHeader->m_TotalBufSize == sizeof(Rx351BufHeader) + 
-                                  BufHeader->m_NumBuffers*sizeof(Rx351Buf) + DataBufSize);
+    DT_ASSERT(BufHeader->m_TotalBufSize == sizeof(Dtu351BufHdr) + 
+                             BufHeader->m_NumBuffers*sizeof(Dtu351DataHdr) + DataBufSize);
+
     DT_ASSERT(NumAsyncRequests*PacketsPerUrb < BufHeader->m_NumBuffers);
 
-    // Each packet corresponds to 1 microframe. Use 8 packets in each URB to get get a
-    // delay of 1us.
-    UrbSize = GET_ISO_URB_SIZE(PacketsPerUrb);
+    UrbSize = sizeof(struct _URB_BULK_OR_INTERRUPT_TRANSFER);
 
     // Set gennum rate selection to manual and hd/sd
     Status = Dtu3RegWrite(pDvcData, DTU_USB3_DEV_GENNUM, 0x24, IsHd ? 0 : 1);
@@ -517,25 +499,18 @@ void  Dtu351WorkerThreadReadData(
         }
 
         RtlZeroMemory(Req->m_pUrb, UrbSize);
-        Req->m_pUrb->UrbIsochronousTransfer.Hdr.Length = (USHORT)UrbSize;
-        Req->m_pUrb->UrbIsochronousTransfer.Hdr.Function = URB_FUNCTION_ISOCH_TRANSFER;
-        Req->m_pUrb->UrbIsochronousTransfer.PipeHandle = wdmhUSBPipe;
-        Req->m_pUrb->UrbIsochronousTransfer.TransferFlags = USBD_TRANSFER_DIRECTION_IN
-                                  | USBD_SHORT_TRANSFER_OK | USBD_START_ISO_TRANSFER_ASAP;
-        Req->m_pUrb->UrbIsochronousTransfer.TransferBuffer = Buf + NextBufIdx*SingleDataBufSize;
-        Req->m_pUrb->UrbIsochronousTransfer.TransferBufferLength = PacketsPerUrb*SingleDataBufSize;
-        Req->m_pUrb->UrbIsochronousTransfer.ErrorCount = 0;
-        Req->m_pUrb->UrbIsochronousTransfer.NumberOfPackets = PacketsPerUrb;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Length = (USHORT)UrbSize;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Function = URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferFlags = USBD_TRANSFER_DIRECTION_IN
+                                                                 | USBD_SHORT_TRANSFER_OK;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBuffer = Buf + NextBufIdx*SingleDataBufSize;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBufferLength = PacketsPerUrb*SingleDataBufSize;
         Req->m_DataHeaders = DataBufHeaders;
         Req->m_NumBuffers = BufHeader->m_NumBuffers;
         Req->m_FirstIdx = NextBufIdx;
-        for (j=0; j<PacketsPerUrb; j++)
-        {
-            Req->m_pUrb->UrbIsochronousTransfer.IsoPacket[j].Offset = j*SingleDataBufSize;
-            Req->m_pUrb->UrbIsochronousTransfer.IsoPacket[j].Length = SingleDataBufSize;
-            NextBufIdx++;
-            DT_ASSERT(NextBufIdx < BufHeader->m_NumBuffers);
-        }
+        NextBufIdx++;
         NtStatus = WdfUsbTargetPipeFormatRequestForUrb(Pipe, Req->m_WdfRequest,
                                                                   Req->m_UrbMemory, NULL);
         if (!NT_SUCCESS(NtStatus))
@@ -566,16 +541,24 @@ void  Dtu351WorkerThreadReadData(
             Req->m_pUrb = NULL;
             break;
         }*/
-        if (WdfRequestSend(Req->m_WdfRequest, IoTarget, WDF_NO_SEND_OPTIONS) == FALSE)
+    }
+    if (NT_SUCCESS(NtStatus))
+    {
+        // Now start all requests for the first time
+        for (i=0; i<NumAsyncRequests && !FatalError && NT_SUCCESS(NtStatus); i++)
         {
-            DtDbgOut(ERR, SHBUF, "WdfRequestSend failed");
-            WdfObjectDelete(Req->m_WdfRequest);
-            WdfObjectDelete(Req->m_UrbMemory);
-            Req->m_pUrb = NULL;
-            NtStatus = STATUS_UNSUCCESSFUL;
-            break;
+            AsyncRequest  *Req = &Requests[i];
+            if (WdfRequestSend(Req->m_WdfRequest, IoTarget, &SendOptions) == FALSE)
+            {
+                DtDbgOut(ERR, SHBUF, "WdfRequestSend failed");
+                WdfObjectDelete(Req->m_WdfRequest);
+                WdfObjectDelete(Req->m_UrbMemory);
+                Req->m_pUrb = NULL;
+                NtStatus = STATUS_UNSUCCESSFUL;
+                break;
+            }
+            Req->m_IsValid = TRUE;
         }
-        Req->m_IsValid = TRUE;
     }
     if (!NT_SUCCESS(NtStatus))
     {
@@ -597,9 +580,9 @@ void  Dtu351WorkerThreadReadData(
     }
     // We're fully initialized. Allow changes to the RxMode register from other threads.
     pPort->m_AllowRxModeChanges = TRUE;
-    KeQueryTickCount(&TickCountStart);
-    TickCountStart = KeQueryPerformanceCounter(&TickCountFreq);
 
+    
+    BufHeader->m_FirstBuf = 0;
     
     while (DtEventWait(&pPort->m_RxStateChanged, 0)==DT_STATUS_TIMEOUT && !FatalError)
     {
@@ -612,30 +595,14 @@ void  Dtu351WorkerThreadReadData(
             size_t  TmpBufLen;
             UInt  NumToCopy;
             UInt8*  TmpBuf;
-            Status = DtEventWait(&Req->m_EvtRequestDone, -1);
-            if (!DT_SUCCESS(Status))
+            while (TRUE)
             {
-                DtDbgOut(ERR, DTU, "DtEventWait failed: %x", Status);
-            }
-            if (!DataReceived)
-            {
-                LONGLONG  ReqTime = TickCountFreq.QuadPart / 50; // 1/50s = 20ms
-                LONGLONG  TimeElapsed;
-                TickCountCur = KeQueryPerformanceCounter(NULL);
-                TimeElapsed = (TickCountCur.QuadPart-TickCountStart.QuadPart);
-                for (j=0; j<PacketsPerUrb && !DataReceived; j++)
+                Status = DtEventWait(&Req->m_EvtRequestDone, 1000);
+                if (!DT_SUCCESS(Status))
                 {
-                    DT_ASSERT(DataBufHeaders[Req->m_FirstIdx + j].m_Flags == 1);
-                    if (TimeElapsed>ReqTime && 
-                                      DataBufHeaders[Req->m_FirstIdx + j].m_NumValid != 0)
-                    {
-                        DtDbgOut(ERR, SHBUF, "First data in kernel<>dtapi buffer (BufIdx: %d, Loop: %d).", NextBufIdx, LoopCtr);
-                        DtDbgOut(ERR, SHBUF, "KeQueryTimeIncrement: %d", KeQueryTimeIncrement());
-                        DataReceived = TRUE;
-                        BufHeader->m_FirstBuf = Req->m_FirstIdx + j;
-                    } else {
-                        DataBufHeaders[Req->m_FirstIdx + j].m_Flags = 0;
-                    }
+                    DtDbgOut(ERR, DTU, "DtEventWait failed: %x", Status);
+                } else {
+                    break;
                 }
             }
 
@@ -646,15 +613,14 @@ void  Dtu351WorkerThreadReadData(
                 FatalError = TRUE;
                 break;
             }
-            
-            Req->m_pUrb->UrbIsochronousTransfer.Hdr.Length = (USHORT)UrbSize;
-            Req->m_pUrb->UrbIsochronousTransfer.Hdr.Function =URB_FUNCTION_ISOCH_TRANSFER;
-            Req->m_pUrb->UrbIsochronousTransfer.PipeHandle = wdmhUSBPipe;
-            Req->m_pUrb->UrbIsochronousTransfer.TransferFlags = USBD_TRANSFER_DIRECTION_IN
-                                  | USBD_SHORT_TRANSFER_OK | USBD_START_ISO_TRANSFER_ASAP;
-            Req->m_pUrb->UrbIsochronousTransfer.TransferBuffer = Buf + NextBufIdx*SingleDataBufSize;
-            Req->m_pUrb->UrbIsochronousTransfer.TransferBufferLength = PacketsPerUrb*SingleDataBufSize;
-            Req->m_pUrb->UrbIsochronousTransfer.NumberOfPackets = PacketsPerUrb;
+            Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Length = (USHORT)UrbSize;
+            Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Function = URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER;
+            Req->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
+            Req->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
+            Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferFlags = USBD_TRANSFER_DIRECTION_IN
+                                                                     | USBD_SHORT_TRANSFER_OK;
+            Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBuffer = Buf + NextBufIdx*SingleDataBufSize;
+            Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBufferLength = PacketsPerUrb*SingleDataBufSize;
             Req->m_DataHeaders = DataBufHeaders;
             Req->m_NumBuffers = BufHeader->m_NumBuffers;
             Req->m_FirstIdx = NextBufIdx;
@@ -669,8 +635,6 @@ void  Dtu351WorkerThreadReadData(
                     }
                     DataBufHeaders[NextBufIdx].m_Flags = 0;
                 }
-                //DtDbgOut(ERR, DTU, "DataBufSize: 0x%X, Offset: 0x%X, NextBufIdx: %d", DataBufSize, NextBufIdx*SingleDataBufSize, NextBufIdx);
-                Req->m_pUrb->UrbIsochronousTransfer.IsoPacket[j].Offset = j*SingleDataBufSize;
                 NextBufIdx++;
                 if (NextBufIdx == BufHeader->m_NumBuffers)
                     NextBufIdx = 0;
@@ -684,9 +648,8 @@ void  Dtu351WorkerThreadReadData(
                 FatalError = TRUE;
                 break;
             }
-
             WdfRequestSetCompletionRoutine(Req->m_WdfRequest, Dtu351EvtComplete, Req);
-            if (WdfRequestSend(Req->m_WdfRequest, IoTarget, WDF_NO_SEND_OPTIONS) == FALSE)
+            if (WdfRequestSend(Req->m_WdfRequest, IoTarget, &SendOptions) == FALSE)
             {
                 DtDbgOut(ERR, SHBUF, "WdfRequestSend failed");
                 FatalError = TRUE;
@@ -733,8 +696,7 @@ void  Dtu351WorkerThreadReadData(
                             NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
 
     // Set gennum register RATE_SEL to auto
-    Status = Dtu3RegWrite(pDvcData, DTU_USB3_DEV_GENNUM, 0x24, 0x04);
-    DT_ASSERT(DT_SUCCESS(Status));
+    Dtu3RegWrite(pDvcData, DTU_USB3_DEV_GENNUM, 0x24, 0x04);
 
     DtMemFreePool(Requests, DTU_TAG);
 
@@ -868,6 +830,45 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
             DtDbgOut(ERR, DTU, "USB3 device not connected via USB3, UsbSpeed=0x%X",
                                                           pDvcData->m_DevInfo.m_UsbSpeed);
             pDvcData->m_StateFlags |= DTU_DEV_FLAG_NO_USB3;
+        }
+    }
+
+    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    {
+        UInt16  PnpCmdStat = 0;
+        Status = Dtu3RegRead(pDvcData, DTU_USB3_DEV_FX3, 0x08, &PnpCmdStat);
+        if (!DT_SUCCESS(Status))
+            return Status;
+        if (PnpCmdStat != 0)
+        {
+            DtString  DtStrCmdStat;
+            DtStringChar  DtStrBuffer[32];
+            DT_STRING_INIT(DtStrCmdStat, DtStrBuffer, 32);
+
+            Status = DtStringUIntegerToDtStringAppend(&DtStrCmdStat, 16, PnpCmdStat);
+            if (!DT_SUCCESS(Status))
+                return Status;
+            DtEvtLogReport(&pDvcData->m_Device.m_EvtObject, 
+                               DTU_LOG_DRIVER_TRIGGERED_RESET, &DtStrCmdStat, NULL, NULL);
+        }
+        if ((PnpCmdStat&1) != 0)
+            DtDbgOut(MIN, DTU, "Last reset caused by driver");
+        if ((PnpCmdStat&2) != 0)
+            DtDbgOut(MIN, DTU, "Last reset caused by driver (vbus toggle)");
+        // Reset the 2 reset bits
+        Dtu3RegWrite(pDvcData, DTU_USB3_DEV_FX3, 0x08, PnpCmdStat&3);
+        if (PnpCmdStat==0 && pDvcData->m_DevInfo.m_UsbSpeed!=2)
+        {
+            DtDbgOut(MIN, DTU, "USB3 device currently not in USB3 mode. re-enumerating");
+            // Not in USB3 mode. Last reboot of device was not triggered by driver.
+            // Sleep for 500ms and reboot the device.
+            DtSleep(500);
+            // We expect this to succeed but will return in any case since 
+            // a re-enumeration is coming up.
+            return DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD, 
+                                                  DTU_PNP_CMD_RESET, DTU_RESET_BOOTLOADER,
+                                                  DT_USB_HOST_TO_DEVICE, NULL, 0, NULL,
+                                                  MAX_USB_REQ_TIMEOUT);
         }
     }
 

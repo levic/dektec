@@ -4982,7 +4982,7 @@ static const DtProperty  DtProperties145_0_00[] =
 };
 static const DtProperty  DtProperties145_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 9, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
+    { "FIRMWARE_LAST_VER", 10, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N1_1", -1, "Support for Huffman-coded SDI data",
                     PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -5109,8 +5109,15 @@ static const DtProperty  DtProperties145_0_16[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 6, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N10_0", -1, "Fixes issue; Possible fail to sync to the input stream",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "PCB_MANUF", MANUF_PLANT_ANUBISS, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties145_0_17[] =
+{
+    { "FIRMWARE_R_N10_1", -1, "Several other minor bug fixes",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties145_0_19[] =
 {
@@ -5324,8 +5331,8 @@ static const DtPropertyHashSet  DtPropertyHashSets145_0[] =
     { NULL, 0 },
     { DtProperties145_0_14, 3 },
     { DtProperties145_0_15, 1 },
-    { DtProperties145_0_16, 3 },
-    { NULL, 0 },
+    { DtProperties145_0_16, 4 },
+    { DtProperties145_0_17, 1 },
     { NULL, 0 },
     { DtProperties145_0_19, 2 },
     { DtProperties145_0_20, 1 },
@@ -7263,7 +7270,9 @@ static const DtProperty  DtProperties2136_0_00[] =
     { "CAP_ASIPOL", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 3, 0, 0,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N1_0", -1, "Bug fix: DMA controller issue for fast systems with > 4GB",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2136_0_01[] =
 {
@@ -7274,8 +7283,11 @@ static const DtProperty  DtProperties2136_0_01[] =
     { "CAP_RX_QAMA", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, PROPERTY_SCOPE_DTAPI, 0,
                                                                                    0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N1_1", -1,
+      "Bug fix: Transparant mode synchronisation not possible when idle",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2136_0_02[] =
 {
@@ -7532,8 +7544,10 @@ static const DtProperty  DtProperties2136_0_60[] =
 };
 static const DtProperty  DtProperties2136_0_61[] =
 {
-    { "TESTING_LOOP_BACK_32B_TX", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, 0, 0,
+    { "TESTING_LOOP_BACK_32B_TX", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, 1, 0,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 3, 1, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 3, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2136_0_63[] =
@@ -7551,8 +7565,8 @@ static const DtProperty  DtProperties2136_0_63[] =
 };
 static const DtPropertyHashSet  DtPropertyHashSets2136_0[] =
 {
-    { DtProperties2136_0_00, 2 },
-    { DtProperties2136_0_01, 5 },
+    { DtProperties2136_0_00, 3 },
+    { DtProperties2136_0_01, 6 },
     { DtProperties2136_0_02, 2 },
     { DtProperties2136_0_03, 2 },
     { DtProperties2136_0_04, 1 },
@@ -7612,7 +7626,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2136_0[] =
     { NULL, 0 },
     { DtProperties2136_0_59, 5 },
     { DtProperties2136_0_60, 3 },
-    { DtProperties2136_0_61, 2 },
+    { DtProperties2136_0_61, 4 },
     { NULL, 0 },
     { DtProperties2136_0_63, 5 }
 };
@@ -8098,8 +8112,16 @@ static const DtProperty  DtProperties2138_0_01[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_RX_QAMA", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, PROPERTY_SCOPE_DTAPI, 0,
                                                                                    0, 0 },
-    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "FIRMWARE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N2_0", -1,
+      "Bug fix: Transparant mode synchronisation not possible when idle",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2138_0_02[] =
+{
+    { "FIRMWARE_R_N2_1", -1, "Several other minor bug fixes", PROPERTY_VALUE_TYPE_STRING,
+                                                -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2138_0_04[] =
 {
@@ -8276,8 +8298,8 @@ static const DtProperty  DtProperties2138_0_63[] =
 static const DtPropertyHashSet  DtPropertyHashSets2138_0[] =
 {
     { DtProperties2138_0_00, 1 },
-    { DtProperties2138_0_01, 3 },
-    { NULL, 0 },
+    { DtProperties2138_0_01, 4 },
+    { DtProperties2138_0_02, 1 },
     { NULL, 0 },
     { DtProperties2138_0_04, 1 },
     { NULL, 0 },
@@ -9406,7 +9428,7 @@ static const DtProperty  DtProperties2144_0_00[] =
 };
 static const DtProperty  DtProperties2144_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 5, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
+    { "FIRMWARE_LAST_VER", 6, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N2_0", -1, "Bug fix: FIFO-size setting is ignored",
                     PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
@@ -9445,12 +9467,16 @@ static const DtProperty  DtProperties2144_0_05[] =
       "Fixes issue; where certain PCs would detect the card as a graphics card",
                     PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N5_1", -1, "Several other minor bug fixes", PROPERTY_VALUE_TYPE_STRING,
-                                                -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                                -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N6_0", -1, "Fixes issue; Possible fail to sync to the input stream",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2144_0_06[] =
 {
     { "FIRMWARE_R_N4_3", -1, "Support for 64-bit timestamping",
                     PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N6_1", -1, "Several other minor bug fixes", PROPERTY_VALUE_TYPE_STRING,
+                                                -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REGISTERS_RX", 0x100, NULL, PROPERTY_VALUE_TYPE_UINT16, 0, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0x300, NULL, PROPERTY_VALUE_TYPE_UINT16, 1, 0, 0,
@@ -9841,8 +9867,8 @@ static const DtPropertyHashSet  DtPropertyHashSets2144_0[] =
     { DtProperties2144_0_02, 2 },
     { DtProperties2144_0_03, 1 },
     { DtProperties2144_0_04, 6 },
-    { DtProperties2144_0_05, 2 },
-    { DtProperties2144_0_06, 5 },
+    { DtProperties2144_0_05, 3 },
+    { DtProperties2144_0_06, 6 },
     { DtProperties2144_0_07, 4 },
     { DtProperties2144_0_08, 17 },
     { DtProperties2144_0_09, 5 },
@@ -9917,7 +9943,7 @@ static const DtProperty  DtProperties2145_0_00[] =
 };
 static const DtProperty  DtProperties2145_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 9, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
+    { "FIRMWARE_LAST_VER", 10, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N1_1", -1, "Support for Huffman-coded SDI data",
                     PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -10040,8 +10066,15 @@ static const DtProperty  DtProperties2145_0_16[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 6, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N10_0", -1, "Fixes issue; Possible fail to sync to the input stream",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "PCB_MANUF", MANUF_PLANT_ANUBISS, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2145_0_17[] =
+{
+    { "FIRMWARE_R_N10_1", -1, "Several other minor bug fixes",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2145_0_19[] =
 {
@@ -10251,8 +10284,8 @@ static const DtPropertyHashSet  DtPropertyHashSets2145_0[] =
     { NULL, 0 },
     { DtProperties2145_0_14, 3 },
     { DtProperties2145_0_15, 1 },
-    { DtProperties2145_0_16, 3 },
-    { NULL, 0 },
+    { DtProperties2145_0_16, 4 },
+    { DtProperties2145_0_17, 1 },
     { NULL, 0 },
     { DtProperties2145_0_19, 2 },
     { DtProperties2145_0_20, 1 },
@@ -10748,12 +10781,26 @@ static const DtProperty  DtProperties2154_0_00[] =
     { "CAP_ASIPOL", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N1_0", -1, "Support for RS-422 ports", PROPERTY_VALUE_TYPE_STRING, -1,
+                                                    0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N1_1", -1, "Improved DMA performance", PROPERTY_VALUE_TYPE_STRING, -1,
+                                                    0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2154_0_02[] =
+{
+    { "FIRMWARE_R_N1_2", -1, "Bug fix: deadlock after DMA abort",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2154_0_03[] =
+{
+    { "FIRMWARE_R_N1_3", -1, "Bug fix: stability fixes for ASI load reporting",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_0_04[] =
 {
@@ -10880,13 +10927,6 @@ static const DtProperty  DtProperties2154_0_16[] =
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "PCB_MANUF", MANUF_PLANT_ANUBISS, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
-static const DtProperty  DtProperties2154_0_19[] =
-{
-    { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_0_20[] =
@@ -11087,7 +11127,7 @@ static const DtProperty  DtProperties2154_0_47[] =
 };
 static const DtProperty  DtProperties2154_0_50[] =
 {
-    { "PORT_COUNT", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
+    { "PORT_COUNT", 4, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_0_51[] =
@@ -11106,6 +11146,11 @@ static const DtProperty  DtProperties2154_0_52[] =
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2154_0_53[] =
+{
+    { "CAP_RS422", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 3, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_0_54[] =
@@ -11128,6 +11173,11 @@ static const DtProperty  DtProperties2154_0_56[] =
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2154_0_57[] =
+{
+    { "REGISTERS_RS422", 0x200, NULL, PROPERTY_VALUE_TYPE_UINT16, 3, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_0_59[] =
@@ -11169,15 +11219,15 @@ static const DtProperty  DtProperties2154_0_63[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N0_0", -1, "First firmware version released to the field",
+    { "FIRMWARE_R_N0_0", -1, "First (beta) firmware version released to the field",
                     PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets2154_0[] =
 {
-    { DtProperties2154_0_00, 2 },
-    { DtProperties2154_0_01, 1 },
-    { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties2154_0_00, 3 },
+    { DtProperties2154_0_01, 2 },
+    { DtProperties2154_0_02, 1 },
+    { DtProperties2154_0_03, 1 },
     { DtProperties2154_0_04, 7 },
     { NULL, 0 },
     { DtProperties2154_0_06, 5 },
@@ -11193,7 +11243,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2154_0[] =
     { DtProperties2154_0_16, 4 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties2154_0_19, 2 },
+    { NULL, 0 },
     { DtProperties2154_0_20, 1 },
     { DtProperties2154_0_21, 2 },
     { DtProperties2154_0_22, 2 },
@@ -11227,11 +11277,11 @@ static const DtPropertyHashSet  DtPropertyHashSets2154_0[] =
     { DtProperties2154_0_50, 1 },
     { DtProperties2154_0_51, 3 },
     { DtProperties2154_0_52, 3 },
-    { NULL, 0 },
+    { DtProperties2154_0_53, 1 },
     { DtProperties2154_0_54, 5 },
     { NULL, 0 },
     { DtProperties2154_0_56, 3 },
-    { NULL, 0 },
+    { DtProperties2154_0_57, 1 },
     { NULL, 0 },
     { DtProperties2154_0_59, 9 },
     { DtProperties2154_0_60, 1 },
@@ -11249,12 +11299,26 @@ static const DtProperty  DtProperties2154_1_00[] =
     { "CAP_ASIPOL", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N1_0", -1, "Support for RS-422 ports", PROPERTY_VALUE_TYPE_STRING, -1,
+                                                    0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_1_01[] =
 {
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N1_1", -1, "Improved DMA performance", PROPERTY_VALUE_TYPE_STRING, -1,
+                                                    0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2154_1_02[] =
+{
+    { "FIRMWARE_R_N1_2", -1, "Bug fix: deadlock after DMA abort",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2154_1_03[] =
+{
+    { "FIRMWARE_R_N1_3", -1, "Bug fix: stability fixes for ASI load reporting",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_1_04[] =
 {
@@ -11360,13 +11424,6 @@ static const DtProperty  DtProperties2154_1_16[] =
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "PCB_MANUF", MANUF_PLANT_ANUBISS, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
-static const DtProperty  DtProperties2154_1_19[] =
-{
-    { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_1_20[] =
@@ -11542,7 +11599,7 @@ static const DtProperty  DtProperties2154_1_47[] =
 };
 static const DtProperty  DtProperties2154_1_50[] =
 {
-    { "PORT_COUNT", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
+    { "PORT_COUNT", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_1_51[] =
@@ -11561,6 +11618,11 @@ static const DtProperty  DtProperties2154_1_52[] =
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties2154_1_53[] =
+{
+    { "CAP_RS422", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties2154_1_54[] =
 {
     { "CAP_1080P50", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0,
@@ -11577,6 +11639,11 @@ static const DtProperty  DtProperties2154_1_56[] =
     { "CAP_SDI", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2154_1_57[] =
+{
+    { "REGISTERS_RS422", 0x200, NULL, PROPERTY_VALUE_TYPE_UINT16, 2, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_1_59[] =
@@ -11614,15 +11681,15 @@ static const DtProperty  DtProperties2154_1_63[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N0_0", -1, "First firmware version released to the field",
+    { "FIRMWARE_R_N0_0", -1, "First (beta) firmware version released to the field",
                     PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets2154_1[] =
 {
-    { DtProperties2154_1_00, 2 },
-    { DtProperties2154_1_01, 1 },
-    { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties2154_1_00, 3 },
+    { DtProperties2154_1_01, 2 },
+    { DtProperties2154_1_02, 1 },
+    { DtProperties2154_1_03, 1 },
     { DtProperties2154_1_04, 6 },
     { NULL, 0 },
     { DtProperties2154_1_06, 4 },
@@ -11638,7 +11705,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2154_1[] =
     { DtProperties2154_1_16, 3 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties2154_1_19, 2 },
+    { NULL, 0 },
     { DtProperties2154_1_20, 1 },
     { DtProperties2154_1_21, 2 },
     { DtProperties2154_1_22, 2 },
@@ -11672,11 +11739,11 @@ static const DtPropertyHashSet  DtPropertyHashSets2154_1[] =
     { DtProperties2154_1_50, 1 },
     { DtProperties2154_1_51, 3 },
     { DtProperties2154_1_52, 2 },
-    { NULL, 0 },
+    { DtProperties2154_1_53, 1 },
     { DtProperties2154_1_54, 4 },
     { NULL, 0 },
     { DtProperties2154_1_56, 2 },
-    { NULL, 0 },
+    { DtProperties2154_1_57, 1 },
     { NULL, 0 },
     { DtProperties2154_1_59, 7 },
     { DtProperties2154_1_60, 1 },
@@ -11704,7 +11771,7 @@ static const DtProperty  DtProperties2160_0_00[] =
 };
 static const DtProperty  DtProperties2160_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
+    { "FIRMWARE_LAST_VER", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N1_1", -1,
       "Fixes issue; where certain PCs would detect the card as a graphics card",
@@ -11716,13 +11783,28 @@ static const DtProperty  DtProperties2160_0_02[] =
 {
     { "FIRMWARE_R_N2_1", -1, "Several other minor bug fixes", PROPERTY_VALUE_TYPE_STRING,
                                                 -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N3_0", -1, "Bug fix; Possible fail to sync to the input stream",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "NW_REGISTERS_RT_TX_DMA", 0xC80, NULL, PROPERTY_VALUE_TYPE_UINT16, 3, 0, 0,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties2160_0_03[] =
+{
+    { "FIRMWARE_R_N3_1", -1, "Bug fix: Possible hang on full bandwidth(960Mbps)",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties2160_0_04[] =
 {
+    { "FIRMWARE_R_N3_2", -1,
+      "Bug fix: Possible old NDIS data transfered on 4K data transfer",
+                    PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_EXT_CLK_FREQ", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2160_0_05[] =
+{
+    { "FIRMWARE_R_N3_3", -1, "Several other minor bug fixes", PROPERTY_VALUE_TYPE_STRING,
+                                                -1, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2160_0_06[] =
 {
@@ -12068,10 +12150,10 @@ static const DtPropertyHashSet  DtPropertyHashSets2160_0[] =
 {
     { DtProperties2160_0_00, 5 },
     { DtProperties2160_0_01, 3 },
-    { DtProperties2160_0_02, 2 },
-    { NULL, 0 },
-    { DtProperties2160_0_04, 1 },
-    { NULL, 0 },
+    { DtProperties2160_0_02, 3 },
+    { DtProperties2160_0_03, 1 },
+    { DtProperties2160_0_04, 2 },
+    { DtProperties2160_0_05, 1 },
     { DtProperties2160_0_06, 3 },
     { DtProperties2160_0_07, 3 },
     { DtProperties2160_0_08, 14 },

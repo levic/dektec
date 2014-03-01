@@ -600,9 +600,10 @@ DtStatus  DtaIpRxUserChAttach(
     Int  ChannelIndex = 0;
 
     DtDbgOut(MAX, IP_RX, "Start");
-    pIpRxChannel = pIpUserChannels->m_pIpRxChannel;
 
     DtFastMutexAcquire(&pIpUserChannels->m_IpRxChAccesMutex);
+
+    pIpRxChannel = pIpUserChannels->m_pIpRxChannel;
 
     // find a free index
     while (pIpRxChannel != NULL)
