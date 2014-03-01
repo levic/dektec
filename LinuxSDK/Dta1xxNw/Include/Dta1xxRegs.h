@@ -80,7 +80,15 @@ typedef struct _Dta1xxGen {
 	UInt32  m_RefClkCntH	: 22;			// Reference clock counter highest 22 bits
 	UInt32  m_Reserved1		: 10;
 	UInt32  m_Programming2;					// JTAG TDI/TDO stream when writing/reading
-	UInt32  m_Reserved[24];					// Unused memory addresses
+	UInt32  m_Reserved_20;					// Unused memory address
+	UInt32  m_SpiCtrl;						// SPI control
+	UInt32  m_SpiData;						// SPI data
+	UInt32  m_Reserved_2C;					// Unused memory address
+	UInt32  m_Control0;						// Board control #0
+	UInt32  m_Control1;						// Board control #1
+	UInt32  m_Status0;						// Board status #0
+	UInt32  m_Status1;						// Board status #1
+	UInt32  m_Reserved[16];					// Unused memory addresses
 }  Dta1xxGen;
 
 // Generic Registers: BYTE offset
@@ -1008,6 +1016,8 @@ typedef struct _Dta1xxTx {
 #define DTA1XX_TX_REG_IF_CONTROL	0x0038
 #define DTA1XX_TX_REG_RF_CONTROL2	0x003C
 #define DTA1XX_TX_REG_FIFO_FIRST	0x0040
+#define DTA1XX_TX_REG_RFDAC_CONTROL	0x0050
+#define DTA1XX_TX_REG_RFDAC_DATA	0x0054
 
 // GS2962 Transmitter specific
 #define DTA1XX_TX_REG_GS2962SPI		0x0060
@@ -2004,6 +2014,8 @@ static __inline void  Dta1xxTxIfCtrlRegSetPllR(volatile UInt8* pBase, UInt PllR)
 #define DTA1XX_TXRFCTRL2_AGCSP_SH		0
 #define DTA1XX_TXRFCTRL2_OUTATTN_MSK	0x0003F000
 #define DTA1XX_TXRFCTRL2_OUTATTN_SH		12
+#define DTA1XX_TXRFCTRL2_OUTLVL10B_OFFSET_MSK	0x003FF000
+#define DTA1XX_TXRFCTRL2_OUTLVL10B_OFFSET_SH	12
 #define DTA1XX_TXRFCTRL2_AGC_EN			0x00040000
 #define DTA1XX_TXRFCTRL2_INPATTN_MSK	0x00780000
 #define DTA1XX_TXRFCTRL2_INPATTN_SH	19
@@ -2038,6 +2050,20 @@ static __inline UInt  Dta1xxTxRfCtrl2RegGetOutpAttn(volatile UInt8* pBase) {
 static __inline void  Dta1xxTxRfCtrl2RegSetOutpAttn(volatile UInt8* pBase, UInt Attn) {
 	UInt  RegVal = Dta1xxTxGetRfCtrl2Reg(pBase) & ~DTA1XX_TXRFCTRL2_OUTATTN_MSK;
 	Dta1xxTxSetRfCtrl2Reg(pBase, RegVal | (Attn << DTA1XX_TXRFCTRL2_OUTATTN_SH));
+}
+
+// RF-Control 2 register: 10-bit output level 
+static __inline Int32  Dta1xxTxRfCtrl2RegGetOutputLevel10bOffset(volatile UInt8* pBase) {
+	Int32  Val = (Int32)(Dta1xxTxGetRfCtrl2Reg(pBase) & DTA1XX_TXRFCTRL2_OUTLVL10B_OFFSET_MSK);
+	Val >>= DTA1XX_TXRFCTRL2_OUTLVL10B_OFFSET_SH;
+	Val &= 0x000003FF;
+	return Val;
+}
+static __inline void  Dta1xxTxRfCtrl2RegSetOutputLevel10bOffset(volatile UInt8* pBase, Int32 Offset) {
+	UInt  Val = Dta1xxTxGetRfCtrl2Reg(pBase) & ~DTA1XX_TXRFCTRL2_OUTLVL10B_OFFSET_MSK;
+	Offset <<= DTA1XX_TXRFCTRL2_OUTLVL10B_OFFSET_SH;
+	Offset &= DTA1XX_TXRFCTRL2_OUTLVL10B_OFFSET_MSK;
+	Dta1xxTxSetRfCtrl2Reg(pBase, Val | Offset);
 }
 
 // RF-Control-2 register: AGC Enable
@@ -2134,6 +2160,43 @@ static __inline UInt  Dta1xxTxGetGS2962CtrlReg(volatile UInt8* pBase) {
 }
 static __inline void Dta1xxTxSetGS2962CtrlReg(volatile UInt8* pBase, UInt Val) {
 	WRITE_UINT(Val, pBase, DTA1XX_TX_REG_GS2962CTRL);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- RFDAC SPI control register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-
+
+// RFDAC-Control register: Bit fields
+#define DTA1XX_TXRFDACCTRL_SPIREADY_MSK		0x00000001
+#define DTA1XX_TXRFDACCTRL_SPISTART_MSK		0x00000002
+#define DTA1XX_TXRFDACCTRL_SPINUMBYTES_MSK	0x0000000C
+#define DTA1XX_TXRFDACCTRL_SPINUMBYTES_SH	2
+#define DTA1XX_TXRFDACCTRL_SPIRDORWRN		0x00000010
+#define DTA1XX_TXRFDACCTRL_SPIADDR_MASK		0xFFFF0000
+#define DTA1XX_TXRFDACCTRL_SPIADDR_SH		16
+typedef struct {
+	unsigned SpiReady		: 1;
+	unsigned SpiStart		: 1;
+	unsigned SpiNumBytes	: 2;
+	unsigned SpiRdOrWrn		: 1;
+	unsigned SpiReserved	: 11;
+	unsigned SpiAddr		: 16;
+} tDta1xx_TxRfDacCtrl;
+
+static __inline UInt  Dta1xxTxGetRfdacCtrlReg(volatile UInt8* pBase) {
+	return READ_UINT(pBase, DTA1XX_TX_REG_RFDAC_CONTROL);
+}
+static __inline void Dta1xxTxSetRfdacCtrlReg(volatile UInt8* pBase, UInt Val) {
+	WRITE_UINT(Val, pBase, DTA1XX_TX_REG_RFDAC_CONTROL);
+}
+static __inline int  Dta1xxTxGetRfdacCtrlRegSpiReady(volatile UInt8* pBase) {
+	return Dta1xxTxGetRfdacCtrlReg(pBase)&DTA1XX_TXRFDACCTRL_SPIREADY_MSK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- RFDAC SPI data register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-
+static __inline UInt  Dta1xxTxGetRfdacDataReg(volatile UInt8* pBase) {
+	return READ_UINT(pBase, DTA1XX_TX_REG_RFDAC_DATA);
+}
+static __inline void Dta1xxTxSetRfdacDataReg(volatile UInt8* pBase, UInt32 Val) {
+	WRITE_UINT(Val, pBase, DTA1XX_TX_REG_RFDAC_DATA);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- GS2962 Stat register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-

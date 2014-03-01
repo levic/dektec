@@ -243,3 +243,99 @@ Int  Dta1xxWriteConfigSpace(
 	}
 	return 0;
 }
+
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Modulation untility functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxIsHardQamAorC2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Check for QAM-A or QAM-C, without DTA1XX_MOD_DVBC_SOFT defined
+//
+BOOLEAN  Dta1xxIsHardQamAorC2(Int ModType, Int ParXtra0)
+{
+	Int  Annex = ParXtra0 & DTA1XX_MOD_J83_MSK;
+
+	if (  ModType!=DTA1XX_MOD_QAM4   && ModType!=DTA1XX_MOD_QAM16
+	   && ModType!=DTA1XX_MOD_QAM32  && ModType!=DTA1XX_MOD_QAM64
+	   && ModType!=DTA1XX_MOD_QAM128 && ModType!=DTA1XX_MOD_QAM256)
+		return FALSE;
+	// Rule out soft QAM
+	if ((ParXtra0 & DTA1XX_MOD_DVBC_SOFT) != 0)
+		return FALSE;
+	return (Annex==DTA1XX_MOD_J83_A || Annex==DTA1XX_MOD_J83_C);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxIsHardQamA -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+BOOLEAN  Dta1xxIsHardQamA(Int ModType, Int ParXtra0)
+{
+	Int  Annex = ParXtra0 & DTA1XX_MOD_J83_MSK;
+	// Check we hava hard QAM-A or QAM-C
+	if ( !Dta1xxIsHardQamAorC2(ModType, ParXtra0) )
+		return FALSE;
+	return (Annex==DTA1XX_MOD_J83_A);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxIsHardQamC -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+BOOLEAN  Dta1xxIsHardQamC(Int ModType, Int ParXtra0)
+{
+	Int  Annex = ParXtra0 & DTA1XX_MOD_J83_MSK;
+	// Check we hava hard QAM-A or QAM-C
+	if ( !Dta1xxIsHardQamAorC2(ModType, ParXtra0) )
+		return FALSE;
+	return (Annex==DTA1XX_MOD_J83_C);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxIsIqMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Is ModType a mode that requires I/Q samples?
+//
+BOOLEAN  Dta1xxIsIqMode(Int ModType)
+{
+	if (    ModType==DTA1XX_MOD_ADTBT || ModType==DTA1XX_MOD_ATSC
+		 || ModType==DTA1XX_MOD_CMMB  || ModType==DTA1XX_MOD_DMBTH
+		 || ModType==DTA1XX_MOD_DVBT  || ModType==DTA1XX_MOD_DVBT2 
+		 || ModType==DTA1XX_MOD_IQDIRECT || ModType==DTA1XX_MOD_IQDIRECT_NOLIC
+		 || ModType==DTA1XX_MOD_ISDBT || ModType==DTA1XX_MOD_T2MI )
+		return TRUE;
+	else
+		return FALSE;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxIsQamB -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+BOOLEAN  Dta1xxIsQamB(Int ModType, Int ParXtra0)
+{
+	Int  Annex = ParXtra0 & DTA1XX_MOD_J83_MSK;
+	return (Dta1xxIsQamMode(ModType) && Annex==DTA1XX_MOD_J83_B);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxIsQamMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+BOOLEAN  Dta1xxIsQamMode(Int ModType)
+{
+	if (    ModType==DTA1XX_MOD_QAM4   || ModType==DTA1XX_MOD_QAM16
+		 || ModType==DTA1XX_MOD_QAM32  || ModType==DTA1XX_MOD_QAM64
+		 || ModType==DTA1XX_MOD_QAM128 || ModType==DTA1XX_MOD_QAM256)
+		return TRUE;
+	else
+		return FALSE;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxNumBitsPerSymbol -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int  Dta1xxNumBitsPerSymbol(Int ModType)
+{
+	Int NumBits=1;
+	switch ( ModType )
+	{
+	case DTA1XX_MOD_QAM4:    NumBits=2; break;
+	case DTA1XX_MOD_QAM16:   NumBits=4; break;
+	case DTA1XX_MOD_QAM32:   NumBits=5; break;
+	case DTA1XX_MOD_QAM64:   NumBits=6; break;
+	case DTA1XX_MOD_QAM128:  NumBits=7; break;
+	case DTA1XX_MOD_QAM256:  NumBits=8; break;
+	default:				 NumBits=-1; break;		// Unsupported modulation type
+	}
+	return NumBits;
+}

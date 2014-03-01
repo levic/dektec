@@ -162,7 +162,7 @@ endif
 
 clean:
 	rm -f $(SRCDIR)*.o $(SRCDIR)*.ko $(SRCDIR).*.o.cmd $(SRCDIR)*~ $(SRCDIR)core $(SRCDIR).depend
-	rm -f *.o *.ko .*.o.cmd .*.ko.cmd *.mod.c
+	rm -f *.o *.ko .*.o.cmd .*.ko.cmd *.mod.c Module.????ers
 	rm -rf .tmp_versions
 
 -include $(KERNELDIR)/Rules.make

@@ -39,7 +39,7 @@
 
 #ifdef CONFIG_COMPAT
 	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
-	include <asm/compat.h>				// compat_ptr
+	#include <asm/compat.h>				// compat_ptr
 	#else 
 		#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
 		#include <asm-x86/compat.h>		// compat_ptr
@@ -124,6 +124,7 @@
 #define DTA124_DEVICEID		0xD118			// DTA-124 device ID
 #define DTA140_DEVICEID		0xD128			// DTA-140 device ID
 #define DTA145_DEVICEID		0x0091			// DTA-145 device ID
+#define DTA2111_DEVICEID	0x083F			// DTA-2111 device ID
 #define DTA2135_DEVICEID	0x0857			// DTA-2135 device ID
 #define DTA2136_DEVICEID	0x0858			// DTA-2136 device ID
 #define DTA2137_DEVICEID	0x0859			// DTA-2137 device ID
@@ -211,6 +212,8 @@
 #define DTA1XX_CHCAP_RATESEL		0x1000  // Must be or-ed with one of the cap_x_port
 #define DTA1XX_CHCAP_CLKSEL			0x2000  // Must be or-ed with one of the cap_x_port
 #define DTA1XX_CHCAP_APSK			0x4000  // Must be or-ed with one of the cap_x_port
+#define DTA1XX_CHCAP_AD9789			0x8000  // Channel has AD9789 RF-DAC
+#define DTA1XX_CHCAP_DACVGA			0x10000  // Channel has 10-bit RF output level control
 
 // PHY types
 #define PHY_UNKNOWN					0
@@ -391,6 +394,16 @@ typedef struct _DmaChannel
 	
 } DmaChannel;
 
+//-.-.-.-.-.-.-.-.-.-.-.-.- FrequencyResponseCompensation -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// frequency-response compensation table
+//
+typedef struct _FreqCompTableEntry {
+	Int16 m_Freq;		// Frequency in MHz
+	Int16 m_Fsc;		// Full scale current
+	Int16 m_Attn;		// Attenuation in dBm
+} FreqCompTableEntry, FreqCompTable[], *PFreqCompTable;
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct MemDesc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Memory-space descriptor, used for PCI-9054 and Dta1xx operational registers.
@@ -488,6 +501,14 @@ typedef struct _Channel
 
 	//-.-.-.-.-.-.-.-.-.-.- Members Specific for TS Receive Channel -.-.-.-.-.-.-.-.-.-.-.
 
+	Int64  m_RfFreq;				    // RF-frequency (in Hz)
+	Int  m_OutpLeveldBm;			    // Output level in dBm (expressed in 0.1 dB units)
+	Int  m_OutpLevelOffset;			    // Output driver DAC offset dBm (expressed in 0.1 dB units)
+	Int  m_OutpLevelGain;			    // Output driver DAC gain 1024/dBm (expressed in 0.1 dB units)
+	PFreqCompTable m_FreqCompTable;     // frequency-response compensation table
+	Int  m_FreqCompTableSize;           // number of entries in table
+	Int32  m_Nco0FreqTuningWord;        // Cached Tx NCO #0 tuning word
+
 	// Statistics
 	Int  m_ViolCountSamp;				// Sample of code-violation counter (DTA-120)
 
@@ -501,7 +522,7 @@ typedef struct _Channel
 	// Synchronisation
 	struct semaphore  m_MutexTxControl;	// Mutex to protect access to TxControl register
 
-	// Current modulation parameters for DTA-110/110T/115
+	// Current modulation parameters for DTA-110/110T/115/2111
 	// This is for remembering the last modulation settings between applications
 	// In device-extension initialisation, an attempt is made to initialise these
 	// variables in a meaningful way. If this is not possible => initialise to -1
@@ -950,6 +971,15 @@ extern DTA1XX_FDO  g_Dta1xxCards[DTA1XX_MAX_CARDS];	// DTA-1xx card data
 extern Int  g_NumOfCards;				// Number of DTA-1xx cards found in the system
 
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Ad9789.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+NTSTATUS  Ad9789FrequencyResponseCompensation(Channel* pCh);
+NTSTATUS  Ad9789GetRfControl(Channel* pCh, Int64 * pRfFreq, Int * pLockStatus);
+NTSTATUS  Ad9789Init(Channel* pCh);
+NTSTATUS  Ad9789SetModControl(Channel* pCh, Int ModType, Int ParXtra0, Int ParXtra1, Int  ParXtra2);
+NTSTATUS  Ad9789SetRfControl(Channel* pCh, Int64 RfFreq);
+NTSTATUS  Ad9789SetRfMode(Channel* pCh, Int RfMode);
+NTSTATUS  Ad9789SetSymSampleRate(Channel* pCh, Int SymSamplRate);
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- CrossPlatform.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 NTSTATUS AllocateCdmaBuffer(Channel* pCh, UInt* BufSize);
 void FreeCdmaBuffer(Channel* pCh);
@@ -982,6 +1012,14 @@ void Dta1xxStopCard(DTA1XX_FDO* pFdo);
 int  Dta1xxOpen(struct inode *inode, struct file *filp);
 int  Dta1xxRelease(struct inode *inode, struct file *filp);
 int  Dta1xxMmap(struct file *filp, struct vm_area_struct *vma);
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DacVga.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+NTSTATUS DacVgaFrequencyResponseCompensation(Channel * pCh);
+NTSTATUS DacVgaGetOutputLevel(Channel * pCh, Int * pOutputLevel);
+NTSTATUS DacVgaSetOutputLevel(Channel * pCh, Int OutputLevel);
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta2111.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+void Dta2111Init(Channel * pCh);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- EepromControl.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 Int  Dta1xxEepromReadLastPage(DTA1XX_FDO* pFdo);
@@ -1057,10 +1095,15 @@ BOOLEAN  Dta1xxIsHardQamAorC(Channel* pCh);
 Int  Dta1xxRxReset(Channel* pTsRx, Int);
 Int  Dta1xxRxSetRxMode(DTA1XX_FDO* pFdo, Int, Int);
 Int  Dta1xxTxGetModControl(DTA1XX_FDO* pFdo, Int, Int*,	Int*, Int*, Int*);
+Int  Dta1xxTxGetOutputLevel(DTA1XX_FDO* pFdo, Int, Int*);
+Int  Dta1xxTxGetRfControl(DTA1XX_FDO* pFdo, Int, Int64*, Int*);
 Int  Dta1xxTxGetTxControl(DTA1XX_FDO* pFdo, Int, Int*);
 Int  Dta1xxTxGetTxMode(DTA1XX_FDO* pFdo, Int, Int*, Int*);
 Int  Dta1xxTxReset(Channel* pTsTx, Int);
 Int  Dta1xxTxSetModControl2(DTA1XX_FDO* pFdo, Int, Int, Int, Int, Int);
+Int  Dta1xxTxSetOutputLevel(DTA1XX_FDO* pFdo, Int, Int);
+Int  Dta1xxTxSetRfControl(DTA1XX_FDO* pFdo, Int, Int64);
+Int  Dta1xxTxSetRfMode(DTA1XX_FDO* pFdo, Int, Int);
 Int  Dta1xxTxSetTxControl(DTA1XX_FDO* pFdo, Int, Int);
 Int  Dta1xxTxSetTxMode(DTA1XX_FDO* pFdo, Int, Int, Int);
 Int  Dta1xxGenSetLed(DTA1XX_FDO* pFdo, Int);
@@ -1179,6 +1222,13 @@ void  Dta1xxTargetDetectStateMachine(DTA1XX_FDO* pFdo);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Utility.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 UInt32  Dta1xxGetPeriodicIntIntervalMicroS(DTA1XX_FDO* pFdo);
+BOOLEAN  Dta1xxIsHardQamA(Int, Int);
+BOOLEAN  Dta1xxIsHardQamAorC2(Int, Int);
+BOOLEAN  Dta1xxIsHardQamC(Int, Int);
+BOOLEAN  Dta1xxIsIqMode(Int);
+BOOLEAN  Dta1xxIsQamB(Int, Int);
+BOOLEAN  Dta1xxIsQamMode(Int);
+Int  Dta1xxNumBitsPerSymbol(Int);
 UInt16  Dta1xxSubsystemId2TypeNumber(Int  SubsystemId);
 UInt  Dta1xxTxMode2PacketSize(Int  TxPacketMode);
 Int  Dta1xxWaitMs(Int TimeInMs);

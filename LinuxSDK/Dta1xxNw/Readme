@@ -18,6 +18,7 @@
 --------------------------------------------------------------------------------
 
 Date:		Version:	Remarks:
+2010.06.26	1.2.1.8		- Fixes memory allignment issue on 64-bit kernels
 2009.11.04	1.2.0.7		- Fixes compile issues due to missing link to Dta1xx
 						  symbols
 2009.01.27	1.1.0.6		- Fixes compile issues on kernel v2.6.26 and later

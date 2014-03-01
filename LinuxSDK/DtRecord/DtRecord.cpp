@@ -1,8 +1,5 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtRecord.cpp *#*#*#*#*#*#*#*# (C) 2000-2009 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtRecord.cpp *#*#*#*#*#*#*#*# (C) 2000-2010 DekTec
 //
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Change History -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//	2007.02.10	MG	Created
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <stdio.h>
@@ -20,8 +17,8 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtRecord Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #define DTRECORD_VERSION_MAJOR		3
-#define DTRECORD_VERSION_MINOR		5
-#define DTRECORD_VERSION_BUGFIX		3
+#define DTRECORD_VERSION_MINOR		6
+#define DTRECORD_VERSION_BUGFIX		0
 
 // Command line option flags
 const char c_DvcTypeCmdLineFlag[]			= "t";
@@ -39,6 +36,12 @@ const char c_ModBandwidthCmdLineFlag[]		= "mb";
 
 const char c_IpAddressCmdLineFlag[]			= "ipa";
 const char c_IpProtocolCmdLineFlag[]		= "ipp";
+
+const char c_LndVoltageCmdLineFlag[]		= "lnbv";
+const char c_LndToneCmdLineFlag[]			= "lnbt";
+
+//const char c_DiseqcCommandCmdLineFlag[]		= "diseqc";
+const char c_DiseqcPortGroupCmdLineFlag[]	= "diseqcpg";
 
 const char c_PolarityControlCmdLineFlag[]	= "pc";
 
@@ -128,6 +131,10 @@ void CommandLineParams::Init()
 	m_Bandwidth = -1;
 	m_CarrierFreq = -1.0;
 	m_QamJ83Annex = DTAPI_MOD_J83_B;
+
+	m_LnbVoltage = -1;
+	m_LnbToneEnable = false;
+	m_DiseqcPortGroup = -1;
 
 	memset(&m_IpPars, 0, sizeof(m_IpPars));
 	// Set default IP parameters
@@ -251,6 +258,16 @@ void  CommandLineParams::ParseParamFlag(char* pParam, bool First, bool Last)
 	else if ( 0==strcmp(pParam, c_QamJ83AnnexCmdLineFlag) )
 		m_LastFlagReqsArg = true;
 	else if ( 0==strcmp(pParam, c_ModBandwidthCmdLineFlag) )
+		m_LastFlagReqsArg = true;
+
+	else if ( 0==strcmp(pParam, c_LndVoltageCmdLineFlag) )
+		m_LastFlagReqsArg = true;
+	else if ( 0==strcmp(pParam, c_LndToneCmdLineFlag) )
+	{
+		m_LastFlagReqsArg = false;
+		m_LnbToneEnable = true;
+	}
+	else if ( 0==strcmp(pParam, c_DiseqcPortGroupCmdLineFlag) )
 		m_LastFlagReqsArg = true;
 	else if ( 0==strcmp(pParam, c_MaxSizeCmdLineFlag) )
 		m_LastFlagReqsArg = true;
@@ -399,6 +416,26 @@ void  CommandLineParams::ParseParamNotFlag(char* pParam, bool First, bool Last)
 			m_Bandwidth = DTAPI_MOD_DVBT_8MHZ;
 		}
 		else
+			throw Exc(c_CleInvalidArgument, m_pLastFlag);
+	}
+	else if ( 0==strcmp(m_pLastFlag, c_LndVoltageCmdLineFlag) )
+	{
+		m_LnbVoltage = atoi(pParam);
+		if ( m_LnbVoltage == 13 )
+			m_LnbVoltage = DTAPI_LNB_13V;
+		else if ( m_LnbVoltage == 14 )
+			m_LnbVoltage = DTAPI_LNB_14V;
+		else if ( m_LnbVoltage == 18 )
+			m_LnbVoltage = DTAPI_LNB_18V;
+		else if ( m_LnbVoltage == 19 )
+			m_LnbVoltage = DTAPI_LNB_19V;
+		else
+			throw Exc(c_CleInvalidArgument, m_pLastFlag);
+	}
+	else if ( 0==strcmp(m_pLastFlag, c_DiseqcPortGroupCmdLineFlag) )
+	{
+		m_DiseqcPortGroup = (int)strtol(pParam, NULL, 16);
+		if (m_DiseqcPortGroup<0xF0 || m_DiseqcPortGroup>0xFF)
 			throw Exc(c_CleInvalidArgument, m_pLastFlag);
 	}
 	else if ( 0==strcmp(m_pLastFlag, c_MaxSizeCmdLineFlag) )
@@ -551,6 +588,56 @@ const char* CommandLineParams::IpProtocol2Str() const
 	case DTAPI_PROTO_UDP:		return "UDP";
 	case DTAPI_PROTO_RTP:		return "RTP";
 	default:					return "?";
+	}
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- CommandLineParams::LnbVoltage2Str -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+const char* CommandLineParams::LnbVoltage2Str() const
+{
+	switch ( m_LnbVoltage )
+	{
+	case DTAPI_LNB_13V:	return "13V";
+	case DTAPI_LNB_14V:	return "14V";
+	case DTAPI_LNB_18V:	return "18V";
+	case DTAPI_LNB_19V:	return "19V";
+	default:			return "Disabled";
+	}
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- CommandLineParams::LnbTone2Str -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+const char* CommandLineParams::LnbTone2Str() const
+{
+	if (m_LnbToneEnable)
+		return "22 kHz";
+	else
+		return "No Tone";
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.- CommandLineParams::DiseqcPortGroup2Str -.-.-.-.-.-.-.-.-.-.-.-.
+//
+const char* CommandLineParams::DiseqcPortGroup2Str() const
+{
+	switch ( m_DiseqcPortGroup )
+	{
+	case 0xF0:	return "OptA, PosA, V, Lo";
+	case 0xF1:	return "OptA, PosA, V, Hi";
+	case 0xF2:	return "OptA, PosA, H, Lo";
+	case 0xF3:	return "OptA, PosA, H, Hi";
+	case 0xF4:	return "OptA, PosB, V, Lo";
+	case 0xF5:	return "OptA, PosB, V, Hi";
+	case 0xF6:	return "OptA, PosB, H, Lo";
+	case 0xF7:	return "OptA, PosB, H, Hi";
+	case 0xF8:	return "OptB, PosA, V, Lo";
+	case 0xF9:	return "OptB, PosA, V, Hi";
+	case 0xFA:	return "OptB, PosA, H, Lo";
+	case 0xFB:	return "OptB, PosA, H, Hi";
+	case 0xFC:	return "OptB, PosB, V, Lo";
+	case 0xFD:	return "OptB, PosB, V, Hi";
+	case 0xFE:	return "OptB, PosB, H, Lo";
+	case 0xFF:	return "OptB, PosB, H, Hi";
+	default:	return "???";
 	}
 }
 
@@ -717,6 +804,17 @@ void Recorder::DisplayPlayInfo()
 		// DVB-T modulation parameters
 		if ( m_CmdLineParams.m_ModType == DTAPI_MOD_DVBT )
 			LogF("- Bandwitdh             : %s", m_CmdLineParams.Bandwidth2Str() );
+
+		// LNB and DiSEqC settings (only DTA-2137)
+		if (m_DtDvc.TypeNumber() == 2137)
+		{
+			LogF("- LNB Voltage           : %s", m_CmdLineParams.LnbVoltage2Str() );
+			LogF("- LNB Tone              : %s", m_CmdLineParams.LnbTone2Str() );
+			if (m_CmdLineParams.m_DiseqcPortGroup != -1 )
+				LogF("- DiSEqC Port Group     : %02X (%s)", 
+										m_CmdLineParams.m_DiseqcPortGroup,
+										m_CmdLineParams.DiseqcPortGroup2Str() );
+		}
 	}
 
 	// Do we have a IP input
@@ -819,6 +917,38 @@ void Recorder::InitInput()
 		}
 		if ( dr != DTAPI_OK )
 			throw Exc( c_ErrFailSetDemodControl, ::DtapiResult2Str(dr) );
+
+
+		// Apply LNB and DiSEqC settings (only for DTA-2137)
+		if (m_DtDvc.TypeNumber() == 2137)
+		{
+			if (m_CmdLineParams.m_LnbVoltage != -1)
+				dr = m_DtInp.LnbSetVoltage(m_CmdLineParams.m_LnbVoltage);
+			
+			if (m_CmdLineParams.m_LnbVoltage==-1 && !m_CmdLineParams.m_LnbToneEnable)
+				dr = m_DtInp.LnbEnable(false);
+			else
+				dr = m_DtInp.LnbEnable(true);
+
+			dr = m_DtInp.LnbEnableTone(m_CmdLineParams.m_LnbToneEnable);
+
+			if (m_CmdLineParams.m_DiseqcPortGroup != -1 )
+			{
+				dr = m_DtInp.LnbEnable(true);
+				unsigned char  DiseqcStandByOffCmd[] = {0xE0, 0x10, 0x03 };
+				dr = m_DtInp.LnbSendDiseqcMessage(DiseqcStandByOffCmd, sizeof(DiseqcStandByOffCmd));
+
+#ifdef WIN32
+				Sleep(100);
+#else
+				usleep(100000);
+#endif 
+
+				unsigned char  DiseqcPortGroupCmd[] = {0xE0, 0x10, 0x038, 0x00 };
+				DiseqcPortGroupCmd[3] = m_CmdLineParams.m_DiseqcPortGroup;
+				dr = m_DtInp.LnbSendDiseqcMessage(DiseqcPortGroupCmd, sizeof(DiseqcPortGroupCmd));
+			}
+		}
 	}
 }
 
@@ -1055,7 +1185,7 @@ int Recorder::Record(int argc, char* argv[])
 
 		//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Print start message -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-		LogF("DtRecord - Recording Utility V%d.%d.%d (c) 2000-2009 DekTec Digital Video B.V.\n",
+		LogF("DtRecord - Recording Utility V%d.%d.%d (c) 2000-2010 DekTec Digital Video B.V.\n",
 			 DTRECORD_VERSION_MAJOR, DTRECORD_VERSION_MINOR, DTRECORD_VERSION_BUGFIX );
 
 
@@ -1119,6 +1249,7 @@ void Recorder::ShowHelp()
 	Log("Usage:");
 	Log( "   DtRecord recfile [-t type] [-n number] [-i port] [-x maxsize]\n" \
 		 "          [-mt type] [-mf freq] [-ma annex] [-mb bandwidth]\n" \
+		 "          [-lnbv voltage] [-lnbt] [-diseqcpg port_group_data_byte]\n" \
          "          [-ipa ip_address_pair] [-ipp protocol] [-pc polarity] [-s] [-?]");
 	Log("");
 	Log("Where:");
@@ -1177,6 +1308,29 @@ void Recorder::ShowHelp()
 	Log("         Use:  6   (for 6MHz)");
 	Log("               7   (for 7MHz)");
 	Log("               8   (for 8MHz)");
+	Log("   -lnbv  LNB voltage (default: disabled)");
+	Log("         Use:  13   (for 13V)");
+	Log("               14   (for 14V)");
+	Log("               18   (for 18V)");
+	Log("               19   (for 19V)");
+	Log("   -lnbt  LNB 22kHz tone (default: no tone)");
+	Log("   -diseqcpg  issue DiSEqC port group command");
+	Log("          Use: F0 => OptA, PosA, V, Lo");
+	Log("               F1 => OptA, PosA, V, Hi");
+	Log("               F2 => OptA, PosA, H, Lo");
+	Log("               F3 => OptA, PosA, H, Hi");
+	Log("               F4 => OptA, PosB, V, Lo");
+	Log("               F5 => OptA, PosB, V, Hi");
+	Log("               F6 => OptA, PosB, H, Lo");
+	Log("               F7 => OptA, PosB, H, Hi");
+	Log("               F8 => OptB, PosA, V, Lo");
+	Log("               F9 => OptB, PosA, V, Hi");
+	Log("               FA => OptB, PosA, H, Lo");
+	Log("               FB => OptB, PosA, H, Hi");
+	Log("               FC => OptB, PosB, V, Lo");
+	Log("               FD => OptB, PosB, V, Hi");
+	Log("               FE => OptB, PosB, H, Lo");
+	Log("               FF => OptB, PosB, H, Hi");
 	Log("   -ipa IP address/port (e.g. 192.168.0.1[:5768], port is optional)");
 	Log("   -ipp IP Protocol (default: AUTO)");
 	Log("         Use:  AUTO (for AUTO detect)");

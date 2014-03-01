@@ -19,6 +19,7 @@
 --------------------------------------------------------------------------------
 
 Date:		Version:	Remarks:
+2010.06.26	2.9.0.146	- Prelimenairy support for DTA-2111
 2010.03.22	2.8.1.145	- Fixed "unclassified failure in device driver" bug when 
 						  selecting DVB-T2 modulation
 						- Prelimenairy support for DTA-111
@@ -109,6 +110,7 @@ Currently the driver provides support for the following cards:
  - DTA-145   (Multi-Purpose ASI/SDI Adapter for PCI Bus)
  - DTA-160   (Gigabit Ethernet + 3x ASI for PCI Bus)
  - DTA-545   (DVB-ASI  Input/Output Adapter for PC104+)
+ - DTA-2111  (Multi-Standard Modulator for PCI Express)
  - DTA-2144  (Quad ASI/SDI Input/Output Adapter for PCI Express)
  - DTA-2145  (Multi-Purpose ASI/SDI Adapter for PCI Express)
  - DTA-2160  (Gigabit Ethernet + 3x ASI for PCI Express)

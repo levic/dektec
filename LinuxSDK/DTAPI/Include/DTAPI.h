@@ -66,9 +66,9 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTAPI Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #define  DTAPI_VERSION_MAJOR		4
-#define  DTAPI_VERSION_MINOR		6
-#define  DTAPI_VERSION_BUGFIX		1
-#define  DTAPI_VERSION_BUILD		132
+#define  DTAPI_VERSION_MINOR		7
+#define  DTAPI_VERSION_BUGFIX		3
+#define  DTAPI_VERSION_BUILD		136
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -127,7 +127,7 @@ struct DTAPI_API DtCmmbPars {
 	int		m_TsRate;			// CMMB TS rate in bps
 	int		m_TsPid;			// PID on which the CMMB stream is found
 	int		m_AreaId;			// Area ID (0..127)
-	int		m_TxId;				// Transmitter ID (0..127)
+	int		m_TxId;				// Transmitter ID (128..255)
 	
 	// Member function
 	DTAPI_RESULT  RetrieveTsRateFromTs(char* pBuffer, int NumBytes);
@@ -138,7 +138,8 @@ struct DTAPI_API DtCmmbPars {
 
 	// Constructor
 	DtCmmbPars() :
-		m_Bandwidth(DTAPI_CMMB_BW_8MHZ), m_TsRate(0), m_TsPid(-1), m_AreaId(0), m_TxId(0)
+		m_Bandwidth(DTAPI_CMMB_BW_8MHZ), m_TsRate(5826496), m_TsPid(-1),
+		m_AreaId(0), m_TxId(128)
 	{}
 };
 
@@ -330,11 +331,11 @@ struct DtDvbT2ParamInfo {
 								// L1 overhead = m_L1CellsPerFrame / m_TotalCellsPerFrame
     int m_AuxCellsPerFrame;		// Total number of auxiliary stream cells per frame 
 								// (currently only used for TX signalling if enabled)
-	int  m_DummyCellsPerFrame;	// Total number of cells lost per frame; dummy cells
+	int m_BiasBalancingCellsPerFrame;//	Total number of L1 bias balancing cells
+	int m_BiasBalancingCellsMax;	 //	Maximum number of L1 bias balancing cells
+	int m_DummyCellsPerFrame;	// Total number of cells lost per frame; dummy cells
 								// overhead = m_DummyCellsPerFrame / m_TotalCellsPerFrame
 								// It is only computed for frame 0
-	int m_BiasBalancingCellsMin;	//	Minimum number of L1 bias balancing cells
-	int m_BiasBalancingCellsMax;	//	Maximum number of L1 bias balancing cells
 };
 
 // Parameters per PLP
@@ -449,32 +450,35 @@ struct DtHwFuncDesc {
 #define  DTAPI_CAP_IORATESEL	0x00000100	// TS rate clock selection
 #define  DTAPI_CAP_IOCONFIG		0x00000200	// I/O standard and mode configuration
 #define  DTAPI_CAP_IOCLKSEL		0x00000400	// I/O clock selection
-#define  DTAPI_CAP_DVBRAW10B	0x00000800	// DVB 10 bit raw mode
+#define  DTAPI_CAP_DVBRAW10B	0x00000800	// obsolete DTA-2142 rev 0
+#define  DTAPI_CAP_RAWASI		0x00001000	// raw 10 bit ASI mode
+
 
 // Capabilities - Modulation
 #define  DTAPI_CAP_ATSC			0x00000100	// ATSC modulation
 #define  DTAPI_CAP_CMMB			0x00000200	// CMMB modulation
 #define  DTAPI_CAP_DTMB			0x00000400	// DTMB modulation
-#define  DTAPI_CAP_DVBS			0x00000800	// DVB-S modulation
-#define  DTAPI_CAP_DVBS2		0x00001000	// DVB-S2 modulation
-#define  DTAPI_CAP_DVBT			0x00002000	// DVB-T modulation
-#define  DTAPI_CAP_DVBT2		0x00004000	// DVB-T2 modulation
-#define  DTAPI_CAP_IQ			0x00008000	// Direct I/Q samples
-#define  DTAPI_CAP_ISDBT		0x00010000	// ISDBT modulation
-#define  DTAPI_CAP_QAM_A		0x00020000	// QAM-A modulation
-#define  DTAPI_CAP_QAM_B		0x00040000	// QAM-B modulation
-#define  DTAPI_CAP_QAM_C		0x00080000	// QAM-C modulation
-#define  DTAPI_CAP_VHF			0x00100000	// VHF-band 47-470MHz
-#define  DTAPI_CAP_UHF			0x00200000	// UHF-band 400-862MHz
-#define  DTAPI_CAP_LBAND		0x00400000	// L-band 950-2150MHz
-#define  DTAPI_CAP_IF			0x00800000	// IF output
-#define  DTAPI_CAP_DIGIQ		0x01000000	// Digital IQ output
-#define  DTAPI_CAP_ADJLVL		0x02000000	// Adjustable output level
-#define  DTAPI_CAP_DIVERSITY	0x04000000	// Support for diversity mode
-#define  DTAPI_CAP_IF_ADC		0x08000000	// Support for access to downconverted signal
-#define	 DTAPI_CAP_SHARED		0x10000000	// Support for shared antenna input
-#define  DTAPI_CAP_SNR			0x20000000	// Support for setting SNR
-#define  DTAPI_CAP_CM			0x40000000	// Channel modelling
+#define  DTAPI_CAP_DVBC2		0x00000800	// DVB-C2 modulation
+#define  DTAPI_CAP_DVBS			0x00001000	// DVB-S modulation
+#define  DTAPI_CAP_DVBS2		0x00002000	// DVB-S2 modulation
+#define  DTAPI_CAP_DVBT			0x00004000	// DVB-T modulation
+#define  DTAPI_CAP_DVBT2		0x00008000	// DVB-T2 modulation
+#define  DTAPI_CAP_IQ			0x00010000	// Direct I/Q samples
+#define  DTAPI_CAP_ISDBT		0x00020000	// ISDBT modulation
+#define  DTAPI_CAP_QAM_A		0x00040000	// QAM-A modulation
+#define  DTAPI_CAP_QAM_B		0x00080000	// QAM-B modulation
+#define  DTAPI_CAP_QAM_C		0x00100000	// QAM-C modulation
+#define  DTAPI_CAP_VHF			0x00200000	// VHF-band 47-470MHz
+#define  DTAPI_CAP_UHF			0x00400000	// UHF-band 400-862MHz
+#define  DTAPI_CAP_LBAND		0x00800000	// L-band 950-2150MHz
+#define  DTAPI_CAP_IF			0x01000000	// IF output
+#define  DTAPI_CAP_DIGIQ		0x02000000	// Digital IQ output
+#define  DTAPI_CAP_ADJLVL		0x04000000	// Adjustable output level
+#define  DTAPI_CAP_DIVERSITY	0x08000000	// Support for diversity mode
+#define  DTAPI_CAP_IF_ADC		0x10000000	// Support for access to downconverted signal
+#define	 DTAPI_CAP_SHARED		0x20000000	// Support for shared antenna input
+#define  DTAPI_CAP_SNR			0x40000000	// Support for setting SNR
+#define  DTAPI_CAP_CM			0x80000000	// Channel modelling
 
 // LEGACY
 #define  DTAPI_CAP_8VSB		DTAPI_CAP_ATSC	// Replaced by DTAPI_CAP_ATSC
@@ -750,6 +754,8 @@ public:
 	DTAPI_RESULT  UCodeLockUpload(void);
 	DTAPI_RESULT  UCodeUnlockUpload(bool Uploaded);
 	DTAPI_RESULT  UCodeWaitUploaded(int TimeOut);
+	DTAPI_RESULT  UsbReadRegister(unsigned int  Address, unsigned int& Data);
+	DTAPI_RESULT  UsbWriteRegister(unsigned int  Address, unsigned int Data);
 	DTAPI_RESULT  VpdDelete(const char* pTag);
 	DTAPI_RESULT  VpdDelete(const wchar_t* pTag);
 	DTAPI_RESULT  VpdRead(const char* pTag, char* pVpdItem);
@@ -997,6 +1003,7 @@ public:
 #define  DTAPI_RXMODE_STRAW			3
 #define  DTAPI_RXMODE_STL3			4
 #define  DTAPI_RXMODE_IPRAW			5
+#define  DTAPI_RXMODE_RAWASI		5
 #define  DTAPI_RXMODE_STTRP			7
 #define  DTAPI_RX_TIMESTAMP			0x008	// Flag: can be OR-ed with other modes
 #define  DTAPI_RXMODE_SDI			0x010	// Flag: can be OR-ed with other modes
@@ -1034,6 +1041,8 @@ public:
 #define DTAPI_STAT_BER_PRERS		0x102		// Pre-Reed solomon bit error rate
 #define DTAPI_STAT_SNR				0x102		// Signal-to-Noise ratio in dB
 #define DTAPI_STAT_MER				0x103		// Modulation error rate in dB
+#define DTAPI_STAT_BER_LDPC			0x104		// Inner LDPC bit error rate
+#define DTAPI_STAT_BER_BCH			0x105		// Outer BCH bit error rate
 
 // ADC sampling rates
 #define DTAPI_ADCCLK_OFF			0			// Clock is off
@@ -1133,7 +1142,7 @@ public:
 	DTAPI_RESULT  WriteDirect(char* pBuffer, int NumBytesToWrite);
 	DTAPI_RESULT  WriteUsingDma(char* pBuffer, int NumBytesToWrite);
 	// Undocumented
-	void  GetModBufLoads(int* pLoad1, int* pLoad2);
+	void  GetModBufLoads(bool*, int*, int*, int*);
 
 protected:
 	DTAPI_RESULT  SetModControl(int, int, int, int, void*, bool ForceInit=false);
@@ -1221,6 +1230,7 @@ public:
 #define  DTAPI_MOD_ADTBT			49
 #define  DTAPI_MOD_CMMB				50
 #define  DTAPI_MOD_T2MI				51
+#define  DTAPI_MOD_DVBC2			52		// Not used yet, but we reserve it already
 
 // LEGACY definitions
 #define  DTAPI_MOD_QPSK				0
@@ -1228,14 +1238,20 @@ public:
 #define  DTAPI_MOD_OFDM				9
 #define  DTAPI_MOD_DTMB				48
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- Modulation Parameters (ATSC) -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.-.-.-.-.- Common (de-)modulation Parameters -.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+// ParXtra3
+#define DTAPI_MOD_SYMRATE_AUTO		-1			// Auto detect symbol rate
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Modulation Parameters (ATSC) -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 // ParXtra0
 #define  DTAPI_MOD_ATSC_VSB8		0x00000000	// 8-VSB, 10.762MBd, 19.392Mbps
 #define  DTAPI_MOD_ATSC_VSB16		0x00000001	// 16-VSB, 10.762MBd, 38.785Mbps
+#define  DTAPI_MOD_ATSC_VSB_AUTO	0x00000003	// Auto detect constellation
 #define  DTAPI_MOD_ATSC_VSB_MSK		0x00000003	// Constellation mask
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- Modulation Parameters (DTMB) -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Modulation Parameters (DTMB) -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 // ParXtra0
 
@@ -1244,12 +1260,16 @@ public:
 #define  DTAPI_MOD_DTMB_6MHZ		0x00000002
 #define  DTAPI_MOD_DTMB_7MHZ		0x00000003
 #define  DTAPI_MOD_DTMB_8MHZ		0x00000004
+#define  DTAPI_MOD_DTMB_BW_AUTO		0x0000000F	// Auto detect
+#define  DTAPI_MOD_DTMB_BW_UNK		0x0000000F	// Unknown
 #define  DTAPI_MOD_DTMB_BW_MSK		0x0000000F
 
 // Code Rate
 #define  DTAPI_MOD_DTMB_0_4			0x00000100	// 0.4
 #define  DTAPI_MOD_DTMB_0_6			0x00000200	// 0.6
 #define  DTAPI_MOD_DTMB_0_8			0x00000300	// 0.8
+#define  DTAPI_MOD_DTMB_RATE_AUTO	0x00000F00	// Auto detect
+#define  DTAPI_MOD_DTMB_RATE_UNK	0x00000F00	// Unknown
 #define  DTAPI_MOD_DTMB_RATE_MSK	0x00000F00	// Mask
 
 // Constellation
@@ -1258,71 +1278,90 @@ public:
 #define  DTAPI_MOD_DTMB_QAM16		0x00003000	// 16-QAM
 #define  DTAPI_MOD_DTMB_QAM32		0x00004000	// 32-QAM
 #define  DTAPI_MOD_DTMB_QAM64		0x00005000	// 64-QAM
+#define  DTAPI_MOD_DTMB_CO_AUTO		0x0000F000	// Auto detect
+#define  DTAPI_MOD_DTMB_CO_UNK		0x0000F000	// Unknown
 #define  DTAPI_MOD_DTMB_CO_MSK		0x0000F000	// Mask
 
 // Frame Header Mode
 #define  DTAPI_MOD_DTMB_PN420		0x00010000	// PN420
 #define  DTAPI_MOD_DTMB_PN595		0x00020000	// PN595
 #define  DTAPI_MOD_DTMB_PN945		0x00030000	// PN945
+#define  DTAPI_MOD_DTMB_PN_AUTO		0x000F0000	// Auto detect
+#define  DTAPI_MOD_DTMB_PN_UNK		0x000F0000	// Unknown
 #define  DTAPI_MOD_DTMB_PN_MSK		0x000F0000	// Mask
 
 // Interleaver Mode
 #define  DTAPI_MOD_DTMB_IL_1		0x00100000	// Interleaver mode 1: B=54, M=240
 #define  DTAPI_MOD_DTMB_IL_2		0x00200000	// Interleaver mode 2: B=54, M=720
+#define  DTAPI_MOD_DTMB_IL_AUTO		0x00F00000	// Auto detect
+#define  DTAPI_MOD_DTMB_IL_UNK		0x00F00000	// Unknown
 #define  DTAPI_MOD_DTMB_IL_MSK		0x00F00000	// Mask
 
 // Pilots
 #define  DTAPI_MOD_DTMB_NO_PILOTS	0x01000000	// No pilots
 #define  DTAPI_MOD_DTMB_PILOTS		0x02000000	// Pilots, C=1 only
+#define  DTAPI_MOD_DTMB_PIL_AUTO	0x0F000000	// Auto detect
+#define  DTAPI_MOD_DTMB_PIL_UNK		0x0F000000	// Unknown
 #define  DTAPI_MOD_DTMB_PIL_MSK		0x0F000000	// Mask
 
 // Use Frame Numbering
 #define  DTAPI_MOD_DTMB_NO_FRM_NO	0x10000000	// No frame numbering
 #define  DTAPI_MOD_DTMB_USE_FRM_NO	0x20000000	// Use frame numbers
+#define  DTAPI_MOD_DTMB_UFRM_AUTO	0xF0000000	// Auto detect
+#define  DTAPI_MOD_DTMB_UFRM_UNK	0xF0000000	// Unknown
 #define  DTAPI_MOD_DTMB_UFRM_MSK	0xF0000000	// Mask
 
 //.-.-.-.-.-.-.-.-.-.-.-.- Modulation Parameters (DVB-S, DVB-S.2) -.-.-.-.-.-.-.-.-.-.-.-.
-#define  DTAPI_MOD_1_2				0			// Code rate 1/2
-#define  DTAPI_MOD_2_3				1			// Code rate 2/3
-#define  DTAPI_MOD_3_4				2			// Code rate 3/4
-#define  DTAPI_MOD_4_5				3			// Code rate 4/5
-#define  DTAPI_MOD_5_6				4			// Code rate 5/6
-#define  DTAPI_MOD_6_7				5			// Code rate 6/7
-#define  DTAPI_MOD_7_8				6			// Code rate 7/8
-#define  DTAPI_MOD_1_4				7			// Code rate 1/4
-#define  DTAPI_MOD_1_3				8			// Code rate 1/3
-#define  DTAPI_MOD_2_5				9			// Code rate 2/5
-#define  DTAPI_MOD_3_5				10			// Code rate 3/5
-#define  DTAPI_MOD_8_9				11			// Code rate 8/9
-#define  DTAPI_MOD_9_10				12			// Code rate 9/10
-#define  DTAPI_MOD_CR_UNK			15			// Unknown code rate
+#define  DTAPI_MOD_1_2				0x0			// Code rate 1/2
+#define  DTAPI_MOD_2_3				0x1			// Code rate 2/3
+#define  DTAPI_MOD_3_4				0x2			// Code rate 3/4
+#define  DTAPI_MOD_4_5				0x3			// Code rate 4/5
+#define  DTAPI_MOD_5_6				0x4			// Code rate 5/6
+#define  DTAPI_MOD_6_7				0x5			// Code rate 6/7
+#define  DTAPI_MOD_7_8				0x6			// Code rate 7/8
+#define  DTAPI_MOD_1_4				0x7			// Code rate 1/4
+#define  DTAPI_MOD_1_3				0x8			// Code rate 1/3
+#define  DTAPI_MOD_2_5				0x9			// Code rate 2/5
+#define  DTAPI_MOD_3_5				0xA			// Code rate 3/5
+#define  DTAPI_MOD_8_9				0xB			// Code rate 8/9
+#define  DTAPI_MOD_9_10				0xC			// Code rate 9/10
+#define  DTAPI_MOD_CR_AUTO			0xF			// Auto detect code rate
+#define  DTAPI_MOD_CR_UNK			0xF			// Unknown code rate
 
 // ParXtra1
-#define  DTAPI_MOD_SPECNONINV		0			// No spectrum inversion detected
-#define  DTAPI_MOD_SPECINV			4			// Spectrum inversion detected
-#define  DTAPI_MOD_SPECINV_MSK		4			// Mask for spectrum inversion field
+#define  DTAPI_MOD_S_S2_SPECNONINV	0x00		// No spectrum inversion detected
+#define  DTAPI_MOD_S_S2_SPECINV		0x10		// Spectrum inversion detected
+#define  DTAPI_MOD_S_S2_SPECINV_AUTO 0x30		// Auto detect spectral inversion
+#define  DTAPI_MOD_S_S2_SPECINV_UNK	0x30		// Spectral inversion is unknown
+#define  DTAPI_MOD_S_S2_SPECINV_MSK	0x30		// Mask for spectrum inversion field
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- Modulation Parameters (DVB-S.2) -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // ParXtra1
-#define  DTAPI_MOD_S2_NOPILOTS		0			// Pilots disabled
-#define  DTAPI_MOD_S2_PILOTS		1			// Pilots enabled
-#define  DTAPI_MOD_S2_PILOTS_MSK	1			// Mask for pilots field
+#define  DTAPI_MOD_S2_NOPILOTS		0x00		// Pilots disabled
+#define  DTAPI_MOD_S2_PILOTS		0x01		// Pilots enabled
+#define  DTAPI_MOD_S2_PILOTS_AUTO	0x03		// Auto detect pilots
+#define  DTAPI_MOD_S2_PILOTS_UNK	0x03		// State of pilots unknown
+#define  DTAPI_MOD_S2_PILOTS_MSK	0x03		// Mask for pilots field
 
-#define  DTAPI_MOD_S2_SHORTFRM		2			// Short FECFRAME
-#define  DTAPI_MOD_S2_LONGFRM		0			// Long FECFRAME
-#define  DTAPI_MOD_S2_FRM_MSK		2			// Mask for FECFRAME field
+#define  DTAPI_MOD_S2_SHORTFRM		0x08		// Short FECFRAME
+#define  DTAPI_MOD_S2_LONGFRM		0x00		// Long FECFRAME
+#define  DTAPI_MOD_S2_FRM_AUTO		0x0C		// Auto detect frame size
+#define  DTAPI_MOD_S2_FRM_UNK		0x0C		// Frame size unknown
+#define  DTAPI_MOD_S2_FRM_MSK		0x0C		// Mask for FECFRAME field
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Modulation Parameters (DVB-T) -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #define  DTAPI_MOD_DVBT_5MHZ		0x00000001
 #define  DTAPI_MOD_DVBT_6MHZ		0x00000002
 #define  DTAPI_MOD_DVBT_7MHZ		0x00000003
 #define  DTAPI_MOD_DVBT_8MHZ		0x00000004
+#define  DTAPI_MOD_DVBT_BW_AUTO		0x0000000F	// Auto detect bandwitdh
 #define  DTAPI_MOD_DVBT_BW_UNK		0x0000000F	// Unknown bandwidth
 #define  DTAPI_MOD_DVBT_BW_MSK		0x0000000F
 
 #define  DTAPI_MOD_DVBT_QPSK		0x00000010
 #define  DTAPI_MOD_DVBT_QAM16		0x00000020
 #define  DTAPI_MOD_DVBT_QAM64		0x00000030
+#define  DTAPI_MOD_DVBT_CO_AUTO		0x000000F0	// Auto detect constellation
 #define  DTAPI_MOD_DVBT_CO_UNK		0x000000F0	// Unknown constellation
 #define  DTAPI_MOD_DVBT_CO_MSK		0x000000F0
 
@@ -1330,16 +1369,20 @@ public:
 #define  DTAPI_MOD_DVBT_G_1_16		0x00000200
 #define  DTAPI_MOD_DVBT_G_1_8		0x00000300
 #define  DTAPI_MOD_DVBT_G_1_4		0x00000400
+#define  DTAPI_MOD_DVBT_GU_AUTO		0x00000F00	// Auto detect guard interval
 #define  DTAPI_MOD_DVBT_GU_UNK		0x00000F00	// Unknown guard interval
 #define  DTAPI_MOD_DVBT_GU_MSK		0x00000F00
 
 #define  DTAPI_MOD_DVBT_INDEPTH		0x00001000
 #define  DTAPI_MOD_DVBT_NATIVE		0x00002000
+#define  DTAPI_MOD_DVBT_IL_AUTO		0x0000F000	// Auto detect interleaver depth
+#define  DTAPI_MOD_DVBT_IL_UNK		0x0000F000	// Unknown interleaver depth
 #define  DTAPI_MOD_DVBT_IL_MSK		0x0000F000
 
 #define  DTAPI_MOD_DVBT_2K			0x00010000
 #define  DTAPI_MOD_DVBT_4K			0x00020000
 #define  DTAPI_MOD_DVBT_8K			0x00030000
+#define  DTAPI_MOD_DVBT_MD_AUTO		0x000F0000	// Auto detect mode
 #define  DTAPI_MOD_DVBT_MD_UNK		0x000F0000	// Unknown mode
 #define  DTAPI_MOD_DVBT_MD_MSK		0x000F0000
 
@@ -1395,17 +1438,19 @@ public:
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Modulation Parameters (QAM) -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define  DTAPI_MOD_DVBC_SOFT		0x100		// Soft DVB-C flag
 
-// J.83 Annex
-#define  DTAPI_MOD_J83_MSK			0x0003
-#define  DTAPI_MOD_J83_A			2			// J.83 annex A (DVB-C)
-#define  DTAPI_MOD_J83_B			3			// J.83 annex B (“American QAM”)
-#define  DTAPI_MOD_J83_C			1			// J.83 annex C (“Japanese QAM”)
+// ParXtra0 - J.83 Annex
+#define  DTAPI_MOD_J83_MSK			0x000F
+#define  DTAPI_MOD_J83_UNK			0x000F		// Unknown annex
+#define  DTAPI_MOD_J83_AUTO			0x000F		// Auto detect annex
+#define  DTAPI_MOD_J83_A			0x0002		// J.83 annex A (DVB-C)
+#define  DTAPI_MOD_J83_B			0x0003		// J.83 annex B (“American QAM”)
+#define  DTAPI_MOD_J83_C			0x0001		// J.83 annex C (“Japanese QAM”)
 
 // LEGACY definitions
 #define  DTAPI_MOD_ROLLOFF_13		1			// Roll-off factor 13% (LEGACY)
 #define  DTAPI_MOD_ROLLOFF_15		2			// Roll-off factor 15% (LEGACY)
 
-// QAM-B interleaver mode
+// ParXtra1 -  QAM-B interleaver mode
 #define  DTAPI_MOD_QAMB_I128_J1D	0x1
 #define  DTAPI_MOD_QAMB_I64_J2		0x3
 #define  DTAPI_MOD_QAMB_I32_J4		0x5
@@ -1419,6 +1464,7 @@ public:
 #define  DTAPI_MOD_QAMB_I128_J6		0xA
 #define  DTAPI_MOD_QAMB_I128_J7		0xC
 #define  DTAPI_MOD_QAMB_I128_J8		0xE
+#define  DTAPI_MOD_QAMB_IL_UNK		0xF			// Unknown interleaver mode
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Packet Transmit Mode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1428,6 +1474,7 @@ public:
 #define  DTAPI_TXMODE_RAW			3
 #define  DTAPI_TXMODE_192			4		// Supported on DTA-102 Firmware Rev >= 2
 #define  DTAPI_TXMODE_130			5		// Supported on DTA-102 Firmware Rev >= 7
+#define  DTAPI_TXMODE_RAWASI			5
 #define  DTAPI_TXMODE_MIN16			6		// Supported on DTA-100 Firmware Rev >= 5
 											// and          DTA-102 Firmware Rev >= 8
 #define  DTAPI_TXMODE_IPRAW			7
@@ -1533,6 +1580,7 @@ public:
 	DTAPI_RESULT  Detach();
 	DTAPI_RESULT  DetachFromInput();
 	DTAPI_RESULT  DetachFromOutput();
+	DTAPI_RESULT  SetP2pDelay(int Delay);
 	DTAPI_RESULT  SetStuffingMode(int Mode, int TsRate);
 	DTAPI_RESULT  Start(bool Start=true);
 

@@ -639,7 +639,7 @@ UInt8  Dta1xxNwMacMiiSmCheckState(IN PNwStore pNwStore)
 			case MIISM_CMD_GET_PHY_ID2:
 				pNwStore->m_PhyModel = (UInt8)((MiiCommand >> 4) & 0x3f);
 				
-				DTA1XX_LOG(KERN_DEBUG, "Dta1xxNwMacCheckMiiSmState: Command=0x%x PhyModel: %x\n", 
+				DTA1XX_LOG(KERN_DEBUG, "Dta1xxNwMacCheckMiiSmState: Command=0x%x PhyModel: %x", 
 							MiiCommand,
 							pNwStore->m_PhyModel);
 				
@@ -1272,12 +1272,12 @@ void  Dta1xxNwMacGenerateSetupFrame(
 			pSetupFrame->FT.HTable.HFItem[HTIndex / 16].Item0 |= 1 << (HTIndex % 16);
 
 #if LOG_LEVEL_MAC > 0
-			KdPrint(("Dta1xx: Dta1xxNwMacSendSetupFrame: MC[%02d]"
-					 "=%02x-%02x-%02x-%02x-%02x-%02x, hash %02d\n", i,
+			DTA1XX_LOG(KERN_INFO, "Dta1xxNwMacSendSetupFrame: MC[%02d]"
+					 "=%02x-%02x-%02x-%02x-%02x-%02x, hash %02d", i,
 					 pNwStore->m_MCList[i][0], pNwStore->m_MCList[i][1],
 					 pNwStore->m_MCList[i][2], pNwStore->m_MCList[i][3],
 					 pNwStore->m_MCList[i][4], pNwStore->m_MCList[i][5],
-					 HTIndex));
+					 HTIndex);
 #endif
 		}
 	}

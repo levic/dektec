@@ -418,8 +418,9 @@ void Dta1xxPeriodicIntHandler(
 
 	for ( PortIndex=0; PortIndex<pFdo->m_NumNonIpChannels; PortIndex++ )
 	{
-		// For DTA-102					: Estimate frequency of External-Clock input
-		// For DTA-112/115/116/117/120/122/124/140/145/2135/2142/2144/2145/160/2160/545
+        // For DTA-102		: Estimate frequency of External-Clock input
+		// For DTA-112/115/116/117/120/122/124/140/145/160
+		//         2135/2136/2137/2142/2144/2145/2148/2160/545
 		//								: Estimate rate of Transport-Stream input
 		if (    pFdo->m_TypeNumber==102 ||  pFdo->m_TypeNumber==120
 			||  pFdo->m_TypeNumber==122 ||  pFdo->m_TypeNumber==124
@@ -427,8 +428,8 @@ void Dta1xxPeriodicIntHandler(
 			|| ((pFdo->m_TypeNumber==112  || pFdo->m_TypeNumber==115  ||
 				 pFdo->m_TypeNumber==116  || pFdo->m_TypeNumber==117  ||
 				 pFdo->m_TypeNumber==145  || pFdo->m_TypeNumber==160  ||
-				 pFdo->m_TypeNumber==545  ||
-				 pFdo->m_TypeNumber==2135 || pFdo->m_TypeNumber==2137 ||
+				 pFdo->m_TypeNumber==545  || pFdo->m_TypeNumber==2135 ||
+				 pFdo->m_TypeNumber==2136 || pFdo->m_TypeNumber==2137 ||
 				 pFdo->m_TypeNumber==2142 || pFdo->m_TypeNumber==2144 || 
 				 pFdo->m_TypeNumber==2145 || pFdo->m_TypeNumber==2160) &&
 				pFdo->m_Channel[PortIndex].m_ChannelType==DTA1XX_TS_RX_CHANNEL))
@@ -500,14 +501,15 @@ void Dta1xxPeriodicIntHandler(
 
 	//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Statistics -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-	// For DTA-112/115/116/117/120/140/145/160/545/2135/2142/2144/2145/2160:
+	// For DTA-112/115/116/117/120/140/145/160/545/213X/2142/2144/2145/2160:
 	// Sample code-violation counter
 	if ( pFdo->m_TypeNumber==112  || pFdo->m_TypeNumber==115  ||
 		 pFdo->m_TypeNumber==116  || pFdo->m_TypeNumber==117  ||
 		 pFdo->m_TypeNumber==120  || pFdo->m_TypeNumber==140  ||
 		 pFdo->m_TypeNumber==145  || pFdo->m_TypeNumber==160  ||
 		 pFdo->m_TypeNumber==545  ||
-		 pFdo->m_TypeNumber==2135 || pFdo->m_TypeNumber==2137 ||
+		 pFdo->m_TypeNumber==2135 || pFdo->m_TypeNumber==2136 ||
+         pFdo->m_TypeNumber==2137 ||
 		 pFdo->m_TypeNumber==2142 || pFdo->m_TypeNumber==2144 || 
 		 pFdo->m_TypeNumber==2145 || pFdo->m_TypeNumber==2160)
 	{
@@ -563,7 +565,7 @@ void  Dta1xxDmaIntHandler(
 	DTA1XX_FDO* pFdo = pCh->m_pFdo;
 	volatile UInt8*  pPci905XRegs=NULL;
 
-	// For new cards that use DMA controller in Altera (e.g. DTA-105/115/124/160/2160/545):
+	// For new cards that use DMA controller in Altera (e.g. DTA-105/115/124/160/2111/2160/545):
 	// Check for DMA channel interrupts in operational registers, not in PLX
 	if ( pFdo->m_UsesDmaInFpga )
 	{

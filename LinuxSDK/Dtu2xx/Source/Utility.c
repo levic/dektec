@@ -15,6 +15,17 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "Dtu2xx.h"
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxGetTickCount -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Returns the tick-count in us
+//
+UInt64  Dtu2xxGetTickCount()
+{
+	struct timeval  tv;
+	do_gettimeofday(&tv);
+	return (UInt64)( Dtu2xxBinDiv(timeval_to_ns(&tv), 1000LL, NULL) );
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxMode2PacketSize -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Computes the packet size based on the packet transmit-mode
@@ -283,4 +294,143 @@ UInt64 Dtu2xxBinUDiv(UInt64 num, UInt64 denom, UInt64* pRest)
         *pRest = rest;
 
     return answer;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxWaitMs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  Dtu2xxWaitMs(IN Int TimeInMs)
+{
+  udelay(TimeInMs*1000);  // ms->us (x1000)
+  return 0;
+}
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Modulation Utility Functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxComputeRollOff -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  Dtu2xxComputeRollOff(IN Int ModType, IN Int ParXtra0)
+{
+	Int  Annex = ParXtra0 & DTU2XX_MOD_J83_MSK;
+
+	if (Annex == DTU2XX_MOD_J83_A)
+		return DTU2XX_ROLLOFF_15;
+	if (Annex==DTU2XX_MOD_J83_B && ModType==DTU2XX_MOD_QAM64)
+		return DTU2XX_ROLLOFF_18;
+	if (Annex==DTU2XX_MOD_J83_B && ModType==DTU2XX_MOD_QAM256)
+		return DTU2XX_ROLLOFF_12;
+	if (Annex == DTU2XX_MOD_J83_C)
+		return DTU2XX_ROLLOFF_13;
+	return DTU2XX_ROLLOFF_15;			// Default
+}
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxIsHardQamAorC -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Check for QAM-A or QAM-C, without DTU2XX_MOD_DVBC_SOFT defined
+//
+BOOLEAN  Dtu2xxIsHardQamAorC(IN Int ModType, IN Int ParXtra0)
+{
+	Int  Annex = ParXtra0 & DTU2XX_MOD_J83_MSK;
+
+	if (  ModType!=DTU2XX_MOD_QAM4   && ModType!=DTU2XX_MOD_QAM16
+	   && ModType!=DTU2XX_MOD_QAM32  && ModType!=DTU2XX_MOD_QAM64
+	   && ModType!=DTU2XX_MOD_QAM128 && ModType!=DTU2XX_MOD_QAM256)
+		return FALSE;
+	// Rule out soft QAM
+	if ((ParXtra0 & DTU2XX_MOD_DVBC_SOFT) != 0)
+		return FALSE;
+	return (Annex==DTU2XX_MOD_J83_A || Annex==DTU2XX_MOD_J83_C);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxIsHardQamA -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+BOOLEAN  Dtu2xxIsHardQamA(IN Int ModType, IN Int ParXtra0)
+{
+	Int  Annex = ParXtra0 & DTU2XX_MOD_J83_MSK;
+	// Check we hava hard QAM-A or QAM-C
+	if ( !Dtu2xxIsHardQamAorC(ModType, ParXtra0) )
+		return FALSE;
+	return (Annex==DTU2XX_MOD_J83_A);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxIsHardQamC -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+BOOLEAN  Dtu2xxIsHardQamC(IN Int ModType, IN Int ParXtra0)
+{
+	Int  Annex = ParXtra0 & DTU2XX_MOD_J83_MSK;
+	// Check we hava hard QAM-A or QAM-C
+	if ( !Dtu2xxIsHardQamAorC(ModType, ParXtra0) )
+		return FALSE;
+	return (Annex==DTU2XX_MOD_J83_C);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxIsIqMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Is ModType a mode that requires I/Q samples?
+//
+BOOLEAN  Dtu2xxIsIqMode(IN Int ModType)
+{
+	if (    ModType==DTU2XX_MOD_ADTBT || ModType==DTU2XX_MOD_ATSC
+		 || ModType==DTU2XX_MOD_CMMB  || ModType==DTU2XX_MOD_DMBTH
+		 || ModType==DTU2XX_MOD_DVBC2
+		 || ModType==DTU2XX_MOD_DVBT  || ModType==DTU2XX_MOD_DVBT2 
+		 || ModType==DTU2XX_MOD_IQDIRECT || ModType==DTU2XX_MOD_IQDIRECT_NOLIC
+		 || ModType==DTU2XX_MOD_ISDBT || ModType==DTU2XX_MOD_T2MI )
+		return TRUE;
+	else
+		return FALSE;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxIsQamB -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+BOOLEAN  Dtu2xxIsQamB(IN Int ModType, IN Int ParXtra0)
+{
+	Int  Annex = ParXtra0 & DTU2XX_MOD_J83_MSK;
+	return (Dtu2xxIsQamMode(ModType) && Annex==DTU2XX_MOD_J83_B);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxIsQamMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+BOOLEAN  Dtu2xxIsQamMode(IN Int ModType)
+{
+	if (    ModType==DTU2XX_MOD_QAM4   || ModType==DTU2XX_MOD_QAM16
+		 || ModType==DTU2XX_MOD_QAM32  || ModType==DTU2XX_MOD_QAM64
+		 || ModType==DTU2XX_MOD_QAM128 || ModType==DTU2XX_MOD_QAM256)
+		return TRUE;
+	else
+		return FALSE;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxIsSoftQam -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Check for QAM-B, or QAM-A / QAM-C with DTU2XX_MOD_DVBC_SOFT set in XtraPar0
+//
+BOOLEAN  Dtu2xxIsSoftQam(IN Int ModType, IN Int ParXtra0)
+{
+	Int  Annex = ParXtra0 & DTU2XX_MOD_J83_MSK;
+
+	if (  ModType!=DTU2XX_MOD_QAM4   && ModType!=DTU2XX_MOD_QAM16
+	   && ModType!=DTU2XX_MOD_QAM32  && ModType!=DTU2XX_MOD_QAM64
+	   && ModType!=DTU2XX_MOD_QAM128 && ModType!=DTU2XX_MOD_QAM256)
+		return FALSE;
+	return (Annex==DTU2XX_MOD_J83_B || (ParXtra0 & DTU2XX_MOD_DVBC_SOFT)!=0);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxNumBitsPerSymbol -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int  Dtu2xxNumBitsPerSymbol(IN Int ModType)
+{
+	Int NumBits=1;
+	switch ( ModType )
+	{
+	case DTU2XX_MOD_QAM4:    NumBits=2; break;
+	case DTU2XX_MOD_QAM16:   NumBits=4; break;
+	case DTU2XX_MOD_QAM32:   NumBits=5; break;
+	case DTU2XX_MOD_QAM64:   NumBits=6; break;
+	case DTU2XX_MOD_QAM128:  NumBits=7; break;
+	case DTU2XX_MOD_QAM256:  NumBits=8; break;
+	default:				 NumBits=-1; break;		// Unsupported modulation type
+	}
+	return NumBits;
 }

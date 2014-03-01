@@ -244,11 +244,11 @@ Int  Dta1xxDmaKernelMemWrite(
 {
 	DTA1XX_FDO* pFdo = pCh->m_pFdo;
 	UInt32 LocalDmaAddr;
-	Int Status=0;
+	Int Status=0, NumBytesLeft, DmaBurstSize;
+	UInt8* pSrcBuf;
 
 	// Check channel type
-	if ( (pCh->m_ChannelType != DTA1XX_NW_TX_CHANNEL) &&
-		 (pCh->m_ChannelType != DTA1XX_IP_TX_CHANNEL) )
+	if (pCh->m_ChannelType != DTA1XX_NW_TX_CHANNEL)
 	{
 #if LOG_LEVEL_DMA > 0
 		DTA1XX_LOG( KERN_INFO, "Dta1xxDmaKernelMemWrite: Channel-Type=%d INVALID",
@@ -284,14 +284,29 @@ Int  Dta1xxDmaKernelMemWrite(
 	if ( 0!=down_interruptible( &pCh->m_Dma.m_Lock ) )
 		return -EFAULT;
 
-	pCh->m_Dma.m_DmaBuffer.m_pVirtStartAddr = pKernelBuf;
-	pCh->m_Dma.m_DmaBuffer.m_PhysStartAddr = __pa(pKernelBuf);
+	NumBytesLeft = NumBytes2Transf;
+	pSrcBuf = pKernelBuf;
+	while (NumBytesLeft > 0)
+	{
+		// Determine burst size
+		DmaBurstSize = (NumBytesLeft <= DTA1XX_DMA_BUF_SIZE) ? NumBytesLeft : DTA1XX_DMA_BUF_SIZE;
+
+		// Copy data to dma buffer
+		memcpy(pCh->m_Dma.m_DmaBuffer.m_pVirtStartAddr, pSrcBuf, DmaBurstSize);
 	
-	// Start DMA transfer
-	Status = Dta1xxDmaTransfer(pCh, LocalDmaAddr, NumBytes2Transf, DTA1XX_DMA_WRITE);
-	
-	pCh->m_Dma.m_DmaBuffer.m_pVirtStartAddr = NULL;
-	pCh->m_Dma.m_DmaBuffer.m_PhysStartAddr = 0;
+		// Start DMA transfer
+		Status = Dta1xxDmaTransfer(pCh, LocalDmaAddr, DmaBurstSize, DTA1XX_DMA_WRITE);
+
+		if (Status != 0)
+		{
+			// Release lock
+			up(&pCh->m_Dma.m_Lock);
+			return Status;
+		}
+
+		NumBytesLeft -= DmaBurstSize;
+		pSrcBuf += DmaBurstSize;
+	}
 
 	// Release lock
 	up(&pCh->m_Dma.m_Lock);
@@ -451,9 +466,9 @@ Int  Dta1xxCdmaCtrl(
 	Int PortIndex = pCdmaCtrl->m_PortIndex;
 	Int ChannelType = pCdmaCtrl->m_ChannelType;
 	Int TypeNumber = pFdo->m_TypeNumber;
-	BOOLEAN  Is110_112_115_116_117 = (   TypeNumber==110 || TypeNumber==112
+	BOOLEAN  Is110_112_115_116_117_2111 = (   TypeNumber==110 || TypeNumber==112
 									  || TypeNumber==115 || TypeNumber==116
-									  || TypeNumber==117 );
+									  || TypeNumber==117 || TypeNumber==2111 );
 
 
 	// For now only support for outputs
@@ -468,7 +483,7 @@ Int  Dta1xxCdmaCtrl(
 	if (   (PortIndex!=0 && TypeNumber==110) 
 		|| (PortIndex!=0 && TypeNumber==111) || (PortIndex!=1 && TypeNumber==112)
 		|| (PortIndex!=1 && TypeNumber==115) || (PortIndex!=1 && TypeNumber==116)
-		|| (PortIndex!=1 && TypeNumber==117) )
+		|| (PortIndex!=1 && TypeNumber==117) || (PortIndex!=1 && TypeNumber==2111) )
 	{
 #if LOG_LEVEL_CDMA > 0
 		DTA1XX_LOG( KERN_INFO, "Dta1xxCdmaCtrl: NO SUPPORT FOR PORT INDEX %d",
@@ -477,9 +492,9 @@ Int  Dta1xxCdmaCtrl(
 		return -EFAULT;
 	}
 	// Check for support cards
-	if ( !Is110_112_115_116_117 ) {
+	if ( !Is110_112_115_116_117_2111 ) {
 #if LOG_LEVEL_CDMA > 0
-		DTA1XX_LOG( KERN_INFO, "Dta1xxCdmaCtrl: ONLY FOR DTA-110/112/115/116/117");
+		DTA1XX_LOG( KERN_INFO, "Dta1xxCdmaCtrl: ONLY FOR DTA-110/112/115/116/117/2111");
 #endif
 		return -EFAULT;
 	}

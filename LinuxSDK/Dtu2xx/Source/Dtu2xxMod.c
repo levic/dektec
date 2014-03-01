@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dtu2xxMod.c *#*#*#*#*#*#*#*#* (C) 2000-2008 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dtu2xxMod.c *#*#*#*#*#*#*#*#* (C) 2000-2010 DekTec
 //
 // Implementation of driver entry point routine for Dtu2xx devices (DriverEntry)
 //
@@ -28,6 +28,7 @@ static struct usb_device_id Dtu2xxUsbIds[] = {
 	{ USB_DEVICE(DTU2XX_VENDORID, PID_DTU234_NOFIRMWARE) },
 	{ USB_DEVICE(DTU2XX_VENDORID, PID_DTU235_NOFIRMWARE) },
     { USB_DEVICE(DTU2XX_VENDORID, PID_DTU205) },
+	{ USB_DEVICE(DTU2XX_VENDORID, PID_DTU215) },
     { USB_DEVICE(DTU2XX_VENDORID, PID_DTU225) },
 	{ USB_DEVICE(DTU2XX_VENDORID, PID_DTU234) },
 	{ USB_DEVICE(DTU2XX_VENDORID, PID_DTU235) },
@@ -71,6 +72,18 @@ struct file_operations Dtu2xxFops =
 
 // DTU-205
 static struct usb_class_driver Dtu205Class =
+{
+    .name = _DTU2XX_DRIVER_PATH,
+    .fops = &Dtu2xxFops,
+	/* Only for pre-2.6.12 kernels. The '.mode' field has been removed. */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 12)
+    .mode = S_IFCHR | S_IWUSR | S_IWGRP | S_IWOTH,
+#endif
+    .minor_base = DTU2XX_MINOR,
+};
+
+// DTU-215
+static struct usb_class_driver Dtu215Class =
 {
     .name = _DTU2XX_DRIVER_PATH,
     .fops = &Dtu2xxFops,
@@ -321,6 +334,14 @@ int Dtu2xxProbe(
 		//	pFdo->m_EzUsbFirmware = TRUE;
 		break;
 
+	case PID_DTU215:
+		// // Found a DTU-215
+		pFdo->m_TypeNumber = 215;
+		pFdo->m_pUsbClass = &Dtu215Class;
+		// Check if EzUSb (FX2) firmware has been loaded
+		pFdo->m_EzUsbFirmware = Dtu2xxIsFwLoaded(pFdo);
+		break;
+
 	case PID_DTU225_NOFIRMWARE_OLD:
 	case PID_DTU225_NOFIRMWARE:
 	case PID_DTU225_OLD:
@@ -403,6 +424,9 @@ int Dtu2xxProbe(
 		{
 		case 205:
 			Status = Dtu2xxUploadFirmware(pFdo, DTU2XX_FWID_USBITF | DTU2XX_FWID_DTU205);
+			break;
+		case 215:
+			Status = Dtu2xxUploadFirmware(pFdo, DTU2XX_FWID_USBITF | DTU2XX_FWID_DTU215);
 			break;
 		case 225:
 			Status = Dtu2xxUploadFirmware(pFdo, DTU2XX_FWID_USBITF | DTU2XX_FWID_DTU225);

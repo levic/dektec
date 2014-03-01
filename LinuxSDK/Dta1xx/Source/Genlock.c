@@ -401,7 +401,7 @@ NTSTATUS Dta1xxUpdateGenlockTx(IN PDTA1XX_FDO_EXTENSION  pFdoExt)
 				Dta1xxSetVcxoSpeed(pFdoExt);
 
 #if LOG_LEVEL_GENLOCK > 1
-				DTA1XX_LOG(KERN_INFO, "Dta1xxUpdateGenlockTx: Force Reset VCXO to %d\n",
+				DTA1XX_LOG(KERN_INFO, "Dta1xxUpdateGenlockTx: Force Reset VCXO to %d",
 						   pFdoExt->m_VcxoCtrl);				
 #endif
 			}

@@ -138,14 +138,11 @@ static const struct ethtool_ops EthToolOps = {
 void* MallocAligned(Int Align, Int Size)
 {	UInt8*  Ptr;
 	UInt8*  MPtr;
-	Int  Diff;
 	Ptr = (UInt8*) kmalloc(Size + Align - 1 + sizeof(void*), GFP_KERNEL);
 	if (Ptr == NULL)
 		return NULL;
-	MPtr = (UInt8*)(((UIntPtr)Ptr + Align - 1) & ~(Align - 1));
-	Diff = (Int)(MPtr - Ptr);
-	if (Diff < sizeof(void*))
-		MPtr += Align;
+	MPtr = Ptr + sizeof(void*);
+	MPtr = (UInt8*)(((UIntPtr)MPtr + Align - 1) & ~(Align - 1));
 	((void **)MPtr)[-1] = Ptr;
 	return MPtr;
 }

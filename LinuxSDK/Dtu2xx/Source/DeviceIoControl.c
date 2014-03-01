@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DeviceIoControl.c *#*#*#*#*#*#*# (C) 2000-2008 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DeviceIoControl.c *#*#*#*#*#*#*# (C) 2000-2010 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -245,6 +245,18 @@ Int  Dtu2xxDeviceControl(
         IoctlStr = "IOCTL_DTU2XX_TX_GET_FLAGS";
 		IoReqSize = sizeof(DTU2XX_FLAGS);
 		break;
+	case IOCTL_DTU2XX_TX_GET_MOD_CONTROL:
+		IoctlStr = "IOCTL_DTU2XX_TX_GET_MOD_CONTROL";
+		IoReqSize = sizeof(DTU2XX_MOD_CONTROL);
+		break;
+	case IOCTL_DTU2XX_TX_GET_RF_CONTROL:
+		IoctlStr = "IOCTL_DTU2XX_TX_GET_RF_CONTROL";
+		IoReqSize = sizeof(UInt64);
+		break;
+	case IOCTL_DTU2XX_TX_GET_SYMSAMPL_RATE:
+		IoctlStr = "IOCTL_DTU2XX_TX_GET_SYMSAMPL_RATE";
+		IoReqSize = sizeof(UInt);
+		break;
 	case IOCTL_DTU2XX_TX_GET_TS_RATE_BPS:
 		IoctlStr = "IOCTL_DTU2XX_TX_GET_TS_RATE_BPS";
 		IoReqSize = sizeof(UInt);
@@ -283,6 +295,26 @@ Int  Dtu2xxDeviceControl(
 		break;
 	case IOCTL_DTU2XX_TX_SET_LOOPBACK_MODE:
 		IoctlStr = "IOCTL_DTU2XX_TX_SET_LOOPBACK_MODE";
+		IoReqSize = sizeof(UInt);
+		break;
+	case IOCTL_DTU2XX_TX_SET_MOD_CONTROL:
+		IoctlStr = "IOCTL_DTU2XX_TX_SET_MOD_CONTROL";
+		IoReqSize = sizeof(DTU2XX_MOD_CONTROL);
+		break;
+	case IOCTL_DTU2XX_TX_SET_OUTPUT_LEVEL:
+		IoctlStr = "IOCTL_DTU2XX_TX_SET_OUTPUT_LEVEL";
+		IoReqSize = sizeof(UInt);
+		break;
+	case IOCTL_DTU2XX_TX_SET_RF_CONTROL:
+		IoctlStr = "IOCTL_DTU2XX_TX_SET_RF_CONTROL";
+		IoReqSize = sizeof(UInt64);
+		break;
+	case IOCTL_DTU2XX_TX_SET_RF_MODE:
+		IoctlStr = "IOCTL_DTU2XX_TX_SET_RF_MODE";
+		IoReqSize = sizeof(UInt);
+		break;
+	case IOCTL_DTU2XX_TX_SET_SYMSAMPL_RATE:
+		IoctlStr = "IOCTL_DTU2XX_TX_SET_SYMSAMPL_RATE";
 		IoReqSize = sizeof(UInt);
 		break;
 	case IOCTL_DTU2XX_TX_SET_TS_RATE_BPS:
@@ -405,6 +437,9 @@ Int  Dtu2xxDeviceControl(
 	case IOCTL_DTU2XX_TX_CLEAR_FLAGS:
 	case IOCTL_DTU2XX_TX_GET_FIFO_LOAD:
 	case IOCTL_DTU2XX_TX_GET_FLAGS:
+	case IOCTL_DTU2XX_TX_GET_MOD_CONTROL:
+	case IOCTL_DTU2XX_TX_GET_RF_CONTROL:
+	case IOCTL_DTU2XX_TX_GET_SYMSAMPL_RATE:
 	case IOCTL_DTU2XX_TX_GET_TS_RATE_BPS:
 	case IOCTL_DTU2XX_TX_GET_TX_CONTROL:
 	case IOCTL_DTU2XX_TX_GET_TX_MODE:
@@ -415,6 +450,11 @@ Int  Dtu2xxDeviceControl(
 	case IOCTL_DTU2XX_TX_SET_TX_POLARITY:
 	case IOCTL_DTU2XX_TX_SET_FIFO_SIZE:
 	case IOCTL_DTU2XX_TX_SET_LOOPBACK_MODE:
+	case IOCTL_DTU2XX_TX_SET_MOD_CONTROL:
+	case IOCTL_DTU2XX_TX_SET_OUTPUT_LEVEL:
+	case IOCTL_DTU2XX_TX_SET_RF_CONTROL:
+	case IOCTL_DTU2XX_TX_SET_RF_MODE:
+	case IOCTL_DTU2XX_TX_SET_SYMSAMPL_RATE:
 	case IOCTL_DTU2XX_TX_SET_TS_RATE_BPS:
 	case IOCTL_DTU2XX_TX_SET_TX_CONTROL:
 	case IOCTL_DTU2XX_TX_SET_TX_MODE:
@@ -518,14 +558,14 @@ Int  Dtu2xxDeviceControl(
 		break;
 
 	case IOCTL_DTU2XX_I2C_WRITE:
-		ReturnStatus = Dtu2xxIoCtlI2CWrite(pFdo, IoData.m_I2CData.m_DataBuf,
+		ReturnStatus = Dtu2xxIoCtlI2CWrite(pFdo, filp, IoData.m_I2CData.m_DataBuf,
 										   IoData.m_I2CData.m_DeviceAddr,
 										   IoData.m_I2CData.m_Length);
 		break;
 
 	case IOCTL_DTU2XX_I2C_READ:
 
-		ReturnStatus = Dtu2xxIoCtlI2CRead(pFdo, IoData.m_I2CData.m_DataBuf,
+		ReturnStatus = Dtu2xxIoCtlI2CRead(pFdo, filp, IoData.m_I2CData.m_DataBuf,
 										  IoData.m_I2CData.m_DeviceAddr,
 										  IoData.m_I2CData.m_Length);
 		break;
@@ -652,6 +692,27 @@ Int  Dtu2xxDeviceControl(
 								&IoData.m_Flags.m_Latched);
 		break;
 
+	case IOCTL_DTU2XX_TX_GET_MOD_CONTROL:
+		ReturnStatus = Dtu2xxTxIoCtlGetModControl(
+								pFdo, PortIndex,
+								&IoData.m_ModCtrl.m_ModType,
+								&IoData.m_ModCtrl.m_ParXtra0,
+								&IoData.m_ModCtrl.m_ParXtra1,
+								&IoData.m_ModCtrl.m_ParXtra2);
+		break;
+
+	case IOCTL_DTU2XX_TX_GET_RF_CONTROL:
+		ReturnStatus = Dtu2xxTxIoCtlGetRfControl(
+								pFdo, PortIndex,
+								&IoData.m_Value64b);
+		break;
+
+	case IOCTL_DTU2XX_TX_GET_SYMSAMPL_RATE:
+		ReturnStatus = Dtu2xxTxIoCtlGetSymSampleRate(
+								pFdo, PortIndex, &IoData.m_Value);
+
+		break;
+
 	case IOCTL_DTU2XX_TX_GET_TS_RATE_BPS:
 		ReturnStatus = Dtu2xxTxIoCtlGetTsRateBps(pFdo, PortIndex, &IoData.m_Value);
 		break;
@@ -693,6 +754,31 @@ Int  Dtu2xxDeviceControl(
 
 	case IOCTL_DTU2XX_TX_SET_LOOPBACK_MODE:
 		ReturnStatus = Dtu2xxTxIoCtlSetLoopBackMode(pFdo, PortIndex, IoData.m_Value);
+		break;
+
+	case IOCTL_DTU2XX_TX_SET_OUTPUT_LEVEL:
+		ReturnStatus = Dtu2xxTxIoCtlSetOutputLevel(pFdo, PortIndex, IoData.m_Value );
+		break;
+
+	case IOCTL_DTU2XX_TX_SET_RF_CONTROL:
+		ReturnStatus = Dtu2xxTxIoCtlSetRfControl(pFdo, PortIndex, IoData.m_Value64b);
+		break;
+
+	case IOCTL_DTU2XX_TX_SET_SYMSAMPL_RATE:
+		ReturnStatus = Dtu2xxTxIoCtlSetSymSampleRate(pFdo, PortIndex, IoData.m_Value);
+		break;
+
+	case IOCTL_DTU2XX_TX_SET_MOD_CONTROL:
+		ReturnStatus = Dtu2xxTxIoCtlSetModControl(
+										pFdo, PortIndex,
+										IoData.m_ModCtrl.m_ModType,
+										IoData.m_ModCtrl.m_ParXtra0,
+										IoData.m_ModCtrl.m_ParXtra1,
+										IoData.m_ModCtrl.m_ParXtra2);
+		break;
+
+	case IOCTL_DTU2XX_TX_SET_RF_MODE:
+		ReturnStatus = Dtu2xxTxIoCtlSetRfMode(pFdo, PortIndex, IoData.m_Value);
 		break;
 
 	case IOCTL_DTU2XX_TX_SET_TS_RATE_BPS:
@@ -983,7 +1069,8 @@ Int  Dtu2xxIoCtlUploadFirmware(
 // Io-control handler for reading from on-board I2C bus
 //
 Int  Dtu2xxIoCtlI2CRead(
-	IN PDTU2XX_FDO pFdo, // Our device object
+	IN PDTU2XX_FDO pFdo,		// Our device object
+	IN struct file* pFileObj,	// Caller file object for lock checking
 	OUT UInt8* pBuf,			// Buffer for data read from I2C bus
 	IN UInt DvcAddr,			// I2C Device address
 	IN UInt  Length)			// Number of BYTES to read
@@ -1036,7 +1123,8 @@ Int  Dtu2xxIoCtlI2CRead(
 // Io-control handler for writing to on-board I2C bus
 //
 Int  Dtu2xxIoCtlI2CWrite(
-	IN PDTU2XX_FDO pFdo, // Our device object
+	IN PDTU2XX_FDO pFdo,		// Our device object
+	IN struct file* pFileObj,	// Caller file object for lock checking
 	IN UInt8* pBuf,				// Buffer for data read from I2C bus
 	IN UInt DvcAddr,			// I2C Device address
 	IN UInt  Length)			// Number of BYTES to read

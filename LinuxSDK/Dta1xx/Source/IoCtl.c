@@ -228,9 +228,19 @@ int Dta1xxIoCtl(
 		IoReqSize = sizeof(DTA1XX_NWSTATCNT);
 		break;
 
+	case IOCTL_DTA1XX_GET_OUTPUT_LEVEL:
+		IoctlStr = "IOCTL_DTA1XX_GET_OUTPUT_LEVEL";
+		IoReqSize = sizeof(DTA1XX_OUTPUT_LEVEL);
+		break;
+
 	case IOCTL_DTA1XX_GET_RATE2:		// Successor of IOCTL_DTA1XX_GET_TS_RATE
 		IoctlStr = "IOCTL_DTA1XX_GET_RATE2";
 		IoReqSize = sizeof(DTA1XX_RATE_INFO2);
+		break;
+	
+	case IOCTL_DTA1XX_GET_RF_CONTROL:
+		IoctlStr = "IOCTL_DTA1XX_GET_RF_CONTROL";
+		IoReqSize = sizeof(DTA1XX_RF_CONTROL);
 		break;
 
 	case IOCTL_DTA1XX_GET_RX_INFO:
@@ -356,10 +366,25 @@ int Dta1xxIoCtl(
 		IoctlStr = "IOCTL_DTA1XX_SET_NWSTATCNT";
 		IoReqSize = sizeof(DTA1XX_NWSTATCNT);
 		break;
+	
+	case IOCTL_DTA1XX_SET_OUTPUT_LEVEL:
+		IoctlStr = "IOCTL_DTA1XX_SET_OUTPUT_LEVEL";
+		IoReqSize = sizeof(DTA1XX_OUTPUT_LEVEL);
+		break;
 
 	case IOCTL_DTA1XX_SET_RATE2:		// Successor of IOCTL_DTA1XX_SET_TS_RATE
 		IoctlStr = "IOCTL_DTA1XX_SET_RATE2";
 		IoReqSize = sizeof(DTA1XX_RATE_INFO2);
+		break;
+	
+	case IOCTL_DTA1XX_SET_RF_CONTROL:
+		IoctlStr = "IOCTL_DTA1XX_SET_RF_CONTROL";
+		IoReqSize = sizeof(DTA1XX_RF_CONTROL);
+		break;
+
+	case IOCTL_DTA1XX_SET_RF_MODE:
+		IoctlStr = "IOCTL_DTA1XX_SET_RF_MODE";
+		IoReqSize = sizeof(DTA1XX_RF_MODE);
 		break;
 
 	case IOCTL_DTA1XX_SET_RX_MODE:
@@ -832,6 +857,23 @@ int Dta1xxIoCtl(
 		PortIndex   = IoData.m_Port2Intpar.m_PortIndex;
 		break;
 
+	// input buffer IOCTL_DTA1XX_GET_OUTPUT_LEVEL
+	case IOCTL_DTA1XX_GET_OUTPUT_LEVEL:
+	case IOCTL_DTA1XX_SET_OUTPUT_LEVEL:
+		PortIndex   = IoData.m_OutputLevel.m_PortIndex;
+		break;
+
+	// input buffer DTA1XX_RF_CONTROL
+	case IOCTL_DTA1XX_GET_RF_CONTROL:
+	case IOCTL_DTA1XX_SET_RF_CONTROL:
+		PortIndex   = IoData.m_RfControl.m_PortIndex;
+		break;
+
+	// input buffer DTA1XX_RF_MODE
+	case IOCTL_DTA1XX_SET_RF_MODE:
+		PortIndex   = IoData.m_RfMode.m_PortIndex;
+		break;
+
 	default:
 		break;
 	}
@@ -1151,6 +1193,13 @@ int Dta1xxIoCtl(
 		}
 		break;
 
+	//.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_GET_OUTPUT_LEVEL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+	//
+	case IOCTL_DTA1XX_GET_OUTPUT_LEVEL:
+		ReturnStatus = Dta1xxTxGetOutputLevel( pFdo, PortIndex,
+				&IoData.m_OutputLevel.m_OutputLevel);
+		break;
+
 	//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_GET_RATE2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 	//
 	// Sucessor of IOCTL_DTA1XX_GET_TS_RATE
@@ -1159,6 +1208,14 @@ int Dta1xxIoCtl(
 		ReturnStatus = Dta1xxTxGetRate2(pFdo, PortIndex,
 									   &IoData.m_RateInfo2.m_ClockGenMode,
 									   &IoData.m_RateInfo2.m_TsSymOrSampRate);
+		break;
+	
+	//.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_GET_RF_CONTROL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+	//
+	case IOCTL_DTA1XX_GET_RF_CONTROL:
+		ReturnStatus = Dta1xxTxGetRfControl( pFdo, PortIndex,
+			&IoData.m_RfControl.m_RfRate,
+			&IoData.m_RfControl.m_LockStatus );
 		break;
 
 	//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_GET_RX_INFO -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1429,6 +1486,26 @@ int Dta1xxIoCtl(
 				return ReturnStatus;
 			}
 		}
+		break;
+	//.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_SET_OUTPUT_LEVEL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+	//
+	case IOCTL_DTA1XX_SET_OUTPUT_LEVEL:
+		ReturnStatus = Dta1xxTxSetOutputLevel(pFdo, PortIndex,
+			IoData.m_OutputLevel.m_OutputLevel );
+		break;
+
+	//.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_SET_RF_CONTROL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+	//
+	case IOCTL_DTA1XX_SET_RF_CONTROL:
+		ReturnStatus = Dta1xxTxSetRfControl( pFdo, PortIndex,
+			IoData.m_RfControl.m_RfRate );
+		break;
+
+	//.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_SET_RF_MODE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+	//
+	case IOCTL_DTA1XX_SET_RF_MODE:
+		ReturnStatus = Dta1xxTxSetRfMode( pFdo, PortIndex,
+			IoData.m_RfMode.m_RfMode );
 		break;
 
 	//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_SET_RATE2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

@@ -1451,7 +1451,7 @@ void Dta1xxNwIpRxBrmPerIntDpc(
 			pIpRx->m_BrmEstimate = 0;
 			if (NumPckBytesRcvd != 0){
 #if LOG_LEVEL_IPRX > 0
-				DTA1XX_LOG(KERN_INFO,"[IpRx%d] Dta1xxNwIpRxBrmPerIntDpc: First BRM sample\n",
+				DTA1XX_LOG(KERN_INFO,"[IpRx%d] Dta1xxNwIpRxBrmPerIntDpc: First BRM sample",
 						 pIpRx->m_ChannelIndex);
 #endif
 				pIpRx->m_BrmSampleNumPckBytes[0] = NumPckBytesRcvd;
@@ -1465,7 +1465,7 @@ void Dta1xxNwIpRxBrmPerIntDpc(
 			// Timestamp can never wrap (55 bits = 21 year)
 			Period = BrmLastRxTimeStamp - pIpRx->m_BrmSampleTimeStamp[pIpRx->m_BrmIdxLastSample];
 	#if LOG_LEVEL_IPRX > 1
-			DTA1XX_LOG(KERN_INFO, "[IpRx%d] Dta1xxNwIpRxBrmPerIntDpc: Period=%I64u\n",
+			DTA1XX_LOG(KERN_INFO, "[IpRx%d] Dta1xxNwIpRxBrmPerIntDpc: Period=%I64u",
 					pIpRx->m_ChannelIndex, Period);
 	#endif
 			if (Period > NUM_IPRX_MIN_PERIOD)

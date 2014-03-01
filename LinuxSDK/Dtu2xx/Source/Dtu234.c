@@ -302,21 +302,21 @@ Int  Dtu234UploadHexFile(
 	CmdBuf[0] = DTU234_IIC_ADDR_DEMOD;
 	CmdBuf[1] = 0xA0;			// HCTL1
 	CmdBuf[2] = 0x01;
-	Status = Dtu2xxIoCtlI2CWrite(pFdo, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
+	Status = Dtu2xxIoCtlI2CWrite(pFdo, NULL, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
 	if ( Status != 0 )
 		return Status;
 
 	CmdBuf[0] = DTU234_IIC_ADDR_DEMOD;
 	CmdBuf[1] = 0x2E;			// TSTCTL
 	CmdBuf[2] = 0x00;
-	Status = Dtu2xxIoCtlI2CWrite(pFdo, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
+	Status = Dtu2xxIoCtlI2CWrite(pFdo, NULL, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
 	if ( Status != 0 )
 		return Status;
 
 	CmdBuf[0] = DTU234_IIC_ADDR_DEMOD;
 	CmdBuf[1] = 0xCA;			// JDEC
 	CmdBuf[2] = 0x07;
-	Status = Dtu2xxIoCtlI2CWrite(pFdo, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
+	Status = Dtu2xxIoCtlI2CWrite(pFdo, NULL, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
 	if ( Status != 0 )
 		return Status;
 
@@ -340,7 +340,7 @@ Int  Dtu234UploadHexFile(
 			CmdBuf[0] = DTU234_IIC_ADDR_DEMOD;
 			CmdBuf[1] = 0xA9;			// MADRH
 			CmdBuf[2] = (UInt8) AddrHigh;
-			Status = Dtu2xxIoCtlI2CWrite(pFdo, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
+			Status = Dtu2xxIoCtlI2CWrite(pFdo, NULL, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
 			if ( Status != 0 ) {
 				kfree(pHexData);
 				return Status;
@@ -349,7 +349,7 @@ Int  Dtu234UploadHexFile(
 			CmdBuf[0] = DTU234_IIC_ADDR_DEMOD;
 			CmdBuf[1] = 0xAA;			// MADRL
 			CmdBuf[2] = (UInt8) AddrLow;
-			Status = Dtu2xxIoCtlI2CWrite(pFdo, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
+			Status = Dtu2xxIoCtlI2CWrite(pFdo, NULL, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
 			if ( Status != 0 ) {
 				kfree(pHexData);
 				return Status;
@@ -365,7 +365,7 @@ Int  Dtu234UploadHexFile(
 			}
 
 			// Write the Data
-			Status = Dtu2xxIoCtlI2CWrite(pFdo, &pHexData[1], pHexData[0]&0xFE, BytesToTry+1);
+			Status = Dtu2xxIoCtlI2CWrite(pFdo, NULL, &pHexData[1], pHexData[0]&0xFE, BytesToTry+1);
 			if ( Status != 0 ) {
 				kfree(pHexData);
 				return Status;
@@ -382,14 +382,14 @@ Int  Dtu234UploadHexFile(
 	CmdBuf[0] = DTU234_IIC_ADDR_DEMOD;
 	CmdBuf[1] = 0xA0;			// HCTL1
 	CmdBuf[2] = 0x00;
-	Status = Dtu2xxIoCtlI2CWrite(pFdo, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
+	Status = Dtu2xxIoCtlI2CWrite(pFdo, NULL, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
 	if ( Status != 0 )
 		return Status;
 
 	// Wait till the Ap is running
 	CmdBuf[0] = DTU234_IIC_ADDR_DEMOD;
 	CmdBuf[1] = 0xA2;			// APSTAT1
-	Status = Dtu2xxIoCtlI2CWrite(pFdo, &CmdBuf[1], CmdBuf[0]&0xFE, 1);
+	Status = Dtu2xxIoCtlI2CWrite(pFdo, NULL, &CmdBuf[1], CmdBuf[0]&0xFE, 1);
 	if ( Status != 0 )
 		return Status;
 
@@ -403,7 +403,7 @@ Int  Dtu234UploadHexFile(
 		TimeOut+=10;
 
 		// Read the Ap
-		Status = Dtu2xxIoCtlI2CRead(pFdo, &CmdBuf[1], ((CmdBuf[0]&0xFE)|0x1), 1);
+		Status = Dtu2xxIoCtlI2CRead(pFdo, NULL, &CmdBuf[1], ((CmdBuf[0]&0xFE)|0x1), 1);
 		if ( Status != 0 )
 			return Status;
 	}
@@ -412,14 +412,14 @@ Int  Dtu234UploadHexFile(
 	CmdBuf[0] = DTU234_IIC_ADDR_DEMOD;
 	CmdBuf[1] = 0xA8;			// HABSTAT
 	CmdBuf[2] = 0x16;
-	Status = Dtu2xxIoCtlI2CWrite(pFdo, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
+	Status = Dtu2xxIoCtlI2CWrite(pFdo, NULL, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
 	if ( Status != 0 )
 		return Status;
 
 	CmdBuf[0] = DTU234_IIC_ADDR_DEMOD;
 	CmdBuf[1] = 0xA8;			// HABSTAT
 	CmdBuf[2] = 0x06;
-	Status = Dtu2xxIoCtlI2CWrite(pFdo, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
+	Status = Dtu2xxIoCtlI2CWrite(pFdo, NULL, &CmdBuf[1], CmdBuf[0]&0xFE, 2);
 
 	return Status;
 }

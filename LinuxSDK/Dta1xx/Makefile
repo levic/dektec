@@ -39,13 +39,15 @@ endif
 
 SRCDIR = ./Source/
 TARGET = Dta1xx
-SRC    =  $(SRCDIR)CrossPlatform.$(EXT) $(SRCDIR)Dma.$(EXT) $(SRCDIR)Dta1xx.$(EXT) \
+SRC    =  $(SRCDIR)CrossPlatform.$(EXT) $(SRCDIR)DacVga.$(EXT) \
+          $(SRCDIR)Dma.$(EXT) $(SRCDIR)Dta1xx.$(EXT) $(SRCDIR)Dta2111.$(EXT) \
           $(SRCDIR)EepromControl.$(EXT) $(SRCDIR)Exclusive.$(EXT) $(SRCDIR)Flags.$(EXT) \
           $(SRCDIR)Genlock.$(EXT) $(SRCDIR)Init.$(EXT) $(SRCDIR)Interrupt.$(EXT) \
           $(SRCDIR)IoCtl.$(EXT) $(SRCDIR)LowLevel.$(EXT) $(SRCDIR)MapMemory.$(EXT) \
           $(SRCDIR)Rate.$(EXT) $(SRCDIR)Spi.$(EXT) $(SRCDIR)Target.$(EXT) \
           $(SRCDIR)Utility.$(EXT) $(SRCDIR)Vpd.$(EXT) $(SRCDIR)NwPhyMac.$(EXT) \
-          $(SRCDIR)NwIpTx.$(EXT) $(SRCDIR)NwIpRx.$(EXT) $(SRCDIR)NwNdis.$(EXT)
+          $(SRCDIR)NwIpTx.$(EXT) $(SRCDIR)NwIpRx.$(EXT) $(SRCDIR)NwNdis.$(EXT) \
+          $(SRCDIR)Ad9789.$(EXT)
 
 # Installation directory
 INSTALLDIR = /lib/modules/$(CURRENT)/kernel/drivers/misc

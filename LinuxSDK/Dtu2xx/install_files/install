@@ -6,7 +6,7 @@
 
 cd `dirname $0`
 
-for file in `find * ! \( -regex '.*arch.*' \) -a \( -type f \) -a ! \( -name install \)`
+for file in `find * ! \( -regex '.*arch.*' \) -a \( -type f \) -a ! \( -name install \) -a ! \( -regex '.*/\..*' \)` 
 do
     echo Installing /$file
     install -d $(dirname "/$file")

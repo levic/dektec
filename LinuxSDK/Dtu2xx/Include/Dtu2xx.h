@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dtu2xx.h *#*#*#*#*#*#*#*#*# (C) 2000-2008 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dtu2xx.h *#*#*#*#*#*#*#*#*# (C) 2000-2010 DekTec
 //
 // Main header file for Dtu2xx driver.
 
@@ -25,6 +25,7 @@
 #include <linux/errno.h>	// error codes
 #include <linux/wait.h>		// wait queue
 #include <linux/sched.h>	// wait queue
+#include <linux/time.h>		// CURRENT_TIME macro
 #include <linux/ioctl.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
 	#include <linux/smp_lock.h>
@@ -43,7 +44,7 @@
 
 #ifdef CONFIG_COMPAT
 	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
-	include <asm/compat.h>				// compat_ptr
+	#include <asm/compat.h>				// compat_ptr
 	#else 
 		#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
 		#include <asm-x86/compat.h>		// compat_ptr
@@ -91,18 +92,19 @@
 #define DTU2XX_VENDORID                 0x1297
 
 // DTU-2XX product IDs
-#define PID_DTU205_NOFIRMWARE		0x2050		// Uninitilaised DTU-205 PID
-#define PID_DTU205					0x0205		// Initilaised DTU-205 PID
-#define PID_DTU225_NOFIRMWARE_OLD	0x0100		// Uninitilaised DTU-225 PID (for
+#define PID_DTU205_NOFIRMWARE		0x2050		// Uninitialised DTU-205 PID
+#define PID_DTU205					0x0205		// Initialised DTU-205 PID
+#define PID_DTU225_NOFIRMWARE_OLD	0x0100		// Uninitialised DTU-225 PID (for
 												// backward compatibility)
-#define PID_DTU225_NOFIRMWARE		0x2190		// Uninitilaised DTU-225 PID
-#define PID_DTU225_OLD				0x0200		// Initilaised DTU-225 PID  (for
+#define PID_DTU225_NOFIRMWARE		0x2190		// Uninitialised DTU-225 PID
+#define PID_DTU225_OLD				0x0200		// Initialised DTU-225 PID  (for
 												// backward compatibility)
-#define PID_DTU225					0x0219		// Initilaised DTU-225 PID
-#define PID_DTU234_NOFIRMWARE		0x2220		// Uninitilaised DTU-234 PID
-#define PID_DTU234					0x0222		// Initilaised DTU-234 PID
-#define PID_DTU235_NOFIRMWARE		0x2230		// Uninitilaised DTU-235 PID
-#define PID_DTU235					0x0223		// Initilaised DTU-235 PID
+#define PID_DTU215					0x020F		// Initialised DTU-225 PID
+#define PID_DTU225					0x0219		// Initialised DTU-225 PID
+#define PID_DTU234_NOFIRMWARE		0x2220		// Uninitialised DTU-234 PID
+#define PID_DTU234					0x0222		// Initialised DTU-234 PID
+#define PID_DTU235_NOFIRMWARE		0x2230		// Uninitialised DTU-235 PID
+#define PID_DTU235					0x0223		// Initialised DTU-235 PID
 #define PID_DTU236					0x0224		// DTU-236 PID
 #define PID_DTU245					0x022D		// DTU-245 PID
 #define PID_UNIT_EEPROM				0x8613		// PID of an uninitialised DTU-2xx
@@ -241,6 +243,31 @@ typedef struct _Channel {
 	// Tx-channel specific
 	Dtu2xxTx  m_TxRegs;				// Cached transmit registers
 
+	Ad9789Registers  m_Ad9789;		// Cached AD9789 SPI registers (only used on
+									// DTU-215)
+
+	// Modulation
+	// Current modulation parameters for DTU-215
+	// This is for remembering the last modulation settings between applications
+	// In device-extension initialisation, an attempt is made to initialise these
+	// variables in a meaningful way. If this is not possible => initialise to -1
+	Int  m_ModType;					// Modulation type (to know whether this is OFDM)
+	Int  m_ParXtra[3];				// Extra parameters
+	Int  m_TsSymOrSampRate;			// TS, Symbol- or Sample rate
+									// This is a shadow variable: value may be derived
+									// from hardware too, but with less precision
+	Int64  m_RfFreq;				// RF-frequency (in Hz)
+	Int  m_OutpLeveldBm;			// Output level in dBm (expressed in 0.1 dB units)
+
+	// Tx FIFO load extrapolation
+	// Used in I/Q sample mode only
+	BOOLEAN  m_EnaFifoLoadExtrap;	// Enable Tx FIFO load extrapolation
+	Int  m_RpFifoLoad;				// Reference point: FIFO load
+	UInt64  m_RpTimestamp;			// Reference point: time stamp
+	Int  m_WrittenAfterRp;			// #bytes written after reference point is taken
+	Int  m_NumTxBytesPerSec;		// #bytes transmitted per second
+	struct semaphore  m_LoadExtrapLock;	// Protect updates to load-extrapolation members
+
 } Channel;
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTU2XX_FDO +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -301,8 +328,8 @@ Int  Dtu2xxIoCtlWriteRegister(IN PDTU2XX_FDO, IN Int, IN UInt32);
 Int  Dtu2xxIoCtlGetUsbSpeed(IN PDTU2XX_FDO, OUT UInt*);
 Int  Dtu2xxIoCtlEepromControl(IN PDTU2XX_FDO, IN UInt);
 Int  Dtu2xxIoCtlUploadFirmware(IN PDTU2XX_FDO, IN UInt);
-Int  Dtu2xxIoCtlI2CRead(IN PDTU2XX_FDO, OUT UInt8*, IN UInt, IN UInt);
-Int  Dtu2xxIoCtlI2CWrite(IN PDTU2XX_FDO, IN UInt8*, IN UInt, IN UInt);
+Int  Dtu2xxIoCtlI2CRead(IN PDTU2XX_FDO, IN struct file*, OUT UInt8*, IN UInt, IN UInt);
+Int  Dtu2xxIoCtlI2CWrite(IN PDTU2XX_FDO, IN struct file*, IN UInt8*, IN UInt, IN UInt);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xx.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void __exit Dtu2xxCleanupModule(void);
@@ -316,6 +343,16 @@ int  Dtu2xxProbe(struct usb_interface*, const struct usb_device_id*);
 ssize_t Dtu2xxRead(struct file*, char __user*, size_t, loff_t*);
 int  Dtu2xxRelease(struct inode*, struct file*);
 ssize_t Dtu2xxWrite(struct file*, const char __user*, size_t, loff_t*);
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu215.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+Int  Dtu2xxInitDtu215Hardware(IN PDTU2XX_FDO);
+Int  Dtu2xxInitDtu215MainPowerSupply(IN PDTU2XX_FDO);
+void  Dtu215GetMinMaxOutpLevel(IN Channel*, OUT Int*, OUT Int*);
+Int  Dtu215FrequencyResponseCompensation(IN Channel*);
+Int  Dtu215SetModControl(IN Channel*, IN Int, IN Int, IN Int, IN Int);
+Int  Dtu215SetRfControl(IN Channel*, IN Int64);
+Int  Dtu215SetRfMode(IN Channel*, IN Int);
+Int  Dtu215SetSymSampleRate(IN Channel*, IN Int);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu234.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 Int  Dtu2xxInitDtu234Hardware(IN PDTU2XX_FDO);
@@ -337,6 +374,7 @@ Int  Dtu2xxGetDeviceAddress(IN PDTU2XX_FDO);
 Int  Dtu2xxGetFirmwareVersion(IN PDTU2XX_FDO);
 Int  Dtu2xxCacheOpRegs(IN PDTU2XX_FDO);
 BOOLEAN  Dtu2xxIsFwLoaded(IN PDTU2XX_FDO);
+Int  Dtu2xxInitModChannel(IN Channel*);
 Int  Dtu2xxUploadFirmware(IN PDTU2XX_FDO, IN UInt);
 Int  Dtu2xxGetIoConfig(IN PDTU2XX_FDO, DTU2XX_IOCONFIG*);
 Int  Dtu2xxSetIoConfig(IN PDTU2XX_FDO, DTU2XX_IOCONFIG*, BOOLEAN);
@@ -380,6 +418,16 @@ Int  Dtu2xxTxIoCtlSetLoopBackMode(IN PDTU2XX_FDO, IN Int, IN Int);
 Int  Dtu2xxTxIoCtlBulkWrite(IN PDTU2XX_FDO, IN Int, IN Int, IN UInt8*);
 Int  Dtu2xxTxIoCtlGetMaxFifoSize(IN PDTU2XX_FDO, IN Int, OUT Int*);
 Int  Dtu2xxTxIoCtlGetFifoSize(IN PDTU2XX_FDO, IN Int, OUT Int*);
+Int  Dtu2xxTxIoCtlGetModControl(IN PDTU2XX_FDO, IN Int, OUT Int*, OUT Int*,
+								OUT Int*, OUT Int*);
+Int  Dtu2xxTxIoCtlSetModControl(IN PDTU2XX_FDO, IN Int, IN Int, IN Int,
+								IN Int, IN Int);
+Int  Dtu2xxTxIoCtlSetRfMode(IN PDTU2XX_FDO, IN Int, IN Int);
+Int  Dtu2xxTxIoCtlGetSymSampleRate(IN PDTU2XX_FDO, IN Int, OUT Int*);
+Int  Dtu2xxTxIoCtlSetSymSampleRate(IN PDTU2XX_FDO, IN Int, IN Int);
+Int  Dtu2xxTxIoCtlGetRfControl(IN PDTU2XX_FDO, IN Int, OUT Int64*);
+Int  Dtu2xxTxIoCtlSetRfControl(IN PDTU2XX_FDO, IN Int, IN Int64);
+Int  Dtu2xxTxIoCtlSetOutputLevel(IN PDTU2XX_FDO, IN Int, IN Int);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Usb.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 Int  Dtu2xxVendorRequest(DTU2XX_FDO*, UInt8, UInt16, UInt16, Int, Int, UInt8*, UInt*);
@@ -389,11 +437,22 @@ Int  Dtu2xxReadEeProm(IN PDTU2XX_FDO, IN UInt, IN UInt, OUT UInt8*);
 Int  Dtu2xxWriteEeProm(IN PDTU2XX_FDO, IN UInt, IN UInt, IN UInt8*);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Utility.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+UInt64  Dtu2xxGetTickCount(void);
 Int  Dtu2xxTxMode2PacketSize(Int);
 Int  Dtu2xxBuf2RingBuffer(IN UInt8*, IN Int, IN PDTU2XX_RING_BUFFER);
 Int  Dtu2xxRingBuffer2Buf(IN PDTU2XX_RING_BUFFER, IN Int, OUT UInt8*);
 Int64   Dtu2xxBinDiv(Int64 num, Int64 denom, Int64* pRest);
 UInt64  Dtu2xxBinUDiv(UInt64 num, UInt64 denom, UInt64* pRest);
+Int  Dtu2xxWaitMs(IN Int TimeInMs);
+Int  Dtu2xxComputeRollOff(IN Int, IN Int);
+BOOLEAN  Dtu2xxIsHardQamAorC(IN Int, IN Int);
+BOOLEAN  Dtu2xxIsHardQamA(IN Int, IN Int);
+BOOLEAN  Dtu2xxIsHardQamC(IN Int, IN Int);
+BOOLEAN  Dtu2xxIsIqMode(Int ModType);
+BOOLEAN  Dtu2xxIsQamB(IN Int, IN Int);
+BOOLEAN  Dtu2xxIsQamMode(Int ModType);
+BOOLEAN  Dtu2xxIsSoftQam(IN Int, IN Int);
+Int  Dtu2xxNumBitsPerSymbol(IN Int);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Vpd.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 Int  Dtu2xxVpdIoctl(IN PDTU2XX_FDO, UInt, UInt, DTU2XX_VPD_DATA*);

@@ -40,7 +40,7 @@ NTSTATUS Dta1xxSpiGetTxRateBps(
 	// return error when clock source is extern
 	if (pSpiReg->m_Control.m_ExtClkSelect) {
 #if LOG_LEVEL_SPI > 0
-		DTA1XX_LOG(KERN_INFO,"Dta1xxSpiGetTxRateBps: Invalid device state: external clock selected\n");
+		DTA1XX_LOG(KERN_INFO,"[%d] Dta1xxSpiGetTxRateBps: Invalid device state: external clock selected", pChannel->m_PortIndex);
 #endif
 		return STATUS_INVALID_DEVICE_STATE;
 	}
@@ -75,7 +75,7 @@ NTSTATUS Dta1xxSpiGetTxRateBps(
 
 	*TxRateBps = (UInt32)tmp;
 #if LOG_LEVEL_SPI > 0
-		DTA1XX_LOG(KERN_INFO,"Dta1xxSpiGetTxRateBps: TxRateBps %d\n",*TxRateBps);
+		DTA1XX_LOG(KERN_INFO,"[%d] Dta1xxSpiGetTxRateBps: TxRateBps %d", pChannel->m_PortIndex, *TxRateBps);
 #endif
 	return STATUS_SUCCESS;
 }
@@ -91,7 +91,7 @@ NTSTATUS Dta1xxSpiGetIoClksel(
 	else
 		*pClksel = DTA1XX_IOCLKSEL_INTCLK;
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO,"Dta1xxSpiGetIoClksel: Clksel %d",(int)*pClksel);
+	DTA1XX_LOG(KERN_INFO,"[%d] Dta1xxSpiGetIoClksel: Clksel %d", pChannel->m_PortIndex, (int)*pClksel);
 #endif
 	return STATUS_SUCCESS;
 }
@@ -113,8 +113,8 @@ NTSTATUS Dta1xxSpiGetIoMode(
 #endif
 
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO, "Dta1xxSpiGetIoMode: Mode %d, ClkFreq %d",
-		*pMode, *pClkFreq);
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiGetIoMode: Mode %d, ClkFreq %d",
+		pChannel->m_PortIndex, *pMode, *pClkFreq);
 #endif
 	return STATUS_SUCCESS;
 }
@@ -143,7 +143,7 @@ NTSTATUS Dta1xxSpiGetIoStd(
 	else
 		*pStd = DTA1XX_IOSTD_DISABLED;
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO, "Dta1xxSpiGetIoStd: Std %d", *pStd);
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiGetIoStd: Std %d", pChannel->m_PortIndex, *pStd);
 #endif
 	return STATUS_SUCCESS;
 }
@@ -159,7 +159,7 @@ NTSTATUS Dta1xxSpiGetRxClkFreq(
 	// 3 counts are missing, so these must be added when a clock is present
 	if (pClkFreq>0) pClkFreq += 3;
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO,"Dta1xxSpiGetRxClkFreq: ClkFreq %d",*pClkFreq);
+	DTA1XX_LOG(KERN_INFO,"[%d] Dta1xxSpiGetRxClkFreq: ClkFreq %d", pChannel->m_PortIndex, *pClkFreq);
 #endif
 	return STATUS_SUCCESS;
 }
@@ -173,7 +173,7 @@ NTSTATUS Dta1xxSpiInit(
 	Dta1xxSpiGen*  pSpiReg; // Pointer to SPI general register block
 
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO,"Dta1xxSpiInit");
+	DTA1XX_LOG(KERN_INFO,"[%d] Dta1xxSpiInit", pChannel->m_PortIndex);
 #endif
 
 	// Get pointer
@@ -213,7 +213,7 @@ NTSTATUS Dta1xxSpiSetIoClksel(
 {
 	Dta1xxSpiGen*  pSpiReg; // Pointer to SPI general register block
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO,"Dta1xxSpiSetIoClksel: Clksel %d",Clksel);
+	DTA1XX_LOG(KERN_INFO,"[%d] Dta1xxSpiSetIoClksel: Clksel %d", pChannel->m_PortIndex, Clksel);
 #endif
 	// Get pointer to register map
 	pSpiReg = pChannel->m_pSpiReg;
@@ -228,7 +228,7 @@ NTSTATUS Dta1xxSpiSetIoClksel(
 		pSpiReg->m_Control.m_ExtClkSelect = 0;
 		return STATUS_SUCCESS;
 	}
-	DTA1XX_LOG(KERN_INFO, "Dta1xxSpiSetIoClksel: invalid parameter Clksel %d", Clksel);
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetIoClksel: invalid parameter Clksel %d", pChannel->m_PortIndex, Clksel);
 	return STATUS_INVALID_PARAMETER;
 
 }
@@ -247,7 +247,7 @@ NTSTATUS Dta1xxSpiSetIoMode(
 	NTSTATUS status;
 
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO, "Dta1xxSpiSetIoMode: Mode %d, ClkFreq %d", Mode, ClkFreq);
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetIoMode: Mode %d, ClkFreq %d", pChannel->m_PortIndex, Mode, ClkFreq);
 #endif
 
 	// Get pointer to register map
@@ -276,7 +276,7 @@ NTSTATUS Dta1xxSpiSetIoMode(
 		break;
 	default:
 		DTA1XX_LOG(KERN_INFO,
-			"Dta1xxSpiSetIoMode: invalid parameter Mode %d", Mode);
+			"[%d] Dta1xxSpiSetIoMode: invalid parameter Mode %d", pChannel->m_PortIndex, Mode);
 		return STATUS_INVALID_PARAMETER;
 	}
 
@@ -307,7 +307,7 @@ NTSTATUS Dta1xxSpiSetIoStd(
 {
 	Dta1xxSpiGen*  pSpiReg; // Pointer to SPI general register block
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO, "Dta1xxSpiSetIoStd: Std %d", Std);
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetIoStd: Std %d", pChannel->m_PortIndex, Std);
 #endif
 	pSpiReg = pChannel->m_pSpiReg;
 	switch (Std) {
@@ -332,8 +332,8 @@ NTSTATUS Dta1xxSpiSetIoStd(
 			pSpiReg->m_Control.m_IoEnable			= 1;
 			return STATUS_SUCCESS;
 	}
-	DTA1XX_LOG(KERN_INFO, "Dta1xxSpiSetIoStd: invalid parameter Std %d",
-		Std);
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetIoStd: invalid parameter Std %d",
+		pChannel->m_PortIndex, Std);
 	return STATUS_INVALID_PARAMETER;
 }
 
@@ -345,7 +345,7 @@ NTSTATUS Dta1xxSpiSetRxModeDvb(
 	Int  RxMode)
 {
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO, "Dta1xxSpiSetRxModeDvb: RxMode %d", RxMode);
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetRxModeDvb: RxMode %d", pChannel->m_PortIndex, RxMode);
 #endif
 	return STATUS_SUCCESS;
 }
@@ -368,8 +368,8 @@ NTSTATUS Dta1xxSpiSetTxRateBps(
 	NTSTATUS status;
 	UInt64 TxRate;
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO, "Dta1xxSpiSetTxRateBps: TxRateBps %u",
-		TxRateBps);
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetTxRateBps: TxRateBps %u",
+		pChannel->m_PortIndex, TxRateBps);
 #endif
 
 	// Update Tx channel rate
@@ -496,14 +496,14 @@ static NTSTATUS SetIntClkFreq(
 {
 	Dta1xxSpiGen*  pSpiReg; // Pointer to SPI general register block
 #if LOG_LEVEL_SPI > 1
-	DTA1XX_LOG(KERN_INFO, "SetIntClkFreq: frequency %ld", (long int)frequency);
+	DTA1XX_LOG(KERN_INFO, "[%d] SetIntClkFreq: frequency %ld", pChannel->m_PortIndex, (long int)frequency);
 #endif
 
 	// Check parameter
 	if ((frequency < 0) || (frequency > 1890000000LL)) {
 		DTA1XX_LOG(KERN_INFO,
-			"SetIntClkFreq: invalid parameter frequency %ld", 
-			(long int)frequency);
+			"[%d] SetIntClkFreq: invalid parameter frequency %ld", 
+			pChannel->m_PortIndex, (long int)frequency);
 		return STATUS_INVALID_PARAMETER;
 	}
 	

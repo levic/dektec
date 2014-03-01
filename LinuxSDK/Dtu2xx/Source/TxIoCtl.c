@@ -23,9 +23,10 @@ Int  Dtu2xxTxIoCtlReset(
 	IN Int PortIndex,				// Port index
 	IN Int RstMode)					// The reset mode
 {
-	Int Status = 0;
+	Int r, Status = 0;
     UInt8 VendCmd=0;
 	UInt BytesTransf=0;
+	Channel*  pCh=NULL;
 
 #if LOG_LEVEL > 0
 	DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlReset: Reset-mode=%d",
@@ -38,6 +39,9 @@ Int  Dtu2xxTxIoCtlReset(
 				   "NumChannels=%d", PortIndex, pFdo->m_NumChannels);
 		return -EINVAL;
 	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
 
 	// Check for valid value
 	if ( RstMode!=DTU2XX_RST_CHANNEL && RstMode!=DTU2XX_RST_CLEARFIFO )
@@ -53,9 +57,17 @@ Int  Dtu2xxTxIoCtlReset(
 	Dtu2xxTxIoCtlClearFlags(pFdo, PortIndex, 0xFFFFFFFF);
 
 	// Clear internal buffer
-	pFdo->m_Channel[PortIndex].m_BulkTransf.m_Buffer.m_pRdPtr =
-						pFdo->m_Channel[PortIndex].m_BulkTransf.m_Buffer.m_pWrPtr;
-	pFdo->m_Channel[PortIndex].m_BulkTransf.m_Buffer.m_Load = 0;
+	pCh->m_BulkTransf.m_Buffer.m_pRdPtr =
+						pCh->m_BulkTransf.m_Buffer.m_pWrPtr;
+	pCh->m_BulkTransf.m_Buffer.m_Load = 0;
+
+	// Reset load counting
+	r = down_interruptible(&pCh->m_LoadExtrapLock);
+	pCh->m_RpFifoLoad = 0;
+	pCh->m_RpTimestamp = Dtu2xxGetTickCount();
+	pCh->m_WrittenAfterRp = 0;
+	up(&pCh->m_LoadExtrapLock);
+	
 
 	// Simply send the vendor command to the device
 	Status = Dtu2xxVendorRequest(pFdo, VendCmd, 0,0, DTU2XX_DIRECTION_WRITE,0,
@@ -565,8 +577,11 @@ Int  Dtu2xxTxIoCtlGetFifoLoad(
 	IN Int PortIndex,				// Port index
 	OUT Int* pFifoLoad)
 {
-	Int Status = 0;
+	Int r, Status = 0;
+	Channel* pCh=NULL;
 	Dtu2xxTx* pTxRegs = NULL;
+	UInt64 CurrTime, TimeSinceLastRp;
+	Int DeltaL=0, TxControl=0;
 
 	// Check port index is valid
 	if ( PortIndex<0 || PortIndex >= pFdo->m_NumChannels ) {
@@ -575,28 +590,80 @@ Int  Dtu2xxTxIoCtlGetFifoLoad(
 		return -EINVAL;
 	}
 
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
 	// Get register cache
-	pTxRegs = &(pFdo->m_Channel[PortIndex].m_TxRegs);
-
+	pTxRegs = &(pCh->m_TxRegs);
 	// Init to zero
 	*pFifoLoad = 0;
 
-	// Do not read from register cache but directly from hardware
-	Status = Dtu2xxIoCtlReadRegister(
-						pFdo,
-						DTU2XX_TX_BASE_ADDR+DTU2XX_TX_REG_FIFOLOAD,
-						(UInt32*)pFifoLoad );
+	// Get tx-control state
+	TxControl = pTxRegs->m_TxControl.Fields.m_TxCtrl;
 
-	// Update cache
-	pTxRegs->m_FifoLoad = *pFifoLoad;
+	// Get current time
+	CurrTime = Dtu2xxGetTickCount();
 
+	// Read FIFO load from hardware or extrapolate FIFO load.
+	// In extrapolation mode, a reference point is created every two seconds.
+	// In IDLE or HOLD mode, extrapolation is not used.
+	TimeSinceLastRp = CurrTime - pCh->m_RpTimestamp;
+	if (!pCh->m_EnaFifoLoadExtrap || TxControl!=DTU2XX_TXCTRL_SEND
+															   || TimeSinceLastRp>2000000)
+	{
+		// Get FIFO load from hardware
+		Status = Dtu2xxIoCtlReadRegister(pFdo,
+										 DTU2XX_TX_BASE_ADDR+DTU2XX_TX_REG_FIFOLOAD,
+										 pFifoLoad);
+
+		// Create new refence point
+		if (pCh->m_EnaFifoLoadExtrap)
+		{
+			r = down_interruptible(&pCh->m_LoadExtrapLock);
+			pCh->m_RpFifoLoad = *pFifoLoad;
+			pCh->m_RpTimestamp = CurrTime;
+			pCh->m_WrittenAfterRp = 0;
+			up(&pCh->m_LoadExtrapLock);
+
+#if LOG_LEVEL > 2
+			DTU2XX_LOG(KERN_INFO, "Dtu2xxTxIoCtlGetFifoLoad: REFPOINT: RpFifoLoad=%d, "
+					       "TimeSinceLastRp=%llu", pCh->m_RpFifoLoad, TimeSinceLastRp);
+#endif
+		}
+
+		// Update cache
+		pTxRegs->m_FifoLoad = *pFifoLoad;
+	}
+	else
+	{
+		// Extrapolate FIFO load
+		r = down_interruptible(&pCh->m_LoadExtrapLock);
+		DeltaL =   pCh->m_WrittenAfterRp
+				 - (Int)(Dtu2xxBinUDiv((TimeSinceLastRp*pCh->m_NumTxBytesPerSec), 1000000LL, NULL));
+		*pFifoLoad = pCh->m_RpFifoLoad + DeltaL;
+		up(&pCh->m_LoadExtrapLock);
+
+#if LOG_LEVEL > 2
+		DTU2XX_LOG(KERN_INFO, "Dtu2xxTxIoCtlGetFifoLoad: RpFifoLoad=%d, "
+							  "TimeSinceLastRp=%llu, WrittenAfterRp=%d, DeltaL=%d, "
+							  "FifoLoad=%d", pCh->m_RpFifoLoad, TimeSinceLastRp,
+							  pCh->m_WrittenAfterRp, DeltaL, *pFifoLoad);
+#endif
+
+		// Clip FIFO load to min and max
+		if (*pFifoLoad < 0)
+			*pFifoLoad = 0;
+		if ((UInt32)(*pFifoLoad) > pTxRegs->m_FifoSize+256)
+			*pFifoLoad = (pTxRegs->m_FifoSize+256);
+	}
+	
 	// Add data in bulk transfer buffer to the load
-	*pFifoLoad += pFdo->m_Channel[PortIndex].m_BulkTransf.m_Buffer.m_Load;
+	*pFifoLoad += pCh->m_BulkTransf.m_Buffer.m_Load;
 
 #if LOG_LEVEL > 1
-	DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlGetFifoLoad: Load=%d",
-			   PortIndex, *pFifoLoad);
+	DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlGetFifoLoad: Load=%d, Int. Load=%d",
+			   PortIndex, *pFifoLoad, pCh->m_BulkTransf.m_Buffer.m_Load);
 #endif
+
 	return Status;
 }
 
@@ -775,6 +842,456 @@ Int  Dtu2xxTxIoCtlSetLoopBackMode(
 	return -EFAULT;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlGetModControl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Io-control handler for getting modulation control
+//
+Int  Dtu2xxTxIoCtlGetModControl(
+	IN PDTU2XX_FDO pFdo,		// Our device object
+	IN Int PortIndex,			// Port index
+	OUT Int* pModType,
+	OUT Int* pParXtra0,
+	OUT Int* pParXtra1,
+	OUT Int* pParXtra2)
+{
+	Channel*  pCh = NULL;
+	
+	// Only supported by DTU-215
+	if ( pFdo->m_TypeNumber!=215 ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlGetModControl: TypeNumber=%d ILLEGAL",
+				   PortIndex, pFdo->m_TypeNumber);
+		return -EFAULT;
+	}
+
+	// Check port index is valid
+	if ( PortIndex<0 || PortIndex >= pFdo->m_NumChannels ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlGetModControl: INVALID PORT NUMBER "
+				   "NumChannels=%d", PortIndex, pFdo->m_NumChannels);
+		return -EINVAL;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+
+	// Copy modulation parameters from shadow variables in channel data
+	*pModType  = pCh->m_ModType;
+	*pParXtra0 = pCh->m_ParXtra[0];
+	*pParXtra1 = pCh->m_ParXtra[1];
+	*pParXtra2 = pCh->m_ParXtra[2];
+
+#if LOG_LEVEL > 1
+	DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlGetModControl: ModType=%d, ParXtra0=%d, "
+			   "ParXtra1=%d, ParXtra2=%d",
+			   PortIndex, *pModType, *pParXtra0, *pParXtra1, *pParXtra2);
+#endif
+	return 0;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlSetModControl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Io-control handler for setting modulation control
+//
+Int  Dtu2xxTxIoCtlSetModControl(
+	IN PDTU2XX_FDO pFdo,		// Our device object
+	IN Int PortIndex,			// Port index
+	IN Int ModType,
+	IN Int ParXtra0,
+	IN Int ParXtra1,
+	IN Int ParXtra2)
+{
+	Int Status = 0;
+	Dtu2xxTx* pTxRegs = NULL;
+	Channel*  pCh=NULL;
+	BOOLEAN  Is215 = (pFdo->m_TypeNumber==215);
+
+#if LOG_LEVEL > 1
+	DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetModControl: ModType=%d, ParXtra0=%d, "
+			   "ParXtra1=%d, ParXtra2=%d",
+			   PortIndex, ModType, ParXtra0, ParXtra1, ParXtra2);
+#endif
+
+	// Only supported by DTU-215
+	if ( !Is215 ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetModControl: TypeNumber=%d ILLEGAL",
+				   PortIndex, pFdo->m_TypeNumber);
+		return -EFAULT;
+	}
+
+	// Check port index is valid
+	if ( PortIndex<0 || PortIndex >= pFdo->m_NumChannels ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetModControl: INVALID PORT NUMBER "
+				   "NumChannels=%d", PortIndex, pFdo->m_NumChannels);
+		return -EINVAL;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+	// Get register cache
+	pTxRegs = &(pCh->m_TxRegs);
+
+	// Save modulation type and parameters in shadow variables in device extension
+	pCh->m_ModType = ModType;
+	pCh->m_ParXtra[0] = ParXtra0;
+	pCh->m_ParXtra[1] = ParXtra1;
+	pCh->m_ParXtra[2] = ParXtra2;
+
+	// Call board specific handler
+	if (Is215) {
+		Status = Dtu215SetModControl(pCh, ModType, ParXtra0, ParXtra1, ParXtra2);
+		if (Status != 0)
+			return Status;
+	}
+
+	return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlSetRfMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Io-control handler for setting RF-mode
+//
+Int  Dtu2xxTxIoCtlSetRfMode(
+	IN PDTU2XX_FDO pFdo,		// Our device object
+	IN Int PortIndex,			// Port index
+	IN Int RfMode)
+{
+	Int  Mode = RfMode & ~DTU2XX_UPCONV_SPECINV;
+	Int Status = 0;
+	Dtu2xxTx* pTxRegs = NULL;
+	Channel*  pCh=NULL;
+	BOOLEAN  Is215 = (pFdo->m_TypeNumber==215);
+
+#if LOG_LEVEL > 1
+	DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetRfMode: RfMode=%d", PortIndex, RfMode);
+#endif
+
+	// Only supported by DTU-215
+	if ( !Is215 ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetRfMode: TypeNumber=%d ILLEGAL",
+				   PortIndex, pFdo->m_TypeNumber);
+		return -EFAULT;
+	}
+
+	// Check port index is valid
+	if ( PortIndex<0 || PortIndex >= pFdo->m_NumChannels ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetRfMode: INVALID PORT NUMBER "
+				   "NumChannels=%d", PortIndex, pFdo->m_NumChannels);
+		return -EINVAL;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+	// Get register cache
+	pTxRegs = &(pCh->m_TxRegs);
+	
+
+	// Check for valid mode
+	if (   Mode!=DTU2XX_UPCONV_CW  && Mode!=DTU2XX_UPCONV_CWI
+		&& Mode!=DTU2XX_UPCONV_CWQ && Mode!=DTU2XX_UPCONV_MUTE
+		&& Mode!=DTU2XX_UPCONV_NORMAL)
+	{
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetRfMode: INVALID MODE=%d ",
+				   PortIndex, RfMode);
+		return -EINVAL;
+	}
+
+	// First call board specific handler
+	if ( Is215 ) {
+		Status = Dtu215SetRfMode(pCh, RfMode);
+		if ( Status != 0 )
+			return Status;
+	}
+
+	// Set requested mode
+	switch (Mode) 
+	{
+
+	case DTU2XX_UPCONV_CW:
+		// Set CW test-pattern
+		pTxRegs->m_ModControl1.Fields.m_TestPat = DTU2XX_TP_CW;
+		// Remove mute
+		pTxRegs->m_ModControl1.Fields.m_MuteI = 0;
+		pTxRegs->m_ModControl1.Fields.m_MuteQ = 0;
+		break;
+
+	case DTU2XX_UPCONV_CWI:
+		// Set CWI test-pattern
+		pTxRegs->m_ModControl1.Fields.m_TestPat = DTU2XX_TP_CWI;
+		// Remove mute
+		pTxRegs->m_ModControl1.Fields.m_MuteI = 0;
+		pTxRegs->m_ModControl1.Fields.m_MuteQ = 0;
+		break;
+
+	case DTU2XX_UPCONV_CWQ:
+		// Set CWQ test-pattern
+		pTxRegs->m_ModControl1.Fields.m_TestPat = DTU2XX_TP_CWQ;
+		// Remove mute
+		pTxRegs->m_ModControl1.Fields.m_MuteI = 0;
+		pTxRegs->m_ModControl1.Fields.m_MuteQ = 0;	
+		break;
+
+	case DTU2XX_UPCONV_MUTE:
+		// Reset test-pattern
+		pTxRegs->m_ModControl1.Fields.m_TestPat = DTU2XX_TP_NORMAL;
+		// Mute I and Q => no output
+		pTxRegs->m_ModControl1.Fields.m_MuteI = 1;
+		pTxRegs->m_ModControl1.Fields.m_MuteQ = 1;
+		break;
+
+	case DTU2XX_UPCONV_NORMAL:
+		// Reset test-pattern
+		pTxRegs->m_ModControl1.Fields.m_TestPat = DTU2XX_TP_NORMAL;
+		// Remove mute
+		pTxRegs->m_ModControl1.Fields.m_MuteI = 0;
+		pTxRegs->m_ModControl1.Fields.m_MuteQ = 0;
+		break;		break;
+	}
+
+	// Check for spectral inversion
+	if ((RfMode & DTU2XX_UPCONV_SPECINV) != 0)
+		pTxRegs->m_ModControl1.Fields.m_SpecInv = 1;
+	else
+		pTxRegs->m_ModControl1.Fields.m_SpecInv = 0;
+
+	// Finally: update register value to match cache
+	return Dtu2xxIoCtlWriteRegister(pFdo, DTU2XX_TX_BASE_ADDR+DTU2XX_TX_REG_MODCONTROL1,
+									 (Int)(pTxRegs->m_ModControl1.All));
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlGetSymSampleRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Io-control handler for getting symbol/sample rate
+//
+Int  Dtu2xxTxIoCtlGetSymSampleRate(
+	IN PDTU2XX_FDO pFdo,		// Our device object
+	IN Int PortIndex,			// Port index
+	OUT Int* pSymSampelRate)
+{
+	Int  Status = 0;
+	Channel*  pCh=NULL;
+	BOOLEAN  Is215 = (pFdo->m_TypeNumber==215);
+
+	// Only supported by DTU-215
+	if ( !Is215 ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlGetSymSampleRate: TypeNumber=%d ILLEGAL",
+				   PortIndex, pFdo->m_TypeNumber);
+		return -EFAULT;
+	}
+
+	// Check port index is valid
+	if ( PortIndex<0 || PortIndex >= pFdo->m_NumChannels ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetSymSampleRate: INVALID PORT NUMBER "
+				   "NumChannels=%d", PortIndex, pFdo->m_NumChannels);
+		return -EINVAL;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+
+	// Simple return cached value
+	*pSymSampelRate = pCh->m_TsSymOrSampRate;
+
+#if LOG_LEVEL > 1
+	DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlGetSymSampleRate: SymSampelRate=%d",
+			   PortIndex, *pSymSampelRate);
+#endif
+	return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlSetSymSampleRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Io-control handler for setting symbol/sample rate
+//
+Int  Dtu2xxTxIoCtlSetSymSampleRate(
+	IN PDTU2XX_FDO pFdo,		// Our device object
+	IN Int PortIndex,			// Port index
+	IN Int SymSampelRate)
+{
+	Int  Status = 0;
+	Channel*  pCh=NULL;
+	BOOLEAN  Is215 = (pFdo->m_TypeNumber==215);
+
+#if LOG_LEVEL > 1
+	DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetSymSampleRate: SymSampelRate=%d",
+			   PortIndex, SymSampelRate);
+#endif
+
+	// Only supported by DTU-215
+	if ( !Is215 ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetSymSampleRate: TypeNumber=%d ILLEGAL",
+				   PortIndex, pFdo->m_TypeNumber);
+		return -EFAULT;
+	}
+
+	// Check port index is valid
+	if ( PortIndex<0 || PortIndex >= pFdo->m_NumChannels ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetSymSampleRate: INVALID PORT NUMBER "
+				   "NumChannels=%d", PortIndex, pFdo->m_NumChannels);
+		return -EINVAL;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+
+	// Store symbol/sample rate in cache
+	pCh->m_TsSymOrSampRate = SymSampelRate;
+
+	// Call device specific implementation
+	Status = Dtu215SetSymSampleRate(pCh, SymSampelRate);
+	if ( Status != 0 )
+		return Status;
+
+	return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlGetRfControl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Io-control handler for getting rf-control value (i.e. carrier freq) 
+//
+Int  Dtu2xxTxIoCtlGetRfControl(
+	IN PDTU2XX_FDO pFdo,		// Our device object
+	IN Int PortIndex,			// Port index
+	OUT Int64*  pRfFreq)
+{
+	Channel*  pCh=NULL;
+	BOOLEAN  Is215 = (pFdo->m_TypeNumber==215);
+
+	// Only supported by DTU-215
+	if ( !Is215 ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlGetRfControl: TypeNumber=%d ILLEGAL",
+				   PortIndex, pFdo->m_TypeNumber);
+		return -EFAULT;
+	}
+
+	// Check port index is valid
+	if ( PortIndex<0 || PortIndex >= pFdo->m_NumChannels ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlGetRfControl: INVALID PORT NUMBER "
+				   "NumChannels=%d", PortIndex, pFdo->m_NumChannels);
+		return -EINVAL;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+
+	// Simple return cached value
+	*pRfFreq = pCh->m_RfFreq;
+
+#if LOG_LEVEL > 1
+	DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlGetRfControl: pRfFreq=%llu",
+			   PortIndex, *pRfFreq);
+#endif
+
+	return 0;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlSetRfControl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Io-control handler for setting rf-control value (i.e. carrier freq) 
+//
+Int  Dtu2xxTxIoCtlSetRfControl(
+	IN PDTU2XX_FDO  pFdo,	// Our device object
+	IN Int  PortIndex,			// Port index
+	IN Int64  RfFreq)
+{
+	Int  Status = 0;
+	Channel*  pCh=NULL;
+	BOOLEAN  Is215 = (pFdo->m_TypeNumber==215);
+
+#if LOG_LEVEL > 1
+	DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetRfControl: RfFreq=%llu",
+			   PortIndex, RfFreq);
+#endif
+
+	// Only supported by DTU-215
+	if ( !Is215 ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetRfControl: TypeNumber=%d ILLEGAL",
+				   PortIndex, pFdo->m_TypeNumber);
+		return -EFAULT;
+	}
+
+	// Check port index is valid
+	if ( PortIndex<0 || PortIndex >= pFdo->m_NumChannels ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetRfControl: INVALID PORT NUMBER "
+				   "NumChannels=%d", PortIndex, pFdo->m_NumChannels);
+		return -EINVAL;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+
+	// Call device specific implementation
+	Status = Dtu215SetRfControl(pCh, RfFreq);
+	if ( Status != 0 )
+		return Status;
+
+	// Cache rf-frequency
+	pCh->m_RfFreq = RfFreq;
+
+	// Apply frequency response compensation
+	if (Is215)
+		Status = Dtu215FrequencyResponseCompensation(pCh);
+
+	return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlSetOutputLevel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Io-control handler for setting output level
+//
+Int  Dtu2xxTxIoCtlSetOutputLevel(
+	IN PDTU2XX_FDO  pFdo,	// Our device object
+	IN Int  PortIndex,			// Port index
+	IN Int  LeveldBm)
+{
+	Dtu2xxTx* pTxRegs = NULL;
+	Channel*  pCh = NULL;
+	Int  MinLevel=0, MaxLevel=0;
+	BOOLEAN  Is215 = (pFdo->m_TypeNumber==215);
+
+#if LOG_LEVEL > 1
+	DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetOutputLevel: LeveldBm=%d",
+			   PortIndex, LeveldBm);
+#endif
+
+	// Only supported by DTU-215
+	if ( !Is215 ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetOutputLevel: TypeNumber=%d ILLEGAL",
+				   PortIndex, pFdo->m_TypeNumber);
+		return -EFAULT;
+	}
+
+	// Check port index is valid
+	if ( PortIndex<0 || PortIndex >= pFdo->m_NumChannels ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetOutputLevel: INVALID PORT NUMBER "
+				   "NumChannels=%d", PortIndex, pFdo->m_NumChannels);
+		return -EINVAL;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+	// Get register cache
+	pTxRegs = &(pCh->m_TxRegs);
+
+	// Get minimum and maximum level
+	Dtu215GetMinMaxOutpLevel(pCh, &MinLevel, &MaxLevel);
+
+	// Check whether level is within allowed range
+	if ( LeveldBm<MinLevel || LeveldBm>MaxLevel ) {
+		DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetOutputLevel: OUT OF RANGE "
+				   "(%d<=Level<=%d)", PortIndex, MinLevel, MaxLevel);
+		return -EINVAL;
+	}
+
+	// Cache output level
+	pCh->m_OutpLeveldBm = LeveldBm;
+
+	// Compute the number of .5dB attenuator steps needed for the desired level
+	pTxRegs->m_RfControl2.Fields.m_OutpAttn = abs((LeveldBm - MaxLevel) / 5);
+	
+	// Finally: update register value to match cache
+	return Dtu2xxIoCtlWriteRegister(pFdo, DTU2XX_TX_BASE_ADDR+DTU2XX_TX_REG_RFCONTROL2,
+									 (Int)(pTxRegs->m_RfControl2.All));
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlBulkWrite -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Write data to the DTU-2XX (uses bulk transfers)
@@ -785,9 +1302,10 @@ Int  Dtu2xxTxIoCtlBulkWrite(
 	IN Int TransferSize,		// Number of bytes to transfer
 	IN UInt8* pBuf)				// Buffer with data to send
 {
-	Int Status=0;
-	Int n, BytesLeft, BufIndex, NumCopy, CopiedFromIntBuf, TempBufSize;
+	Int r, Status=0;
+	Int n, BytesLeft, BufIndex, NumCopy, CopiedFromIntBuf, TempBufSize, TotalNumWritten=0;
     UInt8* pTempBuf=NULL;
+	Channel*  pCh=NULL;
 	PDTU2XX_RING_BUFFER pRingBuf = NULL;
 
 	// Check port index is valid
@@ -802,6 +1320,14 @@ Int  Dtu2xxTxIoCtlBulkWrite(
 	if ( pBuf == NULL )
 		return -EINVAL;
 
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+
+	// Transmit control may not be idle, because that will hang the driver
+	if (pCh->m_TxRegs.m_TxControl.Fields.m_TxCtrl == DTU2XX_TXCTRL_IDLE)
+		return -EFAULT;
+
+	TotalNumWritten = 0;
 	CopiedFromIntBuf = 0;
 	BytesLeft = TransferSize;
 	BufIndex = 0;
@@ -876,6 +1402,9 @@ Int  Dtu2xxTxIoCtlBulkWrite(
 
 			if ( Status!=0 )
 				return Status;
+
+			// Update total number of bytes written to card
+			TotalNumWritten += NumCopy;
 		}
 
 		// Update data left count (do not count bytes that, where copied from the internal
@@ -907,7 +1436,18 @@ Int  Dtu2xxTxIoCtlBulkWrite(
 
 		BytesLeft -= NumCopy;
 		BufIndex += NumCopy;
+
+		// Update total number of bytes written to card
+		TotalNumWritten += NumCopy;
  	}
+
+	// Update number of bytes written to card
+	if ( pCh->m_EnaFifoLoadExtrap ) 
+	{
+		r = down_interruptible(&pCh->m_LoadExtrapLock);
+		pCh->m_WrittenAfterRp += TotalNumWritten;
+		up(&pCh->m_LoadExtrapLock);
+	}
 
 	//.-.-.-.-.-.-.-.-.-.-.- Copy remaining data to internal buffer -.-.-.-.-.-.-.-.-.-.-.
 

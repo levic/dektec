@@ -13,6 +13,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "../Include/Dta1xx.h"
 #include "../Include/Dta1xxRegs.h"
+#include "../Include/Ad9789.h"
 #include <asm/bitops.h> // set_bit
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Local Routines -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -146,7 +147,9 @@ Int  Dta1xxCheckFirmwareVersion(
 	case 124:  FirmwareCompatible = (pFdo->m_FirmwareVersion >= 0); break;
 	case 140:  FirmwareCompatible = (pFdo->m_FirmwareVersion >= 0); break;
 	case 145:  FirmwareCompatible = (pFdo->m_FirmwareVersion >= 0); break;
+	case 2111: FirmwareCompatible = (pFdo->m_FirmwareVersion >= 0); break;
 	case 2135: FirmwareCompatible = (pFdo->m_FirmwareVersion >= 0); break;
+	case 2136: FirmwareCompatible = (pFdo->m_FirmwareVersion >= 0); break;
 	case 2137: FirmwareCompatible = (pFdo->m_FirmwareVersion >= 0); break;
 	case 2142: FirmwareCompatible = (pFdo->m_FirmwareVersion >= 0); break;
 	case 2144: FirmwareCompatible = (pFdo->m_FirmwareVersion >= 0); break;
@@ -225,6 +228,14 @@ Int  Dta1xxInitChannelsGeneric(
 		pCh->m_CdmaShBuf.m_pSglBuf = NULL;
 		pCh->m_CdmaShBuf.m_pSglKernel = NULL;
 		pCh->m_CdmaDmaRunning = FALSE;
+		
+		// Init modulation parameter cache to defaults
+		pCh->m_RfFreq = -1;           // unknown state
+		pCh->m_OutpLevelGain = 0;     // does not support output level control
+		pCh->m_OutpLeveldBm = -275;   // default output level: -27.5 dBm
+		pCh->m_OutpLevelOffset = 0;   // register value 0 results in 0 dBm
+		pCh->m_FreqCompTable = NULL;  // no table
+		pCh->m_FreqCompTableSize = 0; // 0 entries
 	}
 
 	// User-IP-Rx/Tx channel data pointers are initialised in Dta1xxInitFdo
@@ -490,6 +501,40 @@ Int  Dta1xxInitFdo(
 				pCh->m_pRegBase = (pBase + pCh->m_AddrBaseOffset
 											   + pCh->m_AddrTxRegMapOffset);
 				pCh->m_Dma.m_PlxChannel = 0;
+				break;
+
+	case 2111:
+				pFdo->m_UsesDmaInFpga = TRUE;
+				pFdo->m_NumNonIpChannels = 1;
+				pFdo->m_VpdEepromPageSize = 16;
+
+				// Init I2C interface mutex
+				pFdo->m_SupportsI2cItf = TRUE;
+				init_MUTEX(&pFdo->m_I2cMutex);
+				
+				// Port 1: QAM/OFDM modulation channel
+				pCh = &pFdo->m_Channel[0];
+				pCh->m_AddrBaseOffset = 0x100;
+				pCh->m_AddrRxRegMapOffset = 0x000;	// Not used
+				pCh->m_AddrTxRegMapOffset = 0x080;
+				pCh->m_AddrDmaRegMapOffset = 0x100;
+
+				pCh->m_Capability = DTA1XX_CHCAP_AD9789 | DTA1XX_CHCAP_DACVGA;
+				pCh->m_ChannelType = DTA1XX_TS_TX_CHANNEL;
+				pCh->m_pRegBase = (pBase + pCh->m_AddrBaseOffset
+										 + pCh->m_AddrTxRegMapOffset);
+
+				// Initialise frequency-response compensation table and RF parameters
+				Dta2111Init(pCh);
+
+        		pCh->m_TsSymOrSampRate = -1;
+
+				// Initialise shadow modulator-setting variables in device extension
+				Dta1xxTxDeriveModPars(pFdo, 0);
+				
+				// Set clock divider for CDMA buffer position computations (54 MHz
+				// 4 samples per clock)
+				pCh->m_CdmaClockDiv = 54000000/4;
 				break;
 
 	case 2142:
@@ -776,6 +821,55 @@ Int  Dta1xxInitFdo(
 				init_MUTEX(&pFdo->m_I2cMutex);
 				break;
 
+	case 2136:	pFdo->m_UsesDmaInFpga = TRUE;
+
+				// Card has two DVB-C rx-channels and two ASI outputs
+				pFdo->m_NumNonIpChannels = 4;
+				for (i=0; i<pFdo->m_NumNonIpChannels; i++)
+				{
+					
+					pCh = &pFdo->m_Channel[i];
+					pCh->m_AddrBaseOffset = 0x0100 + (i*0x100);
+					pCh->m_AddrRxRegMapOffset = 0x000;
+					pCh->m_AddrTxRegMapOffset = 0x000;
+					pCh->m_AddrDmaRegMapOffset = 0x080;
+					
+					if (i<2) {
+						pCh->m_ChannelType	= DTA1XX_TS_RX_CHANNEL;
+						pCh->m_Capability	= DTA1XX_CHCAP_IN_PORT;
+
+						// Port 2 can share the antenna input from port 1
+						if (i==1) pCh->m_Capability |= DTA1XX_CHCAP_SHARED;						
+						
+						// Default IO-config is input
+						pCh->m_IoConfig		= DTA1XX_IOCONFIG_INPUT;
+
+						pCh->m_pRegBase = (pBase + pCh->m_AddrBaseOffset
+												 + pCh->m_AddrRxRegMapOffset);
+					} else {
+						pCh->m_ChannelType	= DTA1XX_TS_TX_CHANNEL;
+						pCh->m_Capability	= DTA1XX_CHCAP_OUT_PORT;
+						pCh->m_Capability   |= (DTA1XX_CHCAP_DBLBUF | DTA1XX_CHCAP_LOOPTHR);
+
+						// Default IO-config must be output
+						pCh->m_IoConfig		= DTA1XX_IOCONFIG_OUTPUT;
+
+						pCh->m_pRegBase = (pBase + pCh->m_AddrBaseOffset
+												 + pCh->m_AddrTxRegMapOffset);
+					}					
+
+					
+				}
+				//pFdo->m_EepromSize = 128*1024;
+				//pFdo->m_EepromSectorSize = 32*1024;
+				//pFdo->m_UseFpgaForVpd = TRUE;
+				pFdo->m_VpdEepromPageSize = 16;
+
+				// Init I2C interface mutex
+				pFdo->m_SupportsI2cItf = TRUE;
+				init_MUTEX(&pFdo->m_I2cMutex);
+				break;
+
 	case 2137:	pFdo->m_UsesDmaInFpga = TRUE;
 
 				// Card has two DVB-S2 rx-channels and two ASI outputs
@@ -800,7 +894,7 @@ Int  Dta1xxInitFdo(
 						pCh->m_IoConfig		= DTA1XX_IOCONFIG_INPUT;
 
 						pCh->m_pRegBase = (pBase + pCh->m_AddrBaseOffset
-												+ pCh->m_AddrRxRegMapOffset);
+												 + pCh->m_AddrRxRegMapOffset);
 					}
 					else {
 						pCh->m_ChannelType	= DTA1XX_TS_TX_CHANNEL;
@@ -1222,6 +1316,49 @@ Int  Dta1xxInitDeviceHardware(
 		// the latency timer to 96 PCI clocks
 		NewLatTimer = 96;
 		break;
+	
+	case 2111:
+		Dta1xxGenCtrlRegSetPerIntEn(pFdo->m_pGenRegs, 0);	// Periodic-Interrupt
+															// Enable := 0 (enabled later)
+		Dta1xxGenCtrlRegSetPerIntInterval(pFdo->m_pGenRegs, 4); // 4 = 38.83 ms
+		
+		// switch 1V8SW and 3V3SW on.
+		// they are controlled from the board control 0 regists bits 4 and 5
+		Dta1xxGenSetControl0Reg(pFdo->m_pGenRegs,Dta1xxGenGetControl0Reg(pFdo->m_pGenRegs)|0x30);
+		
+		// sleep shortly to allow power-supply to settle
+		Dta1xxWaitMs(1);
+		
+		if ( pFdo->m_SupportsI2cItf ) {
+			// Init I2C clock speed to 200kHz. ClkDiv=54M/200k/4=0x43
+ 			Dta1xxGenI2cCtrlRegSetClkDiv(pFdo->m_pGenRegs, 0x43);
+		}
+		
+		// Capability based channel initialisation, based on DTA1XX_CHCAP1_AD9789
+		// capability. This code works, without any change, outside this switch
+		// statement, in the generic part of this function.
+        for (i=0; i<pFdo->m_NumNonIpChannels; i++) {
+            volatile UInt8*  pTxRegs;
+            pCh = &pFdo->m_Channel[i];
+    		pTxRegs = (((volatile UInt8 *)pCh->m_pRegBase)+pCh->m_AddrTxRegMapOffset);
+            if ((pCh->m_Capability&DTA1XX_CHCAP_AD9789) != 0) {
+                // reset channel to force initialisation of all channel resources
+                Dta1xxTxCtrlRegTxReset(pTxRegs);
+                // initialise channel registers
+                Dta1xxInitAsiSdi(pCh);
+                // initialise AD9789 chip
+                Ad9789Init(pCh);
+                // set default mod-control (DVB-C)
+                Ad9789SetModControl(pCh, DTA1XX_MOD_QAM64, DTA1XX_MOD_J83_A, -1, -1);
+                // set default RF-frequency (474MHz)
+                Ad9789SetRfControl(pCh, 474000000LL);
+                // set default symbol rate (6.89MBd)
+                Ad9789SetSymSampleRate(pCh, 6890000);
+    		}
+            // Disable DMA TimeOut
+            Dta1xxDmaTimeOutSet(pCh->m_Dma.m_pRegBase, 0);
+        }
+		break;
 
 	case 120:
 		if (pFdo->m_FirmwareVersion >= 4)
@@ -1327,7 +1464,7 @@ Int  Dta1xxInitDeviceHardware(
 		// Initialise TS Tx/Rx
 		for (i=0; i<pFdo->m_NumNonIpChannels; i++) {
 			pCh = &pFdo->m_Channel[i];
-			if (pCh->m_Capability&DTA1XX_CHCAP_SPI) {
+			if ((pCh->m_Capability&DTA1XX_CHCAP_SPI) != 0) {
 				Dta1xxSpiInit(pCh);
 			}
 			Dta1xxSetTxRateSel(pCh,DTA1XX_IORATESEL_INTCLK);
@@ -1423,32 +1560,50 @@ Int  Dta1xxInitDeviceHardware(
 		NewLatTimer = 96;
 		break;
 
-		case 2135:
-			Dta1xxGenCtrlRegSetPerIntEn(pFdo->m_pGenRegs, 0);	// Periodic-Interrupt
-																// Enable := 0 (enabled later)
+	case 2135:
+		Dta1xxGenCtrlRegSetPerIntEn(pFdo->m_pGenRegs, 0);	// Periodic-Interrupt
+															// Enable := 0 (enabled later)
 
-			// Init I2C clock speed to 200kHz. ClkDiv=54M/200k/4=0x43
- 			Dta1xxGenI2cCtrlRegSetClkDiv(pFdo->m_pGenRegs, 0x43);
+		// Init I2C clock speed to 200kHz. ClkDiv=54M/200k/4=0x43
+		Dta1xxGenI2cCtrlRegSetClkDiv(pFdo->m_pGenRegs, 0x43);
 
-			// Initialise DVB-T receiver channel
-			// NOTE: register layout is the same as ASI/SDI channel
-			for (i=0; i<2; i++) {
-				pCh = &pFdo->m_Channel[i];
-				
-				Dta1xxInitAsiSdi(pCh);
-				// Disable DMA TimeOut
-				Dta1xxDmaTimeOutSet(pCh->m_Dma.m_pRegBase, 0);
-			}
+		// Initialise DVB-T receiver channel
+		// NOTE: register layout is the same as ASI/SDI channel
+		for (i=0; i<2; i++) {
+			pCh = &pFdo->m_Channel[i];
 			
-			// Init ADC channel
-			pCh = &pFdo->m_Channel[2];
-			// FOR NOW: init as if it were a normal channel
 			Dta1xxInitAsiSdi(pCh);
 			// Disable DMA TimeOut
 			Dta1xxDmaTimeOutSet(pCh->m_Dma.m_pRegBase, 0);
-			break;
+		}
+		
+		// Init ADC channel
+		pCh = &pFdo->m_Channel[2];
+		// FOR NOW: init as if it were a normal channel
+		Dta1xxInitAsiSdi(pCh);
+		// Disable DMA TimeOut
+		Dta1xxDmaTimeOutSet(pCh->m_Dma.m_pRegBase, 0);
+		break;
 
-		case 2137:
+	case 2136:
+		Dta1xxGenCtrlRegSetPerIntEn(pFdo->m_pGenRegs, 0);	// Periodic-Interrupt
+																// Enable := 0 (enabled later)
+
+		// Init I2C clock speed to 200kHz. ClkDiv=54M/200k/4=0x43
+ 		Dta1xxGenI2cCtrlRegSetClkDiv(pFdo->m_pGenRegs, 0x43);
+
+		// Initialise DVB-C receiver channel
+		// NOTE: register layout is the same as ASI/SDI channel
+		for (i=0; i<pFdo->m_NumNonIpChannels; i++) {
+			pCh = &pFdo->m_Channel[i];
+
+			Dta1xxInitAsiSdi(pCh);
+			// Disable DMA TimeOut
+			Dta1xxDmaTimeOutSet(pCh->m_Dma.m_pRegBase, 0);
+		}
+		break;
+
+	case 2137:
 			Dta1xxGenCtrlRegSetPerIntEn(pFdo->m_pGenRegs, 0);	// Periodic-Interrupt
 																// Enable := 0 (enabled later)
 
@@ -1682,7 +1837,9 @@ Int  Dta1xxInitDmaResources(
 		 (pFdo->m_TypeNumber == 145) ||
 		 (pFdo->m_TypeNumber == 160) ||
 		 (pFdo->m_TypeNumber == 545) ||
+		 (pFdo->m_TypeNumber == 2111)||
 		 (pFdo->m_TypeNumber == 2135)||
+		 (pFdo->m_TypeNumber == 2136)||
 		 (pFdo->m_TypeNumber == 2137)||
 		 (pFdo->m_TypeNumber == 2142)||
 		 (pFdo->m_TypeNumber == 2144)||
@@ -1744,7 +1901,6 @@ Int  Dta1xxInitDmaResources(
 
 	// For network Tx and Rx, we allocate the buffers somewere else
 	if ((pCh->m_ChannelType != DTA1XX_NW_RX_CHANNEL) &&
-		(pCh->m_ChannelType != DTA1XX_NW_TX_CHANNEL) &&
 		(pCh->m_ChannelType != DTA1XX_IP_RX_CHANNEL) &&
 		(pCh->m_ChannelType != DTA1XX_IP_TX_CHANNEL)) {
 		{
@@ -2190,7 +2346,7 @@ void Dta1xxInitAsiSdi(Channel*  pCh)
 		Dta1xxRxCtrlRegSetRxCtrl(pCh->m_pRegBase, 0);		// Receive Control := Idle
 		Dta1xxRxCtrlRegSetOvfIntEn(pCh->m_pRegBase, 0);		// Disable overflow int en.
 		Dta1xxRxCtrlRegSetSyncIntEn(pCh->m_pRegBase, 0);	// Disable sync int. enable
-		if ( pFdo->m_TypeNumber==2135 || pFdo->m_TypeNumber==2137 )
+		if (pFdo->m_TypeNumber==2135 || pFdo->m_TypeNumber==2136 || pFdo->m_TypeNumber==2137)
 			Dta1xxRxCtrlRegSetAsiInv(pCh->m_pRegBase, 2);	// Set ASI invert to 'normal'
 		else
 			Dta1xxRxCtrlRegSetAsiInv(pCh->m_pRegBase, 0);	// Auto detect ASI inversion
@@ -2566,12 +2722,12 @@ Int  Dta1xxSetIoConfig(
 	case DTA1XX_IOCONFIG_SHARED:
 
 		// First check SHARED-mode is supported on this port
-		NoError = 0!=(Capability & DTA1XX_CHCAP_SHARED);
+		NoError = ((Capability & DTA1XX_CHCAP_SHARED) != 0);
 		
 		// Buddy-port administration (for future use)
 		// Special case: for DTA-2135/2136/2137 the buddy port is always port 1 (i.e. idx=0) and
 		// for ease of use the buddy does not need to be specified in m_ParXtra
-		if ( pIoConfig->m_ParXtra==-1 )
+		if (pIoConfig->m_ParXtra == -1)
 		{
 			if ( TypeNumber==2135 || TypeNumber==2136 || TypeNumber==2137 )
 				pIoConfig->m_ParXtra = 0; // Set to default value (port index 0)
@@ -2621,7 +2777,7 @@ Int  Dta1xxSetIoConfig(
 		if (pChTemp->m_IoConfig == DTA1XX_IOCONFIG_INPUT_APSK) {
 			
 #if LOG_LEVEL > 1
-			DTA1XX_LOG( KERN_INFO, "Dta1xx: [%d] Dta1xxSetIoConfig: OTHER CHANNEL MUST NOT BE "
+			DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxSetIoConfig: OTHER CHANNEL MUST NOT BE "
 						"CONFIGURED FOR APSK MODE", pIoConfig->m_PortIndex);
 #endif
 			NoError = FALSE;	
@@ -2946,7 +3102,7 @@ Int  Dta1xxSetIoConfig2(
 	char* pParXtraName;
 
 #if LOG_LEVEL > 0
-	DTA1XX_LOG(KERN_INFO,"Dta1xxSetIoConfig2: PortIndex %d, ConfigCode %d, IoConfig %d, ParXtra %d, Init %d\n",
+	DTA1XX_LOG(KERN_INFO,"Dta1xxSetIoConfig2: PortIndex %d, ConfigCode %d, IoConfig %d, ParXtra %d, Init %d",
 			  (int)pIoConfig->m_PortIndex, (int)pIoConfig->m_ConfigCode,
 			  (int)pIoConfig->m_IoConfig, (int)pIoConfig->m_ParXtra, (int)Init);
 #endif

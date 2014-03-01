@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Init.c *#*#*#*#*#*#*#*#*#* (C) 2000-2008 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Init.c *#*#*#*#*#*#*#*#*#* (C) 2000-2010 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -15,28 +15,28 @@
 #include "Dtu2xx.h"
 #include "Dtu2xxRegs.h"
 #include "EzUsb.h"
-#include "Cyclone225.h"
 #include "Cyclone205.h"
+#include "Cyclone215.h"
+#include "Cyclone225.h"
 #include "Cyclone234.h"
 #include "Cyclone235.h"
 #include "Cyclone236.h"
 #include "Cyclone245.h"
 #include "Cyclone2x5.h"
-//#include "CycloneManuf.h"
-//#include "Cyclone2x5ProgCtrl.h"
 #include "Cypress205.h"
+#include "Cypress215.h"
 #include "Cypress225.h"
 #include "Cypress234.h"
 #include "Cypress235.h"
 #include "Cypress236.h"
 #include "Cypress245.h"
 #include "Cypress2x5.h"
-//#include "CypressManuf.h"
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Internal functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 Int  Dtu2xxInitPld(IN PDTU2XX_FDO);
+Int  Dtu2xxInitPowerSupply(IN PDTU2XX_FDO);
 Int  Dtu2xxInitChannelsGeneric(IN PDTU2XX_FDO);
 Int  Dtu2xxInitDeviceExtension(IN PDTU2XX_FDO);
 Int  Dtu2xxInitDeviceHardware(IN PDTU2XX_FDO);
@@ -57,14 +57,6 @@ Int  Dtu2xxInitDevice(
 	DTU2XX_LOG(KERN_INFO, "Dtu2xxInitDevice: ENTER");
 #endif
 
-	// Initialisation of onboard PLD
-	if ((Status=Dtu2xxInitPld(pFdo)) != 0)
-		return Status;
-
-	// Initialise VPD caching, read and interpret VPD configuration resources
-	if ((Status=Dtu2xxInitVpd(pFdo)) != 0)
-		return Status;
-
 	// Generic initialisation of channel-related variables, this is:
 	// No board-specific intialisations yet
 	if ((Status=Dtu2xxInitChannelsGeneric(pFdo)) != 0)
@@ -74,11 +66,41 @@ Int  Dtu2xxInitDevice(
 	if ((Status=Dtu2xxInitDeviceExtension(pFdo)) != 0)
 		return Status;
 
+	// Initialisation of power-supply
+	if ((Status=Dtu2xxInitPowerSupply(pFdo)) != 0)
+		return Status;
+
+	// Initialisation of onboard PLD
+	if ((Status=Dtu2xxInitPld(pFdo)) != 0)
+		return Status;
+
+	// Initialise VPD caching, read and interpret VPD configuration resources
+	if ((Status=Dtu2xxInitVpd(pFdo)) != 0)
+		return Status;
+
 	// Initialise device hardware
 	if ((Status=Dtu2xxInitDeviceHardware(pFdo)) != 0)
 		return Status;
 
 	return 0;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxInitPowerSupply -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Init onboard power supplies needed before uploading PLD firmware
+//
+Int  Dtu2xxInitPowerSupply(IN PDTU2XX_FDO pFdo)
+{
+#if LOG_LEVEL > 0
+	DTU2XX_LOG(KERN_INFO, "Dtu2xxInitPowerSupply: Enabling power-supply DTU-%d",
+			   pFdo->m_TypeNumber);
+#endif
+
+	// At the moment only the DTU-215 has any power supplies to enable
+	if ( pFdo->m_TypeNumber == 215 )
+		return Dtu2xxInitDtu215MainPowerSupply(pFdo);
+	else
+		return 0;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxInitPld -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -103,6 +125,10 @@ Int  Dtu2xxInitPld(IN PDTU2XX_FDO pFdo)
 		{
 		case 205:
 			Status = Dtu2xxUploadFirmware(pFdo, DTU2XX_FWID_FPGA | DTU2XX_FWID_DTU205);
+			break;
+
+		case 215:
+			Status = Dtu2xxUploadFirmware(pFdo, DTU2XX_FWID_FPGA | DTU2XX_FWID_DTU215);
 			break;
 
 		case 225:
@@ -197,6 +223,14 @@ Int  Dtu2xxInitChannelsGeneric(IN PDTU2XX_FDO pFdo)
 
 		pCh->m_TempBufSize = 0;
 		pCh->m_pTempBuf = NULL;
+
+		// Init load counting members
+		init_MUTEX(&pCh->m_LoadExtrapLock);
+		pCh->m_EnaFifoLoadExtrap = FALSE;
+		pCh->m_RpFifoLoad = 0;
+		pCh->m_RpTimestamp = Dtu2xxGetTickCount();
+		pCh->m_WrittenAfterRp = 0;
+		pCh->m_NumTxBytesPerSec = 0;
 	}
 	return 0;
 }
@@ -234,6 +268,26 @@ Int  Dtu2xxInitDeviceExtension(IN PDTU2XX_FDO pFdo)
 		pFdo->m_Channel[0].m_ChannelType = DTU2XX_TS_TX_CHANNEL;
 		pFdo->m_Channel[0].m_IoConfig = DTU2XX_IOCONFIG_OUTPUT;
 		pFdo->m_Channel[0].m_IoConfigPar = -1;
+		break;
+
+	case 215:
+		pFdo->m_NumChannels = 1;
+
+		// Init tx-channel
+		pFdo->m_Channel[0].m_PortIndex = 0;
+		pFdo->m_Channel[0].m_Capability = DTU2XX_CHCAP_OUT_PORT;
+		pFdo->m_Channel[0].m_ChannelType = DTU2XX_TS_TX_CHANNEL;
+		pFdo->m_Channel[0].m_IoConfig = DTU2XX_IOCONFIG_OUTPUT;
+		pFdo->m_Channel[0].m_IoConfigPar = -1;
+
+		// Init modulation parameter cache to "unknown" state
+		pFdo->m_Channel[0].m_ModType = -1;
+		pFdo->m_Channel[0].m_ParXtra[0] = -1;
+		pFdo->m_Channel[0].m_ParXtra[1] = -1;
+		pFdo->m_Channel[0].m_ParXtra[2] = -1;
+		pFdo->m_Channel[0].m_TsSymOrSampRate = -1;
+		pFdo->m_Channel[0].m_RfFreq = -1;
+		pFdo->m_Channel[0].m_OutpLeveldBm = -275; // -27.5dBm
 		break;
 
 	case 225:
@@ -530,6 +584,11 @@ Int Dtu2xxInitDeviceHardware(
 			// Init channel
 			Dtu2xxInitAsiSdiChannel(pCh);
 		}
+		break;
+
+	case 215:
+		// Call DTU-215 specific hardware initialisation
+		Status = Dtu2xxInitDtu215Hardware(pFdo);
 		break;
 
 	case 225:
@@ -942,6 +1001,13 @@ Int  Dtu2xxUploadFirmware(
 			Status = Dtu2xxProgramAltera(pFdo, sizeof(c_CycloneCode205), c_CycloneCode205);
 		else
 			Status = Dtu2xxProgramEzUsb(pFdo, c_CypressCode205);
+		break;
+
+	case DTU2XX_FWID_DTU215:
+		if ( (FirmwareId & DTU2XX_FWID_FPGA) != 0 )
+			Status = Dtu2xxProgramAltera(pFdo, sizeof(c_CycloneCode215), c_CycloneCode215);
+		else
+			Status = Dtu2xxProgramEzUsb(pFdo, c_CypressCode215);
 		break;
 
 	case DTU2XX_FWID_DTU225:

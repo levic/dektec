@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.cpp *#*#*#*#*#*#*#*#* (C) 2000-2009 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.cpp *#*#*#*#*#*#*#*#* (C) 2000-2010 DekTec
 //
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Change History -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -22,7 +22,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlay Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DTPLAY_VERSION_MAJOR		3
 #define DTPLAY_VERSION_MINOR		10
-#define DTPLAY_VERSION_BUGFIX		2
+#define DTPLAY_VERSION_BUGFIX		5
 
 // Command line option flags
 const char c_LoopCountCmdLineFlag[]			= "l";
@@ -60,6 +60,7 @@ const char c_SnrCmdLineFlag[]				= "snr";
 const char c_IpAddressCmdLineFlag[]			= "ipa";
 const char c_IpProtocolCmdLineFlag[]		= "ipp";
 const char c_IpNumTpPerIpCmdLineFlag[]		= "ipn";
+const char c_IpTtlCmdLineFlag[]				= "ipt";
 
 const char c_SilentModeCmdLineFlag[]		= "s";
 
@@ -344,6 +345,8 @@ void  CommandLineParams::ParseParamFlag(char* pParam, bool First, bool Last)
 	else if ( 0==strcmp(pParam, c_IpProtocolCmdLineFlag) )
 		m_LastFlagReqsArg = true;
 	else if ( 0==strcmp(pParam, c_IpNumTpPerIpCmdLineFlag) )
+		m_LastFlagReqsArg = true;
+	else if ( 0==strcmp(pParam, c_IpTtlCmdLineFlag) )
 		m_LastFlagReqsArg = true;
 	else if ( 0==strcmp(pParam, c_PortDblBuffFlag))
 	{
@@ -757,6 +760,12 @@ void  CommandLineParams::ParseParamNotFlag(char* pParam, bool First, bool Last)
 		if ( m_IpPars.m_NumTpPerIp<1 || m_IpPars.m_NumTpPerIp>7 )
 			throw Exc(c_CleInvalidArgument, m_pLastFlag);
 	}
+	else if ( 0==strcmp(m_pLastFlag, c_IpTtlCmdLineFlag) )
+	{
+		m_IpPars.m_TimeToLive = atof(pParam);
+		if (m_IpPars.m_TimeToLive < 1 || m_IpPars.m_TimeToLive > 65535) 
+			throw Exc(c_CleInvalidArgument, m_pLastFlag);
+	}
 	else if ( 0==strcmp(m_pLastFlag, c_StuffingModeCmdLineFlag) )
 	{
 	
@@ -1097,8 +1106,9 @@ void Player::AttachToOutput()
 	DtHwFuncDesc* pHwf = &HwFuncs[0];
 	for ( n=0; n<NumHwFuncsFound; n++, pHwf++ )
 	{
-		// Skip non-bidir capabale devices
+		// Skip non-bidir capabale inputs
 		if (   0!=(pHwf->m_ChanType & DTAPI_CHAN_INPUT)
+			&& 0==(pHwf->m_ChanType & DTAPI_CHAN_OUTPUT)
 			&& 0==(pHwf->m_Flags & DTAPI_CAP_BIDIR) )
 			continue;
 
@@ -1761,7 +1771,7 @@ int Player::Play(int argc, char* argv[])
 
 		//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Print start message -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-		LogF("DtPlay player V%d.%d.%d (c) 2000-2009 DekTec Digital Video B.V.\n",
+		LogF("DtPlay player V%d.%d.%d (c) 2000-2010 DekTec Digital Video B.V.\n",
 			  DTPLAY_VERSION_MAJOR, DTPLAY_VERSION_MINOR, DTPLAY_VERSION_BUGFIX);
 
 
@@ -1847,9 +1857,7 @@ void Player::ShowHelp()
 	Log( "" );
 	Log("   -t  Device type to use (default: any output device)");
 	Log("         100, 102, 105, 107, 110, 112, 115, 116, 117, 140, 145,");
-	Log("         160, 205, 245, 545 or 2145");
-	Log("         107        DTA-107 or DTA-107S2");
-	Log("         110        DTA-110 or DTA-110T");
+	Log("         160, 205, 245, 545, 2111, 2145 or 2160");
 	Log( "" );
 	Log("   -n  Device number to use (default: 1)");
 	Log( "" );
@@ -1943,6 +1951,8 @@ void Player::ShowHelp()
 	Log("         UDP or RTP");
 	Log( "" );
 	Log("   -ipn Number of TPs per IP packet (valid range: 1-7, default: 7)");
+	Log( "" );
+	Log("   -ipt Time-To-Live value (for TX only)");
 	Log( "" );
 
 	Log("   -mS  Enable Stuffing (default: OFF)");

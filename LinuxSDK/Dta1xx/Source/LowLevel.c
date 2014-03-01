@@ -13,6 +13,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "../Include/Dta1xx.h"
 #include "../Include/Dta1xxRegs.h"
+#include "../Include/Ad9789.h"
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ TRANSPORT-STREAM RECEIVE CHANNEL +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -105,6 +106,7 @@ void  Dta1xxTxDeriveModPars(
 	BOOLEAN  Is107 = (TypeNumber==107);
 	BOOLEAN  Is11X = (   TypeNumber==110 || TypeNumber==111 || TypeNumber==112
 					  || TypeNumber==115 || TypeNumber==116 || TypeNumber==117);
+	BOOLEAN  Ad9789Cap;
 
 	// Check typenumber and port index for validity
 	if ( PortIndex<0 || PortIndex>pFdo->m_NumNonIpChannels )
@@ -112,6 +114,10 @@ void  Dta1xxTxDeriveModPars(
 	
 	// Set channel pointer
 	pCh = &pFdo->m_Channel[PortIndex];
+
+	// Check typenumber, or capability, for validity
+	Ad9789Cap = (pCh->m_Capability&DTA1XX_CHCAP_AD9789) != 0;
+	Is11X = Is11X || Ad9789Cap;
 
 	// Initialise shadow variables to -1
 	pCh->m_ModType = -1;
@@ -248,10 +254,6 @@ Int  Dta1xxTxGetModControl(
 	BOOLEAN  Is11X = (   TypeNumber==110 || TypeNumber==111 || TypeNumber==112
 					  || TypeNumber==115 || TypeNumber==116 || TypeNumber==117);
 	
-	// Must be a modulator card
-	if (!Is107 && !Is11X)
-		return -EFAULT;
-
 	// Check port index
 	if ( PortIndex<0 || PortIndex >= pFdo->m_NumNonIpChannels ) {
 #if LOG_LEVEL > 0
@@ -263,6 +265,13 @@ Int  Dta1xxTxGetModControl(
 
 	// Set channel pointer
 	pCh = &pFdo->m_Channel[PortIndex];
+
+	// channel with modulator capability
+	Is11X = Is11X || ((pCh->m_Capability&DTA1XX_CHCAP_AD9789) != 0); 
+
+	// Must be a modulator card
+	if (!Is107 && !Is11X)
+		return -EFAULT;
 
 	// Check channel type
 	if (   pCh->m_ChannelType!=DTA1XX_TS_TX_CHANNEL
@@ -339,6 +348,108 @@ Int  Dta1xxTxGetModControl(
 				    PortIndex, *pModType, *pXtraPar0, *pXtraPar1, *pXtraPar2 );
 #endif
 	}
+	return 0;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxTxGetOutputLevel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Set the channel's transmit-control state.
+//
+Int  Dta1xxTxGetOutputLevel(
+	DTA1XX_FDO* pFdo,       // Functional device object, representing the DTA-1xx card
+	Int  PortIndex,         // Port index
+	Int *  pOutputLevel)    // Output level
+{
+	Int  OutputLevel;
+	Channel*  pCh;
+
+	// Sanity check
+	if (pFdo==NULL) {
+		DTA1XX_LOG( KERN_INFO, "Dta1xxTxGetOutputLevel: pFdo=NULL INVALID");
+		return -EFAULT;
+	}
+
+	// Check port index
+	if (PortIndex >= pFdo->m_NumNonIpChannels) {
+		DTA1XX_LOG( KERN_INFO, "Dta1xxTxGetOutputLevel: PortIndex=%d INVALID", PortIndex);
+		return -EFAULT;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+
+	if ((pCh->m_Capability&DTA1XX_CHCAP_DACVGA) != 0) {
+		return DacVgaGetOutputLevel(pCh,&OutputLevel);
+	} else {
+		DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxGetOutputLevel: This port does not have the capability",
+				 PortIndex);
+		return -EFAULT;
+	}
+#if LOG_LEVEL_MODULATION > 0
+	DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxGetOutputLevel: OutputLevel=%d",
+			 PortIndex, OutputLevel);
+#endif
+
+	// Set return value
+	if (pOutputLevel!=NULL)
+		*pOutputLevel = OutputLevel;
+
+	return 0;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxTxGetRfControl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Set the channel's transmit-control state.
+//
+Int  Dta1xxTxGetRfControl(
+	DTA1XX_FDO* pFdo,			// Functional device object, representing the DTA-1xx card
+	Int  PortIndex,					// Port index
+	Int64 *  pRfRate,				// RF rate
+	Int *  pLockStatus)				// PLL lock status
+{
+	Channel*  pCh;
+	Int64  RfRate = 0;
+	Int  LockStatus = 0;
+
+	// Sanity check
+	if (pFdo==NULL) {
+		DTA1XX_LOG( KERN_INFO, "Dta1xxTxGetRfControl: pFdo=NULL INVALID");
+		return -EFAULT;
+	}
+
+	// Check port index
+	if (PortIndex >= pFdo->m_NumNonIpChannels) {
+		DTA1XX_LOG( KERN_INFO, "Dta1xxTxGetRfControl: PortIndex=%d INVALID", PortIndex);
+		return -EFAULT;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+
+	if ((pCh->m_Capability&DTA1XX_CHCAP_AD9789) != 0) {
+		Int  error;
+		error = Ad9789GetRfControl(pCh,pRfRate,pLockStatus);
+		if (error) {
+			DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxGetRfControl: Ad9789GetRfControl() FAILED",
+					 PortIndex);
+			return error;
+		}
+	} else {
+		DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxGetRfControl: This port does not have the capability",
+				 PortIndex);
+		return -EFAULT;
+	}
+#if LOG_LEVEL_MODULATION > 0
+	DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxGetRfControl: RfRate=%lld LockStatus=%d",
+			 PortIndex, RfRate, LockStatus);
+#endif
+
+	// Set return values
+	if (pRfRate!=NULL)
+		*pRfRate = RfRate;
+	if (pLockStatus!=NULL)
+		*pLockStatus = LockStatus;
+
 	return 0;
 }
 
@@ -535,18 +646,8 @@ Int  Dta1xxTxSetModControl2(
 								  || TypeNumber==116 || TypeNumber==117);
 	BOOLEAN  Is11X = (TypeNumber==110 || Is111 || Is112_115_116_117);
 
-	// Check type number: must be a modulator card
-	if (!Is107 && !Is11X) {
-#if LOG_LEVEL > 0
-		DTA1XX_LOG( KERN_INFO, "Dta1xxTxSetModControl2: TypeNumber=%d ILLEGAL",
-					TypeNumber );
-#endif
-		return -EFAULT;
-	}
-
 	// Check port index
-	if ( PortIndex>=pFdo->m_NumNonIpChannels && !(Is112_115_116_117 && PortIndex==0) )
-	{
+	if (PortIndex>=pFdo->m_NumNonIpChannels || (Is112_115_116_117 && (PortIndex==0))) {
 #if LOG_LEVEL > 0
 		DTA1XX_LOG( KERN_INFO, "Dta1xxTxSetModControl2: PortIndex=%d INVALID",
 					PortIndex );
@@ -556,6 +657,20 @@ Int  Dta1xxTxSetModControl2(
 
 	// Set channel pointer
 	pCh = &pFdo->m_Channel[PortIndex];
+
+	// new style: Check modulator capability 
+	if (pCh->m_Capability&DTA1XX_CHCAP_AD9789) {
+		return Ad9789SetModControl(pCh,ModType,XtraPar0,XtraPar1,XtraPar2);
+	}
+
+	// old style: Check type number: must be a modulator card
+	if (!Is107 && !Is11X) {
+#if LOG_LEVEL > 0
+		DTA1XX_LOG( KERN_INFO, "Dta1xxTxSetModControl2: TypeNumber=%d ILLEGAL",
+					TypeNumber );
+#endif
+		return -EFAULT;
+	}
 
 	// Check channel type
 	if (   pCh->m_ChannelType!=DTA1XX_TS_TX_CHANNEL
@@ -788,6 +903,156 @@ Int  Dta1xxTxSetTxControl(
 }
 
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxTxSetOutputLevel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Set the channel's transmit-control state.
+//
+Int  Dta1xxTxSetOutputLevel(
+	DTA1XX_FDO* pFdo,	// Functional device object, representing the DTA-1xx card
+	Int  PortIndex,		// Port index
+	Int  OutputLevel)	// Output level
+{
+	Channel*  pCh;
+
+	// Sanity check
+	if (pFdo==NULL) {
+		DTA1XX_LOG( KERN_INFO, "Dta1xxTxSetOutputLevel: pFdo=NULL INVALID");
+		return -EFAULT;
+	}
+
+	// Check port index
+	if (PortIndex >= pFdo->m_NumNonIpChannels) {
+		DTA1XX_LOG( KERN_INFO, "Dta1xxTxSetOutputLevel: PortIndex=%d INVALID", PortIndex);
+		return -EFAULT;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+
+#if LOG_LEVEL_MODULATION > 0
+	DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxSetOutputLevel: OutputLevel=%d",
+			 PortIndex, OutputLevel);
+#endif
+
+	if ((pCh->m_Capability&DTA1XX_CHCAP_DACVGA) != 0) {
+		return DacVgaSetOutputLevel(pCh,OutputLevel);
+	} else {
+		DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxSetOutputLevel: This port does not have the capability",
+				 PortIndex);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxTxSetRfControl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Set the channel's transmit-control state.
+//
+Int  Dta1xxTxSetRfControl(
+	DTA1XX_FDO* pFdo,		// Functional device object, representing the DTA-1xx card
+	IN Int  PortIndex,		// Port index
+	IN Int64  RfRate)		// RF rate
+{
+	Channel*  pCh;
+	Int  Status = 0;
+
+	// Sanity check
+	if (pFdo==NULL) {
+		DTA1XX_LOG( KERN_INFO, "Dta1xxTxSetRfControl: pFdo=NULL INVALID");
+		return -EFAULT;
+	}
+
+	// Check port index
+	if (PortIndex >= pFdo->m_NumNonIpChannels) {
+		DTA1XX_LOG( KERN_INFO, "Dta1xxTxSetRfControl: PortIndex=%d INVALID", PortIndex);
+		return -EFAULT;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+
+#if LOG_LEVEL_MODULATION > 0
+	DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxSetRfControl: RfRate=%lld",
+			 PortIndex, RfRate);
+#endif
+
+    // Call device specific implementation
+	if ((pCh->m_Capability&DTA1XX_CHCAP_AD9789) != 0) {
+		Int  error;
+		error = Ad9789SetRfControl(pCh,RfRate);
+		if (error) {
+			DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxSetRfControl: Ad9789SetRfControl() FAILED",
+					 PortIndex);
+			return error;
+		}
+	} else {
+		DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxSetRfControl: This port does not have the capability",
+				 PortIndex);
+		return -EFAULT;
+	}
+
+	// Cache rf-frequency
+	pCh->m_RfFreq = RfRate;
+
+	// Apply frequency response compensation
+	if ((pCh->m_Capability&DTA1XX_CHCAP_AD9789) != 0) {
+		Status = Ad9789FrequencyResponseCompensation(pCh);
+	}
+	if ((pCh->m_Capability&DTA1XX_CHCAP_DACVGA) != 0) {
+		Status = DacVgaFrequencyResponseCompensation(pCh);
+	}
+
+	return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxTxSetRfMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Set the channel's transmit-control state.
+//
+Int  Dta1xxTxSetRfMode(
+	DTA1XX_FDO* pFdo,		// Functional device object, representing the DTA-1xx card
+	IN Int  PortIndex,		// Port index
+	IN Int  RfMode)			// RF mode
+{
+	Channel*  pCh;
+
+	// Sanity check
+	if (pFdo==NULL) {
+		DTA1XX_LOG( KERN_INFO, "Dta1xxTxSetRfMode: pFdo=NULL INVALID");
+		return -EFAULT;
+	}
+
+	// Check port index
+	if (PortIndex >= pFdo->m_NumNonIpChannels) {
+		DTA1XX_LOG( KERN_INFO, "Dta1xxTxSetRfMode: PortIndex=%d INVALID", PortIndex);
+		return -EFAULT;
+	}
+
+	// Set channel pointer
+	pCh = &pFdo->m_Channel[PortIndex];
+
+#if LOG_LEVEL_MODULATION > 0
+	DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxSetRfMode: RfMode=%d",
+			 PortIndex, RfMode);
+#endif
+	if ((pCh->m_Capability&DTA1XX_CHCAP_AD9789) != 0) {
+		Int  error;
+		error = Ad9789SetRfMode(pCh,RfMode);
+		if (error) {
+			DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxSetRfControl: Ad9789SetRfMode() FAILED",
+					 PortIndex);
+			return error;
+		}
+	} else {
+		DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxSetRfControl: This port does not have the capability",
+				 PortIndex);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxTxSetTxMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Set the channel's packet transmit mode.
@@ -911,7 +1176,8 @@ Int  Dta1xxTxSetTxMode(
 									|| (pCh->m_pFdo->m_TypeNumber==112 && PortIndex==1)
 									|| (pCh->m_pFdo->m_TypeNumber==115 && PortIndex==1)
 									|| (pCh->m_pFdo->m_TypeNumber==116 && PortIndex==1)
-									|| (pCh->m_pFdo->m_TypeNumber==117 && PortIndex==1)))
+									|| (pCh->m_pFdo->m_TypeNumber==117 && PortIndex==1)
+									|| (pCh->m_Capability==DTA1XX_CHCAP_AD9789)))
 		Dta1xxTxSetRate2(pFdo, PortIndex, ClockGenMode, TsRate);
 
 	// Don't forget to release the mutex

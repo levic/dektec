@@ -13,6 +13,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "../Include/Dta1xx.h"
 #include "../Include/Dta1xxRegs.h"
+#include "../Include/Ad9789.h"
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -282,8 +283,7 @@ Int  Dta1xxTxGetRate2(
 			|| (pCh->m_pFdo->m_TypeNumber==112 && PortIndex==1)
 			|| (pCh->m_pFdo->m_TypeNumber==115 && PortIndex==1)
 			|| (pCh->m_pFdo->m_TypeNumber==116 && PortIndex==1)
-			|| (pCh->m_pFdo->m_TypeNumber==117 && PortIndex==1) )
-	{
+			|| (pCh->m_pFdo->m_TypeNumber==117 && PortIndex==1) ) {
 		// Compute symbol rate, multiplied by 16 (for rounding)
 		if (   pCh->m_pFdo->m_TypeNumber==111 || pCh->m_pFdo->m_TypeNumber==112
 			|| pCh->m_pFdo->m_TypeNumber==115 || pCh->m_pFdo->m_TypeNumber==116 )
@@ -321,6 +321,11 @@ Int  Dta1xxTxGetRate2(
 		DTA1XX_LOG( KERN_INFO, "[%d] Dta1xxTxGetRate2: TsSymOrSampRate=%d dPhi=0x%08x",
 					pCh->m_PortIndex, *pTsSymOrSampRate, (Int)dPhi );
 #endif
+	} else if ((pCh->m_Capability&DTA1XX_CHCAP_AD9789) != 0) {
+
+		// return saved sample rate
+		TsSymOrSampRate = pCh->m_ModSampRate;
+
 	}
 	else {		// *** Not a modulator card
 
@@ -467,8 +472,15 @@ Int  Dta1xxTxSetRate2(
 				    "ModType=%d dPhi=0x%08x",
 				    pCh->m_PortIndex, (Int)TsSymOrSampRate, pCh->m_ModType, dPhi );
 #endif
-	}
-	else {	// *** Not a modulator card
+	} else if ((pCh->m_Capability&DTA1XX_CHCAP_AD9789) != 0) {
+
+		// Save sample rate for FIFO-load computations (Direct IQ modes)
+		pCh->m_ModSampRate = (Int)TsSymOrSampRate;
+
+		// call AD9789 specific implementation
+		status = Ad9789SetSymSampleRate(pCh, (Int)TsSymOrSampRate);
+
+	} else {	// *** Not a modulator card
 
 		// Set phase-increment register, depends on transport-stream rate and packet size
 		if (PckSize == 188) {

@@ -1,7 +1,5 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dtu2xxCodes.h *#*#*#*#*#*#*#*# (C) 2000-2004 DEKTEC
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dtu2xxCodes.h *#*#*#*#*#*#*#*# (C) 2000-2010 DekTec
 //
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Change History -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//	2004.07.19	MG	Created	
 
 #ifndef __DTU2XXCODES_H
 #define __DTU2XXCODES_H
@@ -196,6 +194,8 @@ typedef unsigned long DTU2XX_RESULT;
 #define  DTU2XX_MOD_ATSC			10
 #define  DTU2XX_MOD_DVBT2			11
 #define  DTU2XX_MOD_ISDBT			12
+#define  DTU2XX_MOD_IQDIRECT		15
+#define  DTU2XX_MOD_IQDIRECT_NOLIC	78126315
 #define  DTU2XX_MOD_DVBS_QPSK_SOFT	16		// Soft DVB-S for DTA-107S2
 #define  DTU2XX_MOD_DVBS2_QPSK		32
 #define  DTU2XX_MOD_DVBS2_8PSK		33
@@ -203,6 +203,7 @@ typedef unsigned long DTU2XX_RESULT;
 #define  DTU2XX_MOD_ADTBT			49
 #define  DTU2XX_MOD_CMMB			50
 #define  DTU2XX_MOD_T2MI			51
+#define  DTU2XX_MOD_DVBC2			52
 
 #define  DTU2XX_MOD_ATSC_VSB8		0
 #define  DTU2XX_MOD_ATSC_VSB16		1

@@ -251,6 +251,22 @@ typedef struct _DTA1XX_MOD_CONTROL {
 	Int  m_ParXtra2;				// Extra parameter #2
 } DTA1XX_MOD_CONTROL;
 
+typedef struct _DTA1XX_OUTPUT_LEVEL {
+	Int  m_PortIndex;				// Zero-based port index (0=first port, ...)
+	Int  m_OutputLevel;				// Output level
+} DTA1XX_OUTPUT_LEVEL;
+
+typedef struct _DTA1XX_RF_CONTROL {
+	Int  m_PortIndex;				// Zero-based port index (0=first port, ...)
+	Int64  m_RfRate;				// RF rate
+	Int  m_LockStatus;				// RF PLL lock status
+} DTA1XX_RF_CONTROL;
+
+typedef struct _DTA1XX_RF_MODE {
+	Int  m_PortIndex;				// Zero-based port index (0=first port, ...)
+	Int  m_RfMode;					// RF mode
+} DTA1XX_RF_MODE;
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- NWI Info -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 typedef struct _DTA1XX_NWI_INFO {
 	Int  m_IpPortIndex;				// Identifies IP physical port
@@ -838,10 +854,13 @@ typedef union _DTA1XX_IOCTL_DATA {
 	DTA1XX_NWLOOPBACK  m_NwLoopback;		// Loopback for ethernet
 	DTA1XX_NWSPEED  m_NwSpeed;				// Speed settings for ethernet
 	DTA1XX_NWSTATCNT m_NwStatCnt;			// Network status/counter info
+	DTA1XX_OUTPUT_LEVEL  m_OutputLevel;		// Output level
 	DTA1XX_PORT_INTPAR  m_PortIntpar;		// Generic integer port parameter
 	DTA1XX_PORT_2INTPAR  m_Port2Intpar;		// Generic 2 integer port parameters
 	DTA1XX_RATE_INFO  m_RateInfo;			// Transport-stream rate info
 	DTA1XX_RATE_INFO2  m_RateInfo2;			// Transport-stream rate info - new style
+	DTA1XX_RF_CONTROL  m_RfControl;			// RF control
+	DTA1XX_RF_MODE  m_RfMode;				// RF mode
 	DTA1XX_RST_INFO  m_RstInfo;				// Reset info
 	DTA1XX_RX_INFO  m_RxInfo;				// Receive-status info
 	DTA1XX_RW_INFO  m_RwInfo;				// Read/write info
@@ -949,7 +968,12 @@ enum {
 	DTA1XX_FUNCTION_GET_RXCLKFREQ,
 	DTA1XX_FUNCTION_GET_TXPHASEINCR,
 	DTA1XX_FUNCTION_SET_TXPHASEINCR,
-	DTA1XX_FUNCTION_SET_RX_MODE
+	DTA1XX_FUNCTION_SET_RX_MODE,
+	DTA1XX_FUNCTION_GET_OUTPUT_LEVEL,
+	DTA1XX_FUNCTION_SET_OUTPUT_LEVEL,
+	DTA1XX_FUNCTION_GET_RF_CONTROL,
+	DTA1XX_FUNCTION_SET_RF_CONTROL,
+	DTA1XX_FUNCTION_SET_RF_MODE
 };
 
 
@@ -1436,6 +1460,27 @@ enum {
 #endif
 
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_GET_OUTPUT_LEVEL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// InBuffer : DTA1XX_OUTPUT_LEVEL
+// OutBuffer: DTA1XX_OUTPUT_LEVEL
+// Result   : BOOL
+//
+// Get output level parameter.
+//
+#if defined(WIN32) || defined(WIN64)
+	// Windows
+	#define IOCTL_DTA1XX_GET_OUTPUT_LEVEL										\
+			CTL_CODE(DTA1XX_DEVICE_TYPE, DTA1XX_FUNCTION_GET_OUTPUT_LEVEL,		\
+					 METHOD_BUFFERED, FILE_READ_DATA)
+#else
+	// Linux
+	#define IOCTL_DTA1XX_GET_OUTPUT_LEVEL										\
+			_IOWR(DTA1XX_IOCTL_MAGIC, DTA1XX_FUNCTION_GET_OUTPUT_LEVEL,			\
+				  DTA1XX_OUTPUT_LEVEL)
+#endif
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA1XX_FUNCTION_GET_TXPHASEINCR -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // InBuffer : DTA1XX_PORT_INTPAR
@@ -1477,6 +1522,48 @@ enum {
 	#define IOCTL_DTA1XX_GET_RATE2												\
 			_IOWR(DTA1XX_IOCTL_MAGIC, DTA1XX_FUNCTION_GET_RATE2,				\
 				  DTA1XX_RATE_INFO2)
+#endif
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_GET_RF_CONTROL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// InBuffer : DTA1XX_RF_CONTROL
+// OutBuffer: DTA1XX_RF_CONTROL
+// Result   : BOOL
+//
+// Get output level parameter.
+//
+#if defined(WIN32) || defined(WIN64)
+	// Windows
+	#define IOCTL_DTA1XX_GET_RF_CONTROL											\
+			CTL_CODE(DTA1XX_DEVICE_TYPE, DTA1XX_FUNCTION_GET_RF_CONTROL,		\
+					 METHOD_BUFFERED, FILE_READ_DATA)
+#else
+	// Linux
+	#define IOCTL_DTA1XX_GET_RF_CONTROL											\
+			_IOWR(DTA1XX_IOCTL_MAGIC, DTA1XX_FUNCTION_GET_RF_CONTROL,			\
+				  DTA1XX_RF_CONTROL)
+#endif
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_GET_RF_MODE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// InBuffer : DTA1XX_RF_MODE
+// OutBuffer: DTA1XX_RF_MODE
+// Result   : BOOL
+//
+// Get RF mode parameter.
+//
+#if defined(WIN32) || defined(WIN64)
+	// Windows
+	#define IOCTL_DTA1XX_GET_RF_MODE											\
+			CTL_CODE(DTA1XX_DEVICE_TYPE, DTA1XX_FUNCTION_GET_RF_MODE,			\
+					 METHOD_BUFFERED, FILE_READ_DATA)
+#else
+	// Linux
+	#define IOCTL_DTA1XX_GET_RF_MODE											\
+			_IOWR(DTA1XX_IOCTL_MAGIC, DTA1XX_FUNCTION_GET_RF_MODE,				\
+				  DTA1XX_RF_MODE)
 #endif
 
 
@@ -2068,6 +2155,69 @@ enum {
 #endif
 
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA1XX_FUNCTION_SET_OUTPUT_LEVEL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// InBuffer : DTA1XX_OUTPUT_LEVEL
+// OutBuffer: -
+// Result   : BOOL
+//
+// Set RF output level
+//
+#if defined(WIN32) || defined(WIN64)
+	// Windows
+	#define IOCTL_DTA1XX_SET_OUTPUT_LEVEL									\
+			CTL_CODE(DTA1XX_DEVICE_TYPE, DTA1XX_FUNCTION_SET_OUTPUT_LEVEL,		\
+					 METHOD_BUFFERED, FILE_READ_DATA)
+#else
+	// Linux
+	#define IOCTL_DTA1XX_SET_OUTPUT_LEVEL									\
+			_IOWR(DTA1XX_IOCTL_MAGIC, DTA1XX_FUNCTION_SET_OUTPUT_LEVEL,			\
+				 DTA1XX_OUTPUT_LEVEL)
+#endif
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA1XX_FUNCTION_SET_RF_CONTROL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// InBuffer : DTA1XX_RF_CONTROL
+// OutBuffer: -
+// Result   : BOOL
+//
+// Set RF control parameter
+//
+#if defined(WIN32) || defined(WIN64)
+	// Windows
+	#define IOCTL_DTA1XX_SET_RF_CONTROL											\
+			CTL_CODE(DTA1XX_DEVICE_TYPE, DTA1XX_FUNCTION_SET_RF_CONTROL,		\
+					 METHOD_BUFFERED, FILE_READ_DATA)
+#else
+	// Linux
+	#define IOCTL_DTA1XX_SET_RF_CONTROL											\
+			_IOWR(DTA1XX_IOCTL_MAGIC, DTA1XX_FUNCTION_SET_RF_CONTROL,			\
+				 DTA1XX_RF_CONTROL)
+#endif
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA1XX_FUNCTION_SET_RF_MODE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// InBuffer : DTA1XX_RF_MODE
+// OutBuffer: -
+// Result   : BOOL
+//
+// Set RF mode parameter
+//
+#if defined(WIN32) || defined(WIN64)
+	// Windows
+	#define IOCTL_DTA1XX_SET_RF_MODE											\
+			CTL_CODE(DTA1XX_DEVICE_TYPE, DTA1XX_FUNCTION_SET_RF_MODE,			\
+					 METHOD_BUFFERED, FILE_READ_DATA)
+#else
+	// Linux
+	#define IOCTL_DTA1XX_SET_RF_MODE											\
+			_IOWR(DTA1XX_IOCTL_MAGIC, DTA1XX_FUNCTION_SET_RF_MODE,				\
+				 DTA1XX_RF_MODE)
+#endif
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA1XX_FUNCTION_SET_TXPHASEINCR -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // InBuffer : DTA1XX_PORT_INTPAR
@@ -2434,6 +2584,16 @@ Int Dta1xxOpenI(Int CardIndex, UInt32 ChildId);
 #define DTA1XX_GENLOCK_SDI625		0		// "PAL"
 #define DTA1XX_GENLOCK_SDI525		1		// "NTSC"
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Upconverter RF modes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define DTA1XX_UPCONV_NORMAL		0
+#define DTA1XX_UPCONV_MUTE			1
+#define DTA1XX_UPCONV_CW			2
+#define DTA1XX_UPCONV_CWI			3
+#define DTA1XX_UPCONV_CWQ			4
+
+#define DTA1XX_UPCONV_SPECINV		0x100	// Can be OR-ed with other RF modes
+
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Modulation Parameters -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 // NOTE:
 // DTA1XX_MOD constants below do NOT correspond 1-to-1 with modulation-type register
@@ -2451,11 +2611,15 @@ Int Dta1xxOpenI(Int CardIndex, UInt32 ChildId);
 #define  DTA1XX_MOD_ATSC			10
 #define  DTA1XX_MOD_DVBT2			11
 #define  DTA1XX_MOD_ISDBT			12
+#define  DTA1XX_MOD_IQDIRECT		15
+#define  DTA1XX_MOD_IQDIRECT_NOLIC	78126315
 #define  DTA1XX_MOD_DVBS_QPSK_SOFT	16		// Soft DVB-S for DTA-107S2
 #define  DTA1XX_MOD_DVBS2_QPSK		32
 #define  DTA1XX_MOD_DVBS2_8PSK		33
 #define  DTA1XX_MOD_DMBTH			48
 #define  DTA1XX_MOD_ADTBT			49
+#define  DTA1XX_MOD_CMMB			50
+#define  DTA1XX_MOD_T2MI			51
 
 #define  DTA1XX_MOD_ATSC_VSB8		0
 #define  DTA1XX_MOD_ATSC_VSB16		1

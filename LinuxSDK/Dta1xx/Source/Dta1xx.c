@@ -212,6 +212,25 @@ int Dta1xxInitModule()
 		pPciCard = DTA1XX_PCI_FIND_DEVICE(DTA1XX_VENDORID, DTA145_DEVICEID, pPciCard);
 	}
 
+	// Scan for DTA-2111s
+	pPciCard = NULL;
+	pPciCard = DTA1XX_PCI_FIND_DEVICE(DTA1XX_VENDORID, DTA2111_DEVICEID, pPciCard);
+
+	while ( (pPciCard!=NULL) && (g_NumOfCards<DTA1XX_MAX_CARDS) )
+	{
+		if ( 0==Dta1xxStartCard(pPciCard, &g_Dta1xxCards[g_NumOfCards]) )
+		{
+			DTA1XX_LOG( KERN_INFO,
+				"The DTA-%d (Firmware Version %d) has started successfully.",
+				g_Dta1xxCards[g_NumOfCards].m_TypeNumber,
+				g_Dta1xxCards[g_NumOfCards].m_FirmwareVersion );
+		}
+		g_NumOfCards++;
+
+		// look for more DTA-2111s
+		pPciCard = DTA1XX_PCI_FIND_DEVICE(DTA1XX_VENDORID, DTA2111_DEVICEID, pPciCard);
+	}
+
 	// Scan for DTA-2135s
 	pPciCard = NULL;
 	pPciCard = DTA1XX_PCI_FIND_DEVICE(DTA1XX_VENDORID, DTA2135_DEVICEID, pPciCard);
@@ -231,7 +250,26 @@ int Dta1xxInitModule()
 		pPciCard = DTA1XX_PCI_FIND_DEVICE(DTA1XX_VENDORID, DTA2135_DEVICEID, pPciCard);
 	}
 
-	// Scan for DTA-2137s
+	// Scan for DTA-2136s
+	pPciCard = NULL;
+	pPciCard = DTA1XX_PCI_FIND_DEVICE(DTA1XX_VENDORID, DTA2136_DEVICEID, pPciCard);
+
+	while ( (pPciCard!=NULL) && (g_NumOfCards<DTA1XX_MAX_CARDS) )
+	{
+		if ( 0==Dta1xxStartCard(pPciCard, &g_Dta1xxCards[g_NumOfCards]) )
+		{
+			DTA1XX_LOG( KERN_INFO,
+				"The DTA-%d (Firmware Version %d) has started successfully.",
+				g_Dta1xxCards[g_NumOfCards].m_TypeNumber,
+				g_Dta1xxCards[g_NumOfCards].m_FirmwareVersion );
+		}
+		g_NumOfCards++;
+
+		// look for more DTA-2136s
+		pPciCard = DTA1XX_PCI_FIND_DEVICE(DTA1XX_VENDORID, DTA2136_DEVICEID, pPciCard);
+	}
+    
+    // Scan for DTA-2137s
 	pPciCard = NULL;
 	pPciCard = DTA1XX_PCI_FIND_DEVICE(DTA1XX_VENDORID, DTA2137_DEVICEID, pPciCard);
 
@@ -751,22 +789,24 @@ int Dta1xxRelease(
 		DTA1XX_LOG( KERN_INFO, "Dta1xxRelease: Type=%d, RefCount=%d",
 					pFdo->m_TypeNumber, pFdo->m_DvcRefCount );
 #endif
-		// Did we close the last reference to DTA-110/112/115/116?
+		// Did we close the last reference to DTA-110/112/115/116/2111?
 		if (   (   pFdo->m_DvcRefCount==0 )
 		    && (   pFdo->m_TypeNumber==110 || pFdo->m_TypeNumber==112
-			    || pFdo->m_TypeNumber==115 || pFdo->m_TypeNumber==116 ) )
+			    || pFdo->m_TypeNumber==115 || pFdo->m_TypeNumber==116 
+				|| pFdo->m_TypeNumber==2111) )
 		{
 			for ( i=0; i<pFdo->m_NumNonIpChannels; i++ )
 			{
 				pCh = &pFdo->m_Channel[i];
 
 				// Stop CDMA for modulator channels.
-				// - DTA-110 modulator channel is port 1 (index 0)
+				// - DTA-110/2111 modulator channel is port 1 (index 0)
 				// - DTA-112/115/116 modulator channel is port 2 (index 1)
 				if (    (pFdo->m_TypeNumber==110 && pCh->m_PortIndex==0)
 					 || (pFdo->m_TypeNumber==112 && pCh->m_PortIndex==1)
 					 || (pFdo->m_TypeNumber==115 && pCh->m_PortIndex==1)
-					 || (pFdo->m_TypeNumber==116 && pCh->m_PortIndex==1) )
+					 || (pFdo->m_TypeNumber==116 && pCh->m_PortIndex==1)
+					 || (pFdo->m_TypeNumber==2111&& pCh->m_PortIndex==0) )
 				{
 					// Stop CDMA
 					Dta1xxCdmaStop( pCh);

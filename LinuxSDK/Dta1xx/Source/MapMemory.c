@@ -518,7 +518,8 @@ Int  Dta1xxSharedBufAlloc(
 	UserIpTxChannel*  pIpTx = NULL;
 	Int TypeNumber = pFdo->m_TypeNumber;
 	BOOLEAN  Is11X = (   TypeNumber==110 || TypeNumber==111 || TypeNumber==112
-					  || TypeNumber==115 || TypeNumber==116 || TypeNumber==117);
+					  || TypeNumber==115 || TypeNumber==116 || TypeNumber==117
+                      || TypeNumber==2111);
 	Int  PrefixIndex = 0;			// Index used in debug prints
 	char*  PrefixStr = "";			// Used in debug prints: "", "IpRx", "IpTx"
 
@@ -553,12 +554,12 @@ Int  Dta1xxSharedBufAlloc(
 	// Purpose-dependent code
 	if (Purpose == DTA1XX_SHBUF_DIRIQ_CDMA) {
 
-		// FOR NOW: we only support the DTA-110(T)/112/115/116/117
+		// FOR NOW: we only support the DTA-110(T)/112/115/116/117/2111
 		if ( !Is11X )
 		{
 #if LOG_LEVEL > 0
 			DTA1XX_LOG( KERN_INFO, "[%s%d] Dta1xxSharedBufAlloc: ONLY SUPPORTED FOR "
-						"DTA-110/111/112/115/116/117", PrefixStr, PrefixIndex );
+						"DTA-110/111/112/115/116/117/2111", PrefixStr, PrefixIndex );
 #endif
 			return -EFAULT;
 		}
@@ -569,7 +570,8 @@ Int  Dta1xxSharedBufAlloc(
 			|| (PortIndex!=1 && TypeNumber==112)
 			|| (PortIndex!=1 && TypeNumber==115)
 			|| (PortIndex!=1 && TypeNumber==116)
-			|| (PortIndex!=1 && TypeNumber==117) )
+			|| (PortIndex!=1 && TypeNumber==117)
+			|| (PortIndex!=1 && TypeNumber==2111) )
 		{
 #if LOG_LEVEL > 0
 			DTA1XX_LOG( KERN_INFO, "[%s%d] Dta1xxSharedBufAlloc: ChannelType=%d INVALID",
@@ -846,7 +848,8 @@ Int  Dta1xxSharedBufFree(
 	Int  ChannelIndex = pShBufCtrl->m_ChannelIndex;
 	Int  TypeNumber = pFdo->m_TypeNumber;
 	BOOLEAN  Is11X = (   TypeNumber==110 || TypeNumber==111 || TypeNumber==112
-					  || TypeNumber==115 || TypeNumber==116 || TypeNumber==117);
+					  || TypeNumber==115 || TypeNumber==116 || TypeNumber==117
+                      || TypeNumber==2111);
 	
 	ShBufDesc* pShBufDesc=NULL;
 	UserIpRxChannel*  pIpRx = NULL;
@@ -877,12 +880,12 @@ Int  Dta1xxSharedBufFree(
 		// Purpose-dependent code
 	if (Purpose == DTA1XX_SHBUF_DIRIQ_CDMA) {
 
-		// FOR NOW: we only support the DTA-110(T)/112/115/116/117
+		// FOR NOW: we only support the DTA-110(T)/112/115/116/117/2111
 		if ( !Is11X )
 		{
 #if LOG_LEVEL > 0
 			DTA1XX_LOG( KERN_INFO, "[%s%d] Dta1xxSharedBufFree: ONLY SUPPORTED FOR "
-						 "DTA-110/111/112/115/116/117", PrefixStr, PrefixIndex );
+						 "DTA-110/111/112/115/116/117/2111", PrefixStr, PrefixIndex );
 #endif
 			return -EFAULT;
 		}
@@ -893,7 +896,8 @@ Int  Dta1xxSharedBufFree(
 			|| (PortIndex!=1 && TypeNumber==112)
 			|| (PortIndex!=1 && TypeNumber==115)
 			|| (PortIndex!=1 && TypeNumber==116)
-			|| (PortIndex!=1 && TypeNumber==117) )
+			|| (PortIndex!=1 && TypeNumber==117)
+			|| (PortIndex!=1 && TypeNumber==2111) )
 		{
 #if LOG_LEVEL > 0
 			DTA1XX_LOG( KERN_INFO, "[%s%d] Dta1xxSharedBufFree: ChannelType=%d INVALID",

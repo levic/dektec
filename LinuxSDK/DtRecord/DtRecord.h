@@ -1,8 +1,5 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtRecord.h *#*#*#*#*#*#*#*#*#*#*#* (C) 2000-2007 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtRecord.h *#*#*#*#*#*#*#*#* (C) 2000-2010 DekTec
 //
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Change History -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//	2007.02.10	MG	Created	
 
 #ifndef __DTRECORD_H
 #define __DTRECORD_H
@@ -52,6 +49,9 @@ public:
 	const char* ModType2Str() const;
 	const char* QamJ83Annex2Str() const;
 	const char* IpProtocol2Str() const;
+	const char* LnbVoltage2Str() const;
+	const char* LnbTone2Str() const;
+	const char* DiseqcPortGroup2Str() const;
 
 	//---- Application parameters ----
 
@@ -69,6 +69,11 @@ public:
 	double  m_CarrierFreq;		// -mf: carrier frequency
 	int  m_QamJ83Annex;			// -ma: J83 annex (QAM-A/B/C)
 	int  m_Bandwidth;			// -mb: bandwidth
+
+	int  m_LnbVoltage;			// -lnbv: LNB voltage (disable, 13V or 18V)
+	bool  m_LnbToneEnable;		// -lnbt: Enable 22kHz tone
+
+	int  m_DiseqcPortGroup;		// -diseqcpg: DiSEqC portgroup
 
 	DtTsIpPars  m_IpPars;		// IP parameters.
 								// -ipa: IP address and IP port
