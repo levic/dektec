@@ -449,6 +449,8 @@ typedef struct _Channel
 	Int  m_IoConfigPar;					// Extra paremeter for IO config
 	Int  m_SpiMode;                     // Current SPI mode
     Int  m_TxRateSel;                   // Current TxRate selection
+    Int  m_ExtClkFreq;                  // External frequency rate
+                                        // This is a parameter in TS ratio calculations
 
 	// Port properties
 	UInt32  m_TxRate;					// Current Tx channel - Tx interface word rate (dHz)
@@ -1059,6 +1061,7 @@ Int  Dta1xxIoCtl(struct inode *inode, struct file *filp, unsigned int cmd,
 long  Dta1xxCompatIoCtl(struct file *filp, unsigned int cmd, unsigned long arg);
 #endif
 Int  Dta1xxFirmwareReboot(DTA1XX_FDO* pFdo);
+Int  Dta1xxI2cReqExclAccess(DTA1XX_FDO* pFdo, struct file*, Int Request, Int* pGranted);
 Int  Dta1xxI2cTransferIoctl(DTA1XX_FDO* pFdo, struct file*, DTA1XX_I2C_TRANSFER*);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Init.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

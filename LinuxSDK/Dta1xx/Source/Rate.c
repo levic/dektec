@@ -173,8 +173,8 @@ NTSTATUS Dta1xxSetTxPhaseIncr(
 	DTA1XX_PORT_2INTPAR* pPortIntPar)
 {
 	Int  PortIndex;
+	UInt32  Rate,  Freq;
 	Channel*  pChannel;
-	Dta1xxTx*  pDta1xxTx;
 
 	PortIndex = pPortIntPar->m_PortIndex;
 	if ((PortIndex < 0) || (PortIndex >= pFdo->m_NumNonIpChannels)) {
@@ -184,9 +184,23 @@ NTSTATUS Dta1xxSetTxPhaseIncr(
 	if (!(pChannel->m_Capability&DTA1XX_CHCAP_PQNCO)) {
 		return -EFAULT;
 	}
-	pDta1xxTx = (Dta1xxTx*)(pChannel->m_pRegBase);
-	pDta1xxTx->m_TxClock = pPortIntPar->m_Parameter[0];
-	pDta1xxTx->m_TxClockMod = pPortIntPar->m_Parameter[1];
+	Rate = pPortIntPar->m_Parameter[0];
+	Freq = pPortIntPar->m_Parameter[1];
+	// Rate/Frequency is a ratio: relative, not absolute. Shift the parameter so
+	// the most of the resolution is used. Frequency will be multiplied with 8, so it
+	// may need to be shifted in order to provide enough room.
+	while (Rate<0x40000000 && Freq<0x08000000)
+	{
+		Rate <<= 1;
+		Freq <<= 1;
+	}
+	while (Rate>=0x80000000 || Freq>=0x10000000)
+	{
+		Rate >>= 1;
+		Freq >>= 1;
+	}
+    pChannel->m_ExtClkFreq = Freq;
+	Dta1xxTxSetRate2(pFdo, PortIndex, 0, Rate);
 	return 0;
 }
 
@@ -511,9 +525,9 @@ Int  Dta1xxTxSetRate2(
 		status = STATUS_SUCCESS;
 
 		if (pCh->m_Capability&DTA1XX_CHCAP_TSRATESEL) {
+			UInt64 TxRateBps = Dta1xxBinDiv((TsSymOrSampRate * PckSize) + 94, 188, NULL);
 			if (pCh->m_Capability&DTA1XX_CHCAP_SPI) {
 				Int Mode = DTA1XX_SPIMODE_STANDARD;
-				UInt64 TxRateBps = Dta1xxBinDiv((TsSymOrSampRate * PckSize) + 94, 188, NULL);
 				if (TxRateBps>1000000000) TxRateBps=1000000000; // Limit to 1Gb/s (125 MHz)
 				status = Dta1xxSpiGetSpiMode(pCh,&Mode);
 				if (Mode==DTA1XX_SPIMODE_STANDARD) {
@@ -525,8 +539,20 @@ Int  Dta1xxTxSetRate2(
 					// SPI: set clock to symbol ratio to <wanted rate>:<I/O clock rate>
 					dPhi = (UInt32)TxRateBps; // wanted rate
 					dPhm = dPhi;
-					status = Dta1xxSpiGetTxRateBps(pCh,&dPhm); // I/O clock rate
+					if (pCh->m_TxRateSel==DTA1XX_TSRATESEL_EXTRATIO)
+                        dPhm = pCh->m_ExtClkFreq<<3; // User specified external clock input frequency * 8 bits
+					else
+                        status = Dta1xxSpiGetTxRateBps(pCh,&dPhm); // I/O clock rate
+                }
+            } else {
+				if (pCh->m_TxRateSel==DTA1XX_TSRATESEL_EXTRATIO)
+				{
+                    dPhi = (UInt32)TxRateBps; // wanted rate
+					dPhm = pCh->m_ExtClkFreq<<3; // User specified external clock input frequency * 8 bits
 				}
+            }
+			if (dPhm!=0)
+			{
 				// ensure the increment is not higher then the modulus
 				if (dPhi>dPhm) dPhi=dPhm;
 				// ensure dPhm is high, otherwise the NCO may take a long time to stabilize
@@ -534,8 +560,6 @@ Int  Dta1xxTxSetRate2(
 					dPhi <<= 1;
 					dPhm <<= 1;
 				}
-			} else {
-				dPhm = 0;          // ASI: 27 MHz to symbol ratio dPhi : 2^32
 			}
 			Dta1xxTxSetTxClockMod(pTxRegs, dPhm);
 		}

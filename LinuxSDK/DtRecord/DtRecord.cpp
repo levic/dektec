@@ -18,7 +18,7 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtRecord Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #define DTRECORD_VERSION_MAJOR		3
 #define DTRECORD_VERSION_MINOR		7
-#define DTRECORD_VERSION_BUGFIX		0
+#define DTRECORD_VERSION_BUGFIX		1
 
 // Command line option flags
 const char c_DvcTypeCmdLineFlag[]			= "t";
@@ -131,7 +131,7 @@ void CommandLineParams::Init()
 	m_ModType = -1;
 	m_Bandwidth = -1;
 	m_CarrierFreq = -1.0;
-	m_QamJ83Annex = DTAPI_MOD_J83_B;
+	m_QamJ83Annex = DTAPI_MOD_J83_A;
 
 	m_LnbVoltage = -1;
 	m_LnbToneEnable = false;
@@ -902,28 +902,42 @@ void Recorder::InitInput()
 		if (    m_CmdLineParams.m_ModType==DTAPI_MOD_QAM64 
 			 || m_CmdLineParams.m_ModType==DTAPI_MOD_QAM256 )
 		{
-			dr = m_DtInp.SetDemodControl( m_CmdLineParams.m_ModType,
-										m_CmdLineParams.m_QamJ83Annex,
-										-1, -1);
+			dr = m_DtInp.SetDemodControl(
+                                m_CmdLineParams.m_ModType,
+								m_CmdLineParams.m_QamJ83Annex,
+								-1, DTAPI_MOD_SYMRATE_AUTO);
 		}
 		else if ( m_CmdLineParams.m_ModType==DTAPI_MOD_ATSC )
 		{
 			dr = m_DtInp.SetDemodControl( m_CmdLineParams.m_ModType,
-										  DTAPI_MOD_ATSC_VSB8, -1, -1);
+										  DTAPI_MOD_ATSC_VSB8, -1, 
+                                          DTAPI_MOD_SYMRATE_AUTO);
 		}
 		else if ( m_CmdLineParams.m_ModType==DTAPI_MOD_DVBT )
 		{
-			int XtraPar1 =    m_CmdLineParams.m_Bandwidth;
+            // Set bandwidth an autop detect the rest
+			int XtraPar1 = m_CmdLineParams.m_Bandwidth
+                         | DTAPI_MOD_DVBT_CO_AUTO | DTAPI_MOD_DVBT_GU_AUTO 
+                         | DTAPI_MOD_DVBT_IL_AUTO | DTAPI_MOD_DVBT_MD_AUTO;
 			dr = m_DtInp.SetDemodControl( m_CmdLineParams.m_ModType,
-										  0, XtraPar1, -1);
+										  DTAPI_MOD_CR_AUTO, XtraPar1, -1);
 		}
 		else if (    m_CmdLineParams.m_ModType==DTAPI_MOD_DVBS_QPSK
 				  || m_CmdLineParams.m_ModType==DTAPI_MOD_DVBS_BPSK
 				  || m_CmdLineParams.m_ModType==DTAPI_MOD_DVBS2_QPSK
 				  || m_CmdLineParams.m_ModType==DTAPI_MOD_DVBS2_8PSK )
 		{
+            int  XtraPar1=-1;
+            
+            // For DVB-S2: Auto detect pilots and frame size
+            if (    m_CmdLineParams.m_ModType==DTAPI_MOD_DVBS2_QPSK
+				 || m_CmdLineParams.m_ModType==DTAPI_MOD_DVBS2_8PSK )
+            {
+                XtraPar1 |= DTAPI_MOD_S2_PILOTS_AUTO | DTAPI_MOD_S2_FRM_AUTO;
+            }
 			dr = m_DtInp.SetDemodControl( m_CmdLineParams.m_ModType,
-										  -1, -1, -1);
+										  DTAPI_MOD_CR_AUTO, XtraPar1, 
+                                          DTAPI_MOD_SYMRATE_AUTO);
 		}
 		if ( dr != DTAPI_OK )
 			throw Exc( c_ErrFailSetDemodControl, ::DtapiResult2Str(dr) );

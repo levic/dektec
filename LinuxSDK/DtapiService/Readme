@@ -16,6 +16,7 @@
 --------------------------------------------------------------------------------
 
 Date:		Version:	Remarks:
+2011.05.31	1.4.5.68	- Fixes issue with duplicate statistic values
 2011.03.02	1.4.4.65	- Fixes issue with failing to tune DTA-2137 
 						- Improves signal locking acquisition speed and 
 						  reliability of DTA-2136

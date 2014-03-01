@@ -272,7 +272,12 @@ int Dta1xxIoCtl(
 		IoReqSize = sizeof(DTA1XX_TX_MODE);
 		break;
 
-	case IOCTL_DTA1XX_I2C_TRANSFER:
+	case IOCTL_DTA1XX_I2C_REQUEST_EXCL_ACCESS:
+        IoctlStr = "IOCTL_DTA1XX_I2C_REQUEST_EXCL_ACCESS";
+		IoReqSize = sizeof(DTA1XX_I2C_EXCL_ACCESS_INFO);
+		break;
+
+    case IOCTL_DTA1XX_I2C_TRANSFER:
 		IoctlStr = "IOCTL_DTA1XX_I2C_TRANSFER";
 		// IoReqSize is checked in Dta1xxI2cTransferIoctl
 		// but we need it here for copy_to_user function
@@ -672,7 +677,10 @@ int Dta1xxIoCtl(
 			PortIndex = IoData.m_TxControl.m_PortIndex;
 		break;
 
-	case IOCTL_DTA1XX_I2C_TRANSFER:
+	case IOCTL_DTA1XX_I2C_REQUEST_EXCL_ACCESS:
+        break;
+    
+    case IOCTL_DTA1XX_I2C_TRANSFER:
 		break;
 
 	case IOCTL_DTA1XX_IPRX_CTRL:
@@ -1255,7 +1263,16 @@ int Dta1xxIoCtl(
 		ReturnStatus = Dta1xxGetTxPhaseIncr(pFdo, &IoData.m_Port2Intpar);
 		break;
 
-	//.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_I2C_TRANSFER -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+    //-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_I2C_REQUEST_EXCL_ACCESS -.-.-.-.-.-.-.-.-.-.-.-
+    //
+    case IOCTL_DTA1XX_I2C_REQUEST_EXCL_ACCESS:
+        ReturnStatus = Dta1xxI2cReqExclAccess(
+									pFdo, filp,
+									IoData.m_I2cExclAccess.m_Request,
+									&IoData.m_I2cExclAccess.m_Granted);
+		break;
+    
+        //.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_I2C_TRANSFER -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 	//
 	case IOCTL_DTA1XX_I2C_TRANSFER:
 		ReturnStatus = Dta1xxI2cTransferIoctl(pFdo, filp, &IoData.m_I2cTransfer);

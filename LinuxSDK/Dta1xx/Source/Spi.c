@@ -150,7 +150,7 @@ NTSTATUS Dta1xxSpiGetRxClkFreq(
 {
 	*pClkFreq = pChannel->m_pSpiReg->m_SpiGenRxFrequency;
 	// 3 counts are missing, so these must be added when a clock is present
-	if (pClkFreq>0) pClkFreq += 3;
+	if (*pClkFreq>0) *pClkFreq += 3;
 #if LOG_LEVEL_SPI > 0
 	DTA1XX_LOG(KERN_INFO,"[%d] Dta1xxSpiGetRxClkFreq: ClkFreq %d", pChannel->m_PortIndex, *pClkFreq);
 #endif
@@ -241,7 +241,7 @@ NTSTATUS Dta1xxSpiSetSpiMode(
 	NTSTATUS status = STATUS_SUCCESS;
 
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetIoMode: Mode %d, ClkFreq %d", pChannel->m_PortIndex, Mode, ClkFreq);
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetIoMode: Mode %d", pChannel->m_PortIndex, Mode);
 #endif
 
 	// Get pointer to register map

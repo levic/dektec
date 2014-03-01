@@ -1,9 +1,6 @@
 //#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.cpp *#*#*#*#*#*#*#*#* (C) 2000-2010 DekTec
 //
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Change History -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//	2006.10.08	MG	Created
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <stdio.h>
 #include "DTAPI.h"
@@ -21,7 +18,7 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlay Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DTPLAY_VERSION_MAJOR		3
-#define DTPLAY_VERSION_MINOR		12
+#define DTPLAY_VERSION_MINOR		13
 #define DTPLAY_VERSION_BUGFIX		0
 
 // Command line option flags
@@ -1247,6 +1244,7 @@ void Player::AttachToOutput()
 		throw Exc(c_ErrFailToAttachToChan, ::DtapiResult2Str(dr));
 
 	// Retrieve and store current IOCONFIG
+    m_IoConfig = m_ParXtra = -1;
 	dr = m_DtDvc.GetIoConfig(pHwf->m_Port, m_IoConfig, m_ParXtra);
 	if ( dr != DTAPI_OK )
 		throw Exc(c_ErrFailToGetIoConfig, ::DtapiResult2Str(dr));
@@ -1347,7 +1345,8 @@ void Player::DisplayPlayInfo()
 			LogF("- Output Level          : %.1f dBm", m_CmdLineParams.m_OutpLevel );
 
 		// Show SNR (if supported)
-		if ( (m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_SNR)!=0 )
+		if (   (m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_SNR)!=0
+            || (m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_CM)!=0 )
 		{
 			if ( m_CmdLineParams.m_Snr >= 0.0 )
 				LogF("- SNR                   : %.1f dB", m_CmdLineParams.m_Snr );
@@ -1643,16 +1642,48 @@ void Player::InitOutput()
 	}
 
 	// Set signal-to-noise ratio
-	if ( m_Modulator && (m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_SNR)!=0 )
+	if ( m_Modulator && (   (m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_SNR)!=0 
+                         || (m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_CM)!=0 ) )
 	{
+       // Use SetSNR for DVB-S/S2 modulation and SetChannelModelig for others
+        bool  IsDvbS_S2 = (   m_CmdLineParams.m_ModType==DTAPI_MOD_QPSK 
+                           || m_CmdLineParams.m_ModType==DTAPI_MOD_DVBS2_QPSK
+                           || m_CmdLineParams.m_ModType==DTAPI_MOD_DVBS2_8PSK);
+
 		// Negative SNR means no noise generation
 		if ( m_CmdLineParams.m_Snr < 0.0 )
-			dr = m_DtOutp.SetSNR(DTAPI_NOISE_DISABLED, 0);
+        {
+            if (IsDvbS_S2)
+			    dr = m_DtOutp.SetSNR(DTAPI_NOISE_DISABLED, 0);
+            else
+            {
+                // Init CM-pars
+                DtCmPars  CmPars;
+                CmPars.m_EnableAwgn = false; // Disable agwn
+                CmPars.m_Snr = m_CmdLineParams.m_Snr;
+                CmPars.m_EnablePaths = false;   // No echo paths
+
+                dr = m_DtOutp.SetChannelModelling(false, CmPars);
+            }
+        }
 		else
-		{
-			// The SetSNR method expects a level expressed in 0.1dBm units
-			int Snr = int(m_CmdLineParams.m_Snr * 10.0);
-			dr = m_DtOutp.SetSNR(DTAPI_NOISE_WNG_HW, Snr);
+		{  
+            if (IsDvbS_S2)
+            {
+			    // The SetSNR method expects a level expressed in 0.1dBm units
+			    int Snr = int(m_CmdLineParams.m_Snr * 10.0);
+			    dr = m_DtOutp.SetSNR(DTAPI_NOISE_WNG_HW, Snr);
+            }
+            else
+            {
+                // Init CM-pars
+                DtCmPars  CmPars;
+                CmPars.m_EnableAwgn = true; // Enable agwn
+                CmPars.m_Snr = m_CmdLineParams.m_Snr;
+
+                CmPars.m_EnablePaths = false;   // No echo paths
+                dr = m_DtOutp.SetChannelModelling(true, CmPars);
+            }
 		}
 		if ( dr != DTAPI_OK )
 			throw Exc( c_ErrFailedToSetSNR, ::DtapiResult2Str(dr) );
@@ -2049,8 +2080,8 @@ int main(int argc, char* argv[])
 	int RetValue(0);
 	Player ThePlayer;
 	try
-	{        
-		RetValue = ThePlayer.Play(argc, argv);
+	{   
+        RetValue = ThePlayer.Play(argc, argv);
 	}
 	catch(...)
 	{

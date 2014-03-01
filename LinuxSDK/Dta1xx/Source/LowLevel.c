@@ -865,9 +865,15 @@ Int  Dta1xxTxSetTxMode(
 	OldPckSize = Dta1xxTxMode2PacketSize(OldTxMode);
 	NewPckSize = Dta1xxTxMode2PacketSize(TxMode);
 
-	// Read old bit rate if packet size changes
-	if (OldPckSize != NewPckSize)
-		Dta1xxTxGetRate2(pFdo, PortIndex, &ClockGenMode, &TsRate);
+	// TS rate: use cached value as default
+	TsRate = pCh->m_TsSymOrSampRate;
+	// In order to not break things, use the legacy code
+	if (pCh->m_TxRateSel!=DTA1XX_TSRATESEL_EXTRATIO)
+	{
+    	// Read old bit rate if packet size changes
+    	if (OldPckSize != NewPckSize)
+    		Dta1xxTxGetRate2(pFdo, PortIndex, &ClockGenMode, &TsRate);
+    }
 
 	// Set Stuffing mode
 	Dta1xxTxCtrlRegSetTxPckStuff(pCh->m_pRegBase, TxStuffMode);

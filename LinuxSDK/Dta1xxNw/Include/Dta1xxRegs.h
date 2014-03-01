@@ -3793,4 +3793,116 @@ typedef struct _Dta1xxSpiGen {
 
 } Dta1xxSpiGen;
 
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Memory Tester +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// Used in DTA-2162
+
+// Registers: BYTE offset
+#define  DTA1XX_MEMTST_CTRL             0x0004
+#define  DTA1XX_MEMTST_STAT             0x0008
+#define  DTA1XX_MEMTST_ADDRESS          0x0010
+#define  DTA1XX_MEMTST_DATA             0x0014
+
+// Memory test CTRL bit defines
+#define  DTA1XX_MEMTST_CTRL_NUMREPEATS      0x000000FF
+#define  DTA1XX_MEMTST_CTRL_START           0x00000100
+#define  DTA1XX_MEMTST_CTRL_STOP            0x00000200
+#define  DTA1XX_MEMTST_CTRL_RUNWALKONE_EN   0x00001000
+#define  DTA1XX_MEMTST_CTRL_RUNWALKZERO_EN  0x00002000
+#define  DTA1XX_MEMTST_CTRL_RUNALLONE_EN    0x00004000
+#define  DTA1XX_MEMTST_CTRL_RUNALLZERO_EN   0x00008000
+#define  DTA1XX_MEMTST_CTRL_RUNAAAA_EN      0x00010000
+#define  DTA1XX_MEMTST_CTRL_RUN5555_EN      0x00020000
+#define  DTA1XX_MEMTST_CTRL_RUNAA55_EN      0x00040000
+#define  DTA1XX_MEMTST_CTRL_RUN55AA_EN      0x00080000
+#define  DTA1XX_MEMTST_CTRL_RUNCOUNT_EN     0x00100000
+#define  DTA1XX_MEMTST_CTRL_RUNALL          0x001FF000
+
+// MemTst Control: Register access
+static __inline UInt  Dta1xxMemTstGetCtrlReg(volatile UInt8* pBase) {
+	return READ_UINT(pBase, DTA1XX_MEMTST_CTRL);
+}
+static __inline void Dta1xxMemTstSetCtrlReg(volatile UInt8* pBase, UInt Val) {
+	WRITE_UINT(Val, pBase, DTA1XX_MEMTST_CTRL);
+}
+
+// MemTst Control: NumRepeats
+static __inline void  Dta1xxMemTstCtrlSetNumRepeats(volatile UInt8* pBase, UInt NumRepeats) {
+	UInt  Val = Dta1xxMemTstGetCtrlReg(pBase);
+	Val &= ~DTA1XX_MEMTST_CTRL_NUMREPEATS;
+	Val |= (NumRepeats & DTA1XX_MEMTST_CTRL_NUMREPEATS);
+	Dta1xxMemTstSetCtrlReg(pBase, Val);
+}
+
+// MemTst Control: Enable Tests
+static __inline void  Dta1xxMemTstCtrlSetEnableTests(volatile UInt8* pBase, UInt EnableTests) {
+	UInt  Val = Dta1xxMemTstGetCtrlReg(pBase);
+	Val &= ~DTA1XX_MEMTST_CTRL_RUNALL;
+	Val |= (EnableTests & DTA1XX_MEMTST_CTRL_RUNALL);
+	Dta1xxMemTstSetCtrlReg(pBase, Val);
+}
+
+// MemTst Control: Start Test
+static __inline void  Dta1xxMemTstCtrlSetStartTest(volatile UInt8* pBase) {
+	UInt  Val = Dta1xxMemTstGetCtrlReg(pBase);
+	Val |= DTA1XX_MEMTST_CTRL_START;
+	Dta1xxMemTstSetCtrlReg(pBase, Val);
+}
+
+// MemTst Control: Stop Test
+static __inline void  Dta1xxMemTstCtrlSetStopTest(volatile UInt8* pBase) {
+	UInt  Val = Dta1xxMemTstGetCtrlReg(pBase);
+	Val |= DTA1XX_MEMTST_CTRL_STOP;
+	Dta1xxMemTstSetCtrlReg(pBase, Val);
+}
+
+// Memory test STATUS bit defines
+#define  DTA1XX_MEMTST_STAT_NUMITERATIONS   0x000000FF
+#define  DTA1XX_MEMTST_STAT_TESTBUSY        0x00000100
+#define  DTA1XX_MEMTST_STAT_TESTERROR       0x00000200
+#define  DTA1XX_MEMTST_STAT_TESTOK          0x00000400
+#define  DTA1XX_MEMTST_STAT_TESTWALKONE     0x00001000
+#define  DTA1XX_MEMTST_STAT_TESTWALKZERO    0x00002000
+#define  DTA1XX_MEMTST_STAT_TESTALLONE      0x00004000
+#define  DTA1XX_MEMTST_STAT_TESTALLZERO     0x00008000
+#define  DTA1XX_MEMTST_STAT_TESTAAAA        0x00010000
+#define  DTA1XX_MEMTST_STAT_TEST5555        0x00020000
+#define  DTA1XX_MEMTST_STAT_TESTAA55        0x00040000
+#define  DTA1XX_MEMTST_STAT_TEST55AA        0x00080000
+#define  DTA1XX_MEMTST_STAT_TESTCOUNT       0x00100000
+#define  DTA1XX_MEMTST_STAT_TESTALL         0x001FF000
+
+// MemTst Status: Register access
+static __inline UInt  Dta1xxMemTstGetStatReg(volatile UInt8* pBase) {
+	return READ_UINT(pBase, DTA1XX_MEMTST_STAT);
+}
+static __inline void Dta1xxMemTstSetStatReg(volatile UInt8* pBase, UInt Val) {
+	WRITE_UINT(Val, pBase, DTA1XX_MEMTST_STAT);
+}
+
+// MemTst Status: Number of interations
+static __inline UInt  Dta1xxMemTstStatGetNumIterations(volatile UInt8* pBase) {
+	return Dta1xxMemTstGetStatReg(pBase) & DTA1XX_MEMTST_STAT_NUMITERATIONS;
+}
+
+// MemTst Status: Is test busy
+static __inline UInt  Dta1xxMemTstStatIsTestBusy(volatile UInt8* pBase) {
+    return ((Dta1xxMemTstGetStatReg(pBase)&DTA1XX_MEMTST_STAT_TESTBUSY)!=0?1:0);
+}
+
+// MemTst Status: Is test error
+static __inline UInt  Dta1xxMemTstStatIsTestError(volatile UInt8* pBase) {
+    return ((Dta1xxMemTstGetStatReg(pBase)&DTA1XX_MEMTST_STAT_TESTERROR)!=0?1:0);
+}
+
+// MemTst Status: Is test ok
+static __inline UInt  Dta1xxMemTstStatIsTestOk(volatile UInt8* pBase) {
+    return ((Dta1xxMemTstGetStatReg(pBase)&DTA1XX_MEMTST_STAT_TESTOK)!=0?1:0);
+}
+
+// MemTst Status: Get test result
+static __inline UInt  Dta1xxMemTstStatGetTestResult(volatile UInt8* pBase) {
+    return Dta1xxMemTstGetStatReg(pBase)&DTA1XX_MEMTST_STAT_TESTALL;
+}
+
+
 #endif // #ifndef __DTA1XXREGS_H

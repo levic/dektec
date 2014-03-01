@@ -192,6 +192,12 @@ typedef struct _DTA1XX_FLAGS {
     Int  m_PortIndex;               // Zero-based port index (0=first port, ...)
 } DTA1XX_FLAGS;
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- HD-SDI frame info -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+typedef struct  _DTA1XX_HDSDI_FRAME_INFO {
+    Int  m_PortIndex;               // Zero-based port index (0=first port, ...)
+    Int  m_ChannelType;             // Channel type: DTA1XX_TS_TX_CHANNEL/...
+    Int64  m_Frame;                 // Frame number
+} DTA1XX_HDSDI_FRAME_INFO;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Genlock state info -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 typedef struct _DTA1XX_GENLOCK {
@@ -890,6 +896,7 @@ typedef union _DTA1XX_IOCTL_DATA
 #endif
     DTA1XX_FAILSAFE  m_Failsafe;            // Fail safe data
     DTA1XX_GENLOCK  m_Genlock;              // Genlock data
+    DTA1XX_HDSDI_FRAME_INFO  m_FrameInfo;   // HD-SDI frame info
 } DTA1XX_IOCTL_DATA;
 
 
@@ -981,7 +988,9 @@ enum {
     DTA1XX_FUNCTION_SET_RATE3,
     DTA1XX_FUNCTION_AD9789_WRITE,
     DTA1XX_FUNCTION_I2C_REQ_EXCL_ACCESS,
-    DTA1XX_FUNCTION_SET_SPI_CLK
+    DTA1XX_FUNCTION_SET_SPI_CLK,
+    DTA1XX_FUNCTION_HDSDI_GET_CURRENT_FRAME,
+    DTA1XX_FUNCTION_HDSDI_WAIT_FOR_FRAME
 };
 
 
@@ -1664,6 +1673,48 @@ enum {
             _IOWR(DTA1XX_IOCTL_MAGIC, DTA1XX_FUNCTION_GET_TX_MODE,              \
                   DTA1XX_TX_MODE)
 #endif
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_HDSDI_GET_CURRENT_FRAME -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// InBuffer : -
+// OutBuffer: DTA1XX_HDSDI_FRAME_INFO
+// Result   : BOOL
+//
+// Gets the current frame number
+//
+#if defined(WIN32) || defined(WIN64)
+    // Windows
+    #define IOCTL_DTA1XX_HDSDI_GET_CURRENT_FRAME                                   \
+            CTL_CODE(DTA1XX_DEVICE_TYPE, DTA1XX_FUNCTION_HDSDI_GET_CURRENT_FRAME,  \
+                     METHOD_BUFFERED, FILE_READ_DATA)
+#else
+    // Linux
+    #define IOCTL_DTA1XX_HDSDI_GET_CURRENT_FRAME                                \
+            _IOWR(DTA1XX_IOCTL_MAGIC, DTA1XX_FUNCTION_HDSDI_GET_CURRENT_FRAME,  \
+                  DTA1XX_HDSDI_FRAME_INFO)
+#endif
+
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_HDSDI_WAIT_FOR_FRAME -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// InBuffer : DTA1XX_HDSDI_FRAME_INFO
+// OutBuffer: DTA1XX_HDSDI_FRAME_INFO
+// Result   : BOOL
+//
+// Waits for a specific frame
+//
+#if defined(WIN32) || defined(WIN64)
+    // Windows
+    #define IOCTL_DTA1XX_HDSDI_WAIT_FOR_FRAME                                   \
+            CTL_CODE(DTA1XX_DEVICE_TYPE, DTA1XX_FUNCTION_HDSDI_WAIT_FOR_FRAME,  \
+                     METHOD_BUFFERED, FILE_ANY_ACCESS)
+#else
+    // Linux
+    #define IOCTL_DTA1XX_HDSDI_WAIT_FOR_FRAME                                   \
+            _IOWR(DTA1XX_IOCTL_MAGIC, DTA1XX_FUNCTION_HDSDI_WAIT_FOR_FRAME,     \
+                  DTA1XX_HDSDI_FRAME_INFO)
+#endif
+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_I2C_REQUEST_EXCL_ACCESS -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -2833,5 +2884,23 @@ typedef struct _UserIpTxCommon {
 #define DTA1XX_NW_ADMINSTATUS_DOWN          0x2
 #define DTA1XX_NW_ADMINSTATUS_UP            0x1
 
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ HD SDI defines +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// Tx/Rx control values
+#define DTA1XX_HD_TXRXCTRL_IDLE             0x0
+#define DTA1XX_HD_TXRXCTRL_FREEZE           0x1
+#define DTA1XX_HD_TXRXCTRL_RUN              0x2
+
+// DMA mode
+#define DTA1XX_HD_DMAMODE_DISABLED          0x0
+#define DTA1XX_HD_DMAMODE_SECTION           0x1
+#define DTA1XX_HD_DMAMODE_FRAME             0x2
+#define DTA1XX_HD_DMAMODE_RESERVED          0x3
+
+// DMA packing format
+#define DTA1XX_HD_DMAPKGFMT_8B              0x0     //  8-bit sample
+#define DTA1XX_HD_DMAPKGFMT_10B             0x1     // 10-bit sample
+#define DTA1XX_HD_DMAPKGFMT_16B             0x2     // 16-bit sample
+#define DTA1XX_HD_DMAPKGFMT_RSV             0x3
 
 #endif // #ifndef __DTA1XX_COMMON_H

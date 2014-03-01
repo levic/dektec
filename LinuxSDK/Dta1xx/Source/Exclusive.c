@@ -170,8 +170,6 @@ Int  Dta1xxI2cReqExclAccess(
 							   // 1 = Release exclusive access
 	Int*  pGranted)		       // Granted Yes / No
 {
-	Int  ExclAccessFlag;
-
 	if (Request!=0 && Request!=1) 
     {
         DTA1XX_LOG(KERN_INFO, "Dta1xxI2cReqExclAccess: ILLEGAL "

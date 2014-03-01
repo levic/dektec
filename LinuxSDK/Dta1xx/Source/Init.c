@@ -648,6 +648,11 @@ Int  Dta1xxInitFdo(
 					pCh->m_Capability |= DTA1XX_CHCAP_GENLOCKED;							
 				}
 
+                // DTA-145/DTA-2145 firmware version with lock 2 input support
+                if (pFdo->m_FirmwareVersion >= 6) {
+                    pCh->m_Capability |= DTA1XX_CHCAP_TSRATESEL;                            
+                }
+
 				pCh->m_IoConfig = DTA1XX_IOCONFIG_OUTPUT;
 
 				//pFdo->m_EepromSize = 128*1024;
@@ -1545,8 +1550,8 @@ Int  Dta1xxInitDeviceHardware(
 		Dta1xxGenCtrlRegSetPerIntEn(pFdo->m_pGenRegs, 0);	// Periodic-Interrupt
 															// Enable := 0 (enabled later)
 
-		// Init I2C clock speed to 200kHz. ClkDiv=54M/200k/4=0x43
-		Dta1xxGenI2cCtrlRegSetClkDiv(pFdo->m_pGenRegs, 0x43);
+		// Init I2C clock speed to 100kHz. ClkDiv=54M/100k/4=0x86
+		Dta1xxGenI2cCtrlRegSetClkDiv(pFdo->m_pGenRegs, 0x86);
 
 		// Initialise DVB-T receiver channel
 		// NOTE: register layout is the same as ASI/SDI channel

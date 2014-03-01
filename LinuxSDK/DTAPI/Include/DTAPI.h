@@ -68,8 +68,8 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTAPI Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #define DTAPI_VERSION_MAJOR         4
 #define DTAPI_VERSION_MINOR         11
-#define DTAPI_VERSION_BUGFIX        0
-#define DTAPI_VERSION_BUILD         146
+#define DTAPI_VERSION_BUGFIX        1
+#define DTAPI_VERSION_BUILD         149
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -239,7 +239,7 @@ private:
 //
 // Structure describing a device.
 //
-struct DtDeviceDesc
+struct DTAPI_API DtDeviceDesc
 {   
     int  m_Category;                // Device category
     __int64  m_Serial;              // Unique serial number of the device
@@ -283,7 +283,7 @@ struct DtDeviceDesc
 //
 // Class for specifying 'Big TS' splitting
 //
-struct DtBigTsSplitPars
+struct DTAPI_API DtBigTsSplitPars
 {
     bool  m_Enabled;                // Enable  'Big TS' splitting
     bool  m_IsCommonPlp;            // Is Common PLP or Layer
@@ -316,7 +316,7 @@ public:
 //
 // Class for specifying the PLP input
 //
-struct DtPlpInpPars
+struct DTAPI_API DtPlpInpPars
 {
     // PLP input data types
     enum InDataType 
@@ -349,7 +349,7 @@ public:
 #define DTAPI_TP_FORMAT_INT64     3
 
 // Complex floating point type
-struct DtComplexFloat
+struct DTAPI_API DtComplexFloat
 {
     float  m_Re, m_Im;              // Real, imaginary part
 };
@@ -363,7 +363,7 @@ typedef void  DtTpWriteDataFunc(void* pOpaque, int TpIndex, int StreamIndex,
 //
 // Class for enabling the test point data output specifying a callback function.
 //
-struct DtTestPointOutPars
+struct DTAPI_API DtTestPointOutPars
 {
 public:
     bool  m_Enabled;                // Enable TP data output
@@ -387,7 +387,7 @@ public:
 // 
 // Structure describing and containing the output data for a virtual output channel 
 // 
-struct DtVirtualOutData
+struct DTAPI_API DtVirtualOutData
 {
     // Virtual output data types
     enum OutDataType 
@@ -436,7 +436,7 @@ struct DtVirtualOutData
 // Class for specifying the output type and level for a virtual output.
 // These parameters are only relevant when outputting to a virtual output channel.
 //
-struct DtVirtualOutPars
+struct DTAPI_API DtVirtualOutPars
 {
     bool  m_Enabled;                // Enable virtual output parameters
     DtVirtualOutData::OutDataType  m_DataType;
@@ -565,7 +565,7 @@ struct DtDvbC2XFecFrameHeader;
 //
 // Class for specifying the data slice parameters
 //
-struct DtDvbC2DSlicePars
+struct DTAPI_API DtDvbC2DSlicePars
 {
     int  m_Id;                      // Data slice ID. 0 ... 255
     int  m_TunePosition;            // Tune position relative to the start frequency in 
@@ -592,7 +592,7 @@ struct DtDvbC2DSlicePars
 
 public:
     // Operations
-    void  Init(int Id = 0);
+    void  Init(int Id=0);
 
     // Operators
     bool  operator == (DtDvbC2DSlicePars& DSlicePars);
@@ -601,11 +601,84 @@ public:
 };
 
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbC2L1UpdatePlpPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// struct for L1 PLP parameter update support
+//
+struct DtDvbC2L1UpdatePlpPars 
+{
+    bool m_Enable;                  // Enable or disable the PLP.
+                                    // Only PLPs with m_NoData = true can be disabled.
+public:
+    // Operations
+    void  Init();
+
+    // Operators
+    bool  operator == (DtDvbC2L1UpdatePlpPars& PlpUpdatePars);
+    bool  operator != (DtDvbC2L1UpdatePlpPars& PlpUpdatePars);
+    bool  IsEqual(DtDvbC2L1UpdatePlpPars& PlpUpdatePars);
+};
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbC2L1UpdateDSlicePars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// struct for L1 DSlice parameter update support
+//
+struct DtDvbC2L1UpdateDSlicePars
+{
+    bool  m_Enable;                 // Enable or disable the DSlice.
+                                    // Only dummy data slices can be disabled. 
+                                    // A data slice is considered as dummy if either:
+                                    // - m_OffsetLeft == m_OffsetRight in its 
+                                    //   global configuration; or
+                                    // - all its PLPs have m_NoData = true
+                                    // A dummy data slice is modulated with dummy data.
+
+    int m_OffsetLeft;               // Data slice left offset - 0 ... 2^(8+g)-1
+    int m_OffsetRight;              // Data slice right offset - 0 ... 2^(8+g)-1
+                                    // If the data slice is not dummy:
+                                    // - For type 1 , no size change is accepted.
+                                    // - For type 2 , size change is accepted 
+                                    //   provided it is not zero (i.e. m_OffsetRight >
+                                    // m_OffsetLeft). It is up to the user to ensure that
+                                    // there is no bitrate overflow.
+    std::vector<DtDvbC2L1UpdatePlpPars> m_Plps; // L1 PLP updates
+
+public:
+    // Operations
+    void  Init();
+
+    // Operators
+    bool  operator == (DtDvbC2L1UpdateDSlicePars& DSliceUpdatePars);
+    bool  operator != (DtDvbC2L1UpdateDSlicePars& DSliceUpdatePars);
+    bool  IsEqual(DtDvbC2L1UpdateDSlicePars& DSliceUpdatePars);
+};
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbC2L1UpdatePars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// struct for L1 update support
+//
+struct DtDvbC2L1UpdatePars
+{
+    int  m_NumFrames;               // The following parameters are used during
+                                    // 'm_NumFrames' C2 frames.
+    std::vector<DtDvbC2L1UpdateDSlicePars>  m_DSlices; // L1 DSlice updates
+
+public:
+    // Operations
+    void  Init();
+
+    // Operators
+    bool  operator == (DtDvbC2L1UpdatePars& L1UpdatePars);
+    bool  operator != (DtDvbC2L1UpdatePars& L1UpdatePars);
+    bool  IsEqual(DtDvbC2L1UpdatePars& L1UpdatePars);
+};
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbC2ModStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Structure for retrieving the DVB-C2 MPLP modulator status.
 //
-struct DtDvbC2ModStatus
+struct DTAPI_API DtDvbC2ModStatus
 {
     __int64  m_DjbOverflows;        // Count number of DJB overflows. If it happens,
                                     // issy_output_delay must be decreased or "issy bufs"
@@ -619,7 +692,7 @@ struct DtDvbC2ModStatus
 //
 // Class for specifying the notch parameters
 //
-struct DtDvbC2NotchPars
+struct DTAPI_API DtDvbC2NotchPars
 {
     int  m_Start;                   // Notch start in multiples of pilot carrier spacing.
                                     // For guard interval 1/128: 0 ... 8191 
@@ -642,7 +715,7 @@ public:
 //
 // Class for specifying and enabling the PAPR reduction parameters
 //
-struct DtDvbC2PaprPars
+struct DTAPI_API DtDvbC2PaprPars
 {
     bool  m_TrEnabled;              // TR enabled
     double  m_TrVclip;              // TR clipping threshold 1 ... 4.32 (Volt)
@@ -664,7 +737,7 @@ public:
 //
 // DVB-C2 parameter info
 //
-struct DtDvbC2ParamInfo 
+struct DTAPI_API DtDvbC2ParamInfo 
 {
     int  m_L1Part2Length;           // #bits of the L1 part2 data (including CRC)
     int  m_NumL1Symbols;            // Number of L1 symbols (LP)
@@ -683,7 +756,7 @@ struct DtDvbC2ParamInfo
 // In case of bundled PLPs, only the mode adaptation parameters from the 
 // first PLP of the bundle are used.
 //
-struct DtDvbC2PlpPars
+struct DTAPI_API DtDvbC2PlpPars
 {
     bool  m_Hem;                    // High Efficiency Mode
     bool  m_Npd;                    // Null Packet Deletion
@@ -721,7 +794,9 @@ struct DtDvbC2PlpPars
     bool  m_PsiSiReproc;            // Indicates whether PSI/SI reprocessing is performed
     int  m_TsId;                    // Transport Stream ID (if m_PsiSiReproc=false)
     int  m_OnwId;                   // Original Network ID (if m_PsiSiReproc=false)
-
+    bool  m_NoData;                 // No input data is provided for this PLP. 
+                                    // It is implicitely true for all PLPs in a data slice 
+                                    // with m_OffsetLeft = m_OffsetRight.
 public:
     // Operations
     void  Init(int PlpId = 0);
@@ -737,7 +812,7 @@ public:
 //
 // DVBC2 FEC frame header for ACM test
 //
-struct DtDvbC2XFecFrameHeader
+struct DTAPI_API DtDvbC2XFecFrameHeader
 {
     int  m_FecType;                 // PLP FEC Type. 0=16K, 1=64K
     int  m_Modulation;              // PLP Modulation. See DTAPI_DVBC2_x
@@ -756,12 +831,11 @@ public:
     bool  IsEqual(DtDvbC2XFecFrameHeader& FecHeader);
 };
 
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbC2Pars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Class for specifying the DVB-C2 modulation parameters.
 //
- struct DtDvbC2Pars
+ struct DTAPI_API DtDvbC2Pars
 {
 public:
     // General C2 parameters
@@ -795,6 +869,15 @@ public:
     DtDvbC2PaprPars  m_PaprPars;    // PAPR Params (Optional)
     DtVirtualOutPars  m_VirtOutput; // Virtual Output parameters(Optional) 
     DtTestPointOutPars  m_TpOutput; // Test point data output parameters (Optional)
+    int  m_OutpFreqOffset;          // Output frequency offset from 'm_StartFrequency'
+                                    // in carriers of the generated spectrum. 
+                                    // Must be multiple of dx.
+    int  m_OutpBandwidth;           // Output bandwidth in carriers and a multiple of dx.
+                                    // 0 means default output bandwidth.  
+                                    // Note: for convenience, one more carrier is output
+                                    // if an edge carrier needs to be output.
+
+    std::vector<DtDvbC2L1UpdatePars>  m_L1Updates; // L1 updates
 
     // Undocumented.
     int  m_L1P2ChangeCtr;           // Undocumented. For internal use only.
@@ -978,7 +1061,7 @@ extern const int DTAPI_DVBT2_TESTPOINTS[DTAPI_DVBT2_TP_COUNT];
 //
 // Class for specifying the parameters of AUX streams
 //
-struct DtDvbT2AuxPars
+struct DTAPI_API DtDvbT2AuxPars
 {
     int  m_NumDummyStreams;         // Number of dummy AUX streams
 
@@ -996,7 +1079,7 @@ public:
 //
 // Class for specifying the parametes for T2MI output streams
 //
-struct DtDvbT2MiPars
+struct DTAPI_API DtDvbT2MiPars
 {
     bool  m_Enabled;                // Enable T2MI output. If enabled, a T2MI
                                     // Transport Stream is generated and outputted.
@@ -1035,7 +1118,7 @@ public:
 //
 // Structure for retrieving the MPLP modulator status.
 //
-struct DtDvbT2ModStatus
+struct DTAPI_API DtDvbT2ModStatus
 {
     // General MPLP status info
     __int64  m_PlpNumBlocksOverflows;
@@ -1059,7 +1142,7 @@ struct DtDvbT2ModStatus
 //
 // Class for specifying and enabling the PAPR reduction parameters. 
 //
-struct DtDvbT2PaprPars
+struct DTAPI_API DtDvbT2PaprPars
 {
     bool  m_AceEnabled;             // ACE enabled
     double  m_AceVclip;             // ACE clipping threshold 1 ... 4.32 (Volt)
@@ -1103,7 +1186,7 @@ public:
 //
 // DVB-T2 parameter info
 //
-struct DtDvbT2ParamInfo 
+struct DTAPI_API DtDvbT2ParamInfo 
 {
     int  m_TotalCellsPerFrame;      // Total number of cells per frame
     int  m_L1CellsPerFrame;         // Total number of cells per frame used for L1 sign.
@@ -1123,7 +1206,7 @@ struct DtDvbT2ParamInfo
 //
 // Class for specifying the parameters of a PLP
 //
-struct DtDvbT2PlpPars
+struct DTAPI_API DtDvbT2PlpPars
 {
     bool  m_Hem;                    // High Efficiency Mode
     bool  m_Npd;                    // Null Packet Deletion
@@ -1232,7 +1315,7 @@ enum DtDvbT2RbmEventType
 //
 // RBM event parameters.
 //
-struct DtDvbT2RbmEvent
+struct DTAPI_API DtDvbT2RbmEvent
 {
     int  m_DataPlpId;               // Data plp ID identifiying the stream
     int  m_DataPlpIndex;            // Data plp index
@@ -1332,7 +1415,7 @@ struct DtDvbT2RbmEvent
 //
 // Class for enabling the RBM validation and specifying a callback function.
 //
-struct DtDvbT2RbmValidation
+struct DTAPI_API DtDvbT2RbmValidation
 {
 public:
     bool  m_Enabled;                // Enable RBM validation
@@ -1356,7 +1439,7 @@ public:
 //
 // Class for specifying and enabling the Transmitter Signature
 //
-struct DtDvbT2TxSigPars
+struct DTAPI_API DtDvbT2TxSigPars
 {
     // TX Signature through Auxiliary Streams
     // The total number of possible TX IDs are M=3*(P+1)
@@ -1397,7 +1480,7 @@ public:
 //
 // Class for specifying the DVB-T2 modulation parameters.
 //
-struct DtDvbT2Pars
+struct DTAPI_API DtDvbT2Pars
 {
 public:
     // General T2 parameters
@@ -1844,7 +1927,7 @@ struct DtModPars
 //
 // Structure for storing TSoIP parameters
 //
-struct DtTsIpPars
+struct DTAPI_API DtTsIpPars
 {
     unsigned char  m_Ip[4];         // IP Address
     unsigned short  m_Port;         // IP port
@@ -1866,7 +1949,7 @@ struct DtTsIpPars
 // Structure for retrieving Ip statistics from drivers
 // Statistics will be reset after read.
 //
-struct DtTsIpStat
+struct DTAPI_API DtTsIpStat
 {
     unsigned int  m_TotNumIpPackets;
     unsigned int  m_LostIpPacketsBeforeFec;
@@ -1883,7 +1966,7 @@ struct DtTsIpStat
 //
 // Header placed infront of all IP Packets when DTAPI_RXMODE_IPRAW mode is used
 //
-struct DtRawIpHeader
+struct DTAPI_API DtRawIpHeader
 {
     unsigned short  m_Tag;          // 0x44A0h = ‘D’160
     unsigned short  m_Length;       // IP Packet Length
@@ -1895,7 +1978,7 @@ struct DtRawIpHeader
 //
 // Structure representing a constellation point
 //
-struct DtConstelPoint
+struct DTAPI_API DtConstelPoint
 {
     int  m_X, m_Y;                  // X and Y coordinates
 };
@@ -2343,7 +2426,7 @@ public:
 // Double statistics
 #define DTAPI_STAT_BER_PREVIT       0x100        // Pre-Viterbi Bit error rate
 #define DTAPI_STAT_BER_POSTVIT      0x101        // Post-Viterbi bit error rate
-#define DTAPI_STAT_BER_PRERS        0x102        // Pre-Reed solomon bit error rate
+#define DTAPI_STAT_BER_PRERS        0x101        // Pre-Reed solomon bit error rate
 #define DTAPI_STAT_SNR              0x102        // Signal-to-Noise ratio in dB
 #define DTAPI_STAT_MER              0x103        // Modulation error rate in dB
 #define DTAPI_STAT_BER_LDPC         0x104        // Inner LDPC bit error rate
@@ -3286,6 +3369,7 @@ DTAPI_API DTAPI_RESULT  DtapiStr2IpAddr(unsigned char* pIpAddr, const wchar_t* p
 #define DTAPI_E_INVALID_SPIMODE     (DTAPI_E + 126)
 
 
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ IP Tx / Rx Constants +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IP Tx / Rx Protocol -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -3323,7 +3407,7 @@ typedef class DtDevice  PciCard;
 //
 // Structure that describes a hardware function on a PCI card.
 //
-struct DtapiHwFunc
+struct DTAPI_API DtapiHwFunc
 {        
     int  m_nPciBusNumber;           // PCI-bus number
     int  m_nSlotNumber;             // PCI-slot number

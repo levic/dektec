@@ -19,6 +19,10 @@
 --------------------------------------------------------------------------------
 
 Date:		Version:	Remarks:
+2011.05.31	2.10.1.149	- Fixed issue with DtOutpChannel::SetTsRateBps failing
+						  for DTA-145/2145 (problem was located in driver)
+						- Added missing support for exclusive I2C access IoCtl
+						  command (IOCTL_DTA1XX_I2C_REQUEST_EXCL_ACCESS)
 2011.03.02	2.10.0.148	- Support for new IO-configuration interface for 
 						  DTA-2142
 						- Support for locking I2C bus (this functionality is
