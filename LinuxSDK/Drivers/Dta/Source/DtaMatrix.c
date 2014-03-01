@@ -50,7 +50,7 @@ DtStatus  DtaMatrixInit(DtaDeviceData*  pDvcData)
     // Matrix-API is supported if we have at-least one port with the MATRIX capability
     pDvcData->m_Matrix.m_IsSupported = FALSE;
     for (i=0; i<pDvcData->m_NumNonIpPorts && !pDvcData->m_Matrix.m_IsSupported; i++)
-        pDvcData->m_Matrix.m_IsSupported = pDvcData->m_NonIpPorts[i].m_CapMatrix;
+        pDvcData->m_Matrix.m_IsSupported = pDvcData->m_pNonIpPorts[i].m_CapMatrix;
     
     pDvcData->m_Matrix.m_SofFrame = 0;
 
@@ -96,7 +96,7 @@ DtStatus  DtaMatrixIoctl(
         NonIpPortIndex = -1;    // Is a board level request
     else if (DT_SUCCESS(DtaGetNonIpPortIndex(pDvcData, pMatrixCmdInput->m_PortIndex,
                                                                         &NonIpPortIndex)))
-        pNonIpPort = &pDvcData->m_NonIpPorts[NonIpPortIndex];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
     else
          return DT_STATUS_INVALID_PARAMETER;
            
@@ -272,7 +272,7 @@ void  DtaMatrixSofFrameIntDpc(DtDpcArgs* pArgs)
 
     for (i=0, n=0; i<pDvcData->m_NumNonIpPorts; i++)
     {
-        DtaNonIpPort*  pNonIpPort = &pDvcData->m_NonIpPorts[i];
+        DtaNonIpPort*  pNonIpPort = &pDvcData->m_pNonIpPorts[i];
         if (!pNonIpPort->m_CapMatrix)
             continue;
     

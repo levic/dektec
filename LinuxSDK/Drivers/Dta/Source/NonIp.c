@@ -128,6 +128,11 @@ DtStatus  DtaNonIpInit(
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_Cap625I50 = DtPropertiesGetBool(pPropData, "CAP_625I50",
                                                                  pNonIpPort->m_PortIndex);
+    // IOSTD - SDISDI - Sub capabilities
+    pNonIpPort->m_CapSpi525I59_94 = DtPropertiesGetBool(pPropData, "CAP_SPI525I59_94",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapSpi625I50 = DtPropertiesGetBool(pPropData, "CAP_SPI625I50",
+                                                                 pNonIpPort->m_PortIndex);
     // IOSTD - SDI (HD-SDI) - Sub capabilities
     pNonIpPort->m_Cap1080I50 = DtPropertiesGetBool(pPropData, "CAP_1080I50",
                                                                  pNonIpPort->m_PortIndex);
@@ -382,7 +387,7 @@ DtStatus  DtaNonIpInit(
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_SDI;
         if (!pNonIpPort->m_Cap625I50 && pNonIpPort->m_Cap525I59_94)
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_525I59_94;
-    else
+        else
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_625I50;
     }
     else if (pNonIpPort->m_CapSpi)
@@ -390,10 +395,10 @@ DtStatus  DtaNonIpInit(
     else if (pNonIpPort->m_CapSpiSdi)
     {
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_SPISDI;
-        if (!pNonIpPort->m_Cap625I50 && pNonIpPort->m_Cap525I59_94)
-            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_525I59_94;
+        if (!pNonIpPort->m_CapSpi625I50 && pNonIpPort->m_CapSpi525I59_94)
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_SPI525I59_94;
         else
-            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_625I50;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_SPI625I50;
     }
     else if (pNonIpPort->m_CapDemod)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_DEMOD;
@@ -540,7 +545,8 @@ DtStatus  DtaNonIpInit(
                                                    DtaNonIpGetMaxDmaBurstSize(pNonIpPort),
                                                    DTA_DMA_MODE_DEFAULT, DmaRegsOffset, 
                                                    DTA_DMA_FLAGS_BLOCKING,-1, 
-                                                   NULL, NULL, &pNonIpPort->m_DmaChannel);
+                                                   NULL, NULL, &pNonIpPort->m_DmaChannel,
+                                                   TRUE);
         if (!DT_SUCCESS(Status))
             return Status;
     }
@@ -553,10 +559,10 @@ DtStatus  DtaNonIpInit(
         HasIc2RfPwrMeas = DtPropertiesGetBool(pPropData, "DEMOD_HW_HAS_I2C_RFPWR_MEAS",
                                                                  pNonIpPort->m_PortIndex);
         if (HasIc2RfPwrMeas)
-        {   
-             // Allow a I2c calback for the main device only
-             Status = DtaI2cLockCallBackSet(pDvcData, -1, DtaRfPwrMeasLock);
-             if (!DT_SUCCESS(Status))
+        {
+            // Allow a I2c calback for the main device only
+            Status = DtaI2cLockCallBackSet(pDvcData, -1, DtaRfPwrMeasLock);
+            if (!DT_SUCCESS(Status))
                 return Status;
         }
     }
@@ -774,19 +780,19 @@ DtStatus  DtaNonIpIoctl(
         {
         case DTA_NONIP_CMD_EXCLUSIVE_ACCESS:
             Status = DtaNonIpExclusiveAccess(
-                                   &pDvcData->m_NonIpPorts[NonIpPortIndex],
+                                   &pDvcData->m_pNonIpPorts[NonIpPortIndex],
                                    pFile, pNonIpCmdInput->m_Data.m_ExclusiveAccess.m_Cmd);
             break;
 
         case DTA_NONIP_CMD_GET_TARGET_ID:
             Status = DtaNonIpTargetIdGetId(
-                                     &pDvcData->m_NonIpPorts[NonIpPortIndex],
-                                     &pNonIpCmdOutput->m_Data.m_GetTargetId.m_Present,
-                                     &pNonIpCmdOutput->m_Data.m_GetTargetId.m_Id);
+                                         &pDvcData->m_pNonIpPorts[NonIpPortIndex],
+                                         &pNonIpCmdOutput->m_Data.m_GetTargetId.m_Present,
+                                         &pNonIpCmdOutput->m_Data.m_GetTargetId.m_Id);
             break;
 
         case DTA_NONIP_CMD_DETECT_VIDSTD:
-            Status = DtaNonIpDetectVidStd(&pDvcData->m_NonIpPorts[NonIpPortIndex],
+            Status = DtaNonIpDetectVidStd(&pDvcData->m_pNonIpPorts[NonIpPortIndex],
                                            &pNonIpCmdOutput->m_Data.m_DetVidStd.m_VidStd);
             break;
 
@@ -1244,8 +1250,9 @@ DtStatus  DtaNonIpUpdateSdiModes(
             DtaRegTxCtrlSetSdiMode(pNonIpPort->m_pTxRegs, 1);
 
             // Update SDI-line mode
-            if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue 
-                                                                 == DT_IOCONFIG_525I59_94)
+            if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue==DT_IOCONFIG_525I59_94
+                    || pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue
+                                                              == DT_IOCONFIG_SPI525I59_94)
                 DtaRegTxCtrlSetSdiLineMode(pNonIpPort->m_pTxRegs, 1);
             else
                 DtaRegTxCtrlSetSdiLineMode(pNonIpPort->m_pTxRegs, 0);   
@@ -1554,8 +1561,7 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
         break;  // nothing to do for now
 
     case DT_IOCONFIG_SDI:
-    case DT_IOCONFIG_SPISDI:
-        DT_ASSERT(pNonIpPort->m_CapSdi || pNonIpPort->m_CapSpiSdi);
+        DT_ASSERT(pNonIpPort->m_CapSdi);
 
         // For devices with matrix API interface there is nothing to do
         if (pNonIpPort->m_CapMatrix)
@@ -1579,6 +1585,44 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
             DT_ASSERT(pNonIpPort->m_Cap625I50);
             DT_ASSERT(IoDirValue.m_Value == DT_IOCONFIG_OUTPUT ||
                 IoDirValue.m_Value == DT_IOCONFIG_INPUT);
+            // Set 625 line mode
+            if (IoDirValue.m_Value == DT_IOCONFIG_OUTPUT)
+                DtaRegTxCtrlSetSdiLineMode(pNonIpPort->m_pTxRegs, 0);
+            break;
+
+        default:
+            DtDbgOut(ERR, NONIP, "Invalid Config. Group: %d, Value: %d, SubValue: %d",
+                                            Group, CfgValue.m_Value, CfgValue.m_SubValue);
+            return DT_STATUS_NOT_SUPPORTED;
+        }
+        break;
+
+    case DT_IOCONFIG_SPISDI:
+        DT_ASSERT(pNonIpPort->m_CapSpiSdi);
+
+        // For devices with matrix API interface there is nothing to do
+        if (pNonIpPort->m_CapMatrix)
+            break;
+
+        // TOOD: verify if this call is required for SPISDI (DTA-2142)
+        DtaNonIpUpdateSdiModes(pNonIpPort, IoDirValue.m_Value==DT_IOCONFIG_INPUT, TRUE);
+        switch (CfgValue.m_SubValue)
+        {
+        case DT_IOCONFIG_SPI525I59_94:
+            DT_ASSERT(pNonIpPort->m_CapSpi525I59_94);
+            DT_ASSERT(IoDirValue.m_Value == DT_IOCONFIG_OUTPUT ||
+                                                 IoDirValue.m_Value == DT_IOCONFIG_INPUT);
+
+            // Set 525 line mode
+            // Get base register pointer
+            if (IoDirValue.m_Value == DT_IOCONFIG_OUTPUT )
+                DtaRegTxCtrlSetSdiLineMode(pNonIpPort->m_pTxRegs, 1);
+            break;
+
+        case DT_IOCONFIG_SPI625I50:
+            DT_ASSERT(pNonIpPort->m_CapSpi625I50);
+            DT_ASSERT(IoDirValue.m_Value == DT_IOCONFIG_OUTPUT ||
+                                                 IoDirValue.m_Value == DT_IOCONFIG_INPUT);
             // Set 625 line mode
             if (IoDirValue.m_Value == DT_IOCONFIG_OUTPUT)
                 DtaRegTxCtrlSetSdiLineMode(pNonIpPort->m_pTxRegs, 0);
@@ -2016,24 +2060,24 @@ DtStatus  DtaNonIpReleaseResourceFromFileObject(
     for (i = 0; i < pDvcData->m_NumNonIpPorts; i++) 
     {
         // Cleanup HP buffer if initialised
-        if (DtFileCompare(&pDvcData->m_NonIpPorts[i].m_HpBuffer.m_Owner, pFile) &&
-                                       pDvcData->m_NonIpPorts[i].m_HpBuffer.m_Initialised)
+        if (DtFileCompare(&pDvcData->m_pNonIpPorts[i].m_HpBuffer.m_Owner, pFile) &&
+                                      pDvcData->m_pNonIpPorts[i].m_HpBuffer.m_Initialised)
         {
             DtDbgOut(AVG, DTA, "Cleanup shared buffer resource for port %i", 
-                                                   pDvcData->m_NonIpPorts[i].m_PortIndex);
-            DtaShBufferClose(&pDvcData->m_NonIpPorts[i].m_HpBuffer);
+                                                  pDvcData->m_pNonIpPorts[i].m_PortIndex);
+            DtaShBufferClose(&pDvcData->m_pNonIpPorts[i].m_HpBuffer);
         }
 
         // Release exclusive access
-        if (pDvcData->m_NonIpPorts[i].m_ExclAccess)
+        if (pDvcData->m_pNonIpPorts[i].m_ExclAccess)
         {
             DtFastMutexAcquire(&pDvcData->m_ExclAccessMutex);
-            if (DtFileCompare(&pDvcData->m_NonIpPorts[i].m_ExclAccessOwner, pFile) && 
-                                                   pDvcData->m_NonIpPorts[i].m_ExclAccess)
+            if (DtFileCompare(&pDvcData->m_pNonIpPorts[i].m_ExclAccessOwner, pFile) && 
+                                                  pDvcData->m_pNonIpPorts[i].m_ExclAccess)
             {
-                pDvcData->m_NonIpPorts[i].m_ExclAccess = FALSE;
+                pDvcData->m_pNonIpPorts[i].m_ExclAccess = FALSE;
                 DtDbgOut(AVG, DTA, "Release exclusive access for port %i", 
-                                                   pDvcData->m_NonIpPorts[i].m_PortIndex);
+                                                  pDvcData->m_pNonIpPorts[i].m_PortIndex);
             }
             DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
         }
@@ -2212,9 +2256,11 @@ Bool  DtaNonIpIsVidStdSupported(DtaNonIpPort* pNonIpPort, Int  VidStd)
 void  DtaNonIpLastFrameIntDpc(DtDpcArgs* pArgs)
 {
     DtaNonIpPort*  pNonIpPort = (DtaNonIpPort*)pArgs->m_pContext;
+#ifdef _DEBUG
     Int64  LastFrame = (Int64)pArgs->m_Data1.m_UInt64;
 
     DtDbgOut(MAX, NONIP, "New last-frame=%lld", LastFrame);
+#endif
 
     // Fire last frame event
     DtEventSet(&pNonIpPort->m_Matrix.m_LastFrameIntEvent);

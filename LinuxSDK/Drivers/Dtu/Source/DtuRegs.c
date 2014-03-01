@@ -40,6 +40,12 @@ DtStatus  DtuRegRead(
 
     void*  pTempBuf = NULL;
 
+    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    {
+        DtDbgOut(ERR, DTU, "Attempt to read USB2 register on USB3 device");
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
     // Init to zero
     *pValue = 0;
 
@@ -74,6 +80,12 @@ DtStatus  DtuRegWrite(
     DtStatus  Status;
     UInt8*  pTempBuf = NULL;
 
+    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    {
+        DtDbgOut(ERR, DTU, "Attempt to write USB2 register on USB3 device");
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
     // Cannot use value from stack as buffer, in vendor request => allocate temp buffer
     // for writing register value to device
     pTempBuf = DtMemAllocPool(DtPoolNonPaged, sizeof(UInt32), DTU_TAG);
@@ -106,6 +118,12 @@ DtStatus  DtuRegWriteMasked(
     DtStatus  Status;
     UInt32  RegValue=0;
 
+    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    {
+        DtDbgOut(ERR, DTU, "Attempt to write USB2 register on USB3 device");
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
     if (Mask==0xFFFFFFFF && Shift==0)
         // No need to read register
         RegValue = Value;
@@ -124,4 +142,40 @@ DtStatus  DtuRegWriteMasked(
 
     // Write new register value to card
     return DtuRegWrite(pDvcData, RegAddr, RegValue);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu3RegRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  Dtu3RegRead(
+    DtuDeviceData*  pDvcData,
+    UInt16  Dvc,
+    UInt16  RegAddr,
+    UInt16* pValue)
+{
+    DtStatus Status = DT_STATUS_OK;
+    Int  Len = -1;
+    Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_READ_VALUE,
+                                            RegAddr, Dvc, DT_USB_DEVICE_TO_HOST,
+                                            (UInt8*)pValue, 2, &Len, MAX_USB_REQ_TIMEOUT);
+    if (Len != 2)
+        return DT_STATUS_FAIL;
+    return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu3RegWrite -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  Dtu3RegWrite(
+    DtuDeviceData*  pDvcData,
+    UInt16  Dvc,
+    UInt16  RegAddr,
+    UInt16  Value)
+{
+    DtStatus Status = DT_STATUS_OK;
+    Int  Len = -1;
+    Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_WRITE_VALUE,
+                                            RegAddr, Dvc, DT_USB_HOST_TO_DEVICE,
+                                            (UInt8*)&Value, 2, &Len, MAX_USB_REQ_TIMEOUT);
+    if (Len != 2)
+        return DT_STATUS_FAIL;
+    return Status;
 }

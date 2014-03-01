@@ -292,6 +292,8 @@ DtStatus  DtuI2cRead(
     void*  pFileHandle = NULL;
     UInt TransferSize, ActualTransferred, BufIndex;
     Int  BytesLeft = Length;    // Bytes left to transfer
+    Int  MaxCtrlTrSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
+                                                          pDvcData->m_DevInfo.m_UsbSpeed);
 
     DtDbgOut(MAX, I2C, "DvcAddr: 0x%02X, Length: %d, pBuf: %p", DvcAddr, Length, pBuf);
 
@@ -331,8 +333,7 @@ DtStatus  DtuI2cRead(
     while (BytesLeft > 0)
     {
         // Do not transfer more than maximum allowed
-        TransferSize = ( BytesLeft > EZUSB_MAX_CTRL_TR_SIZE ) ? 
-                                    EZUSB_MAX_CTRL_TR_SIZE : BytesLeft;
+        TransferSize = ( BytesLeft > MaxCtrlTrSize ) ? MaxCtrlTrSize : BytesLeft;
 
         Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB_I2C_READ, 
                                           (UInt16)DvcAddr, 0, DT_USB_DEVICE_TO_HOST,
@@ -376,7 +377,8 @@ DtStatus  DtuI2cWrite(
     void*  pFileHandle = NULL;
     UInt TransferSize, ActualTransferred, BufIndex;
     Int  BytesLeft = Length;    // Bytes left to transfer
-
+    Int  MaxCtrlTrSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
+                                                          pDvcData->m_DevInfo.m_UsbSpeed);
 
     DtDbgOut(MAX, I2C, "DvcAddr: 0x%02X, Length: %d, pBuf: %p", DvcAddr, Length, pBuf);
 
@@ -415,8 +417,7 @@ DtStatus  DtuI2cWrite(
     while (BytesLeft > 0)
     {
         // Do not transfer more than maximum allowed
-        TransferSize = ( BytesLeft > EZUSB_MAX_CTRL_TR_SIZE ) ? 
-                                                       EZUSB_MAX_CTRL_TR_SIZE : BytesLeft;
+        TransferSize = ( BytesLeft > MaxCtrlTrSize ) ? MaxCtrlTrSize : BytesLeft;
 
         Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB_I2C_WRITE, 
                                           (UInt16)DvcAddr, 0, DT_USB_HOST_TO_DEVICE, 

@@ -36,7 +36,8 @@
 //
 struct _UserIpTxChannel 
 {
-    Int  m_IpPortIndex;                 // IP-port index
+    Int  m_IpPortIndex;                 // IP-port index (not used in failsafe mode)
+    Int  m_PortIndex;                   // Port index (seen by application).
     Int  m_ChannelIndex;                // Channel index within set of IpRx channels
     DtFileObject  m_FileObject;         // File object of process associated with this
                                         // channel. The purpose, amongst others, is to
@@ -59,12 +60,42 @@ struct _UserIpTxChannel
     // Control of transmission process
     Int  m_TxControl;                   // DTA_TXCTRL_IDLE/HOLD/SEND    
 
-    UInt32  m_LastTimestampOffs;        // Offset of last timestamp. Used for offset wrapping
+    UInt32  m_LastTimestampOffs;        // Offset of last timestamp. Used for offset 
+                                        // wrapping
     UInt64  m_RefTimestamp;             // Initial timestamp after starting Tx channel
                                         // Incremented after timestamp offset wrapping
+    // IP pars
+    Int  m_FecMode;
+    Bool  m_IpParsValid;                // True if IpPars is set
+    Int  m_IpParsMode;                  // IpPars mode
+    Int  m_IpParsFlags;                 // IpPars flags
+    // IP pars 2nd port (only used for even port-indexes: 0, 2, etc.)
+    UInt16  m_SrcPort;                  // Source port (BIG-Endian)
+    UInt16  m_DstPort;                  // Destination port
+    UInt16  m_DstPortMain;              // Destination port of main channel (BIG-Endian)
+    UInt16  m_DstPortMainRow;           // Destination port of FEC ROW (BIG-Endian)
+    UInt16  m_DstPortMainColumn;        // Destination port of FEC COLUMN (BIG-Endian)
+    UInt32  m_LastReadOffset;           // Last offset to be read for second port
+    UInt32  m_LastTimestampOffs2;       // Offset of last timestamp. Used for offset 
+                                        // wrapping
+    UInt64  m_RefTimestamp2;            // Initial timestamp after starting Tx channel
+                                        // Incremented after timestamp offset wrapping
     
-    struct _UserIpTxChannel* m_pNext;   // Pointer to next UserIpTxChannel element
-    struct _UserIpTxChannel* m_pPrev;   // Pointer to previous UserIpTxChannel element
+    // IP headers to be copied to the second packet buffer
+    union {
+        EthernetIIHeader  m_Default;
+        EthernetIIHeaderVlan  m_Vlan;
+    } m_EthIIHeader;
+    union {
+        UInt8  m_IpAddressesV4[8];
+        UInt8  m_IpAddressesV6[32];
+    } m_IpAddrHeader;
+    UInt8  m_IpAddrHeaderOffset;        // Offset of IP-address from start of packet
+    UInt8  m_IpAddrHeaderSize;
+    UInt8  m_EthHeaderSize;
+
+    struct _UserIpTxChannel*  m_pNext;  // Pointer to next UserIpTxChannel element
+    struct _UserIpTxChannel*  m_pPrev;  // Pointer to previous UserIpTxChannel element
 };
 
 
@@ -72,22 +103,22 @@ struct _UserIpTxChannel
 UserIpTxChannel*  DtaIpTxUserChGet(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex);
 DtStatus  DtaIpTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, 
                                                                    DtIoctlObject* pIoctl);
-DtStatus  DtaIpTxRtCreateDmaBuffer(DmaChannel* pDmaChannel, PPBuffer* pPPBuffer, 
-                                                                      DtaIpPort* pIpPort);
-DtStatus  DtaIpTxRtCleanupDmaBuffer(DmaChannel* pDmaChannel, PPBuffer* pPPBuffer);
 void  DtaIpTxUserChDestroy(DtaIpUserChannels* pIpDevice, UserIpTxChannel* pIpTxChannel);
-void  DtaIpTxRtProcessPacketsDpc(DtDpcArgs* pArgs);
+void  DtaIpTxRtProcessPacketsType1Dpc(DtDpcArgs* pArgs);
+void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs);
 DtStatus  DtaIpTxNrtCreateBuffer(DmaChannel* pDmaChannel, DtaIpNrtChannels* pNrtChannels);
 DtStatus  DtaIpTxNrtCleanupBuffer(DmaChannel* pDmaChannel, 
                                                           DtaIpNrtChannels* pNrtChannels);
 DtStatus  DtaIpTxDeviceInit(DtaIpDevice* pIpDevice);
-DtStatus  DtaIpTxInit(DtaIpPort* pIpPort);
-void  DtaIpTxDevicePowerDown(DtaIpDevice* pIpDevice);
+void  DtaIpTxDevicePowerdown(DtaIpDevice* pIpDevice);
 DtStatus  DtaIpTxPowerup(DtaIpPort* pIpPort);
 DtStatus  DtaIpTxPowerdownPre(DtaIpPort* pIpPort);
+void  DtaIpTxPowerDown(DtaIpPort* pIpPort);
 
 DtStatus  DtaIpTxInitType1(DtaIpPort* pIpPort);
+DtStatus  DtaIpTxInitType2(DtaIpPort* pIpPort);
 void  DtaIpTxCleanupType1(DtaIpPort* pIpPort);
+void  DtaIpTxCleanupType2(DtaIpPort* pIpPort);
 
 
 

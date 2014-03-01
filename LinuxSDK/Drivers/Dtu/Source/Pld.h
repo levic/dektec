@@ -40,6 +40,8 @@
 DtStatus  DtuPldInit(DtuDeviceData*  pDvcData);
 DtStatus  DtuLoadPldFirmware(DtuDeviceData* pDvcData, const UInt8*  pFirmware, 
                                                                                Int  Size);
+DtStatus  DtuFx3LoadPldFirmware(DtuDeviceData*  pDvcData, const UInt8*  pFirmware,
+                                                                               Int  Size);
 Bool  DtuPldIsFirmwareLoaded(DtuDeviceData*  pDvcData);
 
 #endif // #ifndef __PLD_H

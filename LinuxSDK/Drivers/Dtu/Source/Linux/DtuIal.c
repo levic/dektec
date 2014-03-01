@@ -253,7 +253,7 @@ static Int  DtuDevicePowerDownSeq(DtuDeviceData* pDvcData, Bool IgnoreErrors)
     {
     case DEVICE_POWERSEQ_STATE_UP:
         // Call common powerdown
-        Status = DtuDevicePowerDown(pDvcData);
+        Status = DtuDevicePowerDown(pDvcData, DT_STATE_D3);
         if (!IgnoreErrors)
         {
             if (!DT_SUCCESS(Status))

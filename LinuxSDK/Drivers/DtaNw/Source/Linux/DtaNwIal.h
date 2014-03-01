@@ -42,6 +42,36 @@
     #define PERM_ADDR_SUPPORT
 #endif
 
+// Linux version < 2.6.19 had a CHECKSUM_HW define
+#ifndef CHECKSUM_PARTIAL
+    #define  CHECKSUM_PARTIAL  CHECKSUM_HW
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
+    #define NO_HW_FEATURE_SUPPORT
+#endif
+
+// Linux version < v2.6.23
+#ifndef NETIF_F_IPV6_CSUM
+    #define NETIF_F_IPV6_CSUM      16
+#endif
+
+// Linux version < v2.6.39
+#ifndef NETIF_F_RXCSUM
+    #define NETIF_F_RXCSUM         (1 << 29)
+#endif
+
+// Linux version < v3.4
+#ifndef NETIF_F_RXFCS
+    #define NETIF_F_RXFCS          0
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,3,0)
+    typedef u32  dta_netdev_features;
+#else
+    typedef netdev_features_t  dta_netdev_features;
+#endif
+
 // The HAVE_NETDEV_PRIV define has been removed from new kernel versions
 // The function is still there.
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,40)
@@ -70,11 +100,15 @@ typedef struct _DtaNwIalData
     struct net_device*  m_pNwDevice;
     struct net_device_stats  m_NetStats;    // Network statistics
     DtDrvObject  m_Driver;
+    Bool  m_AutoNegEn;
 } DtaNwIalData;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Function callbacks to IAL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void  DtaNwEvtLinkStatusCallback(DtaNwDeviceData* pDvcData);
 void  DtaNwEvtNewPacketRxCallback(DtaNwDeviceData* pDvcData, UInt8* pPacket, 
-                                                                       UInt PacketLength);
+                                        UInt PacketLength, Bool IPv4, Bool IPv6, 
+                                        Bool IpChecksumFail, Bool UdpChecksumFail,
+                                        Bool TcpChecksumFail, Bool IpChecksumCorrect, 
+                                        Bool UdpChecksumCorrect, Bool TcpChecksumCorrect);
 
 #endif // __DTANW_IAL_H

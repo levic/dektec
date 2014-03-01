@@ -2,7 +2,6 @@
 //
 // Dta driver - Network Phy and Mac functionality - 
 // Implementation of Altera and Cast Mac and National/Marvel phy
-// Altera Mac: Only partly implemented. ToDo for DTA-2162! Address filter e.d.
 //
 // Supported PHY's:
 // National PHY:  DP83865:  DTA-160
@@ -113,8 +112,6 @@ static const UInt32  g_CrcTable[256] =
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-UInt32  DtaGetPhyRegister(PhyMac* pPhyMac, UInt32 Reg);
-void  DtaSetPhyRegister(PhyMac* pPhyMac, UInt32 Reg, UInt32 Data);
 DtStatus  DtaMacAUpdateSpeedDuplex(PhyMac* pPhyMac);
 DtStatus  DtaMacCUpdateSpeedDuplex(PhyMac* pPhyMac);
 DtStatus  DtaMacAUpdatePacketFiltering(PhyMac* pPhyMac);
@@ -123,7 +120,6 @@ UInt32  DtaMacCGetSingleCounter(PhyMac* pPhyMac, UInt Register);
 void  DtaMacCLockCounters(PhyMac* pPhyMac);
 void  DtaMacCUnLockCounters(PhyMac* pPhyMac);
 UInt32  DtaMacCGetCounter(PhyMac* pPhyMac, UInt Register);
-DtStatus  DtaPhySetSpeedDuplex(PhyMac* pPhyMac);
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ MAC General +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -232,7 +228,7 @@ DtStatus  DtaMacUpdateSpeedDuplex(PhyMac* pPhyMac)
     if (pPhyMac->m_MacSpeed==pPhyMac->m_PhySpeed)
         return DT_STATUS_OK;
 
-    if (pPhyMac->m_UsesAlteraMac)
+    if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
         Status = DtaMacAUpdateSpeedDuplex(pPhyMac);
     else
         Status = DtaMacCUpdateSpeedDuplex(pPhyMac);
@@ -250,7 +246,7 @@ DtStatus  DtaMacUpdatePacketFiltering(PhyMac* pPhyMac)
         return DT_STATUS_OK;
 
 
-    if (pPhyMac->m_UsesAlteraMac)
+    if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
         Status = DtaMacAUpdatePacketFiltering(pPhyMac);
     else
         Status = DtaMacCUpdatePacketFiltering(pPhyMac);
@@ -264,16 +260,20 @@ DtStatus  DtaMacUpdatePacketFiltering(PhyMac* pPhyMac)
 //
 DtStatus  DtaMacUpdateMacAddress(PhyMac* pPhyMac)
 {
-    if (pPhyMac->m_UsesAlteraMac)
+    DtaIpPort*  pIpPort = 
+                      &pPhyMac->m_pDvcData->m_IpDevice.m_pIpPorts[pPhyMac->m_IpPortIndex];
+    
+    if (pIpPort->m_PortType == DTA_IPPORT_TYPE2)
     {
-        // TODO for DTA-2162
         // Update address matcher
-        DT_ASSERT(FALSE);
-        // DtaAddrMatchMacAddressSet(pPhyMac->m_pRegBaseAddrMatch, 
-        //                                                         pPhyMac->m_MacAddrCur);
-    } else {
-        DtaIpPort*  pIpPort = 
-                       &pPhyMac->m_pDvcData->m_IpDevice.m_IpPorts[pPhyMac->m_IpPortIndex];
+        DtaAddrMatchMacAddressSet(pIpPort->m_IpPortType2.m_pAddrMatcherRegs, 
+                                                                   pPhyMac->m_MacAddrCur);
+        DtaIpUpdateMacAddressFilter(pIpPort);
+    }
+
+    if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
+        DtaMacAMacAddressSet(pPhyMac->m_pMacRegs, pPhyMac->m_MacAddrCur);
+    else {
         DtaIpNrtSharedBuf*  pTxSharedBuf = &pIpPort->m_NrtChannels.m_TxSharedBuf;
         DtaIpNwSharedBufInfo*  pSharedInfo = pTxSharedBuf->m_pSharedInfo;
         pIpPort->m_PhyMac.m_SetupframePending = TRUE;
@@ -317,31 +317,31 @@ DtStatus  DtaMacGetCounter(PhyMac* pPhyMac, UInt CounterId, UInt64* pValue)
     switch (CounterId)
     {
     case DTA_MAC_CNT_GEN_BYTES_XMIT:
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
             *pValue = DtaMacAGetCounter(pMacBase, DTA_MACA_REG_TXOCTOK);
         else
             *pValue = DtaMacCGetSingleCounter(pPhyMac, DTA_MACC_SCM_TXOCTOK);
         break;
     case DTA_MAC_CNT_GEN_BYTES_RCV:
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
             *pValue = DtaMacAGetCounter(pMacBase, DTA_MACA_REG_RXOCTOK);
         else
             *pValue = DtaMacCGetSingleCounter(pPhyMac, DTA_MACC_SCM_RXOCTOK);
         break;
     case DTA_MAC_CNT_GEN_XMIT_OK:
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
             *pValue = DtaMacAGetCounter(pMacBase, DTA_MACA_REG_TXFRMOK);
         else
             *pValue = DtaMacCGetSingleCounter(pPhyMac, DTA_MACC_SCM_TXFRMOK);
         break;
     case DTA_MAC_CNT_GEN_RCV_OK:
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
             *pValue = DtaMacAGetCounter(pMacBase, DTA_MACA_REG_RXFRMOK);
         else
             *pValue = DtaMacCGetSingleCounter(pPhyMac, DTA_MACC_SCM_RXFRMOK);
         break;
     case DTA_MAC_CNT_GEN_XMIT_ERROR:
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
             *pValue = DtaMacAGetCounter(pMacBase, DTA_MACA_REG_TXERRORS);
         else {
             DtaMacCLockCounters(pPhyMac);
@@ -353,7 +353,7 @@ DtStatus  DtaMacGetCounter(PhyMac* pPhyMac, UInt CounterId, UInt64* pValue)
         }
         break;
     case DTA_MAC_CNT_GEN_RCV_ERROR:
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
             *pValue = DtaMacAGetCounter(pMacBase, DTA_MACA_REG_RXERRORS);
         else {
             DtaMacCLockCounters(pPhyMac);
@@ -364,11 +364,11 @@ DtStatus  DtaMacGetCounter(PhyMac* pPhyMac, UInt CounterId, UInt64* pValue)
         break;
     case DTA_MAC_CNT_GEN_RCV_NO_BUFFER:
         *pValue = DtaIpGetNumRxFifoOverflow(
-                      &pPhyMac->m_pDvcData->m_IpDevice.m_IpPorts[pPhyMac->m_IpPortIndex]);
+                     &pPhyMac->m_pDvcData->m_IpDevice.m_pIpPorts[pPhyMac->m_IpPortIndex]);
         break;
     
     case DTA_MAC_CNT_GEN_RCV_CRC_ERROR:
-        if (pPhyMac->m_UsesAlteraMac) 
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA) 
         {
             *pValue = DtaMacAGetCounter(pMacBase, DTA_MACA_REG_RXFCSERR);
             // Include all packets discarded by FPGA TODO
@@ -380,19 +380,19 @@ DtStatus  DtaMacGetCounter(PhyMac* pPhyMac, UInt CounterId, UInt64* pValue)
         }
         break;
     case DTA_MAC_CNT_802_3_RCV_ERROR_ALIGNMENT:
-        if (pPhyMac->m_UsesAlteraMac) 
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA) 
             *pValue = DtaMacAGetCounter(pMacBase, DTA_MACA_REG_RXALIGNERR);
         else
             *pValue = DtaMacCGetSingleCounter(pPhyMac, DTA_MACC_SCM_RXALIGNERR);
         break;
     case DTA_MAC_CNT_802_3_XMIT_ONE_COLLISION:
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
             Status = DT_STATUS_NOT_FOUND;
         else 
             *pValue = DtaMacCGetSingleCounter(pPhyMac, DTA_MACC_SCM_COLL1);
         break;
     case DTA_MAC_CNT_802_3_XMIT_MORE_COLLISIONS:
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
             Status = DT_STATUS_NOT_FOUND;
         else {
             DtaMacCLockCounters(pPhyMac);
@@ -414,25 +414,25 @@ DtStatus  DtaMacGetCounter(PhyMac* pPhyMac, UInt CounterId, UInt64* pValue)
         }
         break;
     case DTA_MAC_CNT_802_3_XMIT_DEFERRED:
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
             Status = DT_STATUS_NOT_FOUND;
         else
             *pValue = DtaMacCGetSingleCounter(pPhyMac, DTA_MACC_SCM_TXDEF);
         break;
     case DTA_MAC_CNT_802_3_XMIT_MAX_COLLISIONS:
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
             Status = DT_STATUS_NOT_FOUND;
         else
             *pValue = DtaMacCGetSingleCounter(pPhyMac, DTA_MACC_SCM_COLL16);
         break;
     case DTA_MAC_CNT_802_3_XMIT_UNDERRUN:
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
             Status = DT_STATUS_NOT_FOUND;
         else
             *pValue = DtaMacCGetSingleCounter(pPhyMac, DTA_MACC_SCM_TXMACERR);
         break;
     case DTA_MAC_CNT_802_3_XMIT_TIMES_CRS_LOST:
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
             Status = DT_STATUS_NOT_FOUND;
         else
             *pValue = DtaMacCGetSingleCounter(pPhyMac, DTA_MACC_SCM_TXCSERR);
@@ -476,10 +476,10 @@ DtStatus  DtaMacCBuildSetupFrame(PhyMac* pPhyMac, UInt8* pDst, UInt*  pSize)
     pDmaHeader->m_Tag = 0x445441A0;
     pDmaHeader->m_Length = sizeof(DtaDmaTxHeader);
     pDmaHeader->m_Version = 1;
-    pDmaHeader->m_TransmitControl.m_PacketLength = sizeof(DtaMacCSetupFrame) - 
-                                                                   sizeof(DtaDmaTxHeader);
+    pDmaHeader->m_TxHeaderGen.m_TransmitControl.m_PacketLength = 
+                                       sizeof(DtaMacCSetupFrame) - sizeof(DtaDmaTxHeader);
     // It's a setup frame
-    pDmaHeader->m_TransmitControl.m_SetupFrame = 1;
+    pDmaHeader->m_TxHeaderGen.m_TransmitControl.m_SetupFrame = 1;
 
     // Only 16 items can be stored with perfect filtering
     // 1 for own mac-address
@@ -489,8 +489,9 @@ DtStatus  DtaMacCBuildSetupFrame(PhyMac* pPhyMac, UInt8* pDst, UInt*  pSize)
     {
         // Perfect filtering mode: Setup frame buffer is interpreted
         // as a set of 16 48-bit physical addresses
-        pDmaHeader->m_TransmitControl.m_FilteringType1 = (DTA_FT_PERFECT >> 1) & 1;
-        pDmaHeader->m_TransmitControl.m_FilteringType0 = (DTA_FT_PERFECT     ) & 1;
+        pDmaHeader->m_TxHeaderGen.m_TransmitControl.m_FilteringType1 =
+                                                                (DTA_FT_PERFECT >> 1) & 1;
+        pDmaHeader->m_TxHeaderGen.m_TransmitControl.m_FilteringType0 = DTA_FT_PERFECT & 1;
 
         // Own mac address
         pSetupFrame->m_PFAddress[0].m_PhAddr0 = 
@@ -525,8 +526,9 @@ DtStatus  DtaMacCBuildSetupFrame(PhyMac* pPhyMac, UInt8* pDst, UInt*  pSize)
         }
     } else {
         // Hash table implementation
-        pDmaHeader->m_TransmitControl.m_FilteringType1 = (DTA_FT_HASH >> 1) & 1;
-        pDmaHeader->m_TransmitControl.m_FilteringType0 = (DTA_FT_HASH     ) & 1;
+        pDmaHeader->m_TxHeaderGen.m_TransmitControl.m_FilteringType1 = 
+                                                                   (DTA_FT_HASH >> 1) & 1;
+        pDmaHeader->m_TxHeaderGen.m_TransmitControl.m_FilteringType0 = DTA_FT_HASH & 1;
 
         // Own mac address
         pSetupFrame->m_HTable.m_PFAddress.m_PhAddr0 = 
@@ -968,11 +970,17 @@ void  DtaMacAInit(PhyMac* pPhyMac)
     // uses the 'ff_rx_dsav' signal that is asserted when this threshold is reached.
     // A value of 0 disables the 'ff_rx_dsav' value. Value must be >=3 due to internal
     // pipeline latency.
+    DtaMacARxSectionEmptySet(pPhyMac->m_pMacRegs, 3);
     DtaMacARxSectionFullSet(pPhyMac->m_pMacRegs, 3);
-
+    DtaMacATxSectionEmptySet(pPhyMac->m_pMacRegs, 3);
     DtaMacATxSectionFullSet(pPhyMac->m_pMacRegs, 16);
+    DtaMacARxSectionAlmostEmptySet(pPhyMac->m_pMacRegs, 3);
+    DtaMacARxSectionAlmostFullSet(pPhyMac->m_pMacRegs, 3);
     DtaMacATxSectionAlmostEmptySet(pPhyMac->m_pMacRegs, 8);
     DtaMacATxSectionAlmostFullSet(pPhyMac->m_pMacRegs, 5);
+
+    // Disable promiscious mode. We use our own MAC-address filter only for multicast.
+    DtaMacASetPromisEn(pPhyMac->m_pMacRegs, 0);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaMacAUpdateSpeedDuplex -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -985,10 +993,13 @@ DtStatus  DtaMacAUpdateSpeedDuplex(PhyMac* pPhyMac)
     DtaMacAEnableTx(pPhyMac->m_pMacRegs, 0);
     DtaMacAEnableRx(pPhyMac->m_pMacRegs, 0);
 
+    // Wait for disable to complete (see MAC documentation)
+    while (!DtaMacAIsRxTxDisabled(pPhyMac->m_pMacRegs));
+
     CmdConfig = DtaMacACmdConfigGet(pPhyMac->m_pMacRegs);
 
     if (pPhyMac->m_PhySpeed==DTA_PHY_SPEED_1000_MASTER ||
-                                         pPhyMac->m_PhySpeed==DTA_PHY_SPEED_1000_SLAVE)
+                                            pPhyMac->m_PhySpeed==DTA_PHY_SPEED_1000_SLAVE)
     {
         // 1 GB network enabled
         CmdConfig = CmdConfig | DTA_MACA_CMD_CONFIG_ETH_SPEED;
@@ -1018,6 +1029,12 @@ DtStatus  DtaMacAUpdateSpeedDuplex(PhyMac* pPhyMac)
 
     pPhyMac->m_MacSpeed = pPhyMac->m_PhySpeed;
     
+    // Reset MAC (see MAC documentation)
+    DtaMacASwResetSet(pPhyMac->m_pMacRegs);
+
+    // Wait for reset done
+    while (DtaMacASwResetGet(pPhyMac->m_pMacRegs) != 0);
+
     // Enable MAC Transmit and Receive
     DtaMacAEnableTx(pPhyMac->m_pMacRegs, 1);
     DtaMacAEnableRx(pPhyMac->m_pMacRegs, 1);
@@ -1028,9 +1045,21 @@ DtStatus  DtaMacAUpdateSpeedDuplex(PhyMac* pPhyMac)
 //
 DtStatus  DtaMacAUpdatePacketFiltering(PhyMac* pPhyMac)
 {
-    // TODO: Add the range into the hash-table (simulate the packet filtering bits)
-    DT_ASSERT(FALSE);
-    return DT_STATUS_NOT_SUPPORTED;
+    DtaIpPort*  pIpPort =  
+                      &pPhyMac->m_pDvcData->m_IpDevice.m_pIpPorts[pPhyMac->m_IpPortIndex];
+    if ((pPhyMac->m_NwDrvPacketFilter & DTA_MAC_FLT_PROMISCUOUS) != 0)
+        DtaMacASetPromisEn(pPhyMac->m_pMacRegs, 1);
+    else
+        DtaMacASetPromisEn(pPhyMac->m_pMacRegs, 0);
+
+    // The MAC does not filter the multicasts. This is done in a seperate MAC-
+    // filter. We have to enable/disable that filter too.
+    if (((pPhyMac->m_NwDrvPacketFilter & DTA_MAC_FLT_ALL_MULTICAST) != 0) ||
+                          ((pPhyMac->m_NwDrvPacketFilter & DTA_MAC_FLT_PROMISCUOUS) != 0))
+        DtaMacAddrFilterEnable(pIpPort->m_IpPortType2.m_pAddrMatcherRegs, 0);
+    else
+        DtaMacAddrFilterEnable(pIpPort->m_IpPortType2.m_pAddrMatcherRegs, 1);
+    return DT_STATUS_OK;
 }
 
 
@@ -1089,7 +1118,7 @@ UInt  DtaPhyGetSpeed(PhyMac* pPhyMac, Bool* pForceSpeedDtapiEnable)
 //
 UInt32  DtaGetPhyRegister(PhyMac* pPhyMac, UInt32 Reg)
 {   UInt32  Data;
-    if (pPhyMac->m_UsesAlteraMac)
+    if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
         Data = DtaMacAGetPhyRegister(pPhyMac->m_pMacRegs, Reg*4);
     else
         Data = DtaMacCGetPhyRegister(pPhyMac, Reg);
@@ -1105,7 +1134,7 @@ void  DtaSetPhyRegister(PhyMac* pPhyMac, UInt32 Reg, UInt32 Data)
     DtDbgOut(MAX, PHYMAC, "IpPort %i: Writing PHY register. Reg: %xh(%d) Value: %xh", 
                                                   pPhyMac->m_IpPortIndex, Reg, Reg, Data);
     
-    if (pPhyMac->m_UsesAlteraMac)
+    if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
         DtaMacASetPhyRegister(pPhyMac->m_pMacRegs, Reg*4, Data);
     else
         DtaMacCSetPhyRegister(pPhyMac, Reg, Data);
@@ -1133,10 +1162,13 @@ void  DtaPhySetLoopbackSpeedSpecificCtrl(PhyMac* pPhyMac)
     if (Speed == DTA_PHY_SPEED_AUTO_DETECT)
         // Set speed to 1Gb, auto negotiation is not working in loopback mode.
         Speed = DTA_PHY_SPEED_1000_SLAVE;
-
-    //Data =  0x1040; // (Hardware reset value, excluding speed)
-    Data = 0x1070; // RX CLK transition when data stable +
-                   // TX CLK internally delayed
+    
+    if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)    
+        Data = 0x1070; // RX CLK transition when data stable +
+                        // TX CLK internally delayed
+    else
+        Data =  0x1040; // (Hardware reset value, excluding speed)
+    
     if (pPhyMac->m_PhyModel==0x28)
     {
         // Phy 88E1119R
@@ -1294,8 +1326,8 @@ DtStatus  DtaPhySetSpeedDuplex(PhyMac* pPhyMac)
 
     // For Marvell Phy, the speed is only updated after a software reset.
     // The loopback status is also reset during the software reset. So for Marvell we have
-    // to set the loopback after the software reset. For National, no software reset is needed
-    // and we can enable the loopback mode here.
+    // to set the loopback after the software reset. For National, no software reset is
+    // needed and we can enable the loopback mode here.
     if (pPhyMac->m_LoopbackEnable && pPhyMac->m_PhyType==DTA_PHY_NATIONAL)
         Data = Data | DTA_PHY_BMCR_LOOPBACK_MASK;
     else if (pPhyMac->m_PhyType == DTA_PHY_MARVELL)
@@ -1416,9 +1448,10 @@ void  DtaPhyUpdateLinkStatus(PhyMac* pPhyMac)
     else
         pPhyMac->m_PhyLink = DTA_PHY_LINK_DOWN;
 
-    // Report link valid to firmware
-    DtaNwCtrlSetLinkValid(pPhyMac->m_pGenNwRegs, pPhyMac->m_PhyLink 
-                                                                      == DTA_PHY_LINK_UP);
+    // Report immediatly fo firmware that link is down
+    if (pPhyMac->m_PhyLink == DTA_PHY_LINK_DOWN)
+        DtaNwCtrlSetLinkValid(pPhyMac->m_pGenNwRegs, pPhyMac->m_PhyLink == 
+                                                                         DTA_PHY_LINK_UP);
 
     DtDbgOut(AVG, PHYMAC, "IpPort %i: Speed=%s(%xh) Link=%s(%xh) Duplex=%s(%xh)",
                                      pPhyMac->m_IpPortIndex,
@@ -1441,7 +1474,7 @@ void  DtaPhyUpdateLinkStatus(PhyMac* pPhyMac)
         {
             DT_ASSERT(pPhyMac->m_Callbacks.m_Registered == TRUE);
             pPhyMac->m_Callbacks.m_LinkStatusCallback(pPhyMac->m_PhyLink,
-                                                             pPhyMac->m_Callbacks.m_pContext);
+                                                         pPhyMac->m_Callbacks.m_pContext);
             pPhyMac->m_NwDrvLink = pPhyMac->m_PhyLink;
         }
         DtFastMutexRelease(&pPhyMac->m_Callbacks.m_FastMutex);
@@ -1465,6 +1498,11 @@ void  DtaPhyInterruptWi(DtWorkItemArgs* pArgs)
 
     // Update MAC Speed/Duplex
     DtaMacUpdateSpeedDuplex(pPhyMac);
+
+    // Report link valid to firmware after MAC is updated and ready
+    if (pPhyMac->m_PhyLink == DTA_PHY_LINK_UP)
+        DtaNwCtrlSetLinkValid(pPhyMac->m_pGenNwRegs, pPhyMac->m_PhyLink == 
+                                                                         DTA_PHY_LINK_UP);
 
     // Update packet filtering. We do it here, to sync it with changing the 
     // Operational Register
@@ -1492,7 +1530,7 @@ void  DtaPhyInterruptDpc(DtDpcArgs* pArgs)
     }
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaInitPhy -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaInitPhy -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtaInitPhy(PhyMac* pPhyMac)
 {
@@ -1505,7 +1543,10 @@ DtStatus  DtaInitPhy(PhyMac* pPhyMac)
     {   
     case 0x2000: pPhyMac->m_PhyType = DTA_PHY_NATIONAL; break;
     case 0x0141: pPhyMac->m_PhyType = DTA_PHY_MARVELL; break;
-    default: return DT_STATUS_UNKNOWN_PHY;
+    default: 
+        DtDbgOut(ERR, PHYMAC, "IpPort %i: PhyType: %s, 0x%x", pPhyMac->m_IpPortIndex,
+                                                                       "UNKNOWN\0", Data);
+        return DT_STATUS_UNKNOWN_PHY;
     }
     
     // Get PhyModel
@@ -1513,10 +1554,8 @@ DtStatus  DtaInitPhy(PhyMac* pPhyMac)
     pPhyMac->m_PhyModel = (UInt8)((Data >> 4) & 0x3f);
 
     DtDbgOut(AVG, PHYMAC, "IpPort %i: PhyType: %s, PhyModel: 0x%x", 
-                                              pPhyMac->m_IpPortIndex,
-                                              (pPhyMac->m_PhyType == 
-                                              DTA_PHY_MARVELL ? "MARVELL\0":"NATIONAL\0"),
-                                              pPhyMac->m_PhyModel);
+                          pPhyMac->m_IpPortIndex, (pPhyMac->m_PhyType == DTA_PHY_MARVELL ?
+                          "MARVELL\0":"NATIONAL\0"), pPhyMac->m_PhyModel);
     
     // Disable interrupt enable bit. Will be enabled later.
     DtaNwCtrlSetMdioIntEn(pPhyMac->m_pGenNwRegs, FALSE);
@@ -1546,7 +1585,7 @@ DtStatus  DtaInitPhy(PhyMac* pPhyMac)
         DtaSetPhyRegister(pPhyMac, DTA_PHY_ADDRESS_MAR_LED_CTRL, Data);
     } else {    // m_PhyModel == 0x28) // 88E1119R: DTA-2160
                 // m_PhyModel == 0x34) // 88E1121R: DTA-2162
-        if (pPhyMac->m_UsesAlteraMac)
+        if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
         {
             // Set MAC specific control register 2 page 2.
             // A software reset is needed to take the new value into account.
@@ -1597,7 +1636,6 @@ DtStatus  DtaInitPhy(PhyMac* pPhyMac)
     
     // Clear the Phy interrupt, enable MDIO interrupt and get link status.
     // To synchronise execution with the ISR, we schedule the PhyInt workitem here.
-    
     if (DT_SUCCESS(Status))
     {
         DtWorkItemArgs  WorkItemArgs;
@@ -1687,7 +1725,7 @@ DtStatus  DtaPhyMacIoctl(
     if (pPhyMacCmdInput->m_IpPortIndex >= pDvcData->m_NumIpPorts)
         return DT_STATUS_INVALID_PARAMETER;
 
-     pPhyMac = &pDvcData->m_IpDevice.m_IpPorts[pPhyMacCmdInput->m_IpPortIndex].m_PhyMac;
+     pPhyMac = &pDvcData->m_IpDevice.m_pIpPorts[pPhyMacCmdInput->m_IpPortIndex].m_PhyMac;
 
     // Determine final required output/input sizes
     switch (pPhyMacCmdInput->m_Cmd)
@@ -1817,12 +1855,14 @@ DtStatus  DtaPhyMacIoctl(
             Status = DtaMacUpdateMacAddress(pPhyMac);
             break;
         case DTA_PHYMAC_CMD_SET_PACKET_FILTER:
+            // Skip if we are in loopbackmode to keep promiscuous mode enabled.
             if (pPhyMac->m_NwDrvPacketFilter != 
-                                 pPhyMacCmdInput->m_Data.m_SetPacketFilter.m_PacketFilter)
+                               pPhyMacCmdInput->m_Data.m_SetPacketFilter.m_PacketFilter &&
+                               !pPhyMac->m_LoopbackEnable)
             {
                 DtWorkItemArgs  WorkItemArgs;
                 pPhyMac->m_NwDrvPacketFilter = 
-                                  pPhyMacCmdInput->m_Data.m_SetPacketFilter.m_PacketFilter;
+                                 pPhyMacCmdInput->m_Data.m_SetPacketFilter.m_PacketFilter;
                 
                 DtaIpHandleNewPacketFilter(pPhyMac);
 
@@ -1841,7 +1881,8 @@ DtStatus  DtaPhyMacIoctl(
                                          &pPhyMacCmdOutput->m_Data.m_GetCounter.m_Value);
             break;
         case DTA_PHYMAC_CMD_GET_PHY_SPEED:
-            pPhyMacCmdOutput->m_Data.m_GetPhySpeed.m_Speed = DtaPhyGetSpeed(pPhyMac, NULL);
+            pPhyMacCmdOutput->m_Data.m_GetPhySpeed.m_Speed = 
+                                                            DtaPhyGetSpeed(pPhyMac, NULL);
             break;
         case DTA_PHYMAC_CMD_SET_PHY_SPEED:  // Not DTAPI FORCE SPEED
             DtaPhySetSpeedNw(pPhyMac, pPhyMacCmdInput->m_Data.m_SetPhySpeed.m_Speed);
@@ -1899,7 +1940,16 @@ DtStatus  DtaPhyMacInit(DtaIpPort* pIpPort)
     DtStatus  Status = DT_STATUS_OK;
     PhyMac*  pPhyMac = &pIpPort->m_PhyMac;
     DtPropertyData*  pPropData = &pIpPort->m_pDvcData->m_PropData;
+
+
+    // Get MAC type from XML
+    pPhyMac->m_MacType = DtPropertiesGetInt(pPropData, "NETWORK_MAC_TYPE", -1);
     
+    // Check if no property error occurred
+    Status = DtaPropertiesReportDriverErrors(pIpPort->m_pDvcData);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
     // Copy members from IpPort
     pPhyMac->m_pDvcData = pIpPort->m_pDvcData;
     pPhyMac->m_IpPortIndex = pIpPort->m_IpPortIndex;
@@ -1909,9 +1959,6 @@ DtStatus  DtaPhyMacInit(DtaIpPort* pIpPort)
     pPhyMac->m_ForceSpeedDtapiEnable = FALSE;
     pPhyMac->m_LoopbackEnable = FALSE;
     pPhyMac->m_Initialized = FALSE;
-    // For now, only TYPE2 supports altera MAC.
-    // If otherboard type uses altera mac, we have to make a property in the XML
-    pPhyMac->m_UsesAlteraMac = (pIpPort->m_PortType == DTA_IPPORT_TYPE2);
     pPhyMac->m_AlignedPayload = (pIpPort->m_PortType == DTA_IPPORT_TYPE2);
 
     pPhyMac->m_NwDrvConnected = FALSE;
@@ -1939,8 +1986,8 @@ DtStatus  DtaPhyMacInit(DtaIpPort* pIpPort)
     if (DT_SUCCESS(Status))
     {
         // Initialize register offsets
-        pPhyMac->m_MacRegsOffset = DtPropertiesGetUInt16(pPropData, 
-                                                "NW_REGISTERS_MAC", pIpPort->m_PortIndex);
+        pPhyMac->m_MacRegsOffset = DtPropertiesGetUInt16(pPropData, "NW_REGISTERS_MAC",
+                                                                    pIpPort->m_PortIndex);
 
         // Check if no property error occurred
         Status = DtaPropertiesReportDriverErrors(pIpPort->m_pDvcData);
@@ -1975,13 +2022,13 @@ DtStatus  DtaPhyMacPowerup(PhyMac* pPhyMac)
     pPhyMac->m_pMacRegs = pPhyMac->m_pDvcData->m_pGenRegs + pPhyMac->m_MacRegsOffset;
     pPhyMac->m_pGenNwRegs = pPhyMac->m_pDvcData->m_pGenRegs + pPhyMac->m_GenNwRegsOffset;
 
-    if (pPhyMac->m_UsesAlteraMac)
+    if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
         DtaMacAInit(pPhyMac);
     else
         DtaMacCInit(pPhyMac);
 
     // Update MAC address in firmware
-    if (pPhyMac->m_UsesAlteraMac)
+    if (pPhyMac->m_MacType == MAC_TYPE_ALTERA)
         DtaMacAMacAddressSet(pPhyMac->m_pMacRegs, pPhyMac->m_MacAddrCur);
     else
         DtaMacCMacAddressSet(pPhyMac->m_pMacRegs, pPhyMac->m_MacAddrCur,
@@ -1999,6 +2046,9 @@ DtStatus  DtaPhyMacPowerdown(PhyMac* pPhyMac)
     // Wait for DPC's and workitems to be completed
     DtDpcWaitForCompletion(&pPhyMac->m_PhyIntDpc);
     DtWorkItemWaitForCompletion(&pPhyMac->m_PhyIntWorkItem);
+
+    // Set link valid to 0. This is needed for the DTA-2162 to disable the leds on the phy
+    DtaNwCtrlSetLinkValid(pPhyMac->m_pGenNwRegs, 0);
 
     // Disable phy
     DtaSetPhyRegister(pPhyMac, DTA_PHY_ADDRESS_BMCR, DTA_PHY_BMCR_POWER_DOWN_MASK);

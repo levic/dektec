@@ -43,6 +43,9 @@ typedef struct _DtProperty
     Int  m_MinFw;
     Int  m_MinHw;
     DtPropertyScope  m_Scope;
+    Int  m_MinDtapiMaj;             // Minimum DTAPI major version
+    Int  m_MinDtapiMin;             // Minimum DTAPI minor version
+    Int  m_MinDtapiBugfix;          // Minimum DTAPI bugfix version
 } DtProperty;
 
 // Type to store a set of properties whos names result in the same hash
@@ -81,19 +84,26 @@ typedef struct _DtPropertyData
 DtStatus  DtPropertiesInit(DtPropertyData* pPropData);
 void  DtPropertiesCleanup(DtPropertyData* pPropData);
 DtStatus  DtPropertiesFind(DtPropertyData* pPropData, const char* pName, Int PortIndex,
-                                                          const DtProperty**  ppProperty);
+                                             const DtProperty**  ppProperty,
+                                             Int DtapiMaj, Int DtapiMin, Int DtapiBugfix);
 DtStatus  DtPropertiesGet(DtPropertyData* pPropData, const char* pName, Int PortIndex,
                                       DtPropertyValue* pValue, DtPropertyValueType* pType,
-                                                                 DtPropertyScope* pScope);
+                                      DtPropertyScope* pScope,
+                                      Int  DtapiMaj, Int DtapiMin, Int DtapiBugfix);
+void DtPropertiesGetAltName(const char* pName, Int* pNumAltNames, 
+                                                          const char* const* pAltNames[]);
 DtStatus  DtPropertiesStrGet(DtPropertyData* pPropData, const char* pName, Int PortIndex,
-                                                     char* pStr, DtPropertyScope* pScope);
+                                             char* pStr, DtPropertyScope* pScope,
+                                             Int DtapiMaj, Int DtapiMin, Int DtapiBugfix);
 DtStatus  DtPropertiesGetForType(Int  TypeNumber, Int  HwRev, Int  FwVer,
                                       const char* pName, Int PortIndex,
                                       DtPropertyValue* pValue, DtPropertyValueType* pType,
-                                                                 DtPropertyScope* pScope);
+                                      DtPropertyScope* pScope,
+                                      Int DtapiMaj, Int DtapiMin, Int DtapiBugfix);
 DtStatus  DtPropertiesStrGetForType(Int  TypeNumber, Int  HwRev, Int  FwVer,
-                                                     const char* pName, Int PortIndex,
-                                                     char* pStr, DtPropertyScope* pScope);
+                                             const char* pName, Int PortIndex,
+                                             char* pStr, DtPropertyScope* pScope,
+                                             Int DtapiMaj, Int DtapiMin, Int DtapiBugfix);
 DtStatus  DtPropertiesReportDriverErrors(DtPropertyData* pPropData);
 void  DtResetPropertiesNotFoundCounter(DtPropertyData* pPropData);
 

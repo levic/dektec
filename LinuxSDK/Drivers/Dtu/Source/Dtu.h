@@ -50,6 +50,8 @@
 #define  LOG_LEVEL_RDWR          LOG_AVG
 // IoConfig
 #define  LOG_LEVEL_IOCONFIG      LOG_AVG
+// Shared Buffer
+#define  LOG_LEVEL_SHBUF         LOG_MAX
 // NONIP
 #define  LOG_LEVEL_NONIP         LOG_AVG
 
@@ -62,7 +64,6 @@
 #define  MAX_USB_REQ_TIMEOUT     10000       // vendor request timeouts in ms (10 seconds)
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTU device context +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-#define  MAX_PORTS        (MAX_NONIP_PORTS/* + MAX_IP_PORTS*/)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuDeviceInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -112,6 +113,24 @@ typedef struct _DtuPortLookup
     Int  m_Index;
 } DtuPortLookup;
 
+#define DTU3_PID_UNIT_EEPROM     0x00F3      // PID of an uninitialised DTU-3xx 
+                                                // (=PID of FX3)
+
+#define DTU_DEV_FLAG_VPD_CORRUPT     0x01
+#define DTU_DEV_FLAG_NO_SERIAL       0x02
+#define DTU_DEV_FLAG_NO_USB3         0x04
+#define DTU_DEV_FLAG_SLEEPING        0x08 //TODOTM: implement
+
+#define DTU_BOOTSTATE_WARM           0
+#define DTU_BOOTSTATE_COLD           1
+#define DTU_BOOTSTATE_FACTORY_WARM   2
+#define DTU_BOOTSTATE_FACTORY_COLD   3
+
+typedef struct  _DtuAltSetting
+{
+    Int  m_Bitrate;
+} DtuAltSetting;
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuDeviceData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 struct _DtuDeviceData
@@ -150,12 +169,12 @@ struct _DtuDeviceData
     DtuEzUsb  m_EzUsb;
 
     // Port lookup
-    DtuPortLookup  m_PortLookup[MAX_PORTS];
+    DtuPortLookup*  m_pPortLookup;
     Int  m_NumPorts;
 
     // Non IP ports (NOTE: currently teher are no IP port in the DTU-series, but for 
     // future proving we use the same naming convention as in the Dta driver)
-    DtuNonIpPort  m_NonIpPorts[MAX_NONIP_PORTS];
+    DtuNonIpPort*  m_pNonIpPorts;
     DtFastMutex  m_ExclAccessMutex;
     Int  m_NumNonIpPorts;
 
@@ -168,6 +187,13 @@ struct _DtuDeviceData
     // Property Data
     DtPropertyData  m_PropData;
 
+    Int  m_StateFlags;
+    
+    DtuAltSetting  m_AltSetting[MAX_ISO_ALTSETTINGS];
+    Int  m_NumAltSettings;
+    Int  m_CurAltSetting;
+
+    Int  m_BootState;
 };
 
 
@@ -176,10 +202,15 @@ struct _DtuDeviceData
 DtStatus  DtuDriverInit(DtEvtLog* pEvtObject);
 void  DtuDriverExit(void);
 
+#define DT_STATE_D0 0
+#define DT_STATE_D1 1
+#define DT_STATE_D3 2
+
 DtStatus  DtuDeviceInit(DtuDeviceData* pDvcData);
 DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData);
-DtStatus  DtuDevicePowerDown(DtuDeviceData* pDvcData);
+DtStatus  DtuDevicePowerDown(DtuDeviceData* pDvcData, Int TargetState);
 void  DtuDeviceExit(DtuDeviceData* pDvcData);
+void  Dtu3Shutdown(DtuDeviceData* pDvcData);
 
 DtStatus  DtuDeviceOpen(DtuDeviceData* pDvcData, DtFileObject* pFile);
 DtStatus  DtuDeviceClose(DtuDeviceData* pDvcData, DtFileObject* pFile);
@@ -189,7 +220,7 @@ DtStatus  DtuDeviceIoctl(DtuDeviceData* pDvcData, DtFileObject* pFile,
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 DtStatus  DtuGetNonIpPortIndex(DtuDeviceData* pDvcData, Int PortIndex,
                                                                     Int* pNonIpPortIndex);
-DtStatus  DtuGetPortIndexNonIp(DtuDeviceData*  pDvcData, Int  PortIndex, 
-                                                                   Int*  pNonIpPortIndex);
+DtStatus  DtuGetPortIndexNonIp(DtuDeviceData*  pDvcData, Int  NonIpPortIndex,
+                                                                        Int*  pPortIndex);
 
 #endif // #ifndef __DTU_H

@@ -45,8 +45,11 @@ DtStatus  DtuPldInit(DtuDeviceData* pDvcData)
                                                         pDvcData->m_DevInfo.m_TypeNumber);
         return DT_STATUS_FAIL;
     }
-        
-    Status = DtuLoadPldFirmware(pDvcData, pPldFirmware, PldFwSize);
+    
+    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+        Status = DtuFx3LoadPldFirmware(pDvcData, pPldFirmware, PldFwSize);
+    else
+        Status = DtuLoadPldFirmware(pDvcData, pPldFirmware, PldFwSize);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, DTU, "Failed to upload PLD firmware (Status=0x%08X)", Status);
@@ -54,6 +57,65 @@ DtStatus  DtuPldInit(DtuDeviceData* pDvcData)
     }
     return Status;
 }
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuFx3LoadPldFirmware -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtuFx3LoadPldFirmware(
+    DtuDeviceData*  pDvcData, 
+    const UInt8*  pFirmware,
+    Int  Size)
+{
+    DtStatus  Status;
+    Int  Len;
+    Int  Dummy;
+    UInt8  DummyBuf[32];
+    UInt16  TypeNumber;
+    Int  MaxChunkSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
+                                                          pDvcData->m_DevInfo.m_UsbSpeed);
+
+    Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
+                                             DTU_PNP_CMD_FPGA_UPL_CMD, DTU_FPGA_UPL_START,
+                                             DT_USB_HOST_TO_DEVICE,
+                                             NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    Len = MaxChunkSize;
+
+    while (Size > 0)
+    {
+        Len = Size < MaxChunkSize ? Size : MaxChunkSize;
+        if (Len > MaxChunkSize)
+            Len = MaxChunkSize;
+        Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_FPGA_UPLOAD, 
+                                             0, 0, DT_USB_HOST_TO_DEVICE,
+                                     (UInt8*)pFirmware, Len, &Dummy, MAX_USB_REQ_TIMEOUT);
+        if (!DT_SUCCESS(Status))
+            return Status;
+        pFirmware += Len;
+        Size -= Len;
+    }
+    Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
+                                            DTU_PNP_CMD_FPGA_UPL_CMD, DTU_FPGA_UPL_FINISH,
+                                            DT_USB_HOST_TO_DEVICE,
+                                            NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    DtSleep(100);
+
+    Status = Dtu3RegRead(pDvcData, DTU_USB3_DEV_FPGA, 0, &TypeNumber);
+    if (!DT_SUCCESS(Status))
+        return Status;
+    if (TypeNumber != pDvcData->m_DevInfo.m_TypeNumber)
+    {
+        DtDbgOut(ERR, DTU, "Incorrect typenumber read from FPGA");
+        return DT_STATUS_FAIL;
+    }
+
+    return Status;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuLoadPldFirmware -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtuLoadPldFirmware(

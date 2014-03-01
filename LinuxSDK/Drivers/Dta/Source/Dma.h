@@ -91,6 +91,9 @@ typedef struct _DmaOpt {
                                           // notion of number of map-registers and can
                                           // be directly used for DMA.
                                           // The copy to common buffer is not needed.
+#define  DTA_DMA_FLAGS_NOINT_AFTER_DONE     4
+#define  DTA_DMA_FLAGS_DESCR_PREFETCH       8
+                                          // Use descriptor prefetch
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DmaCallbackFunc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -126,7 +129,7 @@ struct _DmaChannel {
                                         // transfer is done.
     
     // DMA status
-    Int  m_State;                       // DTA_DMA_STATE_
+    volatile Int  m_State;              // DTA_DMA_STATE_
     DtEvent  m_DmaDoneEvent;
     Bool  m_FinalTransfer;
     UInt  m_TransferNumber;
@@ -167,9 +170,10 @@ DtStatus  DtaDmaGetDmaChannelPlx(DtaDeviceData* pDvcData, Int PlxDmaChannel,
                                                                DmaChannel** ppDmaChannel);
 DtStatus  DtaDmaInit(DtaDeviceData* pDvcData);
 DtStatus  DtaDmaInitCh(DtaDeviceData* pDvcData, Int PortIndex, UInt MaxDmaLength,
-                                      UInt DmaMode, UInt DmaRegsOffset, UInt  DmaFlags,
-                                      Int Timeout, DmaCallbackFunc pDmaFinishFunc, 
-                                      void* pDmaFinishContext, DmaChannel* pDmaCh);
+                                         UInt DmaMode, UInt DmaRegsOffset, UInt  DmaFlags,
+                                         Int Timeout, DmaCallbackFunc pDmaFinishFunc, 
+                                         void* pDmaFinishContext, DmaChannel* pDmaCh,
+                                         Bool FixedLocalAddress);
 void  DtaDmaCleanupCh(DtaDeviceData* pDvcData, DmaChannel* pDmaCh);
 DtStatus  DtaDmaInitChPowerup(DmaChannel* pDmaCh);
 DtStatus  DtaDmaInitPowerup(DtaDeviceData* pDvcData);
@@ -195,6 +199,6 @@ DtStatus  DtaDmaAbortDma(DmaChannel* pDmaCh);
 Bool  DtaDmaIsAbortActive(DmaChannel* pDmaCh);
 void  DtaDmaReInitCallback(DmaChannel* pDmaCh, DmaCallbackFunc pDmaFinishFunc, 
                                                                            void* pDmaFinishContext);
-
+void  ExecuteDmaCompletedFromDpc(DmaChannel* pDmaChannel);
 #endif  //  __DMA_H
 

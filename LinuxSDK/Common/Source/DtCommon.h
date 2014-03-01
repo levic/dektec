@@ -206,6 +206,10 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define PROPERTY_NAME_MAX_SIZE      50
 #define PROPERTY_STR_MAX_SIZE       96
 
+// MAC types
+#define  MAC_TYPE_CAST              0
+#define  MAC_TYPE_ALTERA            1
+
 #undef Int64
 #undef UInt64
 

@@ -25,6 +25,7 @@
 // TORT, IN NEGLIGENCE, OR OTHERWISE, ARISING FROM THE USE OF, OR INABILITY TO USE THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
+
 // Phy types
 #define  DTA_PHY_UNKNOWN                0
 #define  DTA_PHY_NATIONAL               1
@@ -97,7 +98,7 @@ typedef struct _PhyMac {
     UInt16  m_MacRegsOffset;
     volatile UInt8*  m_pGenNwRegs;      // Base address of General network
     volatile UInt8*  m_pMacRegs;        // Base address of MAC registers
-    Bool  m_UsesAlteraMac;              // True if Altera mac is used.
+    UInt  m_MacType;                    // Type of MAC used in the hardware.
     Bool  m_AlignedPayload;             // True if Payload is aligned and 2 extra 
                                         // dummy bytes are inbetween DMA header and 
                                         // payload
@@ -155,5 +156,9 @@ DtStatus  DtaMacSetMacAddressCurrent(PhyMac* pPhyMac, UInt8* pAddress);
 void  DtaMacGetMacAddressPermanent(PhyMac* pPhyMac, UInt8* pAddress);
 DtStatus  DtaPhyMacIoctl(DtaDeviceData* pDvcData, DtIoctlObject* pIoctl);
 UInt  DtaPhyGetSpeed(PhyMac* pPhyMac, Bool* pForceSpeedDtapiEnable);
+DtStatus  DtaPhySetSpeedDuplex(PhyMac* pPhyMac);
 DtStatus  DtaPhySetSpeedDtapi(PhyMac* pPhyMac, UInt Speed, Bool ForceSpeedEnable);
 DtStatus  DtaMacCBuildSetupFrame(PhyMac* pPhyMac, UInt8* pDst, UInt* pSize);
+UInt32  DtaGetPhyRegister(PhyMac* pPhyMac, UInt32 Reg);
+void  DtaSetPhyRegister(PhyMac* pPhyMac, UInt32 Reg, UInt32 Data);
+DtStatus  DtaMacGetCounter(PhyMac* pPhyMac, UInt CounterId, UInt64* pValue);

@@ -59,26 +59,28 @@ DtStatus  DtThreadWaitForStopOrEventInternal(DtThread* pThread, DtEvent* pEvent)
 //          DT_STATUS_OK: Event is signalled/Condition is true
 //          
 #ifdef WINBUILD
-//Check Condition in Windows with DT_ASSERT, so we don't have to debug it extra in Linux
-#define DtThreadWaitForStopOrEvent(pThread, pEvent, Condition, SkipAssert)      \
-   DtThreadWaitForStopOrEventInternal(pThread, pEvent);                         \
-   DT_ASSERT(Condition || pThread->m_StopThread || SkipAssert);
-
+#define DtThreadWaitForStopOrEvent(pThread, pEvent)                             \
+   DtThreadWaitForStopOrEventInternal(pThread, pEvent);
 #else
 #ifdef NO_KTHREAD_SUPPORT
 int  DtLinuxKThreadShouldStop(void);
 #else
-#define DtLinuxKThreadShouldStop    kthread_should_stop
+#define DtLinuxKThreadShouldStop  kthread_should_stop
 #endif
-#define  DtThreadWaitForStopOrEvent(pThread, pEvent, Condition, SkipAssert)     \
+#define  DtThreadWaitForStopOrEvent(pThread, pEvent)                            \
 ({  DtStatus  __DtStatus = DT_STATUS_CANCELLED;                                 \
-    Int  Ret;                                                                   \
-    Ret = wait_event_interruptible((pEvent)->m_WaitQueueHead, Condition ||      \
+    Int  Ret = 0;                                                               \
+    if (!(pEvent)->m_EventSet)                                                  \
+        Ret = wait_event_interruptible((pEvent)->m_WaitQueueHead,               \
+                                                   (pEvent)->m_EventSet ||      \
                                                    DtLinuxKThreadShouldStop()); \
     if (DtLinuxKThreadShouldStop() || Ret!=0)                                   \
         __DtStatus = DT_STATUS_CANCELLED;                                       \
-    else                                                                        \
+    else {                                                                      \
         __DtStatus = DT_STATUS_OK;                                              \
+        if ((pEvent)->m_AutoReset)                                              \
+            (pEvent)->m_EventSet = FALSE;                                       \
+    }                                                                           \
     __DtStatus;                                                                 \
 })
 #endif
@@ -91,6 +93,6 @@ DtStatus  DtThreadWaitForStop(DtThread* pThread);
 Bool  DtThreadShouldStop(DtThread* pThread);
 
 // The following macro function is defined somewhere else but is also public:
-//#define   DtThreadWaitForStopOrEvent(DtThread* pThread, DtEvent* pEvent, Condition)
+//#define   DtThreadWaitForStopOrEvent(DtThread* pThread, DtEvent* pEvent)
 
 #endif

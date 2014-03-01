@@ -328,6 +328,19 @@ DtStatus  DtStringAppendSubstring(
     return DT_STATUS_NOT_FOUND;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtStringCompare -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtStringCompare(DtString* pDtString1, DtString* pDtString2)
+{
+#ifdef WINBUILD
+    return RtlEqualUnicodeString(pDtString1, pDtString2, TRUE);
+#else
+    if (pDtString1->m_Length != pDtString2->m_Length)
+        return FALSE;
+    return strncmp(pDtString1->m_Buffer, pDtString2->m_Buffer, pDtString1->m_Length) == 0;
+#endif
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtStringGetMaxStringLength -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Returns the maximal string length. (Not the buffer length)

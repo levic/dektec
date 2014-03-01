@@ -577,7 +577,7 @@ DtStatus DtNonVolatileManufSettingsRead(
             
             // Registry path starts with <\Settings\Manuf\>
             Status = DtStringAppendDtString(&RegKeyName, &SettingsStr);
-            if (DT_SUCCESS(Status))    
+            if (DT_SUCCESS(Status) && Type!=-1)
                 // Convert type to unicode string and append to path
                 Status = DtStringUIntegerToDtStringAppend(&RegKeyName, 10, (UInt)(Type));
             

@@ -140,14 +140,15 @@ void  DtWorkItemWorker(void* pContext)
         DeQueue = FALSE;
 
         // Done, set to idle
-        OldState = DtAtomicCompareExchange(&pWorkItem->m_State, WI_STATE_BIT_RUNNING, 0);
+        OldState = DtAtomicCompareExchange((Int*)&pWorkItem->m_State, 
+                                                                 WI_STATE_BIT_RUNNING, 0);
         if (OldState != WI_STATE_BIT_RUNNING)
         {
             // Failed, maybe queuing pending?
             if (OldState == (WI_STATE_BIT_RUNNING|WI_STATE_BIT_QUEUING))
             {
                 // Just set running flag to zero, but hold queuing
-                OldState = DtAtomicCompareExchange(&pWorkItem->m_State,
+                OldState = DtAtomicCompareExchange((Int*)&pWorkItem->m_State,
                                                 WI_STATE_BIT_RUNNING|WI_STATE_BIT_QUEUING,
                                                 WI_STATE_BIT_QUEUING);
                 if (OldState != (WI_STATE_BIT_RUNNING|WI_STATE_BIT_QUEUING))
@@ -170,9 +171,9 @@ void  DtWorkItemWorker(void* pContext)
             pWorkItem->m_Args = pWorkItem->m_QueuedArgs;
 
             // Release queue, but keep running flag
-            DtAtomicCompareExchange(&pWorkItem->m_State,
-                         WI_STATE_BIT_RUNNING|WI_STATE_BIT_QUEUING|WI_STATE_BIT_QUEUED,
-                         WI_STATE_BIT_RUNNING);
+            DtAtomicCompareExchange((Int*)&pWorkItem->m_State,
+                            WI_STATE_BIT_RUNNING|WI_STATE_BIT_QUEUING|WI_STATE_BIT_QUEUED,
+                            WI_STATE_BIT_RUNNING);
 
             // Run worker again with new args
             pWorkItem->m_pWorker(&pWorkItem->m_Args);
@@ -218,15 +219,17 @@ DtStatus  DtWorkItemSchedule(DtWorkItem* pWorkItem, DtWorkItemArgs* pArgs)
         return Result;
     
     // Try to set running from idle state
-    OldState = DtAtomicCompareExchange(&pWorkItem->m_State, 0, WI_STATE_BIT_RUNNING);
+    OldState = DtAtomicCompareExchange((Int*)&pWorkItem->m_State, 0, 
+                                                                    WI_STATE_BIT_RUNNING);
     if (OldState == 0)
         // Successfully running
         DoRun = TRUE;
     else if (pWorkItem->m_QueueIfRunning)
     {
         // Try to set Queuing
-        OldState = DtAtomicCompareExchange(&pWorkItem->m_State, WI_STATE_BIT_RUNNING,
-                                             WI_STATE_BIT_RUNNING|WI_STATE_BIT_QUEUING);
+        OldState = DtAtomicCompareExchange((Int*)&pWorkItem->m_State, 
+                                               WI_STATE_BIT_RUNNING,
+                                               WI_STATE_BIT_RUNNING|WI_STATE_BIT_QUEUING);
         if (OldState == WI_STATE_BIT_RUNNING)
             // Successfully set to queuing
             DoQueue = TRUE;
@@ -236,7 +239,7 @@ DtStatus  DtWorkItemSchedule(DtWorkItem* pWorkItem, DtWorkItemArgs* pArgs)
         else if ((OldState&WI_STATE_BIT_RUNNING) == 0)
         {
             // Retry to set running from idle state
-            OldState = DtAtomicCompareExchange(&pWorkItem->m_State, 0, 
+            OldState = DtAtomicCompareExchange((Int*)&pWorkItem->m_State, 0, 
                                                                     WI_STATE_BIT_RUNNING);
             if (OldState == 0)
                 // Successfully set to running
@@ -261,7 +264,7 @@ DtStatus  DtWorkItemSchedule(DtWorkItem* pWorkItem, DtWorkItemArgs* pArgs)
         pWorkItem->m_QueuedArgs = *pArgs;
         
         // Set to queued (running|queuing|queued)
-        OldState = DtAtomicCompareExchange(&pWorkItem->m_State,
+        OldState = DtAtomicCompareExchange((Int*)&pWorkItem->m_State,
                            WI_STATE_BIT_RUNNING|WI_STATE_BIT_QUEUING,
                            WI_STATE_BIT_RUNNING|WI_STATE_BIT_QUEUING|WI_STATE_BIT_QUEUED);
         // Check if we failed because we were not running anymore
@@ -269,8 +272,8 @@ DtStatus  DtWorkItemSchedule(DtWorkItem* pWorkItem, DtWorkItemArgs* pArgs)
         {
             // Choose running slot --> try to set from queuing to running instead of
             // queued
-            OldState = DtAtomicCompareExchange(&pWorkItem->m_State, WI_STATE_BIT_QUEUING,
-                                                                    WI_STATE_BIT_RUNNING);
+            OldState = DtAtomicCompareExchange((Int*)&pWorkItem->m_State, 
+                                              WI_STATE_BIT_QUEUING, WI_STATE_BIT_RUNNING);
             if (OldState == WI_STATE_BIT_QUEUING)
                 DoRun = TRUE;
             else {
@@ -327,7 +330,7 @@ void  DtWorkItemWaitForCompletion(DtWorkItem* pWorkItem)
     while (pWorkItem->m_State != 0)
     {
         // Delete queued item (only if fully queued)
-        DtAtomicCompareExchange(&pWorkItem->m_State,
+        DtAtomicCompareExchange((Int*)&pWorkItem->m_State,
                             WI_STATE_BIT_RUNNING|WI_STATE_BIT_QUEUING|WI_STATE_BIT_QUEUED,
                             WI_STATE_BIT_RUNNING);
 

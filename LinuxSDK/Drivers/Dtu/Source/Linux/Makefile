@@ -88,6 +88,7 @@ SRC    = $(SRCDIR)/Linux/DtuIal.o         \
          $(SRCDIR)/IoConfig.o             \
          $(SRCDIR)/Pld.o                  \
          $(SRCDIR)/ReadWrite.o            \
+         $(SRCDIR)/ShBuffer.o             \
          $(SRCDIR)/Firmware.o             \
          $(SRCDIR)/EzUsb.o                \
          $(SRCDIR)/DtuRegs.o              \
@@ -127,6 +128,16 @@ clean-files = $(SRC)
 # ========================================================================================
 else
 
+# ========================================================================================
+# Check udev version
+UDEV_VERSION := $(shell udevinfo -V 2>/dev/null | cut -d " " -f 3)
+ifeq ($(UDEV_VERSION),)
+	UDEV_VERSION := $(shell udevadm --version)
+endif
+
+UDEV_FILE := $(shell [ $(UDEV_VERSION) -le 98 ] && echo 51-dtu-old.rules || \
+                                                                        echo 51-dtu.rules)
+
 PWD = $(shell pwd)
 INSTALLDIR = /lib/modules/$(CURRENT)/kernel/drivers/usb/DekTec
 
@@ -141,7 +152,7 @@ INSTALL_CMD := "rmmod $(TARGET) 2>/dev/null || true &&          \
 	            cp -v $(TARGET).ko $(INSTALLDIR) && \
 			    /sbin/depmod -a &&                  \
 			    /sbin/modprobe $(TARGET) &&         \
-			    install -o root -g root -m 644 51-dtu.rules /etc/udev/rules.d/"
+			   install -o root -g root -m 644 $(UDEV_FILE) /etc/udev/rules.d/51-dtu.rules"
 
 install:
 	su -c $(INSTALL_CMD)

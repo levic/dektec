@@ -299,7 +299,7 @@ static Int  DtaMapResources(DtaDeviceData* pDvcData)
             if (pDvcData->m_DtaRegs.m_pKernel == NULL)
                 Result = -EFAULT;
         
-            DtDbgOut(AVG, IAL, "DtaRegs: PciAddr=0x%x, pKernel=0x%p", 
+            DtDbgOut(AVG, IAL, "DtaRegs: PciAddr=0x%llx, pKernel=0x%p", 
                                                    pDvcData->m_DtaRegs.m_PciAddr.QuadPart,
                                                    pDvcData->m_DtaRegs.m_pKernel);
         }
@@ -374,8 +374,6 @@ static Int  DtaIalRegisterISR(DtaDeviceData* pDvcData)
 //
 static void  DtaIalUnRegisterISR(DtaDeviceData* pDvcData)
 {
-    Int  Result;
-    
     if (!pDvcData->m_IalData.m_ISRRegistered)
         return;
 
@@ -710,38 +708,48 @@ static Int  DtaMapRegsToUserSpace(
     struct file*  pFile, 
     struct vm_area_struct*  pVma)
 {
-    Int i, r;
-    Bool  FreeEntryFound = FALSE;
-    Int  FreeEntryIndex = 0;
     UInt64  RegionStart;
     UInt  Size;
+    DtUserMapping*  pUserMapping;
+    Int  r;
 
     // Acquire mutex
     DtFastMutexAcquire(&pDvcData->m_UserMapMutex);
 
-   // Check whether a mapping is available for this file object. If so, return
-    for (i=0; i<MAX_NUM_USER_MAPPINGS; i++)
+    // Check whether a mapping is available for this file object. If so, return an error
+    pUserMapping = pDvcData->m_pUserMapping;
+    while (pUserMapping != NULL)
     {
-        if (pDvcData->m_UserMapping[i].m_FileObject.m_pFile == pFile) 
+        if (pUserMapping->m_FileObject.m_pFile == pFile) 
         {
-            DtDbgOut(ERR, IAL, "[%d] Error register already mapped into userspace", i);
+            DtDbgOut(ERR, IAL, "[%d] Error register already mapped into userspace");
 
             // Release memory map mutex
             DtFastMutexRelease(&pDvcData->m_UserMapMutex);
             return -EFAULT;
-        } else if (!pDvcData->m_UserMapping[i].m_EntryUsed && !FreeEntryFound)
-        {
-            FreeEntryFound = TRUE;
-            FreeEntryIndex = i;
         }
+        pUserMapping = pUserMapping->m_pNext;
     }
+    
+    pUserMapping = (DtUserMapping*)DtMemAllocPool(DtPoolPaged, sizeof(DtUserMapping), 
+                                                                                 DTA_TAG);
 
-    if (!FreeEntryFound)
+    if (pUserMapping == NULL)
     {
-        DtDbgOut(MIN, IAL, "[%d] OUT OF USER MAPPINGS", i);
+        DtDbgOut(ERR, IAL, "Out of memory creating DtUserMapping struct");
         DtFastMutexRelease(&pDvcData->m_UserMapMutex);
         return -EFAULT;
     }
+
+    // Insert at start of list
+    pUserMapping->m_pPrev = NULL;
+    pUserMapping->m_pNext = NULL;
+    if (pDvcData->m_pUserMapping != NULL) 
+    {
+        pUserMapping->m_pNext = pDvcData->m_pUserMapping;
+        pUserMapping->m_pNext->m_pPrev = pUserMapping;
+    }
+    pDvcData->m_pUserMapping = pUserMapping;
 
     // Be sure the memory is mapped non-cacheable
     pVma->vm_flags |= VM_IO;
@@ -759,23 +767,20 @@ static Int  DtaMapRegsToUserSpace(
                                                                       pVma->vm_page_prot);
     if (r!=0) 
     {
-        DtDbgOut(ERR, IAL, "[%d] io_remap_pfn_range FAILES", FreeEntryIndex);
+        DtDbgOut(ERR, IAL, "io_remap_pfn_range FAILED");
         DtFastMutexRelease(&pDvcData->m_UserMapMutex);
         return -EFAULT;
     }
 
     // Store result in free element
     // Take the region startoffset into account
-    pDvcData->m_UserMapping[FreeEntryIndex].m_pUserVirtual = (void*)(pVma->vm_start +
-                                                                 (RegionStart%PAGE_SIZE));
-    pDvcData->m_UserMapping[FreeEntryIndex].m_FileObject.m_pFile = pFile;
-    pDvcData->m_UserMapping[FreeEntryIndex].m_EntryUsed = TRUE;
-    pDvcData->m_UserMapping[FreeEntryIndex].m_RefCount = 0;
-    pDvcData->m_UserMapping[FreeEntryIndex].m_pPaMmap = NULL;
+    pUserMapping->m_pUserVirtual = (void*)(pVma->vm_start + (RegionStart%PAGE_SIZE));
+    pUserMapping->m_FileObject.m_pFile = pFile;
+    pUserMapping->m_RefCount = 0;
+    pUserMapping->m_pPaMmap = NULL;
 
-    DtDbgOut(MIN, IAL, "[%d] pUserVirtual=0x%p, RefCount=%d", FreeEntryIndex, 
-                                   pDvcData->m_UserMapping[FreeEntryIndex].m_pUserVirtual,
-                                   pDvcData->m_UserMapping[FreeEntryIndex].m_RefCount);
+    DtDbgOut(MIN, IAL, "pUserVirtual=0x%p, RefCount=%d", pUserMapping->m_pUserVirtual,
+                                                                 pUserMapping->m_RefCount);
 
     // Release memory map mutex
     DtFastMutexRelease(&pDvcData->m_UserMapMutex);
@@ -789,8 +794,7 @@ DtStatus  DtaReleaseAddressRegsForFileObject(
     DtaDeviceData*  pDvcData,
     DtFileObject*  pFile)
 {
-    Bool  Found;
-    Int  i;
+    DtUserMapping*  pUserMapping;
     
     // Memory should have been mapped in kernel space
     if (pDvcData->m_DtaRegs.m_pKernel == NULL) 
@@ -801,38 +805,34 @@ DtStatus  DtaReleaseAddressRegsForFileObject(
     DtFastMutexAcquire(&pDvcData->m_UserMapMutex);
 
     // Check whether a mapping is available for this file object
-    Found = FALSE;
-    for (i=0; i<MAX_NUM_USER_MAPPINGS; i++)
+    pUserMapping = pDvcData->m_pUserMapping;
+    while (pUserMapping != NULL)
     {
-        if (pDvcData->m_UserMapping[i].m_EntryUsed &&
-                                           pDvcData->m_UserMapping[i].m_FileObject.m_pFile
-                                                                        == pFile->m_pFile)
-        {
-            Found = TRUE;
+        if (pUserMapping->m_FileObject.m_pFile == pFile->m_pFile)
             break;
-        }
+        pUserMapping = pUserMapping->m_pNext;
     }
-    if (!Found)
+    
+    if (pUserMapping == NULL)
     {   DtFastMutexRelease(&pDvcData->m_UserMapMutex);
         return DT_STATUS_OK;
     }
     
-    if (pDvcData->m_UserMapping[i].m_RefCount == 0) 
+    if (pUserMapping->m_RefCount == 0) 
     { 
         DtDbgOut(ERR, IAL, "Reference count already 0");
-        DtFastMutexRelease(&pDvcData->m_UserMapMutex);
-        return DT_STATUS_FAIL;
     }
     
-    DtDbgOut(ERR, IAL, "Reference count=%i", pDvcData->m_UserMapping[i].m_RefCount);
+    DtDbgOut(ERR, IAL, "Reference count=%i", pUserMapping->m_RefCount);
     
-    // The application must Unmap the memory, but we can already free the entry
-    // Clear entry
-    pDvcData->m_UserMapping[i].m_pUserVirtual = NULL;
-    pDvcData->m_UserMapping[i].m_EntryUsed = FALSE;
-    pDvcData->m_UserMapping[i].m_RefCount = 0;
-    pDvcData->m_UserMapping[i].m_pPaMmap = NULL;
-
+    // The application must Unmap the memory, but we can already remove the entry
+    if (pUserMapping->m_pPrev != NULL)
+        pUserMapping->m_pPrev->m_pNext = pUserMapping->m_pNext;
+    else
+        pDvcData->m_pUserMapping = pUserMapping->m_pNext;
+    if (pUserMapping->m_pNext != NULL)
+        pUserMapping->m_pNext->m_pPrev = pUserMapping->m_pPrev;
+    DtMemFreePool(pUserMapping, DTA_TAG);
     // Release memory map mutex
     DtFastMutexRelease(&pDvcData->m_UserMapMutex);
     return DT_STATUS_OK;
@@ -850,10 +850,8 @@ DtStatus  DtaGetAddressRegsForUserspace(
     Int*  pSize,                 // Size of register block
     void**  ppUserVirtual)
 {
-    Bool  Found;
-    Bool  FreeEntryFound = FALSE;
-    Int  i;
-
+    DtUserMapping*  pUserMapping;
+    
     // Memory should have been mapped in kernel space
     if (pDvcData->m_DtaRegs.m_pKernel == NULL) 
     {
@@ -863,37 +861,28 @@ DtStatus  DtaGetAddressRegsForUserspace(
     // Acquire mutex
     DtFastMutexAcquire(&pDvcData->m_UserMapMutex);
 
-    // check whether a mapping is available for this file object
-    Found = FALSE;
-    for (i=0; i<MAX_NUM_USER_MAPPINGS; i++)
+    // Check whether a mapping is available for this file object
+    pUserMapping = pDvcData->m_pUserMapping;
+    while (pUserMapping != NULL)
     {
-        if (pDvcData->m_UserMapping[i].m_EntryUsed &&
-                               pDvcData->m_UserMapping[i].m_FileObject.m_pFile == pFile->m_pFile)
-        {
-            Found = TRUE;
+        if (pUserMapping->m_FileObject.m_pFile == pFile->m_pFile)
             break;
-        } else if (!pDvcData->m_UserMapping[i].m_EntryUsed)
-            FreeEntryFound = TRUE;
+        pUserMapping = pUserMapping->m_pNext;
     }
-    if (Found)
+    if (pUserMapping != NULL)
     {
-        pDvcData->m_UserMapping[i].m_RefCount++;
-        *ppUserVirtual = pDvcData->m_UserMapping[i].m_pUserVirtual;
+        pUserMapping->m_RefCount++;
+        *ppUserVirtual = pUserMapping->m_pUserVirtual;
         *pSize = pDvcData->m_DtaRegs.m_Length;
         if (pPaMmap != NULL) 
-        {   pDvcData->m_UserMapping[i].m_pPaMmap = pPaMmap;
-        }
+            pUserMapping->m_pPaMmap = pPaMmap;
+        
         DtDbgOut(MIN, IAL, "[%d] pUserVirtual=0x%p, Count=%d", PortIndex, *ppUserVirtual,
-                                                   pDvcData->m_UserMapping[i].m_RefCount);
+                                                                pUserMapping->m_RefCount);
         DtFastMutexRelease(&pDvcData->m_UserMapMutex);
         return DT_STATUS_OK;
-    } else if (!FreeEntryFound) 
-    {
-        DtDbgOut(MIN, IAL, "[%d] No more usermappings available", PortIndex);
-        DtFastMutexRelease(&pDvcData->m_UserMapMutex);
-        return DT_STATUS_OUT_OF_RESOURCES;
     }
-
+    
     // Application must first excecute Mmap.
     
     // Set the size of the register block for Mmap.
@@ -914,8 +903,7 @@ DtStatus  DtaReleaseAddressRegsForUserspace(
     void**  ppPaMap,
     Int*  pSize)
 {
-    Bool  Found;
-    Int  i;
+    DtUserMapping*  pUserMapping;
     
     // Memory should have been mapped in kernel space
     if (pDvcData->m_DtaRegs.m_pKernel == NULL) 
@@ -926,50 +914,48 @@ DtStatus  DtaReleaseAddressRegsForUserspace(
     DtFastMutexAcquire(&pDvcData->m_UserMapMutex);
 
     // Check whether a mapping is available for this file object
-    Found = FALSE;
-    for (i=0; i<MAX_NUM_USER_MAPPINGS; i++)
+    pUserMapping = pDvcData->m_pUserMapping;
+    while (pUserMapping != NULL)
     {
-        if (pDvcData->m_UserMapping[i].m_EntryUsed &&
-                                           pDvcData->m_UserMapping[i].m_FileObject.m_pFile
-                                                                        == pFile->m_pFile)
-        {
-            Found = TRUE;
+        if (pUserMapping->m_FileObject.m_pFile == pFile->m_pFile)
             break;
-        }
+        pUserMapping = pUserMapping->m_pNext;
     }
-    if (!Found)
+    
+    if (pUserMapping == NULL)
     {   DtDbgOut(MIN, IAL, "[%d] NO MAPPING FOUND", PortIndex);
         DtFastMutexRelease(&pDvcData->m_UserMapMutex);
         return DT_STATUS_NOT_FOUND;
     }
     
-    if (pDvcData->m_UserMapping[i].m_RefCount == 0) 
+    if (pUserMapping->m_RefCount > 1) 
     { 
-        DtDbgOut(ERR, IAL, "[%d] Reference count already 0", PortIndex);
-        DtFastMutexRelease(&pDvcData->m_UserMapMutex);
-        return DT_STATUS_FAIL;
-    }
-    pDvcData->m_UserMapping[i].m_RefCount--;
-    if (pDvcData->m_UserMapping[i].m_RefCount != 0)
-    {
-        DtDbgOut(MIN, IAL, "[%d] Reference count=%i", i, 
-                                                   pDvcData->m_UserMapping[i].m_RefCount);
+        pUserMapping->m_RefCount--;
+        DtDbgOut(MIN, IAL, "[%d] Reference count=%i", PortIndex, 
+                                                                pUserMapping->m_RefCount);
         DtFastMutexRelease(&pDvcData->m_UserMapMutex);
         return DT_STATUS_IN_USE;
     }
 
+    if (pUserMapping->m_RefCount == 0)
+    {
+        DT_ASSERT(FALSE);
+        DtDbgOut(ERR, IAL, "[%d] Reference count already 0", PortIndex);
+    }
+
     DtDbgOut(MIN, IAL, "[%d] Reference count=0", PortIndex);
     
-    *ppPaMap = pDvcData->m_UserMapping[i].m_pPaMmap;
+    *ppPaMap = pUserMapping->m_pPaMmap;
     *pSize = pDvcData->m_DtaRegs.m_Length;
 
-    // The application must Unmap the memory, but we can already free the entry
-    // Clear entry
-    pDvcData->m_UserMapping[i].m_pUserVirtual = NULL;
-    pDvcData->m_UserMapping[i].m_EntryUsed = FALSE;
-    pDvcData->m_UserMapping[i].m_RefCount = 0;
-    pDvcData->m_UserMapping[i].m_pPaMmap = NULL;
-    pDvcData->m_UserMapping[i].m_FileObject.m_pFile = NULL;
+    // The application must Unmap the memory, but we can already remove the entry
+    if (pUserMapping->m_pPrev != NULL)
+        pUserMapping->m_pPrev->m_pNext = pUserMapping->m_pNext;
+    else
+        pDvcData->m_pUserMapping = pUserMapping->m_pNext;
+    if (pUserMapping->m_pNext != NULL)
+        pUserMapping->m_pNext->m_pPrev = pUserMapping->m_pPrev;
+    DtMemFreePool(pUserMapping, DTA_TAG);
 
     // Release memory map mutex
     DtFastMutexRelease(&pDvcData->m_UserMapMutex);
@@ -1324,7 +1310,6 @@ static Int  DtaMmap(struct file* pFile, struct vm_area_struct* pVma)
 //
 static UInt  DtaPoll(struct file* pFile, poll_table* pPollTable)
 {
-    Int  i;
     DtFileObject  File;
     UInt  Mask = 0;
     DtaEvents*  pDtaEvents = NULL;
@@ -1336,26 +1321,21 @@ static UInt  DtaPoll(struct file* pFile, poll_table* pPollTable)
     // Init File object
     File.m_pFile = pFile;
 
-    // Add events wait_queue to poll table and get number of pending events
-    for (i=0; i<MAX_NUM_FILE_HANDLES; i++)
-    {
-        DtSpinLockAcquire(&pDvcData->m_Events[i].m_Lock);
-        if (pDvcData->m_Events[i].m_RefCount > 0)
-        {
-            if (DtFileCompare(&pDvcData->m_Events[i].m_File, &File))
-            {
-                pDtaEvents = &pDvcData->m_Events[i];
-                poll_wait(pFile, &pDtaEvents->m_PendingEvent.m_WaitQueueHead, pPollTable);
-                NumPending = pDtaEvents->m_NumPendingEvents;
-            }
-        }
-        DtSpinLockRelease(&pDvcData->m_Events[i].m_Lock);
+    DtSpinLockAcquire(&pDvcData->m_EventsSpinlock);
         
-        if (pDtaEvents != NULL)
+    // Add events wait_queue to poll table and get number of pending events
+    pDtaEvents = pDvcData->m_pEvents;
+    while (pDtaEvents != NULL)
+    {
+        if (DtFileCompare(&pDtaEvents->m_File, &File))
+        {
+            poll_wait(pFile, &pDtaEvents->m_PendingEvent.m_WaitQueueHead, pPollTable);
+            NumPending = pDtaEvents->m_NumPendingEvents;
             break;
+        }
+        pDtaEvents = pDtaEvents->m_pNext;
     }
     
-
     // Check if events are pending
     if (NumPending > 0)
     {
@@ -1364,6 +1344,7 @@ static UInt  DtaPoll(struct file* pFile, poll_table* pPollTable)
     } else
         DtDbgOut(MAX, IAL, "No pending Events found.");
 
+    DtSpinLockRelease(&pDvcData->m_EventsSpinlock);
     DtDbgOut(MAX, IAL, "Exit");
 
     return Mask;
@@ -1581,15 +1562,18 @@ void  DtDoProbeChildDevices(DtaDeviceData* pDvcData)
     Int  i;
     for (i=0; i<pDvcData->m_NumIpPorts; i++)
     {
-        DtaChildDeviceData*  pChildDvcData = pDvcData->m_IpDevice.m_IpPorts[i].m_pChildDvcData;
+        DtaChildDeviceData*  pChildDvcData = 
+                                       pDvcData->m_IpDevice.m_pIpPorts[i].m_pChildDvcData;
         if (pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf == NULL)
         {
             pChildDvcData->m_IalData.m_DeviceItf.m_pParentDevice = 
                                                              pDvcData->m_Device.m_pDevice;
-            pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf = g_DtaChildDriver.m_pDriverItf;
+            pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf = 
+                                                            g_DtaChildDriver.m_pDriverItf;
             pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf->m_pContext = pChildDvcData;
             pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf->IoCtrl = DtaIoctlChild;
-            g_DtaChildDriver.m_pDriverItf->Probe(&pChildDvcData->m_IalData.m_DeviceItf, i+1);
+            g_DtaChildDriver.m_pDriverItf->Probe(&pChildDvcData->m_IalData.m_DeviceItf, 
+                                                                                      i+1);
         }
     }
 }
@@ -1618,7 +1602,7 @@ DtStatus  DtaInitChildDevices(
 
         // Initialise child device data structure
         memset(pChildDvcData, 0, sizeof(DtaChildDeviceData));
-        pDvcData->m_IpDevice.m_IpPorts[i].m_pChildDvcData = pChildDvcData;
+        pDvcData->m_IpDevice.m_pIpPorts[i].m_pChildDvcData = pChildDvcData;
         pChildDvcData->m_pParentDeviceData = pDvcData;
         pChildDvcData->m_Index = i;
     }
@@ -1657,14 +1641,14 @@ DtStatus  DtaRemoveChildDevices(
     for (i=0; i<pDvcData->m_NumIpPorts; i++)
     {
         DtaChildDeviceData*  pChildDvcData = 
-                                        pDvcData->m_IpDevice.m_IpPorts[i].m_pChildDvcData;
+                                       pDvcData->m_IpDevice.m_pIpPorts[i].m_pChildDvcData;
         if (g_DtaChildDriver.m_pDriverItf != NULL)
             // Report the remove to the Network driver
             g_DtaChildDriver.m_pDriverItf->Remove(&pChildDvcData->m_IalData.m_DeviceItf,
                                                                                      i+1);
         
         kfree(pChildDvcData);
-        pDvcData->m_IpDevice.m_IpPorts[i].m_pChildDvcData = NULL;
+        pDvcData->m_IpDevice.m_pIpPorts[i].m_pChildDvcData = NULL;
     }
     //DtSpinLockRelease(&g_DtaChildDriver.m_SpinLock);
 
@@ -1769,7 +1753,7 @@ void  DektecUnRegisterChildDriver(DtaDriverItf* pDriverItf)
             for (i=0; i<pDvcData->m_NumIpPorts; i++)
             {
                 DtaChildDeviceData*  pChildDvcData = 
-                                        pDvcData->m_IpDevice.m_IpPorts[i].m_pChildDvcData;
+                                       pDvcData->m_IpDevice.m_pIpPorts[i].m_pChildDvcData;
                 if (pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf == pDriverItf)
                     pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf = NULL;
             }

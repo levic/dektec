@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuDeviceTable.c *#*#*#*#*#*#*#*#*#* (C) 2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuDeviceTable.c *#*#*#*#*#*#*#*#*#* (C) 2013 DekTec
 //
 // CapParser - Device Table
 //
@@ -22,9 +22,7 @@ struct usb_device_id  DtuDeviceTable[] =
     {     USB_DEVICE(0x1297, 0x2230) },
     {     USB_DEVICE(0x1297, 0x224) },
     {     USB_DEVICE(0x1297, 0x22d) },
-    {     USB_DEVICE(0x1297, 0x237) },
-    {     USB_DEVICE(0x1297, 0x263) },
-    {     USB_DEVICE(0x4b4, 0x8613) },
+    {     USB_DEVICE(0x1297, 0x333) },
     { }
 };
 MODULE_DEVICE_TABLE(usb, DtuDeviceTable);

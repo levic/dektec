@@ -29,8 +29,6 @@
 #ifndef _NON_IP_H
 #define _NON_IP_H
 
-#define  MAX_NONIP_PORTS        16
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Target ID Detection -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Target-ID Detection (for DTA-102/DTA-122)
@@ -119,6 +117,9 @@ typedef struct _DtaNonIpPort
     // IOSTD - SDI (SD-SDI) - Sub capabilities
     Bool  m_Cap525I59_94;
     Bool  m_Cap625I50;
+    // IOSTD - SPISDI - Sub capabilities
+    Bool  m_CapSpi525I59_94;
+    Bool  m_CapSpi625I50;
     // IOSTD - SDI (HD-SDI) - Sub capabilities
     Bool  m_Cap1080I50;
     Bool  m_Cap1080I59_94;

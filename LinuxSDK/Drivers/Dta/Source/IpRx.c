@@ -30,41 +30,50 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <DtaIncludes.h>
 
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- defines -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // IPRX Tag
 #define  IPRX_TAG         0x78527049  // 'xRpI'
 
+#define DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE  2621440 
+                                        // The expected bitrate is 1GBit/s in a 
+                                        // period of 20 ms.
+                                        // calculation: 1GB/8 * 20mS = 2.5 Mbyte
+
 #if defined(WINBUILD)
-#define  DTA_IPRX_DMA_BUF_SIZE          (1024*1024)
+#define  DTA_IPRX_RT_BUF_SIZE           (DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE)       // Type2
+#define  DTA_IPRX_DMA_BUF_SIZE          (1024*1024)         // Type1
 #define  DTA_IPRX_NRT_SHARED_BUF_SIZE   (2*1024*1024)
 #else
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,20)) || !defined(CONFIG_MMU)
-#define  DTA_IPRX_DMA_BUF_SIZE          (1024*1024)
+#define  DTA_IPRX_RT_BUF_SIZE           (DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE)       // Type2
+#define  DTA_IPRX_DMA_BUF_SIZE          (1024*1024)         // Type1
 #define  DTA_IPRX_NRT_SHARED_BUF_SIZE   (2*1024*1024)
 #else
 // Lower value for RHEL/CentOS kernels
-#warning "IP buffer too small to get good performance!"
-#define  DTA_IPRX_DMA_BUF_SIZE          (64*1024)
-#define  DTA_IPRX_NRT_SHARED_BUF_SIZE   (2*64*1024)
+#undef DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE
+#define  DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE  (2*64*1024)
+#define  DTA_IPRX_RT_BUF_SIZE           (DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE)       // Type2
+#define  DTA_IPRX_DMA_BUF_SIZE          (64*1024)         // Type1
+#define  DTA_IPRX_NRT_SHARED_BUF_SIZE   (64*1024)
 #endif
 #endif
 
+#define  DTA_IPRX_RT_PINGPONG_BUF_SIZE  (DTA_IPRX_RT_BUF_SIZE * 2)
 #define  DTA_IPRX_PINGPONG_BUF_SIZE     (DTA_IPRX_DMA_BUF_SIZE * 2)
 
-#define  DTA_IPRX_DMA_HEADER_TAG        (0x445441A0)
 
+#define  DTA_IPRX_DMA_HEADER_TAG        (0x445441A0)
 #define  DTA_ETH_HEADER_SIZE  14
-#define  DTA_MAX_ETH_PAYLOAD  2000
 #define  DTA_IPRX_MAX_PACKET_SIZE       (DT_IP_MAX_PACKET_SIZE)
 
 #define  MAX_OUTOFSYNC_SEQ_NUM          12  
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext);
+void  DtaIpRxRtWorkerThread(DtThread* pThread, void* pContext);
 void  DtaIpRxReconstructThread(DtThread* pThread, void* pContext);
-DtStatus  DtaIpRxUserChAttach(DtaIpUserChannels* pIpUserChannels, Int IpPortIndex,
-                                                 DtFileObject* pFile, Int* pChannelIndex);
+DtStatus  DtaIpRxUserChAttach(DtaIpUserChannels* pIpUserChannels, Int PortIndex,
+                                Int IpPortIndex, DtFileObject* pFile, Int* pChannelIndex);
 DtStatus  DtaIpRxUserChDetach(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex);
 DtStatus  DtaIpRxUserChClearFlags(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
                                                                                Int Flags);
@@ -77,9 +86,11 @@ DtStatus  DtaIpRxGetTsRate(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
 DtStatus  DtaIpRxSetRxMode(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex, 
                                                                               Int RxMode);
 DtStatus  DtaIpRxReset(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex);
-DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
-                             UInt8* pSrcIp, UInt16 SrcPort, UInt8* pDstIp, UInt16 DstPort, 
-                             Int FecMode, Int Protocol);
+DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex, 
+            UInt8* pSrcIp, UInt16 SrcPort, UInt8* pDstIp, UInt16 DstPort, Int VlanId,
+            UInt8* pSrcIp2, UInt16 SrcPort2, UInt8* pDstIp2, UInt16 DstPort2, Int VlanId2,
+            Int FecMode, Int Protocol, Int Mode, Int Flags);
+
 DtStatus  DtaIpRxGetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
                                                  Int* pDetFecNumCols, Int* pDetFecNumRows,
                                                  Int* pDetNumTpPerIp, Int* pDetProtocol);
@@ -90,24 +101,34 @@ DtStatus  DtaIpRxGetIpStat(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
 DtStatus  DtaIpRxSetRxControl(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex, 
                                                                            Int RxControl);
 
+void  DtaIpRxGetLocalAddress(void* pContext, UInt8** pLocalAddress, UInt* pStart, 
+                                                        UInt* pStop, UInt* pTransferSize);
+void  DtaIpRxNrtGetLocalAddress(void* pContext, UInt8** pLocalAddress, UInt* pStart,
+                                                        UInt* pStop, UInt* pTransferSize);
+void DtaIpRxRtGetLocalAddress(void* pContext, UInt8** pLocalAddress, UInt* pStart,
+                                                        UInt* pStop, UInt* pTransferSize);
 void  DtaIpRxUserChInit(UserIpRxChannel* pIpRxChannel);
 void  DtaIpRxUserChReset(UserIpRxChannel* pIpRxChannel, Bool ClearInputStatus);
-UserIpRxChannel*  DtaIpRxUserChCreate(Int ChannelIndex, Int IpPortIndex, 
+UserIpRxChannel*  DtaIpRxUserChCreate(Int ChannelIndex, Int PortIndex, Int IpPortIndex,
                                                                      DtFileObject* pFile);
 static void  DtaIpRxUserChAddToList(DtaIpUserChannels* pIpUserChannels, 
                                                                UserIpRxChannel* pIpRxNew);
 static void  DtaIpRxUserChRemoveFromList(DtaIpUserChannels* pIpUserChannels,
                                                            UserIpRxChannel* pIpRxChannel);
-DtStatus  DtaIpRxCreateDmaBuffer(DmaChannel* pDmaChannel, PPBuffer* pPPBuffer, 
-                                                                      DtaIpPort* pIpPort);
-DtStatus  DtaIpRxCleanupDmaBuffer(DmaChannel* pDmaChannel, PPBuffer* pPPBuffer);
-
+Bool  DtaIpRxHandleLoopback(DtaIpUserChannels* pIpUserChannels, UInt8* pData, UInt Size);
+void  DtaIpRxProcessIpRawPayLoad(UserIpRxChannel* pIpRxChannel, UInt8* pPayLoad, 
+                                          Int PayLoadSize, UInt64 TimeStamp, Bool Header);
 void  DtaIpRxRtpListsReset(UserIpRxChannel* pIpRxChannel);
 DtStatus  DtaIpRxRtpListsInit(UserIpRxChannel* pIpRxChannel);
 void  DtaIpRxRtpListsCleanup( UserIpRxChannel* pIpRxChannel);
 void  DtaIpRxSetBrmSkipUpdate(DtaIpUserChannels* pIpRxUserChannels, Bool State);
 void  DtaIpRxUpdateBrmDpc(DtDpcArgs* pArgs);
 void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel);
+void  DtaIpRxRtSliceEventSetDpc(DtDpcArgs* pArgs);
+Int  DtaIpRxCalculateNumIpRxListenersType1(DtaIpPort* pIpPort, Bool IpV6Packet, 
+                                           Int VlanId, UInt8* pSrcIp, 
+                                           UInt8* pDstIp, UInt16 SrcPort, UInt16 DstPort);
+Int  DtaIpRxCalculateNumIpRxListenersType2(DtaIpPort* pIpPort, UInt32 IdTag);
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -119,6 +140,9 @@ DtStatus  DtaIpRxDeviceInit(DtaIpDevice* pIpDevice)
 
     Status = DtDpcInit(&pIpDevice->m_IpRtRxBrmDpc, DtaIpRxUpdateBrmDpc, TRUE);
 
+    if (DT_SUCCESS(Status))
+        Status = DtThreadInit(&pIpDevice->m_RxReconstructThread, 
+                                  DtaIpRxReconstructThread, &pIpDevice->m_IpUserChannels);
     return Status;
 }
 
@@ -154,15 +178,18 @@ DtStatus  DtaIpRxInitType1(DtaIpPort* pIpPort)
     Status = DtaDmaInitCh(pIpPort->m_pDvcData, pIpPort->m_PortIndex, 
                               DTA_IPRX_PINGPONG_BUF_SIZE, DTA_DMA_MODE_TIMEOUT_ENABLE,
                               DmaRegsOffsetRx, DTA_DMA_FLAGS_DATA_BUF_NO_COPY, 2,
-                              NULL, NULL, &pIpPortType1->m_Rx.m_DmaChannel);
+                              NULL, NULL, &pIpPortType1->m_Rx.m_DmaChannel, TRUE);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, IP_RX, "Error initialising IpRx DMA channel");
         return Status;
     }
 
-    Status = DtaIpRxCreateDmaBuffer(&pIpPortType1->m_Rx.m_DmaChannel, 
-                                                          &pIpPort->m_RxPPBuffer,pIpPort);
+    Status = DtaIpCreateDmaPPBuffer(&pIpPortType1->m_Rx.m_DmaChannel, 
+                                                     &pIpPortType1->m_RxPPBuffer, pIpPort,
+                                                     DTA_IPRX_PINGPONG_BUF_SIZE,
+                                                     DtaIpRxGetLocalAddress,
+                                                     DT_DMA_DIRECTION_FROM_DEVICE, FALSE);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, IP_RX, "Error creating IpRx DMA buffer");
@@ -177,6 +204,137 @@ DtStatus  DtaIpRxInitType1(DtaIpPort* pIpPort)
         return Status;
     }
 
+    Status = DtThreadInit(&pIpPort->m_IpPortType1.m_RxThread, DtaIpRxWorkerThread,
+                                                                                 pIpPort);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, IP_RX, "Error creating IpRx Rx thread");
+        return Status;
+    }
+
+    return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxInitType2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaIpRxInitType2(DtaIpPort* pIpPort)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    UInt  DmaRegsOffsetNrtRx;
+    UInt  DmaRegsOffsetRtRx;
+    DtaIpPortType2*  pIpPortType2 = &pIpPort->m_IpPortType2;
+    DtPropertyData*  pPropData = &pIpPort->m_pDvcData->m_PropData;
+    
+    // Initialise register offsets
+    pIpPortType2->m_RxNrt.m_pRegs = NULL;
+    pIpPortType2->m_RxNrt.m_RegsOffset = DtPropertiesGetUInt16(pPropData, 
+                                             "NW_REGISTERS_NRT_RX", pIpPort->m_PortIndex);
+    pIpPortType2->m_RxNrt.m_FifoOffset = 
+                              pIpPortType2->m_RxNrt.m_RegsOffset + DTA_LOCALADDR_FIFODATA;
+    
+    DmaRegsOffsetNrtRx = DtPropertiesGetUInt16(pPropData, "NW_REGISTERS_NRT_RX_DMA",
+                                                                    pIpPort->m_PortIndex);
+
+    pIpPortType2->m_RxRt.m_RegsOffset = DtPropertiesGetUInt16(pPropData, 
+                                              "NW_REGISTERS_RT_RX", pIpPort->m_PortIndex);
+    pIpPortType2->m_RxRt.m_FifoOffset = 
+                               pIpPortType2->m_RxRt.m_RegsOffset + DTA_LOCALADDR_FIFODATA;
+    
+    DmaRegsOffsetRtRx = DtPropertiesGetUInt16(pPropData, "NW_REGISTERS_RT_RX_DMA", 
+                                                                    pIpPort->m_PortIndex);
+    
+    // Report configuration errors
+    // Check if no property error occurred
+    Status = DtaPropertiesReportDriverErrors(pIpPort->m_pDvcData);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+     // Initialise NrtRx DMA channel
+    
+    // For NrtRx we use a Ping-pong buffer to transfer the data.
+    // For the complete ping-pong buffer, the SGL list is created
+    // The actual DMA transfer size will be the size divided by 2.
+    Status = DtaDmaInitCh(pIpPort->m_pDvcData, pIpPort->m_PortIndex, 
+                                  DTA_IPRX_PINGPONG_BUF_SIZE, DTA_DMA_MODE_TIMEOUT_ENABLE,
+                                  DmaRegsOffsetNrtRx, DTA_DMA_FLAGS_DATA_BUF_NO_COPY, 2,
+                                  NULL, NULL, &pIpPortType2->m_RxNrt.m_DmaChannel, TRUE);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, IP_RX, "Error initialising IpRx Nrt DMA channel");
+        return Status;
+    }
+
+    Status = DtaIpCreateDmaPPBuffer(&pIpPortType2->m_RxNrt.m_DmaChannel, 
+                                                  &pIpPortType2->m_RxNrtPPBuffer, pIpPort,
+                                                  DTA_IPRX_PINGPONG_BUF_SIZE,
+                                                  DtaIpRxNrtGetLocalAddress,
+                                                  DT_DMA_DIRECTION_FROM_DEVICE, FALSE);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, IP_RX, "Error creating IpRx Nrt DMA buffer");
+        return Status;
+    }
+
+    // Create and initialise Nrt Rx
+    Status = DtaIpRxNrtCreateBuffer(&pIpPort->m_NrtChannels);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, IP_RX, "Error creating IpRx NRT buffer");
+        return Status;
+    }
+
+    Status = DtThreadInit(&pIpPort->m_IpPortType2.m_RxNrtThread, DtaIpRxWorkerThread,
+                                                                                 pIpPort);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, IP_RX, "Error creating IpRx RxNrt thread");
+        return Status;
+    }
+
+    // Create and initialise Rt Rx
+    if (pIpPort->m_IpPortIndex%2 == 0)
+    {
+        // We set the FixedLocalAddress to FALSE because the SGL list local address
+        // must be incremented.
+        Status = DtaDmaInitCh(pIpPort->m_pDvcData, pIpPort->m_PortIndex, 
+                                   DTA_IPRX_RT_PINGPONG_BUF_SIZE, 0,
+                                   DmaRegsOffsetRtRx, DTA_DMA_FLAGS_DATA_BUF_NO_COPY, -1,
+                                   NULL, NULL, &pIpPortType2->m_RxRt.m_DmaChannel, FALSE);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOut(ERR, IP_RX, "Error initialising IpRx Rt DMA channel");
+            return Status;
+        }
+        // We create a ping-pong buffer so we can easily use a DMA channel for 2 ports.
+        Status = DtaIpCreateDmaPPBuffer(&pIpPortType2->m_RxRt.m_DmaChannel, 
+                                                   &pIpPortType2->m_RxRtPPBuffer, pIpPort,
+                                                   DTA_IPRX_RT_PINGPONG_BUF_SIZE,
+                                                   DtaIpRxRtGetLocalAddress,
+                                                   DT_DMA_DIRECTION_FROM_DEVICE, FALSE);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOut(ERR, IP_RX, "Error creating IpRx Rt DMA buffer");
+            return Status;
+        }
+
+        Status = DtThreadInit(&pIpPort->m_IpPortType2.m_RxRtThread, DtaIpRxRtWorkerThread,
+                                                                                 pIpPort);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOut(ERR, IP_RX, "Error creating IpRx RxRt thread");
+            return Status;
+        }
+    }
+    pIpPort->m_IpPortType2.m_RxRtSliceReadIndex = 0;
+    pIpPort->m_IpPortType2.m_RxRtSliceWriteIndex = 0;
+    DtEventInit(&pIpPort->m_IpPortType2.m_RxRtSliceEvent, TRUE);
+    Status = DtDpcInit(&pIpPort->m_IpPortType2.m_RxRtSliceEventSetDpc,
+                                                         DtaIpRxRtSliceEventSetDpc, TRUE);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, IP_RX, "Error initializing DPC for slice event");
+        return Status;
+    }
     return Status;
 }
 
@@ -205,7 +363,7 @@ DtStatus  DtaIpRxIoctl(
         return DT_STATUS_INVALID_PARAMETER;
 
     // Validate port index
-    if (!DT_SUCCESS(DtaGetIpPortIndex(pDvcData, pIpRxCmdInput->m_NwPortIndex,
+    if (!DT_SUCCESS(DtaGetIpPortIndex(pDvcData, pIpRxCmdInput->m_PortIndex,
                                                                            &IpPortIndex)))
         return DT_STATUS_INVALID_PARAMETER;
 
@@ -219,22 +377,22 @@ DtStatus  DtaIpRxIoctl(
         break;
     case DTA_IP_RX_CMD_CHANNEL_DETACH:
         pCmdStr = "DTA_IP_RX_CMD_CHANNEL_DETACH";
-        OutReqSize = 0;        
+        OutReqSize = 0;
         InReqSize += sizeof(DtaIoctlIpXxCmdAttachChannelOutput);
         break;
     case DTA_IP_RX_CMD_SETCONTROL:
         pCmdStr = "DTA_IP_RX_CMD_SETCONTROL";
-        OutReqSize = 0;        
+        OutReqSize = 0;
         InReqSize += sizeof(DtaIoctlIpXxCmdSetControlInput);
         break;    
     case DTA_IP_RX_CMD_RESET:
         pCmdStr = "DTA_IP_RX_CMD_RESET";
-        OutReqSize = 0;        
+        OutReqSize = 0;
         InReqSize += sizeof(DtaIoctlIpXxCmdResetInput);
         break;
     case DTA_IP_RX_CMD_CLEARFLAGS:
         pCmdStr = "DTA_IP_RX_CMD_CLEARFLAGS";
-        OutReqSize = 0;        
+        OutReqSize = 0;
         InReqSize += sizeof(DtaIoctlIpXxCmdClearFlagsInput);
         break;
     case DTA_IP_RX_CMD_GETFLAGS:
@@ -254,13 +412,18 @@ DtStatus  DtaIpRxIoctl(
         break;
     case DTA_IP_RX_CMD_SETMODE:
         pCmdStr = "DTA_IP_RX_CMD_SETMODE";
-        OutReqSize = 0;        
+        OutReqSize = 0;
         InReqSize += sizeof(DtaIoctlIpRxCmdSetModeInput);
         break;
     case DTA_IP_RX_CMD_SETIPPARS:
         pCmdStr = "DTA_IP_RX_CMD_SETIPPARS";
         OutReqSize = 0;
         InReqSize += sizeof(DtaIoctlIpRxCmdSetIpParsInput);
+        break;
+    case DTA_IP_RX_CMD_SETIPPARS2:
+        pCmdStr = "DTA_IP_RX_CMD_SETIPPARS2";
+        OutReqSize = 0;
+        InReqSize += sizeof(DtaIoctlIpRxCmdSetIpPars2Input);
         break;
     case DTA_IP_RX_CMD_GETIPPARS:
         pCmdStr = "DTA_IP_RX_CMD_GETIPPARS";
@@ -308,7 +471,7 @@ DtStatus  DtaIpRxIoctl(
         {
         case DTA_IP_RX_CMD_CHANNEL_ATTACH:
             Status = DtaIpRxUserChAttach(&pDvcData->m_IpDevice.m_IpUserChannels, 
-                                       IpPortIndex, pFile, 
+                                       pIpRxCmdInput->m_PortIndex, IpPortIndex, pFile,
                                        &pIpRxCmdOutput->m_Data.m_AttachChannel.m_Channel);
             break;
         case DTA_IP_RX_CMD_CHANNEL_DETACH:
@@ -346,31 +509,51 @@ DtStatus  DtaIpRxIoctl(
             Status = DtaIpRxReset(&pDvcData->m_IpDevice.m_IpUserChannels,
                                                  pIpRxCmdInput->m_Data.m_Reset.m_Channel);
             break;
-        case DTA_IP_RX_CMD_SETIPPARS:            
+        case DTA_IP_RX_CMD_SETIPPARS:
             Status = DtaIpRxSetIpPars(&pDvcData->m_IpDevice.m_IpUserChannels,
                                              pIpRxCmdInput->m_Data.m_SetIpPars.m_Channel,
                                              pIpRxCmdInput->m_Data.m_SetIpPars.m_SrcIp,
                                              pIpRxCmdInput->m_Data.m_SetIpPars.m_SrcPort,
                                              pIpRxCmdInput->m_Data.m_SetIpPars.m_DstIp,
                                              pIpRxCmdInput->m_Data.m_SetIpPars.m_DstPort,
+                                             0, NULL, 0, NULL, 0, 0,
                                              pIpRxCmdInput->m_Data.m_SetIpPars.m_FecMode,
-                                             pIpRxCmdInput->m_Data.m_SetIpPars.m_Protocol);
+                                             pIpRxCmdInput->m_Data.m_SetIpPars.m_Protocol,
+                                             DTA_IP_V4, DTA_IP_NORMAL);
+            break;
+        case DTA_IP_RX_CMD_SETIPPARS2:
+            Status = DtaIpRxSetIpPars(&pDvcData->m_IpDevice.m_IpUserChannels,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_Channel,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_SrcIp,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_SrcPort,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_DstIp,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_DstPort,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_VlanId,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_SrcIp2,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_SrcPort2,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_DstIp2,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_DstPort2,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_VlanId2,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_FecMode,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_Protocol,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_Mode,
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_Flags);
             break;
         case DTA_IP_RX_CMD_GETIPPARS:
             Status = DtaIpRxGetIpPars(&pDvcData->m_IpDevice.m_IpUserChannels,
-                                            pIpRxCmdInput->m_Data.m_GetIpPars.m_Channel,
-                                            &pIpRxCmdOutput->m_Data.m_GetIpPars.m_FecNumCols,
-                                            &pIpRxCmdOutput->m_Data.m_GetIpPars.m_FecNumRows,
-                                            &pIpRxCmdOutput->m_Data.m_GetIpPars.m_NumTpPerIp,
-                                            &pIpRxCmdOutput->m_Data.m_GetIpPars.m_Protocol);
+                                         pIpRxCmdInput->m_Data.m_GetIpPars.m_Channel,
+                                         &pIpRxCmdOutput->m_Data.m_GetIpPars.m_FecNumCols,
+                                         &pIpRxCmdOutput->m_Data.m_GetIpPars.m_FecNumRows,
+                                         &pIpRxCmdOutput->m_Data.m_GetIpPars.m_NumTpPerIp,
+                                         &pIpRxCmdOutput->m_Data.m_GetIpPars.m_Protocol);
             break;
         case DTA_IP_RX_CMD_GETIPSTAT:
             Status = DtaIpRxGetIpStat(&pDvcData->m_IpDevice.m_IpUserChannels,
-                                    pIpRxCmdInput->m_Data.m_GetIpStat.m_Channel,
+                            pIpRxCmdInput->m_Data.m_GetIpStat.m_Channel,
                             &pIpRxCmdOutput->m_Data.m_GetIpStat.m_LostIPPacketsAfterFec,
-                            &pIpRxCmdOutput->m_Data.m_GetIpStat.m_LostIPPacketsAfterSort,
+                            &pIpRxCmdOutput->m_Data.m_GetIpStat.m_Reserved1,
                             &pIpRxCmdOutput->m_Data.m_GetIpStat.m_LostIPPacketsBeforeFec,
-                            &pIpRxCmdOutput->m_Data.m_GetIpStat.m_LostIPPacketsBeforeSort,
+                            &pIpRxCmdOutput->m_Data.m_GetIpStat.m_Reserved2,
                             &pIpRxCmdOutput->m_Data.m_GetIpStat.m_TotNumIPPackets);
             break;
         case DTA_IP_RX_CMD_SETCONTROL:
@@ -403,11 +586,12 @@ DtStatus  DtaIpRxIoctl(
 // Creates and adds an empty IP RX channel to its internal list. The index of this new
 // channel is returned to the caller.
 //
-// Precondition: IpPortIndex is the 0-based index to an IpPort, NOT the port number as
-//               set by the user.
+// Precondition: PortIndex is the 0 based index to the Port set by the user
+//               IpPortIndex is the 0-based index to an IpPort
 //
 DtStatus  DtaIpRxUserChAttach(
     DtaIpUserChannels*  pIpUserChannels,
+    Int  PortIndex, 
     Int  IpPortIndex, 
     DtFileObject*  pFile,
     Int*  pChannelIndex)
@@ -431,8 +615,8 @@ DtStatus  DtaIpRxUserChAttach(
         pIpRxChannel = pIpRxChannel->m_pNext;
     }
 
-    // create a channel with this index
-    pIpRxChannel = DtaIpRxUserChCreate(ChannelIndex, IpPortIndex, pFile);
+    // Create a channel with this index
+    pIpRxChannel = DtaIpRxUserChCreate(ChannelIndex, PortIndex, IpPortIndex, pFile);
     if (pIpRxChannel == NULL)
     {
         DtFastMutexRelease(&pIpUserChannels->m_IpRxChAccesMutex);
@@ -448,7 +632,7 @@ DtStatus  DtaIpRxUserChAttach(
     DtaIpRxSetBrmSkipUpdate(pIpUserChannels, TRUE);
 
     pIpRxChannel->m_IpParsValid = FALSE;
-    pIpRxChannel->m_RefCount = 0;    
+    pIpRxChannel->m_RefCount = 0;
 
     DtaIpRxUserChInit(pIpRxChannel);
     DtaIpRxUserChReset(pIpRxChannel, TRUE);
@@ -561,9 +745,40 @@ DtStatus  DtaIpRxGetTsRate(
     return DT_STATUS_OK;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxHandleLoopback -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool DtaIpRxHandleLoopback(DtaIpUserChannels* pIpUserChannels, UInt8* pData, UInt Size)
+{
+    Bool  DataHandled = FALSE;
+    UserIpRxChannel*  pIpRxChannel;
+
+    // All data must be copied directly to a enabled channel
+    // Wait until the Rx structure is available
+    DtFastMutexAcquire(&pIpUserChannels->m_IpRxChThreadMutex);
+
+    // Search the Rx channels to be enabled for loopback mode
+    pIpRxChannel = pIpUserChannels->m_pIpRxChannel;
+    while (pIpRxChannel != NULL)
+    {
+        // Check if the channel is the one we are searching for
+        // Is the channel receiving?
+        if (pIpRxChannel->m_RxControl==DT_RXCTRL_RCV && 
+                             (pIpRxChannel->m_RxMode & DT_RXMODE_MASK) == DT_RXMODE_IPRAW)
+        {
+            DtaIpRxProcessIpRawPayLoad(pIpRxChannel, pData, Size, 0, FALSE);
+            DataHandled = TRUE;
+        }
+        pIpRxChannel = pIpRxChannel->m_pNext;
+    }
+
+    DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
+    return DataHandled;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxSetMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaIpRxSetRxMode(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex, Int RxMode)
+DtStatus  DtaIpRxSetRxMode(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
+                                                                               Int RxMode)
 {
     UserIpRxChannel*  pIpRxChannel = DtaIpRxUserChGet(pIpUserChannels, ChannelIndex);
     if (pIpRxChannel == NULL)
@@ -635,7 +850,8 @@ DtStatus DtaIpRxSetRxControl(DtaIpUserChannels* pIpUserChannels, Int ChannelInde
     {
         if (!pIpRxChannel->m_SharedBuffer.m_Initialised) 
         {
-            DtDbgOut(ERR, IP_RX, "Fifo buffer not initialized for channel %d.", ChannelIndex);
+            DtDbgOut(ERR, IP_RX, "Fifo buffer not initialized for channel %d.", 
+                                                                            ChannelIndex);
             return DT_STATUS_FAIL;
         }
         pIpRxChannel->m_RxControl = DT_RXCTRL_RCV;
@@ -670,25 +886,130 @@ DtStatus  DtaIpRxReset(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex)
 
     return DT_STATUS_OK;
 }
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxAddrMatcherPrepareAndAddEntry -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaIpRxAddrMatcherPrepareAndAddEntry(DtaIpPort* pIpPort, 
+           AddressMatcherLookupEntry* pEntry, AddressMatcherLookupEntryPart2* pEntryPart2,
+           Bool IpV6, UInt8* pSrcIp, UInt8* pDstIp, UInt16 DstPort)
+{
+    DtaIpPort*  pIpPortFirst = 
+           &pIpPort->m_pDvcData->m_IpDevice.m_pIpPorts[pIpPort->m_IpPortIndex&0xfffffffe];
+    Bool  IpV6SSM = FALSE;
+    DtStatus  Status = DT_STATUS_OK;
+    Int  NumListeners = 0;
+    
+    // Delete address matcher entry from list. If not in list, it's NOPed.
+    DtaIpAddrMatcherDeleteEntry(pIpPort, pEntry, pEntryPart2);
+
+    // Update entry
+    pEntry->m_Data.m_Data0 = 0;
+    pEntry->m_Data.m_Data1 = 0;
+    pEntry->m_Data.m_Data2 = 0;
+    pEntry->m_Data.m_Data3 = 0;
+    pEntry->m_Data.m_Data4 = 0;
+    pEntry->m_Data.m_Data5 = 0;
+
+    pEntryPart2->m_Data.m_Data0 = 0;
+    pEntryPart2->m_Data.m_Data1 = 0;
+    pEntryPart2->m_Data.m_Data2 = 0;
+    pEntryPart2->m_Data.m_Data3 = 0;
+    pEntryPart2->m_Data.m_Data4 = 0;
+    pEntryPart2->m_Data.m_Data5 = 0;
+
+    if (IpV6)
+    {
+        pEntry->m_IpV6.m_Version = 1; // IPv6
+        pEntry->m_IpV6.m_BaseUdpPort = DstPort;
+        pEntry->m_IpV6.m_DestIpAddressH2 = (UInt64)(pDstIp[0]<<25) |
+                                        (UInt64)(pDstIp[1])<<17 | (UInt64)(pDstIp[2])<<9 |
+                                        (UInt64)(pDstIp[3])<<1 | (UInt64)(pDstIp[4])>>7;
+        pEntry->m_IpV6.m_DestIpAddressH1 = (UInt64)(pDstIp[4])<<57 |
+                                       (UInt64)(pDstIp[5])<<49 | (UInt64)(pDstIp[6])<<41 |
+                                       (UInt64)(pDstIp[7])<<33 | (UInt64)(pDstIp[8])<<25 |
+                                       (UInt64)(pDstIp[9])<<17 | (UInt64)(pDstIp[10])<<9 |
+                                       (UInt64)(pDstIp[11])<<1 | (UInt64)(pDstIp[12])>>7;
+        pEntry->m_IpV6.m_DestIpAddressL = (UInt64)(pDstIp[12])<<24 |
+                                      (UInt64)(pDstIp[13])<<16 | (UInt64)(pDstIp[14])<<8 |
+                                      (UInt64)(pDstIp[15]);
+        pEntry->m_IpV6.m_NRT = 0;
+        pEntry->m_IpV6.m_Port = pIpPort->m_IpPortIndex;
+        if (DtaIpIsIpAddressEmpty(IpV6, pSrcIp))
+        {
+            pEntry->m_IpV6.m_SSM = 0;
+            pEntryPart2->m_IpV6SSM.m_IpV6Part2.m_SrcIpAddressH1 = 0;
+            pEntryPart2->m_IpV6SSM.m_IpV6Part2.m_SrcIpAddressH2 = 0;
+            pEntryPart2->m_IpV6SSM.m_IpV6Part2.m_SrcIpAddressL = 0;
+        } else {
+            IpV6SSM = TRUE;
+            pEntry->m_IpV6.m_SSM = 1;
+            pEntryPart2->m_IpV6SSM.m_IpV6Part2.m_SrcIpAddressH2 = 
+                                        (UInt64)(pSrcIp[0]<<25) |
+                                        (UInt64)(pSrcIp[1])<<17 | (UInt64)(pSrcIp[2])<<9 |
+                                        (UInt64)(pSrcIp[3])<<1 | (UInt64)(pSrcIp[4])>>7;
+            pEntryPart2->m_IpV6SSM.m_IpV6Part2.m_SrcIpAddressH1 = 
+                                       (UInt64)(pSrcIp[4])<<57 |
+                                       (UInt64)(pSrcIp[5])<<49 | (UInt64)(pSrcIp[6])<<41 |
+                                       (UInt64)(pSrcIp[7])<<33 | (UInt64)(pSrcIp[8])<<25 |
+                                       (UInt64)(pSrcIp[9])<<17 | (UInt64)(pSrcIp[10])<<9 |
+                                       (UInt64)(pSrcIp[11])<<1 | (UInt64)(pSrcIp[12])>>7;
+            pEntryPart2->m_IpV6SSM.m_IpV6Part2.m_SrcIpAddressL = 
+                                     (UInt64)(pSrcIp[12])<<24 | (UInt64)(pSrcIp[13])<<16 |
+                                     (UInt64)(pSrcIp[14])<<8 | (UInt64)(pSrcIp[15]);
+        }
  
+        // Add entry
+        DtaIpAddrMatcherAddEntry(pIpPort, &pIpPortFirst->m_IpPortType2.m_AddrMatchHead, 
+                                                                     pEntry, pEntryPart2);
+    } else {
+        pEntry->m_IpV4.m_Version = 0; // IpV4
+        pEntry->m_IpV4.m_BaseUdpPort = DstPort;
+        pEntry->m_IpV4.m_DestIpAddressL = (UInt32)(pDstIp[0]&0x7f)<<24 |
+                                        (UInt32)(pDstIp[1])<<16 | (UInt32)(pDstIp[2])<<8 |
+                                        (UInt32)(pDstIp[3]);
+        pEntry->m_IpV4.m_DestIpAddressH = ((pDstIp[0]&0x80) != 0?1:0);
+        pEntry->m_IpV4.m_SrcIpAddress = (UInt32)(pSrcIp[0])<<24 | 
+                                        (UInt32)(pSrcIp[1])<<16 | (UInt32)(pSrcIp[2])<<8 |
+                                        (UInt32)(pSrcIp[3]);
+        pEntry->m_IpV4.m_NRT = 0;
+        pEntry->m_IpV4.m_Port = pIpPort->m_IpPortIndex;
+        if (DtaIpIsIpAddressEmpty(IpV6, pSrcIp))
+            pEntry->m_IpV4.m_SSM = 0;
+        else
+            pEntry->m_IpV4.m_SSM = 1;
+            
+        // Add entry
+        DtaIpAddrMatcherAddEntry(pIpPort, &pIpPortFirst->m_IpPortType2.m_AddrMatchHead, 
+                                                                            pEntry, NULL);
+    }
+
+    NumListeners = DtaIpRxCalculateNumIpRxListenersType2(pIpPort, (UInt32)
+                    (IpV6SSM ? pEntryPart2->m_IpV6SSM.m_IpV6Part2_First.m_AddressIDTag 
+                    : pEntry->m_Gen.m_AddressIDTag));
+    Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners);
+    return Status;
+}
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxSetIpPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaIpRxSetIpPars(
-    DtaIpUserChannels* pIpUserChannels,
-    Int ChannelIndex,
-    UInt8*  pSrcIp,
-    UInt16  SrcPort,
-    UInt8*  pDstIp,
-    UInt16  DstPort,
-    Int  FecMode,
-    Int  Protocol)
+DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex, 
+            UInt8* pSrcIp, UInt16 SrcPort, UInt8* pDstIp, UInt16 DstPort, Int VlanId,
+            UInt8* pSrcIp2, UInt16 SrcPort2, UInt8* pDstIp2, UInt16 DstPort2, Int VlanId2,
+            Int FecMode, Int Protocol, Int Mode, Int Flags)
 {
-    Int i;
-
+    Int  i;
+    DtaIpDevice*  pIpDevice = &pIpUserChannels->m_pDvcData->m_IpDevice;
     UserIpRxChannel*  pIpRxChannel = DtaIpRxUserChGet(pIpUserChannels, ChannelIndex);
+    DtaIpPort*  pIpPort;
+    Bool  IpV6 = (Flags & DTA_IP_V6) != 0;
+    DtStatus  Status = DT_STATUS_OK;
+    
     if (pIpRxChannel == NULL)
         return DT_STATUS_INVALID_PARAMETER;
 
+    pIpPort =  &pIpDevice->m_pIpPorts[pIpRxChannel->m_IpPortIndex];
+    
     // Only allowed in Receive-Control state IDLE
     if (pIpRxChannel->m_RxControl != DT_RXCTRL_IDLE) 
     {
@@ -698,19 +1019,212 @@ DtStatus  DtaIpRxSetIpPars(
 
     pIpRxChannel->m_SrcPort = SrcPort;
     pIpRxChannel->m_DstPort = DstPort;
+    pIpRxChannel->m_SrcPort2 = SrcPort2;
+    pIpRxChannel->m_DstPort2 = DstPort2;
+    pIpRxChannel->m_IpParsMode = Mode;
+    pIpRxChannel->m_IpParsFlags = Flags;
+    pIpRxChannel->m_VlanId = VlanId;
+    pIpRxChannel->m_VlanId2 = VlanId2;
 
-    for (i = 0; i < 4; i++) {
+    for (i=0; i<16; i++) 
+    {
         pIpRxChannel->m_SrcIPAddress[i] = pSrcIp[i];
         pIpRxChannel->m_DstIPAddress[i] = pDstIp[i];
+        if (pSrcIp2 != NULL)
+            pIpRxChannel->m_SrcIPAddress2[i] = pSrcIp2[i];
+        if (pDstIp2 != NULL)
+            pIpRxChannel->m_DstIPAddress2[i] = pDstIp2[i];
     }
 
     pIpRxChannel->m_FecMode = FecMode;
-    pIpRxChannel->m_IpParsValid = TRUE;
+    
+    if (pIpUserChannels->m_pDvcData->m_IpDevice.m_PortType == DTA_IPPORT_TYPE2)
+    {
+        DtaIpPort*  pIpPortFirst = 
+                           &pIpDevice->m_pIpPorts[pIpRxChannel->m_IpPortIndex&0xfffffffe];
+        AddressMatcherLookupEntry*  pEntry = 
+                        &pIpRxChannel->m_AddrMatcherEntry[0][pIpRxChannel->m_IpPortIndex];
+        AddressMatcherLookupEntryPart2*  pEntryPart2 = 
+                &pIpRxChannel->m_AddrMatcherEntrySSMPart2[0][pIpRxChannel->m_IpPortIndex];
+
+        // Check if pDstIp is not in the SSM range and pSrcIp not is 0.0.0.0
+        // If so, we have to check the pSrcIp in our receive thread. The FW does not
+        // support it.
+        pIpRxChannel->m_DoSSMCheckSw = FALSE;
+        if (DtaIpNeedDriverSSMCheckType2(IpV6, pSrcIp, pDstIp))
+        {
+            DtaIpClearIpAddress(IpV6, pSrcIp);
+            pIpRxChannel->m_DoSSMCheckSw = TRUE;
+        }
+
+        Status = DtaIpRxAddrMatcherPrepareAndAddEntry(pIpPort, pEntry, pEntryPart2, IpV6,
+                                                                 pSrcIp, pDstIp, DstPort);
+        if (Status != DT_STATUS_OK)
+            return Status;
+        
+        if (FecMode != DTA_FEC_DISABLE)
+        {
+            pEntry = &pIpRxChannel->m_AddrMatcherEntry[ADDRM_TYPE_FECROW] \
+                                                            [pIpRxChannel->m_IpPortIndex];
+            pEntryPart2 = &pIpRxChannel->m_AddrMatcherEntrySSMPart2[ADDRM_TYPE_FECROW] \
+                                                            [pIpRxChannel->m_IpPortIndex];
+            Status = DtaIpRxAddrMatcherPrepareAndAddEntry(pIpPort, pEntry, pEntryPart2, 
+                                          IpV6, pSrcIp, pDstIp, DstPort+FEC_INC_ROW_PORT);
+            if (Status != DT_STATUS_OK)
+                return Status;
+
+            pEntry = &pIpRxChannel->m_AddrMatcherEntry[ADDRM_TYPE_FECCOLUMN] \
+                                                            [pIpRxChannel->m_IpPortIndex];
+            pEntryPart2 = &pIpRxChannel->m_AddrMatcherEntrySSMPart2[ADDRM_TYPE_FECCOLUMN]\
+                                                            [pIpRxChannel->m_IpPortIndex];
+            Status = DtaIpRxAddrMatcherPrepareAndAddEntry(pIpPort, pEntry, pEntryPart2, 
+                                       IpV6, pSrcIp, pDstIp, DstPort+FEC_INC_COLUMN_PORT);
+            if (Status != DT_STATUS_OK)
+                return Status;
+        } else {
+            // Delete FEC entries if used in previous call
+            pEntry = &pIpRxChannel->m_AddrMatcherEntry[ADDRM_TYPE_FECROW] \
+                                                                 [pIpPort->m_IpPortIndex];
+            pEntryPart2 = &pIpRxChannel->m_AddrMatcherEntrySSMPart2[ADDRM_TYPE_FECROW] \
+                                                                 [pIpPort->m_IpPortIndex];
+            DtaIpAddrMatcherDeleteEntry(pIpPort, pEntry, pEntryPart2);
+
+            pEntry = &pIpRxChannel->m_AddrMatcherEntry[ADDRM_TYPE_FECCOLUMN] \
+                                                                 [pIpPort->m_IpPortIndex];
+            pEntryPart2 = 
+                         &pIpRxChannel->m_AddrMatcherEntrySSMPart2[ADDRM_TYPE_FECCOLUMN] \
+                                                                 [pIpPort->m_IpPortIndex];
+            DtaIpAddrMatcherDeleteEntry(pIpPort, pEntry, pEntryPart2);
+        }
+
+        if ((Mode & DTA_IP_RX_DBLBUF) != 0)
+        {
+            DtaIpPort*  pIpPort = &pIpDevice->m_pIpPorts[pIpPortFirst->m_IpPortIndex+1];
+            AddressMatcherLookupEntry*  pEntry = 
+                      &pIpRxChannel->m_AddrMatcherEntry[0][pIpPortFirst->m_IpPortIndex+1];
+            AddressMatcherLookupEntryPart2*  pEntryPart2 = 
+              &pIpRxChannel->m_AddrMatcherEntrySSMPart2[0][pIpPortFirst->m_IpPortIndex+1];
+            DT_ASSERT((pIpPortFirst->m_IpPortIndex & 1) == 0);
+
+            pIpRxChannel->m_DoSSMCheckSw2 = FALSE;
+            if (DtaIpNeedDriverSSMCheckType2(IpV6, pSrcIp2, pDstIp2))
+            {
+                DtaIpClearIpAddress(IpV6, pSrcIp2);
+                pIpRxChannel->m_DoSSMCheckSw2 = TRUE;
+            }
+            
+            // We need a second entry for port2
+            Status = DtaIpRxAddrMatcherPrepareAndAddEntry(pIpPort, pEntry, pEntryPart2, 
+                                                        IpV6, pSrcIp2, pDstIp2, DstPort2);
+            if (Status != DT_STATUS_OK)
+                return Status;
+
+            if (FecMode != DTA_FEC_DISABLE)
+            {
+                pEntry = &pIpRxChannel->m_AddrMatcherEntry[ADDRM_TYPE_FECROW] \
+                                                          [pIpPort->m_IpPortIndex];
+                pEntryPart2 = 
+                            &pIpRxChannel->m_AddrMatcherEntrySSMPart2[ADDRM_TYPE_FECROW] \
+                                                          [pIpPort->m_IpPortIndex];
+                Status = DtaIpRxAddrMatcherPrepareAndAddEntry(pIpPort, pEntry, 
+                          pEntryPart2, IpV6, pSrcIp2, pDstIp2, DstPort2+FEC_INC_ROW_PORT);
+                if (Status != DT_STATUS_OK)
+                    return Status;
+
+                pEntry = &pIpRxChannel->m_AddrMatcherEntry[ADDRM_TYPE_FECCOLUMN] \
+                                                          [pIpPort->m_IpPortIndex];
+                pEntryPart2 = 
+                         &pIpRxChannel->m_AddrMatcherEntrySSMPart2[ADDRM_TYPE_FECCOLUMN] \
+                         [pIpPort->m_IpPortIndex];
+                DtaIpRxAddrMatcherPrepareAndAddEntry(pIpPort, pEntry, pEntryPart2, IpV6,
+                                          pSrcIp2, pDstIp2, DstPort2+FEC_INC_COLUMN_PORT);
+            } else {
+                // Delete FEC entries if used in previous call
+                pEntry = &pIpRxChannel->m_AddrMatcherEntry[ADDRM_TYPE_FECROW] \
+                                                              [pIpPort->m_IpPortIndex];
+                pEntryPart2 =
+                            &pIpRxChannel->m_AddrMatcherEntrySSMPart2[ADDRM_TYPE_FECROW] \
+                                                                 [pIpPort->m_IpPortIndex];
+                DtaIpAddrMatcherDeleteEntry(pIpPort, pEntry, pEntryPart2);
+
+                pEntry = &pIpRxChannel->m_AddrMatcherEntry[ADDRM_TYPE_FECCOLUMN] \
+                                                              [pIpPort->m_IpPortIndex];
+                pEntryPart2 = 
+                         &pIpRxChannel->m_AddrMatcherEntrySSMPart2[ADDRM_TYPE_FECCOLUMN] \
+                                                                 [pIpPort->m_IpPortIndex];
+                DtaIpAddrMatcherDeleteEntry(pIpPort, pEntry, pEntryPart2);
+            }
+        } else if ((pIpPort->m_IpPortIndex&1) == 0) {
+            DtaIpPort*  pIpPort = &pIpDevice->m_pIpPorts[pIpPortFirst->m_IpPortIndex+1];
+            AddressMatcherLookupEntry*  pEntry = 
+                      &pIpRxChannel->m_AddrMatcherEntry[0][pIpPortFirst->m_IpPortIndex+1];
+            AddressMatcherLookupEntryPart2*  pEntryPart2 = 
+              &pIpRxChannel->m_AddrMatcherEntrySSMPart2[0][pIpPortFirst->m_IpPortIndex+1];
+            DT_ASSERT((pIpPortFirst->m_IpPortIndex & 1) == 0);
+            
+            // Delete entry port2 if current channel is using port1
+            // Delete address matcher entry from list. If not in list, it's NOPed.
+            DtaIpAddrMatcherDeleteEntry(pIpPort, pEntry, pEntryPart2);
+
+            pEntry = &pIpRxChannel->m_AddrMatcherEntry[ADDRM_TYPE_FECROW] \
+                                                          [pIpPort->m_IpPortIndex];
+            pEntryPart2 = &pIpRxChannel->m_AddrMatcherEntrySSMPart2[ADDRM_TYPE_FECROW] \
+                                                          [pIpPort->m_IpPortIndex];
+            DtaIpAddrMatcherDeleteEntry(pIpPort, pEntry, pEntryPart2);
+
+            pEntry = &pIpRxChannel->m_AddrMatcherEntry[ADDRM_TYPE_FECCOLUMN] \
+                                                          [pIpPort->m_IpPortIndex];
+            pEntryPart2 = 
+                         &pIpRxChannel->m_AddrMatcherEntrySSMPart2[ADDRM_TYPE_FECCOLUMN] \
+                                                          [pIpPort->m_IpPortIndex];
+            DtaIpAddrMatcherDeleteEntry(pIpPort, pEntry, pEntryPart2);
+        }
+
+        // Update address matcher
+        DtaIpAddrMatcherUpdateTable(pIpPort, 
+                                            &pIpPortFirst->m_IpPortType2.m_AddrMatchHead);
+    } else {
+        Int  NumListeners;
+        pIpRxChannel->m_DoSSMCheckSw = TRUE;
+        NumListeners = DtaIpRxCalculateNumIpRxListenersType1(pIpPort, IpV6, 
+                                            VlanId, pSrcIp, pDstIp, SrcPort, DstPort);
+        Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners);
+        if (Status != DT_STATUS_OK)
+            return Status;
+        if (FecMode != DTA_FEC_DISABLE)
+        {
+           NumListeners = DtaIpRxCalculateNumIpRxListenersType1(pIpPort, IpV6, 
+                                                          VlanId, pSrcIp, pDstIp, SrcPort,
+                                                          DstPort+FEC_INC_COLUMN_PORT);
+            Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners);
+            if (Status != DT_STATUS_OK)
+                return Status;
+            NumListeners = DtaIpRxCalculateNumIpRxListenersType1(pIpPort, IpV6, 
+                                                          VlanId, pSrcIp, pDstIp, SrcPort,
+                                                          DstPort+FEC_INC_ROW_PORT);
+            Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners);
+            if (Status != DT_STATUS_OK)
+                return Status;
+        }
+    }
 
     // Reset channel after including input streams status information
     DtaIpRxUserChReset(pIpRxChannel, TRUE);
-
-    DtDbgOut(MIN, IP_RX, "Channel %d: New IP pars: SrcPort=%d; DstPort=%d " \
+    if ((Flags & DTA_IP_V6) != 0)
+        DtDbgOut(MIN, IP_RX, "Channel %d: New IP pars: SrcPort=%d; DstPort=%d "
+                       "DstIP: %d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d",
+                       pIpRxChannel->m_ChannelIndex, 
+                       pIpRxChannel->m_SrcPort, pIpRxChannel->m_DstPort,
+                       pIpRxChannel->m_DstIPAddress[0],pIpRxChannel->m_DstIPAddress[1],
+                       pIpRxChannel->m_DstIPAddress[2],pIpRxChannel->m_DstIPAddress[3],
+                       pIpRxChannel->m_DstIPAddress[4],pIpRxChannel->m_DstIPAddress[5],
+                       pIpRxChannel->m_DstIPAddress[6],pIpRxChannel->m_DstIPAddress[7],
+                       pIpRxChannel->m_DstIPAddress[8],pIpRxChannel->m_DstIPAddress[9],
+                       pIpRxChannel->m_DstIPAddress[10],pIpRxChannel->m_DstIPAddress[11],
+                       pIpRxChannel->m_DstIPAddress[12],pIpRxChannel->m_DstIPAddress[13],
+                       pIpRxChannel->m_DstIPAddress[14],pIpRxChannel->m_DstIPAddress[15]);
+    else
+        DtDbgOut(MIN, IP_RX, "Channel %d: New IP pars: SrcPort=%d; DstPort=%d "
                          "SrcIP: %d.%d.%d.%d DstIP: %d.%d.%d.%d",
                          pIpRxChannel->m_ChannelIndex, 
                          pIpRxChannel->m_SrcPort, pIpRxChannel->m_DstPort,
@@ -718,7 +1232,7 @@ DtStatus  DtaIpRxSetIpPars(
                          pIpRxChannel->m_SrcIPAddress[2],pIpRxChannel->m_SrcIPAddress[3],
                          pIpRxChannel->m_DstIPAddress[0],pIpRxChannel->m_DstIPAddress[1],
                          pIpRxChannel->m_DstIPAddress[2],pIpRxChannel->m_DstIPAddress[3]);
-
+    pIpRxChannel->m_IpParsValid = TRUE;
     return DT_STATUS_OK;
 }
 
@@ -728,7 +1242,7 @@ DtStatus  DtaIpRxGetIpPars(
     DtaIpUserChannels*  pIpUserChannels,
     Int  ChannelIndex,
     Int*  pDetFecNumCols,
-    Int*  pDetFecNumRows,    
+    Int*  pDetFecNumRows,
     Int*  pDetNumTpPerIp,
     Int*  pDetProtocol)
 {
@@ -749,13 +1263,13 @@ DtStatus  DtaIpRxGetIpPars(
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetIpStat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaIpRxGetIpStat(   
+DtStatus  DtaIpRxGetIpStat(
     DtaIpUserChannels*  pIpUserChannels,
     Int  ChannelIndex,
     Int*  pLostIPPacketsAfterFec,
-    Int*  pLostIPPacketsAfterSort,
+    Int*  pReserved1,
     Int*  pLostIPPacketsBeforeFec,
-    Int*  pLostIPPacketsBeforeSort,
+    Int*  pReserved2,
     Int*  pTotNumIPPackets)
 {    
     UserIpRxChannel*  pIpRxChannel = DtaIpRxUserChGet(pIpUserChannels, ChannelIndex);
@@ -768,8 +1282,8 @@ DtStatus  DtaIpRxGetIpStat(
     *pLostIPPacketsBeforeFec = pIpRxChannel->m_NumPacketsNotReconstructed +
                                pIpRxChannel->m_NumPacketsReconstructed;
 
-    *pLostIPPacketsAfterSort = 0;
-    *pLostIPPacketsBeforeSort = 0;
+    *pReserved1 = 0;
+    *pReserved2 = 0;
 
     DtSpinLockRelease(&pIpRxChannel->m_StatisticsSpinLock);
 
@@ -786,43 +1300,155 @@ void  DtaIpRxCleanupType1(DtaIpPort* pIpPort)
     
     
     // Cleanup DMA Rx
-    DtaIpRxCleanupDmaBuffer(&pIpPortType1->m_Rx.m_DmaChannel, &pIpPort->m_RxPPBuffer);
+    DtaIpCleanupDmaPPBuffer(&pIpPortType1->m_Rx.m_DmaChannel, 
+                                                             &pIpPortType1->m_RxPPBuffer);
     
     // Cleanup Nrt Rx
     DtaIpRxNrtCleanupBuffer(&pIpPort->m_NrtChannels);
 }
 
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxCleanupType2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaIpRxInit(DtaIpPort* pIpPort)
+void  DtaIpRxCleanupType2(DtaIpPort* pIpPort)
 {
-    DtStatus  Status = DT_STATUS_OK;
+    DtaIpPortType2*  pIpPortType2 = &pIpPort->m_IpPortType2;
+    
+    // Cleanup Nrt Rx
+    DtaDmaCleanupCh(pIpPort->m_pDvcData, &pIpPortType2->m_RxNrt.m_DmaChannel);
 
-    Status = DtThreadInit(&pIpPort->m_RxThread, DtaIpRxWorkerThread, pIpPort);
-    if (DT_SUCCESS(Status))
-        Status = DtThreadInit(&pIpPort->m_RxReconstructThread, 
-             DtaIpRxReconstructThread, &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels);
+    // Cleanup DMA Nrt Rx
+    DtaIpCleanupDmaPPBuffer(&pIpPortType2->m_RxNrt.m_DmaChannel, 
+                                                          &pIpPortType2->m_RxNrtPPBuffer);
+    
+    // Cleanup Nrt Rx
+    DtaIpRxNrtCleanupBuffer(&pIpPort->m_NrtChannels);
 
-    return Status;
+    // Cleanup Rt Rx
+    if (pIpPort->m_IpPortIndex%2 == 0)
+    {
+        DtaDmaCleanupCh(pIpPort->m_pDvcData, &pIpPortType2->m_RxRt.m_DmaChannel);
+        DtaIpCleanupDmaPPBuffer(&pIpPortType2->m_RxRt.m_DmaChannel, 
+                                                           &pIpPortType2->m_RxRtPPBuffer);
+    }
+    
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxDevicePowerDown -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxDevicePowerdownPre -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtaIpRxDevicePowerDown(DtaIpDevice* pIpDevice)
+DtStatus  DtaIpRxDevicePowerdownPre(DtaIpDevice* pIpDevice)
+{
+    DtDbgOut(AVG, IP_RX, "Stopping IpRx reconstructor thread");
+    DtThreadStop(&pIpDevice->m_RxReconstructThread);
+    DtDbgOut(AVG, IP_RX, "IpRx reconstructor thread stopped");
+    return DT_STATUS_OK;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxDevicePowerdown -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtaIpRxDevicePowerdown(DtaIpDevice* pIpDevice)
 {
     DtDpcWaitForCompletion(&pIpDevice->m_IpRtRxBrmDpc);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxPowerdownType1Pre -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaIpRxPowerdownType1Pre(DtaIpPort* pIpPort)
+{
+    DtDbgOut(AVG, IP_RX, "Stopping IpRx thread");
+    DtThreadStop(&pIpPort->m_IpPortType1.m_RxThread);
+    DtDbgOut(AVG, IP_RX, "IpRx thread stopped");
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxPowerdownType2Pre -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaIpRxPowerdownType2Pre(DtaIpPort* pIpPort)
+{
+    DtDbgOut(AVG, IP_RX, "Stopping IpRx Nrt thread");
+    DtThreadStop(&pIpPort->m_IpPortType2.m_RxNrtThread);
+    DtDbgOut(AVG, IP_RX, "IpRx Nrt thread stopped");
+    if (pIpPort->m_IpPortIndex%2 == 0)
+    {
+        DtDbgOut(AVG, IP_RX, "Stopping IpRx Rt thread");
+        DtThreadStop(&pIpPort->m_IpPortType2.m_RxRtThread);
+        DtDbgOut(AVG, IP_RX, "IpRx Rt thread stopped");
+    }
+    return DT_STATUS_OK;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxPowerdownPre -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtaIpRxPowerdownPre(DtaIpPort* pIpPort)
 {    
-    DtDbgOut(AVG, IP_RX, "Stopping IpRx threads");
-    DtThreadStop(&pIpPort->m_RxThread);
-    DtThreadStop(&pIpPort->m_RxReconstructThread);
-    DtDbgOut(AVG, IP_RX, "IpRx threads stopped");
+    if (pIpPort->m_PortType == DTA_IPPORT_TYPE1)
+        DtaIpRxPowerdownType1Pre(pIpPort);
+    else
+        DtaIpRxPowerdownType2Pre(pIpPort);
     return DT_STATUS_OK;
+}
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxDevicePowerup -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaIpRxDevicePowerup(DtaIpDevice* pIpDevice)
+{
+    DtStatus  Status = DT_STATUS_OK;
+ 
+    DtDbgOut(AVG, IP_RX, "Starting IpRx reconstruct thread");
+    
+    // Try to start the main receiving worker thread
+    Status = DtThreadStart(&pIpDevice->m_RxReconstructThread);
+
+    if (DT_SUCCESS(Status))
+        DtDbgOut(AVG, IP_RX, "IpRx reconstruct thread started");
+
+    return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxPowerupType1 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaIpRxPowerupType1(DtaIpPort* pIpPort)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    DtDbgOut(AVG, IP_RX, "Starting IpRx thread");
+    
+    // Try to start the main receiving worker thread
+    Status = DtThreadStart(&pIpPort->m_IpPortType1.m_RxThread);
+   
+    if (DT_SUCCESS(Status))
+        DtDbgOut(AVG, IP_RX, "IpRx thread started");
+
+    return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxPowerupType2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaIpRxPowerupType2(DtaIpPort* pIpPort)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    DtDbgOut(AVG, IP_RX, "Starting IpRx Nrt thread");
+    
+    // Try to start the NRT receiving worker thread
+    Status = DtThreadStart(&pIpPort->m_IpPortType2.m_RxNrtThread);
+   
+    if (!DT_SUCCESS(Status))
+        return Status;
+    DtDbgOut(AVG, IP_RX, "IpRx Nrt thread started");
+    
+    if (pIpPort->m_IpPortIndex%2 == 0)
+    {
+        DtDbgOut(AVG, IP_RX, "Starting IpRx Rt thread");
+    
+        // Try to start the RT receiving worker thread
+        Status = DtThreadStart(&pIpPort->m_IpPortType2.m_RxRtThread);
+   
+        if (!DT_SUCCESS(Status))
+            return Status;
+        DtDbgOut(AVG, IP_RX, "IpRx Rt thread started");
+    }
+    return Status;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxPowerup -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -831,17 +1457,10 @@ DtStatus  DtaIpRxPowerup(DtaIpPort* pIpPort)
 {
     DtStatus  Status = DT_STATUS_OK;
 
-    DtDbgOut(AVG, IP_RX, "Starting IpRx threads");
-    
-    // Try to start the main receiving worker thread
-    // do not start the reconstrructor if this fails
-    Status = DtThreadStart(&pIpPort->m_RxThread);
-    if (DT_SUCCESS(Status))
-        Status = DtThreadStart(&pIpPort->m_RxReconstructThread);
-
-    if (DT_SUCCESS(Status))
-        DtDbgOut(AVG, IP_RX, "IpRx threads started");
-
+    if (pIpPort->m_PortType == DTA_IPPORT_TYPE1)
+        Status = DtaIpRxPowerupType1(pIpPort);
+    else
+       Status = DtaIpRxPowerupType2(pIpPort);
     return Status;
 }
 
@@ -897,10 +1516,13 @@ void  DtaIpRxUserChDestroy(
     DtaIpUserChannels*  pIpUserChannels,
     UserIpRxChannel*  pIpRxChannel)
 {
-    // gain access to the channel list    
+    DtaIpDevice*  pIpDevice = &pIpUserChannels->m_pDvcData->m_IpDevice;
+    Int  i;
+    
+    // Gain access to the channel list
     DtFastMutexAcquire(&pIpUserChannels->m_IpRxChAccesMutex);
     
-    // Remove the channel from the list, make shure the workerthreads do not try to access 
+    // Remove the channel from the list, make shure the workerthreads do not try to access
     // the about to destroy channel. 
     DtFastMutexAcquire(&pIpUserChannels->m_IpRxChThreadMutex);
 
@@ -912,18 +1534,49 @@ void  DtaIpRxUserChDestroy(
     // Wait for finishing processing
     DtaIpRxUserChRefWaitFinished(pIpRxChannel);
 
-    // remove the channel from the list
+    if (pIpUserChannels->m_pDvcData->m_IpDevice.m_PortType == DTA_IPPORT_TYPE2)
+    {
+        DtaIpPort*  pIpPortFirst = 
+                           &pIpDevice->m_pIpPorts[pIpRxChannel->m_IpPortIndex&0xfffffffe];
+        DtaIpPort*  pIpPortSecond = 
+                            &pIpDevice->m_pIpPorts[pIpPortFirst->m_IpPortIndex+1];
+        // Delete entry in address matcher
+        for (i=0; i<3; i++)
+        {
+            DtaIpAddrMatcherDeleteEntry(pIpPortFirst, 
+               &pIpRxChannel->m_AddrMatcherEntry[i][pIpPortFirst->m_IpPortIndex],
+               &pIpRxChannel->m_AddrMatcherEntrySSMPart2[i][pIpPortFirst->m_IpPortIndex]);
+            DtaIpAddrMatcherDeleteEntry(pIpPortSecond, 
+              &pIpRxChannel->m_AddrMatcherEntry[i][pIpPortSecond->m_IpPortIndex],
+              &pIpRxChannel->m_AddrMatcherEntrySSMPart2[i][pIpPortSecond->m_IpPortIndex]);
+        }
+
+        // Update address matcher
+        DtaIpAddrMatcherUpdateTable(pIpPortFirst, 
+                                            &pIpPortFirst->m_IpPortType2.m_AddrMatchHead);
+    }
+
+    // Remove the channel from the list
     DtaIpRxUserChRemoveFromList(pIpUserChannels, pIpRxChannel);
-    
+    if (pIpUserChannels->m_pIpRxChannel == NULL)
+    {
+        // Initialize array size to minimal size
+        for (i=0; i<pIpUserChannels->m_pDvcData->m_NumIpPorts; i++)
+        {
+            DtaIpPort*  pIpPort = &pIpUserChannels->m_pDvcData->m_IpDevice.m_pIpPorts[i];
+            DtaIpReAllocIpRxNumListeners(pIpPort, -1);
+        }
+    }
+
     DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
     
-    // free internal resources
+    // Free internal resources
     DtaIpRxRtpListsCleanup(pIpRxChannel);
     DtaShBufferClose(&pIpRxChannel->m_SharedBuffer);
     DtMemFreePool(pIpRxChannel, IPRX_TAG);
     pIpRxChannel = NULL;
 
-   // Allow Brm updates and release mutexes
+    // Allow Brm updates and release mutexes
     DtaIpRxSetBrmSkipUpdate(pIpUserChannels, FALSE);
 
     DtFastMutexRelease(&pIpUserChannels->m_IpRxChAccesMutex);
@@ -931,19 +1584,31 @@ void  DtaIpRxUserChDestroy(
     DtDbgOut(AVG, IP_RX, "Channel is destroyed");
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Private Channel Functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Private Channel Functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIpRxUserChInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void  DtaIpRxUserChInit(UserIpRxChannel* pIpRxChannel)
 {
+    UInt8  i;
+    
     // Initialize concurrency objects
     DtSpinLockInit(&pIpRxChannel->m_RtpListSpinLock);
     DtSpinLockInit(&pIpRxChannel->m_StatisticsSpinLock);
+    DtSpinLockInit(&pIpRxChannel->m_FlagsSpinLock);
+
 
     pIpRxChannel->m_RxControl = DT_RXCTRL_IDLE;
     pIpRxChannel->m_RxMode = DT_RXMODE_ST188;
     pIpRxChannel->m_FecMode = DTA_FEC_DISABLE;
+
+    for (i=0; i<3; i++)
+    {
+        pIpRxChannel->m_AddrMatcherEntry[i][0].m_StreamType = i;
+        pIpRxChannel->m_AddrMatcherEntry[i][0].m_Gen.m_Port = 0;
+        pIpRxChannel->m_AddrMatcherEntry[i][1].m_StreamType = i;
+        pIpRxChannel->m_AddrMatcherEntry[i][1].m_Gen.m_Port = 1;
+    }
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- ClearBrmValues -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -968,7 +1633,7 @@ void  DtaIpRxUserChReset(UserIpRxChannel* pIpRxChannel, Bool ClearInputStatus)
     }    
     
     // Buffer and buffer state
-    if(pIpRxChannel->m_pBufferHeader != NULL)
+    if (pIpRxChannel->m_pBufferHeader != NULL)
     {
         pIpRxChannel->m_pBufferHeader->m_FifoReadOffset = 0;
         pIpRxChannel->m_pBufferHeader->m_FifoWriteOffset = 0;
@@ -1090,7 +1755,7 @@ void  DtaIpRxUserChRemoveFromList(
     }
 
     pIpRxChannel->m_pPrev->m_pNext = pIpRxChannel->m_pNext;
-    if (pIpRxChannel->m_pNext)
+    if (pIpRxChannel->m_pNext != NULL)
         pIpRxChannel->m_pNext->m_pPrev = pIpRxChannel->m_pPrev;
 }
 
@@ -1099,7 +1764,8 @@ void  DtaIpRxUserChRemoveFromList(
 // Create and returns an empty channel object. Only its identifiers are set.
 //
 UserIpRxChannel*  DtaIpRxUserChCreate(
-    Int  ChannelIndex, 
+    Int  ChannelIndex,
+    Int  PortIndex,
     Int  IpPortIndex, 
     DtFileObject*  pFile)
 {    
@@ -1117,6 +1783,7 @@ UserIpRxChannel*  DtaIpRxUserChCreate(
     pIpRxChannel->m_pNext = NULL;
     pIpRxChannel->m_pPrev = NULL;
     pIpRxChannel->m_ChannelIndex = ChannelIndex;
+    pIpRxChannel->m_PortIndex = PortIndex;
     pIpRxChannel->m_IpPortIndex = IpPortIndex;
     
     // identifies channels to clean for channels that where never detached 
@@ -1130,11 +1797,11 @@ UserIpRxChannel*  DtaIpRxUserChCreate(
     pIpRxChannel->m_SharedBuffer.m_Purpose = DTA_SH_BUF_PURPOSE_GEN;
 
     // Initialize RtpLists
-    if(DtaIpRxRtpListsInit(pIpRxChannel) != DT_STATUS_OK)
+    if (DtaIpRxRtpListsInit(pIpRxChannel) != DT_STATUS_OK)
     {
         DtDbgOut(ERR, IP_RX, "Unable to initialize Rtp lists");
         DtMemFreePool(pIpRxChannel, IPRX_TAG);
-        pIpRxChannel = NULL;        
+        pIpRxChannel = NULL;
     }
 
     DtDbgOut(AVG, IP_RX, "Created channel %i", ChannelIndex);
@@ -1184,61 +1851,236 @@ DtStatus  DtaIpRxNrtCreateBuffer(DtaIpNrtChannels* pNrtChannels)
     return Status;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxCleanupDmaBuffer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-DtStatus  DtaIpRxCleanupDmaBuffer(DmaChannel* pDmaChannel, PPBuffer* pPPBuffer)
-{
-    DtStatus  Status = DT_STATUS_OK;
-
-    Status = DtaDmaCleanupKernelBuffer(pDmaChannel, pPPBuffer->m_pBufStart,
-                                                        pPPBuffer->m_pPageList, IPRX_TAG);
-    pPPBuffer->m_pBufStart = NULL;
-    pPPBuffer->m_pPageList = NULL;
-    return Status;
-}
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetLocalAddress -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtaIpRxGetLocalAddress(
     void*  pContext,
     UInt8**  pLocalAddress,
     UInt*  pStart,
-    UInt*  pStop)
+    UInt*  pStop,
+    UInt*  pTransferSize)
 {
     DtaIpPort*  pIpPort = (DtaIpPort*)pContext;
 
     *pStart = 0;
     *pStop = 0;
+    *pTransferSize = 0;
 
     DT_ASSERT(pIpPort->m_PortType == DTA_IPPORT_TYPE1);
-
-    if (pIpPort->m_PortType == DTA_IPPORT_TYPE1)
-        *pLocalAddress = (UInt8*)(Int)pIpPort->m_IpPortType1.m_Rx.m_FifoOffset;
+    *pLocalAddress = (UInt8*)(size_t)pIpPort->m_IpPortType1.m_Rx.m_FifoOffset;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxCreateDmaBuffer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxNrtGetLocalAddress -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// Create DMA ping-pong buffer for DMA transfers
-// This is one large buffer that is divided in 2 parts
-// Note: The SGL buffer in common memory is already created in DtaDmaInitCh()
-//
-DtStatus  DtaIpRxCreateDmaBuffer(
-    DmaChannel*  pDmaChannel, 
-    PPBuffer*  pPPBuffer, 
-    DtaIpPort*  pIpPort)
+void  DtaIpRxNrtGetLocalAddress(
+    void*  pContext,
+    UInt8**  pLocalAddress,
+    UInt*  pStart,
+    UInt*  pStop,
+    UInt*  pTransferSize)
 {
-    DtStatus  Status = DT_STATUS_OK;
-    void*  pBuffer = NULL;
-    DtPageList* pPageList = NULL;
+    DtaIpPort*  pIpPort = (DtaIpPort*)pContext;
+
+    *pStart = 0;
+    *pStop = 0;
+    *pTransferSize = 0;
+
+    DT_ASSERT(pIpPort->m_PortType == DTA_IPPORT_TYPE2);
+    *pLocalAddress = (UInt8*)(size_t)pIpPort->m_IpPortType2.m_RxNrt.m_FifoOffset;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtGetLocalAddress -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void DtaIpRxRtGetLocalAddress(
+    void*  pContext,
+    UInt8**  pLocalAddress,
+    UInt*  pStart,
+    UInt*  pStop,
+    UInt*  pTransferSize)
+{
+    // The context is updated each transfer for port 0/1,
+    DtaIpPort*  pIpPort = (DtaIpPort*)pContext;
     
-    // Create buffer
-    Status = DtaDmaCreateKernelBuffer(pDmaChannel, DT_DMA_DIRECTION_FROM_DEVICE, &pBuffer,
-                                        &pPageList, DTA_IPRX_PINGPONG_BUF_SIZE, IPRX_TAG);
+    DT_ASSERT(pIpPort->m_PortType == DTA_IPPORT_TYPE2);
+    DT_ASSERT(pIpPort->m_IpPortType2.m_RxRtSliceReadIndex != 
+                                            pIpPort->m_IpPortType2.m_RxRtSliceWriteIndex);
+    *pStart = 0;
+    *pStop = 0xffffffff;
+    *pLocalAddress = (UInt8*)(size_t)
+       pIpPort->m_IpPortType2.m_RxRtSlicePtr[pIpPort->m_IpPortType2.m_RxRtSliceReadIndex];
+    *pTransferSize = 
+      pIpPort->m_IpPortType2.m_RxRtSliceSize[pIpPort->m_IpPortType2.m_RxRtSliceReadIndex];
+    DT_ASSERT((*pTransferSize+(size_t)(*pLocalAddress)) <= 
+                          DtaMemGetPointer(pIpPort->m_IpPortType2.m_pMemoryControllerRegs,
+                          DTA_MEM_RT_RX_BUF_END));
     
-    // Initialize pingpong buffer
-    DtaPPBufferInitialise(pPPBuffer, pBuffer, pPageList, DTA_IPRX_PINGPONG_BUF_SIZE, 
-                                     pDmaChannel, DtaIpRxGetLocalAddress, pIpPort, FALSE);
-    return Status;
+
+    DT_ASSERT(*pTransferSize != 0);
+
+    if (*pTransferSize > DTA_IPRX_RT_BUF_SIZE)
+        *pTransferSize = DTA_IPRX_RT_BUF_SIZE;
+    // Update read index pointer
+    if (pIpPort->m_IpPortType2.m_RxRtSliceReadIndex+1 == DTA_IPRX_MAX_SLICES)
+        pIpPort->m_IpPortType2.m_RxRtSliceReadIndex = 0;
+    else
+        pIpPort->m_IpPortType2.m_RxRtSliceReadIndex++;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtSliceEventSetDpc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtaIpRxRtSliceEventSetDpc(DtDpcArgs* pArgs)
+{
+    DtaIpPort*  pIpPort = (DtaIpPort*)pArgs->m_pContext;
+    DtEventSet(&pIpPort->m_IpPortType2.m_RxRtSliceEvent);
+}
+/*
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtUpdateSlicePointer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void DtaIpRxRtUpdateSlicePointer(DtaIpPort* pIpPort)
+{   DtDpcArgs  DpcArgs;
+    DtaIpPortType2*  pIpType2 = &pIpPort->m_IpPortType2;
+    
+    pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] =
+                                           DtaRegTxSliceSizeGet(pIpType2->m_RxRt.m_pRegs);
+    if (pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] == 0)
+        pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex] = 0;
+    else {
+        pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex] =
+                                        DtaRegRxSlicePointerGet(pIpType2->m_RxRt.m_pRegs);
+        DtDbgOut(AVG, IP_RX, "New slice: Pointer: %p  Size: %d",
+        pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex], 
+                              pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex]);
+    }
+
+    //DtDbgOut(ERR, IP_RX, "Port:%i Size:%d Pointer:%p WriteIdx:%i ReadIdx:%i", 
+    //                           pIpPort->m_IpPortIndex, 
+    //                           pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex],
+    //                           pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex],
+    //                           pIpType2->m_RxRtSliceWriteIndex,
+    //                           pIpType2->m_RxRtSliceReadIndex);
+
+    DT_ASSERT(pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] <=
+                                                                    DTA_IPRX_RT_BUF_SIZE);
+    // Update write index pointer
+    if (pIpType2->m_RxRtSliceWriteIndex+1 == DTA_IPRX_MAX_SLICES)
+    {
+        // Check if there's a free place after increment. If not, we skip this sample
+        if (pIpType2->m_RxRtSliceReadIndex == 0)
+        {
+            pIpPort->m_NumRxFifoOverflow++;
+            //DtDbgOut(AVG, IP_RX, "[%i] Slice buffer FULL", pIpPort->m_IpPortIndex);
+            return;
+        }
+        pIpType2->m_RxRtSliceWriteIndex = 0;
+    } else {
+        // Check if there's a free place after increment. If not, we skip this sample
+        if (pIpType2->m_RxRtSliceReadIndex == pIpType2->m_RxRtSliceWriteIndex+1)
+        {
+            pIpPort->m_NumRxFifoOverflow++;
+            //DtDbgOut(AVG, IP_RX, "[%i] Slice buffer FULL", pIpPort->m_IpPortIndex);
+            return;
+        }
+        pIpType2->m_RxRtSliceWriteIndex++;
+    }
+    // Start DPC to set Event
+    DpcArgs.m_pContext = pIpPort;
+    DtDpcSchedule(&pIpType2->m_RxRtSliceEventSetDpc, &DpcArgs);
+
+}*/
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtUpdateSlicePointer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtaIpRxRtUpdateSlicePointer(DtaIpPort* pIpPort, Bool SliceOverflow)
+{   DtDpcArgs  DpcArgs;
+    DtaIpPortType2*  pIpType2 = &pIpPort->m_IpPortType2;
+    UInt  SliceSize = DtaRegTxSliceSizeGet(pIpType2->m_RxRt.m_pRegs);
+    //Bool  Overflow = FALSE;
+    UInt  NewWriteIndex;
+
+    // Check for overflow
+    if (pIpType2->m_RxRtSliceWriteIndex+1 == DTA_IPRX_MAX_SLICES)
+    {
+        // Check if there's a free place after increment. If not, we skip this sample
+        if (pIpType2->m_RxRtSliceReadIndex == 0)
+        {
+            pIpPort->m_NumRxFifoOverflow++;
+            return;
+        }
+        NewWriteIndex = 0;
+    } else {
+        // Check if there's a free place after increment. If not, we skip this sample
+        if (pIpType2->m_RxRtSliceReadIndex == pIpType2->m_RxRtSliceWriteIndex+1)
+        {
+            pIpPort->m_NumRxFifoOverflow++;
+            return;
+        }
+        NewWriteIndex = pIpType2->m_RxRtSliceWriteIndex+1;
+    }
+    
+    if (SliceSize==0 && SliceOverflow)
+    {
+        // Firmware is full and we don't get any data anymore.
+        
+        // First check if complete list is empty.
+        Int  ReadIndex = pIpType2->m_RxRtSliceReadIndex;
+        Bool  Empty = TRUE;
+        while (Empty && pIpType2->m_RxRtSliceWriteIndex != ReadIndex)
+        {
+            if (pIpType2->m_RxRtSliceSize[ReadIndex] != 0)
+                Empty = FALSE;
+            else {
+                ReadIndex++;
+                if (ReadIndex == DTA_IPRX_MAX_SLICES)
+                    ReadIndex = 0;
+            }
+        }
+
+        // Wait for empty list to prevent overlap address locations read
+        if (Empty)
+        {
+            // Read last 4 bytes of previous slice to clear the memory.
+            UInt32  StartRtRxMemory = DtaMemGetPointer(
+                                        pIpPort->m_IpPortType2.m_pMemoryControllerRegs,
+                                        DTA_MEM_RT_RX_BUF_START);
+            pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] = 4;
+
+            pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex] = 
+                                DtaRegRxSlicePointerGet(pIpType2->m_RxRt.m_pRegs) - 4;
+            if (pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex] < 
+                                                                        StartRtRxMemory)
+                pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex] =
+                        DtaMemGetPointer(pIpPort->m_IpPortType2.m_pMemoryControllerRegs,
+                        DTA_MEM_RT_RX_BUF_END) - 4;
+            DtDbgOut(ERR, IP_RX, "[%i] Firmware overflow. Clear state by reading last"
+                            "4 bytes from %xh", pIpPort->m_IpPortIndex,
+                            pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex]);
+                
+            DT_ASSERT(pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] <=
+                                                                DTA_IPRX_RT_BUF_SIZE);
+        } else {
+            pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] = 0;
+            pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex] = 
+                                        DtaRegRxSlicePointerGet(pIpType2->m_RxRt.m_pRegs);
+        }
+    } else {
+        pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] = SliceSize;
+        pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex] = 
+                                DtaRegRxSlicePointerGet(pIpType2->m_RxRt.m_pRegs);
+        DT_ASSERT(pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] <=
+                                                            DTA_IPRX_RT_BUF_SIZE);
+    }
+    if (pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] != 0)
+    {
+        /*DtDbgOut(AVG, IP_RX, "[%i] New slice: Pointer: %p  Size: %d",
+                            pIpPort->m_IpPortIndex, 
+                                pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex], 
+                                pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex]);*/
+    }
+    pIpType2->m_RxRtSliceWriteIndex = NewWriteIndex;
+    
+    // Start DPC to set Event
+    DpcArgs.m_pContext = pIpPort;
+    DtDpcSchedule(&pIpType2->m_RxRtSliceEventSetDpc, &DpcArgs);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxIsDmaHeaderCorrect -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1257,7 +2099,7 @@ void  DtaIpRxSendPacketToNwDriver(
     DtaIpPort*  pIpPort,
     DtaDmaRxHeader*  pDmaRxHeader,
     UInt8*  pPacket,
-    UInt  PacketSize)
+    UInt  PacketSize)   // Excluding CRC
 {
     UInt  FreeSpaceUntilEnd;
     UInt  FreeSpaceFromBegin;
@@ -1278,6 +2120,9 @@ void  DtaIpRxSendPacketToNwDriver(
         DtDbgOut(MAX, IP_RX, "Network driver not interested in packets");
         return;
     }
+
+    // Always include the CRC to the network driver.
+    PacketSize+= 4;
 
     TotalLength = PacketSize + sizeof(DtaDmaRxHeader);
     ReadOffset = pSharedInfo->m_ReadOffset;
@@ -1330,6 +2175,9 @@ void  DtaIpRxSendPacketToNwDriver(
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxIsPacketForDVB -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
+// This functions will increment the channel's use count returned in pIpRxA
+// Pre: m_IpRxListenersMutex mutex must be acquired
+//
 UInt DtaIpRxIsPacketForDVB(
     DtaIpUserChannels*  pIpUserChannels,
     RtpHeader*  pRtpHeader,
@@ -1338,14 +2186,18 @@ UInt DtaIpRxIsPacketForDVB(
     UInt16   SrcPort,
     UInt16 DstPort,
     Bool  MulticastPkt,            // True: If packet received is a Multicast packet
-    UserIpRxChannel**  pIpRxA)
+    Bool  IpV6Packet,
+    Int  VlanId,
+    UserIpRxChannel**  pIpRxA,
+    Int  MaxNumListeners)
 {
     Int  i;
     UserIpRxChannel*  pIpRxChannel;
     Bool  Stop;
     Int  Index = 0;
-    Bool  IsFecPort = FALSE;
-
+    Bool  IsFecPortDst = FALSE;
+    Bool  IsFecPortSrc = FALSE;
+   
     // Wait until the Rx structure is available
     DtFastMutexAcquire(&pIpUserChannels->m_IpRxChThreadMutex);
 
@@ -1364,10 +2216,25 @@ UInt DtaIpRxIsPacketForDVB(
             pIpRxChannel = pIpRxChannel->m_pNext;
             continue;
         }
+        if (pIpRxChannel->m_VlanId != VlanId)
+        {
+            pIpRxChannel = pIpRxChannel->m_pNext;
+            continue;
+        }
+        if (IpV6Packet && (pIpRxChannel->m_IpParsFlags & DTA_IP_V6)==0)
+        {
+            pIpRxChannel = pIpRxChannel->m_pNext;
+            continue;
+        }
+        if (!IpV6Packet && (pIpRxChannel->m_IpParsFlags & DTA_IP_V6)!=0)
+        {
+            pIpRxChannel = pIpRxChannel->m_pNext;
+            continue;
+        }
 
         // Check if source + destination IP address is correct.
         Stop = FALSE;
-        for (i=0; i<4; i++) 
+        for (i=0; i<(IpV6Packet?16:4); i++) 
         {
             if (pIpRxChannel->m_SrcIPAddress[i]!=0 && 
                                                pIpRxChannel->m_SrcIPAddress[i]!=pIpSrc[i])
@@ -1379,7 +2246,7 @@ UInt DtaIpRxIsPacketForDVB(
             // If a multicast packet is received, 
             // the m_DstIPAddress may not be 0.0.0.0
             if ((pIpRxChannel->m_DstIPAddress[i]!=0 || MulticastPkt) && 
-                                              pIpRxChannel->m_DstIPAddress[i]!=pIpDst[i])
+                                               pIpRxChannel->m_DstIPAddress[i]!=pIpDst[i])
             {
                 Stop = TRUE;
                 break;
@@ -1391,9 +2258,34 @@ UInt DtaIpRxIsPacketForDVB(
             pIpRxChannel = pIpRxChannel->m_pNext;
             continue;
         }
-        
+
+        // If a RTP header is available, we must check on its contents
+        // to determine if we must add the packet to a FEC stream
+        // Add the channel if we cannot use the contents of the packet, and
+        // the source port matches a FEC port.
+        IsFecPortSrc = FALSE;
+        if (pIpRxChannel->m_SrcPort!=0 && pIpRxChannel->m_FecMode!=DTA_FEC_DISABLE && 
+                                               pIpRxChannel->m_DetProtocol==DTA_PROTO_RTP)
+        {
+            if (pIpRxChannel->m_SrcPort+FEC_INC_COLUMN_PORT==SrcPort ||
+                                        pIpRxChannel->m_SrcPort+FEC_INC_ROW_PORT==SrcPort)
+            {
+                if (pRtpHeader != NULL)
+                {
+                    // If we have a RTP header, determine if this is a FEC packet
+                    if (pRtpHeader->m_PayloadType==RTP_PAYLOAD_FEC && 
+                                                                 pRtpHeader->m_Version==2)
+                        IsFecPortSrc = TRUE;
+                } else{
+                    // if we do not have a RTP header, assume that this is a FEC packet
+                    IsFecPortSrc = TRUE;
+                }
+            }
+        }
+
         // Check if the source port number is correct
-        if (pIpRxChannel->m_SrcPort!=0 &&  pIpRxChannel->m_SrcPort!=SrcPort)
+        if (pIpRxChannel->m_SrcPort!=0 && pIpRxChannel->m_SrcPort!=SrcPort && 
+                                                                            !IsFecPortSrc)
         {
             pIpRxChannel = pIpRxChannel->m_pNext;
             continue;
@@ -1402,39 +2294,40 @@ UInt DtaIpRxIsPacketForDVB(
         // If a RTP header is available, we must check on its contents
         // to determine if we must add the packet to a FEC stream
         // Add the channel if we cannot use the contents of the packet, and
-        // the destiny port matches a FEC port.
-        IsFecPort = FALSE;
-        if (pIpRxChannel->m_FecMode != DTA_FEC_DISABLE)
+        // the destination port matches a FEC port.
+        IsFecPortDst = FALSE;
+        if (pIpRxChannel->m_FecMode!=DTA_FEC_DISABLE && 
+                                               pIpRxChannel->m_DetProtocol==DTA_PROTO_RTP)
         {
-            if (pIpRxChannel->m_DstPort+FEC_INC_COLUMN_PORT == DstPort ||
-                                      pIpRxChannel->m_DstPort+FEC_INC_ROW_PORT == DstPort)
+            if (pIpRxChannel->m_DstPort+FEC_INC_COLUMN_PORT==DstPort ||
+                                        pIpRxChannel->m_DstPort+FEC_INC_ROW_PORT==DstPort)
             {
                 if (pRtpHeader != NULL)
                 {
                     // If we have a RTP header, determine if this is a FEC packet
-                    if(pRtpHeader->m_PayloadType == RTP_PAYLOAD_FEC && 
-                                                               pRtpHeader->m_Version == 2)
-                        IsFecPort = TRUE;                    
+                    if(pRtpHeader->m_PayloadType==RTP_PAYLOAD_FEC && 
+                                                                 pRtpHeader->m_Version==2)
+                        IsFecPortDst = TRUE;                    
                 } else{
                     // if we do not have a RTP header, assume that this is a FEC packet
-                    IsFecPort = TRUE;
+                    IsFecPortDst = TRUE;
                 }
             }           
         }                
 
-        // If the destiny port matches or if the portnumber it used for a FEC stream
+        // If the destination port matches or if the portnumber it used for a FEC stream
         // add the channel.
-        if (pIpRxChannel->m_DstPort==DstPort || IsFecPort)               
+        if (pIpRxChannel->m_DstPort==DstPort || IsFecPortDst)
         {
             pIpRxA[Index++] = pIpRxChannel;
             
             // Increment use count
             DtaIpRxUserChRefAdd(pIpRxChannel);
             
-            if (Index == MAX_NUM_IPRX_LISTEN) 
+            if (Index == MaxNumListeners) 
             {
                 DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
-                return MAX_NUM_IPRX_LISTEN;
+                return MaxNumListeners;
             }
         }
         pIpRxChannel = pIpRxChannel->m_pNext;
@@ -1443,16 +2336,132 @@ UInt DtaIpRxIsPacketForDVB(
     return Index;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetChannelsForDVB -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// This functions will increment the channel's use count returned in pIpRxA
+// Pre: m_IpRxListenersMutex mutex must be acquired
+//
+UInt  DtaIpRxGetChannelsForDVB(
+    DtaIpPort*  pIpPort, 
+    UInt32  IdTag,
+    UInt8*  pIpSrc,
+    UserIpRxChannel**  pIpRxA,
+    Int  MaxNumListeners)
+{
+    Bool SSMIpV6 = FALSE;
+    DtaIpUserChannels*  pIpUserChannels = 
+                                        &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels;
+    UserIpRxChannel*  pIpRxChannel;
+    Int  Index = 0;
+    UInt  FirstIpPortNum = pIpPort->m_IpPortIndex&0xfffffffe;
+    DtaIpPort*  pFirstPort = &pIpPort->m_pDvcData->m_IpDevice.m_pIpPorts[FirstIpPortNum];
+    Int  StreamType;
+    
+    // Wait until the Rx structure is available
+    DtFastMutexAcquire(&pIpUserChannels->m_IpRxChThreadMutex);
+    DtMutexAcquire(&pFirstPort->m_IpPortType2.m_AddrMatcherMutex, -1);
+
+    // Get the channel list for this IdTag
+    pIpRxChannel = pIpPort->m_pDvcData->m_IpDevice.m_pAddrMatchLUTable[IdTag];
+    StreamType = pIpPort->m_pDvcData->m_IpDevice.m_AddrMatchLUTableType[IdTag];
+    
+    if (pIpRxChannel != NULL)
+        SSMIpV6 = 
+            pIpRxChannel->m_AddrMatcherEntry[StreamType] \
+                                              [pIpPort->m_IpPortIndex&1].m_Gen.m_SSM==1 &&
+            pIpRxChannel->m_AddrMatcherEntry[StreamType] \
+                                            [pIpPort->m_IpPortIndex&1].m_Gen.m_Version==1;
+    
+    while (pIpRxChannel != NULL) 
+    {
+        UInt8*  pIpAddr = NULL;
+        Bool  StreamForThisChannel = TRUE;
+            
+        if ((pIpRxChannel->m_IpParsMode & DTA_IP_RX_DBLBUF) !=0 )
+        {
+            if (((pIpPort->m_IpPortIndex&1)==0) && pIpRxChannel->m_DoSSMCheckSw)
+                pIpAddr = pIpRxChannel->m_SrcIPAddress;
+            else if (((pIpPort->m_IpPortIndex&1)==1) && pIpRxChannel->m_DoSSMCheckSw2)
+                pIpAddr = pIpRxChannel->m_SrcIPAddress2;
+        } else if (pIpRxChannel->m_DoSSMCheckSw)
+            pIpAddr = pIpRxChannel->m_SrcIPAddress;
+        
+        if (pIpAddr != NULL)
+        {
+            Bool  IpV6 = (pIpRxChannel->m_IpParsFlags & DTA_IP_V6) != 0;
+            Int  i;
+            // Check if source IP-address is identical
+            for (i=0; i<(IpV6?16:4) && StreamForThisChannel; i++)
+            {
+                if (pIpAddr[i] != pIpSrc[i])
+                    StreamForThisChannel = FALSE;
+            }
+        }
+
+        if (StreamForThisChannel)
+        {
+            pIpRxA[Index++] = pIpRxChannel;
+            
+            // Increment use count
+            DtaIpRxUserChRefAdd(pIpRxChannel);
+        
+            if (Index == MaxNumListeners) 
+            {
+                DtMutexRelease(&pFirstPort->m_IpPortType2.m_AddrMatcherMutex);
+                DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
+                return MaxNumListeners;
+            }
+        }
+
+        if (SSMIpV6)
+        {
+           if (pIpRxChannel->m_pNextAddrMatcherEntryPart2[StreamType] \
+                                                       [pIpPort->m_IpPortIndex&1] != NULL)
+            {
+                Int  StreamType2;
+                StreamType2 = pIpRxChannel->m_pNextAddrMatcherEntryPart2[StreamType] \
+                                                 [pIpPort->m_IpPortIndex&1]->m_StreamType;
+                
+                pIpRxChannel = DtContainingRecord(
+                       pIpRxChannel->m_pNextAddrMatcherEntryPart2[StreamType] \
+                       [pIpPort->m_IpPortIndex&1], UserIpRxChannel,
+                       m_AddrMatcherEntrySSMPart2[StreamType][pIpPort->m_IpPortIndex&1]);
+                StreamType = StreamType2;
+            } else 
+                pIpRxChannel = NULL;
+        } else {
+            if (pIpRxChannel->m_pNextAddrMatcherEntry[StreamType] \
+                                                       [pIpPort->m_IpPortIndex&1] != NULL)
+            {
+                Int  StreamType2;
+                StreamType2 = pIpRxChannel->m_pNextAddrMatcherEntry[StreamType] \
+                                                 [pIpPort->m_IpPortIndex&1]->m_StreamType;
+                pIpRxChannel = DtContainingRecord(
+                               pIpRxChannel->m_pNextAddrMatcherEntry[StreamType] \
+                               [pIpPort->m_IpPortIndex&1], UserIpRxChannel,
+                               m_AddrMatcherEntry[StreamType][pIpPort->m_IpPortIndex&1]);
+                StreamType = StreamType2;
+            } else 
+                pIpRxChannel = NULL;
+        }
+    }
+    DtMutexRelease(&pFirstPort->m_IpPortType2.m_AddrMatcherMutex);
+    DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
+    return Index;
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxIsFragmentedPacketForDVB -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Checks if the received fragmented IP packet is for one of the DVB streams. If so,
 // an array with the ChannelIndex'es and the number of channels found is returned
+// Pre: m_IpRxListenersMutex mutex must be acquired
 //
 UInt  DtaIpRxIsFragmentedPacketForDVB(
     DtaIpUserChannels*  pIpUserChannels,
     UInt16  FragmentID,
     UInt16  IpFragmentOffset,
-    UserIpRxChannel**  pIpRxA)
+    UserIpRxChannel**  pIpRxA,
+    Int  MaxNumListeners)
 {
     UserIpRxChannel*  pIpRxChannel;
     Int  Index = 0;
@@ -1494,10 +2503,10 @@ UInt  DtaIpRxIsFragmentedPacketForDVB(
             // Increment reference
             DtaIpRxUserChRefAdd(pIpRxChannel);
 
-            if (Index == MAX_NUM_IPRX_LISTEN) 
+            if (Index == MaxNumListeners) 
             {
                 DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
-                return MAX_NUM_IPRX_LISTEN;
+                return MaxNumListeners;
             }
         }
         pIpRxChannel = pIpRxChannel->m_pNext;
@@ -1518,6 +2527,7 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
     IpHeaderV4*  pIpHeader,
     Bool  MulticastPacket,
     DtaIpPort*  pIpPort,
+    Int  VlanId,
     Bool*  pStopParsing)  // Output
 {    
     UInt  i;
@@ -1529,11 +2539,12 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
     UInt16  DestPort;
     UInt  NumChannels;
     UserIpRxChannel*  pIpRxChannel;
-    UserIpRxChannel*  pIpRxA[MAX_NUM_IPRX_LISTEN];
     UserIpRxChannel*  pIpRxFragment = NULL;
 
     Int  PacketSize = Size - 4 - sizeof(DtaDmaRxHeader);
     UInt8*  pRxData = (UInt8*)pDmaRxHeader + sizeof(DtaDmaRxHeader);
+    Bool  Type2 = (pIpPort->m_PortType == DTA_IPPORT_TYPE2);
+
 
     // Shift high and low both into one UInt16. 
     // Note: IpFragmentOffset is in units of 8 bytes (See IpV4 specs)
@@ -1563,13 +2574,28 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
         // Check if it is for one of our channels
         pUdpHeader = (UdpHeader*)((UInt8*)pIpHeader + (pIpHeader->m_HeaderLength * 4));
         DestPort = DtUInt16ByteSwap(pUdpHeader->m_DestinationPort);
-        NumChannels = DtaIpRxIsPacketForDVB(pIpUserChannels, NULL,
-                                         pIpHeader->m_SrcAddress, pIpHeader->m_DstAddress,
-                                         DtUInt16ByteSwap(pUdpHeader->m_SourcePort),
-                                         DestPort, MulticastPacket, pIpRxA);
-
+        DtMutexAcquire(&pIpPort->m_IpRxListenersMutex, -1);
+        // For Type2, we already know it's for one or more of the RT Ip channels
+        if (Type2)
+            NumChannels = DtaIpRxGetChannelsForDVB(pIpPort, 
+                                    pDmaRxHeader->m_RxHeaderV3.m_AddrMatching.m_AddrIdTag,
+                                    pIpHeader->m_SrcAddress, pIpPort->m_pIpRxListeners,
+                                    pIpPort->m_MaxNumListeners);
+        else {
+             // Check if it is for one of our channels
+            pUdpHeader = (UdpHeader*)((UInt8*)pIpHeader +
+                                                         (pIpHeader->m_HeaderLength * 4));
+            DestPort = DtUInt16ByteSwap(pUdpHeader->m_DestinationPort);
+            NumChannels = DtaIpRxIsPacketForDVB(pIpUserChannels, NULL,
+                                        pIpHeader->m_SrcAddress, pIpHeader->m_DstAddress,
+                                        DtUInt16ByteSwap(pUdpHeader->m_SourcePort),
+                                        DestPort, MulticastPacket, FALSE, VlanId,
+                                        pIpPort->m_pIpRxListeners,
+                                        pIpPort->m_MaxNumListeners);
+        }
         if (NumChannels == 0)
         {
+            DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
             DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
             *pStopParsing = TRUE;
             return NULL;
@@ -1580,7 +2606,7 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
 
         for (i=0; i<NumChannels; i++) 
         {
-            pIpRxChannel = pIpRxA[i];
+            pIpRxChannel =  pIpPort->m_pIpRxListeners[i];
             pIpRxChannel->m_FragmentId = pIpHeader->m_Identification;
             // Store IP Header offset offset for later use
             pIpRxChannel->m_CurIpHeaderOffset = 
@@ -1594,6 +2620,7 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
             // Decrement use count
             DtaIpRxUserChRefDecr(pIpRxChannel);
         }
+        DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
         *pStopParsing = TRUE;
         return NULL;
     }
@@ -1604,8 +2631,10 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
     // Check all channels to see if current fragment belongs to a particular channel 
     if ((pIpHeader->m_Flags & IPV4_HDR_FLAGS_MOREFRAG)!=0 && IpFragmentOffset!=0)
     {
+        DtMutexAcquire(&pIpPort->m_IpRxListenersMutex, -1);
         NumChannels = DtaIpRxIsFragmentedPacketForDVB(pIpUserChannels, 
-                                   pIpHeader->m_Identification, IpFragmentOffset, pIpRxA);
+                                   pIpHeader->m_Identification, IpFragmentOffset,
+                                   pIpPort->m_pIpRxListeners, pIpPort->m_MaxNumListeners);
 
         DtDbgOut(MAX, IP_RX, "NEXT fragment: %d Offset: %d",  
                                             DtUInt16ByteSwap(pIpHeader->m_Identification),
@@ -1613,6 +2642,7 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
 
         if (NumChannels == 0) 
         {
+            DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
             DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
             *pStopParsing = TRUE;
             return NULL;
@@ -1627,7 +2657,7 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
             DtPtrToUInt((void*)(pIpPacketData - (UInt8*)pDmaRxHeader)) - 4; // -4 checksum
         for (i=0; i<NumChannels; i++)
         {
-            pIpRxChannel = pIpRxA[i];
+            pIpRxChannel = pIpPort->m_pIpRxListeners[i];
 
             // Packet size max. 64kb
             if ((IpPacketDataSize + pIpRxChannel->m_FragmentOffset) > 0xffff) 
@@ -1645,6 +2675,7 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
             // Decrement use count
             DtaIpRxUserChRefDecr(pIpRxChannel);
         }
+        DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
         *pStopParsing = TRUE;
         return NULL;
     }
@@ -1656,11 +2687,13 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
         DtDbgOut(MAX, IP_RX, "LAST fragment: %d Offset: %d",  
                                             DtUInt16ByteSwap(pIpHeader->m_Identification),
                                             IpFragmentOffset*8);
-
-        NumChannels = DtaIpRxIsFragmentedPacketForDVB(pIpUserChannels,  
-                                      pIpHeader->m_Identification, IpFragmentOffset, pIpRxA);
+        DtMutexAcquire(&pIpPort->m_IpRxListenersMutex, -1);
+        NumChannels = DtaIpRxIsFragmentedPacketForDVB(pIpUserChannels,
+                                   pIpHeader->m_Identification, IpFragmentOffset,
+                                   pIpPort->m_pIpRxListeners, pIpPort->m_MaxNumListeners);
         if (NumChannels == 0) 
         {
+            DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
             DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
             *pStopParsing = TRUE;
             return NULL;
@@ -1681,13 +2714,13 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
             // Check if this packet is complete. 
             // If so, use this packet
             // Set pointer to the UDP header
-            pIpRxChannel = pIpRxA[i];
+            pIpRxChannel =  pIpPort->m_pIpRxListeners[i];
             pIpHeader = (IpHeaderV4*)(pIpRxChannel->m_pRtpBuffer + 
                                                     pIpRxChannel->m_CurIpHeaderOffset);
 
             pUdpHeader = (UdpHeader*)((UInt8*)pIpHeader + (pIpHeader->m_HeaderLength * 4));
             UdpLength = pIpRxChannel->m_FragmentOffset + IpPacketDataSize - 
-                                        sizeof(DtaDmaRxHeader) - sizeof(EthernetIIHeader) - 
+                                        sizeof(DtaDmaRxHeader) - sizeof(EthernetIIHeader) -
                                         (pIpHeader->m_HeaderLength * 4);
 
             if (DtUInt16ByteSwap(pUdpHeader->m_Length) > UdpLength) 
@@ -1716,14 +2749,15 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
         // Decrement use count, except for the fragmented packet channel
         for (i=0; i<NumChannels; i++) 
         {
-            pIpRxChannel = pIpRxA[i];
+            pIpRxChannel =  pIpPort->m_pIpRxListeners[i];
             if (pIpRxChannel != pIpRxFragment)
                 DtaIpRxUserChRefDecr(pIpRxChannel);
         }
+        DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
 
         // No complete packet found
         // skip all and return
-        if (pIpRxFragment == NULL) 
+        if (pIpRxFragment == NULL)
             return NULL;
     }
 
@@ -1732,7 +2766,7 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
     return pIpRxFragment;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxProcessDvbPayLoad -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxProcessDvbPayLoad -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Process the payload of an IP packet for a given IP Rx channel.
 //
@@ -2108,25 +3142,17 @@ DtStatus  DtaIpRxRtpListsInit(UserIpRxChannel* pIpRxChannel)
     RtpListEntry*  pRtpList;
     UInt  i;
 
-    DtSpinLockAcquire(&pIpRxChannel->m_RtpListSpinLock);
-
     DtListHeadInitialize(&pIpRxChannel->m_RtpEmptyList);
     DtListHeadInitialize(&pIpRxChannel->m_RtpDvbList);
     DtListHeadInitialize(&pIpRxChannel->m_RtpFecColumnList);
     DtListHeadInitialize(&pIpRxChannel->m_RtpFecRowList);
 
-    if (pIpRxChannel->m_pRtpListEntries != NULL)    
-        DtMemFreePool(pIpRxChannel->m_pRtpListEntries,  IPRX_TAG);
-
-    pIpRxChannel->m_pRtpListEntries = DtMemAllocPool(DtPoolNonPaged, 
+    pIpRxChannel->m_pRtpListEntries = (UInt8*)DtMemAllocPool(DtPoolNonPaged, 
                                  DTA_IPRX_MAX_RTP_PACKETS*sizeof(RtpListEntry), IPRX_TAG);
 
     if (pIpRxChannel->m_pRtpListEntries == NULL)
-    {
-        DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
         return DT_STATUS_OUT_OF_RESOURCES;
-    }
-
+    
     pRtpList = (RtpListEntry*)pIpRxChannel->m_pRtpListEntries;
 
     // Add all entries to the empty list
@@ -2138,8 +3164,6 @@ DtStatus  DtaIpRxRtpListsInit(UserIpRxChannel* pIpRxChannel)
         pRtpList+=1;
     }
 
-    DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
-
     return DT_STATUS_OK;
 }
 
@@ -2147,7 +3171,7 @@ DtStatus  DtaIpRxRtpListsInit(UserIpRxChannel* pIpRxChannel)
 //
 void  DtaIpRxRtpListsCleanup( UserIpRxChannel* pIpRxChannel)
 {
-    if (pIpRxChannel->m_pRtpListEntries)
+    if (pIpRxChannel->m_pRtpListEntries != NULL)
         DtMemFreePool(pIpRxChannel->m_pRtpListEntries, IPRX_TAG);
     pIpRxChannel->m_pRtpListEntries = NULL;
 }
@@ -2167,7 +3191,7 @@ RtpListEntry* DtaIpRxRtpGetFreeEntry(UserIpRxChannel* pIpRxChannel)
     if (!DtIsListEmpty(&pIpRxChannel->m_RtpEmptyList)) 
     {
         pListEntry = DtHeadListRemove(&pIpRxChannel->m_RtpEmptyList);
-        pRtpEntry = DtContainingRecord(pListEntry, RtpListEntry, m_ListEntry);      
+        pRtpEntry = DtContainingRecord(pListEntry, RtpListEntry, m_ListEntry);
         pRtpEntry->m_InUse = 0;
     }
 
@@ -2252,24 +3276,41 @@ RtpListEntry*  DtaIpRxRtpGetDvbEntryUnsafe(
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpListAddEntryUnsafe -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
+// Sort the RTP packet. If the packet with the same sequence number already exists,
+// FALSE is returned and insertion is skipped
+//
 Bool  DtaIpRxRtpListAddEntryUnsafe(
     DtListEntry*  pRtpList,
     RtpListEntry*  pRtpEntry)
 {
-    Bool  Found;
-    Bool  Exist;
+    Bool  Found = FALSE;
+    Bool  Exist = FALSE;
+    Bool  Last = FALSE;
     DtListEntry*  pEntry;
-    RtpListEntry*  pRtpQueuedEntry;
+    RtpListEntry*  pRtpQueuedEntry = NULL;
 
-    // Sort the RTP packet
-    // Walk through the list and insert into the list.
-    // If the packet with the same sequence number already exists return false
-    // and skip insertion
-    Found = FALSE;
-    Exist = FALSE;
-    pEntry = DtListNextGet(pRtpList);
+    // First check if the element must be inserted after the last one. This is the most
+    // common situation and then we don't need to walk through the entire list.
+    pEntry = DtListPrevGet(pRtpList);
+    if (pEntry != pRtpList) 
+    {
+        pRtpQueuedEntry = DtContainingRecord(pEntry, RtpListEntry, m_ListEntry);
+        if (pRtpEntry->m_RTPSequenceNumber == pRtpQueuedEntry->m_RTPSequenceNumber) 
+        {
+            Found = TRUE;
+            Exist = TRUE;
+        } else if (DtaIpRxRtpIsSeqNumLess(pRtpQueuedEntry->m_RTPSequenceNumber,
+                                                          pRtpEntry->m_RTPSequenceNumber))
+            Last = TRUE;
+        else 
+            pRtpQueuedEntry = NULL;
+        
+    }
+    if (!Last)
+        pEntry = DtListNextGet(pRtpList);
 
-    while (pEntry!=pRtpList && !Found) 
+    // Walk through the list and insert element into the list sorted
+    while (pEntry!=pRtpList && !Found && !Last) 
     {
         pRtpQueuedEntry = DtContainingRecord(pEntry, RtpListEntry, m_ListEntry);
         if (pRtpEntry->m_RTPSequenceNumber == pRtpQueuedEntry->m_RTPSequenceNumber) 
@@ -2288,13 +3329,27 @@ Bool  DtaIpRxRtpListAddEntryUnsafe(
     if (!Exist)
     {
         if (!Found)
+        {
             // Add element at the end
             DtTailListInsert(pRtpList, &pRtpEntry->m_ListEntry);
-        else
+            if (pRtpQueuedEntry != NULL)
+                DtDbgOut(MAX, IP_RX, "Add at end: SnNew: %u SnEntry:%u NewEntry:%p"
+                         " pEntry:%p pRtpList:%p Last:%i", pRtpEntry->m_RTPSequenceNumber,
+                         pRtpQueuedEntry->m_RTPSequenceNumber, pRtpEntry, pEntry, 
+                         pRtpList, Last?1:0);
+            else
+                DtDbgOut(MAX, IP_RX, "Add at end: SnNew: %u NewEntry:%p pEntry:%p "
+                          "FIRST ONE pRtpList:%p Last:%i", pRtpEntry->m_RTPSequenceNumber,
+                          pRtpEntry, pEntry, pRtpList, Last?1:0);
+        }
+        else {
             // Insert element before entry
             DtTailListInsert(pEntry, &pRtpEntry->m_ListEntry);
+            DtDbgOut(MAX, IP_RX, "Add before: SnNew: %u SnEntry:%u NewEntry:%p pEntry:%p"
+                       " pRtpList:%p", pRtpEntry->m_RTPSequenceNumber,
+                       pRtpQueuedEntry->m_RTPSequenceNumber, pRtpEntry, pEntry, pRtpList);
+        }
     }
-
     return !Exist;
 }
 
@@ -2306,7 +3361,14 @@ Bool  DtaIpRxRtpListAddEntry(UserIpRxChannel* pIpRxChannel, DtListEntry* pRtpLis
     Bool  Added;
 
     DtSpinLockAcquire(&pIpRxChannel->m_RtpListSpinLock);
-    Added = DtaIpRxRtpListAddEntryUnsafe(pRtpList, pRtpEntry);
+    // Check if entry is too late and user buffer is already further in time.
+    if (pRtpList==&pIpRxChannel->m_RtpDvbList &&
+                         (pRtpEntry->m_RTPSequenceNumber==pIpRxChannel->m_RtpLastSeqNum || 
+                         DtaIpRxRtpIsSeqNumLess(pRtpEntry->m_RTPSequenceNumber, 
+                         pIpRxChannel->m_RtpLastSeqNum)))
+        Added = FALSE;
+    else
+        Added = DtaIpRxRtpListAddEntryUnsafe(pRtpList, pRtpEntry);
     DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
 
     return Added;
@@ -2364,14 +3426,14 @@ UInt16 DtaIpRxCalculateUdpChecksum(
 //
 void  DtaIpRxParsePayLoadMpeg(
     UserIpRxChannel*  pIpRxChannel,
-    RtpHeader*  pRtpHeader,
     DtaDmaRxHeader*  pDmaRxHeader,
-    UInt  Size,     
-    UInt16  DvbOffset)
+    UInt16  SeqNumber,
+    UInt  Size,
+    UInt16  DvbOffset,
+    UInt16  RtpOffset)
 {
     RtpListEntry*  pRtpListEntry;
-    UInt8*  pRxData = (UInt8*)pDmaRxHeader + sizeof(DtaDmaRxHeader);
-
+    
     // It's a RTP packet with DVB content. Add to seq. buffer
     pIpRxChannel->m_DetProtocol = DTA_PROTO_RTP;
 
@@ -2400,50 +3462,56 @@ void  DtaIpRxParsePayLoadMpeg(
         return;
     }
     
-    pRtpListEntry = DtaIpRxRtpGetFreeEntry(pIpRxChannel);
-    if (pRtpListEntry != NULL)
-    {        
-        // Fill content
-        pRtpListEntry->m_RTPSequenceNumber = 
-                                           DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber);
-        pRtpListEntry->m_PayloadOffset = DvbOffset;
-        pRtpListEntry->m_RTPOffset = (Int)((UInt8*)pRtpHeader - pRxData);
+    if (DtaIpRxRtpIsSeqNumLess(SeqNumber, pIpRxChannel->m_RtpLastSeqNum))
+    {
+        // Skip this packet. It's already too late
+        DtDbgOut(MAX, IP_RX, "SKIPPING PACKET SN:%d", SeqNumber);
+    } else {
+        pRtpListEntry = DtaIpRxRtpGetFreeEntry(pIpRxChannel);
+        if (pRtpListEntry != NULL)
+        {        
+            // Fill content
+            pRtpListEntry->m_RTPSequenceNumber = SeqNumber;
+            pRtpListEntry->m_PayloadOffset = DvbOffset;
+            pRtpListEntry->m_RTPOffset = RtpOffset;
 
-        // Copy complete packet into the buffer
-        DtMemCopy(pIpRxChannel->m_pRtpBuffer + 
-            (pRtpListEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH), pDmaRxHeader, Size);
+            // Copy complete packet into the buffer
+            DtMemCopy(pIpRxChannel->m_pRtpBuffer + 
+                (pRtpListEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH), pDmaRxHeader, 
+                                                                                    Size);
         
-        // Add packet to the RTP DVB List
+            // Add packet to the RTP DVB List
         
-        // DEBUGGING: Ad this for skipping a package to check reconstruction 
-        /*if ( pRtpListEntry->m_RTPSequenceNumber % 51 == 0 && 
+            // DEBUGGING: Ad this for skipping a package to check reconstruction 
+            /*if ( pRtpListEntry->m_RTPSequenceNumber % 51 == 0 && 
                                                   pRtpListEntry->m_RTPSequenceNumber != 0)
-        {
-            DtDbgOut(ERR, IP_RX, "SKIPPING PACKET SN:%d", 
+            {
+                DtDbgOut(ERR, IP_RX, "SKIPPING PACKET SN:%d", 
                                                       pRtpListEntry->m_RTPSequenceNumber);
-            DtaIpRxRtpMoveEntryToEmptyList(pIpRxChannel, pRtpListEntry);
-        } else */
+                DtaIpRxRtpMoveEntryToEmptyList(pIpRxChannel, pRtpListEntry);
+            } else */
 
-        if (!DtaIpRxRtpListAddEntry(pIpRxChannel, &pIpRxChannel->m_RtpDvbList, 
+        
+            if (!DtaIpRxRtpListAddEntry(pIpRxChannel, &pIpRxChannel->m_RtpDvbList, 
                                                                            pRtpListEntry))
-        {
-            // Packet already in list
-            // Set packet back to empty list
-            DtaIpRxRtpMoveEntryToEmptyList(pIpRxChannel, pRtpListEntry);
+            {
+                // Packet already in list
+                // Set packet back to empty list
+                DtaIpRxRtpMoveEntryToEmptyList(pIpRxChannel, pRtpListEntry);
+            } else {
+                // Tell the reconstruct thread that data is available
+                pIpRxChannel->m_RxIncomingPackets = TRUE;
+            }
         } else {
-            // Tell the reconstruct thread that data is available
+            // Out of memory
+            DtDbgOut(ERR, IP_RX, 
+                     "Channel %d: No queue elements available. Buffer FULL. Seq. Num: %d",
+                     pIpRxChannel->m_ChannelIndex, SeqNumber);
+
+            // Extra trigger reconstructor to parse the data
             pIpRxChannel->m_RxIncomingPackets = TRUE;
         }
-    } else {
-        // Out of memory
-        DtDbgOut(ERR, IP_RX, 
-            "Channel %d: No queue elements available. Buffer FULL. Seq. Num: %d",
-            pIpRxChannel->m_ChannelIndex, DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber));
-        
-        // Extra trigger reconstructor to parse the data
-        pIpRxChannel->m_RxIncomingPackets = TRUE;
     }
-
     DtaIpRxUserChRefDecr(pIpRxChannel);
 }
 
@@ -2452,10 +3520,11 @@ void  DtaIpRxParsePayLoadMpeg(
 Bool  DtaIpRxParsePayLoadFec(
     UserIpRxChannel*  pIpRxChannel,
     DtaDmaRxHeader*  pDmaRxHeader,
+    UInt16  SeqNumber,
     Int  Size,
-    RtpHeader*  pRtpHeader,
-    UInt  PacketSize,
     UInt16  DvbOffset,
+    UInt16  RtpOffset,
+    UInt  PacketSize,
     DtaIpPort  *pIpPort,
     Int  DestPort)
 {
@@ -2508,10 +3577,9 @@ Bool  DtaIpRxParsePayLoadFec(
     if (pRtpListEntry != NULL) 
     {
         // Fill content
-        pRtpListEntry->m_RTPSequenceNumber = 
-                                           DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber);
+        pRtpListEntry->m_RTPSequenceNumber = SeqNumber;
         pRtpListEntry->m_PayloadOffset = DvbOffset + sizeof(FecHeader);
-        pRtpListEntry->m_RTPOffset = (Int)((UInt8*)pRtpHeader - pRxData);
+        pRtpListEntry->m_RTPOffset = RtpOffset;
 
         // Store FEC information
         pRtpListEntry->m_FecNA = pFecHeader->m_NA;
@@ -2520,9 +3588,8 @@ Bool  DtaIpRxParsePayLoadFec(
         
         // Copy complete packet into the buffer
         DtMemCopy(pIpRxChannel->m_pRtpBuffer + 
-                        (pRtpListEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH), 
-                        pDmaRxHeader,
-                        Size);
+                                 (pRtpListEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH),
+                                 pDmaRxHeader, Size);
 
         // Add packet to correct queue
         if (pFecHeader->m_D == 0) 
@@ -2565,10 +3632,10 @@ Bool  DtaIpRxParsePayLoadFec(
         DtDbgOut(ERR, IP_RX, "Channel %d: No queue elements available. Buffer FULL",
                                                             pIpRxChannel->m_ChannelIndex);
         // Tell the FEC reconstruct thread that data is available
-        pIpRxChannel->m_RxIncomingPackets = TRUE;        
+        pIpRxChannel->m_RxIncomingPackets = TRUE;
     }
 
-    DtaIpRxUserChRefDecr(pIpRxChannel);    
+    DtaIpRxUserChRefDecr(pIpRxChannel);
     return TRUE;
 }
 
@@ -2577,18 +3644,25 @@ Bool  DtaIpRxParsePayLoadFec(
 void  DtaIpRxParsePacket(
     DtaIpPort*  pIpPort,
     UInt8*  pData,
-    UInt  Size)
+    UInt  Size,
+    Bool  NrtRxType2)
 {   
     UInt  i;
     UInt  PacketSize;
-    IpHeaderV4*  pIpHeader = NULL;
+    IpHeaderV4*  pIpHeaderV4 = NULL;
+    IpHeaderV6*  pIpHeaderV6 = NULL;
     UdpHeader*  pUdpHeader = NULL;
+    Bool  PacketProcessed = FALSE;
     
     Bool  MulticastPacket = FALSE;
     DtaDmaRxHeader*  pDmaRxHeader = (DtaDmaRxHeader*)pData;
     UInt8*  pRxData = (UInt8*)pDmaRxHeader + sizeof(DtaDmaRxHeader);
-    EthernetIIHeader*  pEthernetIIHeader = (EthernetIIHeader*)pRxData;
-    Ethernet802_3Header*  pEthernet802_3Header = (Ethernet802_3Header*)pRxData;
+    UInt8*  pRxDataAligned;
+    UInt  PacketSizeAligned;
+    EthernetIIHeader*  pEthernetIIHeader;
+    EthernetIIHeaderVlan*  pEthernetIIHeaderVlan;
+    Ethernet802_3Header*  pEthernet802_3Header;
+    Ethernet802_3HeaderVlan*  pEthernet802_3HeaderVlan;
     UInt8*  pDstMac;
     PhyMac*  pPhyMac = &pIpPort->m_PhyMac;
     
@@ -2600,7 +3674,6 @@ void  DtaIpRxParsePacket(
 
     // Protocol parsing
     UInt  NumChannels;
-    UserIpRxChannel*  pIpRxA[MAX_NUM_IPRX_LISTEN];
     UserIpRxChannel*  pIpRxChannel;
     UInt16  DestPort;
     RtpHeader*  pRtpHeader = NULL;
@@ -2608,7 +3681,12 @@ void  DtaIpRxParsePacket(
     UInt  ProtocolType;
     Bool  RtpExt = FALSE;
     UInt16  DvbOffset;
-
+    UInt16  RtpOffset;
+    Bool  Type2 = (pIpPort->m_PortType == DTA_IPPORT_TYPE2);
+    Int  EthType;
+    Int  EthHeaderSize;
+    Int  VlanId = 0;
+    
     // Calculate packetsize. Extract CRC + DMA header
     PacketSize = Size - 4 - sizeof(DtaDmaRxHeader);
 
@@ -2618,39 +3696,93 @@ void  DtaIpRxParsePacket(
 
     if (pIpPort->m_PhyMac.m_LoopbackEnable) 
     {
-        // TODO
-        DT_ASSERT(FALSE);
-        //if (DtaIpRxHandleLoopback(pIpPort, pData, Size))
-        return;
+        if (DtaIpRxHandleLoopback(pIpUserChannels, pRxData, PacketSize))
+            return;
     }
 
     // Check if the network is administrative up, if not we discard all received packets
     if (pIpPort->m_PhyMac.m_NetworkAdminStatus != DTA_NW_ADMIN_STATUS_UP)
         return;
-    
-    pEthernetIIHeader = (EthernetIIHeader*)pRxData;
-    pEthernet802_3Header = (Ethernet802_3Header*)pRxData;
-    
-    // Determine the encapsulation method by checking the ethernet type of the packet
-    if (pEthernetIIHeader->m_Type == ETH_TYPE_IPV4_BE) 
+
+    if (NrtRxType2)
     {
-        // Ethernet II
-        pIpHeader = (IpHeaderV4*) (pRxData + sizeof(EthernetIIHeader));
-        pDstMac = (UInt8*)pEthernetIIHeader->m_DstMac;
-    }
-    else if ((pEthernet802_3Header->m_DSAP == 0xAA) && 
-             (pEthernet802_3Header->m_SSAP == 0xAA) &&
-             (pEthernet802_3Header->m_Type == ETH_TYPE_IPV4_BE)) 
-    {
-        // 802.2/802.3 encapsulation
-        pIpHeader = (IpHeaderV4*) (pRxData + sizeof(Ethernet802_3Header));
-        pDstMac = (UInt8*)pEthernet802_3Header->m_DstMac; 
-    }
-    else {
-        // Unknown packet type.....
+        // For now, NRT Rx for type2 will be sent to network driver directly without any 
+        // destination check.
         DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
         return;
     }
+
+    pRxDataAligned = pRxData;
+    PacketSizeAligned = PacketSize;
+
+    if (pIpPort->m_PhyMac.m_AlignedPayload)
+    {
+        pRxDataAligned+= 2;
+        PacketSizeAligned-= 2;
+    }
+
+    pEthernetIIHeader = (EthernetIIHeader*)pRxDataAligned;
+    pEthernet802_3Header = (Ethernet802_3Header*)pRxDataAligned;
+    pEthernetIIHeaderVlan = (EthernetIIHeaderVlan*)pRxDataAligned;
+    pEthernet802_3HeaderVlan = (Ethernet802_3HeaderVlan*)pRxDataAligned;
+    
+    // Determine the encapsulation method by checking the ethernet type of the packet
+    if (pEthernetIIHeader->m_Type == ETH_TYPE_VLAN_BE)
+    {
+        UInt16  OrigTci;
+        EthType = pEthernetIIHeaderVlan->m_Type;
+        EthHeaderSize = sizeof(EthernetIIHeaderVlan);
+        // Restore the Tci value after use. It's used in the network driver also
+        OrigTci = pEthernetIIHeaderVlan->m_TCI;
+        pEthernetIIHeaderVlan->m_TCI = DtUInt16ByteSwap(pEthernetIIHeaderVlan->m_TCI);
+        VlanId = pEthernetIIHeaderVlan->m_VId;
+        pEthernetIIHeaderVlan->m_TCI = OrigTci;
+    } else {
+        EthType = pEthernetIIHeader->m_Type;
+        EthHeaderSize = sizeof(EthernetIIHeader);
+    }
+    
+    if (EthType == ETH_TYPE_IPV4_BE) 
+    {
+        // Ethernet II IpV4
+        pIpHeaderV4 = (IpHeaderV4*)(pRxDataAligned + EthHeaderSize);
+        pDstMac = (UInt8*)pEthernetIIHeader->m_DstMac;
+    } else if (EthType == ETH_TYPE_IPV6_BE)
+    {
+        // Ethernet II IpV6
+        pIpHeaderV6 = (IpHeaderV6*)(pRxDataAligned + EthHeaderSize);
+        pDstMac = (UInt8*)pEthernetIIHeader->m_DstMac;
+    } else if (pEthernet802_3Header->m_DSAP==0xAA && pEthernet802_3Header->m_SSAP==0xAA)
+    {
+        if (pEthernet802_3Header->m_Type == ETH_TYPE_VLAN_BE)
+        {
+            EthType = pEthernet802_3HeaderVlan->m_Type;
+            EthHeaderSize = sizeof(Ethernet802_3HeaderVlan);
+        } else {
+            EthType = pEthernet802_3Header->m_Type;
+            EthHeaderSize = sizeof(Ethernet802_3Header);
+        }
+
+        if (EthType == ETH_TYPE_IPV4_BE)
+        {
+            // 802.2/802.3 encapsulation IpV4
+            pIpHeaderV4 = (IpHeaderV4*)(pRxDataAligned + EthHeaderSize);
+            pDstMac = (UInt8*)pEthernet802_3Header->m_DstMac; 
+        } else if (EthType == ETH_TYPE_IPV6_BE)
+        {
+            // 802.2/802.3 encapsulation IpV6
+            pIpHeaderV6 = (IpHeaderV6*) (pRxDataAligned + EthHeaderSize);
+            pDstMac = (UInt8*)pEthernet802_3Header->m_DstMac; 
+        } else {
+            // Unknown packet type.....
+            DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
+            return;
+        }
+    } else {
+        DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
+        return;
+    }
+
     // Check if the destination mac is a multicast/broadcast address and
     // Rx is enabled.
     if ((pDstMac[0] & 1) != 0) 
@@ -2714,49 +3846,83 @@ void  DtaIpRxParsePacket(
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Parse fragmented frame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
     
     // Check if we have a complete (fragmented) frame
-    if ((pIpHeader->m_Flags&IPV4_HDR_FLAGS_MOREFRAG) != 0 || 
-       ((pIpHeader->m_Flags&IPV4_HDR_FLAGS_MOREFRAG) == 0 && 
-        (pIpHeader->m_FragmentOffsetH!=0 || pIpHeader->m_FragmentOffsetL!=0)))
+    if (pIpHeaderV4!=NULL && ((pIpHeaderV4->m_Flags&IPV4_HDR_FLAGS_MOREFRAG) != 0 || 
+               ((pIpHeaderV4->m_Flags&IPV4_HDR_FLAGS_MOREFRAG) == 0 && 
+               (pIpHeaderV4->m_FragmentOffsetH!=0 || pIpHeaderV4->m_FragmentOffsetL!=0))))
     {
         Bool  StopParsing = FALSE;
     
         pIpRxFragment = DtaIpRxParseFragmentedFrame(pIpUserChannels, pDmaRxHeader, Size,
-                                       pIpHeader, MulticastPacket, pIpPort, &StopParsing);
+                             pIpHeaderV4, MulticastPacket, pIpPort, VlanId, &StopParsing);
         if (StopParsing)
             return;
     }
     
-    if(pIpRxFragment != NULL)
+    if (pIpRxFragment != NULL)
     {
         // A fragmented frame is complete and already stored in the RtpBuffer of the
         // first (valid) channel in the pIpRxA array. Redirect buffer pointers.
         // Note: The reference of the fragmented packet is increased.
         //       so from now on it has to be decreased after usage.
-        pIpHeader = (IpHeaderV4*)(pIpRxFragment->m_pRtpBuffer + 
+        pIpHeaderV4 = (IpHeaderV4*)(pIpRxFragment->m_pRtpBuffer + 
                                                       pIpRxFragment->m_CurIpHeaderOffset);
         pDmaRxHeader = (DtaDmaRxHeader*)pIpRxFragment->m_pRtpBuffer;
         PacketSize = pIpRxFragment->m_FragmentOffset - sizeof(DtaDmaRxHeader);
         pRxData = (UInt8*)pDmaRxHeader + sizeof(DtaDmaRxHeader);
 
+        pRxDataAligned = pRxData;
+        PacketSizeAligned = PacketSize;
+
         DtDbgOut(MAX, IP_RX, "Fragmented frame, new PacketSize %d.", PacketSize);
+
+        if (pIpPort->m_PhyMac.m_AlignedPayload)
+        {
+            pRxDataAligned+= 2;
+            PacketSizeAligned-= 2;
+        }
     }
 
-    // Check if we have a valid UDP header    
-    pUdpHeader = (UdpHeader*)((UInt8*)pIpHeader + (pIpHeader->m_HeaderLength * 4));
-    if (pIpHeader->m_Protocol != IPV4_HDR_PROT_UDP)
+    // Check if we have a valid UDP header
+    if (pIpHeaderV4 != NULL)
     {
-        if(pIpRxFragment != NULL)
-            DtaIpRxUserChRefDecr(pIpRxFragment);
-        DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
-        return;
-    }
+        pUdpHeader = (UdpHeader*)((UInt8*)pIpHeaderV4 + 
+                                                       (pIpHeaderV4->m_HeaderLength * 4));
+        if (pIpHeaderV4->m_Protocol != IPV4_HDR_PROT_UDP)
+        {
+            if(pIpRxFragment != NULL)
+                DtaIpRxUserChRefDecr(pIpRxFragment);
+            DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
+            return;
+        }
+    } else {
+        // IpV6
+        UInt8*  pData = (UInt8*)pIpHeaderV6 + sizeof(IpHeaderV6);
+        IpV6Options*  pOptions;
+        UInt  ExtHeader = pIpHeaderV6->m_NextHeader;
+        
+        while (TRUE)
+        {
+            pOptions = (IpV6Options*)pData;
+            if (ExtHeader == IPV4_HDR_PROT_UDP)
+                break;
+            else if (ExtHeader!=IPV6_HDR_HOPBYHOP && ExtHeader!=IPV6_HDR_AUTH &&
+                       ExtHeader!=IPV6_HDR_DST_OPTIONS && ExtHeader!=IPV6_HDR_DST_OPTIONS)
+            {
+                DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
+                return;
+            }
+            pData += 1 + pOptions->m_HeaderExtLength;
+            ExtHeader = pOptions->m_NextHeader;
+        }
+        pUdpHeader = (UdpHeader*)((UInt8*)pData);
+     }
 
     // Check if a un-fragmented frame has the correct length
     FrameLength = DtUInt16ByteSwap(pUdpHeader->m_Length) +
                       DtPtrToUInt((UInt8*)((UInt8*)pUdpHeader - pRxData)) + 4; // +4 = CRC
 
-    if (FrameLength > pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength && 
-                                                                   pIpRxFragment == NULL)
+    if (FrameLength > pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength&&
+                                                                      pIpRxFragment==NULL)
     {        
         DtDbgOut(ERR, IP_RX, "UDP Length error. Packet too short. PortIndex=%d", 
                                                                   pIpPort->m_IpPortIndex);
@@ -2766,7 +3932,10 @@ void  DtaIpRxParsePacket(
             DtaIpRxUserChRefDecr(pIpRxFragment);
 
         if (PacketSize < DTA_IPRX_MAX_PACKET_LENGTH)
+        {
+            DtDbgOut(ERR, IP_RX, "UDP length error!");
             DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
+        }
         return;
     }
 
@@ -2779,7 +3948,7 @@ void  DtaIpRxParsePacket(
     if (pIpRxFragment != NULL)
     {
         // Check UDP checksum
-        UInt16 Checksum = DtaIpRxCalculateUdpChecksum(pIpHeader, pUdpHeader,
+        UInt16 Checksum = DtaIpRxCalculateUdpChecksum(pIpHeaderV4, pUdpHeader,
                                                        pRxData+DvbOffset, DvbTotalLength);
         if (pUdpHeader->m_Checksum!=0 && Checksum!=pUdpHeader->m_Checksum)
         {
@@ -2790,20 +3959,44 @@ void  DtaIpRxParsePacket(
         }
     }
 
+    DestPort = DtUInt16ByteSwap(pUdpHeader->m_DestinationPort);
+
     // Get the RTP header
     pRtpHeader = (RtpHeader*)((UInt8*)pUdpHeader + sizeof(UdpHeader));
+    RtpOffset = (Int)(((UInt8*)pRtpHeader) - pRxData);
 
     // Check if the complete (fragmented) packet is for one of our channels
-    DestPort = DtUInt16ByteSwap(pUdpHeader->m_DestinationPort);
-    NumChannels = DtaIpRxIsPacketForDVB(pIpUserChannels, pRtpHeader,
-                                     pIpHeader->m_SrcAddress, pIpHeader->m_DstAddress,
-                                     DtUInt16ByteSwap(pUdpHeader->m_SourcePort),
-                                     DestPort, MulticastPacket, pIpRxA);
+    // For Type2, we already know it's for one or more of the RT Ip channels.
+    DtMutexAcquire(&pIpPort->m_IpRxListenersMutex, -1);
+    if (Type2)
+    {
+        UInt8*  pSrcAddress = (pIpHeaderV4!=NULL ? pIpHeaderV4->m_SrcAddress : 
+                                                               pIpHeaderV6->m_SrcAddress);
+        NumChannels = DtaIpRxGetChannelsForDVB(pIpPort, 
+                                    pDmaRxHeader->m_RxHeaderV3.m_AddrMatching.m_AddrIdTag,
+                                    pSrcAddress, pIpPort->m_pIpRxListeners,
+                                    pIpPort->m_MaxNumListeners);
+    } else {
+        UInt8*  pSrcAddress = (pIpHeaderV4!=NULL ? pIpHeaderV4->m_SrcAddress : 
+                                                               pIpHeaderV6->m_SrcAddress);
+        UInt8*  pDstAddress = (pIpHeaderV4!=NULL ? pIpHeaderV4->m_DstAddress : 
+                                                               pIpHeaderV6->m_DstAddress);
+        NumChannels = DtaIpRxIsPacketForDVB(pIpUserChannels, pRtpHeader, pSrcAddress, 
+                                  pDstAddress, DtUInt16ByteSwap(pUdpHeader->m_SourcePort),
+                                  DestPort, MulticastPacket, pIpHeaderV4==NULL, VlanId,
+                                  pIpPort->m_pIpRxListeners, pIpPort->m_MaxNumListeners);
+        
+    }
     if (NumChannels == 0)
     {
+        DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
         if (pIpRxFragment != NULL)
             DtaIpRxUserChRefDecr(pIpRxFragment);
-        DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
+        if (Type2)
+            DtDbgOut(MAX, IP_RX, "No channels for TagId: %i!", 
+                                   pDmaRxHeader->m_RxHeaderV3.m_AddrMatching.m_AddrIdTag);
+        else
+            DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
         return;
     }
 
@@ -2823,7 +4016,8 @@ void  DtaIpRxParsePacket(
         if (*(pRxData + DvbOffset) != 0x47)
         {
             // It's not a DVB packet or a DVB packet with unknown header/content
-            DtaIpRxUserChRefDecrAll(pIpRxA, NumChannels);
+            DtaIpRxUserChRefDecrAll(pIpPort->m_pIpRxListeners, NumChannels);
+            DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
             if (pIpRxFragment != NULL)
                     DtaIpRxUserChRefDecr(pIpRxFragment);
 
@@ -2835,8 +4029,9 @@ void  DtaIpRxParsePacket(
         if (pIpRxFragment != NULL)
         {
             // We can not handle fragmented RTP packets
-            // Discard packets            
-            DtaIpRxUserChRefDecrAll(pIpRxA, NumChannels);
+            // Discard packets
+            DtaIpRxUserChRefDecrAll(pIpPort->m_pIpRxListeners, NumChannels);
+            DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
             if (pIpRxFragment != NULL)
                     DtaIpRxUserChRefDecr(pIpRxFragment);
 
@@ -2877,14 +4072,31 @@ void  DtaIpRxParsePacket(
     }
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- CopyIpPacketsToUserChannels -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-
+    PacketProcessed = FALSE;
     for (i=0; i<NumChannels; i++) 
     {
+        Int  VlanIdCh;
+        
         // The use count of the IpRx channel is already incremented,
         // so the structure is available
-        pIpRxChannel = pIpRxA[i];
+        pIpRxChannel = pIpPort->m_pIpRxListeners[i];
         pIpRxChannel->m_FragmentId = 0;
-        pIpRxChannel->m_FragmentOffset = 0;      
+        pIpRxChannel->m_FragmentOffset = 0;
+
+        // Check if packet is for correct VLAN
+        if ((pIpRxChannel->m_IpParsMode & DTA_IP_RX_DBLBUF)!=0 && 
+                                                            (pIpPort->m_IpPortIndex&1)!=0)
+            VlanIdCh = pIpRxChannel->m_VlanId2;
+        else
+            VlanIdCh = pIpRxChannel->m_VlanId;
+
+        if (VlanIdCh != VlanId)
+        {
+            // Decrement use count
+            DtaIpRxUserChRefDecr(pIpRxChannel);
+            continue;
+        }
+        PacketProcessed = TRUE;
         
         // Check if we are in Raw IP mode. 
         // If so, the complete packet must be copied 
@@ -2893,32 +4105,50 @@ void  DtaIpRxParsePacket(
         {
             // Process the raw ip data (including extra bytes after the UDP payload if 
             // available).
-            DtaIpRxProcessIpRawPayLoad(pIpRxChannel, pRxData, PacketSize, 
+            DtaIpRxProcessIpRawPayLoad(pIpRxChannel, pRxDataAligned, PacketSizeAligned, 
                                                          pDmaRxHeader->m_Timestamp, TRUE);
             // Decrement use count
             DtaIpRxUserChRefDecr(pIpRxChannel);
             continue;
         }
 
-        //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Protocol UDP -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+        //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Protocol UDP -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
         if (ProtocolType == DTA_PROTO_UDP) 
         {
             DtDbgOut(MAX, IP_RX, "Channel %d: UDP DVB Packet received. DVB-DataSize=%i",
                                             pIpRxChannel->m_ChannelIndex, DvbTotalLength);
 
-            // It's a UDP packet with DVB content. Add to user buffer
+            // It's a UDP packet with DVB content. 
+            // If we are in double buffer mode we parse it like a RTP packet with packet
+            // sorting otherwhise we copy it directly to the user buffer
             DT_ASSERT(*(pRxData + DvbOffset) == 0x47);
 
             pIpRxChannel->m_DetProtocol = DTA_PROTO_UDP;
             pIpRxChannel->m_DetFecNumColumns = 0;
             pIpRxChannel->m_DetFecNumRows = 0;
 
-            DtaIpRxProcessDvbPayLoad(pIpRxChannel, 
+            // We do not support doubly buffering with IpV6.
+            if (((pIpRxChannel->m_IpParsMode & DTA_IP_RX_DBLBUF)!=0) && pIpHeaderV4!=NULL)
+            {
+                DtDbgOut(MAX, IP_RX, "[%i]     PACKET SN:%d\t%d", pIpPort->m_IpPortIndex,
+                                          DtUInt16ByteSwap(pIpHeaderV4->m_Identification),
+                                          pIpRxChannel->m_RtpLastSeqNum);
+                DtaIpRxParsePayLoadMpeg(pIpRxChannel, pDmaRxHeader, 
+                                          DtUInt16ByteSwap(pIpHeaderV4->m_Identification),
+                                          Size, DvbOffset, 0);
+
+                // Notify the recontructor
+                if (pIpRxChannel->m_RxIncomingPackets)
+                    pIpUserChannels->m_IpRxRtpPacketAvailable = TRUE;
+                continue;
+            } else {
+                DtaIpRxProcessDvbPayLoad(pIpRxChannel, 
                        pRxData + DvbOffset, DvbTotalLength, pDmaRxHeader->m_Timestamp, 0);
             
-            // Decrement use count
-            DtaIpRxUserChRefDecr(pIpRxChannel);
-            continue;
+                // Decrement use count
+                DtaIpRxUserChRefDecr(pIpRxChannel);
+                continue;
+            }
         }
         
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Protocol RTP -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2926,12 +4156,16 @@ void  DtaIpRxParsePacket(
         //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Payload MPEGII -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
         if (pRtpHeader->m_PayloadType == RTP_PAYLOAD_MPEGII) 
         {
-            DtaIpRxParsePayLoadMpeg(pIpRxChannel, pRtpHeader, pDmaRxHeader, Size, 
-                                                                               DvbOffset);
+            DtDbgOut(MAX, IP_RX, "[%i]     PACKET SN:%d\t%d", pIpPort->m_IpPortIndex,
+                                           DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber),
+                                           pIpRxChannel->m_RtpLastSeqNum);
+            DtaIpRxParsePayLoadMpeg(pIpRxChannel, pDmaRxHeader,
+                                           DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber), 
+                                           Size, DvbOffset, RtpOffset);
             
             // Notify the recontructor
             if (pIpRxChannel->m_RxIncomingPackets)
-                pIpUserChannels->m_IpRxPacketAvailable = TRUE;
+                pIpUserChannels->m_IpRxRtpPacketAvailable = TRUE;
             continue;
         }
 
@@ -2949,10 +4183,12 @@ void  DtaIpRxParsePacket(
                 continue;
             }
 
-            if (!DtaIpRxParsePayLoadFec(pIpRxChannel, pDmaRxHeader, Size, pRtpHeader, 
-                                                PacketSize, DvbOffset, pIpPort, DestPort))
+            if (!DtaIpRxParsePayLoadFec(pIpRxChannel, pDmaRxHeader,
+                                           DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber),
+                                           Size, DvbOffset, RtpOffset, PacketSize,
+                                           pIpPort, DestPort))
             {
-                DtaIpRxUserChRefDecrAll(pIpRxA, NumChannels);
+                DtaIpRxUserChRefDecrAll(pIpPort->m_pIpRxListeners, NumChannels);
                 if (pIpRxFragment != NULL)
                     DtaIpRxUserChRefDecr(pIpRxFragment);
 
@@ -2962,7 +4198,7 @@ void  DtaIpRxParsePacket(
 
             // Notify the reconstructor
             if (pIpRxChannel->m_RxIncomingPackets)
-                pIpUserChannels->m_IpRxPacketAvailable = TRUE;
+                pIpUserChannels->m_IpRxRtpPacketAvailable = TRUE;
 
             continue;
         }
@@ -2974,13 +4210,22 @@ void  DtaIpRxParsePacket(
                                                             pIpRxChannel->m_ChannelIndex);
 
         // Decrement ref count for all channels
-        DtaIpRxUserChRefDecrAll(pIpRxA, NumChannels);
+        DtaIpRxUserChRefDecrAll(pIpPort->m_pIpRxListeners, NumChannels);
+        DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
         if (pIpRxFragment != NULL)
             DtaIpRxUserChRefDecr(pIpRxFragment);
 
         DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
         return;
     } // end for
+
+    DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
+
+    if (NumChannels!=0 && !PacketProcessed)
+    {
+        // Incorrect Vlan, send to network driver
+        DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
+    }
 
     // make shure the reference to a fragmented packet is decreased
     if (pIpRxFragment != NULL)
@@ -2993,6 +4238,7 @@ void  DtaIpRxParsePacket(
 //
 // This functions returns the start of a new packet (pRxData) or
 // NULL if no data is available. (*pRxDataSize = 0)
+// This function is not used for RT RX type2
 //
 UInt8*  CheckAndParseData(
     DtaIpPort*  pIpPort,
@@ -3005,6 +4251,7 @@ UInt8*  CheckAndParseData(
     UInt8*  pDataToChk;
     DtaDmaRxHeader*  pDmaRxHeader;
     UInt  BytesToCopy;
+    Bool  NrtRxType2 = (pIpPort->m_PortType == DTA_IPPORT_TYPE2);
     
     if (*pPrevDataSize != 0)
     {
@@ -3028,7 +4275,7 @@ UInt8*  CheckAndParseData(
         if (*pPrevDataSize == 0)
             DtDbgOut(MAX, IP_RX, "Partly packet stored. Size: %d", *pRxDataSize);
         else
-            DtDbgOut(ERR, IP_RX, "Partly packet stored for second time."
+            DtDbgOut(MAX, IP_RX, "Partly packet stored for second time."
                                                        "PrevDataSize: %d. Rx'ed size: %d",
                                                        *pPrevDataSize, *pRxDataSize);
 
@@ -3054,7 +4301,7 @@ UInt8*  CheckAndParseData(
         DtMemCopy(pDataToChk+*pPrevDataSize, pRxData, BytesToCopy);
     }
     
-    DtaIpRxParsePacket(pIpPort, pDataToChk, BytesToCopy+*pPrevDataSize);
+    DtaIpRxParsePacket(pIpPort, pDataToChk, BytesToCopy+*pPrevDataSize, NrtRxType2);
     
     // Round to DWORDs
     if ((BytesToCopy % 4) != 0)
@@ -3070,22 +4317,24 @@ UInt8*  CheckAndParseData(
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxWorkerThread -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-// IP Rx worker thread.
+// IP Rx worker thread: Type1: RT/NRT
+//                      Type2: NRT only
 //
 void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
 {
     DtStatus  Status = DT_STATUS_OK;
     DtaIpPort*  pIpPort = pContext;
     UInt8*  pPrevData = NULL;
-    UInt8*  pRxData;
+    UInt8*  pRxData = NULL;
     DtaDmaRxHeader*  pRxHeader;
     Bool  StopThread = FALSE;
     DtEvent*  pDmaDoneEvent;
-    UInt  NumBytesRx;
+    UInt  NumBytesRx = 0;
     UInt  PrevDataLength = 0;
     UInt  BytesToCopy;
     DmaChannel*  pDmaCh = NULL;
     DtaIpUserChannels*  pIpUserChannels = NULL;
+    PPBuffer*  pPPBuffer = NULL;
     
     DtDbgOut(MAX, IP_RX, "Start");
 
@@ -3097,21 +4346,27 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
     }
 
     if (pIpPort->m_PortType == DTA_IPPORT_TYPE1)
+    {
         pDmaCh = &pIpPort->m_IpPortType1.m_Rx.m_DmaChannel;
-    else
+        pPPBuffer = &pIpPort->m_IpPortType1.m_RxPPBuffer;
+    }
+    else  if (pIpPort->m_PortType == DTA_IPPORT_TYPE2) 
+    {
+        pDmaCh = &pIpPort->m_IpPortType2.m_RxNrt.m_DmaChannel;
+        pPPBuffer = &pIpPort->m_IpPortType2.m_RxNrtPPBuffer;
+    } else 
         DT_ASSERT(FALSE);
 
     pDmaDoneEvent = DtaDmaGetDoneEvent(pDmaCh);
 
     // Start DMA transfer
-    Status = DtaPPBufferTransferData(&pIpPort->m_RxPPBuffer);
+    Status = DtaPPBufferTransferData(pPPBuffer);
     DT_ASSERT(DT_SUCCESS(Status));
 
     while (!StopThread)
     {
         // Wait for DMA done or stop
-        Status = DtThreadWaitForStopOrEvent(pThread, pDmaDoneEvent, DtaDmaIsReady(pDmaCh),
-                                                                                   FALSE);
+        Status = DtThreadWaitForStopOrEvent(pThread, pDmaDoneEvent);
         if (Status==DT_STATUS_CANCELLED || DtaDmaIsAbortActive(pDmaCh))
         {
             StopThread = TRUE;
@@ -3119,15 +4374,15 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
         }
 
         // DMA ready, start new transfer of other buffer
-        Status = DtaPPBufferTransferData(&pIpPort->m_RxPPBuffer);
+        Status = DtaPPBufferTransferData(pPPBuffer);
         DT_ASSERT(DT_SUCCESS(Status));
 
         // Get number of bytes Rx'ed of previous buffer
-        NumBytesRx = DtaPPBufferGetTransferSize(&pIpPort->m_RxPPBuffer);
+        NumBytesRx = DtaPPBufferGetTransferSize(pPPBuffer);
         
         // Check received data.
-        pRxData = DtaPPBufferReadDataGetBuffer(&pIpPort->m_RxPPBuffer);
-
+        pRxData = DtaPPBufferReadDataGetBuffer(pPPBuffer);
+        
         //-.-.-.-.-.-.-.-.-.-.- Check if previous data is available -.-.-.-.-.-.-.-.-.-.-.
         if (PrevDataLength != 0)
         {
@@ -3163,7 +4418,7 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
                         // Not a complete packet available, copy part of header into temp.
                         // buffer for later.
                         DtMemCopy(pPrevData+PrevDataLength, pRxData, NumBytesRx);
-                        DtDbgOut(ERR, IP_RX, "Partly packet stored for second time."
+                        DtDbgOut(MAX, IP_RX, "Partly packet stored for second time."
                                                        "PrevDataSize: %d. Rx'ed size: %d",
                                                        PrevDataLength, NumBytesRx);
                         PrevDataLength+= NumBytesRx;
@@ -3178,8 +4433,8 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
                                      "  previous data. PrevDataSize: %d", PrevDataLength);
                     // Skip all previous data, and take only the new data
                     PrevDataLength = 0;
-                    NumBytesRx = DtaPPBufferGetTransferSize(&pIpPort->m_RxPPBuffer);
-                    pRxData = DtaPPBufferReadDataGetBuffer(&pIpPort->m_RxPPBuffer);
+                    NumBytesRx = DtaPPBufferGetTransferSize(pPPBuffer);
+                    pRxData = DtaPPBufferReadDataGetBuffer(pPPBuffer);
                 }
             }
         }
@@ -3200,7 +4455,8 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
             if (!DtaIpRxIsDmaHeaderCorrect(pRxHeader))
             {
                 // Error in DMA header
-                DtDbgOut(ERR, IP_RX, "INCORRECT DMA header.");
+                DtDbgOut(ERR, IP_RX, "[%i] INCORRECT DMA header RT/NRT.", pIpPort->m_IpPortIndex);
+
 
                 // Find packet header
                 while (NumBytesRx>=sizeof(DtaDmaRxHeader) && 
@@ -3222,18 +4478,22 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
             pRxData = CheckAndParseData(pIpPort, pPrevData, &PrevDataLength, pRxData, 
                                                                              &NumBytesRx);
         }
-        // Finished parsing data
-        // If packets are found process them in the reconstructor
-        pIpUserChannels = &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels;
-        if (pIpUserChannels->m_IpRxPacketAvailable)
+
+        // Only for RT data.
+        if (pIpPort->m_PortType == DTA_IPPORT_TYPE1)
         {
-            pIpUserChannels->m_IpRxPacketAvailable = FALSE;
-            pIpUserChannels->m_IpRxPacketAvailableTrigger = TRUE;
-            DtEventSet(&pIpUserChannels->m_IpRxPacketAvailEvent);
+            // Finished parsing data
+            // If packets are found process them in the reconstructor
+            pIpUserChannels = &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels;
+            if (pIpUserChannels->m_IpRxRtpPacketAvailable)
+            {
+                pIpUserChannels->m_IpRxRtpPacketAvailable = FALSE;
+                DtEventSet(&pIpUserChannels->m_IpRxRtpPacketAvailEvent);
+            }
         }
 
         // Release buffer
-        DtaPPBufferReadDataFinished(&pIpPort->m_RxPPBuffer);
+        DtaPPBufferReadDataFinished(pPPBuffer);
     }
 
     DtDbgOut(MAX, IP_RX, "Abort DMA");
@@ -3251,8 +4511,283 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
     DtDbgOut(MAX, IP_RX, "Exit");
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtCheckHeaderAndParseDataType2 -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void DtaIpRxRtCheckHeaderAndParseDataType2(
+    DtaIpPort*  pIpPort, 
+    UInt8*  pRxData, 
+    UInt  RxDataSize)
+{
+    DtaIpUserChannels*  pIpUserChannels = NULL;
+    DtaDmaRxHeader*  pRxHeader;
+    UInt  BytesToCopy;
+    DT_ASSERT(pIpPort->m_PortType == DTA_IPPORT_TYPE2);
+    
+    // Parse the DMA data
+    while (RxDataSize != 0)
+    {
+        if (RxDataSize < sizeof(DtaDmaRxHeader))
+        {
+            // Not a complete packet available. This should not happen!
+            DT_ASSERT(FALSE);
+            DtDbgOut(ERR, IP_RX, "[%i] Partly DMA header received. Error.", 
+                                                                  pIpPort->m_IpPortIndex);
+            break;
+        }
+        pRxHeader = (DtaDmaRxHeader*)pRxData;
+        if (!DtaIpRxIsDmaHeaderCorrect(pRxHeader))
+        {
+            // Error in DMA header
+            DtDbgOut(ERR, IP_RX, "[%i] INCORRECT DMA header RT.", pIpPort->m_IpPortIndex);
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxGetMaxOutOfSync -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+            // Find packet header
+            while (RxDataSize>=sizeof(DtaDmaRxHeader) && 
+                                !DtaIpRxIsDmaHeaderCorrect(pRxHeader))
+            {
+                pRxData++;
+                pRxHeader = (DtaDmaRxHeader*)pRxData;
+                RxDataSize--;
+            }
+
+            // Check if we found a correct packet header
+            if (RxDataSize < sizeof(DtaDmaRxHeader))
+            {
+                DtDbgOut(ERR, IP_RX, "[%i] No correct DMA header found after incorrect"
+                                                   " DMA header", pIpPort->m_IpPortIndex);
+                break;
+            }
+        }
+        if (RxDataSize < pRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength +
+                                                                   sizeof(DtaDmaRxHeader))
+        {
+            DtDbgOut(ERR, IP_RX, "[%i] No complete data packet received. Expected: %u."
+                            " Received: %u", pIpPort->m_IpPortIndex,
+                            (UInt)pRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength +
+                            sizeof(DtaDmaRxHeader), RxDataSize);
+            break;
+        }
+        if (pRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength == 0)
+        {
+            // End of chain marker. Should not happen anymore
+            DtDbgOut(ERR, IP_RX, "[%i] End of chain", pIpPort->m_IpPortIndex);
+            DT_ASSERT(FALSE);
+            break;
+        }
+
+        // Complete packet received
+        BytesToCopy = pRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength +
+                                                                   sizeof(DtaDmaRxHeader);
+        //DtaIpRxParsePacket(pIpPort, pRxData, BytesToCopy);
+        if (pRxHeader->m_RxHeaderV3.m_AddrMatching.m_AddrIdTagFound == 1)
+        {
+            DT_ASSERT(pRxHeader->m_RxHeaderV3.m_AddrMatching.m_RealTime == 1);
+            // It's for the RealTime Receive
+            DtaIpRxParsePacket(pIpPort, pRxData, BytesToCopy, FALSE);
+        } else {
+            // Copy to NDIS
+            DtaIpRxSendPacketToNwDriver(pIpPort, pRxHeader,
+                              pRxData+sizeof(DtaDmaRxHeader), 
+                              pRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength - 4);
+        }
+    
+        // Round to DWORDs
+        if ((BytesToCopy % 4) != 0)
+            BytesToCopy += (4 - (BytesToCopy % 4));
+        pRxData+= BytesToCopy;
+        if (RxDataSize <= BytesToCopy)
+            RxDataSize = 0;
+        else
+            RxDataSize-= BytesToCopy;
+    }
+
+    // Finished parsing data
+    // If packets are found process them in the reconstructor
+    pIpUserChannels = &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels;
+    if (pIpUserChannels->m_IpRxRtpPacketAvailable)
+    {
+        pIpUserChannels->m_IpRxRtpPacketAvailable = FALSE;
+        DtEventSet(&pIpUserChannels->m_IpRxRtpPacketAvailEvent);
+    }
+}
+
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtWorkerThread -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// IP Rx worker thread: Type2: RT only
+//
+void  DtaIpRxRtWorkerThread(DtThread* pThread, void* pContext)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtaIpPort*  pIpPort[2];
+    DtaIpPortType2*  pIpPortT2[2];
+    
+    UInt8*  pRxData = NULL;
+    Bool  StopThread = FALSE;
+    DtEvent*  pDmaDoneEvent;
+    UInt  NumBytesRx = 0;
+    DmaChannel*  pDmaCh = NULL;
+    PPBuffer*  pPPBuffer = NULL;
+    Bool  DataAvailable = FALSE;
+    UInt  TransferSize[2]= {0,0};
+
+    DtDbgOut(MAX, IP_RX, "Start");
+
+    pIpPort[0] = (DtaIpPort*)pContext;
+    pIpPort[1] = 
+              &pIpPort[0]->m_pDvcData->m_IpDevice.m_pIpPorts[pIpPort[0]->m_IpPortIndex+1];
+    pIpPortT2[0] = &pIpPort[0]->m_IpPortType2;
+    pIpPortT2[1] = &pIpPort[1]->m_IpPortType2;
+        
+    DT_ASSERT(pIpPort[0]->m_PortType == DTA_IPPORT_TYPE2);
+
+    pDmaCh = &pIpPort[0]->m_IpPortType2.m_RxRt.m_DmaChannel;
+    pPPBuffer = &pIpPort[0]->m_IpPortType2.m_RxRtPPBuffer;
+    
+    pDmaDoneEvent = DtaDmaGetDoneEvent(pDmaCh);
+
+    while (!StopThread)
+    {
+        // If no data is transferd in previous loop, we have to wait here for new data
+        if (!DataAvailable)
+        {
+            // Wait for slice available port x
+            while (pIpPortT2[0]->m_RxRtSliceWriteIndex == 
+                                        pIpPortT2[0]->m_RxRtSliceReadIndex && !StopThread)
+            {
+                Status = DtThreadWaitForStopOrEvent(pThread, 
+                                                         &pIpPortT2[0]->m_RxRtSliceEvent);
+                if (Status == DT_STATUS_CANCELLED)
+                    StopThread = TRUE;
+            }
+            if (StopThread)
+                continue;
+
+            TransferSize[0] = 
+                        pIpPortT2[0]->m_RxRtSliceSize[pIpPortT2[0]->m_RxRtSliceReadIndex];
+            if (TransferSize[0] != 0)
+            {
+                // Start DMA transfer port 0
+                Status = DtaPPBufferTransferDataContext(pPPBuffer, pIpPort[0]);
+                DT_ASSERT(DT_SUCCESS(Status));
+            } else {
+                // Increment read index
+                if (pIpPortT2[0]->m_RxRtSliceReadIndex+1 == DTA_IPRX_MAX_SLICES)
+                    pIpPortT2[0]->m_RxRtSliceReadIndex = 0;
+                else
+                    pIpPortT2[0]->m_RxRtSliceReadIndex++;
+            }
+        }
+        if (TransferSize[0] != 0)
+        {
+            // Wait for DMA done or stop port 0
+            Status = DtThreadWaitForStopOrEvent(pThread, pDmaDoneEvent);
+            if (Status==DT_STATUS_CANCELLED || DtaDmaIsAbortActive(pDmaCh))
+            {
+                StopThread = TRUE;
+                continue;
+            }
+        
+            // Get number of bytes Rx'ed of previous buffer
+            NumBytesRx = DtaPPBufferGetTransferSize(pPPBuffer);
+            pRxData = (UInt8*)DtaPPBufferReadDataGetBuffer(pPPBuffer);
+        }
+
+        // Wait for slice available port 1
+        while (pIpPortT2[1]->m_RxRtSliceWriteIndex == 
+                                        pIpPortT2[1]->m_RxRtSliceReadIndex && !StopThread)
+        {
+            Status = DtThreadWaitForStopOrEvent(pThread, &pIpPortT2[0]->m_RxRtSliceEvent);
+            if (Status==DT_STATUS_CANCELLED)
+                StopThread = TRUE;
+        }
+        if (StopThread)
+            continue;
+
+        TransferSize[1] = 
+                        pIpPortT2[1]->m_RxRtSliceSize[pIpPortT2[1]->m_RxRtSliceReadIndex];
+        if (TransferSize[1] != 0)
+        {
+            // Start DMA transfer port1
+            Status = DtaPPBufferTransferDataContext(pPPBuffer, pIpPort[1]);
+            DT_ASSERT(DT_SUCCESS(Status));
+        } else {
+            // Increment read index
+            if (pIpPortT2[1]->m_RxRtSliceReadIndex+1 == DTA_IPRX_MAX_SLICES)
+                pIpPortT2[1]->m_RxRtSliceReadIndex = 0;
+            else
+                pIpPortT2[1]->m_RxRtSliceReadIndex++;
+        }
+
+        if (TransferSize[0] != 0)
+        {
+            DtaIpRxRtCheckHeaderAndParseDataType2(pIpPort[0], pRxData, NumBytesRx);
+        
+            // Release buffer
+            DtaPPBufferReadDataFinished(pPPBuffer);
+        }
+
+        if (TransferSize[1] != 0)
+        {
+            // Wait for DMA done or stop port 1
+            Status = DtThreadWaitForStopOrEvent(pThread, pDmaDoneEvent);
+            if (Status==DT_STATUS_CANCELLED || DtaDmaIsAbortActive(pDmaCh))
+            {
+                StopThread = TRUE;
+                continue;
+            }
+
+            // Get number of bytes Rx'ed of port 1
+            NumBytesRx = DtaPPBufferGetTransferSize(pPPBuffer);
+            pRxData = (UInt8*)DtaPPBufferReadDataGetBuffer(pPPBuffer);
+        }
+
+        DataAvailable = FALSE;
+        if (pIpPortT2[0]->m_RxRtSliceWriteIndex != 
+                                           pIpPort[0]->m_IpPortType2.m_RxRtSliceReadIndex)
+        {
+            DataAvailable = TRUE;
+
+            // Check transfer size
+             TransferSize[0] = 
+                        pIpPortT2[0]->m_RxRtSliceSize[pIpPortT2[0]->m_RxRtSliceReadIndex];
+            if (TransferSize[0] != 0)
+            {
+                // Start DMA transfer port 0
+                Status = DtaPPBufferTransferDataContext(pPPBuffer, pIpPort[0]);
+                DT_ASSERT(DT_SUCCESS(Status));
+            } else {
+                // Increment read index
+                if (pIpPortT2[0]->m_RxRtSliceReadIndex+1 == DTA_IPRX_MAX_SLICES)
+                    pIpPortT2[0]->m_RxRtSliceReadIndex = 0;
+                else
+                    pIpPortT2[0]->m_RxRtSliceReadIndex++;
+            }
+
+        }
+        if (TransferSize[1] != 0)
+        {
+            DtaIpRxRtCheckHeaderAndParseDataType2(pIpPort[1], pRxData, NumBytesRx);
+        
+            // Release buffer
+            DtaPPBufferReadDataFinished(pPPBuffer);
+        }
+    }
+
+    DtDbgOut(MAX, IP_RX, "Abort DMA");
+
+    DtaDmaAbortDma(pDmaCh);
+
+    while (!DtaDmaIsReady(pDmaCh))
+        DtSleep(10);
+
+    // We have to wait until the thread received a stop command.
+    DtThreadWaitForStop(pThread);
+
+    DtDbgOut(MAX, IP_RX, "Exit");
+}
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxGetMaxOutOfSync -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 UInt16  DtaNwIpRxGetMaxOutOfSync(UserIpRxChannel* pIpRxChannel) 
 {
@@ -3299,7 +4834,14 @@ void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeq
     UInt16  NumPackets = 1;
     UInt16  LastSeqNum;
 
-    if (pIpRxChannel->m_FecMode == DTA_FEC_DISABLE) 
+    if (pIpRxChannel->m_IpParsMode == DTA_IP_RX_DBLBUF) 
+    {
+        MaxOutOfSync = 200;
+        if (pIpRxChannel->m_FecMode == DTA_FEC_DISABLE) 
+            MinPacketsInBuffer = 0;
+        else
+            MinPacketsInBuffer = 3 * DtaIpRxGetMaxOutOfSync(pIpRxChannel);
+    } else if (pIpRxChannel->m_FecMode == DTA_FEC_DISABLE) 
     {
         MaxOutOfSync = MAX_OUTOFSYNC_SEQ_NUM;
         MinPacketsInBuffer = 0;
@@ -3314,16 +4856,25 @@ void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeq
         DtSpinLockAcquire(&pIpRxChannel->m_RtpListSpinLock);
         if (pRtpListEntry != NULL)
         {   
+            RtpListEntry*  pRtpListEntryTmp = DtContainingRecord(
+                   DtListNextGet(&pIpRxChannel->m_RtpDvbList), RtpListEntry, m_ListEntry);
+                
             // We don't need this packet anymore, add to empty List
-            // Check if the entry is still available. It's possible that the
-            // entry is already moved to the empty list due to a reset of the IpRx channel
-            if(pRtpListEntry == 
-                             DtContainingRecord(DtListNextGet(&pIpRxChannel->m_RtpDvbList),
-                             RtpListEntry, m_ListEntry));
+            // It's possible that in the mean time new packets are inserted before the
+            // handled entry. We need to remove all these packets, because these packets
+            // are too late.
+            while (pRtpListEntry != pRtpListEntryTmp)
             {
                 DtHeadListRemove(&pIpRxChannel->m_RtpDvbList);
-                DtaIpRxRtpMoveEntryToEmptyListUnsafe(pIpRxChannel, pRtpListEntry);
+                DtDbgOut(MAX, IP_RX, "Remove before: Sn: %u pEntry:%p pRtpList:%p", 
+                                           pRtpListEntryTmp->m_RTPSequenceNumber, 
+                                           pRtpListEntryTmp, &pIpRxChannel->m_RtpDvbList);
+                DtaIpRxRtpMoveEntryToEmptyListUnsafe(pIpRxChannel, pRtpListEntryTmp);
+                pRtpListEntryTmp = DtContainingRecord(
+                   DtListNextGet(&pIpRxChannel->m_RtpDvbList), RtpListEntry, m_ListEntry);
             }
+            DtHeadListRemove(&pIpRxChannel->m_RtpDvbList);
+            DtaIpRxRtpMoveEntryToEmptyListUnsafe(pIpRxChannel, pRtpListEntry);
         }
 
         if(!DtIsListEmpty(&pIpRxChannel->m_RtpDvbList))
@@ -3339,7 +4890,6 @@ void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeq
         // Retrieve the last received sequence number
         pRtpLastListEntry = DtContainingRecord(DtListPrevGet(&pIpRxChannel->m_RtpDvbList), 
                                                                RtpListEntry, m_ListEntry);
-        DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);  
 
         if (pLastSeqNum != NULL)
             LastSeqNum = *pLastSeqNum;
@@ -3350,28 +4900,31 @@ void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeq
         
         // Minimal MinPacketsInBuffer packets in buffer for reconstruction
         if ((Gap>MaxOutOfSync) || 
-            (DtaIpRxGetSequenceNumberGap(pIpRxChannel->m_RtpLastSeqNum, 
-                                              pRtpListEntry->m_RTPSequenceNumber) == 1 &&
-                                              !pIpRxChannel->m_RtpFirstPacket && 
-                                              pRtpListEntry->m_InUse==0 && 
-                                              Gap>=MinPacketsInBuffer))
-        {            
+                (DtaIpRxGetSequenceNumberGap(pIpRxChannel->m_RtpLastSeqNum, 
+                                               pRtpListEntry->m_RTPSequenceNumber) == 1 &&
+                                               !pIpRxChannel->m_RtpFirstPacket && 
+                                               pRtpListEntry->m_InUse==0 && 
+                                               Gap>=MinPacketsInBuffer))
+        {   
+            UInt16  PrevLastSeqNum = pIpRxChannel->m_RtpLastSeqNum;
+            pIpRxChannel->m_RtpLastSeqNum = pRtpListEntry->m_RTPSequenceNumber;
+            
+            DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
+
             // Packet ready for user buffer
 
-            // Count number of lost packets            
+            // Count number of lost packets
             if (!pIpRxChannel->m_RtpFirstPacket) 
             {
                 DtSpinLockAcquire(&pIpRxChannel->m_StatisticsSpinLock);
-                NumPackets = DtaIpRxGetSequenceNumberGap(pIpRxChannel->m_RtpLastSeqNum, 
+                NumPackets = DtaIpRxGetSequenceNumberGap(PrevLastSeqNum, 
                                                       pRtpListEntry->m_RTPSequenceNumber);
 
                 pIpRxChannel->m_NumPacketsNotReconstructed += NumPackets-1;
                 pIpRxChannel->m_TotNumPackets += NumPackets;
                 DtSpinLockRelease(&pIpRxChannel->m_StatisticsSpinLock);
             }
-            pIpRxChannel->m_RtpLastSeqNum = pRtpListEntry->m_RTPSequenceNumber;
-            pIpRxChannel->m_RtpFirstPacket = FALSE;
-
+            
             pDmaRxHeader = (DtaDmaRxHeader*)(pIpRxChannel->m_pRtpBuffer + 
                                 (pRtpListEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
 
@@ -3380,7 +4933,9 @@ void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeq
                 pIpRxChannel->m_ChannelIndex, pRtpListEntry->m_BufIndex, 
                 pRtpListEntry->m_RTPSequenceNumber, Gap, 
                 pIpRxChannel->m_RtpLastSeqNum, LastSeqNum);
-
+            DtDbgOut(MAX, IP_RX, "CopytoDvb Sn: %u pEntry: %p", 
+                                       pRtpListEntry->m_RTPSequenceNumber, pRtpListEntry);
+                
             // Store packet in DVB User buffer
             DtaIpRxProcessDvbPayLoad(pIpRxChannel,
                                (UInt8*)pDmaRxHeader + pRtpListEntry->m_PayloadOffset +
@@ -3388,8 +4943,11 @@ void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeq
                                pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength -
                                pRtpListEntry->m_PayloadOffset - 4,  // -4 for CRC
                                pDmaRxHeader->m_Timestamp, NumPackets-1);
-        } else
+            pIpRxChannel->m_RtpFirstPacket = FALSE;
+        } else {
+            DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
             break;
+        }
     }
 }
 
@@ -3407,11 +4965,9 @@ void  DtaIpRxReconstructThread(DtThread* pThread, void* pContext)
 
     while (!StopThread)
     {
-        // Wait for DMA done or stop
+        // Wait for RTP packets available or stop
         Status = DtThreadWaitForStopOrEvent(pThread, 
-                           &pIpUserChannels->m_IpRxPacketAvailEvent, 
-                           (pIpUserChannels->m_IpRxPacketAvailableTrigger == TRUE), TRUE);
-        pIpUserChannels->m_IpRxPacketAvailableTrigger = FALSE;
+                                             &pIpUserChannels->m_IpRxRtpPacketAvailEvent);
         if (Status == DT_STATUS_CANCELLED)
         {
             StopThread = TRUE;
@@ -3421,7 +4977,7 @@ void  DtaIpRxReconstructThread(DtThread* pThread, void* pContext)
         DtFastMutexAcquire(&pIpUserChannels->m_IpRxChThreadMutex);
 
         pIpRxChannel = pIpUserChannels->m_pIpRxChannel;
-        while(pIpRxChannel != NULL)
+        while (pIpRxChannel != NULL)
         {
             if (pIpRxChannel->m_RxControl != DT_RXCTRL_RCV)
             {
@@ -3472,7 +5028,7 @@ void  DtaIpRxSetBrmSkipUpdate(DtaIpUserChannels* pIpRxUserChannels, Bool State)
     DtSpinLockRelease(&pIpRxUserChannels->m_IpRxBrmSpinLock);
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxBrmProcessSample -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxBrmProcessSample -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // PRE-CONDITION:
 //  - This is not the first sample: pIpRxChannel->m_BrmNumSamples!=0
@@ -3647,8 +5203,8 @@ RtpListEntry*  DtaIpRxGetFecReconstructionList(
         //Check if required sequence number is in the current FEC range.
         EndSeqNum = (pRtpEntry->m_FecNA*pRtpEntry->m_FecOffset) + pRtpEntry->m_FecSNBase;
         
-        if ( (SequenceNumber>=pRtpEntry->m_FecSNBase && SequenceNumber<EndSeqNum) ||
-             (EndSeqNum>0xffff && SequenceNumber<(EndSeqNum%0x10000)))
+        if ((SequenceNumber>=pRtpEntry->m_FecSNBase && SequenceNumber<EndSeqNum) ||
+                                 (EndSeqNum>0xffff && SequenceNumber<(EndSeqNum%0x10000)))
         {
             // Required sequence number is in the correct range, 
             // Now check if the offset is at the correct position.
@@ -3697,7 +5253,6 @@ RtpListEntry*  DtaIpRxGetFecReconstructionList(
     return NULL;
 }
 
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxCalcNewRxTimestamp -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 UInt64  DtaIpRxCalcNewRxTimestamp(
@@ -3713,7 +5268,6 @@ UInt64  DtaIpRxCalcNewRxTimestamp(
     UInt  RtpSeqSrc1;
     UInt  RtpSeqSrc2;
     
-    RtpListEntry*  pRtpCurEntry;
     UInt64  dT;
     UInt  SeqDiff;
     if (pRtpFecEntry->m_FecNA <= 2) // Is out of spec. No dT can be calculated
@@ -3737,9 +5291,9 @@ UInt64  DtaIpRxCalcNewRxTimestamp(
         dT = pDmaRxHeaderSrc2->m_Timestamp - pDmaRxHeaderSrc1->m_Timestamp;
     else
         dT = 0xffffffff - (pDmaRxHeaderSrc2->m_Timestamp&0xffffffff) + 
-                                               pDmaRxHeaderSrc1->m_Timestamp & 0xffffffff;
+                                             (pDmaRxHeaderSrc1->m_Timestamp & 0xffffffff);
 
-    DtDbgOut(MAX, IP_RX, "Channel %d: dT:%I64u TimeSrc1:%I64u TimeSrc2:%I64u "
+    DtDbgOut(MAX, IP_RX, "Channel %d: dT:%llu TimeSrc1:%llu TimeSrc2:%llu "
              "Seq1: %u Seq2:%u DstSeq:%u FecOffset:%u", pIpRxChannel->m_ChannelIndex, dT, 
              (UInt64)pDmaRxHeaderSrc1->m_Timestamp, (UInt64)pDmaRxHeaderSrc2->m_Timestamp,
              RtpSeqSrc1, RtpSeqSrc2, pRtpDestEntry->m_RTPSequenceNumber, 
@@ -3753,8 +5307,8 @@ UInt64  DtaIpRxCalcNewRxTimestamp(
         // Reconstructed packet is in between the other packets
         dT = DtDivide64(dT, 2 * pRtpFecEntry->m_FecOffset, NULL);
 
-        DtDbgOut(MAX, IP_RX, "Channel %d: 1-dT:%I64u TimeSrc1:%I64u TimeSrc2:%I64u "
-                 "Seq1: %u Seq2:%u FecOffset:%u NewTime:%I64u SeqDiff:%i", 
+        DtDbgOut(MAX, IP_RX, "Channel %d: 1-dT:%llu TimeSrc1:%llu TimeSrc2:%llu "
+                 "Seq1: %u Seq2:%u FecOffset:%u NewTime:%llu SeqDiff:%u", 
                  pIpRxChannel->m_ChannelIndex,  dT, (UInt64)pDmaRxHeaderSrc1->m_Timestamp,
                  (UInt64)pDmaRxHeaderSrc2->m_Timestamp, RtpSeqSrc1, RtpSeqSrc2, 
                  pRtpFecEntry->m_FecOffset, (UInt64)pDmaRxHeaderSrc1->m_Timestamp + dT, 
@@ -3781,13 +5335,13 @@ UInt64  DtaIpRxCalcNewRxTimestamp(
             if (((RtpSeqSrc1+pRtpFecEntry->m_FecOffset)%0x10000) == 
                                                        pRtpDestEntry->m_RTPSequenceNumber)
             {
-                 DtDbgOut(MAX, IP_RX, "Channel %d: 2-dT:%I64u TimeSrc1:%I64u "
-                          "TimeSrc2:%I64u Seq1: %d FecOffset:%d NewTime:%I64u SeqDiff:%i",
-                          pIpRxChannel->m_ChannelIndex,  dT, 
-                          (UInt64)pDmaRxHeaderSrc1->m_Timestamp, 
-                          (UInt64)pDmaRxHeaderSrc2->m_Timestamp,
-                          RtpSeqSrc1, pRtpFecEntry->m_FecOffset, 
-                          (UInt64)pDmaRxHeaderSrc1->m_Timestamp + dT, SeqDiff);
+                 DtDbgOut(MAX, IP_RX, "Channel %d: 2-dT:%llu TimeSrc1:%llu "
+                            "TimeSrc2:%llu Seq1: %d FecOffset:%d NewTime:%llu SeqDiff:%u",
+                            pIpRxChannel->m_ChannelIndex,  dT, 
+                            (UInt64)pDmaRxHeaderSrc1->m_Timestamp, 
+                            (UInt64)pDmaRxHeaderSrc2->m_Timestamp,
+                            RtpSeqSrc1, pRtpFecEntry->m_FecOffset, 
+                            (UInt64)pDmaRxHeaderSrc1->m_Timestamp + dT, SeqDiff);
                 return pDmaRxHeaderSrc1->m_Timestamp + (dT * pRtpFecEntry->m_FecOffset);
             }
             
@@ -3795,13 +5349,13 @@ UInt64  DtaIpRxCalcNewRxTimestamp(
             if (((RtpSeqSrc1-pRtpFecEntry->m_FecOffset)%0x10000) == 
                                                        pRtpDestEntry->m_RTPSequenceNumber)
             {
-                DtDbgOut(MAX, IP_RX, "Channel %d: 3-dT:%I64u TimeSrc1:%I64u"
-                          "TimeSrc2:%I64u Seq1: %d FecOffset:%d NewTime:%I64u SeqDiff:%i",
-                          pIpRxChannel->m_ChannelIndex,  dT, 
-                          (UInt64)pDmaRxHeaderSrc1->m_Timestamp, 
-                          (UInt64)pDmaRxHeaderSrc2->m_Timestamp,
-                          RtpSeqSrc1, pRtpFecEntry->m_FecOffset, 
-                          (UInt64)pDmaRxHeaderSrc1->m_Timestamp - dT, SeqDiff);
+                DtDbgOut(MAX, IP_RX, "Channel %d: 3-dT:%llu TimeSrc1:%llu"
+                            "TimeSrc2:%llu Seq1: %d FecOffset:%d NewTime:%llu SeqDiff:%u",
+                            pIpRxChannel->m_ChannelIndex,  dT, 
+                            (UInt64)pDmaRxHeaderSrc1->m_Timestamp, 
+                            (UInt64)pDmaRxHeaderSrc2->m_Timestamp,
+                            RtpSeqSrc1, pRtpFecEntry->m_FecOffset, 
+                            (UInt64)pDmaRxHeaderSrc1->m_Timestamp - dT, SeqDiff);
                 return pDmaRxHeaderSrc1->m_Timestamp - (dT * pRtpFecEntry->m_FecOffset);
             }
             Index++;
@@ -3847,13 +5401,13 @@ Bool  DtaIpRxReconstructPacket(
     
     // Source FEC
     pSrcData = pIpRxChannel->m_pRtpBuffer + 
-                                  (pRtpFecEntry->m_BufIndex*DTA_IPRX_MAX_PACKET_LENGTH);
+                                    (pRtpFecEntry->m_BufIndex*DTA_IPRX_MAX_PACKET_LENGTH);
 
     pDmaRxHeader = (DtaDmaRxHeader*)pSrcData;
     pSrcData+= sizeof(DtaDmaRxHeader);
 
     pFecHeader = (FecHeader*)(pSrcData + pRtpFecEntry->m_PayloadOffset - 
-                                                                      sizeof(FecHeader));
+                                                                       sizeof(FecHeader));
     pRtpHeader = (RtpHeader*)(pSrcData + pRtpFecEntry->m_RTPOffset);
     
     // Skip reconstruction if RTP header extension is available
@@ -3923,7 +5477,7 @@ Bool  DtaIpRxReconstructPacket(
         pSrcData = (pIpRxChannel->m_pRtpBuffer + sizeof(DtaDmaRxHeader) +
                                  (pRtpCurEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
         pRtpHeader = (RtpHeader*)(pSrcData + pRtpCurEntry->m_RTPOffset);
-        
+
         // Skip reconstruction if RTP header extension is available
         if (pRtpHeader->m_Extension)
             return FALSE;
@@ -3970,7 +5524,7 @@ Bool  DtaIpRxReconstructPacket(
     return TRUE;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxTryReconstructPacket -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxTryReconstructPacket -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Pre: The m_RtpListSpinLock must be acquired 
 // Post: The m_RtpListSpinLock is released and acquired again!! 
@@ -3981,7 +5535,7 @@ RtpListEntry*  DtaIpRxTryReconstructPacket(
     UInt16  SequenceNumber)
 {
     RtpListEntry*  pRtpEntry = NULL;
-    RtpListEntry*  pRtpFecEntry = NULL;    
+    RtpListEntry*  pRtpFecEntry = NULL;
     RtpListEntry*  ReconstructList[MAX_FEC_RECONSTR_ELEMENTS];
     Int  i;    
 
@@ -4105,7 +5659,7 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
     if (!pIpRxChannel->m_RtpFirstPacket && !DtIsListEmpty(&pIpRxChannel->m_RtpDvbList))
     {
         PacketReconstructed = TRUE;    // First time
-        while (PacketReconstructed) 
+        while (PacketReconstructed)
         {
             // Retrieve the last received sequence number
             pRtpLastListEntry = 
@@ -4187,9 +5741,20 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
                             DtTailListInsert(&pRtpListEntry->m_ListEntry , 
                                                     &pRtpReconstructedEntry->m_ListEntry);
                         } else {
+                            Bool Added;
+                            if ((pRtpReconstructedEntry->m_RTPSequenceNumber==
+                                                          pIpRxChannel->m_RtpLastSeqNum ||
+                                 DtaIpRxRtpIsSeqNumLess(
+                                              pRtpReconstructedEntry->m_RTPSequenceNumber,
+                                              pIpRxChannel->m_RtpLastSeqNum)))
+                                Added = FALSE;
+                            else 
+                                Added = !DtaIpRxRtpListAddEntryUnsafe(
+                                                              &pIpRxChannel->m_RtpDvbList,
+                                                              pRtpReconstructedEntry);
+    
                             // Sort element into list
-                            if (!DtaIpRxRtpListAddEntryUnsafe(&pIpRxChannel->m_RtpDvbList, 
-                                                                  pRtpReconstructedEntry))
+                            if (!Added)
                             {
                                 // Element already in queue
                                 // Add to empty list
@@ -4217,10 +5782,10 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
                     NumPacketsTried++;
                     // Only try to recover the first 2 matrixes.
                     if (NumPacketsTried > 2*DtaIpRxGetMaxOutOfSync(pIpRxChannel))
-                        Stop = TRUE;                    
+                        Stop = TRUE;
                 }
 
-                if (Stop)               
+                if (Stop)
                     break;
 
                 if (DtListNextGet(&pRtpListEntry->m_ListEntry) == 
@@ -4278,3 +5843,172 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
     // Send all packets in sequence to user buffer
     DtaIpRxProcessRtpDvbPacket(pIpRxChannel, pLastSeqNumToTx);
 }
+
+//.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxCalculateNumIpRxListenersType1 -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtaIpRxCalculateNumIpRxListenersType1(DtaIpPort* pIpPort, Bool IpV6Packet, 
+                                            Int VlanId, UInt8* pSrcIp, 
+                                            UInt8* pDstIp, UInt16 SrcPort, UInt16 DstPort)
+{
+    Int  i;
+    DtaIpUserChannels*  pIpUserChannels =
+                                        &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels;
+    UserIpRxChannel*  pIpRxChannel;
+    Bool  Stop;
+    Int  Index = 0;
+    Bool  IsFecPort = FALSE;
+   
+    // Wait until the Rx structure is available
+    DtFastMutexAcquire(&pIpUserChannels->m_IpRxChThreadMutex);
+
+    // Search the Rx channels for the DVB stream and return the ChannelIndex
+    // if found
+    pIpRxChannel = pIpUserChannels->m_pIpRxChannel;
+    while (pIpRxChannel != NULL) 
+    {
+        // Check if the channel is the one we are searching for
+
+        // For bitrate calculation to work in idle state,  we check the RxControl 
+        // somewhere else and only check here if the parameters are set. 
+        if (!pIpRxChannel->m_IpParsValid)
+        {
+            pIpRxChannel = pIpRxChannel->m_pNext;
+            continue;
+        }
+        if (pIpRxChannel->m_VlanId != VlanId)
+        {
+            pIpRxChannel = pIpRxChannel->m_pNext;
+            continue;
+        }
+        if (IpV6Packet && (pIpRxChannel->m_IpParsFlags & DTA_IP_V6)==0)
+        {
+            pIpRxChannel = pIpRxChannel->m_pNext;
+            continue;
+        }
+        if (!IpV6Packet && (pIpRxChannel->m_IpParsFlags & DTA_IP_V6)!=0)
+        {
+            pIpRxChannel = pIpRxChannel->m_pNext;
+            continue;
+        }
+
+        // Check if source + destination IP address is correct.
+        Stop = FALSE;
+        for (i=0; i<(IpV6Packet?16:4); i++) 
+        {
+            if (pIpRxChannel->m_SrcIPAddress[i]!=0 && 
+                                               pIpRxChannel->m_SrcIPAddress[i]!=pSrcIp[i])
+            {
+                Stop = TRUE;
+                break;
+            }
+
+            // If a multicast packet is received, the m_DstIPAddress may not be 0.0.0.0
+            if (pIpRxChannel->m_DstIPAddress[i] != pDstIp[i])
+            {
+                Stop = TRUE;
+                break;
+            }
+        }
+
+        if (Stop) 
+        {
+            pIpRxChannel = pIpRxChannel->m_pNext;
+            continue;
+        }
+        
+        // We skip source port check.
+        // All source ports are merged for this calculation
+        
+       // Check destination port
+       IsFecPort = FALSE;
+        if (pIpRxChannel->m_FecMode!=DTA_FEC_DISABLE)
+        {
+            if (pIpRxChannel->m_DstPort+FEC_INC_COLUMN_PORT==DstPort ||
+                                        pIpRxChannel->m_DstPort+FEC_INC_ROW_PORT==DstPort)
+               IsFecPort = TRUE;
+        }
+
+        // If the destination port matches or if the portnumber it used for a FEC stream
+        // add the channel.
+        if (pIpRxChannel->m_DstPort==DstPort || IsFecPort)
+            Index++;
+
+        pIpRxChannel = pIpRxChannel->m_pNext;
+    }
+    DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
+    DtDbgOut(MAX, IP_RX, "Max. listeners current channel: %i(Tot max:%i)", 
+                                                       Index, pIpPort->m_MaxNumListeners);
+    return Index;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxCalculateNumIpRxListenersType2 -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtaIpRxCalculateNumIpRxListenersType2(DtaIpPort* pIpPort, UInt32 IdTag)
+{
+    Bool SSMIpV6 = FALSE;
+    DtaIpUserChannels*  pIpUserChannels = 
+                                        &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels;
+    UserIpRxChannel*  pIpRxChannel;
+    Int  Index = 0;
+    UInt  FirstIpPortNum = pIpPort->m_IpPortIndex&0xfffffffe;
+    DtaIpPort*  pFirstPort = &pIpPort->m_pDvcData->m_IpDevice.m_pIpPorts[FirstIpPortNum];
+    Int  StreamType;
+    
+    // Wait until the Rx structure is available
+    DtFastMutexAcquire(&pIpUserChannels->m_IpRxChThreadMutex);
+    DtMutexAcquire(&pFirstPort->m_IpPortType2.m_AddrMatcherMutex, -1);
+
+    // Get the channel list for this IdTag
+    pIpRxChannel = pIpPort->m_pDvcData->m_IpDevice.m_pAddrMatchLUTable[IdTag];
+    StreamType = pIpPort->m_pDvcData->m_IpDevice.m_AddrMatchLUTableType[IdTag];
+    
+    if (pIpRxChannel != NULL)
+        SSMIpV6 = 
+            pIpRxChannel->m_AddrMatcherEntry[StreamType] \
+                                              [pIpPort->m_IpPortIndex&1].m_Gen.m_SSM==1 &&
+            pIpRxChannel->m_AddrMatcherEntry[StreamType] \
+                                            [pIpPort->m_IpPortIndex&1].m_Gen.m_Version==1;
+    
+    while (pIpRxChannel != NULL) 
+    {
+        Index++;
+
+        if (SSMIpV6)
+        {
+           if (pIpRxChannel->m_pNextAddrMatcherEntryPart2[StreamType] \
+                                                       [pIpPort->m_IpPortIndex&1] != NULL)
+            {
+                Int  StreamType2;
+                StreamType2 = pIpRxChannel->m_pNextAddrMatcherEntryPart2[StreamType] \
+                                                 [pIpPort->m_IpPortIndex&1]->m_StreamType;
+                
+                pIpRxChannel = DtContainingRecord(
+                       pIpRxChannel->m_pNextAddrMatcherEntryPart2[StreamType] \
+                       [pIpPort->m_IpPortIndex&1], UserIpRxChannel,
+                       m_AddrMatcherEntrySSMPart2[StreamType][pIpPort->m_IpPortIndex&1]);
+                StreamType = StreamType2;
+            } else 
+                pIpRxChannel = NULL;
+        } else {
+            if (pIpRxChannel->m_pNextAddrMatcherEntry[StreamType] \
+                                                       [pIpPort->m_IpPortIndex&1] != NULL)
+            {
+                Int  StreamType2;
+                StreamType2 = pIpRxChannel->m_pNextAddrMatcherEntry[StreamType] \
+                                                 [pIpPort->m_IpPortIndex&1]->m_StreamType;
+                pIpRxChannel = DtContainingRecord(
+                               pIpRxChannel->m_pNextAddrMatcherEntry[StreamType] \
+                               [pIpPort->m_IpPortIndex&1], UserIpRxChannel,
+                               m_AddrMatcherEntry[StreamType][pIpPort->m_IpPortIndex&1]);
+                StreamType = StreamType2;
+            } else 
+                pIpRxChannel = NULL;
+        }
+    }
+    DtMutexRelease(&pFirstPort->m_IpPortType2.m_AddrMatcherMutex);
+    DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
+    DtDbgOut(MAX, IP_RX, "Max. listeners current channel: %i(Tot max:%i)", 
+                                                       Index, pIpPort->m_MaxNumListeners);
+    return Index;
+}
+

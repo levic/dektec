@@ -61,7 +61,7 @@ DtStatus  DtuRead(
     Status = DtuGetNonIpPortIndex(pDvcData, PortIndex, &NonIpPortIndex);
     if (!DT_SUCCESS(Status))
         return Status;
-    pNonIpPort = &pDvcData->m_NonIpPorts[NonIpPortIndex];
+    pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
 
 
     // Simple checks
@@ -205,7 +205,7 @@ DtStatus  DtuWrite(
     Status = DtuGetNonIpPortIndex(pDvcData, PortIndex, &NonIpPortIndex);
     if (!DT_SUCCESS(Status))
         return Status;
-    pNonIpPort = &pDvcData->m_NonIpPorts[NonIpPortIndex];
+    pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
 
 
     // Simple checks

@@ -44,7 +44,6 @@ DtStatus  DtEventInit(DtEvent* pDtEvent, Bool AutoReset)
     pDtEvent->m_AutoReset = AutoReset;
     pDtEvent->m_EventSet = FALSE;
     init_waitqueue_head(&pDtEvent->m_WaitQueueHead);
-    DtFastMutexInit(&pDtEvent->m_Mutex);
 #endif
 
     return DT_STATUS_OK;
@@ -72,9 +71,7 @@ DtStatus  DtEventReset(DtEvent* pDtEvent)
     DT_ASSERT(KeGetCurrentIrql() <= DISPATCH_LEVEL);
     KeClearEvent(&pDtEvent->m_Event);
 #else
-    DtFastMutexAcquire(&pDtEvent->m_Mutex);
     pDtEvent->m_EventSet = FALSE;
-    DtFastMutexRelease(&pDtEvent->m_Mutex);
 #endif
     return DT_STATUS_OK;
 }
@@ -107,7 +104,6 @@ DtStatus  DtEventWait(DtEvent* pDtEvent, Int TimeoutMS)
 #else
     long  Jiffies;
 
-    DtFastMutexAcquire(&pDtEvent->m_Mutex);
     if (pDtEvent->m_EventSet)
     {
         if (pDtEvent->m_AutoReset)
@@ -115,7 +111,6 @@ DtStatus  DtEventWait(DtEvent* pDtEvent, Int TimeoutMS)
         Status = DT_STATUS_OK;
     } else
         Status = DT_STATUS_TIMEOUT;
-    DtFastMutexRelease(&pDtEvent->m_Mutex);
 
     // Should we sleep?
     if ((Status!=DT_STATUS_OK) && (TimeoutMS!=0))
@@ -131,7 +126,10 @@ DtStatus  DtEventWait(DtEvent* pDtEvent, Int TimeoutMS)
                                                    (pDtEvent->m_EventSet==TRUE), Jiffies);
 
             if (Jiffies < 0)
+            {
+                Status = DT_STATUS_CANCELLED;
                 break;
+            }
 
             if (Jiffies == 0)
             {
@@ -141,15 +139,12 @@ DtStatus  DtEventWait(DtEvent* pDtEvent, Int TimeoutMS)
 
             if (Jiffies > 0)
             {
-                DtFastMutexAcquire(&pDtEvent->m_Mutex);
                 if (pDtEvent->m_EventSet)
                 {
                     if (pDtEvent->m_AutoReset)
                         pDtEvent->m_EventSet = FALSE;
                     Status = DT_STATUS_OK;
                 }
-                DtFastMutexRelease(&pDtEvent->m_Mutex);
-
                 if (Status == DT_STATUS_OK)
                     break;
             }

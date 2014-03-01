@@ -464,6 +464,7 @@
 // Tx Control: TxCtrl
 #define DT_TXCTRL_IDLE                 0
 #define DT_TXCTRL_HOLD                 1
+#define DT_TXCTRL_NULL                 2
 #define DT_TXCTRL_SEND                 3
 
 // Tx Control: TxMode ASI

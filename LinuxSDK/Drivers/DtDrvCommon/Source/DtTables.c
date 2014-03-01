@@ -73,11 +73,16 @@ DtStatus  DtTableGet(
 {
     DtStatus  Status = DT_STATUS_OK;
     const DtTableStore*  pStore = (DtTableStore*)pPropData->m_pTableStore;
+    Int  HwRevision = pPropData->m_HardwareRevision;
     
-    Int  TypeNumber;
     Bool  TableNameFound = FALSE;
     UInt  Index;
     DtTableLink*  pTableLinkFound = NULL;
+
+    // For devices with no 'EC' VPD resource and no registry key which forces the
+    // hardware revision, treat the hardware revision as 0
+    if (HwRevision < 0)
+        HwRevision = 0;
     
     *pNumEntries = 0;
     if (pPropData->m_pTableStore == NULL)
@@ -114,7 +119,7 @@ DtStatus  DtTableGet(
                 if (pPropData->m_FirmwareVersion >= pTableLink->m_MinFw)
                 {
                     // Check minimal hardware version
-                    if (pPropData->m_HardwareRevision >= pTableLink->m_MinHw)
+                    if (HwRevision >= pTableLink->m_MinHw)
                     {
                         pTableLinkFound = (DtTableLink*)pTableLink;
 

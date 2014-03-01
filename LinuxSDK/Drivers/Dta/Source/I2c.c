@@ -108,27 +108,27 @@ DtStatus  DtaI2cInit(DtaDeviceData* pDvcData)
     if (!DT_SUCCESS(Status))
         return Status;
 
-    // Initialize I2C on port level    
+    // Initialize I2C on port level
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {        
         // Get I2c port register direct without checking.
         // the I2c register may not be defined, which is OK.
         PropertyStatus = DtPropertiesGet(pPropData, 
-                                               "REGISTERS_I2C", i, &Value, &Type, &Scope);        
+                                   "REGISTERS_I2C", i, &Value, &Type, &Scope, -1, -1, -1);
         
         if (DT_SUCCESS(PropertyStatus))
         {            
-            DT_ASSERT((Scope&PROPERTY_SCOPE_DRIVER) == PROPERTY_SCOPE_DRIVER);        
+            DT_ASSERT((Scope&PROPERTY_SCOPE_DRIVER) == PROPERTY_SCOPE_DRIVER);
             DT_ASSERT(Type == PROPERTY_VALUE_TYPE_UINT16);
             I2cOffset = (UInt16)Value;
             IsSupported = TRUE;
         } else {
             I2cOffset = 0;
-            IsSupported = FALSE;            
+            IsSupported = FALSE;
         }
 
         Status = DtaI2cInitValues(pDvcData, IsSupported, ClockFreq, I2cOffset, 
-                                                        &pDvcData->m_NonIpPorts[i].m_I2c);
+                                                       &pDvcData->m_pNonIpPorts[i].m_I2c);
         if (!DT_SUCCESS(Status))
             return Status;
     }     
@@ -146,7 +146,7 @@ DtStatus  DtaI2cLockCallBackSet(DtaDeviceData* pDvcData, Int PortIndex,
     if (PortIndex < 0)
         pI2c = &pDvcData->m_I2c;
     else
-        pI2c = &pDvcData->m_NonIpPorts[PortIndex].m_I2c;
+        pI2c = &pDvcData->m_pNonIpPorts[PortIndex].m_I2c;
 
     // Currently only one callback function per I2c device is supported
     if (pI2c->m_pI2cLockFunction!=NULL && pI2c->m_pI2cLockFunction!=pFunc)
@@ -199,7 +199,7 @@ DtStatus  DtaI2cPowerUp(DtaDeviceData* pDvcData)
     // Powerup on portlevel
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {   
-        pI2c = &pDvcData->m_NonIpPorts[i].m_I2c;
+        pI2c = &pDvcData->m_pNonIpPorts[i].m_I2c;
         pI2cRegs = pI2c->m_pI2cRegs;
 
         if (pI2c->m_IsSupported && pI2c->m_ClockFreq > 0)
@@ -398,7 +398,7 @@ DtStatus  DtaI2cLock(
     if (PortIndex < 0)
         pI2c = &pDvcData->m_I2c;
     else
-        pI2c = &pDvcData->m_NonIpPorts[PortIndex].m_I2c;
+        pI2c = &pDvcData->m_pNonIpPorts[PortIndex].m_I2c;
 
     // Do we support the I2C interface
     if (!pI2c->m_IsSupported)
@@ -461,7 +461,7 @@ DtStatus  DtaI2cUnlock(
     if (PortIndex < 0)
         pI2c = &pDvcData->m_I2c;
     else
-        pI2c = &pDvcData->m_NonIpPorts[PortIndex].m_I2c;
+        pI2c = &pDvcData->m_pNonIpPorts[PortIndex].m_I2c;
 
     // Do we support the I2C interface
     if (!pI2c->m_IsSupported)
@@ -530,7 +530,7 @@ DtStatus  DtaI2cRead(
     if (PortIndex < 0)
         pI2c = &pDvcData->m_I2c;
     else
-        pI2c = &pDvcData->m_NonIpPorts[PortIndex].m_I2c;
+        pI2c = &pDvcData->m_pNonIpPorts[PortIndex].m_I2c;
 
     pI2cRegs = pI2c->m_pI2cRegs;
 
@@ -649,7 +649,7 @@ DtStatus  DtaI2cWrite(
     if (PortIndex < 0)
         pI2c = &pDvcData->m_I2c;
     else
-        pI2c = &pDvcData->m_NonIpPorts[PortIndex].m_I2c;
+        pI2c = &pDvcData->m_pNonIpPorts[PortIndex].m_I2c;
 
     pI2cRegs = pI2c->m_pI2cRegs;
 
@@ -776,7 +776,7 @@ DtStatus  DtaI2cWriteRead(
     if (PortIndex < 0)
         pI2c = &pDvcData->m_I2c;
     else
-        pI2c = &pDvcData->m_NonIpPorts[PortIndex].m_I2c;
+        pI2c = &pDvcData->m_pNonIpPorts[PortIndex].m_I2c;
 
     pI2cRegs = pI2c->m_pI2cRegs;
 

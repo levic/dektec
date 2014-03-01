@@ -43,7 +43,7 @@
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Ping pong buffer defines +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
 typedef void  (*DtaPPBufferGetLocAddrFunc)(void* pContext, UInt8** ppLocalAddress, 
-                                                                UInt* pStart, UInt* pEnd);
+                                            UInt* pStart, UInt* pEnd, UInt* TransferSize);
 
 // Buffer index ID's
 #define DTA_PPBUF_PING_ID   0
@@ -86,6 +86,7 @@ void  DtaPPBufferInitialise(PPBuffer* pPPBuffer,
                                DtaPPBufferGetLocAddrFunc pGetLocAddrFunc,
                                void* pGetLocAddrContext, Bool  AutoTransferAfterComplete);
 DtStatus  DtaPPBufferTransferData(PPBuffer* pPPBuffer);
+DtStatus  DtaPPBufferTransferDataContext(PPBuffer* pPPBuffer, void* pGetLocalAddrContext);
 UInt  DtaPPBufferGetTransferSize(PPBuffer* pPPBuffer);
 Bool  DtaPPBufferWriteDataIsBufAvailable(PPBuffer* pPPBuffer);
 DtStatus  DtaPPBufferWriteData(UInt8* pSourceBuffer, PPBuffer* pPPBuffer, UInt DataSize);

@@ -26,6 +26,7 @@
 // TORT, IN NEGLIGENCE, OR OTHERWISE, ARISING FROM THE USE OF, OR INABILITY TO USE THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
+
 #ifndef __ETHPRTCLS_H__
 #define __ETHPRTCLS_H__
 
@@ -75,6 +76,10 @@
 #define ETH_TYPE_IPV4           0x0800      // Ethernet Packet Type IPv4
 #define ETH_TYPE_IPV4_BE        0x0008      // Ethernet Packet Type IPv4 Big Endian
 #define ETH_TYPE_IPV6           0x86DD      // Ethernet Packet Type IPv6
+#define ETH_TYPE_IPV6_BE        0xDD86      // Ethernet Packet Type IPv6 Big Endian
+
+#define ETH_TYPE_VLAN           0x8100      // Ethernet Packet Vlan tagged
+#define ETH_TYPE_VLAN_BE        0x0081      // Ethernet Packet Vlan tagged
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- RTP Defines -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define RTP_PAYLOAD_MPEGII      0x21        // Payload Type MPEG-II
@@ -84,7 +89,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DVB Related Defines -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define SYNC_WITH_DUMMY         0x4700      // Sync Byte used with 188/204 bytes + dummies
-#define SYNC_WITH_DATA          0xB800      // Sync Byte used with 188/204 bytes with data 
+#define SYNC_WITH_DATA          0xB800      // Sync Byte used with 188/204 bytes with data
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IP  Defines -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // Header lenght
@@ -94,16 +99,19 @@
 #define IPV4_HDR_VER_IPV4       0x4         // Internet protocol (IPV4)
 #define IPV4_HDR_VER_IPV6       0x6         // IPV6 and SIP (simple internet)
 
-// Type of service
-#define IPV4_HDR_TOS_ROUTINE    0x00        // bits 7..5
-#define IPV4_HDR_TOS_HIGH_TP    0x08        // High throughput bit 3
-
 // Flags
 #define IPV4_HDR_FLAGS_NOFRAG   0x02        // IPv4 : Don't fragment (bit 1)
 #define IPV4_HDR_FLAGS_MOREFRAG 0x01        // IPv4 : More fragments follow (bit 0)
 
 // Protocol
 #define IPV4_HDR_PROT_UDP       0x11        // IPv4 We use UDP ...
+#define IPV6_HDR_HOPBYHOP       0x00
+#define IPV6_HDR_ROUTING        0x2b
+#define IPV6_HDR_FRAGMENT       0x2c
+#define IPV6_HDR_ENCAP_SEC      0x32
+#define IPV6_HDR_AUTH           0x33
+#define IPV6_HDR_NO_NXT_HDR     0x3b
+#define IPV6_HDR_DST_OPTIONS    0x3c
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- FEC defines -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // Type
@@ -113,15 +121,17 @@
 #define ETHII_HDR_LENGTH        14          // Ethernet II header length
 #define IPV4_HDR_LENGTH         20          // IPv4 header length (bytes): without 
                                             // options + padding!!!!
+#define IPV6_HDR_LENGTH         40          // IPv6 header length (bytes)
+#define VLAN_HEADER_LENGTH      4           // VLAN tagging length (bytes)
 #define UDP_HDR_LENGTH          8           // UDP header length (bytes)
 #define RTP_HDR_LENGTH          12          // Fixed RTP header length (bytes)
 #define RTP_HDR_EXT_LENGTH      4           // Fixed RTP header extension length (bytes) 
-                                            // (exclusive DTA-160 timestsmp!!)
+                                            // (exclusive DTA-160 timestamp!!)
 #define FEC_HDR_LENGTH          16          // FEC header length (bytes)
 
 #pragma pack (push, 1)
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- EthernetIIHeader -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- EthernetIIHeader -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 typedef struct _EthernetIIHeader 
 {
     UInt8  m_DstMac[6];
@@ -129,18 +139,71 @@ typedef struct _EthernetIIHeader
     UInt16  m_Type;
 } EthernetIIHeader;
 
+typedef struct _VlanTag
+{
+    UInt16  m_TPId;                       // Tag Protocol Identifier (0x8100)
+    union {
+        struct {
+        UInt16  m_VId             :12;    // Vlan Identifier: LE
+        UInt16  m_Cfi             :1;     // Always 0, no E-RIF present: LE
+        UInt16  m_PCP             :3;     // Priority Code Point: LE
+        };
+        UInt16  m_TCI;            // Big Endian
+    };
+} VlanTag;
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- EthernetIIHeaderVlan -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+typedef struct _EthernetIIHeaderVlan 
+{
+    UInt8  m_DstMac[6];
+    UInt8  m_SrcMac[6];
+    UInt16  m_TPId;                       // Tag Protocol Identifier (0x8100)
+
+    union {
+        struct {
+        UInt16  m_VId             :12;    // Vlan Identifier: LE
+        UInt16  m_Cfi             :1;     // Always 0, no E-RIF present: LE
+        UInt16  m_PCP             :3;     // Priority Code Point: LE
+        };
+        UInt16  m_TCI;            // Big Endian
+    };
+    UInt16  m_Type;
+} EthernetIIHeaderVlan;
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Ethernet802_3Header -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 typedef struct _Ethernet802_3Header 
 {
     UInt8  m_DstMac[6];
     UInt8  m_SrcMac[6];
     UInt16  m_Length;
-    UInt8  m_DSAP;        //802.2 header: Destination Service Access Point
-    UInt8  m_SSAP;        //802.2 header: Source Service Access Point
-    UInt8  m_Ctrl;        //802.2 header
-    UInt8  m_ProtID[3];   //802.2 SNAP header (if DSAP == 170 and SSAP == 170)
-    UInt16 m_Type;        //802.2 SNAP header (if DSAP == 170 and SSAP == 170)
+    UInt8  m_DSAP;                    //802.2 header: Destination Service Access Point
+    UInt8  m_SSAP;                    //802.2 header: Source Service Access Point
+    UInt8  m_Ctrl;                    //802.2 header
+    UInt8  m_ProtID[3];               //802.2 SNAP header (if DSAP == 170 and SSAP == 170)
+    UInt16 m_Type;                    //802.2 SNAP header (if DSAP == 170 and SSAP == 170)
 } Ethernet802_3Header;
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Ethernet802_3HeaderVlan -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+typedef struct _Ethernet802_3HeaderVlan 
+{
+    UInt8  m_DstMac[6];
+    UInt8  m_SrcMac[6];
+    UInt16  m_TPId            :16;    // Tag Protocol Identifier (0x8100)
+    union {
+        struct {
+        UInt16  m_VId             :12;    // Vlan Identifier: LE
+        UInt16  m_Cfi             :1;     // Always 0, no E-RIF present: LE
+        UInt16  m_PCP             :3;     // Priority Code Point: LE
+        };
+        UInt16  m_TCI;            // Big Endian
+    };
+    UInt16  m_Length;
+    UInt8  m_DSAP;                    //802.2 header: Destination Service Access Point
+    UInt8  m_SSAP;                    //802.2 header: Source Service Access Point
+    UInt8  m_Ctrl;                    //802.2 header
+    UInt8  m_ProtID[3];               //802.2 SNAP header (if DSAP == 170 and SSAP == 170)
+    UInt16 m_Type;                    //802.2 SNAP header (if DSAP == 170 and SSAP == 170)
+} Ethernet802_3HeaderVlan;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IpHeaderV4 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 typedef struct _IpHeaderV4 
@@ -163,11 +226,59 @@ typedef struct _IpHeaderV4
     UInt8   m_Padding;
 } IpHeaderV4;
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IpHeaderV6 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+typedef struct _IpHeaderV6 {
+    UInt32  m_TrafficClassH   :4;
+    UInt32  m_Version         :4;
+    UInt32  m_FlowLabelH      :4;
+    UInt32  m_TrafficClassL   :4;
+    UInt32  m_FlowLabelL      :16;
+    UInt16  m_PayloadLength;
+    UInt16  m_NextHeader      :8;
+    UInt16  m_HopLimit        :8;
+    UInt8   m_SrcAddress[16];
+    UInt8   m_DstAddress[16];
+} IpHeaderV6;
+
+typedef struct _IpV6Options {
+    UInt8  m_NextHeader;
+    UInt8  m_HeaderExtLength;   // Excluding the first byte
+} IpV6Options;
+
+
+typedef struct _IcmpHeader {
+    UInt16  m_Type            :8;
+    UInt16  m_Code            :8;
+    UInt16  m_Checksum        :16;
+} IcmpHeader;
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- TcpHeader -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _TcpHeader {
+    UInt16  m_SourcePort;
+    UInt16  m_DestinationPort;
+    UInt32  m_SequenceNumber;
+    UInt32  m_AcknowledgeNumber;
+    UInt16  m_DataOffset      :4;
+    UInt16  m_Reserved        :6;
+    UInt16  m_Urg             :1;
+    UInt16  m_Ack             :1;
+    UInt16  m_Psh             :1;
+    UInt16  m_Rst             :1;
+    UInt16  m_Syn             :1;
+    UInt16  m_Fin             :1;
+    UInt16  m_Window          :16;
+    UInt16  m_Checksum;
+    UInt16  m_UrgentPointer;
+    UInt32  m_Options         :24;
+    UInt32  m_Padding         :8;
+} TcpHeader;
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- UdpHeader -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef struct _UdpHeader
 {
-    UInt16  m_SourcePort;            //Start UDP Header
+    UInt16  m_SourcePort;
     UInt16  m_DestinationPort;
     UInt16  m_Length;
     UInt16  m_Checksum;
@@ -196,7 +307,7 @@ typedef struct _FecHeader
     UInt16  m_LengthRecovery;
     UInt8   m_PtRecovery    :7;
     UInt8   m_E             :1;
-    UInt8   m_MaskH;                    // Mask High/low maybe swapped!!
+    UInt8   m_MaskH;
     UInt16  m_MaskL;
     UInt32  m_TsRecovery;
     UInt8   m_Index         :3;
@@ -219,13 +330,26 @@ typedef struct _RtpExtension
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DmaTxHeader definition -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-typedef struct _DtaDmaTxHeader 
+typedef struct _DtaDmaTxHeaderGen 
 {
-    UInt32  m_Tag;                  // 445441A0h
-    UInt32  m_Length:24;            // Header length
-    UInt32  m_Version:8;            // Header version
-    UInt32  m_Timestamp;            // 24 bits used by FPGA
-    UInt32  m_Reserved2;
+   struct 
+    {
+        UInt32  m_PacketLength      : 11;   // Excluding DMA header
+        UInt32  m_Reserved1         : 11;
+        UInt32  m_FilteringType0    : 1;    // Filtering type0 (=0: Altera MAC)
+        UInt32  m_PaddingOff        : 1;    // Disable Padding (=0: Altera MAC)
+        UInt32  m_Reserved2         : 2;
+        UInt32  m_CRCGenerateOff    : 1;    // Disable generating CRC by MAC
+        UInt32  m_SetupFrame        : 1;    // Setup frame (=0: Altera MAC)
+        UInt32  m_FilteringType1    : 1;    // Filtering type1 (=0: Altera MAC)
+        UInt32  m_Reserved3         : 2;
+        UInt32  m_IRQOnTx           : 1;    // Interrupt on tx completion
+    } m_TransmitControl;
+    UInt32  m_Reserved[3];
+} DtaDmaTxHeaderGen;
+
+typedef struct _DtaDmaTxHeaderV3
+{   
     struct 
     {
         UInt32  m_PacketLength      : 11;   // Excluding DMA header
@@ -239,9 +363,28 @@ typedef struct _DtaDmaTxHeader
         UInt32  m_Reserved3         : 2;
         UInt32  m_IRQOnTx           : 1;    // Interrupt on tx completion
     } m_TransmitControl;
+    struct {
+        UInt32  m_NoCalcIPChkSum    : 1;
+        UInt32  m_NoCalcUDPChkSum   : 1;
+        UInt32  m_NoCalcTCPChkSum   : 1;
+        UInt32  m_Reserved          : 29;
+    } m_ChecksumCmd;
+    UInt32  m_Reserved[2];
+} DtaDmaTxHeaderV3;
 
-    UInt32  m_Reserved4[3];
+typedef struct _DtaDmaTxHeader
+{
+    UInt32  m_Tag;                      // 445441A0h
+    UInt32  m_Length:24;                // Header length
+    UInt32  m_Version:8;                // Header version
+    UInt32  m_Timestamp;                // 24 bits used by FPGA
+    UInt32  m_Reserved;
+    union {
+        DtaDmaTxHeaderGen  m_TxHeaderGen;
+        DtaDmaTxHeaderV3  m_TxHeaderV3;
+    };
 } DtaDmaTxHeader;
+
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DmaRxHeader definition -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -253,7 +396,7 @@ typedef struct _DtaDmaRxHeaderGen
 {
     struct 
     {
-        UInt32  m_Reserved          : 16;
+        UInt32  m_Reserved1         : 16;
         UInt32  m_FrameLength       : 14;    // Packet length(incl. checksum + DMA header)
         UInt32  m_Reserved2         : 2;
     } m_ReceiveStatus;
@@ -264,9 +407,9 @@ typedef struct _DtaDmaRxHeaderGen
         UInt32  m_UDPChksumValid   : 1;
         UInt32  m_TCPChksumValid   : 1;
         UInt32  m_Reserved         : 29;
-    } ChecksumStatus;
+    } m_ChecksumStatus;
 
-    UInt32  m_Reserved2[2];
+    UInt32  m_Reserved[2];
 } DtaDmaRxHeaderGen;
 
 typedef struct _DtaDmaRxHeaderV2
@@ -291,7 +434,7 @@ typedef struct _DtaDmaRxHeaderV2
         UInt32  m_FrameLength       : 14;    // Ethernet packet length(including checksum)
         UInt32  m_FilteringFail     : 1;
         UInt32  m_Reserved3         : 1;
-    } m_ReceiveStatus;                         //(RDES0) register of the ethernet MAC
+    } m_ReceiveStatus;                       //(RDES0) register of the ethernet MAC
 
     struct
     {
@@ -299,9 +442,9 @@ typedef struct _DtaDmaRxHeaderV2
         UInt32  m_UDPChksumValid   : 1;
         UInt32  m_TCPChksumValid   : 1;
         UInt32  m_Reserved         : 29;
-    } ChecksumStatus;
+    } m_ChecksumStatus;
 
-    UInt32  m_Reserved2[2];
+    UInt32  m_Reserved[2];
 } DtaDmaRxHeaderV2;
 
 typedef struct _DtaDmaRxHeaderV3
@@ -326,7 +469,7 @@ typedef struct _DtaDmaRxHeaderV3
         UInt32  m_FrameLength       : 14;   // Ethernet packet length (including checksum)
         UInt32  m_FilteringFail     : 1;
         UInt32  m_VlanFrame         : 1;
-    } ReceiveStatus;
+    } m_ReceiveStatus;
     struct{
         UInt32  m_IPChksumValid     : 1;
         UInt32  m_UDPChksumValid    : 1;
@@ -334,7 +477,7 @@ typedef struct _DtaDmaRxHeaderV3
         UInt32  m_IPv4Frame         : 1;
         UInt32  m_IPv6Frame         : 1;
         UInt32  m_UDPFrame          : 1;
-        UInt32  m_TCPFramme         : 1;
+        UInt32  m_TCPFrame          : 1;
         UInt32  m_Fragmented        : 1;
         UInt32  m_ESP               : 1;    // Encryption frame -- not used
         UInt32  m_VlanPCP           : 3;    // VLan priority  -- not used
@@ -343,17 +486,17 @@ typedef struct _DtaDmaRxHeaderV3
         UInt32  m_NullPck           : 1;    // FEC: Null packet inserted -- not used
         UInt32  m_Reserved2         : 2;
         UInt32  m_VlanId            : 12;   // VLan ID -- not used
-    } FrameStatus;
+    } m_FrameStatus;
     struct{
-        UInt32  AddrIdTag           : 16;
-        UInt32  AddrIdTagFound      : 1;
-        UInt32  RealTime            : 1;    // Frame matched realtime
-        UInt32  MatchedUC           : 1;    // Frame matched unicast
-        UInt32  MatchedAC           : 1;    // Frame matched anycast
-        UInt32  Reserved            : 1;
-        UInt32  PaylOffset          : 11;   // Payload offset
-    } AddrMatching;
-    UInt32  Reserved3[1];
+        UInt32  m_AddrIdTag         : 16;
+        UInt32  m_AddrIdTagFound    : 1;
+        UInt32  m_RealTime          : 1;    // Frame matched realtime(1) or nrt(0)
+        UInt32  m_MatchedUC         : 1;    // Frame matched unicast
+        UInt32  m_Reserved          : 1;
+        UInt32  m_MatchedMAC        : 1;    // MAC Address matches entry in table
+        UInt32  m_PaylOffset        : 11;   // UDP Payload offset
+    } m_AddrMatching;
+    UInt32  m_Reserved3[1];
 } DtaDmaRxHeaderV3;
 
 typedef struct _DtaDmaRxHeader 
@@ -408,7 +551,7 @@ typedef struct _IpTxBufferHeader
     volatile UInt32  m_WriteOffset;         // Write offset; updated by DTAPI
     volatile UInt64  m_StartTimestamp;      // Timestamp after starting Tx channel
     volatile UInt32  m_BufSize;             // Total allocated size of the packets buffer.
-                                            // BufSize is an exact multiple of the size of 
+                                            // BufSize is an exact multiple of the size of
                                             // of a time-stamped IP packet.
 } IpTxBufferHeader;
 
@@ -416,7 +559,7 @@ typedef struct _IpTxBufferHeader
 typedef struct _IpRxBufferHeader
 {
     volatile UInt32  m_FifoReadOffset;      // Read offset; updated by DTAPI
-    volatile UInt32  m_FifoWriteOffset;     // Write offset; updated by driver Thread    
+    volatile UInt32  m_FifoWriteOffset;     // Write offset; updated by driver Thread
     volatile UInt32  m_BufSize;             // Allocated size of buffer without header.
 } IpRxBufferHeader;
 

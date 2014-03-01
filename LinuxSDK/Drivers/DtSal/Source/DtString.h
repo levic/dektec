@@ -108,6 +108,7 @@ DtStatus  DtStringAppendChars(DtString* pDtStringDest, const Char* pStringSrc);
 DtStatus  DtStringAppendDtString(DtString* pDtStringDest, DtString* pDtStringSrc);
 DtStatus  DtStringAppendSubstring(DtString* pDtStringDest, DtString* pDtStringSrc,
                                                   Int SubStringCount, char DelimiterChar);
+Bool  DtStringCompare(DtString* pDtString1, DtString* pDtString2);
 UInt  DtStringGetMaxStringLength(DtString* pDtString);
 UInt  DtStringGetStringLength(DtString* pDtString);
 DtStatus  DtStringToCharString(DtString* pDtString, Char* pStringDest, UInt Size);

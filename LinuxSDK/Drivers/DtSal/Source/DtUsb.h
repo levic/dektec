@@ -50,6 +50,8 @@ DtStatus  DtUsbVendorRequest(DtDvcObject* pUsbDevice, void* pRequestObject,
                                       Int Timeout);
 Int  DtUsbGetBulkPipeNumber(DtDvcObject* pUsbDevice, Int Dir, Int EndPoint);
 void  DtUsbDumpPipeInfo(DtDvcObject* pUsbDevice);
+Int  DtUsbGetCtrlMaxPacketSize(DtDvcObject*  pUsbDevice, Int  UsbSpeed);
+Bool  DtUsbManufNameEq(DtDvcObject*  pDvc, const char*  pManufName);
 
 #endif // #ifndef SKIP_USB
 #endif // #ifndef __DT_USB_H

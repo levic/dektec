@@ -53,6 +53,8 @@ UInt16  DtuProductId2TypeNumber(Int ProductId)
         return 299;
     else if (ProductId >= 0x2000)
         return 200 + (ProductId>>4 & 0xFF);
+    else if (ProductId > 0x300)
+        return 300 + (ProductId & 0xFF);
     else if (ProductId > 0x200)
         return 200 + (ProductId & 0xFF);
     else if (ProductId==DTU225_PID_OLD || ProductId==DTU225_PID_NOFW_OLD)
@@ -120,9 +122,9 @@ DtStatus  DtuIoCtlReset(DtuDeviceData* pDvcData)
     Int  i=0;
 
     // Reset temporariy for all channels
-    for ( i=0; i<pDvcData->m_NumNonIpPorts; i++ )
+    for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {
-        DtuNonIpPort* pNonIpPort = &(pDvcData->m_NonIpPorts[i]);
+        DtuNonIpPort* pNonIpPort = &(pDvcData->m_pNonIpPorts[i]);
 
         // Clear temporariy buffer
         pNonIpPort->m_TempBufWrIndex = 0;
@@ -184,6 +186,14 @@ DtStatus  DtuGetUsbAddress(
     Int  BytesTransf = 0;
     UInt8*  pTempBuf = NULL;
 
+    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    {
+        // Implemented in firmware for DTU2 devices but not for DTU3. Simply return 0
+        // as dummy address.
+        *pUsbAddr = 0;
+        return DT_STATUS_OK;
+    }
+
     // Init to 512
     *pUsbAddr = 512;
 
@@ -228,10 +238,20 @@ DtStatus  DtuGetUsbSpeed(
     if (pTempBuf == NULL)
         return DT_STATUS_OUT_OF_MEMORY;
 
-    // Get USB speed from DTU
-    Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB_GET_USB_SPEED, 
+    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    {
+        // Read FX3 register 0x00: UsbSpeed
+        Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_READ_VALUE,
+                                          0, DTU_USB3_DEV_FX3, DT_USB_DEVICE_TO_HOST,
+                                          pTempBuf, 2, &BytesTransf, MAX_USB_REQ_TIMEOUT);
+    } else {
+        // Get USB speed from DTU
+        Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB_GET_USB_SPEED, 
                                    0, 0, DT_USB_DEVICE_TO_HOST, pTempBuf, sizeof(UInt8)*4,
                                    &BytesTransf, MAX_USB_REQ_TIMEOUT);
+    }
+
+
 
     if ( BytesTransf >= 2 )
     {

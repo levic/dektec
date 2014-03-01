@@ -328,10 +328,12 @@ static __inline Bool DtFileCompare(DtFileObject* pFileObj1, DtFileObject* pFileO
 //
 // Wrapper struct for OS specific user mapping info
 //
-typedef struct _DtUserMapping
+typedef struct _DtUserMapping  DtUserMapping;
+struct _DtUserMapping
 {
-    Bool  m_EntryUsed;              // TRUE if this entry is used
-    UInt  m_RefCount;               // Reference count of user mapping    
+    DtUserMapping*  m_pNext;
+    DtUserMapping*  m_pPrev;
+    UInt  m_RefCount;               // Reference count of user mapping
     void*  m_pUserVirtual;          // Virtual address in user mode
     DtFileObject  m_FileObject;     // Corresponding file object
 #ifdef WINBUILD
@@ -339,7 +341,7 @@ typedef struct _DtUserMapping
     void*  m_pPaMmap;               // Virtual address returned by mmap 
                                     // used to cleanup in userspace for munmap
 #endif
-} DtUserMapping;
+};
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPageList -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //

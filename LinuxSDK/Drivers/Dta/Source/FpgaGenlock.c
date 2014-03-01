@@ -146,7 +146,6 @@ DtStatus DtaFpgaGenLockSetVcxoSpeed(DtaFpgaGenlock* pFpgaGenlockData)
   volatile UInt8*  pI2cRegs;
   UInt  Speed;
   UInt8  I2CData[2];
-  DtStatus  Status = DT_STATUS_OK;
   Int  GenlArch = pFpgaGenlockData->m_pDvcData->m_Genlock.m_GenlArch;
 
   pGenRegs = (volatile UInt8*)pFpgaGenlockData->m_pDvcData->m_pGenRegs;
@@ -263,7 +262,7 @@ DtStatus DtaFpgaGenlockUpdateRx(DtaFpgaGenlock* pFpgaGenlockData, Int PortIndex)
   //       or add them to the NonIpChannel structure.
   DT_ASSERT(PortIndex == 0);
   pRxRegs = 
-         (volatile UInt8*)pFpgaGenlockData->m_pDvcData->m_NonIpPorts[PortIndex].m_pRxRegs;
+        (volatile UInt8*)pFpgaGenlockData->m_pDvcData->m_pNonIpPorts[PortIndex].m_pRxRegs;
    
   pFpgaGenlockData->m_ValidRxSignals = FALSE;  
   
@@ -617,7 +616,7 @@ DtStatus  DtaFpgaGenlockGetRefState(
   Bool  *pInLock)
 { 
   // Only supported on genlock input ports
-  if (!pDvcData->m_NonIpPorts[PortIndex].m_CapGenRef)
+  if (!pDvcData->m_pNonIpPorts[PortIndex].m_CapGenRef)
   {
     DtDbgOut(ERR, GENL, "[%d] Genref not supported", PortIndex);
     return DT_STATUS_NOT_SUPPORTED;
@@ -625,7 +624,7 @@ DtStatus  DtaFpgaGenlockGetRefState(
   
   *pEnabled = FALSE;
 
-  if (pDvcData->m_NonIpPorts[PortIndex].m_IoCfg[DT_IOCONFIG_GENREF].m_Value 
+  if (pDvcData->m_pNonIpPorts[PortIndex].m_IoCfg[DT_IOCONFIG_GENREF].m_Value 
                                                                       != DT_IOCONFIG_TRUE)
   {
     DtDbgOut(AVG, GENL, "[%d] Genref not enabled", PortIndex);

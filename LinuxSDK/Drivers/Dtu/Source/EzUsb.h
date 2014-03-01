@@ -43,10 +43,6 @@
 #define EZUSB_CPUCS_REG             0x7F92      
 #define EZUSB_FX2_CPUCS_REG         0xE600
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-
-#define EZUSB_MAX_CTRL_TR_SIZE	64		    // Max transfer size for control pipe
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Type definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 // DtuEzUsb
 typedef struct _DtuEzUsb
@@ -63,6 +59,8 @@ Bool  EzUsbIsFirmwareLoaded(DtuDeviceData*  pDvcData);
 DtStatus  EzUsbResetProcessor(DtuDeviceData*  pDvcData, Bool  Reset);
 DtStatus  EzUsbLoadFirmware(DtuDeviceData*  pDvcData, 
                                                  const DtuIntelHexRecord*  pMicroCode);
+DtStatus  EzUsbLoadFirmwareFx3(DtuDeviceData*  pDvcData, 
+                                                      const DtuFx3HexRecord*  pMicroCode);
 
 #endif // #ifndef __EZUSB_H
 

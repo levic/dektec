@@ -120,7 +120,10 @@ enum {
     FUNC_DTA_GET_NWDRIVER_VERSION,
     FUNC_DTA_GET_STR_PROPERTY,
     FUNC_DTA_MATRIX_CMD,
-    FUNC_DTA_GET_DEV_SUBTYPE
+    FUNC_DTA_GET_DEV_SUBTYPE,
+    FUNC_DTA_SET_MEMORY_TESTMODE,
+    FUNC_DTA_GET_PROPERTY2,
+    FUNC_DTA_GET_DEV_GENLOCKSTATE
 };
 
 // Ioctl input data type
@@ -132,6 +135,18 @@ typedef struct _DtaIoctlGetPropertyInput {
     char  m_Name[PROPERTY_NAME_MAX_SIZE];   // Name of property
 } DtaIoctlGetPropertyInput;
 ASSERT_SIZE(DtaIoctlGetPropertyInput, 68)
+
+typedef struct _DtaIoctlGetProperty2Input {
+    Int  m_TypeNumber;                      // Type number (-1 = get for current device)
+    Int  m_HardwareRevision;                // Hardware revision
+    Int  m_FirmwareVersion;                 // Firmware version
+    Int  m_PortIndex;                       // Port index
+    char  m_Name[PROPERTY_NAME_MAX_SIZE];   // Name of property
+    Int  m_DtapiMaj;                        // DTAPI major version
+    Int  m_DtapiMin;                        // DTAPI minor version
+    Int  m_DtapiBugfix;                     // DTAPI bug fix version
+} DtaIoctlGetProperty2Input;
+ASSERT_SIZE(DtaIoctlGetProperty2Input, 80)
 
 // Ioctl output data type
 // Don't use ENUMS in Ioctl's. Size is unknown
@@ -153,6 +168,19 @@ ASSERT_SIZE(DtaIoctlGetPropertyOutput, 16)
 
     #define DTA_IOCTL_GET_PROPERTY  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_GET_PROPERTY, \
                                                                   DtaIoctlGetPropertyData)
+#endif
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_GET_PROPERTY2  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_GET_PROPERTY2, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlGetProperty2Data {
+        DtaIoctlGetProperty2Input  m_Input;
+        DtaIoctlGetPropertyOutput  m_Output;
+    } DtaIoctlGetProperty2Data;
+
+    #define DTA_IOCTL_GET_PROPERTY2  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_GET_PROPERTY2, \
+                                                                 DtaIoctlGetProperty2Data)
 #endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_GET_DEV_INFO +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -1015,6 +1043,10 @@ ASSERT_SIZE(DtaIoctlNonIpRxCmdOutput, 8)
 #define DTA_IP_CMD_SETSPEED        3
 #define DTA_IP_CMD_GETADMINSTATUS  4
 #define DTA_IP_CMD_SETADMINSTATUS  5
+#define DTA_IP_CMD_GETPHYREGISTER  6
+#define DTA_IP_CMD_SETPHYREGISTER  7
+#define DTA_IP_CMD_GETMACCOUNTER   8
+#define DTA_IP_CMD_ENABLELOOPBACK  9
 
 // DTA_IP_CMD_GETMACADDRESS
 typedef struct _DtaIoctlIpCmdGetMacAddressOutput {
@@ -1058,6 +1090,41 @@ typedef struct _DtaIoctlIpCmdSetAdminStatusInput {
 } DtaIoctlIpCmdSetAdminStatusInput;
 ASSERT_SIZE(DtaIoctlIpCmdSetAdminStatusInput, 4)
 
+// DTA_IP_CMD_GETPHYREGISTER
+typedef struct _DtaIoctlIpCmdGetPhyRegisterInput {
+    UInt  m_Offset;
+} DtaIoctlIpCmdGetPhyRegisterInput;
+ASSERT_SIZE(DtaIoctlIpCmdGetPhyRegisterInput, 4)
+
+typedef struct _DtaIoctlIpCmdGetPhyRegisterOutput {
+    UInt  m_Value;
+} DtaIoctlIpCmdGetPhyRegisterOutput;
+ASSERT_SIZE(DtaIoctlIpCmdGetPhyRegisterOutput, 4)
+
+// DTA_IP_CMD_SETPHYREGISTER
+typedef struct _DtaIoctlIpCmdSetPhyRegisterInput {
+    UInt  m_Offset;
+    UInt32  m_Value;
+} DtaIoctlIpCmdSetPhyRegisterInput;
+ASSERT_SIZE(DtaIoctlIpCmdSetPhyRegisterInput, 8)
+
+    // DTA_IP_CMD_GETMACCOUNTER
+typedef struct _DtaIoctlIpCmdGetMacCounterInput {
+    UInt  m_CounterId;
+} DtaIoctlIpCmdGetMacCounterInput;
+ASSERT_SIZE(DtaIoctlIpCmdGetMacCounterInput, 4)
+
+typedef struct _DtaIoctlIpCmdGetMacCounterOutput {
+    UInt64A  m_Value;
+} DtaIoctlIpCmdGetMacCounterOutput;
+ASSERT_SIZE(DtaIoctlIpCmdGetMacCounterOutput, 8)
+
+// DTA_IP_CMD_ENABLELOOPBACK
+typedef struct _DtaIoctlIpCmdEnableLoopbackInput {
+    Int  m_Enable;    
+} DtaIoctlIpCmdEnableLoopbackInput;
+ASSERT_SIZE(DtaIoctlIpCmdEnableLoopbackInput, 4)
+
 // Ioctl input data type
 typedef struct _DtaIoctlIpCmdInput {
     Int  m_Cmd;
@@ -1065,6 +1132,10 @@ typedef struct _DtaIoctlIpCmdInput {
     union {
         DtaIoctlIpCmdSetSpeedInput  m_SetSpeed;
         DtaIoctlIpCmdSetAdminStatusInput  m_SetAdminStatus;
+        DtaIoctlIpCmdGetMacCounterInput  m_GetMacCounter;
+        DtaIoctlIpCmdGetPhyRegisterInput  m_GetPhyRegister;
+        DtaIoctlIpCmdSetPhyRegisterInput  m_SetPhyRegister;
+        DtaIoctlIpCmdEnableLoopbackInput  m_EnableLoopback;
     } m_Data;
 } DtaIoctlIpCmdInput;
 ASSERT_SIZE(DtaIoctlIpCmdInput, 16)
@@ -1075,6 +1146,8 @@ typedef struct _DtaIoctlIpCmdOutput {
         DtaIoctlIpCmdGetMacAddressOutput  m_MacAddress;
         DtaIoctlIpCmdGetSpeedOutput m_GetSpeed;
         DtaIoctlIpCmdGetAdminStatusOutput  m_GetAdminStatus;
+        DtaIoctlIpCmdGetMacCounterOutput  m_GetMacCounter;
+        DtaIoctlIpCmdGetPhyRegisterOutput  m_GetPhyRegister;
     } m_Data;
 } DtaIoctlIpCmdOutput;
 ASSERT_SIZE(DtaIoctlIpCmdOutput, 8)
@@ -1154,20 +1227,53 @@ ASSERT_SIZE(DtaIoctlIpXxCmdSetControlInput, 8)
 #define DTA_IP_TX_CMD_GETFLAGS         4
 #define DTA_IP_TX_CMD_RESET            5
 #define DTA_IP_TX_CMD_SETCONTROL       6
+#define DTA_IP_TX_CMD_SETIPPARS        7
+#define DTA_IP_TX_CMD_WRITENDISPCKT    8
+
+// DTA_IP_TX_CMD_WRITENDISPCKT
+typedef struct _DtaIoctlIpTxCmdWriteNdisPcktInput {
+    UInt  m_BufLen;
+    UInt8  m_Buf[0];                // Dynamic sized buffer    
+} DtaIoctlIpTxCmdWriteNdisPcktInput;
+ASSERT_SIZE(DtaIoctlIpTxCmdWriteNdisPcktInput, 4)
+
+// DTA_IP_TX_CMD_SETIPPARS
+typedef struct _DtaIoctlIpTxCmdSetIpParsInput {
+    Int  m_Channel;
+    Int  m_VlanId;                   // VLAN ID of 2nd port
+    Int  m_VlanPriority;             // VLAN Priority of 2nd port
+    UInt16  m_DstPort;               // Destination port number 2nd port
+    UInt16  m_SrcPort;               // Source port number os 2nd port
+    UInt16  m_DstPort2;              // Destination port number of 1st port
+    UInt16  m_DummyAlign1;
+    Int  m_Mode;                     // Mode: DBLBUF/NORMAL
+    Int  m_Flags;                    // Flag: IpV4/V6
+    Int  m_Protocol;                 // Protocol: UDP/RTP
+    Int  m_FecMode;                  // Error correction mode
+    Int  m_DummyAlign2;
+    UInt8  m_DstMac[6];              // Destination MAC address 2nd port
+    UInt8  m_DstIp[16];              // Destination IP address 2nd port
+    UInt8  m_SrcMac[6];              // Source MAC address of 2nd port
+    UInt8  m_SrcIp[16];              // Source IP address of 2nd port
+    UInt8  m_DummyAlign3[4];
+} DtaIoctlIpTxCmdSetIpParsInput;
+ASSERT_SIZE(DtaIoctlIpTxCmdSetIpParsInput, 88)
 
 // Ioctl input data type
 typedef struct _DtaIoctlIpTxCmdInput {
     Int  m_Cmd;
-    Int  m_NwPortIndex;
+    Int  m_PortIndex;
     union {
         DtaIoctlIpXxCmdClearFlagsInput  m_ClearFlags;
         DtaIoctlIpXxCmdDetachChannelInput m_DetachChannel;
         DtaIoctlIpXxCmdGetFlagsInput m_GetFlags;
         DtaIoctlIpXxCmdResetInput m_Reset;
         DtaIoctlIpXxCmdSetControlInput m_SetTxControl;
+        DtaIoctlIpTxCmdSetIpParsInput m_SetIpPars;
+        DtaIoctlIpTxCmdWriteNdisPcktInput m_WriteNdisPckt;
     } m_Data;
 } DtaIoctlIpTxCmdInput;
-ASSERT_SIZE(DtaIoctlIpTxCmdInput, 16)
+ASSERT_SIZE(DtaIoctlIpTxCmdInput, 96)
 
 // Ioctl output data type
 typedef struct _DtaIoctlIpTxCmdOutput {
@@ -1209,6 +1315,7 @@ ASSERT_SIZE(DtaIoctlIpTxCmdOutput, 8)
 #define DTA_IP_RX_CMD_SETIPPARS        10
 #define DTA_IP_RX_CMD_GETIPPARS        11
 #define DTA_IP_RX_CMD_GETIPSTAT        12
+#define DTA_IP_RX_CMD_SETIPPARS2       13
 
 // DTA_IP_RX_CMD_GETSTATUS
 typedef struct _DtaIoctlIpRxCmdGetStatusInput {
@@ -1252,6 +1359,16 @@ ASSERT_SIZE(DtaIoctlIpRxCmdSetModeInput, 8)
 #define DTA_FEC_2D_M1            1       // Mode1: FECdT = DVBdT + .5 * DVBdT
 #define DTA_FEC_2D_M2            2       // Mode2: FECdT = DVBdT
 
+// Mode
+#define DTA_IP_NORMAL            0
+#define DTA_IP_TX_DBLBUF         1
+#define DTA_IP_RX_DBLBUF         2
+#define DTA_IP_RX_FAILOVER       3
+
+// Flags
+#define DTA_IP_V4                1
+#define DTA_IP_V6                2
+
 // DTA_IP_RX_CMD_SETIPPARS
 typedef struct _DtaIoctlIpRxCmdSetIpParsInput {
     Int  m_Channel;
@@ -1263,6 +1380,29 @@ typedef struct _DtaIoctlIpRxCmdSetIpParsInput {
     Int  m_FecMode;                 // Error correction mode
 } DtaIoctlIpRxCmdSetIpParsInput;
 ASSERT_SIZE(DtaIoctlIpRxCmdSetIpParsInput, 24)
+
+// DTA_IP_RX_CMD_SETIPPARS2
+typedef struct _DtaIoctlIpRxCmdSetIpPars2Input {
+    Int  m_Channel;
+    // Primary link
+    UInt8  m_DstIp[16];              // Destination: IP address
+    UInt16  m_DstPort;               // Destination: port number
+    UInt8  m_SrcIp[16];              // Source: IP address
+    UInt16  m_SrcPort;               // Source: port number
+    Int  m_VlanId;                   // VLAN ID
+    // Redundant link
+    UInt8  m_DstIp2[16];             // Destination: IP address
+    UInt16  m_DstPort2;              // Destination: port number
+    UInt8  m_SrcIp2[16];             // Source: IP address
+    UInt16  m_SrcPort2;              // Source: port number
+    Int  m_VlanId2;                  // VLAN ID
+    // Options
+    Int  m_Mode;
+    Int  m_Flags;
+    Int  m_Protocol;                 // Protocol: UDP/RTP
+    Int  m_FecMode;                  // Error correction mode
+} DtaIoctlIpRxCmdSetIpPars2Input;
+ASSERT_SIZE(DtaIoctlIpRxCmdSetIpPars2Input, 100)
 
 // DTA_IP_RX_CMD_GETIPPARS
 typedef struct _DtaIoctlIpRxCmdGetIpParsInput {
@@ -1288,15 +1428,15 @@ typedef struct _DtaIoctlIpRxCmdGetIpStatOutput {
     UInt  m_TotNumIPPackets;
     UInt  m_LostIPPacketsBeforeFec;     // (BER before FEC)
     UInt  m_LostIPPacketsAfterFec;      // (BER after FEC)
-    UInt  m_LostIPPacketsBeforeSort;    // #Lost Packets before RTP sorting
-    UInt  m_LostIPPacketsAfterSort;     // #Lost Packets after RTP sorting    
+    UInt  m_Reserved1;
+    UInt  m_Reserved2;
 } DtaIoctlIpRxCmdGetIpStatOutput;
 ASSERT_SIZE(DtaIoctlIpRxCmdGetIpStatOutput, 20)
 
 // Ioctl input data type
 typedef struct _DtaIoctlIpRxCmdInput {
     Int  m_Cmd;
-    Int  m_NwPortIndex;
+    Int  m_PortIndex;
     union {
         DtaIoctlIpXxCmdClearFlagsInput  m_ClearFlags;
         DtaIoctlIpXxCmdDetachChannelInput  m_DetachChannel;
@@ -1309,9 +1449,10 @@ typedef struct _DtaIoctlIpRxCmdInput {
         DtaIoctlIpRxCmdGetIpParsInput  m_GetIpPars;
         DtaIoctlIpRxCmdSetIpParsInput  m_SetIpPars;
         DtaIoctlIpRxCmdGetIpStatInput  m_GetIpStat;
+        DtaIoctlIpRxCmdSetIpPars2Input  m_SetIpPars2;
     } m_Data;
 } DtaIoctlIpRxCmdInput;
-ASSERT_SIZE(DtaIoctlIpRxCmdInput, 32)
+ASSERT_SIZE(DtaIoctlIpRxCmdInput, 108)
 
 // Ioctl output data type
 typedef struct _DtaIoctlIpRxCmdOutput {
@@ -1532,8 +1673,8 @@ typedef struct _DtaIoctlIpNwSetDriverVersionInput{
 #ifndef DTAPI   // DtEvent type not defined for DTAPI and struct only used in Driver
 // DTA_IP_NW_CMD_GET_SHARED_BUFFERS
 typedef struct _DtaIpNwSharedBufInfo {
-    UInt  m_ReadOffset;
-    UInt  m_WriteOffset;
+    volatile UInt  m_ReadOffset;
+    volatile UInt  m_WriteOffset;
     DtEvent  m_DataAvailableEvent;
     Int  m_DataAvailableCnt;
 } DtaIpNwSharedBufInfo;
@@ -1611,6 +1752,27 @@ ASSERT_SIZE(DtaIoctlGetTableOutput, 8)
                                                                          DtaIoctlGetTable)
 #endif
 
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_SET_MEMORY_TESTMODE +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//
+// Enter testmode for a memory test.
+//
+typedef struct _DtaIoctlSetMemoryTestModeInput {
+    Int  m_On;    
+} DtaIoctlSetMemoryTestModeInput;
+ASSERT_SIZE(DtaIoctlSetMemoryTestModeInput, 4)
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_SET_MEMORY_TESTMODE CTL_CODE(DTA_DEVICE_TYPE, \
+                                                        FUNC_DTA_SET_MEMORY_TESTMODE, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlSetMemoryTestMode {
+        DtaIoctlSetMemoryTestModeInput  m_On;
+    } DtaIoctlSetMemoryTestMode;
+
+    #define DTA_IOCTL_SET_MEMORY_TESTMODE  _IOWR(DTA_IOCTL_MAGIC, \
+                              FUNC_DTA_SET_MEMORY_TESTMODE, DtaIoctlSetMemoryTestMode)
+#endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_REBOOT_FIRMWARE +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
@@ -1631,7 +1793,7 @@ ASSERT_SIZE(DtaIoctlRebootFirmwareInput, 8)
         DtaIoctlRebootFirmwareInput  m_Input;
     } DtaIoctlRebootFirmware;
 
-    #define DTA_IOCTL_REBOOT_FIRMWARE  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_GET_TABLE, \
+    #define DTA_IOCTL_REBOOT_FIRMWARE  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_REBOOT_FIRMWARE, \
                                                                    DtaIoctlRebootFirmware)
 #endif
 
@@ -1788,10 +1950,39 @@ ASSERT_SIZE(DtaIoctlGetDevSubTypeOutput, 4)
                                                                 DtaIoctlGetDevSubTypeData)
 #endif
 
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_GET_DEV_GENLOCKSTATE +=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+// Gets the device genlock state
+//
+
+// DTA genlock state
+#define DTA_GENLOCKSTATE_NO_REF        1
+#define DTA_GENLOCKSTATE_LOCKING       2
+#define DTA_GENLOCKSTATE_LOCKED        3
+
+typedef struct _DtaIoctlGetGenlockStateOutput {
+    Int  m_State;               // Current state
+    Int  m_RefVidStd;           // Reference video standard
+} DtaIoctlGetGenlockStateOutput;
+ASSERT_SIZE(DtaIoctlGetGenlockStateOutput, 8)
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_GET_DEV_GENLOCKSTATE  CTL_CODE(DTA_DEVICE_TYPE, \
+                         FUNC_DTA_GET_DEV_GENLOCKSTATE, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlGetGenlockStateData {
+        DtaIoctlGetGenlockStateOutput  m_Output;
+    } DtaIoctlGetGenlockStateData;
+
+    #define DTA_IOCTL_GET_DEV_GENLOCKSTATE  _IOR(DTA_IOCTL_MAGIC, \
+                               FUNC_DTA_GET_DEV_GENLOCKSTATE, DtaIoctlGetGenlockStateData)
+#endif
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef union _DtaIoctlInputData {
     DtaIoctlGetPropertyInput  m_GetProperty;
+    DtaIoctlGetProperty2Input  m_GetProperty2;
     DtaIoctlVpdCmdInput  m_VpdCmd;
     DtaIoctlI2cCmdInput  m_I2cCmd;
     DtaIoctlGetAddressRegsInput  m_GetAddrRegs;
@@ -1813,6 +2004,7 @@ typedef union _DtaIoctlInputData {
     DtaIoctlRebootFirmwareInput  m_RebootFirmware;
     DtaIoctlGetStrPropertyInput  m_GetStrProperty;
     DtaIoctlMatrixCmdInput  m_NonIpHdCmd;
+    DtaIoctlSetMemoryTestModeInput  m_SetMemoryTestMode;
 } DtaIoctlInputData;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlOutputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1844,6 +2036,7 @@ typedef union _DtaIoctlOutputData {
     DtaIoctlGetStrPropertyOutput  m_GetStrProperty;
     DtaIoctlMatrixCmdOutput  m_NonIpHdCmd;
     DtaIoctlGetDevSubTypeOutput  m_GetDevSubType;
+    DtaIoctlGetGenlockStateOutput  m_GetGenlockstate;
 } DtaIoctlOutputData;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

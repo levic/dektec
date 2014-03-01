@@ -43,7 +43,7 @@ DtStatus  DtuDvcReset(DtuDeviceData* pDvcData)
     // Reset temporariy for all channels
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {
-        DtuNonIpPort*  pNonIpPort = &(pDvcData->m_NonIpPorts[i]);
+        DtuNonIpPort*  pNonIpPort = &(pDvcData->m_pNonIpPorts[i]);
 
         // Clear temporariy buffer
         pNonIpPort->m_TempBufWrIndex = 0;
@@ -63,7 +63,7 @@ DtStatus  DtuDvcReset(DtuDeviceData* pDvcData)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuDvcPowerSupplyInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// Initializes the Altera power supply (only required for the DTU-215)
+// Initializes the Altera power supply
 //
 DtStatus  DtuDvcPowerSupplyInit(DtuDeviceData* pDvcData)
 {
@@ -85,6 +85,14 @@ DtStatus  DtuDvcPowerSupplyInit(DtuDeviceData* pDvcData)
             DtDbgOut(AVG, DTU, "DTU-%d power supply started", TypeNumber);
         else
             DtDbgOut(ERR, DTU, "DTU-%d power supply start ERROR. Error: %xh", TypeNumber, Status);
+    }
+    else if (TypeNumber == 351)
+    {
+        Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
+                           DTU_PNP_CMD_DVC_POWER, DTU_DVC_POWER_ON, DT_USB_HOST_TO_DEVICE,
+                           NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
+        if (DT_SUCCESS(Status))
+            DtSleep(100);
     }
 
     return Status;

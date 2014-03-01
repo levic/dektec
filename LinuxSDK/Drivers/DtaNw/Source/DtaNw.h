@@ -41,7 +41,7 @@
 
 // Minimum version of Dta driver with which DtaNw can work
 #define  DTA_MIN_MAJOR       4
-#define  DTA_MIN_MINOR       0
+#define  DTA_MIN_MINOR       3
 #define  DTA_MIN_MICRO       0
 
 
@@ -75,11 +75,17 @@ struct _DtaNwDeviceData
     Int  m_BusNumber;
     Int  m_SlotNumber;
     Int  m_IpPortIndex;
+    Int  m_HeaderVersion;
+    Int  m_FwVersion;
+    Int  m_HwRevision;
 
     Int  m_MaxBufferSize;
     Bool  m_Support8021P_Priority;
     Bool  m_Supports8021Q_Vlan;
     Bool  m_DeviceOpened;
+
+    // Frame Check Sequence
+    Bool  m_FCSEnabled;
 
     // MAC-addresses
     Bool  m_MacAddressOverride;
@@ -104,6 +110,24 @@ struct _DtaNwDeviceData
 
     // Threads
     DtThread  m_RxThread;
+
+    // Task offloading by firmware
+    Bool  m_SupportIpRxChecksumIPv4Fw;  // Ip checksum check and not disabled
+    Bool  m_SupportIpTxChecksumIPv4Fw;  // Ip checksum generation and not disabled
+    Bool  m_SupportUdpRxChecksumIPv4Fw; // Udp checksum check and not disabled
+    Bool  m_SupportUdpRxChecksumIPv6Fw; // Udp checksum check and not disabled
+    Bool  m_SupportUdpTxChecksumIPv4Fw; // Udp checksum generation and not disabled
+    Bool  m_SupportUdpTxChecksumIPv6Fw; // Udp checksum generation and not disabled
+    Bool  m_SupportTcpRxChecksumIPv4Fw; // Tcp checksum check and not disabled
+    Bool  m_SupportTcpRxChecksumIPv6Fw; // Tcp checksum check and not disabled
+    Bool  m_SupportTcpTxChecksumIPv4Fw; // Tcp checksum generation and not disabled
+    Bool  m_SupportTcpTxChecksumIPv6Fw; // Tcp checksum generation and not disabled
+    Bool  m_GenerateChecksumFw;         // Generate checksums by firmware
+    Bool  m_CheckIpChecksumIPv4Fw;      // Indicate Ip Rx checksum status
+    Bool  m_CheckUdpChecksumIPv4Fw;     // Indicate Udp Rx checksum status
+    Bool  m_CheckUdpChecksumIPv6Fw;     // Indicate Udp Rx checksum status
+    Bool  m_CheckTcpChecksumIPv4Fw;     // Indicate Tcp Rx checksum status
+    Bool  m_CheckTcpChecksumIPv6Fw;     // Indicate Tcp Rx checksum status
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTANW public interface -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -127,7 +151,8 @@ DtStatus  DtaNwSetPhySpeed(DtaNwDeviceData* pDvcData, UInt PhySpeed);
 DtStatus  DtaNwGetPhySpeed(DtaNwDeviceData* pDvcData, UInt* pPhySpeed);
 DtStatus  DtaNwGetLinkStatus(DtaNwDeviceData* pDvcData, UInt* pPhyLink);
 DtStatus  DtaNwTransmitPacket(DtaNwDeviceData* pDvcData, UInt PacketSize, 
-                                                                        UInt WriteOffset);
+                                            UInt WriteOffset, Bool EnIpChecksumGen, 
+                                            Bool EnUdpChecksumGen, Bool EnTcpChecksumGen);
 DtStatus  DtaNwTxGetPointerNewPacket(DtaNwDeviceData* pDvcData, UInt PacketSize, 
                                                      UInt8** pPacket, UInt* pWriteOffset);
 DtStatus  DtaNwSetMulticastList(DtaNwDeviceData* pDvcData, UInt NumItems,

@@ -36,6 +36,7 @@
 
 // Forward declaration of the device context
 typedef struct _DtuDeviceData DtuDeviceData;
+typedef struct _DtuShBuffer DtuShBuffer;
 
 #include <DtuCommon.h>
 #include <Vpd.h>
@@ -60,6 +61,7 @@ typedef struct _DtuDeviceData DtuDeviceData;
 #include <Vpd.h>
 #include <I2c.h>
 #include <IoConfig.h>
+#include <ShBuffer.h>
 #include <NonIp.h>
 #include <ReadWrite.h>
 

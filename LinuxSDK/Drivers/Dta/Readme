@@ -18,6 +18,7 @@
 --------------------------------------------------------------------------------
 
 Date:		Version:	Remarks:
+2013.02.15	4.3.0.35	Refer to "SDK - Revision History.pdf" for details
 2012.12.06  4.2.0.33	Refer to "SDK - Revision History.pdf" for details
 2012.11.05	4.1.2.31	Bug fix for crash when one of the DTA-2152 ports is
 						enabled as a genlock reference

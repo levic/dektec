@@ -241,12 +241,14 @@ void  DtaPPBufferWriteDataFinish(PPBuffer* pPPBuffer)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaPPBufferTransferDataStartDma -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-static DtStatus  DtaPPBufferTransferDataStartDma(PPBuffer* pPPBuffer, UInt BufferToTransfer)
+static DtStatus  DtaPPBufferTransferDataStartDma(PPBuffer* pPPBuffer, 
+                                                                    UInt BufferToTransfer)
 {
     DtStatus  Status = DT_STATUS_OK;
     UInt  TransferSize;
     UInt  BufStart;
     UInt  BufStop;
+    UInt  TransferSizeNew;
     UInt8*  pLocalAddress;
 
     DtDbgOut(MAX, PP, "Start");
@@ -258,15 +260,18 @@ static DtStatus  DtaPPBufferTransferDataStartDma(PPBuffer* pPPBuffer, UInt Buffe
 
     // Transfer buffer
     pPPBuffer->m_pGetLocAddrFunc(pPPBuffer->m_pGetLocAddrContext, 
-                                                     &pLocalAddress, &BufStart, &BufStop);
+                                   &pLocalAddress, &BufStart, &BufStop, &TransferSizeNew);
+    if (TransferSizeNew != 0)
+        TransferSize = TransferSizeNew;
 
-    Status = DtaDmaStartKernelBufTransfer(pPPBuffer->m_pDmaChannel, pPPBuffer->m_pBufStart,
-                                           TransferSize,
-                                           pPPBuffer->m_BufOffset[BufferToTransfer],
-                                           pLocalAddress, BufStart, BufStop);
+    Status = DtaDmaStartKernelBufTransfer(pPPBuffer->m_pDmaChannel, 
+                                                 pPPBuffer->m_pBufStart,TransferSize,
+                                                 pPPBuffer->m_BufOffset[BufferToTransfer],
+                                                 pLocalAddress, BufStart, BufStop);
     DtDbgOut(MAX, PP, "Exit");
     return Status;
 }
+
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaPPBufferTransferDataCompleted -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -470,6 +475,19 @@ DtStatus  DtaPPBufferTransferData(
     DtDbgOut(MAX, PP, "Exit");
 
     return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaPPBufferTransferDataContext -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// See DtaPPBufferTransferData with the addition to set another context variable for
+// the GetLocalAddress callback function
+//
+DtStatus  DtaPPBufferTransferDataContext(
+    PPBuffer*  pPPBuffer,
+    void*  pGetLocalAddrContext)
+{
+    pPPBuffer->m_pGetLocAddrContext = pGetLocalAddrContext;
+    return DtaPPBufferTransferData(pPPBuffer);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaPPBufferWriteDataClearBuf -.-.-.-.-.-.-.-.-.-.-.-.-.-.-

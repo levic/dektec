@@ -138,28 +138,28 @@ DtStatus  DtaNonIpTxIoctl(
         switch (pNonIpTxCmdInput->m_Cmd)
         {
         case DTA_NONIP_TX_CMD_GET_FLAGS:
-            Status = DtaNonIpTxGetFlags(&pDvcData->m_NonIpPorts[NonIpPortIndex],
+            Status = DtaNonIpTxGetFlags(&pDvcData->m_pNonIpPorts[NonIpPortIndex],
                                          &pNonIpTxCmdOutput->m_Data.m_GetFlags.m_Status,
                                          &pNonIpTxCmdOutput->m_Data.m_GetFlags.m_Latched);
             break;
 
         case DTA_NONIP_TX_CMD_CLEAR_FLAGS:
-            Status = DtaNonIpTxClearFlags(&pDvcData->m_NonIpPorts[NonIpPortIndex],
+            Status = DtaNonIpTxClearFlags(&pDvcData->m_pNonIpPorts[NonIpPortIndex],
                                     pNonIpTxCmdInput->m_Data.m_ClearFlags.m_FlagsToClear);
             break;
 
         case DTA_NONIP_TX_CMD_SET_FAILSAFE_CFG:
-            Status = DtaNonIpTxSetFailsafeCfg(&pDvcData->m_NonIpPorts[NonIpPortIndex],
+            Status = DtaNonIpTxSetFailsafeCfg(&pDvcData->m_pNonIpPorts[NonIpPortIndex],
                                      pNonIpTxCmdInput->m_Data.m_SetFailsafeCfg.m_Enable,
                                      pNonIpTxCmdInput->m_Data.m_SetFailsafeCfg.m_Timeout);
             break;
 
         case DTA_NONIP_TX_CMD_SET_FAILSAFE_ALIVE:
-            Status = DtaNonIpTxSetFailsafeAlive(&pDvcData->m_NonIpPorts[NonIpPortIndex]);
+            Status = DtaNonIpTxSetFailsafeAlive(&pDvcData->m_pNonIpPorts[NonIpPortIndex]);
             break;
         
         case DTA_NONIP_TX_CMD_GET_FAILSAFE_INFO:
-            Status = DtaNonIpTxGetFailsafeInfo(&pDvcData->m_NonIpPorts[NonIpPortIndex],
+            Status = DtaNonIpTxGetFailsafeInfo(&pDvcData->m_pNonIpPorts[NonIpPortIndex],
                                    &pNonIpTxCmdOutput->m_Data.m_GetFailsafeInfo.m_Enable,
                                    &pNonIpTxCmdOutput->m_Data.m_GetFailsafeInfo.m_Timeout,
                                    &pNonIpTxCmdOutput->m_Data.m_GetFailsafeInfo.m_Alive);

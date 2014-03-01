@@ -50,7 +50,17 @@ static DtStatus  DtaDmaInitTransfer(DmaChannel* pDmaCh, DtPageList* pPageList,
 static DtStatus  DtaDmaProgramTransfer(DmaChannel* pDmaCh);
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-// 
+//
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- ExecuteDmaCompletedFromDpc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  ExecuteDmaCompletedFromDpc(DmaChannel* pDmaChannel)
+{
+    DtDpcArgs  Args;
+    
+    Args.m_pContext = pDmaChannel;
+    DtaDmaCompletedDpc(&Args);
+}
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDmaInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -201,10 +211,10 @@ DtStatus  DtaDmaInitCh(
     Int  Timeout,               // -1 or 2^14 clock cycles
     DmaCallbackFunc  pDmaFinishFunc,
     void*  pDmaFinishContext,
-    DmaChannel*  pDmaCh)
+    DmaChannel*  pDmaCh,
+    Bool  FixedLocalAddress)    // TRUE: DMA Local address = fixed
 {
     DtStatus  Status = DT_STATUS_OK;
-    DtPropertyData*  pPropData = &pDvcData->m_PropData;
     Int  DmaSglListSize;
     DmaOpt*  pDmaOptions = &pDvcData->m_DmaOptions;
 
@@ -214,8 +224,8 @@ DtStatus  DtaDmaInitCh(
                                (Timeout!=-1 && (DmaMode&DTA_DMA_MODE_TIMEOUT_ENABLE)!=0));
     DT_ASSERT(pDvcData->m_DmaOptions.m_UseDmaInFpga || 
                                                 (DmaMode&DTA_DMA_MODE_TIMEOUT_ENABLE)==0);
-    
-    
+    DT_ASSERT(pDvcData->m_DmaOptions.m_UseDmaInFpga || 
+                                               (DmaMode&DTA_DMA_FLAGS_DESCR_PREFETCH)==0);
     pDmaCh->m_PortIndex = PortIndex;
     pDmaCh->m_pDvcData = pDvcData;
     pDmaCh->m_MaxDmaLength = MaxDmaLength;
@@ -228,8 +238,7 @@ DtStatus  DtaDmaInitCh(
     
     DT_ASSERT((!pDvcData->m_DmaOptions.m_UseDmaInFpga && pDmaCh->m_RegsOffset<2) || 
                                                    pDvcData->m_DmaOptions.m_UseDmaInFpga);
-    pDmaCh->m_FixedLocalAddress = DtPropertiesGetBool(pPropData, 
-                                             "DMA_LOCAL_ADDR_FIXED", pDmaCh->m_PortIndex);
+    pDmaCh->m_FixedLocalAddress = FixedLocalAddress;
 
     Status = DtaPropertiesReportDriverErrors(pDvcData);
     if (!DT_SUCCESS(Status))
@@ -250,13 +259,14 @@ DtStatus  DtaDmaInitCh(
     //if (pDmaCh->m_UseDirectBufDma && pDmaCh->m_MaxDmaLength>0x7FFFFC)
     //    pDmaCh->m_MaxDmaLength = 0x7FFFFC;
 
-    // Limit max. DMA length to 1MB if using direct buffer DMA so we don't use
-    // too much resources.
-    if ((DmaFlags&DTA_DMA_FLAGS_DATA_BUF_NO_COPY) == 0)
+    if ((DmaFlags & DTA_DMA_FLAGS_DATA_BUF_NO_COPY) == 0)
     {
+        // Limit max. DMA length to 1MB if using direct buffer DMA so we don't use
+        // too much resources.
         if (pDmaCh->m_UseDirectBufDma && pDmaCh->m_MaxDmaLength>0x100000)
             pDmaCh->m_MaxDmaLength = 0x100000;
     }
+
 
     pDmaCh->m_Use64BitDma = FALSE;
        
@@ -334,6 +344,11 @@ DtStatus  DtaDmaInitChPowerup(
             DtaDmaTimeOutSet(pDmaCh->m_pRegBase, pDmaCh->m_Timeout);
         else // Disable timeout
             DtaDmaTimeOutSet(pDmaCh->m_pRegBase, 0);
+
+        // Enable descriptor prefetch
+        if ((pDmaCh->m_DmaFlags & DTA_DMA_FLAGS_DESCR_PREFETCH) != 0)
+            DtaDmaDescrPrefetchEn(pDmaCh->m_pRegBase, 1, (pDmaCh->m_Use64BitDma?1:0));
+
     } else {
         // No DMA controllers in FPGA, only use PLX DMA controllers
         pDmaCh->m_pRegBase = pDmaCh->m_pDvcData->m_Pci905XConfRegs.m_pKernel;
@@ -455,7 +470,7 @@ static DtStatus  DtaDmaInitTransfer(
     Int  OldState;
 
     // First try to set the init state, and check if we have to abort
-    OldState = DtAtomicCompareExchange(&pDmaCh->m_State, DTA_DMA_STATE_IDLE, 
+    OldState = DtAtomicCompareExchange((Int*)&pDmaCh->m_State, DTA_DMA_STATE_IDLE, 
                                                                       DTA_DMA_STATE_INIT);
     if (OldState == DTA_DMA_STATE_ABORT)
         return DT_STATUS_CANCELLED;
@@ -499,7 +514,20 @@ static DtStatus  DtaDmaInitTransfer(
     {
         // Wait for DMA to be completed
         if (DT_SUCCESS(Status))
+        {
             Status = DtEventWait(&pDmaCh->m_DmaDoneEvent, -1);
+            if (Status == DT_STATUS_CANCELLED)
+            {
+                DtDbgOut(ERR, DMA, "DtEventWait returned DT_STATUS_CANCELLED");
+                Status = DtaDmaAbortDma(pDmaCh);
+                if (DT_SUCCESS(Status))
+                {
+                    DtDbgOut(ERR, DMA, "DtaDmaAbortDma succeeded");
+                    Status = DtEventWait(&pDmaCh->m_DmaDoneEvent, 10);
+                    DtDbgOut(ERR, DMA, "DtEventWait Status after abort: %d", Status);
+                }
+            }
+        }
 
         // Finalize dma transfer and clean databuffer if buffer not re-used
         if (!pDmaCh->m_ReUseDataBuffer)
@@ -523,7 +551,10 @@ DtStatus  DtaDmaFinalTransfer(
 {
     DtStatus  Status = DT_STATUS_OK;
     if (!pDmaCh->m_UseDirectBufDma)
-        Status = DtDmaFinalSglTransfer(&pDmaCh->m_Data.m_OsSgList);
+    {
+        if (pDmaCh->m_Data.m_OsSgList.m_Allocated)
+            Status = DtDmaFinalSglTransfer(&pDmaCh->m_Data.m_OsSgList);
+    }
 
     return Status;
 }
@@ -552,15 +583,8 @@ static DtStatus  DtaDmaProgramTransfer(
     if (pDmaCh->m_CurrentTransferLength > pDmaCh->m_MaxDmaLength)
         pDmaCh->m_CurrentTransferLength = pDmaCh->m_MaxDmaLength;
 
-    if (pDmaCh->m_FixedLocalAddress) 
-    {
-        LocalAddress = (UInt)pDmaCh->m_pLocalAddress;
-    } else {
-        // NOT YET IMPLEMENTED. Get current slice pointer from FPGA.
-        DT_ASSERT(FALSE);
-        //LocalAddress = DtaGetSlicePointer(pDmaCh->m_pLocalAddress);
-        
-    }
+    LocalAddress = (UInt)(size_t)pDmaCh->m_pLocalAddress;
+
     Status = DtaDmaFillSgList(pDmaCh, pDmaCh->m_TransferNumber * pDmaCh->m_MaxDmaLength +
                                  pDmaCh->m_TransferOffet, pDmaCh->m_CurrentTransferLength,
                                  LocalAddress, pDmaCh->m_LocalAddressStart, 
@@ -590,7 +614,7 @@ static DtStatus  DtaDmaProgramTransfer(
     }
 
     // We set the started flag here, in case the DMA is finished immediately.
-    OldState = DtAtomicCompareExchange(&pDmaCh->m_State, DTA_DMA_STATE_INIT, 
+    OldState = DtAtomicCompareExchange((Int*)&pDmaCh->m_State, DTA_DMA_STATE_INIT, 
                                                                    DTA_DMA_STATE_STARTED);
     if (OldState == (DTA_DMA_STATE_INIT | DTA_DMA_STATE_ABORT))
     {
@@ -649,6 +673,7 @@ static DtStatus  DtaDmaProgramTransfer(
             CmdStat = ((pDmaCh->m_CurrentTransferLength<<8)&DTA_DMA_CMDSTAT_SIZE_MASK) 
                                                                 | DTA_DMA_CMDSTAT_SIZE_EN;
         }
+
         // Enable dual address cycles (64-bit DMA)
         if (pDmaCh->m_Use64BitDma) 
             CmdStat |= DTA_DMA_CMDSTAT_DAC_EN;
@@ -737,7 +762,8 @@ DtStatus  DtaDmaFillSgList(
             
             // Use "Interrupt after Terminal Count" as DMA-done indicator for PCI cards
             // that use a DMA controller in FPGA
-            if (pDmaOpt->m_UseDmaInFpga)
+            if (pDmaOpt->m_UseDmaInFpga && 
+                                 (pDmaCh->m_DmaFlags & DTA_DMA_FLAGS_NOINT_AFTER_DONE)==0)
                 pSglDesc->m_32NextSglDesc |= PCI905X_DMADPR_INTAFTERTC;
         } else
             // We set the next descriptor to the first one
@@ -836,23 +862,28 @@ DtStatus  DtaDmaFillSgList(
 
                 // Use "Interrupt after Terminal Count" as DMA-done indicator for PCI 
                 // cards that use a DMA controller in FPGA
-                if (pDmaOpt->m_UseDmaInFpga)
+                if (pDmaOpt->m_UseDmaInFpga && 
+                                 (pDmaCh->m_DmaFlags & DTA_DMA_FLAGS_NOINT_AFTER_DONE)==0)
                     pSglDesc->m_32NextSglDesc |= PCI905X_DMADPR_INTAFTERTC;
             }
-            
-            if (pDmaCh->m_Use64BitDma)
-                DtDbgOut(MAX, DMA, "[%d] SGL#%3d: Pci=0x%08x Dac=0x%08x Local=0x%08x"
+            if (CurIndex < 20)
+            {
+                if (pDmaCh->m_Use64BitDma)
+                    DtDbgOut(MAX, DMA, "[%d] SGL#%3d: Pci=0x%08x Dac=0x%08x Local=0x%08x"
                                    " Size=%4d Nxt=0x%08x", pDmaCh->m_PortIndex, 
                                    CurIndex, pSglDesc->m_32PciAddress, 
                                    pSglDesc64->m_DacPciAddress, 
                                    pSglDesc->m_32LocalAddress, pSglDesc->m_32TransferSize,
                                    pSglDesc->m_32NextSglDesc);
-            else
-                DtDbgOut(MAX, DMA, "[%d] SGL#%3d: Pci=0x%08x Local=0x%08x Size=%4d"
+                else
+                    DtDbgOut(MAX, DMA, "[%d] SGL#%3d: Pci=0x%08x Local=0x%08x Size=%4d"
                                    " Nxt=0x%08x", pDmaCh->m_PortIndex, CurIndex,
-                                   pSglDesc->m_32PciAddress, pSglDesc->m_32LocalAddress, 
+                                   pSglDesc->m_32PciAddress, pSglDesc->m_32LocalAddress,
                                    pSglDesc->m_32TransferSize, pSglDesc->m_32NextSglDesc);
-        
+            } else if (CurIndex == 20) {
+                DtDbgOut(MAX, DMA, "[%d] Skipping displaying >20 descriptors!",
+                                                                     pDmaCh->m_PortIndex);
+            }
             
             if (pDmaCh->m_Use64BitDma)
             {
@@ -903,9 +934,10 @@ DtStatus  DtaDmaStartTransfer(
                                                    pBuffer, TransferOffset, TransferSize);
 
     
-    Status = DtaDmaInitTransfer(pDmaCh, pPageList, BufType, Direction, pBuffer, TransferSize, 
-                                TransferOffset, pLocalAddress, LocalAddressBufStart, 
-                                LocalAddressBufEnd, ReuseDataBuffer);
+    Status = DtaDmaInitTransfer(pDmaCh, pPageList, BufType, Direction, pBuffer,
+                                                     TransferSize, TransferOffset,
+                                                     pLocalAddress, LocalAddressBufStart,
+                                                     LocalAddressBufEnd, ReuseDataBuffer);
     if (pNumBytesRead != NULL)
     {
         if (DT_SUCCESS(Status))
@@ -1013,7 +1045,7 @@ void DtaDmaCompletedDpc(DtDpcArgs* pArgs)
             DT_ASSERT(pDmaCh->m_DmaMode == DTA_DMA_MODE_DEFAULT);
             
             // Initialise the state for DtaDmaProgramTransfer
-            OldState = DtAtomicCompareExchange(&pDmaCh->m_State, DTA_DMA_STATE_STARTED, 
+            OldState = DtAtomicCompareExchange((Int*)&pDmaCh->m_State, DTA_DMA_STATE_STARTED, 
                                                                       DTA_DMA_STATE_INIT);
             if ((OldState & DTA_DMA_STATE_ABORT) != 0)
                 DtDbgOut(MAX, DMA, "DMA restart next SKIPPED...aborting");
@@ -1029,7 +1061,7 @@ void DtaDmaCompletedDpc(DtDpcArgs* pArgs)
     }
     
     // Reset the flags but leave the abort flag
-    DtAtomicSet(&pDmaCh->m_State, pDmaCh->m_State & DTA_DMA_STATE_ABORT);
+    DtAtomicSet((Int*)&pDmaCh->m_State, pDmaCh->m_State & DTA_DMA_STATE_ABORT);
 
     if ((pDmaCh->m_DmaFlags&DTA_DMA_FLAGS_BLOCKING) == 0)
     {
@@ -1073,17 +1105,17 @@ DtStatus  DtaDmaGetDmaChannelPlx(
     // Lookup channel index
     PortIndex = pDmaOptions->m_PlxDmaChannelPort[PlxDmaChannel];
 
-    if (PortIndex == -1) 
+    if (PortIndex==-1 || PortIndex>=pDvcData->m_NumPorts)
     {
         // This channel is not used but interrupt was active
         DT_ASSERT(FALSE);
         return DT_STATUS_FAIL;
     }
 
-    ChannelIndex = pDvcData->m_PortLookup[PortIndex].m_Index;
-    if (pDvcData->m_PortLookup[PortIndex].m_PortType == DTA_PORT_TYPE_NONIP)
+    ChannelIndex = pDvcData->m_pPortLookup[PortIndex].m_Index;
+    if (pDvcData->m_pPortLookup[PortIndex].m_PortType == DTA_PORT_TYPE_NONIP)
     {
-        *ppDmaCh = &pDvcData->m_NonIpPorts[ChannelIndex].m_DmaChannel;
+        *ppDmaCh = &pDvcData->m_pNonIpPorts[ChannelIndex].m_DmaChannel;
     } else {
         // Unknown channel type
         DT_ASSERT(FALSE);
@@ -1116,22 +1148,20 @@ DtStatus  DtaDmaCreateKernelBuffer(
     } else {
         // Otherwise create a buffer, optionally create a pagelist for
         // non-contiguous memory if there is a shortage of contiguous memory.
-        // note: *ppPageList will be set to NULL if we do not need large memory        
-        *ppBuffer = DtMemAllocPoolLarge(DtPoolNonPaged, BufSize, Tag, ppPageList);        
+        // note: *ppPageList will be set to NULL if we do not need large memory
+        *ppBuffer = DtMemAllocPoolLarge(DtPoolNonPaged, BufSize, Tag, ppPageList);
 
         if (*ppBuffer == NULL)
             return DT_STATUS_OUT_OF_MEMORY;
 
         // use optional pagelist
         if (ppPageList != NULL)
-        {           
-           pPageList = *ppPageList;           
-        }
-    }    
+            pPageList = *ppPageList;
+    }
 
-    // Create pagelist and create SglList     
-    Status = DtaDmaPrepareDataBuffer(pPageList, *ppBuffer, BufSize,
-                                            DT_BUFTYPE_KERNEL, pDmaCh, DmaDirection);
+    // Create pagelist and create SglList
+    Status = DtaDmaPrepareDataBuffer(pPageList, *ppBuffer, BufSize, DT_BUFTYPE_KERNEL,
+                                                                    pDmaCh, DmaDirection);
     return Status;
 }
 
@@ -1191,7 +1221,7 @@ DtStatus  DtaDmaAbortDma(
     DtDbgOut(MAX, DMA, "Init");
 
     while ((pDmaCh->m_State & DTA_DMA_STATE_ABORT) == 0)
-        OldState = DtAtomicCompareExchange(&pDmaCh->m_State, OldState, 
+        OldState = DtAtomicCompareExchange((Int*)&pDmaCh->m_State, OldState, 
                                                     OldState | DTA_DMA_STATE_ABORT);
     if (pDmaCh->m_State == DTA_DMA_STATE_ABORT)
         return DT_STATUS_NOT_STARTED;

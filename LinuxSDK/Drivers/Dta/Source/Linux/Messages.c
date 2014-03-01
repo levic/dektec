@@ -15,6 +15,7 @@ const TMessage Messages[] = {
 	{ KERN_INFO, "Ignore network admin status!"},
 	{ KERN_INFO, "Network admin status set to DOWN."},
 	{ KERN_INFO, "Network admin status set to UP."},
+	{ KERN_ERR, "DtaNw driver version too old. Minimal DtaNw driver version %s"},
  };
 
 Bool EventGetMessage(Int MsgId, const char** pLevel, const char** pMsg)

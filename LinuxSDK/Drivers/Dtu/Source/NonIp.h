@@ -29,7 +29,17 @@
 #ifndef _NON_IP_H
 #define _NON_IP_H
 
-#define  MAX_NONIP_PORTS  10
+#define  MAX_ISO_ALTSETTINGS  8
+
+// 16 LSB are not used for port flags to prevent any possible confusion with
+// the device-level flags
+#define DTU_PORT_FLAG_INSUFF_USB_BW  0x010000
+#define DTU_PORT_FLAG_SDI_NO_LOCK    0x020000
+#define DTU_PORT_FLAG_SDI_INVALID    0x040000
+
+#define DTU_RX_CHECK_LOCK            0        // Check lock/VidStd every 0.5s
+#define DTU_RX_READ                  1        // Busy with reading data
+#define DTU_RX_EXIT                  2        // Rx thread should shutdown
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuNonIpPort -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -53,6 +63,7 @@ typedef struct _DtuNonIpPort
     // IOSTD (I/O standard) - Capabilities
     Bool  m_CapAsi;
     Bool  m_CapDemod;
+    Bool  m_CapHdSdi;
     Bool  m_CapIp;
     Bool  m_CapMod;
     Bool  m_CapSdi;
@@ -61,6 +72,26 @@ typedef struct _DtuNonIpPort
     // IOSTD - SDI (SD-SDI) - Sub capabilities
     Bool  m_Cap525I59_94;
     Bool  m_Cap625I50;
+    // IOSTD - SPISDI - Sub capabilities
+    Bool  m_CapSpi525I59_94;
+    Bool  m_CapSpi625I50;
+    // IOSTD - SDI (HD-SDI) - Sub capabilities
+    Bool  m_Cap1080I50;
+    Bool  m_Cap1080I59_94;
+    Bool  m_Cap1080I60;
+    Bool  m_Cap1080P23_98;
+    Bool  m_Cap1080P24;
+    Bool  m_Cap1080P25;
+    Bool  m_Cap1080P29_97;
+    Bool  m_Cap1080P30;
+    Bool  m_Cap720P23_98;
+    Bool  m_Cap720P24;
+    Bool  m_Cap720P25;
+    Bool  m_Cap720P29_97;
+    Bool  m_Cap720P30;
+    Bool  m_Cap720P50;
+    Bool  m_Cap720P59_94;
+    Bool  m_Cap720P60;
     // RFCLKSEL (RF clock source selection) - Capabilities
     Bool  m_CapRfClkExt;
     Bool  m_CapRfClkInt;
@@ -86,6 +117,7 @@ typedef struct _DtuNonIpPort
     Bool  m_CapGenLocked;
     Bool  m_CapGenRef;
     Bool  m_CapSwS2Apsk;
+    Bool  m_CapIsoBw;
 
     // Properties
     Bool  m_IsBidir;
@@ -106,6 +138,23 @@ typedef struct _DtuNonIpPort
     Int  m_TempBufWrIndex;
     Int  m_TempBufRdIndex;
     
+    // Shared buffer with DTAPI
+    DtuShBuffer  m_SharedBuffer;
+    
+    Int  m_InitRxMode;              // Initial RX mode
+    Bool  m_AllowRxModeChanges;
+    volatile Int  m_RxState;        // Current state of RxThread. Should only be changed
+                                    // inside the thread itself.
+    volatile Int  m_NextRxState;    // The next state of the Rx thread.
+    DtEvent  m_RxStateChanged;      // Fire after changing m_NextRxState to signify the
+                                    // change to the worker thread.
+    DtEvent  m_RxStateChangeCmpl;   // Rx thread state change completed
+    DtThread  m_RxThread;
+
+    Int  m_DetVidStd;
+
+    Int  m_StateFlags;
+    
     //DtSpinLock  m_FlagsSpinLock;
 
 } DtuNonIpPort;
@@ -114,6 +163,7 @@ typedef struct _DtuNonIpPort
 void  DtuNonIpCleanup(DtuDeviceData* pDvcData, Int PortIndex, DtuNonIpPort* pNonIpPort);
 void  DtuNonIpCleanupPre(DtuDeviceData* pDvcData, Int PortIndex,
                                                                 DtuNonIpPort* pNonIpPort);
+DtStatus  DtuNonIpDetectVidStd(DtuNonIpPort* pNonIpPort, Int*  pVidStd);
 DtStatus  DtuNonIpInit(DtuDeviceData* pDvcData, Int PortIndex, DtuNonIpPort* pNonIpPort);
 
 DtStatus  DtuNonIpIoctl(DtuDeviceData* pDvcData, DtFileObject* pFile,
@@ -138,6 +188,7 @@ DtStatus  DtuNonIpRxReset( DtuDeviceData*  pDvcData, DtuNonIpPort*  pNonIpPort,
                                                                            Int ResetMode);
 DtStatus  DtuNonIpTxReset( DtuDeviceData*  pDvcData, DtuNonIpPort*  pNonIpPort, 
                                                                            Int ResetMode);
+DtStatus  DtuNonIpSetIsoBw(DtuNonIpPort*  pNonIpPort, Int64*  pBw);
 DtStatus  Dtu236DemodModeSet(DtuDeviceData*  pDvcData, Bool DemodMode);
 
 

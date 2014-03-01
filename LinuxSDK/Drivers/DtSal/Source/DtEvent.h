@@ -35,9 +35,8 @@ typedef struct _DtEvent
     KEVENT  m_Event;
 #else
     wait_queue_head_t  m_WaitQueueHead;
-    Bool  m_EventSet;
+    volatile Bool  m_EventSet;
     Bool  m_AutoReset;
-    DtFastMutex  m_Mutex;
 #endif
 } DtEvent;
 

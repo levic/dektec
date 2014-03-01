@@ -381,7 +381,17 @@ Bool  DtThreadShouldStop(DtThread* pThread)
 //
 DtStatus  DtThreadWaitForStop(DtThread* pThread)
 {
+#ifdef WINBUILD
     return DtEventWait(&pThread->m_StopEvent, -1);
+#else
+    DtStatus  Status = DtEventWait(&pThread->m_StopEvent, -1);
+    if (Status == DT_STATUS_OK)
+    {
+        while (!DtLinuxKThreadShouldStop())
+            DtSleep(100);
+    }
+    return Status;
+#endif
 }
 
 #ifdef WINBUILD

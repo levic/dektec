@@ -64,7 +64,13 @@
 KDEFERRED_ROUTINE  DtDpcWorker;
 void  DtDpcWorker(KDPC* pKdpc, void* pContext, void* pArg1, void* pArg2)
 #else
-void  DtDpcWorker(void* pContext)
+// We've had problems in the past with using "unsigned long" instead of "void*" were
+// an unsigned long was smaller and as a result some bits were cut off. This assert
+// is here to make sure that if this happens again we notice it immediately. If this
+// assert triggers, there are problems with free_pages in DtUtility.c too.
+extern const int g_StaticAssert[sizeof(unsigned long) >= sizeof(void*)];
+
+void  DtDpcWorker(unsigned long pContext)
 #endif
 {
     Bool  DeQueue;
@@ -79,14 +85,15 @@ void  DtDpcWorker(void* pContext)
         DeQueue = FALSE;
 
         // Done, set to idle
-        OldState = DtAtomicCompareExchange(&pDpc->m_State, DPC_STATE_BIT_RUNNING, 0);
+        OldState = DtAtomicCompareExchange((Int*)&pDpc->m_State, DPC_STATE_BIT_RUNNING,
+                                                                                       0);
         if (OldState != DPC_STATE_BIT_RUNNING)
         {
             // Failed, maybe queuing pending?
             if (OldState == (DPC_STATE_BIT_RUNNING|DPC_STATE_BIT_QUEUING))
             {
                 // Just set running flag to zero, but hold queuing
-                OldState = DtAtomicCompareExchange(&pDpc->m_State,
+                OldState = DtAtomicCompareExchange((Int*)&pDpc->m_State,
                                               DPC_STATE_BIT_RUNNING|DPC_STATE_BIT_QUEUING,
                                               DPC_STATE_BIT_QUEUING);
                 if (OldState != (DPC_STATE_BIT_RUNNING|DPC_STATE_BIT_QUEUING))
@@ -109,7 +116,7 @@ void  DtDpcWorker(void* pContext)
             pDpc->m_Args = pDpc->m_QueuedArgs;
 
             // Release queue, but keep running flag
-            DtAtomicCompareExchange(&pDpc->m_State,
+            DtAtomicCompareExchange((Int*)&pDpc->m_State,
                          DPC_STATE_BIT_RUNNING|DPC_STATE_BIT_QUEUING|DPC_STATE_BIT_QUEUED,
                          DPC_STATE_BIT_RUNNING);
 
@@ -141,7 +148,7 @@ DtStatus  DtDpcInit(DtDpc* pDpc, pDtDpcWorker pWorker, Bool QueueIfRunning)
 #ifdef WINBUILD
     KeInitializeDpc(&pDpc->m_Kdpc, DtDpcWorker, pDpc);
 #else
-    tasklet_init(&pDpc->m_Tasklet, DtDpcWorker, pDpc);
+    tasklet_init(&pDpc->m_Tasklet, DtDpcWorker, (unsigned long)pDpc);
 #endif
     return Result;
 }
@@ -158,14 +165,14 @@ DtStatus  DtDpcSchedule(DtDpc* pDpc, DtDpcArgs* pArgs)
     DT_ASSERT(pDpc->m_SchedulingEnabled);
 
     // Try to set running from idle state
-    OldState = DtAtomicCompareExchange(&pDpc->m_State, 0, DPC_STATE_BIT_RUNNING);
+    OldState = DtAtomicCompareExchange((Int*)&pDpc->m_State, 0, DPC_STATE_BIT_RUNNING);
     if (OldState == 0)
         // Successfully running
         DoRun = TRUE;
     else if (pDpc->m_QueueIfRunning)
     {
         // Try to set Queuing
-        OldState = DtAtomicCompareExchange(&pDpc->m_State, DPC_STATE_BIT_RUNNING,
+        OldState = DtAtomicCompareExchange((Int*)&pDpc->m_State, DPC_STATE_BIT_RUNNING,
                                              DPC_STATE_BIT_RUNNING|DPC_STATE_BIT_QUEUING);
         if (OldState == DPC_STATE_BIT_RUNNING)
             // Successfully set to queuing
@@ -176,7 +183,8 @@ DtStatus  DtDpcSchedule(DtDpc* pDpc, DtDpcArgs* pArgs)
         else if ((OldState&DPC_STATE_BIT_RUNNING) == 0)
         {
             // Retry to set running from idle state
-            OldState = DtAtomicCompareExchange(&pDpc->m_State, 0, DPC_STATE_BIT_RUNNING);
+            OldState = DtAtomicCompareExchange((Int*)&pDpc->m_State, 0, 
+                                                                   DPC_STATE_BIT_RUNNING);
             if (OldState == 0)
                 // Successfully set to running
                 DoRun = TRUE;
@@ -196,7 +204,7 @@ DtStatus  DtDpcSchedule(DtDpc* pDpc, DtDpcArgs* pArgs)
         pDpc->m_QueuedArgs = *pArgs;
 
         // Set to queued (running|queuing|queued)
-        OldState = DtAtomicCompareExchange(&pDpc->m_State,
+        OldState = DtAtomicCompareExchange((Int*)&pDpc->m_State,
                         DPC_STATE_BIT_RUNNING|DPC_STATE_BIT_QUEUING,
                         DPC_STATE_BIT_RUNNING|DPC_STATE_BIT_QUEUING|DPC_STATE_BIT_QUEUED);
         // Check if we failed because we were not running anymore
@@ -204,8 +212,8 @@ DtStatus  DtDpcSchedule(DtDpc* pDpc, DtDpcArgs* pArgs)
         {
             // Choose running slot --> try to set from queuing to running instead of
             // queued
-            OldState = DtAtomicCompareExchange(&pDpc->m_State, DPC_STATE_BIT_QUEUING,
-                                                                   DPC_STATE_BIT_RUNNING);
+            OldState = DtAtomicCompareExchange((Int*)&pDpc->m_State,
+                                            DPC_STATE_BIT_QUEUING, DPC_STATE_BIT_RUNNING);
             if (OldState == DPC_STATE_BIT_QUEUING)
                 DoRun = TRUE;
             else {
@@ -248,7 +256,7 @@ void DtDpcWaitForCompletion(DtDpc* pDpc)
     while (pDpc->m_State != 0)
     {
         // Delete queued item (only if fully queued)
-        DtAtomicCompareExchange(&pDpc->m_State,
+        DtAtomicCompareExchange((Int*)&pDpc->m_State,
                          DPC_STATE_BIT_RUNNING|DPC_STATE_BIT_QUEUING|DPC_STATE_BIT_QUEUED,
                          DPC_STATE_BIT_RUNNING);
 

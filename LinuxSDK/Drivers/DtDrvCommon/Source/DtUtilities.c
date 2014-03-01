@@ -117,7 +117,7 @@ DtStatus  DtUtilitiesDeriveSubType(DtPropertyData* pPropData, Int HardwareRevisi
         // Get the value of subtype property #i: SUBTYPE1, SUBTYPE2, ...
         SubTypePropName[7] = '0' + i;
         Status = DtPropertiesGet(pPropData, SubTypePropName, -1, &SubTypePropValue, 
-                                                     &SubTypePropType, &SubTypePropScope);
+                                         &SubTypePropType, &SubTypePropScope, -1, -1, -1);
         if (!DT_SUCCESS(Status))
             break;
                 

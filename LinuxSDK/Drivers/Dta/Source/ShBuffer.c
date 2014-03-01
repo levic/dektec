@@ -109,24 +109,24 @@ DtStatus  DtaShBufferIoctl(
         if (pIoctl->m_InputBufferSize < InReqSize)
         {
             DtDbgOut(ERR, SHBUF, "%s: INPUT BUFFER TOO SMALL Size=%d Req=%d", pIoctlStr, 
-                                                        pIoctl->m_InputBufferSize, InReqSize);
+                                                    pIoctl->m_InputBufferSize, InReqSize);
             return DT_STATUS_INVALID_PARAMETER;
         }
         if (pIoctl->m_OutputBufferSize < OutReqSize)
         {
             DtDbgOut(ERR, SHBUF, "%s: OUTPUT BUFFER TOO SMALL Size=%d Req=%d", pIoctlStr, 
-                                                      pIoctl->m_OutputBufferSize, OutReqSize);
+                                                  pIoctl->m_OutputBufferSize, OutReqSize);
             return DT_STATUS_INVALID_PARAMETER;
         }
 
         DtDbgOut(MAX, SHBUF, "%s: In=%d (Rq=%d), Out=%d (Rq=%d)", pIoctlStr,
-                pIoctl->m_InputBufferSize, InReqSize, pIoctl->m_OutputBufferSize, OutReqSize);
+            pIoctl->m_InputBufferSize, InReqSize, pIoctl->m_OutputBufferSize, OutReqSize);
     }
 
     if (pShBufCmdInput->m_BufferIndex != 0)
     {
         DtDbgOut(ERR, SHBUF, "%s: OUTPUT BUFFER TOO SMALL Size=%d Req=%d", pIoctlStr, 
-                                                      pIoctl->m_OutputBufferSize, OutReqSize);
+                                                  pIoctl->m_OutputBufferSize, OutReqSize);
         return DT_STATUS_INVALID_PARAMETER;
     }
     
@@ -134,17 +134,17 @@ DtStatus  DtaShBufferIoctl(
     pIoctl->m_OutputBufferBytesWritten = OutReqSize;
 
     // Lookup the shared buffer structure
-    // Check if the PortIndex is from the NonIpPort    
+    // Check if the PortIndex is from the NonIpPort
     Status = DtaGetNonIpPortIndex(pDvcData, pShBufCmdInput->m_PortIndex, &Index);
     if (DT_SUCCESS(Status))
     {
-        pShBuffer = &pDvcData->m_NonIpPorts[Index].m_HpBuffer;
-        pDmaCh = &pDvcData->m_NonIpPorts[Index].m_DmaChannel;
+        pShBuffer = &pDvcData->m_pNonIpPorts[Index].m_HpBuffer;
+        pDmaCh = &pDvcData->m_pNonIpPorts[Index].m_DmaChannel;
         Direction = 
-              (pDvcData->m_NonIpPorts[Index].m_IoCfg[DT_IOCONFIG_IODIR].m_Value
+              (pDvcData->m_pNonIpPorts[Index].m_IoCfg[DT_IOCONFIG_IODIR].m_Value
                                     == DT_IOCONFIG_INPUT ? DT_DMA_DIRECTION_FROM_DEVICE :
                                     DT_DMA_DIRECTION_TO_DEVICE);
-        pLocalAddress = (UInt8*)(Int)pDvcData->m_NonIpPorts[Index].m_FifoOffset;
+        pLocalAddress = (UInt8*)(size_t)pDvcData->m_pNonIpPorts[Index].m_FifoOffset;
         if (!pDmaCh->m_FixedLocalAddress)
         {
             DT_ASSERT(FALSE);
@@ -154,7 +154,7 @@ DtStatus  DtaShBufferIoctl(
         }
     } else {
         // check if a IP port exists
-        Status = DtaGetIpPortIndex(pDvcData, pShBufCmdInput->m_PortIndex, &Index);        
+        Status = DtaGetIpPortIndex(pDvcData, pShBufCmdInput->m_PortIndex, &Index);
         if (!DT_SUCCESS(Status))
             return Status;
         

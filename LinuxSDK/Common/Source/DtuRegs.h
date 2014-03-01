@@ -62,6 +62,10 @@ DtStatus  DtuRegRead(DtuDeviceData*  pDvcData, Int  RegAddr, UInt32*  pValue);
 DtStatus  DtuRegWrite(DtuDeviceData*  pDvcData, Int  RegAddr, UInt32  Value);
 DtStatus  DtuRegWriteMasked(DtuDeviceData*  pDvcData, Int  RegAddr, UInt32  Mask, 
                                                             UInt32  Shift, UInt32  Value);
+DtStatus  Dtu3RegRead(DtuDeviceData*  pDvcData, UInt16  Dvc, UInt16  RegAddr,
+                                                                         UInt16*  pValue);
+DtStatus  Dtu3RegWrite(DtuDeviceData*  pDvcData, UInt16  Dvc, UInt16  RegAddr,
+                                                                           UInt16  Value);
 #endif // #ifdef USB_DRIVER
 
 #endif // #ifndef __DTUREGS_H

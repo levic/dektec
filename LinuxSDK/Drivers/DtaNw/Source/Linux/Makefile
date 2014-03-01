@@ -119,7 +119,17 @@ INSTALL_CMD := "rmmod $(TARGET) 2>/dev/null || true &&          \
 				install -d $(INSTALLDIR) &&     \
 	            cp -v $(TARGET).ko $(INSTALLDIR) &&         \
 			    /sbin/depmod -a &&                  \
-			    /sbin/modprobe $(TARGET)"
+			    /sbin/modprobe $(TARGET) && \
+			    if [ -f /etc/modules ]; \
+			    then \
+			        ( grep -q $(TARGET) /etc/modules || echo $(TARGET) >> /etc/modules ) \
+			    else \
+			        if [ -f /etc/rc.local ]; \
+			        then \
+			            ( grep -q $(TARGET) /etc/rc.local || \
+			                                  echo modprobe $(TARGET) >> /etc/rc.local ) \
+			        fi \
+			    fi "
 
 install:
 	su -c $(INSTALL_CMD)

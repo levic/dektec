@@ -30,6 +30,7 @@
 #define __DTA_DRV_H
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Defines +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+#define  DTA_TAG        0x32425444  // '2ATD'
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA log levels -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
@@ -63,31 +64,13 @@
 #define  LOG_LEVEL_IP_RX         LOG_AVG
 // IP Tx
 #define  LOG_LEVEL_IP_TX         LOG_MAX
+// IP Address Matcher
+#define  LOG_LEVEL_IPADDRM       LOG_MAX
 // Ping-pong buffer
 #define  LOG_LEVEL_PP            LOG_MIN
 // Genlock
 #define  LOG_LEVEL_GENL          LOG_AVG
 
-
-#if defined(WINBUILD)
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Max file handles -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-#define  MAX_NUM_FILE_HANDLES    256
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- User mappings -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-// Maximum number of times that Dta registers can be mapped in user space in parallel
-#define  MAX_NUM_USER_MAPPINGS   256
-
-#else // WINBUILD
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,20)) || !defined(CONFIG_MMU)
-#define  MAX_NUM_FILE_HANDLES   256
-#define  MAX_NUM_USER_MAPPINGS   256
-#else
-// Lower value for RHEL/CentOS kernels
-#define  MAX_NUM_FILE_HANDLES   128
-#define  MAX_NUM_USER_MAPPINGS   128
-#endif
-#endif
 
 #define  USES_GENREGS(pDvcData)  (pDvcData->m_DevInfo.m_TypeNumber!=100                  \
                                       && pDvcData->m_DevInfo.m_TypeNumber!=102           \
@@ -96,7 +79,6 @@
 
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA device context +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-#define  MAX_PORTS        (MAX_NONIP_PORTS + MAX_IP_PORTS)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDeviceInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -135,11 +117,14 @@ typedef struct _DtaDeviceInfo
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaFileHandle -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-typedef struct _DtaFileHandleInfo
+typedef struct _DtaFileHandleInfo  DtaFileHandleInfo;
+struct _DtaFileHandleInfo
 {
+    DtaFileHandleInfo*  m_pNext;
+    DtaFileHandleInfo*  m_pPrev;
     void*  m_pHandle;
     Bool  m_PowerDownPending;
-} DtaFileHandleInfo;
+};
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaPortLookup -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -184,14 +169,15 @@ struct _DtaDeviceData
 
     // User mappings
     DtFastMutex  m_UserMapMutex;
-    DtUserMapping  m_UserMapping[MAX_NUM_USER_MAPPINGS];
+    DtUserMapping*  m_pUserMapping;
 
     // File handles
     DtFastMutex  m_FileHandleInfoMutex;
-    DtaFileHandleInfo  m_FileHandleInfo[MAX_NUM_FILE_HANDLES];
+    DtaFileHandleInfo*  m_pFileHandleInfo;
 
     // Events
-    DtaEvents  m_Events[MAX_NUM_FILE_HANDLES];
+    DtSpinLock  m_EventsSpinlock;
+    DtaEvents*  m_pEvents;
 
     // Register mappings (shortcut for m_DtaRegs->m_pKernel)
     volatile UInt8*  m_pGenRegs;
@@ -224,11 +210,11 @@ struct _DtaDeviceData
     DtDpc  m_GenPerIntDpc;
 
     // Port lookup
-    DtaPortLookup  m_PortLookup[MAX_PORTS];
+    DtaPortLookup*  m_pPortLookup;
     Int  m_NumPorts;
 
     // Non IP ports
-    DtaNonIpPort  m_NonIpPorts[MAX_NONIP_PORTS];
+    DtaNonIpPort*  m_pNonIpPorts;
     DtFastMutex  m_ExclAccessMutex;
     Int  m_NumNonIpPorts;
 

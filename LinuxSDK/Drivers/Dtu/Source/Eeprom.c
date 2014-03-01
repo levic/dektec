@@ -52,6 +52,8 @@ DtStatus  DtuEepromEzUsbRead(
     DtStatus  Status = DT_STATUS_OK;
     UInt BurstSize, BufIndex;
     UInt  BytesLeft = Length;
+    UInt  MaxCtrlTrSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
+                                                          pDvcData->m_DevInfo.m_UsbSpeed);
 
     // Nothing to transfer
     if (BytesLeft == 0)
@@ -61,13 +63,12 @@ DtStatus  DtuEepromEzUsbRead(
     while (BytesLeft > 0)
     {
         // Do not transfer more than maximum allowed
-        BurstSize = ( BytesLeft > EZUSB_MAX_CTRL_TR_SIZE ) ? 
-                                    EZUSB_MAX_CTRL_TR_SIZE : BytesLeft;
+        BurstSize = ( BytesLeft > MaxCtrlTrSize ) ? MaxCtrlTrSize : BytesLeft;
 
         Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB_READ_EEPROM, 
                                     StartOffset + BufIndex, // Continue transfer
                                     0, DT_USB_DEVICE_TO_HOST, 
-                                                          pBuf+BufIndex, BurstSize, NULL, MAX_USB_REQ_TIMEOUT);
+                                    pBuf+BufIndex, BurstSize, NULL, MAX_USB_REQ_TIMEOUT);
 
         // Transfer must be succesful
         if (!DT_SUCCESS(Status))
@@ -91,6 +92,8 @@ DtStatus  DtuEepromEzUsbWrite(
     DtStatus  Status = DT_STATUS_OK;
     UInt BurstSize, BufIndex;
     UInt  BytesLeft = Length;
+    UInt  MaxCtrlTrSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
+                                                          pDvcData->m_DevInfo.m_UsbSpeed);
 
     // Nothing to transfer
     if (BytesLeft == 0)
@@ -100,8 +103,7 @@ DtStatus  DtuEepromEzUsbWrite(
     while (BytesLeft > 0)
     {
         // Do not transfer more than maximum allowed
-        BurstSize = ( BytesLeft > EZUSB_MAX_CTRL_TR_SIZE ) ? 
-                                    EZUSB_MAX_CTRL_TR_SIZE : BytesLeft;
+        BurstSize = ( BytesLeft > MaxCtrlTrSize ) ? MaxCtrlTrSize : BytesLeft;
 
         Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB_WRITE_EEPROM, 
                                      StartOffset+BufIndex, 0, DT_USB_HOST_TO_DEVICE, 

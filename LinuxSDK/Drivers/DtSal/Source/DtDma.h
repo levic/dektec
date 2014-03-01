@@ -73,26 +73,6 @@ typedef struct _DmaOsSgl
 #endif
 } DmaOsSgl;
 
-/*typedef struct _SharedBufDesc{
-    Bool  m_Allocated;
-    Bool  m_SglAllocated;
-
-#ifdef WINBUILD
-    UInt8*  m_pBuf;                          // System pointer to buffer
-    PFILE_OBJECT  m_FileObject;              // File object of process using shared buffer
-                                             // (For purging buffers at cleanup)
-    PMDL  m_pMdl;                            // MDL for shared buffer
-#else
-    UInt8*  m_pVirtUserBuf;
-    UInt8*  m_pBuf;                          // Kernel virtual pointer
-    UInt8*  m_pSglBuf;                       // Buffer with scatter-gather descriptors
-    UInt  m_FirstDescOffset;
-    UInt  m_SglBufSize;                      // Scatter-gather-buffer size
-    dma_addr_t  m_PhysAddrSglBuf;            // Physical start address of the sgl-buffer
-#endif
-} SharedBufDesc;*/
-
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DMA direction -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 #define  DT_DMA_DIRECTION_FROM_DEVICE    1

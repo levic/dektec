@@ -29,6 +29,7 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <DtaNwIncludes.h>
 
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 // Forward declarations
@@ -66,6 +67,11 @@ static DtStatus  DtaNwCreateThreads(DtaNwDeviceData* pDvcData);
 static void  DtaNwPowerdown(DtaNwDeviceData* pDvcData);
 static DtStatus  DtaNwPowerup(DtaNwDeviceData* pDvcData);
 static DtStatus  DtaNwCheckDtaDriverVersion(DtaNwDeviceData* pDvcData);
+static DtStatus  DtaNwGetPropertyIoCtrl(DtaNwDeviceData* pDvcData, Int IpPortIndex,
+                                     char* pName, DtPropertyValue* pValue, 
+                                     DtPropertyValueType* pType, DtPropertyScope* pScope);
+static Bool  DtaNwPropertiesGetBool(DtaNwDeviceData* pDvcData, Int IpPortIndex,
+                                                                             char* pName);
 
 
 
@@ -78,6 +84,8 @@ DtStatus  DtaNwDeviceDataInit(DtaNwDeviceData* pDvcData)
     pDvcData->m_PromiscuousModeSet = FALSE;
     pDvcData->m_PhySpeedSet = DTA_PHY_SPEED_AUTO_DETECT;
     pDvcData->m_MacAddressOverride = FALSE;
+    pDvcData->m_Support8021P_Priority = TRUE;
+    pDvcData->m_Supports8021Q_Vlan = TRUE;
     
     return DT_STATUS_OK;
 }
@@ -152,12 +160,19 @@ DtStatus  DtaNwDeviceInit(DtaNwDeviceData* pDvcData)
     // Get Device Information
     Status = DtaNwGetDeviceInfoIoCtrl(pDvcData, NULL, NULL, NULL, NULL, 
                                          &pDvcData->m_BusNumber, &pDvcData->m_SlotNumber,
-                                         &pDvcData->m_TypeNumber, NULL, NULL, NULL, NULL);
+                                         &pDvcData->m_TypeNumber, &pDvcData->m_HwRevision,
+                                         &pDvcData->m_FwVersion, NULL, NULL);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, DTANW, "Error getting device info. Error: 0x%x", Status);
         return Status;
     }
+
+    // ToDo: Create property if more devices have different header versions
+    if (pDvcData->m_TypeNumber == 2162)
+        pDvcData->m_HeaderVersion = 3;
+    else
+        pDvcData->m_HeaderVersion = 1;
 
     // Get Dta driver version
     Status = DtaNwCheckDtaDriverVersion(pDvcData);
@@ -345,7 +360,10 @@ DtStatus  DtaNwTxGetPointerNewPacket(
 DtStatus  DtaNwTransmitPacket(
     DtaNwDeviceData*  pDvcData,
     UInt  PacketSize,
-    UInt  WriteOffset)
+    UInt  WriteOffset,
+    Bool  EnIpChecksumGen,
+    Bool  EnUdpChecksumGen,
+    Bool  EnTcpChecksumGen)
 {
     UInt  TotalLength;
     UInt8*  pDst;
@@ -353,19 +371,30 @@ DtStatus  DtaNwTransmitPacket(
     DtaIpNwSharedBufInfo*  pSharedInfo = pDvcData->m_pTxSharedBufInfo;
     DtaDmaTxHeader*  pDmaTxHeader;
     
-    TotalLength = PacketSize + sizeof(DtaDmaTxHeader);
     if (pDvcData->m_AlignedPayload)
-        TotalLength+= 2;
+        PacketSize += 2;
 
+    TotalLength = PacketSize + sizeof(DtaDmaTxHeader);
+    
     pDst = pDvcData->m_pTxBuffer + WriteOffset;
     
     // Add DMA Tx header
     pDmaTxHeader = (DtaDmaTxHeader*)pDst;
     DtMemZero(pDmaTxHeader, sizeof(DtaDmaTxHeader));
     pDmaTxHeader->m_Tag = 0x445441A0;
-    pDmaTxHeader->m_Version = 1;
+    if (pDvcData->m_HeaderVersion == 3) 
+    {
+        pDmaTxHeader->m_Version = 3;
+        pDmaTxHeader->m_TxHeaderV3.m_ChecksumCmd.m_NoCalcIPChkSum = (EnIpChecksumGen?0:1);
+        pDmaTxHeader->m_TxHeaderV3.m_ChecksumCmd.m_NoCalcUDPChkSum =
+                                                                   (EnUdpChecksumGen?0:1);
+        pDmaTxHeader->m_TxHeaderV3.m_ChecksumCmd.m_NoCalcTCPChkSum =
+                                                                   (EnTcpChecksumGen?0:1);
+    } else
+        pDmaTxHeader->m_Version = 1;
+
     pDmaTxHeader->m_Length = sizeof(DtaDmaTxHeader);
-    pDmaTxHeader->m_TransmitControl.m_PacketLength = PacketSize;
+    pDmaTxHeader->m_TxHeaderGen.m_TransmitControl.m_PacketLength = PacketSize;
     pDst+= sizeof(DtaDmaTxHeader);
 
     // Add dummy bytes
@@ -426,9 +455,10 @@ DtStatus  DtaNwGetPacketFilter(DtaNwDeviceData* pDvcData, UInt* pPacketFilter)
 //
 DtStatus  DtaNwSetPacketFilter(DtaNwDeviceData* pDvcData, UInt PacketFilter)
 {
+    if (pDvcData->m_PromiscuousModeSet)
+        PacketFilter |= DTA_MAC_FLT_PROMISCUOUS;
     return DtaNwSetPacketFilterIoCtrl(pDvcData, PacketFilter);
 }
-
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwGetStatisticCounter -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -548,14 +578,18 @@ void  DtaNwRxThread(DtThread* pThread, void* pContext)
     UInt  DataLength;
     DtaDmaRxHeader*  pDmaRxHeader = NULL;
     UInt  ReadOffset;
+    Bool  IPv4 = FALSE;
+    Bool  IPv6 = FALSE;
+    Bool  IpChecksumCorrect = FALSE;
+    Bool  UdpChecksumCorrect = FALSE;
+    Bool  TcpChecksumCorrect = FALSE;
     
     DtDbgOut(MAX, DTANW, "Start");
     
     while (!StopThread)
     {
         // Wait for DMA done or stop
-        Status = DtThreadWaitForStopOrEvent(pThread, &pSharedInfo->m_DataAvailableEvent,
-                                              (pSharedInfo->m_DataAvailableCnt!=0), TRUE);
+        Status = DtThreadWaitForStopOrEvent(pThread, &pSharedInfo->m_DataAvailableEvent);
         if (Status == DT_STATUS_CANCELLED)
         {
             StopThread = TRUE;
@@ -575,9 +609,14 @@ void  DtaNwRxThread(DtThread* pThread, void* pContext)
             }
 
             pDmaRxHeader = (DtaDmaRxHeader*)pPacket;
-            //Calculate PacketLength: -4 = CRC checksum, DmaRxHeader is not included.
-            DataLength = pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength - 4;
+            DT_ASSERT(pDmaRxHeader->m_Tag==0x445441A0 && 
+                                          pDmaRxHeader->m_Length==sizeof(DtaDmaTxHeader));
+            //Calculate PacketLength: DmaRxHeader is not included in FrameLength
+            DataLength = pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength;
             PacketSize = DataLength;
+            if (!pDvcData->m_FCSEnabled)
+                PacketSize -= 4; //Strip FCS
+
             pPacket += sizeof(DtaDmaRxHeader);
 
             // If Payload is aligned, 2 extra dummy bytes are between header and payload.
@@ -586,8 +625,32 @@ void  DtaNwRxThread(DtThread* pThread, void* pContext)
                 pPacket += 2;
                 PacketSize -= 2; 
             }
-                
-            DtaNwEvtNewPacketRxCallback(pDvcData, pPacket, PacketSize);
+
+            if (pDmaRxHeader->m_Version >= 3)
+            {
+                IPv4 = pDmaRxHeader->m_RxHeaderV3.m_FrameStatus.m_IPv4Frame == 1;
+                IPv6 = pDmaRxHeader->m_RxHeaderV3.m_FrameStatus.m_IPv6Frame == 1;
+                IpChecksumCorrect = (IPv4 || IPv6) && 
+                              pDmaRxHeader->m_RxHeaderV3.m_FrameStatus.m_IPChksumValid==1;
+                UdpChecksumCorrect = pDmaRxHeader->m_RxHeaderV3.m_FrameStatus.m_UDPFrame 
+                          && pDmaRxHeader->m_RxHeaderV3.m_FrameStatus.m_UDPChksumValid==1;
+                TcpChecksumCorrect = pDmaRxHeader->m_RxHeaderV3.m_FrameStatus.m_TCPFrame 
+                          && pDmaRxHeader->m_RxHeaderV3.m_FrameStatus.m_TCPChksumValid==1;
+
+                // Check firmware
+                DT_ASSERT(pDmaRxHeader->m_RxHeaderV3.m_FrameStatus.m_IPChksumValid==1 || 
+                                                                            IPv4 || IPv6);
+                DT_ASSERT(pDmaRxHeader->m_RxHeaderV3.m_FrameStatus.m_UDPChksumValid==1 ||
+                                     pDmaRxHeader->m_RxHeaderV3.m_FrameStatus.m_UDPFrame);
+                DT_ASSERT(pDmaRxHeader->m_RxHeaderV3.m_FrameStatus.m_TCPChksumValid==1 ||
+                                     pDmaRxHeader->m_RxHeaderV3.m_FrameStatus.m_TCPFrame);
+            }
+
+            DtaNwEvtNewPacketRxCallback(pDvcData, pPacket, PacketSize, IPv4, IPv6,
+                        pDmaRxHeader->m_RxHeaderGen.m_ChecksumStatus.m_IPChksumValid==0,
+                        pDmaRxHeader->m_RxHeaderGen.m_ChecksumStatus.m_UDPChksumValid==0,
+                        pDmaRxHeader->m_RxHeaderGen.m_ChecksumStatus.m_TCPChksumValid==0,
+                        IpChecksumCorrect, UdpChecksumCorrect, TcpChecksumCorrect);
             if ((DataLength % 4) != 0)
                 DataLength += (4 - (DataLength % 4));
             
@@ -637,6 +700,26 @@ static void  DtaNwPowerdown(DtaNwDeviceData* pDvcData)
     DtThreadStop(&pDvcData->m_RxThread);
     DtDbgOut(MIN, DTANW, "Rx thread stopped");
     
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwPropertiesGetBool -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static Bool  DtaNwPropertiesGetBool(DtaNwDeviceData* pDvcData, Int IpPortIndex,
+                                                                              char* pName)
+{
+    DtStatus  Status;
+    DtPropertyValue  Value;
+    DtPropertyValueType  Type;
+    DtPropertyScope  Scope;
+    Status = DtaNwGetPropertyIoCtrl(pDvcData, IpPortIndex, pName, &Value, &Type, &Scope);
+    DT_ASSERT(DT_SUCCESS(Status));
+
+    if (!DT_SUCCESS(Status))
+        return FALSE;
+
+    DT_ASSERT((Scope&PROPERTY_SCOPE_DRIVER) == PROPERTY_SCOPE_DRIVER);
+    DT_ASSERT(Type == PROPERTY_VALUE_TYPE_BOOL);
+    return (Value != 0);
 }
 
 
@@ -695,7 +778,6 @@ static DtStatus  DtaNwCheckDtaDriverVersion(
                                                                             &DtaMicro);
     if (DT_SUCCESS(Status))
     {
-        UInt MessageId;
         DtString  DtStrVersion;
         DtStringChar  DtStrVersionBuffer[32];
         DT_STRING_DECL(DtStrDot, ".");
@@ -1103,6 +1185,36 @@ static DtStatus  DtaNwGetDtaDriverVersionIoCtrl(
     return Status;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwGetPropertyIoCtrl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static DtStatus  DtaNwGetPropertyIoCtrl(
+    DtaNwDeviceData*  pDvcData,
+    Int  IpPortIndex,
+    char*  pName,
+    DtPropertyValue*  pValue,
+    DtPropertyValueType*  pType,
+    DtPropertyScope*  pScope)
+{
+    DtStatus  Status;
+    DtaIoctlGetPropertyInput  GetPropInput;
+    DtaIoctlGetPropertyOutput  GetPropOutput;
 
+    GetPropInput.m_FirmwareVersion = pDvcData->m_FwVersion;
+    GetPropInput.m_HardwareRevision = pDvcData->m_HwRevision;
+    GetPropInput.m_PortIndex = IpPortIndex;
+    strcpy(GetPropInput.m_Name, pName);
 
+    Status = DtIoctl(&pDvcData->m_IoCtrlParent, DTA_IOCTL_GET_PROPERTY, 
+                                        sizeof(DtaIoctlGetPropertyInput), &GetPropInput,
+                                        sizeof(DtaIoctlGetPropertyOutput), &GetPropOutput,
+                                        NULL);
+    if (!DT_SUCCESS(Status))
+        return Status;
 
+    *pValue = GetPropOutput.m_Value;
+    if (pType != NULL)
+        *pType = (DtPropertyValueType)GetPropOutput.m_Type;
+    if (pScope != NULL)
+        *pScope = (DtPropertyScope)GetPropOutput.m_Scope;
+    return Status;
+}

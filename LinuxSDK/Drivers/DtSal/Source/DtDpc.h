@@ -59,7 +59,7 @@ typedef struct _DtDpc
 {
     pDtDpcWorker  m_pWorker;
     Bool  m_QueueIfRunning;
-    Int  m_State;
+    volatile Int  m_State;
     DtDpcArgs  m_Args;
     DtDpcArgs  m_QueuedArgs;
 #ifdef _DEBUG

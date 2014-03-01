@@ -130,18 +130,18 @@ DtStatus  DtaNonIpRxIoctl(
         switch (pNonIpRxCmdInput->m_Cmd)
         {
         case DTA_NONIP_RX_CMD_GET_FLAGS:
-            Status = DtaNonIpRxGetFlags(&pDvcData->m_NonIpPorts[NonIpPortIndex],
+            Status = DtaNonIpRxGetFlags(&pDvcData->m_pNonIpPorts[NonIpPortIndex],
                                          &pNonIpRxCmdOutput->m_Data.m_GetFlags.m_Status,
                                          &pNonIpRxCmdOutput->m_Data.m_GetFlags.m_Latched);
             break;
 
         case DTA_NONIP_RX_CMD_GET_FREQ_ESTIMATE:
-            Status = DtaNonIpRxGetFreqEstimation(&pDvcData->m_NonIpPorts[NonIpPortIndex],
+            Status = DtaNonIpRxGetFreqEstimation(&pDvcData->m_pNonIpPorts[NonIpPortIndex],
                            &pNonIpRxCmdOutput->m_Data.m_GetFreqEstimate.m_FreqEstimation);
             break;
 
         case DTA_NONIP_RX_CMD_CLEAR_FLAGS:
-            Status = DtaNonIpRxClearFlags(&pDvcData->m_NonIpPorts[NonIpPortIndex],
+            Status = DtaNonIpRxClearFlags(&pDvcData->m_pNonIpPorts[NonIpPortIndex],
                                     pNonIpRxCmdInput->m_Data.m_ClearFlags.m_FlagsToClear);
             break;
         case DTA_NONIP_RX_CMD_GET_GENREF_STATE:

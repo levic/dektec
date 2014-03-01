@@ -47,28 +47,31 @@ typedef struct _DtaEvent
 } DtaEvent;
 
 // DtaEvents
-typedef struct _DtaEvents
+typedef struct _DtaEvents  DtaEvents;
+struct _DtaEvents
 {
-    // Implementation data
+    DtaEvents*  m_pNext;
+    DtaEvents*  m_pPrev;
     Int  m_RefCount;            // >1 == InUse by someone
                                 // 1 == Not inuse by someone
                                 // 0 == Not in use
-    DtSpinLock  m_Lock;         // Used to protect this struct
+    DtSpinLock  m_Lock;         // Used to protect the m_PendingEvents
     DtFileObject  m_File;       // DtFileObject to identify user
     UInt  m_EventTypeMask;      // Mask of event types to be notified of
-    UInt  m_NumPendingEvents;   // Number of pending events in the pending events struct
+    volatile UInt  m_NumPendingEvents;
+                                // Number of pending events in the pending events struct
     DtaEvent  m_PendingEvents[MAX_PENDING_EVENTS];
                                 // Contains the pending events
 
     DtEvent  m_PendingEvent;    // Used to trigger wait function when events become
                                 // available during wait.
     Bool  m_CancelInProgress;   // TRUE if the DtaEventsGetWait() must be cancelled
-} DtaEvents;
+};
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtaEventsInit(DtaDeviceData* pDvcData);
 DtStatus  DtaEventsCleanup(DtaDeviceData* pDvcData);
-DtStatus  DtaEventsGet(DtaDeviceData* pDvcData, DtFileObject* pFile,
+DtStatus  DtaEventsGet(DtaDeviceData* pDvcData, DtFileObject* pFile, DtaEvents* pEvents,
                                UInt* pEventType, UInt* pValue1, UInt* pValue2, Bool Wait);
 DtStatus  DtaEventsGetCancel(DtaDeviceData* pDvcData, DtFileObject* pFile);
 Int  DtaEventsNumPending(DtaDeviceData* pDvcData, DtFileObject* pFile);

@@ -71,7 +71,7 @@ Extracting LinuxSDK.tar.gz will lead to the following directory structure:
    |    |  |- DTAPI.o      (32-bit version)
    |    |  |- DTAPI64.o    (64-bit version)
    |    |
-   |    |- GCC4.3.2        (Contains DTAPI object file compiled with GCC 4.3.2)
+   |    |- GCC4.4.6        (Contains DTAPI object file compiled with GCC 4.4.6)
    |       |- DTAPI.o      (32-bit version)
    |       |- DTAPI64.o    (64-bit version)
 

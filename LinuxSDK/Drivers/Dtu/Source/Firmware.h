@@ -40,12 +40,26 @@ typedef struct _DtuIntelHexRecord
    UInt8  Data[DTU_MAX_INTEL_HEX_RECORD_LENGTH];
 } DtuIntelHexRecord;
 
+typedef struct _DtuFx3HexRecord
+{
+   UInt32  Length;
+   UInt32  Address;
+   const UInt8*  Data;
+} DtuFx3HexRecord;
+
 typedef struct  _DtuEzUsbFirmwareStore
 {
     Int  m_ProductId;
     Int  m_MinHwRev;
     const DtuIntelHexRecord*  m_pFirmware;
 } DtuEzUsbFirmwareStore;
+
+typedef struct  _DtuFx3FirmwareStore
+{
+    Int  m_ProductId;
+    Int  m_MinHwRev;
+    const DtuFx3HexRecord*  m_pFirmware;
+} DtuFx3FirmwareStore;
 
 typedef struct  _DtuPldFirmwareStore
 {
@@ -100,6 +114,7 @@ typedef struct  _DtuDemodFirmwareStore
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 const DtuIntelHexRecord*  DtuGetEzUsbFirmware(Int ProductId, Int HwRev);
+const DtuFx3HexRecord*  Dtu3GetFx3Firmware(Int TypeNumber, Int HwRev);
 const UInt8*  DtuGetPldFirmware(Int ProductId, Int HwRev, Int* pSize);
 const DtuDemodFirmwareStore*  DtuGetDemodFirmware(Int ProductId, Int HwRev);
 

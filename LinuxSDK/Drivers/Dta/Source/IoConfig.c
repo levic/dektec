@@ -41,7 +41,7 @@ typedef struct _DtaIoConfigNonIpPortUpdate {
 
 // DtaIoConfigUpdate
 typedef struct _DtaIoConfigUpdate {
-    DtaIoConfigNonIpPortUpdate  m_NonIpPortUpdate[MAX_NONIP_PORTS];
+    DtaIoConfigNonIpPortUpdate*  m_pNonIpPortUpdate;    // Array of tot. num.  NonIp ports
 } DtaIoConfigUpdate;
 
 // DtaIoConfigStorageNames
@@ -88,7 +88,6 @@ static DtStatus  DtaIoConfigUpdateValidateFracMode(DtaNonIpPort* pNonIpPort,
                                          DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
 static DtStatus  DtaIoConfigWriteToNonVolatileStorage(DtaNonIpPort*  pNonIpPort,
                                                 Int  IoGroup, DtaIoConfigValue  CfgValue);
-static Bool  DtaIoConfigIsFractionalIoStd(Int  Value, Int  SubValue);
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Global data -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -100,8 +99,6 @@ static const char*   IoParXtraNames[DT_MAX_PARXTRA_COUNT] = {
         "IoParXtra2", 
         "IoParXtra3" };
 
-// Update structure
-static DtaIoConfigUpdate  Update;
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -115,16 +112,38 @@ DtStatus  DtaIoConfigInit(DtaDeviceData* pDvcData)
     DtaNonIpPort*  pNonIpPort;
     DtaIoConfigNonIpPortUpdate*  pPortUpdate;
     Int  IoConfig;
+    DtaIoConfigUpdate  Update;
+
+    if (pDvcData->m_NumNonIpPorts == 0)
+        return DT_STATUS_OK;
+
+    // Use dynamic allocated structure, otherwise we get stack errors.
+    Update.m_pNonIpPortUpdate = 
+                 (DtaIoConfigNonIpPortUpdate*)DtMemAllocPool(DtPoolNonPaged, 
+                 sizeof(DtaIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts, DTA_TAG);
+    if (Update.m_pNonIpPortUpdate == NULL)
+        return DT_STATUS_OUT_OF_MEMORY;
 
     // Load cache (initial cache holds the defaults which are not already applied)
-    DT_RETURN_ON_ERROR(DtaIoConfigUpdateLoadCache(pDvcData, &Update));
+    Result = DtaIoConfigUpdateLoadCache(pDvcData, &Update);
+    if(!DT_SUCCESS(Result))
+    {
+        DtMemFreePool(Update.m_pNonIpPortUpdate, DTA_TAG);
+        return Result;
+    }
+        
 
     // Registry is only read after a cold start, else the cache already holds the correct
     // IO configurations.
     if (pDvcData->m_InitialPowerup)
     {
         // Load non volatile storage settings
-        DT_RETURN_ON_ERROR(DtaIoConfigUpdateLoadNonVolatileStorage(pDvcData, &Update));
+        Result = DtaIoConfigUpdateLoadNonVolatileStorage(pDvcData, &Update);
+        if(!DT_SUCCESS(Result))
+        {
+            DtMemFreePool(Update.m_pNonIpPortUpdate, DTA_TAG);
+            return Result;
+        }
 
         // Validate configuration after registry manipulations are done
         Result = DtaIoConfigUpdateValidate(pDvcData, &Update);
@@ -133,7 +152,12 @@ DtStatus  DtaIoConfigInit(DtaDeviceData* pDvcData)
             DtDbgOut(ERR, IOCONFIG, "Configuration invalid. Apply initial configuration");
             // Reload cache (initial cache holds the defaults which are not already
             // applied)
-            DT_RETURN_ON_ERROR(DtaIoConfigUpdateLoadCache(pDvcData, &Update));
+            Result = DtaIoConfigUpdateLoadCache(pDvcData, &Update);
+            if(!DT_SUCCESS(Result))
+            {
+                DtMemFreePool(Update.m_pNonIpPortUpdate, DTA_TAG);
+                return Result;
+            }
 
             // Delete the registry settings for this device.
             if (!DT_SUCCESS(DtNonVolatileSettingsDelete(&pDvcData->m_Driver, 
@@ -148,8 +172,8 @@ DtStatus  DtaIoConfigInit(DtaDeviceData* pDvcData)
     // Set UpdateNeeded flag for all IO configurations during init...
     for (NonIpIndex=0; NonIpIndex<pDvcData->m_NumNonIpPorts; NonIpIndex++)
     {
-        pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
-        pPortUpdate = &Update.m_NonIpPortUpdate[pNonIpPort->m_PortIndex];
+        pNonIpPort = &(pDvcData->m_pNonIpPorts[NonIpIndex]);
+        pPortUpdate = &(Update.m_pNonIpPortUpdate[pNonIpPort->m_PortIndex]);
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
             // Skip IO configs not applicable to the current port type
@@ -160,7 +184,9 @@ DtStatus  DtaIoConfigInit(DtaDeviceData* pDvcData)
     }
 
     // Apply (without saving everything to the non volatile storage)
-    return DtaIoConfigUpdateApply(pDvcData, &Update, FALSE);
+    Result = DtaIoConfigUpdateApply(pDvcData, &Update, FALSE);
+    DtMemFreePool(Update.m_pNonIpPortUpdate, DTA_TAG);
+    return Result;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigGet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -193,7 +219,7 @@ DtStatus  DtaIoConfigGet(
         Result = DtaGetNonIpPortIndex(pDvcData, pIoCfgId[i].m_PortIndex, &NonIpIndex);
         if (DT_SUCCESS(Result))
         {
-            pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
+            pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
 
             // Get the IO configuration and copy it to the caller variables
             Result = DtaNonIpIoConfigGet(pNonIpPort, IoGroup, &DtaIoCfgVal);
@@ -205,7 +231,7 @@ DtStatus  DtaIoConfigGet(
             if (!DT_SUCCESS(Result))
                 return Result;
 
-            pIpPort = &pDvcData->m_IpDevice.m_IpPorts[IpIndex];
+            pIpPort = &pDvcData->m_IpDevice.m_pIpPorts[IpIndex];
             Result = DtaIpIoConfigGet(pIpPort, IoGroup, &DtaIoCfgVal);
         }
         if (!DT_SUCCESS(Result)) 
@@ -243,6 +269,7 @@ DtStatus  DtaIoConfigSet(
     Int  NonIpIndex;
     DtaNonIpPort*  pNonIpPort;
 
+    DtaIoConfigUpdate  Update;
     DtaIoConfigNonIpPortUpdate*  pPortUpdate;
     DtaIoConfigValue  IpDataConfigValue;
     DtaIpPort*  pIpPort;
@@ -251,7 +278,7 @@ DtStatus  DtaIoConfigSet(
     Int  ConfigValue;
     Int  ConfigSubValue;
     Int  ParXtra;
-    
+
 
     // Get exclusive access lock to prevent ports from being opened/closed and other
     // IO configs from being applied
@@ -286,7 +313,7 @@ DtStatus  DtaIoConfigSet(
             ConfigSubValue = -1;
 
 
-        pIpPort = &pDvcData->m_IpDevice.m_IpPorts[IpIndex];
+        pIpPort = &pDvcData->m_IpDevice.m_pIpPorts[IpIndex];
         IpDataConfigValue.m_Value = ConfigValue;
         IpDataConfigValue.m_SubValue = ConfigSubValue;
         for (ParXtra=0; ParXtra<DT_MAX_PARXTRA_COUNT; ParXtra++)
@@ -295,6 +322,15 @@ DtStatus  DtaIoConfigSet(
         Result = DtaIpIoConfigSet(pIpPort, IoGroup, IpDataConfigValue);
         DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
         return Result;
+    }
+
+    Update.m_pNonIpPortUpdate = 
+                 (DtaIoConfigNonIpPortUpdate*)DtMemAllocPool(DtPoolNonPaged, 
+                 sizeof(DtaIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts, DTA_TAG);
+    if (Update.m_pNonIpPortUpdate == NULL)
+    {    
+        DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);   
+        return DT_STATUS_OUT_OF_MEMORY;
     }
 
     // Non Ip configuration
@@ -326,8 +362,8 @@ DtStatus  DtaIoConfigSet(
                 ConfigSubValue = -1;
 
 
-            pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
-            pPortUpdate = &Update.m_NonIpPortUpdate[NonIpIndex];
+            pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
+            pPortUpdate = &Update.m_pNonIpPortUpdate[NonIpIndex];
 
             // Check if we should update the IO configuration
             if (pPortUpdate->m_CfgValue[IoGroup].m_Value != ConfigValue
@@ -387,6 +423,8 @@ DtStatus  DtaIoConfigSet(
 
     if (DT_SUCCESS(Result))
         Result = DtaIoConfigUpdateApply(pDvcData, &Update, TRUE);
+
+    DtMemFreePool(Update.m_pNonIpPortUpdate, DTA_TAG);
 
     return Result;
 }
@@ -476,8 +514,8 @@ static DtStatus  DtaIoConfigUpdateApply(
     // Apply settings port after port
     for (NonIpIndex=0; NonIpIndex<pDvcData->m_NumNonIpPorts; NonIpIndex++)
     {
-        pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
-        pPortUpdate = &pUpdate->m_NonIpPortUpdate[NonIpIndex];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
+        pPortUpdate = &pUpdate->m_pNonIpPortUpdate[NonIpIndex];
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
             if (pPortUpdate->m_UpdateNeeded[IoConfig])
@@ -517,8 +555,8 @@ static DtStatus  DtaIoConfigUpdateLoadCache(
     // Load non IP IO configuration cache
     for (NonIpIndex=0; NonIpIndex<pDvcData->m_NumNonIpPorts; NonIpIndex++)
     {
-        pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
-        pPortUpdate = &pUpdate->m_NonIpPortUpdate[NonIpIndex];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
+        pPortUpdate = &pUpdate->m_pNonIpPortUpdate[NonIpIndex];
 
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
@@ -546,8 +584,8 @@ static DtStatus  DtaIoConfigUpdateLoadNonVolatileStorage(
 
     for (NonIpIndex=0; NonIpIndex<pDvcData->m_NumNonIpPorts; NonIpIndex++)
     {
-        pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
-        pPortUpdate = &pUpdate->m_NonIpPortUpdate[NonIpIndex];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
+        pPortUpdate = &pUpdate->m_pNonIpPortUpdate[NonIpIndex];
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
             Result = DtaIoConfigReadFromNonVolatileStorage(pNonIpPort, IoConfig, 
@@ -583,8 +621,8 @@ static DtStatus  DtaIoConfigUpdateValidate(
     // Validate port dependancies
     for (NonIpPortIndex=0; NonIpPortIndex<pDvcData->m_NumNonIpPorts; NonIpPortIndex++)
     {
-        pNonIpPort = &pDvcData->m_NonIpPorts[NonIpPortIndex];
-        pPortUpdate = &pUpdate->m_NonIpPortUpdate[NonIpPortIndex];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
+        pPortUpdate = &pUpdate->m_pNonIpPortUpdate[NonIpPortIndex];
                 
         // Validate DT_IOCONFIG_IODIR
         Result = DtaIoConfigUpdateValidateIoDir(pNonIpPort, pPortUpdate, pUpdate);
@@ -686,7 +724,7 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
         {                
             if(i != pNonIpPort->m_PortIndex)
             {                
-                if (pUpdate->m_NonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_SWS2APSK].
+                if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_SWS2APSK].
                                                               m_Value == DT_IOCONFIG_TRUE)
                     return DT_STATUS_CONFIG_ERROR;
             }
@@ -713,7 +751,7 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
                 return DT_STATUS_CONFIG_ERROR;
 
             // Buddy port must be configured as an input
-            if (pUpdate->m_NonIpPortUpdate[Buddy].
+            if (pUpdate->m_pNonIpPortUpdate[Buddy].
                                m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_INPUT)
                 return DT_STATUS_CONFIG_ERROR;
             break;
@@ -739,7 +777,7 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
                 Status = DtaGetNonIpPortIndex(pDvcData, Buddy, &Buddy);
                 if (DT_SUCCESS(Status))
                 {
-                    if (pUpdate->m_NonIpPortUpdate[Buddy].
+                    if (pUpdate->m_pNonIpPortUpdate[Buddy].
                               m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_OUTPUT)
                         return DT_STATUS_CONFIG_ERROR;
                 } else
@@ -754,7 +792,7 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
                 Status = DtaGetNonIpPortIndex(pDvcData, Buddy, &Buddy);
                 if (DT_SUCCESS(Status))
                 {
-                    if (pUpdate->m_NonIpPortUpdate[Buddy].m_CfgValue[DT_IOCONFIG_IODIR].
+                    if (pUpdate->m_pNonIpPortUpdate[Buddy].m_CfgValue[DT_IOCONFIG_IODIR].
                                                              m_Value != DT_IOCONFIG_INPUT)
                         return DT_STATUS_CONFIG_ERROR;
                 } else
@@ -769,7 +807,7 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
                 Status = DtaGetNonIpPortIndex(pDvcData, Buddy, &Buddy);
                 if (DT_SUCCESS(Status))
                 {
-                    if (pUpdate->m_NonIpPortUpdate[Buddy].
+                    if (pUpdate->m_pNonIpPortUpdate[Buddy].
                                m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_INPUT)
                         return DT_STATUS_CONFIG_ERROR;
                     // Check ISI
@@ -788,7 +826,7 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
                 Status = DtaGetNonIpPortIndex(pDvcData, Buddy, &Buddy);
                 if (DT_SUCCESS(Status))
                 {
-                    if (pUpdate->m_NonIpPortUpdate[Buddy].m_CfgValue[DT_IOCONFIG_IODIR].
+                    if (pUpdate->m_pNonIpPortUpdate[Buddy].m_CfgValue[DT_IOCONFIG_IODIR].
                                                              m_Value != DT_IOCONFIG_INPUT)
                         return DT_STATUS_CONFIG_ERROR;
                 } else
@@ -973,12 +1011,12 @@ static DtStatus  DtaIoConfigUpdateValidateIoStd(
         // Validate DT_IOCONFIG_SPISDI
         switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_IOSTD].m_SubValue)
         {
-        case DT_IOCONFIG_525I59_94:
-            if (!pNonIpPort->m_Cap525I59_94)
+        case DT_IOCONFIG_SPI525I59_94:
+            if (!pNonIpPort->m_CapSpi525I59_94)
                 return DT_STATUS_CONFIG_ERROR;
             break;
-        case DT_IOCONFIG_625I50:
-            if (!pNonIpPort->m_Cap625I50)
+        case DT_IOCONFIG_SPI625I50:
+            if (!pNonIpPort->m_CapSpi625I50)
                 return DT_STATUS_CONFIG_ERROR;
             break;
         default:
@@ -1205,14 +1243,14 @@ static DtStatus  DtaIoConfigUpdateValidateSwS2Apsk(
         // - All other input channels must be disabled
         for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
         {
-            pNonIpBuddyPort = &pDvcData->m_NonIpPorts[i];
+            pNonIpBuddyPort = &pDvcData->m_pNonIpPorts[i];
             if(i != pNonIpPort->m_PortIndex)
             {
-                if (pNonIpBuddyPort->m_CapInput && pUpdate->m_NonIpPortUpdate[i].
+                if (pNonIpBuddyPort->m_CapInput && pUpdate->m_pNonIpPortUpdate[i].
                             m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_DISABLED)
                     return DT_STATUS_CONFIG_ERROR;
 
-                if (pUpdate->m_NonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_SWS2APSK].
+                if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_SWS2APSK].
                                                               m_Value == DT_IOCONFIG_TRUE)
                     return DT_STATUS_CONFIG_ERROR;
             }
@@ -1334,14 +1372,14 @@ static DtStatus  DtaIoConfigUpdateValidateGenRef(
         // You cannot disable Genref if an output port has Genlocked enabled
         for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
         {
-            pOtherNonIpPort = &pDvcData->m_NonIpPorts[i];
+            pOtherNonIpPort = &pDvcData->m_pNonIpPorts[i];
             if (pOtherNonIpPort->m_PortIndex == pNonIpPort->m_PortIndex)
                 continue;   // Skip ourselves
             if (!pOtherNonIpPort->m_CapGenLocked)
                 continue;   // Skip port that does not support genlock
 
             // Check genlocked is enabled on other ports
-            if (pUpdate->m_NonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_GENLOCKED].m_Value
+            if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_GENLOCKED].m_Value
                                                                       == DT_IOCONFIG_TRUE)
             {
                 DtDbgOut(ERR, IOCONFIG, "Port %i has genlock enabled. Genref of Port %i"
@@ -1372,14 +1410,14 @@ static DtStatus  DtaIoConfigUpdateValidateGenRef(
         // Only one port may be enabled as genlock reference
         for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
         {
-            pOtherNonIpPort = &pDvcData->m_NonIpPorts[i];
+            pOtherNonIpPort = &pDvcData->m_pNonIpPorts[i];
             if (pOtherNonIpPort->m_PortIndex == pNonIpPort->m_PortIndex)
                 continue;   // Skip ourselves
             if (!pOtherNonIpPort->m_CapGenRef)
                 continue;   // Skip port that does not support genref
 
             // Check genref is disabled on other port
-            if (pUpdate->m_NonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_GENREF].m_Value
+            if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_GENREF].m_Value
                                                                       == DT_IOCONFIG_TRUE)
             {
                 DtDbgOut(ERR, IOCONFIG, "Port %i already enabled genref. Port %i can not"
@@ -1416,7 +1454,7 @@ static DtStatus  DtaIoConfigUpdateValidateFracMode(
     DtaIoConfigNonIpPortUpdate*  pPortUpdate,
     DtaIoConfigUpdate* pUpdate)
 {
-    Int  i, IoStdValue, IoStdSubValue;
+    Int  i;
     DtaNonIpPort*  pOtherIpPort = NULL;
     DtaDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
     
@@ -1439,14 +1477,14 @@ static DtStatus  DtaIoConfigUpdateValidateFracMode(
         // or disabled for everyone)
         for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
         {
-            pOtherIpPort = &pDvcData->m_NonIpPorts[i];
+            pOtherIpPort = &pDvcData->m_pNonIpPorts[i];
             if (pOtherIpPort->m_PortIndex == pNonIpPort->m_PortIndex)
                 continue;   // Skip ourselves
             if (!pOtherIpPort->m_CapFracMode)
                 continue;   // Skip port that does not support fractional mode
 
             // Check io-config value for other port matches
-            if (pUpdate->m_NonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_FRACMODE].m_Value
+            if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_FRACMODE].m_Value
                                  != pPortUpdate->m_CfgValue[DT_IOCONFIG_FRACMODE].m_Value)
                 return DT_STATUS_CONFIG_ERROR;
         }
@@ -1512,90 +1550,5 @@ static DtStatus  DtaIoConfigWriteToNonVolatileStorage(
     }
 
     return DT_STATUS_OK;
-}
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigIsFractionalIoStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-static Bool  DtaIoConfigIsFractionalIoStd(Int  Value,  Int  SubValue)
-{
-    switch (Value)
-    {
-    case DT_IOCONFIG_3GSDI:
-        switch (SubValue)
-        {
-        case DT_IOCONFIG_1080P50:
-        case DT_IOCONFIG_1080P60:       
-            return FALSE;
-        case DT_IOCONFIG_1080P59_94:    
-            return TRUE;
-        default:                        
-            DT_ASSERT(1==0);
-            return FALSE;
-        }
-        break;
-           
-    case DT_IOCONFIG_HDSDI:
-        switch (SubValue)
-        {
-        case DT_IOCONFIG_1080I50:
-        case DT_IOCONFIG_1080I60:
-        case DT_IOCONFIG_1080P24:
-        case DT_IOCONFIG_1080P25:
-        case DT_IOCONFIG_1080P30:
-        case DT_IOCONFIG_720P24:
-        case DT_IOCONFIG_720P25:
-        case DT_IOCONFIG_720P30:
-        case DT_IOCONFIG_720P60:        
-            return FALSE;
-        case DT_IOCONFIG_1080I59_94:
-        case DT_IOCONFIG_1080P23_98:
-        case DT_IOCONFIG_1080P29_97:
-        case DT_IOCONFIG_720P23_98:
-        case DT_IOCONFIG_720P29_97:
-        case DT_IOCONFIG_720P59_94:     
-            return TRUE;
-        default:
-            DT_ASSERT(1==0);
-            return FALSE;
-        }
-        break;
-    
-    case DT_IOCONFIG_SDI:        
-        switch (SubValue)
-        {
-        case DT_IOCONFIG_625I50:
-            return FALSE;
-        case DT_IOCONFIG_525I59_94:
-            return TRUE;
-        default:
-            DT_ASSERT(1==0);
-            return FALSE;
-        }
-        break;
-    
-    case DT_IOCONFIG_SPISDI:           
-        switch (SubValue)
-        {
-        case DT_IOCONFIG_625I50:
-            return FALSE;
-        
-        case DT_IOCONFIG_525I59_94:
-            return TRUE;
-        
-        default:
-            DT_ASSERT(1==0);
-            return FALSE;
-        }
-        break;
-
-    case DT_IOCONFIG_ASI:
-    case DT_IOCONFIG_DEMOD:
-    case DT_IOCONFIG_IFADC:
-    case DT_IOCONFIG_IP:
-    case DT_IOCONFIG_MOD:
-    case DT_IOCONFIG_SPI:
-    default:
-        return FALSE;
-    }
 }
 

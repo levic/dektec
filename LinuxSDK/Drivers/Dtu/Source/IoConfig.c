@@ -40,7 +40,7 @@ typedef struct _DtuIoConfigNonIpPortUpdate {
 
 // DtuIoConfigUpdate
 typedef struct _DtuIoConfigUpdate {
-    DtuIoConfigNonIpPortUpdate  m_NonIpPortUpdate[MAX_NONIP_PORTS];
+    DtuIoConfigNonIpPortUpdate*  m_pNonIpPortUpdate;    // Array of tot. num. NonIpPorts
 } DtuIoConfigUpdate;
 
 // DtuIoConfigStorageNames
@@ -75,9 +75,6 @@ static const char*   IoParXtraNames[DT_MAX_PARXTRA_COUNT] = {
         "IoParXtra2", 
         "IoParXtra3" };
 
-// Update structure
-static DtuIoConfigUpdate  Update;
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuIoConfigInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -89,18 +86,36 @@ DtStatus  DtuIoConfigInit(DtuDeviceData* pDvcData)
     DtuNonIpPort*  pNonIpPort;
     DtuIoConfigNonIpPortUpdate*  pPortUpdate;
     Int  IoConfig;
+    DtuIoConfigUpdate  Update;
 
     DtDbgOut(MAX, IOCONFIG, "Entry");
 
+    // Use a dynamic allocated structure to avoid stack errors.
+    Update.m_pNonIpPortUpdate = 
+                 (DtuIoConfigNonIpPortUpdate*)DtMemAllocPool(DtPoolNonPaged, 
+                 sizeof(DtuIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts, DTU_TAG);
+    if (Update.m_pNonIpPortUpdate == NULL)
+        return DT_STATUS_OUT_OF_MEMORY;
+
     // Load cache (initial cache holds the defaults which are not already applied)
-    DT_RETURN_ON_ERROR(DtuIoConfigUpdateLoadCache(pDvcData, &Update));
+    Result = DtuIoConfigUpdateLoadCache(pDvcData, &Update);
+    if (!DT_SUCCESS(Result))
+    {
+        DtMemFreePool(Update.m_pNonIpPortUpdate, DTU_TAG);
+        return Result;
+    }
 
     // Registry is only read after a cold start, else the cache already holds the correct
     // IO configurations.
     if (pDvcData->m_InitialPowerup)
     {
         // Load non volatile storage settings
-        DT_RETURN_ON_ERROR(DtuIoConfigUpdateLoadNonVolatileStorage(pDvcData, &Update));
+        Result = DtuIoConfigUpdateLoadNonVolatileStorage(pDvcData, &Update);
+        if (!DT_SUCCESS(Result))
+        {
+            DtMemFreePool(Update.m_pNonIpPortUpdate, DTU_TAG);
+            return Result;
+        }
 
         // Validate configuration after registry manipulations are done
         Result = DtuIoConfigUpdateValidate(pDvcData, &Update);
@@ -109,7 +124,12 @@ DtStatus  DtuIoConfigInit(DtuDeviceData* pDvcData)
             DtDbgOut(ERR, IOCONFIG, "Configuration invalid. Apply initial configuration");
             // Reload cache (initial cache holds the defaults which are not already
             // applied)
-            DT_RETURN_ON_ERROR(DtuIoConfigUpdateLoadCache(pDvcData, &Update));
+            Result = DtuIoConfigUpdateLoadCache(pDvcData, &Update);
+            if (!DT_SUCCESS(Result))
+            {
+                DtMemFreePool(Update.m_pNonIpPortUpdate, DTU_TAG);
+                return Result;
+            }
 
             // Delete the registry settings for this device.
             if (!DT_SUCCESS(DtNonVolatileSettingsDelete(&pDvcData->m_Driver, 
@@ -124,8 +144,8 @@ DtStatus  DtuIoConfigInit(DtuDeviceData* pDvcData)
     // Set UpdateNeeded flag for all IO configurations during init...
     for (NonIpIndex=0; NonIpIndex<pDvcData->m_NumNonIpPorts; NonIpIndex++)
     {
-        pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
-        pPortUpdate = &Update.m_NonIpPortUpdate[pNonIpPort->m_PortIndex];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
+        pPortUpdate = &Update.m_pNonIpPortUpdate[pNonIpPort->m_PortIndex];
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
             // Skip IO configs not applicable to the current port type
@@ -137,9 +157,12 @@ DtStatus  DtuIoConfigInit(DtuDeviceData* pDvcData)
 
 
     // Apply (without saving everything to the non volatile storage)
-    DT_RETURN_ON_ERROR( DtuIoConfigUpdateApply(pDvcData, &Update, FALSE) );
+    Result = DtuIoConfigUpdateApply(pDvcData, &Update, FALSE);
+    DtMemFreePool(Update.m_pNonIpPortUpdate, DTU_TAG);
+    
     DtDbgOut(MAX, IOCONFIG, "Exit");
-    return DT_STATUS_OK;
+
+    return Result;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuIoConfigGet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -173,7 +196,7 @@ DtStatus  DtuIoConfigGet(
         Result = DtuGetNonIpPortIndex(pDvcData, pIoCfgId[i].m_PortIndex, &NonIpIndex);
         if (!DT_SUCCESS(Result)) 
             return Result;
-        pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
 
         // Get the IO configuration and copy it to the caller variables
         Result = DtuNonIpIoConfigGet(pNonIpPort, IoGroup, &DtuIoCfgVal);
@@ -211,7 +234,8 @@ DtStatus  DtuIoConfigSet(
     DtIoConfigPars*  pCfg;
     Int  NonIpIndex;
     DtuNonIpPort*  pNonIpPort;
-
+    
+    DtuIoConfigUpdate  Update;
     DtuIoConfigNonIpPortUpdate*  pPortUpdate;
     //DtuIoConfigValue  IpDataConfigValue;
     //DtuIpPort*  pIpPort;
@@ -220,7 +244,7 @@ DtStatus  DtuIoConfigSet(
     Int  ConfigValue;
     Int  ConfigSubValue;
     Int  ParXtra;
-    
+
 
     // Get exclusive access lock to prevent ports from being opened/closed and other
     // IO configs from being applied
@@ -229,6 +253,16 @@ DtStatus  DtuIoConfigSet(
     {
         DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
         return DT_STATUS_BUSY;
+    }
+    
+    // Use a dynamic allocated structure to avoid stack errors.
+     Update.m_pNonIpPortUpdate = 
+                 (DtuIoConfigNonIpPortUpdate*)DtMemAllocPool(DtPoolNonPaged, 
+                 sizeof(DtuIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts, DTU_TAG);
+    if (Update.m_pNonIpPortUpdate == NULL)
+    {
+        DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
+        return DT_STATUS_OUT_OF_MEMORY;
     }
     
     // Non Ip configuration
@@ -257,8 +291,8 @@ DtStatus  DtuIoConfigSet(
             if (!DT_SUCCESS(IoConfigCodeGet(pCfg->m_SubValue, &ConfigSubValue)))
                 ConfigSubValue = -1;
 
-            pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
-            pPortUpdate = &Update.m_NonIpPortUpdate[NonIpIndex];
+            pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
+            pPortUpdate = &Update.m_pNonIpPortUpdate[NonIpIndex];
 
             // Check if we should update the IO configuration
             if (pPortUpdate->m_CfgValue[IoGroup].m_Value != ConfigValue
@@ -321,6 +355,8 @@ DtStatus  DtuIoConfigSet(
     if (DT_SUCCESS(Result))
         Result = DtuIoConfigUpdateApply(pDvcData, &Update, TRUE);
 
+    DtMemFreePool(Update.m_pNonIpPortUpdate, DTU_TAG);
+
     return Result;
 }
 
@@ -374,8 +410,8 @@ static DtStatus  DtuIoConfigReadFromNonVolatileStorage(
     for (ParXtraIdx=0; ParXtraIdx<DT_MAX_PARXTRA_COUNT; ParXtraIdx++)
     {
         Result = DtNonVolatileSettingsValueRead(&pDvcData->m_Driver,
-                                  pDvcData->m_DevInfo.m_Serial, pNonIpPort->m_PortIndex,
-                            GroupName, (Char*)IoParXtraNames[ParXtraIdx], &BinValue);
+                                 pDvcData->m_DevInfo.m_Serial, pNonIpPort->m_PortIndex,
+                                 GroupName, (Char*)IoParXtraNames[ParXtraIdx], &BinValue);
             if (!DT_SUCCESS(Result))
                 return DT_STATUS_CONFIG_ERROR;
         IoConfig.m_ParXtra[ParXtraIdx] = BinValue;
@@ -408,8 +444,8 @@ static DtStatus  DtuIoConfigUpdateApply(
     // Apply settings port after port
     for (NonIpIndex=0; NonIpIndex<pDvcData->m_NumNonIpPorts; NonIpIndex++)
     {
-        pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
-        pPortUpdate = &pUpdate->m_NonIpPortUpdate[NonIpIndex];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
+        pPortUpdate = &pUpdate->m_pNonIpPortUpdate[NonIpIndex];
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
           DtDbgOut(MAX, IOCONFIG, "DtuIoConfigUpdateApply: IoConfig=%d m_UpdateNeeded=%d",
@@ -453,8 +489,8 @@ static DtStatus  DtuIoConfigUpdateLoadCache(
     // Load non IP IO configuration cache
     for (NonIpIndex=0; NonIpIndex<pDvcData->m_NumNonIpPorts; NonIpIndex++)
     {
-        pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
-        pPortUpdate = &pUpdate->m_NonIpPortUpdate[NonIpIndex];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
+        pPortUpdate = &pUpdate->m_pNonIpPortUpdate[NonIpIndex];
 
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
@@ -482,8 +518,8 @@ static DtStatus  DtuIoConfigUpdateLoadNonVolatileStorage(
 
     for (NonIpIndex=0; NonIpIndex<pDvcData->m_NumNonIpPorts; NonIpIndex++)
     {
-        pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
-        pPortUpdate = &pUpdate->m_NonIpPortUpdate[NonIpIndex];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
+        pPortUpdate = &pUpdate->m_pNonIpPortUpdate[NonIpIndex];
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
             Result = DtuIoConfigReadFromNonVolatileStorage(pNonIpPort, IoConfig,
@@ -520,8 +556,8 @@ static DtStatus  DtuIoConfigUpdateValidate(
     for (NonIpIndex=0; NonIpIndex<pDvcData->m_NumNonIpPorts; NonIpIndex++)
     {
 
-        pNonIpPort = &pDvcData->m_NonIpPorts[NonIpIndex];
-        pPortUpdate = &pUpdate->m_NonIpPortUpdate[NonIpIndex];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
+        pPortUpdate = &pUpdate->m_pNonIpPortUpdate[NonIpIndex];
 
         // Validate DT_IOCONFIG_IODIR
         DtDbgOut(MAX, IOCONFIG, "Configuration IODIR Value: %d SubValue: %d",
@@ -545,8 +581,8 @@ static DtStatus  DtuIoConfigUpdateValidate(
             {                
                 if(i != pNonIpPort->m_PortIndex)
                 {                
-                    if (pUpdate->m_NonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_SWS2APSK].
-                                                        m_Value == DT_IOCONFIG_TRUE)
+                    if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_SWS2APSK].
+                                                              m_Value == DT_IOCONFIG_TRUE)
                         return DT_STATUS_CONFIG_ERROR;
                 }
             }
@@ -572,8 +608,8 @@ static DtStatus  DtuIoConfigUpdateValidate(
                     return DT_STATUS_CONFIG_ERROR;
 
                 // Buddy port must be configured as an input
-                if (pUpdate->m_NonIpPortUpdate[Buddy].
-                         m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_INPUT)
+                if (pUpdate->m_pNonIpPortUpdate[Buddy].
+                               m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_INPUT)
                     return DT_STATUS_CONFIG_ERROR;
                 break;
             default:
@@ -598,8 +634,8 @@ static DtStatus  DtuIoConfigUpdateValidate(
                     Result = DtuGetNonIpPortIndex(pDvcData, Buddy, &Buddy);
                     if (DT_SUCCESS(Result))
                     {
-                        if (pUpdate->m_NonIpPortUpdate[Buddy].
-                            m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_OUTPUT)
+                        if (pUpdate->m_pNonIpPortUpdate[Buddy].
+                              m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_OUTPUT)
                             return DT_STATUS_CONFIG_ERROR;
                     } else
                         return DT_STATUS_CONFIG_ERROR;
@@ -613,8 +649,8 @@ static DtStatus  DtuIoConfigUpdateValidate(
                     Result = DtuGetNonIpPortIndex(pDvcData, Buddy, &Buddy);
                     if (DT_SUCCESS(Result))
                     {
-                        if (pUpdate->m_NonIpPortUpdate[Buddy].m_CfgValue[DT_IOCONFIG_IODIR].
-                                                       m_Value != DT_IOCONFIG_INPUT)
+                        if (pUpdate->m_pNonIpPortUpdate[Buddy].
+                               m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_INPUT)
                             return DT_STATUS_CONFIG_ERROR;
                     } else
                         return DT_STATUS_CONFIG_ERROR;
@@ -628,9 +664,16 @@ static DtStatus  DtuIoConfigUpdateValidate(
                     Result = DtuGetNonIpPortIndex(pDvcData, Buddy, &Buddy);
                     if (DT_SUCCESS(Result))
                     {
-                        if (pUpdate->m_NonIpPortUpdate[Buddy].m_CfgValue[DT_IOCONFIG_IODIR].
-                                                       m_Value != DT_IOCONFIG_INPUT)
+                        if (pUpdate->m_pNonIpPortUpdate[Buddy].
+                               m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_INPUT)
                             return DT_STATUS_CONFIG_ERROR;
+
+                        // Check ISI
+                        Isi = (Int)pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].
+                                                                             m_ParXtra[1];
+                        if (Isi<0 || Isi>255)
+                            return DT_STATUS_CONFIG_ERROR;
+
                     } else
                         return DT_STATUS_CONFIG_ERROR;
                     break;
@@ -643,15 +686,9 @@ static DtStatus  DtuIoConfigUpdateValidate(
                     Result = DtuGetNonIpPortIndex(pDvcData, Buddy, &Buddy);
                     if (DT_SUCCESS(Result))
                     {
-                        if (pUpdate->m_NonIpPortUpdate[Buddy].m_CfgValue[DT_IOCONFIG_IODIR].
-                                                       m_Value != DT_IOCONFIG_INPUT)
-                            return DT_STATUS_CONFIG_ERROR;
-
-                        // Check ISI
-                        Isi = (Int)pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].
-                                                                             m_ParXtra[1];
-                        if (Isi<0 || Isi>255)
-                            return DT_STATUS_CONFIG_ERROR;
+                        if (pUpdate->m_pNonIpPortUpdate[Buddy].
+                               m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_INPUT)
+                            return DT_STATUS_CONFIG_ERROR;                        
                     } 
                     else
                         return DT_STATUS_CONFIG_ERROR;
@@ -681,6 +718,81 @@ static DtStatus  DtuIoConfigUpdateValidate(
         case DT_IOCONFIG_DEMOD:
             if (!pNonIpPort->m_CapDemod)
                 return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_HDSDI:
+            if (!pNonIpPort->m_CapHdSdi)
+                return DT_STATUS_CONFIG_ERROR;
+
+            // Validate DT_IOCONFIG_HDSDI
+            switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_IOSTD].m_SubValue)
+            {
+            case DT_IOCONFIG_1080I50:
+                if (!pNonIpPort->m_Cap1080I50)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_1080I59_94:
+                if (!pNonIpPort->m_Cap1080I59_94)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_1080I60:
+                if (!pNonIpPort->m_Cap1080I60)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_1080P23_98:
+                if (!pNonIpPort->m_Cap1080P23_98)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_1080P24:
+                if (!pNonIpPort->m_Cap1080P24)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_1080P25:
+                if (!pNonIpPort->m_Cap1080P25)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_1080P29_97:
+                if (!pNonIpPort->m_Cap1080P29_97)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_1080P30:
+                if (!pNonIpPort->m_Cap1080P30)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_720P23_98:
+                if (!pNonIpPort->m_Cap720P23_98)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_720P24:
+                if (!pNonIpPort->m_Cap720P24)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_720P25:
+                if (!pNonIpPort->m_Cap720P25)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_720P29_97:
+                if (!pNonIpPort->m_Cap720P29_97)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_720P30:
+                if (!pNonIpPort->m_Cap720P30)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_720P50:
+                if (!pNonIpPort->m_Cap720P50)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_720P59_94:
+                if (!pNonIpPort->m_Cap720P59_94)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            case DT_IOCONFIG_720P60:
+                if (!pNonIpPort->m_Cap720P60)
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+            default:
+                return DT_STATUS_CONFIG_ERROR;
+            }
             break;
         case DT_IOCONFIG_IP:
             if (!pNonIpPort->m_CapIp)
@@ -720,12 +832,12 @@ static DtStatus  DtuIoConfigUpdateValidate(
             // Validate DT_IOCONFIG_SPISDI
             switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_IOSTD].m_SubValue)
             {
-            case DT_IOCONFIG_525I59_94:
-                if (!pNonIpPort->m_Cap525I59_94)
+            case DT_IOCONFIG_SPI525I59_94:
+                if (!pNonIpPort->m_CapSpi525I59_94)
                     return DT_STATUS_CONFIG_ERROR;
                 break;
-            case DT_IOCONFIG_625I50:
-                if (!pNonIpPort->m_Cap625I50)
+            case DT_IOCONFIG_SPI625I50:
+                if (!pNonIpPort->m_CapSpi625I50)
                     return DT_STATUS_CONFIG_ERROR;
                 break;
             default:
@@ -737,7 +849,32 @@ static DtStatus  DtuIoConfigUpdateValidate(
             return DT_STATUS_CONFIG_ERROR;
         }
 
-              
+        // Validate DT_IOCONFIG_BW
+        DtDbgOut(MAX, IOCONFIG, "Configuration BW Value: %d ParXtra0: %d",
+                                    pPortUpdate->m_CfgValue[DT_IOCONFIG_BW].m_Value,
+                                    pPortUpdate->m_CfgValue[DT_IOCONFIG_BW].m_ParXtra[0]);
+
+        switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_BW].m_Value)
+        {
+        case DT_IOCONFIG_NONE:
+            // Not applicable should only be set when for devices that don't support
+            // usb3 isochronous mode
+            DT_ASSERT(!pNonIpPort->m_CapIsoBw);
+            break;
+        case DT_IOCONFIG_FALSE:
+            // Never valid
+            return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_TRUE:
+            if (!pNonIpPort->m_CapIsoBw)
+                return DT_STATUS_CONFIG_ERROR;
+            if (pPortUpdate->m_CfgValue[DT_IOCONFIG_BW].m_ParXtra[0] < 0)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        default:
+            return DT_STATUS_CONFIG_ERROR;
+        }
+
         // Validate DT_IOCONFIG_RFCLKSEL
         DtDbgOut(MAX, IOCONFIG, "Configuration RFCLKSEL Value: %d SubValue: %d",
             pPortUpdate->m_CfgValue[DT_IOCONFIG_RFCLKSEL].m_Value,
@@ -968,15 +1105,15 @@ static DtStatus  DtuIoConfigUpdateValidate(
             // - All other input channels must be disabled
             for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
             {
-                pNonIpBuddyPort = &pDvcData->m_NonIpPorts[i];
+                pNonIpBuddyPort = &pDvcData->m_pNonIpPorts[i];
                 if(i != pNonIpPort->m_PortIndex)
                 {
-                    if (pNonIpBuddyPort->m_CapInput && pUpdate->m_NonIpPortUpdate[i].
+                    if (pNonIpBuddyPort->m_CapInput && pUpdate->m_pNonIpPortUpdate[i].
                             m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_DISABLED)
                         return DT_STATUS_CONFIG_ERROR;
 
-                    if (pUpdate->m_NonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_SWS2APSK].
-                                                        m_Value == DT_IOCONFIG_TRUE)
+                    if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_SWS2APSK].
+                                                              m_Value == DT_IOCONFIG_TRUE)
                         return DT_STATUS_CONFIG_ERROR;
                 }
             }

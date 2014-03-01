@@ -72,7 +72,7 @@ typedef struct _DtWorkItem
 {
     pDtWorkItemWorker  m_pWorker;
     Bool  m_QueueIfRunning;
-    Int  m_State;
+    volatile Int  m_State;
     DtWorkItemArgs  m_Args;
     DtWorkItemArgs  m_QueuedArgs;
 #ifdef _DEBUG

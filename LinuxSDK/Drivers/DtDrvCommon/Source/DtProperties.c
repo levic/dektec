@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtProperties.c *#*#*#*#*#*#*#* (C) 2011-2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtProperties.c *#*#*#*#*#*#*#* (C) 2011-2013 DekTec
 //
-// Driver common - Device and port property get funcions.
+// Driver common - Device and port property get functions
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2012 DekTec Digital Video B.V.
+// Copyright (C) 2011-2013 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -28,11 +28,49 @@
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
 #include <DtDrvCommon.h>
 
 // Generated property store
 extern const Int  DtPropertyStoreCount;
 extern const DtPropertyStore  DtPropertyStores[];
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- AltPropNames[] -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// AltPropNames contains a table that can translate "old" capability names into 
+// receiver and modulator specific capability names.
+// It will be used when an application uses "old" capability names.
+
+// Type to store alternative property names
+typedef struct _DtAltPropNames
+{
+    const char*  m_pName;           // Property name
+    int  m_NumAltNames;             // Alternative property names
+    const char* m_pAltNames[2];
+} DtAltPropNames;
+
+static const int AltPropNamesCount = 17;
+static const DtAltPropNames  AltPropNames[] =
+{
+    // Legacy-            Receiver-       Modulator capability name        
+    { "CAP_ATSC",    2, { "CAP_RX_ATSC",  "CAP_TX_ATSC"   } },
+    { "CAP_ATSC_MH", 2, { "CAP_RX_MH",    "CAP_TX_MH"     } },
+    { "CAP_CMMB",    2, { "CAP_RX_CMMB",  "CAP_TX_CMMB"   } },
+    { "CAP_DAB",     2, { "CAP_RX_DAB",   "CAP_TX_DAB"    } },
+    { "CAP_DTMB",    2, { "CAP_RX_DTMB",  "CAP_TX_DTMB"   } },
+    { "CAP_DVBC2",   2, { "CAP_RX_DVBC2", "CAP_TX_DVBC2"  } },
+    { "CAP_DVBS",    2, { "CAP_RX_DVBS",  "CAP_TX_DVBS"   } },
+    { "CAP_DVBS2",   2, { "CAP_RX_DVBS2", "CAP_TX_DVBS2"  } },
+    { "CAP_DVBT",    2, { "CAP_RX_DVBT",  "CAP_TX_DVBT"   } },
+    { "CAP_DVBT2",   2, { "CAP_RX_DVBT2", "CAP_TX_DVBT2"  } },
+    { "CAP_IQ",      2, { "CAP_RX_IQ",    "CAP_TX_IQ"     } },
+    { "CAP_ISDBS",   2, { "CAP_RX_ISDBS", "CAP_TX_ISDBS"  } },
+    { "CAP_ISDBT",   2, { "CAP_RX_ISDBT", "CAP_TX_ISDBT"  } },
+    { "CAP_QAM_A",   2, { "CAP_RX_QAMA",  "CAP_TX_QAMA"   } },
+    { "CAP_QAM_B",   2, { "CAP_RX_QAMB",  "CAP_TX_QAMB"   } },
+    { "CAP_QAM_C",   2, { "CAP_RX_QAMC",  "CAP_TX_QAMC"   } },
+    { "CAP_DVBT2MI", 1, { "CAP_TX_T2MI",  ""              } },
+};
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -70,16 +108,12 @@ void  DtPropertiesCleanup(DtPropertyData* pPropData)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesFind -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtPropertiesFind(
-    DtPropertyData* pPropData,
-    const char* pName,
-    Int PortIndex,
-    const DtProperty**  ppProperty)
+DtStatus  DtPropertiesFind(DtPropertyData* pPropData, const char* pName, Int PortIndex,
+               const DtProperty** ppProperty, Int DtapiMaj, Int DtapiMin, Int DtapiBugfix)
 {
     DtStatus  Status = DT_STATUS_OK;
     const DtPropertyStore*  pStore = (DtPropertyStore*)pPropData->m_pPropertyStore;
-    const DtPropertyHashSet*  pHashSets =
-                                         (DtPropertyHashSet*)pStore->m_pPropertyHashSets;
+    const DtPropertyHashSet*  pHashSets = (DtPropertyHashSet*)pStore->m_pPropertyHashSets;
     UInt  HashSetCount = pStore->m_PropertyHashSetCount;
     Int  FwVersion = pPropData->m_FirmwareVersion;
     Int  HwRevision = pPropData->m_HardwareRevision;
@@ -91,10 +125,15 @@ DtStatus  DtPropertiesFind(
     Int  PropertyCount = 0;
     *ppProperty = NULL;
 
+    // For devices with no 'EC' VPD resource and no registry key which forces the
+    // hardware revision, treat the hardware revision as 0
+    if (HwRevision < 0)
+        HwRevision = 0;
+
     // Determine the name hash
     Hash = DtDjb2(pName) % HashSetCount;
 
-    // Get correct hash set (if exists)
+    // Get correct hash set (if it exists)
     if (DT_SUCCESS(Status))
     {
         pHashSet = &pHashSets[Hash];
@@ -131,15 +170,29 @@ DtStatus  DtPropertiesFind(
                 // Check port number
                 if (PortIndex == pProp->m_PortIndex)
                 {
-                    // Check minimal firmware version
-                    if (FwVersion >= pProp->m_MinFw)
+                    // Check minimal firmware version and hardware version
+                    if (FwVersion>=pProp->m_MinFw && HwRevision>=pProp->m_MinHw)
                     {
-                        // Check minimal hardware version
-                        if (HwRevision >= pProp->m_MinHw)
+                        Bool  DtapiVerOk = FALSE;
+                        // -1 means the request came from the driver
+                        if (DtapiMaj==-1 && DtapiMin==-1 && DtapiBugfix==-1)
+                            DtapiVerOk = TRUE;
+                        else if (DtapiMaj > pProp->m_MinDtapiMaj)
+                            DtapiVerOk = TRUE;
+                        else if (DtapiMaj==pProp->m_MinDtapiMaj)
+                        {
+                            if (DtapiMin > pProp->m_MinDtapiMin)
+                                DtapiVerOk = TRUE;
+                            else if (DtapiMin==pProp->m_MinDtapiMin
+                                                 && DtapiBugfix>= pProp->m_MinDtapiBugfix)
+                                DtapiVerOk = TRUE;
+                        }
+                        // Check minimal DTAPI version
+                        if (DtapiVerOk)
                         {
                             *ppProperty = pProp;
 
-                            // We can stop here since the parser has ordened each
+                            // We can stop here since the parser has ordered each
                             // property by minimal firmware version/hardware version.
                             // This means the first hit is the best one...
                             break;
@@ -153,9 +206,9 @@ DtStatus  DtPropertiesFind(
         {   
             if (DtAnsiCharArrayStartsWith(pName, "CAP_"))
                 DtDbgOut(AVG, PROP, "PropertyName(Capability) %s is not found at all for"
-                        " %s-%d", pName, pPropData->m_TypeName, pPropData->m_TypeNumber);
+                         " %s-%d", pName, pPropData->m_TypeName, pPropData->m_TypeNumber);
             else
-                DtDbgOut(ERR, PROP, "PropertyName %s is not found at all for %s-%d",
+                DtDbgOut(MIN, PROP, "PropertyName %s is not found at all for %s-%d",
                                    pName, pPropData->m_TypeName, pPropData->m_TypeNumber);
         }
             
@@ -164,11 +217,8 @@ DtStatus  DtPropertiesFind(
         {
             Status = DT_STATUS_NOT_FOUND;
             DtDbgOut(AVG, PROP, "Failed to find property %s for %s-%d, FW %d, HW %d", 
-                                                  pName, 
-                                                  pPropData->m_TypeName,
-                                                  pPropData->m_TypeNumber,
-                                                  pPropData->m_FirmwareVersion,
-                                                  pPropData->m_HardwareRevision);
+                             pName, pPropData->m_TypeName, pPropData->m_TypeNumber,
+                             pPropData->m_FirmwareVersion, pPropData->m_HardwareRevision);
         }
     }
 
@@ -177,38 +227,46 @@ DtStatus  DtPropertiesFind(
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtPropertiesGet(
-    DtPropertyData*  pPropData,
-    const char*  pName,
-    Int  PortIndex,
-    DtPropertyValue*  pValue,
-    DtPropertyValueType*  pType,
-    DtPropertyScope*  pScope)
+DtStatus  DtPropertiesGet(DtPropertyData* pPropData, const char* pName, Int PortIndex,
+                                      DtPropertyValue* pValue, DtPropertyValueType* pType,
+                                      DtPropertyScope* pScope,
+                                      Int DtapiMaj, Int DtapiMin, Int DtapiBugfix)
 {
     DtStatus  Status = DT_STATUS_OK;
-    const DtPropertyStore*  pStore = (DtPropertyStore*)pPropData->m_pPropertyStore;
-    const DtPropertyHashSet*  pHashSets =
-                                         (DtPropertyHashSet*)pStore->m_pPropertyHashSets;
 
-    // Lookup the property
+    // Find the property in the property tables
     const  DtProperty*  pProperty = NULL;
-    Status = DtPropertiesFind(pPropData, pName, PortIndex, &pProperty);
+    Status = DtPropertiesFind(pPropData, pName, PortIndex, &pProperty, DtapiMaj,
+                                                                   DtapiMin, DtapiBugfix);
+    if (Status == DT_STATUS_NOT_FOUND)
+    {
+        Int  i;
+        Int  NumAltNames = 0;
+        const char* const*  pAltNames;
+
+        // If not found, look for alternative names
+        // Get the alternative names
+        DtPropertiesGetAltName(pName, &NumAltNames, &pAltNames);
+        // Try to get the property for the alternative name
+        for (i=0; i<NumAltNames && Status==DT_STATUS_NOT_FOUND; i++)
+        {
+            Status = DtPropertiesFind(pPropData, pAltNames[i], PortIndex, &pProperty,
+                                                         DtapiMaj, DtapiMin, DtapiBugfix);
+        }
+    }  
     
-    // Get pProp details
+    // Get property details
     if (DT_SUCCESS(Status) && pProperty!=NULL)
     {
         // Copy property info
         *pValue = pProperty->m_Value;
         *pType = pProperty->m_Type;
         *pScope = pProperty->m_Scope;
-        DtDbgOut(MAX, PROP, "Found property %s for %s-%d, FW %d, HW %d. Value: 0x%08x%08x, "
-                                                   "Type:%i, Scope:%i", pName,
-                                                   pPropData->m_TypeName,
-                                                   pPropData->m_TypeNumber,
-                                                   pPropData->m_FirmwareVersion,
-                                                   pPropData->m_HardwareRevision,
-                                                   (UInt32)(*pValue>>32),(UInt32)*pValue, 
-                                                   *pType, *pScope);
+        DtDbgOut(MAX, PROP, "Found property %s for %s-%d, FW %d, HW %d. "
+                            "Value: 0x%08x%08x, Type:%i, Scope:%i",
+                              pName, pPropData->m_TypeName, pPropData->m_TypeNumber,
+                              pPropData->m_FirmwareVersion, pPropData->m_HardwareRevision,
+                              (UInt32)(*pValue>>32),(UInt32)*pValue, *pType, *pScope);
     } 
     else if (Status == DT_STATUS_NOT_FOUND)
     {
@@ -219,7 +277,7 @@ DtStatus  DtPropertiesGet(
             *pType = PROPERTY_VALUE_TYPE_BOOL;
             *pScope = PROPERTY_SCOPE_DTAPI | PROPERTY_SCOPE_DRIVER;
 
-            /* Pretend that propery was found */
+            // Pretend that property was found
             Status = DT_STATUS_OK;
             DtDbgOut(MAX, PROP, "Assume property %s is a capability that is not "
                                                                      "supported.", pName);
@@ -227,6 +285,37 @@ DtStatus  DtPropertiesGet(
     }
 
     return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGetAltName -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Returns an arrray of alternative property names
+// 
+void DtPropertiesGetAltName(const char* pName, Int* pNumAltNames, 
+                                                           const char* const* pAltNames[])
+{
+    Int  i;
+    Int  AltNameEntry = -1;
+    for (i=0; i<AltPropNamesCount; i++)
+    {
+        if (DtAnsiCharArrayIsEqual(pName, AltPropNames[i].m_pName))
+        {
+            AltNameEntry = i;
+            break;
+        }
+    }
+    if (AltNameEntry < 0)
+    {
+        // No alternative name found
+        *pNumAltNames = 0;
+        *pAltNames = NULL;
+    }
+    else
+    {
+        // Return alternative names
+        *pNumAltNames = AltPropNames[AltNameEntry].m_NumAltNames;
+        *pAltNames = AltPropNames[AltNameEntry].m_pAltNames;
+    }
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesStrGet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -238,17 +327,18 @@ DtStatus  DtPropertiesStrGet(
     const char*  pName,
     Int  PortIndex,
     char*  pStr,
-    DtPropertyScope*  pScope)
+    DtPropertyScope*  pScope,
+    Int DtapiMaj,
+    Int DtapiMin,
+    Int DtapiBugfix)
 {
     Int  i=0;
     DtStatus  Status = DT_STATUS_OK;
-    const DtPropertyStore*  pStore = (DtPropertyStore*)pPropData->m_pPropertyStore;
-    const DtPropertyHashSet*  pHashSets =
-                                         (DtPropertyHashSet*)pStore->m_pPropertyHashSets;
 
     // Lookup the property
     const  DtProperty*  pProperty = NULL;
-    Status = DtPropertiesFind(pPropData, pName, PortIndex, &pProperty);
+    Status = DtPropertiesFind(pPropData, pName, PortIndex, &pProperty, DtapiMaj,
+                                                                   DtapiMin, DtapiBugfix);
     // Check we have a string property
     if (DT_SUCCESS(Status) && pProperty!=NULL && 
                                             pProperty->m_Type!=PROPERTY_VALUE_TYPE_STRING)
@@ -286,7 +376,10 @@ DtStatus  DtPropertiesGetForType(
     Int PortIndex,
     DtPropertyValue* pValue,
     DtPropertyValueType* pType,
-    DtPropertyScope* pScope)
+    DtPropertyScope* pScope,
+    Int DtapiMaj,
+    Int DtapiMin,
+    Int DtapiBugfix)
 {
     DtPropertyData  PropData;
     DtStatus  Status = DT_STATUS_OK;
@@ -301,7 +394,8 @@ DtStatus  DtPropertiesGetForType(
         return Status;
 
     // Now find the property
-    return DtPropertiesGet(&PropData, pName, PortIndex, pValue, pType, pScope);
+    return DtPropertiesGet(&PropData, pName, PortIndex, pValue, pType, pScope, DtapiMaj,
+                                                                   DtapiMin, DtapiBugfix);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesStrGetForType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -313,7 +407,10 @@ DtStatus  DtPropertiesStrGetForType(
     const char* pName,
     Int PortIndex,
     char* pStr,
-    DtPropertyScope* pScope)
+    DtPropertyScope* pScope,
+    Int DtapiMaj,
+    Int DtapiMin,
+    Int DtapiBugfix)
 {
     DtPropertyData  PropData;
     DtStatus  Status = DT_STATUS_OK;
@@ -328,7 +425,8 @@ DtStatus  DtPropertiesStrGetForType(
         return Status;
 
     // Now find the property
-    return DtPropertiesStrGet(&PropData, pName, PortIndex, pStr, pScope);
+    return DtPropertiesStrGet(&PropData, pName, PortIndex, pStr, pScope, DtapiMaj,
+                                                                   DtapiMin, DtapiBugfix);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesDriverGet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -349,7 +447,7 @@ DtPropertyValue  DtPropertiesDriverGet(
     DtPropertyScope  Scope;
 
     /* Get property */
-    Status = DtPropertiesGet(pPropData, pName, Port, &Value, &Type, &Scope);
+    Status = DtPropertiesGet(pPropData, pName, Port, &Value, &Type, &Scope, -1, -1, -1);
     if (DT_SUCCESS(Status))
     {
         if(Type!=ValueType || (Scope&PROPERTY_SCOPE_DRIVER)!=PROPERTY_SCOPE_DRIVER)

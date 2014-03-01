@@ -992,6 +992,11 @@ static __inline Int64 DtaRegHdGenlSofFrameGet(volatile UInt8* pBase)
 #define DTA_TX_REG_GS2962CTRL      0x0064
 #define DTA_TX_REG_GS2962STAT      0x0068
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2162 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define DTA_TX_REG_SLICE_STATUS    0x0044
+#define DTA_TX_REG_SLICE_POINTER   0x0048
+#define DAT_TX_REG_SLICE_SIZE      0x004C
+
 
 //.-.-.-.-.-.-.-.-.-.-.-.- Tx Control register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -2036,6 +2041,17 @@ static __inline void DtaRegTxGS2962CtrlSet(volatile UInt8* pBase, UInt Val) {
     WRITE_UINT(Val, pBase, DTA_TX_REG_GS2962CTRL);
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.- Slice Information: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-.
+static __inline UInt  DtaRegTxSliceStatGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_TX_REG_SLICE_STATUS);
+}
+static __inline UInt  DtaRegTxSlicePointerGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_TX_REG_SLICE_POINTER);
+}
+static __inline UInt  DtaRegTxSliceSizeGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DAT_TX_REG_SLICE_SIZE);
+}
+
 //-.-.-.-.-.-.-.-.-.-.- RFDAC SPI control register: Access Functions -.-.-.-.-.-.-.-.-.-.-
 static __inline UInt  DtaRegTxRfdacCtrlGet(volatile UInt8* pBase) {
     return READ_UINT(pBase, DT_TX_REG_RFDAC_CONTROL);
@@ -2070,6 +2086,10 @@ static __inline void DtaRegTxGS2962SpiSet(volatile UInt8* pBase, UInt Val) {
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ RX Registers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2162 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define DTA_RX_REG_SLICE_STATUS    0x0044
+#define DTA_RX_REG_SLICE_POINTER   0x0048
+#define DTA_RX_REG_SLICE_SIZE      0x004C
 
 //.-.-.-.-.-.-.-.-.-.-.-.- Rx Control register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -2557,11 +2577,23 @@ static __inline void DtaRegRxGS2960InternalWrite(volatile UInt8* pBase, UInt Reg
     return;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.- Slice Information: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-.
+static __inline UInt  DtaRegRxSliceStatGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_RX_REG_SLICE_STATUS);
+}
+static __inline UInt  DtaRegRxSlicePointerGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_RX_REG_SLICE_POINTER);
+}
+static __inline UInt  DtaRegRxSliceSizeGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_RX_REG_SLICE_SIZE);
+}
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DMA Registers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Register offsets -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #define DTA_DMA_DESCPTR_REG            0x004
 #define DTA_DMA_CMDSTAT_REG            0x008
 #define DTA_DMA_PCIDADDR_REG           0x00C
+#define DTA_DMA_DESCR_PREFETCH_REG     0x010
 #define DTA_DMA_TIMEOUT_REG            0x014
 #define DTA_DMA_TOTTR_CNT_REG          0x034
 
@@ -2576,6 +2608,18 @@ static __inline void  DtaDmaTimeOutSet(volatile UInt8* pBase, UInt Val) {
 
 static __inline UInt32  DtaDmaTimeoutGet(volatile UInt8* pBase) {
     return READ_UINT(pBase, DTA_DMA_TIMEOUT_REG) & 0x1FF;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.- DMA Register: Descriptor frefetch control -.-.-.-.-.-.-.-.-.-.-.-
+// Bit defines
+#define DTA_DMA_PREFETCH_EN            (0x1  << 0)
+#define DTA_DMA_DESC_OFFSET            (0x3  << 4)
+#define DTA_DMA_NUM_SECRIPTORS         (0x3f << 8)
+
+static __inline void  DtaDmaDescrPrefetchEn(volatile UInt8* pBase, UInt En, UInt Dma64) {
+    // We always enable 16 descriptors
+    UInt Val = DTA_DMA_PREFETCH_EN | (Dma64?2<<4 : 1<<4) | 16<<8;
+    WRITE_UINT(Val, pBase, DTA_DMA_DESCR_PREFETCH_REG);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DMA Register: Command / Status -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -3023,6 +3067,12 @@ static __inline void  DtaMacAEnableTx(volatile UInt8* pBase, UInt Enable) {
     DtaMacACmdConfigSet(pBase, Val);
 }
 
+// Command Config: Check is Tx+Rx is disabled
+static __inline UInt DtaMacAIsRxTxDisabled(volatile UInt8* pBase) {
+    UInt32  Val = DtaMacACmdConfigGet(pBase);
+    return (Val & DTA_MACA_CMD_CONFIG_TX_ENA)==0 && (Val & DTA_MACA_CMD_CONFIG_RX_ENA)==0;
+}
+
 // Command Config: Speed = 1: 1GBit, 0:10/100 MBit
 static __inline void  DtaMacASetEthSpeed(volatile UInt8* pBase, UInt Speed) {
     UInt32  Val = DtaMacACmdConfigGet(pBase);
@@ -3085,14 +3135,34 @@ static __inline void  DtaMacAMacAddressSet(volatile UInt8* pBase, UInt8* MacAddr
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- FIFO Register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
+// Set RxFifo empty thresshold
+static __inline void  DtaMacARxSectionEmptySet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DTA_MACA_RX_SECTION_EMPTY);
+}
+
 // Set RxFifo full thresshold
 static __inline void  DtaMacARxSectionFullSet(volatile UInt8* pBase, UInt Val) {
     WRITE_UINT(Val, pBase, DTA_MACA_RX_SECTION_FULL);
 }
 
+// Set TxFifo empty thresshold
+static __inline void  DtaMacATxSectionEmptySet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DTA_MACA_TX_SECTION_EMPTY);
+}
+
 // Set TxFifo full thresshold
 static __inline void  DtaMacATxSectionFullSet(volatile UInt8* pBase, UInt Val) {
     WRITE_UINT(Val, pBase, DTA_MACA_TX_SECTION_FULL);
+}
+
+// Set RxFifo almost empty thresshold
+static __inline void  DtaMacARxSectionAlmostEmptySet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DTA_MACA_RX_ALMOST_EMPTY);
+}
+
+// Set RxFifo almost full thresshold
+static __inline void  DtaMacARxSectionAlmostFullSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DTA_MACA_RX_ALMOST_FULL);
 }
 
 // Set TxFifo almost empty thresshold
@@ -3427,12 +3497,13 @@ static __inline UInt  DtaMacCScModeAreCountersUnLocked(volatile UInt8* pBase) {
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Network Transmit Registers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.- Transmit Network Register offsets -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.- Transmit Network Register offsets -.-.-.-.-.-.-.-.-.-.-.-.-.-
 #define DTA_NWTX_CTRL          0x0004
 #define DTA_NWTX_STAT          0x0008
 #define DTA_NWTX_FIFO_LOAD     0x0018
 #define DTA_NWTX_PKT_CNT       0x0030
 
+//-.-.-.-.-.-.-.-.- Network Transmit Control Register: Access Functions -.-.-.-.-.-.-.-.-.
 // Bit fields
 #define DTA_NWTX_CTRL_TX_ON_TIME_ENA       (1<<0)
 // bit 1..18 reserved
@@ -3443,34 +3514,76 @@ static __inline UInt  DtaMacCScModeAreCountersUnLocked(volatile UInt8* pBase) {
 #define DTA_NWTX_CTRL_CLR_FIFO             (1<<24)
 #define DTA_NWTX_CTRL_RST_FIFO             (1<<25)
 #define DTA_NWTX_CTRL_TX_CONTROL           (1<<26)
-// bit 27..31 reserved
+#define DTA_NWTX_CTRL_SLICE_AVAIL_INT_EN   (1<<27)  // RT, type2
+#define DTA_NWTX_CTRL_DMA_ABORT_EN         (1<<28)  // RT, type2
+// bit 29 reserved
+#define DTA_NWTX_CTRL_DMA_READY_INT_EN     (1<<30)  // RT, type2
+// bit 31 reserved
 
 // Set/get  control enable bits
-static __inline UInt32  DtaNwTxCtrlGet(volatile UInt8* pBase)
-{
+static __inline UInt32  DtaNwTxCtrlGet(volatile UInt8* pBase){
     return READ_UINT(pBase, DTA_NWTX_CTRL);
 }
 
-static __inline void  DtaNwTxCtrlSet(volatile UInt8* pBase, UInt32 Val)
-{
+static __inline void  DtaNwTxCtrlSet(volatile UInt8* pBase, UInt32 Val) {
     WRITE_UINT(Val, pBase, DTA_NWTX_CTRL);
 }
 
-static __inline void  DtaNwTxCtrlTxControlSet(volatile UInt8* pBase, UInt TxEna)
-{
+static __inline void  DtaNwTxCtrlTxControlSet(volatile UInt8* pBase, UInt TxEna) {
     UInt32  Val = DtaNwTxCtrlGet(pBase);
     if (TxEna)  Val |= DTA_NWTX_CTRL_TX_CONTROL;
     else        Val &= ~DTA_NWTX_CTRL_TX_CONTROL;
     DtaNwTxCtrlSet(pBase, Val);
 }
 
-static __inline void  DtaNwTxCtrlTxOnTimeSet(volatile UInt8* pBase, UInt TimeEna)
-{
+static __inline void  DtaNwTxCtrlTxOnTimeSet(volatile UInt8* pBase, UInt TimeEna) {
     UInt32  Val = DtaNwTxCtrlGet(pBase);
     if (TimeEna) Val |= DTA_NWTX_CTRL_TX_ON_TIME_ENA;
     else         Val &= ~DTA_NWTX_CTRL_TX_ON_TIME_ENA;
     DtaNwTxCtrlSet(pBase, Val);
 }
+
+static __inline void  DtaNwTxCtrlClrFifoSet(volatile UInt8* pBase) {
+    UInt32  Val = DtaNwTxCtrlGet(pBase);
+    Val |= DTA_NWTX_CTRL_CLR_FIFO;
+    DtaNwTxCtrlSet(pBase, Val);
+}
+
+
+static __inline void  DtaNwTxCtrlSetDmaAbortEn(volatile UInt8* pBase, UInt IntEna) {
+    UInt32  Val = DtaNwTxCtrlGet(pBase);
+    if (IntEna) Val |= DTA_NWTX_CTRL_DMA_ABORT_EN;
+    else        Val &= ~DTA_NWTX_CTRL_DMA_ABORT_EN;
+    DtaNwTxCtrlSet(pBase, Val);
+}
+
+static __inline void  DtaNwTxCtrlSetDmaReadyIntEn(volatile UInt8* pBase, UInt IntEna) {
+    UInt32  Val = DtaNwTxCtrlGet(pBase);
+    if (IntEna) Val |= DTA_NWTX_CTRL_DMA_READY_INT_EN;
+    else        Val &= ~DTA_NWTX_CTRL_DMA_READY_INT_EN;
+    DtaNwTxCtrlSet(pBase, Val);
+}
+
+//.-.-.-.-.-.-.-.-.- Network Transmit Status Register: Access Functions -.-.-.-.-.-.-.-.-.
+// Network Transmit Statis: Bit fields
+#define DTA_NWTX_STAT_VAL_CNT_OVF_INT      (1<<19)
+#define DTA_NWTX_STAT_TX_FIFO_OVF_INT      (1<<21)
+#define DTA_NWTX_STAT_TX_FIFO_FULL_INT     (1<<22)
+
+#define DTA_NWTX_STAT_SLICE_AVAIL_INT      (1<<27)  // RT, type2
+#define DTA_NWTX_STAT_DMA_TRUNC_INT        (1<<28)  // RT, type2
+#define DTA_NWTX_STAT_DMA_LATE_INT         (1<<29)  // RT, type2
+#define DTA_NWTX_STAT_DMA_READY_INT        (1<<30)  // RT, type2
+
+
+// Network Receive Status: Register access
+static __inline UInt  DtaNwTxStatGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_NWTX_STAT);
+}
+static __inline void  DtaNwTxStatSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DTA_NWTX_STAT);
+}
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ NETWORK RECEIVE +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //
@@ -3485,7 +3598,7 @@ static __inline void  DtaNwTxCtrlTxOnTimeSet(volatile UInt8* pBase, UInt TimeEna
 #define DTA_NWRX_PKT_INV_CNT   0x0034
 
 
-//.-.-.-.-.-.-.-.-.-.-.- Network Receive Control Register: Access Functions -.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.- Network Receive Control Register: Access Functions -.-.-.-.-.-.-.-.-.
 // Network Receive Control: Bit fields
 #define DTA_NWRX_CTRL_DEL_LEN_ERR          (1<<0)
 #define DTA_NWRX_CTRL_DEL_CRC_ERR          (1<<1)
@@ -3520,7 +3633,8 @@ static __inline void  DtaNwTxCtrlTxOnTimeSet(volatile UInt8* pBase, UInt TimeEna
 #define DTA_NWRX_CTRL_CLR_FIFO             (1<<24)
 #define DTA_NWRX_CTRL_RST_FIFO             (1<<25)
 #define DTA_NWRX_CTRL_RX_CONTROL           (1<<26)
-// bit 27..31 reserved
+#define DTA_NWRX_CTRL_SLICE_INT_EN         (1<<27)
+// bit 28..31 reserved
 
 // Network Receive Control: Register access
 static __inline void  DtaNwRxCtrlSet(volatile UInt8* pBase, UInt32 Val) {
@@ -3546,6 +3660,13 @@ static __inline void  DtaNwRxCtrlSetRxFifoOvfIntEn(volatile UInt8* pBase, UInt I
     DtaNwRxCtrlSet(pBase, Val);
 }
 
+// Network Receive Control: Rx Fifo clear
+static __inline void  DtaNwRxCtrlSetClrFifo(volatile UInt8* pBase) {
+    UInt32  Val = DtaNwRxCtrlGet(pBase);
+    Val |= DTA_NWRX_CTRL_CLR_FIFO;
+    DtaNwRxCtrlSet(pBase, Val);
+}
+
 // Network Receive Control: Rx set deletion packets with deletion mask
 static __inline void  DtaNwRxCtrlSetDelPckFpga(volatile UInt8* pBase, UInt EnaDel) {
     UInt32  Val = DtaNwRxCtrlGet(pBase);
@@ -3561,11 +3682,22 @@ static __inline void  DtaNwRxCtrlSetDelLenPckFpga(volatile UInt8* pBase) {
     DtaNwRxCtrlSet(pBase, Val);
 }
 
+// Network Receive Control: Set slice interrupt enable
+static __inline void  DtaNwRxCtrlSetSliceIntEn(volatile UInt8* pBase, UInt IntEna) {
+    UInt32  Val = DtaNwRxCtrlGet(pBase);
+    if (IntEna) Val |= DTA_NWRX_CTRL_SLICE_INT_EN;
+    else        Val &= ~DTA_NWRX_CTRL_SLICE_INT_EN;
+    DtaNwRxCtrlSet(pBase, Val);
+}
+
 //.-.-.-.-.-.-.-.-.- Network Receive Status Register: Access Functions -.-.-.-.-.-.-.-.-.-
 // Network Receive Statis: Bit fields
 #define DTA_NWRX_STAT_VAL_CNT_OVF_INT      (1<<19)
 #define DTA_NWRX_STAT_INV_CNT_OVF_INT      (1<<20)
 #define DTA_NWRX_STAT_RX_FIFO_OVF_INT      (1<<21)
+
+#define DTA_NWRX_STAT_SLICE_AVAIL_INT      (1<<27)
+#define DTA_NWRX_STAT_SLICE_OVF_INT        (1<<28)
 
 // Network Receive Status: Register access
 static __inline UInt  DtaNwRxStatGet(volatile UInt8* pBase) {
@@ -3582,6 +3714,455 @@ static __inline UInt32  DtaNwRxInvCntGet(volatile UInt8* pBase) {
     return READ_UINT(pBase, DTA_NWRX_PKT_INV_CNT);
 }
 
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Address Matcher +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+// Register block for Address Matcher
+// DTA-2162
+//
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Register offsets -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define DTA_ADDR_MATCH_CTRL              0x0004
+#define DTA_ADDR_MATCH_STAT              0x0008
+#define DTA_ADDR_MATCH_MAC_ADDR_LOW      0x0010
+#define DTA_ADDR_MATCH_MAC_ADDR_HIGH     0x0014
+
+#define DTA_MACADDR_FILTER_CTRL          0x0044
+#define DTA_MACADDR_FILTER_STAT          0x0048
+
+//.-.-.-.-.-.-.-.-.- Address Matcher Control Register: Access Functions -.-.-.-.-.-.-.-.-.
+#define DTA_ADDR_MATCH_CTRL_PROM_DIS     (1<<1)
+#define DTA_ADDR_MATCH_CTRL_LUTUPD       (1<<2)
+#define DTA_ADDR_MATCH_CTRL_DELFILT      (1<<4)
+#define DTA_ADDR_MATCH_CTRL_IPRXOVERL_EN (1<<20)
+
+static __inline void  DtaAddrMatchCtrlSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DTA_ADDR_MATCH_CTRL);
+}
+
+static __inline UInt  DtaAddrMatchCtrlGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_ADDR_MATCH_CTRL);
+}
+
+static __inline void  DtaAddrMatchPromDis(volatile UInt8* pBase, UInt Dis) {
+    UInt32  Val = DtaAddrMatchCtrlGet(pBase);
+    if (Dis) Val |= DTA_ADDR_MATCH_CTRL_PROM_DIS;
+    else    Val &= ~DTA_ADDR_MATCH_CTRL_PROM_DIS;
+    DtaAddrMatchCtrlSet(pBase, Val);
+}
+
+static __inline void  DtaAddrMatchLutUpdate(volatile UInt8* pBase) {
+    UInt32  Val = DtaAddrMatchCtrlGet(pBase);
+    Val |= DTA_ADDR_MATCH_CTRL_LUTUPD;
+    DtaAddrMatchCtrlSet(pBase, Val);
+}
+
+//.-.-.-.-.-.-.-.-.- Address Matcher Status Register: Access Functions -.-.-.-.-.-.-.-.-.-
+#define DTA_ADDR_MATCH_STAT_LUTSEL       (1<<2)
+#define DTA_ADDR_MATCH_STAT_LUTUPDATPEND (1<<3)
+#define DTA_ADDR_MATCH_STAT_FILTOFLINT   (1<<20)
+
+static __inline void  DtaAddrMatchStatSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DTA_ADDR_MATCH_STAT);
+}
+
+static __inline UInt  DtaAddrMatchStatGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_ADDR_MATCH_STAT);
+}
+
+static __inline UInt32  DtaAddrMatchStatGetLutSel(volatile UInt8* pBase) {
+    return  (DtaAddrMatchStatGet(pBase) & DTA_ADDR_MATCH_STAT_LUTSEL) >> 2;
+}
+
+static __inline UInt32  DtaAddrMatchStatGetLutUpdatePending(volatile UInt8* pBase) {
+    return  (DtaAddrMatchStatGet(pBase) & DTA_ADDR_MATCH_STAT_LUTUPDATPEND) >> 3;
+}
+
+//.-.-.-.-.-.-.-.- Address Matcher MAC-Address Register: Access Functions -.-.-.-.-.-.-.-.
+static __inline void  DtaAddrMatchMacAddressSet(volatile UInt8* pBase, UInt8* MacAddr){
+    WRITE_UINT(MAC_ADDRESS_LOW(MacAddr),  pBase, DTA_ADDR_MATCH_MAC_ADDR_LOW);
+    WRITE_UINT(MAC_ADDRESS_HIGH(MacAddr), pBase, DTA_ADDR_MATCH_MAC_ADDR_HIGH);
+}
+
+//-.-.-.-.-.-.- Address Matcher MAC-Address Filter Control: Access Functions -.-.-.-.-.-.-
+#define DTA_MACADDR_FILTER_CTRL_EN               (1<<0)
+#define DTA_MACADDR_FILTER_CTRL_LUTUPD           (1<<2)
+#define DTA_MACADDR_FILTER_CTRL_DELFILT          (1<<4)
+#define DTA_MACADDR_FILTER_CTRL_FILTCNTOVERL_EN  (1<<20)
+
+static __inline void  DtaMacAddrFilterCtrlSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DTA_MACADDR_FILTER_CTRL);
+}
+
+static __inline UInt  DtaMacAddrFilterCtrlGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_MACADDR_FILTER_CTRL);
+}
+
+static __inline void  DtaMacAddrFilterEnable(volatile UInt8* pBase, UInt En) {
+    UInt32  Val = DtaMacAddrFilterCtrlGet(pBase);
+    if (En) Val |= DTA_MACADDR_FILTER_CTRL_EN;
+    else    Val &= ~DTA_MACADDR_FILTER_CTRL_EN;
+    DtaMacAddrFilterCtrlSet(pBase, Val);
+}
+
+static __inline void  DtaMacAddrFilterLutUpdate(volatile UInt8* pBase) {
+    UInt32  Val = DtaMacAddrFilterCtrlGet(pBase);
+    Val |= DTA_MACADDR_FILTER_CTRL_LUTUPD;
+    DtaMacAddrFilterCtrlSet(pBase, Val);
+}
+
+static __inline void  DtaMacAddrFilterDelFilteredEn(volatile UInt8* pBase, UInt En) {
+    UInt32  Val = DtaMacAddrFilterCtrlGet(pBase);
+    if (En) Val |= DTA_MACADDR_FILTER_CTRL_DELFILT;
+    else    Val &= ~DTA_MACADDR_FILTER_CTRL_DELFILT;
+    DtaMacAddrFilterCtrlSet(pBase, Val);
+}
+
+//-.-.-.-.-.-.- Address Matcher MAC-Address Filter Status: Access Functions -.-.-.-.-.-.-.
+#define DTA_MACADDR_FILTER_STAT_LUTSEL       (1<<2)
+#define DTA_MACADDR_FILTER_LUTUPDATPEND      (1<<3)
+#define DTA_MACADDR_FILTER_STAT_FILTOFLINT   (1<<20)
+
+static __inline void  DtaMacAddrFilterStatSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DTA_MACADDR_FILTER_STAT);
+}
+
+static __inline UInt  DtaMacAddrFilterStatGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_MACADDR_FILTER_STAT);
+}
+
+static __inline UInt32  DtaMacAddrFilterStatGetLutSel(volatile UInt8* pBase) {
+    return (DtaMacAddrFilterStatGet(pBase) & DTA_MACADDR_FILTER_STAT_LUTSEL) >> 2;
+}
+
+static __inline UInt32  DtaMacAddrFilterStatGetLutUpdatePending(volatile UInt8* pBase) {
+    return (DtaMacAddrFilterStatGet(pBase) & DTA_MACADDR_FILTER_LUTUPDATPEND) >> 3;
+}
+
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Address Matcher Lookup +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+// Register block for Address Matcher Lookup
+// DTA-2162
+//
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Register offsets -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define DTA_ADDRM_LOOKUP_CTRL            0x0010
+#define DTA_ADDRM_LOOKUP_ADDR            0x0014
+#define DTA_ADDRM_LOOKUP_DATA0           0x0020
+#define DTA_ADDRM_LOOKUP_DATA1           0x0024
+#define DTA_ADDRM_LOOKUP_DATA2           0x0028
+#define DTA_ADDRM_LOOKUP_DATA3           0x002C
+#define DTA_ADDRM_LOOKUP_DATA4           0x0030
+#define DTA_ADDRM_LOOKUP_DATA5           0x0034
+
+#define DTA_MACADDR_LOOKUP_CRTL          0x0050
+#define DTA_MACADDR_LOOKUP_ADDR          0x0054
+#define DTA_MACADDR_LOOKUP_DATA0         0x0060
+#define DTA_MACADDR_LOOKUP_DATA1         0x0064
+
+//-.-.-.-.-.-.-.-.-.- Address Matcher Lookup Control: Access Functions -.-.-.-.-.-.-.-.-.-
+// Address Matcher Lookup: Control
+#define DTA_ADDRM_LOOKUP_CTRL_NUMENTRY_TBL0  (0xfff)
+#define DTA_ADDRM_LOOKUP_CTRL_NUMENTRY_TBL1  (0xfff<<12)
+
+static __inline UInt32  DtaAddrMLookupCtrlGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_ADDRM_LOOKUP_CTRL);
+}
+static __inline void  DtaAddrMLookupCtrlSet(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_ADDRM_LOOKUP_CTRL);
+}
+
+static __inline void  DtaAddrMLookupCtrlSetNumEntryTbl0(volatile UInt8* pBase, UInt32 NumEntries) {
+    UInt32  Val = DtaAddrMLookupCtrlGet(pBase);
+    Val &= ~DTA_ADDRM_LOOKUP_CTRL_NUMENTRY_TBL0;
+    Val |= NumEntries;
+    DtaAddrMLookupCtrlSet(pBase, Val);
+}
+
+static __inline UInt32  DtaAddrMLookupCtrlGetNumEntryTbl0(volatile UInt8* pBase) {
+    return  DtaAddrMLookupCtrlGet(pBase) & DTA_ADDRM_LOOKUP_CTRL_NUMENTRY_TBL0;
+}
+
+static __inline void  DtaAddrMLookupCtrlSetNumEntryTbl1(volatile UInt8* pBase, 
+                                                                      UInt32 NumEntries) {
+    UInt32  Val = DtaAddrMLookupCtrlGet(pBase);
+    Val &= ~DTA_ADDRM_LOOKUP_CTRL_NUMENTRY_TBL1;
+    Val |= NumEntries<<12;
+    DtaAddrMLookupCtrlSet(pBase, Val);
+}
+
+static __inline UInt32  DtaAddrMLookupCtrlGetNumEntryTbl1(volatile UInt8* pBase) {
+    return  (DtaAddrMLookupCtrlGet(pBase) & DTA_ADDRM_LOOKUP_CTRL_NUMENTRY_TBL1) >> 12;
+}
+
+//.-.-.-.-.-.-.-.- Address Matcher Lookup Table Address: Access Functions -.-.-.-.-.-.-.-.
+static __inline UInt32  DtaAddrMLookupAddrGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_ADDRM_LOOKUP_ADDR);
+}
+static __inline void  DtaAddrMLookupAddrSet(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_ADDRM_LOOKUP_ADDR);
+}
+
+//-.-.-.-.-.-.-.-.- Address Matcher Lookup Table Data: Access Functions -.-.-.-.-.-.-.-.-.
+static __inline void  DtaAddrMLookupData0Set(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_ADDRM_LOOKUP_DATA0);
+}
+static __inline void  DtaAddrMLookupData1Set(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_ADDRM_LOOKUP_DATA1);
+}
+static __inline void  DtaAddrMLookupData2Set(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_ADDRM_LOOKUP_DATA2);
+}
+static __inline void  DtaAddrMLookupData3Set(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_ADDRM_LOOKUP_DATA3);
+}
+static __inline void  DtaAddrMLookupData4Set(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_ADDRM_LOOKUP_DATA4);
+}
+static __inline void  DtaAddrMLookupData5Set(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_ADDRM_LOOKUP_DATA5);
+}
+
+//-.-.-.-.-.-.-.-.-.-.- MAC-Address Lookup Control: Access Functions -.-.-.-.-.-.-.-.-.-.-
+#define DTA_MACADDR_LOOKUP_CTRL_NUMENTRY_PHY0  (0x01f)
+#define DTA_MACADDR_LOOKUP_CTRL_NUMENTRY_PHY1  (0x01f<<16)
+
+static __inline UInt32  DtaMacAddrLookupCtrlGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_MACADDR_LOOKUP_CRTL);
+}
+static __inline void  DtaMacAddrLookupCtrlSet(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_MACADDR_LOOKUP_CRTL);
+}
+
+static __inline void  DtaMacAddrLookupCtrlSetNumEntryPhy0(volatile UInt8* pBase,
+                                                                      UInt32 NumEntries) {
+    UInt32  Val = DtaMacAddrLookupCtrlGet(pBase);
+    Val &= ~DTA_MACADDR_LOOKUP_CTRL_NUMENTRY_PHY0;
+    Val |= NumEntries;
+    DtaMacAddrLookupCtrlSet(pBase, Val);
+}
+
+static __inline UInt32  DtaMacAddrLookupCtrlGetNumEntryPhy0(volatile UInt8* pBase) {
+    return  DtaMacAddrLookupCtrlGet(pBase) & DTA_MACADDR_LOOKUP_CTRL_NUMENTRY_PHY0;
+}
+
+static __inline void  DtaMacAddrLookupCtrlSetNumEntryPhy1(volatile UInt8* pBase,
+                                                                      UInt32 NumEntries) {
+    UInt32  Val = DtaMacAddrLookupCtrlGet(pBase);
+    Val &= ~DTA_MACADDR_LOOKUP_CTRL_NUMENTRY_PHY1;
+    Val |= NumEntries<<16;
+    DtaMacAddrLookupCtrlSet(pBase, Val);
+}
+
+static __inline UInt32  DtaMacAddrLookupCtrlGetNumEntryPhy1(volatile UInt8* pBase) {
+    return  (DtaMacAddrLookupCtrlGet(pBase) & 
+                                             DTA_MACADDR_LOOKUP_CTRL_NUMENTRY_PHY1) >> 16;
+}
+
+//.-.-.-.-.-.-.-.-.- MAC-Address Lookup Table Address: Access Functions -.-.-.-.-.-.-.-.-.
+#define DTA_MACADDR_LOOKUP_ADDR_PHY1      (1<<31)
+
+static __inline UInt32  DtaMacAddrLookupAddrGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_MACADDR_LOOKUP_ADDR);
+}
+static __inline void  DtaMacAddrLookupAddrSet(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_MACADDR_LOOKUP_ADDR);
+}
+
+//-.-.-.-.-.-.-.-.-.- MAC-Address Lookup Table Data: Access Functions -.-.-.-.-.-.-.-.-.-.
+static __inline void  DtaMacAddrLookupData0Set(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_MACADDR_LOOKUP_DATA0);
+}
+static __inline void  DtaMacAddrLookupData1Set(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_MACADDR_LOOKUP_DATA1);
+}
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Frame Sorter +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//
+// Register block for Frame Sorter
+// DTA-2162
+//
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Register offsets -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define DTA_FRAME_SRT_CTRL          0x0004
+#define DTA_FRAME_SRT_STATUS        0x0008
+
+//.-.-.-.-.-.-.-.-.-.-.-.- Frame Sorter Control: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.
+#define DTA_FRAME_SRT_CTRL_EN       0x1
+#define DTA_FRAME_SRT_CTRL_INT_EN   (0x1<<3)
+
+static __inline UInt32  DtaFrameSrtCtrlGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_FRAME_SRT_CTRL);
+}
+static __inline void  DtaFrameSrtCtrlSet(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_FRAME_SRT_CTRL);
+}
+
+static __inline void  DtaFrameSrtCtrlEn(volatile UInt8* pBase, UInt32 Enable) {
+    UInt32  Val = DtaFrameSrtCtrlGet(pBase);
+    if (Enable) Val |= DTA_FRAME_SRT_CTRL_EN;
+    else        Val &= ~DTA_FRAME_SRT_CTRL_EN;
+    DtaFrameSrtCtrlSet(pBase, Val);
+}
+
+static __inline void  DtaFrameSrtCtrlIntEn(volatile UInt8* pBase, UInt32 Enable) {
+    UInt32  Val = DtaFrameSrtCtrlGet(pBase);
+    if (Enable) Val |= DTA_FRAME_SRT_CTRL_INT_EN;
+    else        Val &= ~DTA_FRAME_SRT_CTRL_INT_EN;
+    DtaFrameSrtCtrlSet(pBase, Val);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.- Frame Sorter Status: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-
+#define DTA_FRAME_SRT_STATUS_BUSY_SORT    0x1
+#define DTA_FRAME_SRT_STATUS_BUSY_WRITE   (0x1<<1)
+#define DTA_FRAME_SRT_STATUS_CUR_CHAN     (0x1<<2)
+#define DTA_FRAME_SRT_STATUS_SRT_INT      (0x1<<3)
+
+static __inline UInt32  DtaFrameSrtStatusGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_FRAME_SRT_STATUS);
+}
+static __inline void  DtaFrameSrtStatusSet(volatile UInt8* pBase, UInt32 Val) {
+    WRITE_UINT(Val, pBase, DTA_FRAME_SRT_STATUS);
+}
+
+static __inline UInt  DtaFrameSrtStatusBusySrtGet(volatile UInt8* pBase) {
+    return ((DtaFrameSrtStatusGet(pBase)&DTA_FRAME_SRT_STATUS_BUSY_SORT)!=0?1:0);
+}
+
+static __inline UInt  DtaFrameSrtStatusBusyWriteGet(volatile UInt8* pBase) {
+    return ((DtaFrameSrtStatusGet(pBase)&DTA_FRAME_SRT_STATUS_BUSY_WRITE)!=0?1:0);
+}
+
+static __inline UInt  DtaFrameSrtStatusCurChanGet(volatile UInt8* pBase) {
+    return ((DtaFrameSrtStatusGet(pBase)&DTA_FRAME_SRT_STATUS_CUR_CHAN)!=0?1:0);
+}
+
+static __inline UInt  DtaFrameSrtStatusSrtIntGet(volatile UInt8* pBase) {
+    return ((DtaFrameSrtStatusGet(pBase)&DTA_FRAME_SRT_STATUS_SRT_INT)!=0?1:0);
+}
+
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Memory Controller +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//
+// Register block for Memory Controller
+// DTA-2162
+//
+#define DTA_MEM_NRT_RX_BUF_START         0x000
+#define DTA_MEM_NRT_RX_BUF_END           0x004
+#define DTA_MEM_RT_RX_BUF_START          0x008
+#define DTA_MEM_RT_RX_BUF_END            0x00C
+#define DTA_MEM_NRT_TX_BUF_START         0x010
+#define DTA_MEM_NRT_TX_BUF_END           0x014
+#define DTA_MEM_RT_TX_BUF_START          0x018
+#define DTA_MEM_RT_TX_BUF_END            0x01C
+#define DTA_MEM_PKT_ORDER_BUF_START      0x020
+#define DTA_MEM_PKT_ORDER_BUF_END        0x024
+
+static __inline UInt  DtaMemGetPointer(volatile UInt8* pBase, UInt Offset) {
+    return READ_UINT(pBase, Offset);
+}
+
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Memory Tester +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// 
+// Register block for memory tester
+// Dta-2162
+//
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Register offsets -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define  DTA_MEMTST_CTRL                0x0004
+#define  DTA_MEMTST_STAT                0x0008
+#define  DTA_MEMTST_ADDRESS             0x0010
+#define  DTA_MEMTST_DATA                0x0014
+
+//-.-.-.-.-.-.-.-.-.-.-.-  Memory Tester Control: Access Functions -.-.-.-.-.-.-.-.-.-.-.-
+//
+#define  DTA_MEMTST_CTRL_NUMREPEATS     0x000000FF
+#define  DTA_MEMTST_CTRL_START          0x00000100
+#define  DTA_MEMTST_CTRL_STOP           0x00000200
+#define  DTA_MEMTST_CTRL_RUNWALKONE     0x00010000
+#define  DTA_MEMTST_CTRL_RUNWALKZERO    0x00020000
+#define  DTA_MEMTST_CTRL_RUNALLONE      0x00040000
+#define  DTA_MEMTST_CTRL_RUNALLZERO     0x00080000
+#define  DTA_MEMTST_CTRL_RUNAAAA        0x00100000
+#define  DTA_MEMTST_CTRL_RUN5555        0x00200000
+#define  DTA_MEMTST_CTRL_RUNAA55        0x00400000
+#define  DTA_MEMTST_CTRL_RUN55AA        0x00800000
+#define  DTA_MEMTST_CTRL_RUNCOUNT       0x01000000
+#define  DTA_MEMTST_CTRL_RUNALL         0x01FF0000
+
+static __inline UInt  DtaMemTstCtrlGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_MEMTST_CTRL);
+}
+static __inline void DtaMemTstCtrlSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DTA_MEMTST_CTRL);
+}
+
+static __inline void  DtaMemTstCtrlNumRepeatsSet(volatile UInt8* pBase, UInt NumRepeats) {
+    UInt  Val = DtaMemTstCtrlGet(pBase);
+    Val &= ~DTA_MEMTST_CTRL_NUMREPEATS;
+    Val |= (NumRepeats & DTA_MEMTST_CTRL_NUMREPEATS);
+    DtaMemTstCtrlSet(pBase, Val);
+}
+
+static __inline void  DtaMemTstCtrlEnableTestSet(volatile UInt8* pBase, UInt Tests) {
+    UInt  Val = DtaMemTstCtrlGet(pBase);
+    Val &= ~DTA_MEMTST_CTRL_RUNALL;
+    Val |= (Tests & DTA_MEMTST_CTRL_RUNALL);
+    DtaMemTstCtrlSet(pBase, Val);
+}
+
+static __inline void  DtaMemTstCtrlStartTestSet(volatile UInt8* pBase) {
+    UInt  Val = DtaMemTstCtrlGet(pBase);
+    Val |= DTA_MEMTST_CTRL_START;
+    DtaMemTstCtrlSet(pBase, Val);
+}
+
+static __inline void  DtaMemTstCtrlStopTestSet(volatile UInt8* pBase) {
+    UInt  Val = DtaMemTstCtrlGet(pBase);
+    Val |= DTA_MEMTST_CTRL_STOP;
+    DtaMemTstCtrlSet(pBase, Val);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.- Memory Tester Status: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.
+#define  DTA_MEMTST_STAT_NUMITERATIONS   0x000000FF
+#define  DTA_MEMTST_STAT_TESTBUSY        0x00000100
+#define  DTA_MEMTST_STAT_TESTERROR       0x00000200
+#define  DTA_MEMTST_STAT_TESTOK          0x00000400
+#define  DTA_MEMTST_STAT_TESTWALKONE     0x00010000
+#define  DTA_MEMTST_STAT_TESTWALKZERO    0x00020000
+#define  DTA_MEMTST_STAT_TESTALLONE      0x00040000
+#define  DTA_MEMTST_STAT_TESTALLZERO     0x00080000
+#define  DTA_MEMTST_STAT_TESTAAAA        0x00100000
+#define  DTA_MEMTST_STAT_TEST5555        0x00200000
+#define  DTA_MEMTST_STAT_TESTAA55        0x00400000
+#define  DTA_MEMTST_STAT_TEST55AA        0x00800000
+#define  DTA_MEMTST_STAT_TESTCOUNT       0x01000000
+#define  DTA_MEMTST_STAT_TESTALL         0x01FF0000
+
+static __inline UInt  DtaMemTstStatGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DTA_MEMTST_STAT);
+}
+static __inline void DtaMemTstStatSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DTA_MEMTST_STAT);
+}
+
+static __inline UInt  DtaMemTstStatNumIterationsGet(volatile UInt8* pBase) {
+    return DtaMemTstStatGet(pBase) & DTA_MEMTST_STAT_NUMITERATIONS;
+}
+
+static __inline UInt  DtaMemTstStatIsTestBusy(volatile UInt8* pBase) {
+    return ((DtaMemTstStatGet(pBase)&DTA_MEMTST_STAT_TESTBUSY)!=0?1:0);
+}
+
+static __inline UInt  DtaMemTstStatIsTestError(volatile UInt8* pBase) {
+    return ((DtaMemTstStatGet(pBase)&DTA_MEMTST_STAT_TESTERROR)!=0?1:0);
+}
+
+static __inline UInt  DtaMemTstStatIsTestOk(volatile UInt8* pBase) {
+    return ((DtaMemTstStatGet(pBase)&DTA_MEMTST_STAT_TESTOK)!=0?1:0);
+}
+
+static __inline UInt  DtaMemTstStatTestResultGet(volatile UInt8* pBase) {
+    return DtaMemTstStatGet(pBase)&DTA_MEMTST_STAT_TESTALL;
+}
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Miscellaneous +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 

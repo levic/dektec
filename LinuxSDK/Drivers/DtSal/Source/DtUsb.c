@@ -51,7 +51,7 @@ DtStatus  DtUsbQueuryString(
     if (NT_SUCCESS(NtStatus))
     {
         // Out: StringSize = char length
-        pDtString->Length = (USHORT)StringSize;
+        pDtString->Length = (USHORT)StringSize * sizeof(DtStringChar);
         return DT_STATUS_OK;
     }
     return DT_STATUS_FAIL;
@@ -459,6 +459,54 @@ void  DtUsbDumpPipeInfo(DtDvcObject* pUsbDevice)
 #else
     // Linux implementation
 #endif
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtUsbManufNameEq -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtUsbManufNameEq(DtDvcObject*  pDvc, const char*  pManufName)
+{
+#ifdef WINBUILD
+    DtString  ManufName;
+    DtStringChar StringBufManufName[32];
+    DtString  DtStr;
+    DtStringChar  DtStrBuffer[32];
+    DtStatus  Status;
+
+    DT_STRING_INIT(ManufName, StringBufManufName, 32);
+    DtStringAppendChars(&ManufName, pManufName);
+
+    DT_STRING_INIT(DtStr, DtStrBuffer, 32);
+
+    Status = DtUsbQueuryString(pDvc, &DtStr, pDvc->m_UsbDevDesc.iManufacturer);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, SAL_USB, "Failed to get manufacturer string");
+        return FALSE;
+    }
+
+    return DtStringCompare(&DtStr, &ManufName);
+#else
+    if (pDvc->m_pUsbDev->manufacturer == NULL)
+        return FALSE;
+    return strcmp(pManufName, pDvc->m_pUsbDev->manufacturer) == 0;
+#endif
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuGetCtrlMaxPacketSize -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int  DtUsbGetCtrlMaxPacketSize(DtDvcObject* pUsbDevice, Int  UsbSpeed)
+{
+    
+#ifdef WINBUILD
+    Int  MaxPacketSize = pUsbDevice->m_UsbDevDesc.bMaxPacketSize0;
+#else
+    Int  MaxPacketSize = pUsbDevice->m_pUsbDev->descriptor.bMaxPacketSize0;
+#endif
+    // For USB1 and USB2 the MaxPacketSize field is the maximum packet size.
+    if (UsbSpeed < 2)
+        return MaxPacketSize;
+    // For USB3 the MaxPacketSize field is a power of 2.
+    return (1 << MaxPacketSize);
 }
 
 #endif // SKIP_USB

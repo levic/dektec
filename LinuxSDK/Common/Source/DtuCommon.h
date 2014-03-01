@@ -110,7 +110,15 @@ enum {
     FUNC_DTU_RESET_SOFT,
     FUNC_DTU_GET_TABLE,
     FUNC_DTU_GET_STR_PROPERTY,
-    FUNC_DTU_GET_DEV_SUBTYPE
+    FUNC_DTU_GET_DEV_SUBTYPE,
+    FUNC_DTU_GET_PROPERTY2,
+    FUNC_DTU_SH_BUF_CMD,
+    FUNC_DTU_REENUMERATE,
+    FUNC_DTU_VENDOR_REQUEST,
+    FUNC_DTU_GET_STATE_FLAGS,
+    FUNC_DTU_TRIGGER_WATCHDOG,
+    FUNC_DTU_SET_RX_MODE,
+    FUNC_DTU_UPLOAD_FPGA_FW,
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_GET_PROPERTY -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -127,6 +135,18 @@ typedef struct _DtuIoctlGetPropertyInput {
     char  m_Name[PROPERTY_NAME_MAX_SIZE];   // Name of property
 } DtuIoctlGetPropertyInput;
 ASSERT_SIZE(DtuIoctlGetPropertyInput, 68)
+
+typedef struct _DtuIoctlGetProperty2Input {
+    Int  m_TypeNumber;                      // Type number (-1 = get for current device)
+    Int  m_HardwareRevision;                // Hardware revision
+    Int  m_FirmwareVersion;                 // Firmware version
+    Int  m_PortIndex;                       // Port index
+    char  m_Name[PROPERTY_NAME_MAX_SIZE];   // Name of property
+    Int  m_DtapiMaj;                        // DTAPI major version
+    Int  m_DtapiMin;                        // DTAPI minor version
+    Int  m_DtapiBugfix;                     // DTAPI bug fix version
+} DtuIoctlGetProperty2Input;
+ASSERT_SIZE(DtuIoctlGetProperty2Input, 80)
 
 // Ioctl output data type
 // Don't use ENUMS in Ioctl's. Size is unknown
@@ -148,6 +168,19 @@ ASSERT_SIZE(DtuIoctlGetPropertyOutput, 16)
 
     #define DTU_IOCTL_GET_PROPERTY  _IOWR(DTU_IOCTL_MAGIC, FUNC_DTU_GET_PROPERTY, \
                                                                   DtuIoctlGetPropertyData)
+#endif
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_GET_PROPERTY2  CTL_CODE(DTU_DEVICE_TYPE, FUNC_DTU_GET_PROPERTY2, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtuIoctlGetProperty2Data {
+        DtuIoctlGetProperty2Input  m_Input;
+        DtuIoctlGetPropertyOutput  m_Output;
+    } DtuIoctlGetProperty2Data;
+
+    #define DTU_IOCTL_GET_PROPERTY2  _IOWR(DTU_IOCTL_MAGIC, FUNC_DTU_GET_PROPERTY2, \
+                                                                 DtuIoctlGetProperty2Data)
 #endif
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_GET_DEV_INFO -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -581,6 +614,56 @@ ASSERT_SIZE(DtuIoctlWriteDataInput, 4)
 #endif 
 
 
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTU_IOCTL_SH_BUF_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//
+// Wrapper command to perform operation on a shared buffer user-driver
+//
+// DTU shared buf commands
+#define DTU_SH_BUF_CMD_INIT            1
+#define DTU_SH_BUF_CMD_CLOSE           2
+
+// DTU shared Buf init command input data type
+typedef struct _DtUIoctlShBufCmdInitInput {
+#ifdef LINBUILD
+    UInt64A  m_BufferAddr;
+    Int  m_BufferSize;
+#else
+    Int  m_Dummy;
+#endif
+} DtuIoctlShBufCmdInitInput;
+#ifdef LINBUILD
+ASSERT_SIZE(DtuIoctlShBufCmdInitInput, 16)
+#else
+ASSERT_SIZE(DtuIoctlShBufCmdInitInput, 4)
+#endif
+
+// Ioctl input data type
+typedef struct _DtuIoctlShBufCmdInput {
+    Int  m_Cmd;
+    Int  m_PortIndex;           // Port index
+    Int  m_BufferIndex;         // Only 1 buffer supported for now. Must be 0
+    union {
+        DtuIoctlShBufCmdInitInput  m_Init;
+    } m_Data;
+} DtuIoctlShBufCmdInput;
+#ifdef LINBUILD
+ASSERT_SIZE(DtuIoctlShBufCmdInput, 32)
+#else
+ASSERT_SIZE(DtuIoctlShBufCmdInput, 16)
+#endif
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_SH_BUF_CMD  CTL_CODE(DTU_DEVICE_TYPE, FUNC_DTU_SH_BUF_CMD, \
+                                                         METHOD_IN_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtuIoctlShBufCmdData {
+        DtuIoctlShBufCmdInput  m_Input;
+    } DtuIoctlShBufCmdData;
+
+    #define DTU_IOCTL_SH_BUF_CMD  _IOWR(DTU_IOCTL_MAGIC, FUNC_DTU_SH_BUF_CMD, \
+                                                                     DtuIoctlShBufCmdData)
+#endif
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IO configuration -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_GET_IO_CONFIG -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -645,16 +728,29 @@ ASSERT_SIZE(DtuIoctlSetIoConfigInput, 8)
 // Command definitions
 #define DTU_NONIP_CMD_EXCLUSIVE_ACCESS  1
 #define DTU_NONIP_CMD_GET_TARGET_ID     2
+#define DTU_NONIP_CMD_DETECT_VIDSTD     3
+
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_NONIP_CMD_EXCLUSIVE_ACCESS -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
 // Exclusive access cmd's
 #define DTU_EXCLUSIVE_ACCESS_CMD_ACQUIRE  1
 #define DTU_EXCLUSIVE_ACCESS_CMD_RELEASE  2
 #define DTU_EXCLUSIVE_ACCESS_CMD_PROBE    3
+
 // Exlusive Access input data
 typedef struct _DtuIoctlNonIpCmdExclusiveAccessInput {
     Int  m_Cmd;                 // Acquire/release/probe command
 } DtuIoctlNonIpCmdExclusiveAccessInput;
 ASSERT_SIZE(DtuIoctlNonIpCmdExclusiveAccessInput, 4)
+    
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_NONIP_CMD_DETECT_VIDSTD -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+// Ioctl output data type
+typedef struct _DtuIoctlNonIpCmdDetectVidStdOutput {
+    Int  m_VidStd;              // Detected video standard
+} DtuIoctlNonIpCmdDetectVidStdOutput;
+ASSERT_SIZE(DtuIoctlNonIpCmdDetectVidStdOutput, 4)
 
 // Ioctl input data type
 typedef struct _DtuIoctlNonIpCmdInput {
@@ -666,6 +762,14 @@ typedef struct _DtuIoctlNonIpCmdInput {
 } DtuIoctlNonIpCmdInput;
 ASSERT_SIZE(DtuIoctlNonIpCmdInput, 12)
 
+// Ioctl Output data type
+typedef struct _DtuIoctlNonIpCmdOutput {
+    union {
+        DtuIoctlNonIpCmdDetectVidStdOutput  m_DetVidStd;
+    } m_Data;
+} DtuIoctlNonIpCmdOutput;
+ASSERT_SIZE(DtuIoctlNonIpCmdOutput, 4)
+
 
 #ifdef WINBUILD
     #define DTU_IOCTL_NONIP_CMD  CTL_CODE(DTU_DEVICE_TYPE, FUNC_DTU_NONIP_CMD, \
@@ -673,6 +777,7 @@ ASSERT_SIZE(DtuIoctlNonIpCmdInput, 12)
 #else
     typedef union _DtuIoctlNonIpCmd {
         DtuIoctlNonIpCmdInput  m_Input;
+        DtuIoctlNonIpCmdOutput  m_Output;
     } DtuIoctlNonIpCmd;
 
     #define DTU_IOCTL_NONIP_CMD  _IOWR(DTU_IOCTL_MAGIC, FUNC_DTU_NONIP_CMD, \
@@ -856,10 +961,153 @@ ASSERT_SIZE(DtuIoctlGetDevSubTypeOutput, 4)
                                                              DtuIoctlGetDevSubTypeData)
 #endif
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_REENUMERATE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Force the device to re-enumerate
+//
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_REENUMERATE  CTL_CODE(DTU_DEVICE_TYPE, \
+                                  FUNC_DTU_REENUMERATE, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    #define DTU_IOCTL_REENUMERATE  _IO(DTU_IOCTL_MAGIC, FUNC_DTU_REENUMERATE)
+#endif
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_VENDOR_REQUEST -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+//
+//
+
+typedef struct _DtuIoctlVendorRequestInput {
+    UInt8  m_Code;
+    UInt16  m_Value;
+    UInt16  m_Index;
+    Int  m_Dir;
+    UInt  m_BufLen;
+    UInt8  m_Buf[0];                // Dynamic sized buffer
+} DtuIoctlVendorRequestInput;
+ASSERT_SIZE(DtuIoctlVendorRequestInput, 16)
+
+typedef struct _DtuIoctlVendorRequestOutput {
+    Int  m_NumBytesTransferred;
+    UInt8  m_Buf[0];                // Dynamic sized buffer
+} DtuIoctlVendorRequestOutput;
+ASSERT_SIZE(DtuIoctlVendorRequestOutput, 4)
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_VENDOR_REQUEST  CTL_CODE(DTU_DEVICE_TYPE, \
+                               FUNC_DTU_VENDOR_REQUEST, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtuIoctlVendorRequest {
+        DtuIoctlVendorRequestInput  m_Input;
+        DtuIoctlVendorRequestOutput  m_Output;
+    } DtuIoctlVendorRequest;
+
+    #define DTU_IOCTL_VENDOR_REQUEST  _IOWR(DTU_IOCTL_MAGIC_SIZE, \
+                                           FUNC_DTU_VENDOR_REQUEST, DtuIoctlVendorRequest)
+#endif
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_GET_STATE_FLAGS -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Get the state flags for a specific port or for the device (m_PortIndex=-1).
+//
+
+typedef struct _DtuIoctlGetStateFlagsInput {
+    Int  m_PortIndex;                       // Port index
+} DtuIoctlGetStateFlagsInput;
+ASSERT_SIZE(DtuIoctlGetStateFlagsInput, 4)
+
+typedef struct _DtuIoctlGetStateFlagsOutput {
+    Int  m_Flags;
+} DtuIoctlGetStateFlagsOutput;
+ASSERT_SIZE(DtuIoctlGetStateFlagsOutput, 4)
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_GET_STATE_FLAGS  CTL_CODE(DTU_DEVICE_TYPE, \
+                              FUNC_DTU_GET_STATE_FLAGS, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtuIoctlGetStateFlags {
+        DtuIoctlGetStateFlagsInput  m_Input;
+        DtuIoctlGetStateFlagsOutput  m_Output;
+    } DtuIoctlGetStateFlags;
+
+    #define DTU_IOCTL_GET_STATE_FLAGS  _IOWR(DTU_IOCTL_MAGIC, FUNC_DTU_GET_STATE_FLAGS, \
+                                                                    DtuIoctlGetStateFlags)
+#endif
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_TRIGGER_WATCHDOG -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Simulate a watchdog timeout, causing a device reset.
+//
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_TRIGGER_WATCHDOG  CTL_CODE(DTU_DEVICE_TYPE, \
+                             FUNC_DTU_TRIGGER_WATCHDOG, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    #define DTU_IOCTL_TRIGGER_WATCHDOG  _IO(DTU_IOCTL_MAGIC, FUNC_DTU_TRIGGER_WATCHDOG)
+#endif
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_SET_RX_MODE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+
+typedef struct _DtuIoctlSetRxModeInput {
+    Int  m_PortIndex;
+    Int  m_RxMode;
+} DtuIoctlSetRxModeInput;
+ASSERT_SIZE(DtuIoctlSetRxModeInput, 8)
+
+typedef struct _DtuIoctlSetRxModeOutput {
+    Int  m_FrameIdNewRxMode;
+} DtuIoctlSetRxModeOutput;
+ASSERT_SIZE(DtuIoctlSetRxModeOutput, 4)
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_SET_RX_MODE  CTL_CODE(DTU_DEVICE_TYPE, \
+                              FUNC_DTU_SET_RX_MODE, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtuIoctlSetRxMode {
+        DtuIoctlSetRxModeInput  m_Input;
+        DtuIoctlSetRxModeOutput  m_Output;
+    } DtuIoctlSetRxMode;
+
+    #define DTU_IOCTL_SET_RX_MODE  _IOWR(DTU_IOCTL_MAGIC, FUNC_DTU_SET_RX_MODE, \
+                                                                    DtuIoctlVendorRequest)
+#endif
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_UPLOAD_FPGA_FW -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+
+typedef struct _DtuIoctlUploadFpgaFwInput {
+#ifdef LINBUILD
+    UInt64A  m_BufferAddr;
+    Int  m_NumBytesToWrite;
+#else
+    Int  m_Dummy;
+#endif
+} DtuIoctlUploadFpgaFwInput;
+#ifdef LINBUILD
+ASSERT_SIZE(DtuIoctlUploadFpgaFwInput, 16)
+#else
+ASSERT_SIZE(DtuIoctlUploadFpgaFwInput, 4)
+#endif
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_UPLOAD_FPGA_FW  CTL_CODE(DTU_DEVICE_TYPE, \
+                               FUNC_DTU_UPLOAD_FPGA_FW, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtuIoctlUploadFpgaFw {
+        DtuIoctlUploadFpgaFwInput  m_Input;
+    } DtuIoctlUploadFpgaFw;
+
+    #define DTU_IOCTL_UPLOAD_FPGA_FW  _IOW(DTU_IOCTL_MAGIC, FUNC_DTU_UPLOAD_FPGA_FW, \
+                                                                     DtuIoctlUploadFpgaFw)
+#endif 
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef union _DtuIoctlInputData {
     DtuIoctlGetPropertyInput  m_GetProperty;
+    DtuIoctlGetProperty2Input  m_GetProperty2;
     DtuIoctlVpdCmdInput  m_VpdCmd;
     DtuIoctlI2cCmdInput  m_I2cCmd;
     DtuIoctlRegReadInput  m_RegRead;
@@ -871,6 +1119,10 @@ typedef union _DtuIoctlInputData {
     DtuIoctlSetIoConfigInput  m_SetIoConfig;
     DtuIoctlGetTableInput  m_GetTable;
     DtuIoctlGetStrPropertyInput  m_GetStrProperty;
+    DtuIoctlVendorRequestInput  m_VendorRequest;
+    DtuIoctlGetStateFlagsInput  m_GetStateFlags;
+    DtuIoctlSetRxModeInput  m_RxMode;
+    DtuIoctlUploadFpgaFwInput  m_UploadFpgaFw;
 } DtuIoctlInputData;
 ASSERT_SIZE(DtuIoctlInputData, 528)
 
@@ -889,6 +1141,9 @@ typedef union _DtuIoctlOutputData {
     DtuIoctlGetTableOutput  m_GetTable;
     DtuIoctlGetStrPropertyOutput  m_GetStrProperty;
     DtuIoctlGetDevSubTypeOutput  m_GetDevSubType;
+    DtuIoctlVendorRequestOutput  m_VendorRequest;
+    DtuIoctlGetStateFlagsOutput  m_GetStateFlags;
+    DtuIoctlSetRxModeOutput  m_RxMode;
 } DtuIoctlOutputData;
 ASSERT_SIZE(DtuIoctlOutputData, 520)
 

@@ -188,8 +188,8 @@ void*  DtMemAllocPoolLarge(DtPoolType Type, UInt Size, UInt32 Tag, DtPageList** 
 
     // Round up to PAGE_SIZE
     BufSize = Size;
-	if (BufSize % PAGE_SIZE != 0)
-		BufSize = ((BufSize / PAGE_SIZE) + 1) * PAGE_SIZE;
+    if (BufSize % PAGE_SIZE != 0)
+        BufSize = ((BufSize / PAGE_SIZE) + 1) * PAGE_SIZE;
 
     // Create a pagelist object
     pPageList = kmalloc(sizeof(DtPageList), GFP_KERNEL);
@@ -218,13 +218,13 @@ void*  DtMemAllocPoolLarge(DtPoolType Type, UInt Size, UInt32 Tag, DtPageList** 
 
     // allocate memory located < 4GB and create our own page table
     for (i = 0; i < pPageList->m_NumPages; i++)
-	{
+    {
         pPageList->m_pPages[i] = virt_to_page(__get_free_page(GFP_KERNEL | GFP_DMA32));
         if(pPageList->m_pPages[i] == NULL)
         {
             // on error free allocated pages
             for (j=0; j < i; j++)            
-                free_page(page_address(pPageList->m_pPages[j]));
+                free_page((unsigned long)page_address(pPageList->m_pPages[j]));
 
             kfree(pPageList->m_pPages);
             kfree(pPageList);
@@ -242,7 +242,7 @@ void*  DtMemAllocPoolLarge(DtPoolType Type, UInt Size, UInt32 Tag, DtPageList** 
     if (pPageList->m_pVirtualKernel == NULL)
     {
         for (i = 0; i < pPageList->m_NumPages; i++)
-	        free_page(page_address(pPageList->m_pPages[i]));
+            free_page((unsigned long)page_address(pPageList->m_pPages[i]));
  
         kfree(pPageList->m_pPages);
         kfree(pPageList);
@@ -277,18 +277,18 @@ void  DtMemFreePoolLarge(void* pPtr, UInt32 Tag, DtPageList* pPageList)
     DT_ASSERT(!in_interrupt());
     vunmap(pPageList->m_pVirtualKernel);
 
-	pPageList->m_pVirtualKernel = NULL; 
+    pPageList->m_pVirtualKernel = NULL; 
     
     // Release pages
     DT_ASSERT(pPageList->m_pPages != NULL);	
     for (i = 0; i < pPageList->m_NumPages; i++) 
     {
         pPage = page_address(pPageList->m_pPages[i]);
-        free_page(pPage);
+        free_page((unsigned long)pPage);
     }
     
-	kfree(pPageList->m_pPages);    
-	kfree(pPageList);
+    kfree(pPageList->m_pPages);    
+    kfree(pPageList);
 
 #endif
 }
@@ -553,7 +553,7 @@ void  DtSleep(Int MSec)
 #endif
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtWait -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtWaitBlock -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtWaitBlock(Int USec)
 {
@@ -578,6 +578,14 @@ DtStatus  DtLockUserBuffer(DtPageList* pPageList, UInt8* pBuffer)
     }
     pPageList->m_pVirtualKernel = 
                       MmGetSystemAddressForMdlSafe(pPageList->m_pMdl, NormalPagePriority);
+        
+    if (pPageList->m_pVirtualKernel == NULL)
+    {  
+        DtDbgOut(ERR, SAL, "Error getting system address for pagelist MDL: %p", 
+                                                                       pPageList->m_pMdl);
+        MmUnlockPages(pPageList->m_pMdl);
+        return DT_STATUS_OUT_OF_RESOURCES;
+    }
 #else
     unsigned long Offset = 0;
 
@@ -646,6 +654,7 @@ UInt  DtGetPagesUserBufferAndLock(
     Int  NumPagesRet;
     Int  i;
     unsigned long Truncate;
+    unsigned long BufStart;
     
     // Allocate memory for temporarily storing the vm_area list
     pVmArea = kmalloc(sizeof(struct vm_area_struct*) * NumPages, GFP_KERNEL);
@@ -658,12 +667,12 @@ UInt  DtGetPagesUserBufferAndLock(
 
     // Make sure pBuffer is page aligned, otherwise get_user_pages can take one page too short
     Truncate = PAGE_SIZE - 1;
-    pBuffer = (void*)((unsigned long)pBuffer & (~Truncate));
+    BufStart = (unsigned long)pBuffer & (~Truncate);
     
     NumPagesRet = get_user_pages(
                     pTask,              // Task performing I/O
                     pTask->mm,          // The tasks memory-management structure
-                    pBuffer,            // Page-aligned starting address of user buffer
+                    BufStart,           // Page-aligned starting address of user buffer
                                         // unsigned long is 64-bit on 64-bit Linux
                     NumPages,           // Length of the buffer in pages
                     1,                  // Map for read access (i.e. user app performing a write)
@@ -1182,7 +1191,7 @@ void  DtCopyMulticastListItems(
     netdev_for_each_mc_addr(pMCAddr, pMulticastList->m_pNetDevice)
     {
         for (i=0; i<6; i++)
-            pDst[i] = DtLinMcAddrPtrGet(pMCAddr)[i];
+            *pDst++ = DtLinMcAddrPtrGet(pMCAddr)[i];
     }
 #endif
 }

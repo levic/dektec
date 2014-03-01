@@ -149,7 +149,7 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
     RefVidStd = DT_VIDSTD_625I50;
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {
-        pNonIpPort = &pDvcData->m_NonIpPorts[i];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[i];
         if (!pNonIpPort->m_CapGenRef)
             continue;   // skip if port cannot act as genlock reference
         if (pNonIpPort->m_IoCfg[DT_IOCONFIG_GENREF].m_Value == DT_IOCONFIG_FALSE)
@@ -220,7 +220,7 @@ DtStatus  DtaGenlockApplyFracModeConfig(DtaDeviceData* pDvcData)
     NewFracMode = DTA_GENLOCK_FRACMODE_NA;
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {
-        pNonIpPort = &pDvcData->m_NonIpPorts[i];
+        pNonIpPort = &pDvcData->m_pNonIpPorts[i];
         if (!pNonIpPort->m_CapFracMode)
             continue;   // skip if port it doesnot support fractional mode
 
@@ -256,7 +256,9 @@ DtStatus  DtaGenlockGetRefState(DtaDeviceData* pDvcData,
 { 
   DtStatus  Status = DT_STATUS_OK;
 
+#ifdef _DEBUG
   Int  GenRefPortIndex = pDvcData->m_Genlock.m_RefPortIndex;
+#endif
   Bool  InLock = FALSE;
   Bool  Enabled = FALSE;
   if(pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2144 || 

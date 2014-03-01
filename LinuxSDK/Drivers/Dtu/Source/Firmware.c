@@ -30,6 +30,9 @@
 extern const Int  DtuEzUsbFirmwareStoreCount;
 extern const DtuEzUsbFirmwareStore  DtuEzUsbFirmwareStores[];
 
+extern const Int  DtuFx3FirmwareStoreCount;
+extern const DtuFx3FirmwareStore  DtuFx3FirmwareStores[];
+
 extern const Int  DtuPldFirmwareStoreCount;
 extern const DtuPldFirmwareStore  DtuPldFirmwareStores[];
 
@@ -79,6 +82,28 @@ const DtuIntelHexRecord*  DtuGetEzUsbFirmware(Int ProductId, Int HwRev)
     }
     if (pFirmware != NULL)
         DtDbgOut(MAX, DTU, "Found USB FW for : PID 0x%04X HW_REV >= %d", ProductId, 
+                                                                                MinHwRev);
+    return pFirmware;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu3GetFx3Firmware -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+const DtuFx3HexRecord*  Dtu3GetFx3Firmware(Int TypeNumber, Int HwRev)
+{
+    const DtuFx3HexRecord*  pFirmware = NULL;
+    Int  MinHwRev = -1;
+    Int  i=0;
+    for (i=0; i<DtuFx3FirmwareStoreCount; i++)
+    {
+        if (DtuFx3FirmwareStores[i].m_ProductId==TypeNumber
+                         && DtuFx3FirmwareStores[i].m_MinHwRev<=HwRev && MinHwRev<HwRev)
+        {
+            MinHwRev = DtuFx3FirmwareStores[i].m_MinHwRev;
+            pFirmware = DtuFx3FirmwareStores[i].m_pFirmware;
+        }
+    }
+    if (pFirmware != NULL)
+        DtDbgOut(MAX, DTU, "Found USB FW for : Type %d HW_REV >= %d", TypeNumber, 
                                                                                 MinHwRev);
     return pFirmware;
 }

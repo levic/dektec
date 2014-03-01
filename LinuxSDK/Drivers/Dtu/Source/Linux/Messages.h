@@ -18,7 +18,8 @@ typedef struct _TMessage
 #define DTU_LOG_SERIAL_FAILED	1
 #define DTU_LOG_CONFIG_FAILED	2
 #define DTU_LOG_PROP_STORE_NOT_FOUND	3
-#define DTU_MSG_COUNT	4
+#define DTU_LOG_WATCHDOG_TRIGGERED_RESET	4
+#define DTU_MSG_COUNT	5
 
 Bool EventGetMessage(Int MsgId, const char** pLevel, const char** pMsg);
 

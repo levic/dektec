@@ -41,7 +41,7 @@ static DtStatus  DtaLmh1982GoToNextState(DtaLmh1982* pLmh1982Data, Int ChangeEve
 static DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data);
 static Int  DtaLmh1982PllLockStateGet(DtaLmh1982* pLmh1982Data);
 static DtStatus  DtaLmh1982ReadReg(DtaLmh1982* pLmh1982Data, UInt8, UInt8*);
-static DtStatus  DtaLmh1982ReadReg16(DtaLmh1982* pLmh1982Data, UInt8, UInt16*);
+//static DtStatus  DtaLmh1982ReadReg16(DtaLmh1982* pLmh1982Data, UInt8, UInt16*);
 static DtStatus  DtaLmh1982WriteReg(DtaLmh1982* pLmh1982Data, UInt8, UInt8);
 static DtStatus  DtaLmh1982WriteReg16(DtaLmh1982* pLmh1982Data, UInt8, UInt16);
 //static DtStatus  DtaLmh1982CacheRefresh(DtaLmh1982* pLmh1982Data);
@@ -50,13 +50,13 @@ static DtStatus  DtaLmh1982StartTofAlign(DtaLmh1982* pLmh1982Data);
 static DtStatus  DtaLmh1982StopTofAlign(DtaLmh1982* pLmh1982Data);
 static DtStatus  DtaLmh1982SetupRefSource(DtaLmh1982* pLmh1982Data, Int* pRefVidStd,
                                                                           Int* pOutVidStd);
-static Int  DtaLmh1982VidStd2Lpfm(Int VidStd);
+//static Int  DtaLmh1982VidStd2Lpfm(Int VidStd);
+#ifdef _DEBUG
 static const char*  DtaLmh1982State2Str(Int State);
+#endif
 
 // Debug helpers
-#ifdef _DEBUG
-static DtStatus  DtaLmh1982CachePrint(DtaLmh1982* pLmh1982Data);
-#endif
+//static DtStatus  DtaLmh1982CachePrint(DtaLmh1982* pLmh1982Data);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -984,44 +984,44 @@ DtStatus  DtaLmh1982ReadReg(DtaLmh1982* pLmh1982Data, UInt8 RegAddr, UInt8* pVal
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1982ReadReg16 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaLmh1982ReadReg16(DtaLmh1982* pLmh1982Data, UInt8 RegAddr, UInt16* pValue)
-{
-    DtStatus  Status = DT_STATUS_OK;
-    DtaDeviceData*  pDvcData = pLmh1982Data->m_pDvcData;
-
-    // Get I2C lock
-    // NOTE: Use DT_INVALID_FILE_OBJECT_PTR signals the driver wants to own the lock
-    Status = DtaI2cLock(pDvcData, -1, DT_INVALID_FILE_OBJECT_PTR, DTA_LMH1982_I2C_TIMEOUT);
-    if (!DT_SUCCESS(Status))
-    {
-        DtDbgOut(ERR, GENL, "Failed to get I2C lock. Error: 0x%x", Status);
-        return DT_STATUS_FAIL;
-    }
-
-    // First write I2c address
-    Status = DtaI2cWrite(pDvcData, -1, DT_INVALID_FILE_OBJECT_PTR, 
-                                                       DTA_LMH1982_I2C_ADDR, 1, &RegAddr); 
-    if (!DT_SUCCESS(Status))
-    {
-        DtDbgOut(ERR, GENL, "Failed to write I2C address (addr=0x%02X). "
-                                                          "Error: 0x%x", RegAddr, Status);
-
-        DtaI2cUnlock(pDvcData, -1, NULL, FALSE);
-        return DT_STATUS_FAIL;
-    }
-
-    // Next read register value
-    Status = DtaI2cRead(pDvcData, -1, DT_INVALID_FILE_OBJECT_PTR, 
-                                                 DTA_LMH1982_I2C_ADDR, 2, (UInt8*)pValue); 
-    DtaI2cUnlock(pDvcData, -1, DT_INVALID_FILE_OBJECT_PTR, FALSE);
-
-    if (!DT_SUCCESS(Status))
-    {
-        DtDbgOut(ERR, GENL, "Failed to read register value (addr=0x%02X, value=0x%04X). "
-                                                 "Error: 0x%x", RegAddr, *pValue, Status);
-    }
-    return Status;
-}
+//DtStatus  DtaLmh1982ReadReg16(DtaLmh1982* pLmh1982Data, UInt8 RegAddr, UInt16* pValue)
+//{
+//    DtStatus  Status = DT_STATUS_OK;
+//    DtaDeviceData*  pDvcData = pLmh1982Data->m_pDvcData;
+//
+//    // Get I2C lock
+//    // NOTE: Use DT_INVALID_FILE_OBJECT_PTR signals the driver wants to own the lock
+//    Status = DtaI2cLock(pDvcData, -1, DT_INVALID_FILE_OBJECT_PTR, DTA_LMH1982_I2C_TIMEOUT);
+//    if (!DT_SUCCESS(Status))
+//    {
+//        DtDbgOut(ERR, GENL, "Failed to get I2C lock. Error: 0x%x", Status);
+//        return DT_STATUS_FAIL;
+//    }
+//
+//    // First write I2c address
+//    Status = DtaI2cWrite(pDvcData, -1, DT_INVALID_FILE_OBJECT_PTR, 
+//                                                       DTA_LMH1982_I2C_ADDR, 1, &RegAddr); 
+//    if (!DT_SUCCESS(Status))
+//    {
+//        DtDbgOut(ERR, GENL, "Failed to write I2C address (addr=0x%02X). "
+//                                                          "Error: 0x%x", RegAddr, Status);
+//
+//        DtaI2cUnlock(pDvcData, -1, NULL, FALSE);
+//        return DT_STATUS_FAIL;
+//    }
+//
+//    // Next read register value
+//    Status = DtaI2cRead(pDvcData, -1, DT_INVALID_FILE_OBJECT_PTR, 
+//                                                 DTA_LMH1982_I2C_ADDR, 2, (UInt8*)pValue); 
+//    DtaI2cUnlock(pDvcData, -1, DT_INVALID_FILE_OBJECT_PTR, FALSE);
+//
+//    if (!DT_SUCCESS(Status))
+//    {
+//        DtDbgOut(ERR, GENL, "Failed to read register value (addr=0x%02X, value=0x%04X). "
+//                                                 "Error: 0x%x", RegAddr, *pValue, Status);
+//    }
+//    return Status;
+//}
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1982WriteReg -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -1181,77 +1181,76 @@ DtStatus  DtaLmh1982CacheWrite(DtaLmh1982* pLmh1982Data)
     return s;
 }
 
-#ifdef _DEBUG
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1982CachePrint -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaLmh1982CachePrint(DtaLmh1982* pLmh1982Data)
-{
-    DtaLmh1982Regs*  pRegs = &pLmh1982Data->m_RegCache;
-
-    DtDbgOut(MIN, GENL, "------------------ Lmh1982PrintCache ------------------");
-    DtDbgOut(MIN, GENL, "ADDR:  DATA");
-    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG00_8B, pRegs->m_Reg00.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG01_8B, pRegs->m_Reg01.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG02_8B, pRegs->m_Reg02.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG03_8B, pRegs->m_Reg03.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG04_16B, pRegs->m_Reg04_05.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG06_16B, pRegs->m_Reg06.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG07_8B, pRegs->m_Reg07);
-    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG08_8B, pRegs->m_Reg08.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG09_16B, pRegs->m_Reg09_0A.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG0B_16B, pRegs->m_Reg0B_0C.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG0D_16B, pRegs->m_Reg0D_0E.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG0F_16B, pRegs->m_Reg0F_10.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG11_16B, pRegs->m_Reg11_12.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG13_8B, pRegs->m_Reg13.All);
-    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG14_8B, pRegs->m_Reg14.All);
-
-    
-    return DT_STATUS_OK;
-}
-#endif // #ifdef _DEBUG
+//DtStatus  DtaLmh1982CachePrint(DtaLmh1982* pLmh1982Data)
+//{
+//    DtaLmh1982Regs*  pRegs = &pLmh1982Data->m_RegCache;
+//
+//    DtDbgOut(MIN, GENL, "------------------ Lmh1982PrintCache ------------------");
+//    DtDbgOut(MIN, GENL, "ADDR:  DATA");
+//    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG00_8B, pRegs->m_Reg00.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG01_8B, pRegs->m_Reg01.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG02_8B, pRegs->m_Reg02.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG03_8B, pRegs->m_Reg03.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG04_16B, pRegs->m_Reg04_05.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG06_16B, pRegs->m_Reg06.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG07_8B, pRegs->m_Reg07);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG08_8B, pRegs->m_Reg08.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG09_16B, pRegs->m_Reg09_0A.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG0B_16B, pRegs->m_Reg0B_0C.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG0D_16B, pRegs->m_Reg0D_0E.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG0F_16B, pRegs->m_Reg0F_10.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%04X", DTA_LMH1982_IIC_REG11_16B, pRegs->m_Reg11_12.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG13_8B, pRegs->m_Reg13.All);
+//    DtDbgOut(MIN, GENL, " %02X: 0x%02X", DTA_LMH1982_IIC_REG14_8B, pRegs->m_Reg14.All);
+//
+//    
+//    return DT_STATUS_OK;
+//}
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1982VidStd2Lpfm -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-Int  DtaLmh1982VidStd2Lpfm(Int VidStd)
-{
-    switch (VidStd)
-    {
-    case DT_VIDSTD_525I59_94:   
-        return 525;
+//Int  DtaLmh1982VidStd2Lpfm(Int VidStd)
+//{
+//    switch (VidStd)
+//    {
+//    case DT_VIDSTD_525I59_94:   
+//        return 525;
+//
+//    case DT_VIDSTD_625I50:      
+//        return 625;
+//
+//    case DT_VIDSTD_720P23_98:
+//    case DT_VIDSTD_720P24:
+//    case DT_VIDSTD_720P25:
+//    case DT_VIDSTD_720P29_97:
+//    case DT_VIDSTD_720P30:
+//    case DT_VIDSTD_720P50:
+//    case DT_VIDSTD_720P59_94:
+//    case DT_VIDSTD_720P60:
+//        return 750;
+//
+//    case DT_VIDSTD_1080P23_98:
+//    case DT_VIDSTD_1080P24:
+//    case DT_VIDSTD_1080P25:
+//    case DT_VIDSTD_1080P30:
+//    case DT_VIDSTD_1080P29_97:
+//    case DT_VIDSTD_1080P50:
+//    case DT_VIDSTD_1080P59_94:
+//    case DT_VIDSTD_1080P60:
+//    case DT_VIDSTD_1080I50:
+//    case DT_VIDSTD_1080I59_94:
+//    case DT_VIDSTD_1080I60: 
+//        return 1125;
+//
+//    default:
+//        break;
+//    }
+//    return -1;
+//}
 
-    case DT_VIDSTD_625I50:      
-        return 625;
-
-    case DT_VIDSTD_720P23_98:
-    case DT_VIDSTD_720P24:
-    case DT_VIDSTD_720P25:
-    case DT_VIDSTD_720P29_97:
-    case DT_VIDSTD_720P30:
-    case DT_VIDSTD_720P50:
-    case DT_VIDSTD_720P59_94:
-    case DT_VIDSTD_720P60:
-        return 750;
-
-    case DT_VIDSTD_1080P23_98:
-    case DT_VIDSTD_1080P24:
-    case DT_VIDSTD_1080P25:
-    case DT_VIDSTD_1080P30:
-    case DT_VIDSTD_1080P29_97:
-    case DT_VIDSTD_1080P50:
-    case DT_VIDSTD_1080P59_94:
-    case DT_VIDSTD_1080P60:
-    case DT_VIDSTD_1080I50:
-    case DT_VIDSTD_1080I59_94:
-    case DT_VIDSTD_1080I60: 
-        return 1125;
-
-    default:
-        break;
-    }
-    return -1;
-}
-
+#ifdef _DEBUG
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1982State2Str -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 const char*  DtaLmh1982State2Str(Int State)
@@ -1269,3 +1268,4 @@ const char*  DtaLmh1982State2Str(Int State)
     default:                                return "UNKNOWN";
     }
 }
+#endif

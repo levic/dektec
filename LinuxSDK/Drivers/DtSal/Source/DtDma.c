@@ -176,12 +176,11 @@ DtStatus  DtDmaInit(
             DtDbgOut(ERR, SAL_DMA, "Unable to set DMA 32-bit mask.");
             return DT_STATUS_FAIL;
         }
-        // Check if the memory in the system is larger then 4GB, if so we don't use
+        // Check if the memory in the system can be larger then 4GB, if so we don't use
         // SGL transfer because the buffer to transfer could be mapped above the 4GB.
-        // The totalram_pages is a global variable exported by the Linux kernel which
-        // represents the total number of pages available in the system
-        if (((UInt64)totalram_pages)*PAGE_SIZE > 0xffffffff)
-            pDmaDevice->m_NotEnoughMapRegisters = TRUE;
+#if defined(LIN64) || defined(CONFIG_X86_PAE)
+        pDmaDevice->m_NotEnoughMapRegisters = TRUE;
+#endif
     }
 #endif
     return DT_STATUS_OK;
