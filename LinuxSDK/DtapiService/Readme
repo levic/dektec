@@ -16,20 +16,12 @@
 --------------------------------------------------------------------------------
 
 Date:		Version:	Remarks:
-2011.05.31	1.4.5.68	- Fixes issue with duplicate statistic values
-2011.03.02	1.4.4.65	- Fixes issue with failing to tune DTA-2137 
-						- Improves signal locking acquisition speed and 
-						  reliability of DTA-2136
-						- Support for DtApi::DtDemodControl class
-						- Adds support for getting MER from a DTA-2137
-2010.06.30	1.3.2.32	- Support for DTA-2136 & DTU-236
-						- Bug fix: "DTA-2135 SNR always returns -1"
-						- Bug fix: "Cannot attach to DTA-2136 on 64-bit Linux"
-2010.03.08	1.2.0.24	- Several fixes to improve stability
-						- Prepared for DTA-2136
-2009.11.03	1.1.0.20	- Several fixes to improve stability 
-						- Support for DTA-2137 in APSK mode
-2009.07.23	1.0.0.9	    - First version released to the fields
+2012.10.31	2.1.2.17	Refer to "SDK - Revision History.pdf" for details
+2012.08.17	2.0.9.12	Refer to "SDK - Revision History.pdf" for details
+2012.07.02	2.0.8.10	Refer to "SDK - Revision History.pdf" for details
+2012.06.07	2.0.7.8		Refer to "SDK - Revision History.pdf" for details
+2012.05.14	2.0.6.7	    First release to the field of new V2 service
+						NOTE: requires DTAPI (V5.x) Dta (V4.x) and Dtu (V4.x)
 
 						        
 --------------------------------------------------------------------------------
@@ -38,9 +30,15 @@ Date:		Version:	Remarks:
 
 The DTAPI service is a Linux daemon (service) that manages DekTec's range of 
 demodulator boards. The following demodulators are supported:
- - DTA-2135  Dual DVB-T Receiver for PCI Express Bus 
- - DTA-2136	 Dual QAM-A/B/C Receiver for PCI Express Bus
- - DTA-2137  Dual DVB-S2 Receiver for PCI Express Bus
+- DTU-234	(VSB/QAM-B receiver for USB)
+- DTU-235	(DVB-T measurement receiver for USB)
+- DTU-236	(QAM measurement receiver + ASI input for USB)
+- DTA-2131	(Multi-standard VHF/UHF demodulator for PCI Express)
+- DTA-2135	(Dual DVB-T receiver for PCI Express)
+- DTA-2136	(Dual QAM-A/B/C receiver for PCI Express)
+- DTA-2137	(Dual DVB-S/DVB-S2 receiver for PCI Express)
+- DTA-2138	(DVB C2/T2 receiver for PCI Express)
+- DTA-2139	(Twelve-channel QAM Receiver for PCI Express)
  
 NOTE: this service must be running to be able to use the above boards.
  
@@ -56,14 +54,16 @@ have installed the following shared library versions.
  - libm.so.6
  - libc.so.6
 
-To install the DtapiService, execute the self-extracting binary DtapiService.bin.
-This should be done as super user, for example: "sudo ./DtapiService.bin".
-The installer will use temporary storage in "/tmp/DtapiServiceInstaller".
+To install the DtapiService, execute the self-extracting binary 
+DtapiService.bin. This should be done as super user, for example: 
+"sudo ./DtapiService.bin". The installer will use temporary 
+storage in "/tmp/DtapiServiceInstaller".
 
-After having installed the DtapiService it should start automatically whenever you
-boot. To manually start and stop the daemon you can use the DtapiServiceInit
-script located in your init directory. Type "DtapiServiceInit start" to start the daemon and 
-"DtapiServiceInit stop" to stop it.
+After having installed the DtapiService it should start automatically whenever 
+you boot. To manually start and stop the daemon you can use the 
+DtapiServiceInit script located in your init directory. 
+Type "DtapiServiceInit start" to start the daemon and "DtapiServiceInit stop"
+to stop it.
 
 IMPORTANT: For the DtapiService to properly work the Dta1xx driver must be
 running. Please refer to the Dta1xx readme file for instructions on how to
@@ -81,7 +81,6 @@ Van Riebeeckweg 43A
 1212 EH Hilversum
 The Netherlands
 
-Tel:		+31 (0)35 64 69 210
-Fax:		+31 (0)35 68 31 015
+Tel:		+31 (0)35 2030 100
 email: 		support@dektec.com / info@dektec.com
 website:	www.dektec.com

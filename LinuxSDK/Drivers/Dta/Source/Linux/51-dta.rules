@@ -1,0 +1,5 @@
+# Set character device file mode to read/write for all
+KERNEL=="Dta*", MODE="0666"
+
+# Give DTA-plus devices a name so the DTAPI can find them.
+SUBSYSTEMS=="usb", KERNEL=="ttyUSB[0-9]*", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="83d8", MODE="0666", SYMLINK+="DtaPlus%n"

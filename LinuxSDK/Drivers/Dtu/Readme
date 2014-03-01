@@ -1,0 +1,80 @@
+--------------------------------------------------------------------------------
+- Readme for Dtu Linux device driver
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+- Table of Contents
+--------------------------------------------------------------------------------
+
+ 1. Version History
+ 2. Introduction
+ 3. Installation Instructions
+ 4. Usage Instructions
+ 5. Contact Information
+
+--------------------------------------------------------------------------------
+- 1. Version History
+--------------------------------------------------------------------------------
+
+Date:		Version:	Remarks:
+2012.12.06  4.2.0.30	Refer to "SDK - Revision History.pdf" for details
+2012.10.31	4.1.2.26	Refer to "SDK - Revision History.pdf" for details
+2012.09.28	4.1.0.24	Refer to "SDK - Revision History.pdf" for details
+2012.06.07	4.0.8.23	Refer to "SDK - Revision History.pdf" for details
+2012.05.14	4.0.7.22	First release to the field of new V4 driver
+						NOTE: this driver requires DTAPI V5.0.5 or newer
+
+--------------------------------------------------------------------------------
+- 2. Introduction
+--------------------------------------------------------------------------------
+
+The Dtu driver is a char driver for DekTec's DTU-series of USB devices.
+Currently the driver provides support for the following devices:
+- DTU-205	(ASI/SDI output for USB)
+- DTU-215	(VHF/UHF modulator for USB)
+- DTU-225	(ASI/SDI input for USB)
+- DTU-234	(VSB/QAM-B receiver for USB)
+- DTU-235	(DVB-T measurement receiver for USB)
+- DTU-236	(QAM measurement receiver + ASI input for USB)
+- DTU-245	(ASI/SDI input+output for USB)
+ 
+--------------------------------------------------------------------------------
+- 3. Installation Instructions
+--------------------------------------------------------------------------------
+
+To install the driver, perform the following steps:
+ - Compile the driver (type "make" in the directory containing the makefile);
+ - Install the driver (type "make install" in the directory containing the
+   makefile).
+
+NOTE: MAKE SURE THE 'KERNEL_DIR' DEFINE IN THE MAKEFILE SPECIFIES THE CORRECT
+      PATH TO THE KERNEL SOURCES.  IF THE SPECIFIED PATH DOES NOT INCLUDE THE
+      KERNEL SOURCES, BUT ONLY THE 'USER' SOURCES THE COMPILER MIGHT GENERATE
+      THE FOLLOWING MESSAGE: "#warning Using kernel headers in userspace"
+
+--------------------------------------------------------------------------------
+- 4. Usage Instructions
+--------------------------------------------------------------------------------
+
+The Dtu driver has the following system requirements:
+ - Kernel version 2.6.18 or higher
+ - Linux hotplug should be installed
+  
+For easy usage of the driver, DekTec provides the DTAPI wrapper library.
+The DTAPI hides the complexities of using the driver in a few easy-to-use
+classes. The DTAPI is included in the Linux SDK.
+
+--------------------------------------------------------------------------------
+- 5. Contact Information
+--------------------------------------------------------------------------------
+
+Please find our contact information below:
+
+DekTec Digital Video B.V.
+Godelindeweg 4
+1217 HR Hilversum
+The Netherlands
+
+Tel:		+31 (0)35 2030 100
+email: 		support@dektec.com / info@dektec.com
+website:	www.dektec.com

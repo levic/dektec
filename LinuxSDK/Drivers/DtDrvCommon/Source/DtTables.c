@@ -1,0 +1,179 @@
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtTables.c *#*#*#*#*#*#*#*#* (C) 2011-2012 DekTec
+//
+// Driver common - Table get funcions.
+//
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+// Copyright (C) 2011-2012 DekTec Digital Video B.V.
+//
+// Redistribution and use in source and binary forms, with or without modification, are
+// permitted provided that the following conditions are met:
+//  1. Redistributions of source code must retain the above copyright notice, this list
+//     of conditions and the following disclaimer.
+//  2. Redistributions in binary format must reproduce the above copyright notice, this
+//     list of conditions and the following disclaimer in the documentation.
+//  3. The source code may not be modified for the express purpose of enabling hardware
+//     features for which no genuine license has been obtained.
+//
+// THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+// INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+// PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL DEKTEC DIGITAL VIDEO BV, ITS AGENTS OR ITS EMPLOYEES BE LIABLE FOR
+// ANY DIRECT, INDIRECT, CONSEQUENTIAL, INCIDENTAL, OR OTHER DAMAGES (INCLUDING DAMAGES
+// FOR THE LOSS OF USE, INFORMATION, GOODWILL, PROFIT, WORK STOPPAGE, DATA, BUSINESS OR
+// REVENUE) UNDER ANY CIRCUMSTANCES, OR UNDER ANY LEGAL THEORY, WHETHER IN CONTRACT, IN
+// TORT, IN NEGLIGENCE, OR OTHERWISE, ARISING FROM THE USE OF, OR INABILITY TO USE THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+#include <DtDrvCommon.h>
+
+// Generated table store
+extern const Int  DtTableStoreCount;
+extern const DtTableStore  DtTableStores[];
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtTablesInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtTablesInit(DtPropertyData* pPropData)
+{
+    Int  Index;
+
+    // Default no table store found for our device
+    pPropData->m_pTableStore = NULL;
+
+    // Find the table store for our device
+    for (Index=0; Index<DtTableStoreCount; Index++)
+    {
+        if (DtTableStores[Index].m_TypeNumber == pPropData->m_TypeNumber)
+        {
+            pPropData->m_pTableStore = (void*)&DtTableStores[Index];
+            break;
+        }
+    }
+
+    // It's not a fault if no table store is found. Not all cards have tables
+    if (pPropData->m_pTableStore == NULL)
+        DtDbgOut(MIN, TABLE, "Tablestore not found for %s-%d",pPropData->m_TypeName,
+                                                                 pPropData->m_TypeNumber);
+    return DT_STATUS_OK;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtTableGet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtTableGet(
+    DtPropertyData*  pPropData,
+    const char*  pTableName,
+    Int  PortIndex,
+    UInt  MaxNumEntries,
+    UInt*  pNumEntries,
+    DtTableEntry*  pTableEntry2,
+    UInt OutBufSize)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    const DtTableStore*  pStore = (DtTableStore*)pPropData->m_pTableStore;
+    
+    Int  TypeNumber;
+    Bool  TableNameFound = FALSE;
+    UInt  Index;
+    DtTableLink*  pTableLinkFound = NULL;
+    
+    *pNumEntries = 0;
+    if (pPropData->m_pTableStore == NULL)
+    {
+        DT_ASSERT(FALSE);
+        return DT_STATUS_NOT_FOUND;
+    }
+
+     // Search all tables
+    for (Index=0; Index<pStore->m_TableLinkCount; Index++)
+    {
+        const DtTableLink*  pTableLink = &pStore->m_pTableLink[Index];
+
+        // Check if the table name was already found. If so, we stop if
+        // name <> NULL.
+        if (TableNameFound)
+        {
+            // When the table name was found earlier, only accept entries without
+            // a name. We just stop when (another) named entry is found.
+            if (pTableLink->m_pName != NULL)
+                break;
+        } else {
+            // Compare name to check if we found the first occurrence
+            if (DtAnsiCharArrayIsEqual(pTableName, pTableLink->m_pName))
+                TableNameFound = TRUE;
+        }
+
+        if (TableNameFound)
+        {
+            // Check port number
+            if (PortIndex == pTableLink->m_PortIndex)
+            {
+                // Check minimal firmware version
+                if (pPropData->m_FirmwareVersion >= pTableLink->m_MinFw)
+                {
+                    // Check minimal hardware version
+                    if (pPropData->m_HardwareRevision >= pTableLink->m_MinHw)
+                    {
+                        pTableLinkFound = (DtTableLink*)pTableLink;
+
+                        // We can stop here since the parser has ordened each
+                        // property by minimal firmware version/hardware version.
+                        // This means the first hit is the best one
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    if (!TableNameFound)
+    {   
+        DtDbgOut(ERR, TABLE, "Table %s is not found at all for DTX-%d",
+                                                        pTableName, pStore->m_TypeNumber);
+        Status = DT_STATUS_NOT_FOUND;
+    }
+        
+    // Check if the table was found
+    if (pTableLinkFound == NULL)
+    {
+        Status = DT_STATUS_NOT_FOUND;
+        DtDbgOut(ERR, TABLE, "Failed to get table %s for DTX-%d, FW %d, HW %d port %i", 
+                                                  pTableName,
+                                                  pPropData->m_TypeNumber,
+                                                  pPropData->m_FirmwareVersion,
+                                                  pPropData->m_HardwareRevision,
+                                                  PortIndex);
+    }
+    
+    if (DT_SUCCESS(Status) && pTableLinkFound!=NULL)
+    {
+        DtDbgOut(MAX, TABLE, "Found table %s for DTX-%d, FW %d, HW %d. #EL:%i #MAX:%i" ,
+                                                  pTableName,
+                                                  pPropData->m_TypeNumber,
+                                                  pPropData->m_FirmwareVersion,
+                                                  pPropData->m_HardwareRevision,
+                                                  pTableLinkFound->m_TableEntryCount,
+                                                  MaxNumEntries);
+        *pNumEntries =  pTableLinkFound->m_TableEntryCount;
+        
+        // Check if enough space for the table
+        if (MaxNumEntries < pTableLinkFound->m_TableEntryCount)
+        {
+            if (MaxNumEntries != 0)
+                DtDbgOut(ERR, TABLE, "Max. number of entries to small. Needed:%i, "
+                       "Space for:%i", pTableLinkFound->m_TableEntryCount, MaxNumEntries);
+        }
+        else if (OutBufSize < pTableLinkFound->m_TableEntryCount * sizeof(DtTableEntry)) {
+            DtDbgOut(ERR, TABLE, "Buffer smaller than indicated by MaxNumEntries");
+            Status = DT_STATUS_INVALID_PARAMETER;
+        } else {
+            // Copy table
+            DtMemCopy(pTableEntry2, (void*)pTableLinkFound->m_pTableEntries, 
+                             pTableLinkFound->m_TableEntryCount * sizeof(DtTableEntry));
+        }
+    } 
+    return Status;
+}
+
