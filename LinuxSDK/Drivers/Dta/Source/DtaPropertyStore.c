@@ -1591,7 +1591,7 @@ static const DtProperty  DtProperties111_0_01[] =
 {
     { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "MOD_LEVEL_NUM_ATTN", 1, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0,
+    { "MOD_LEVEL_NUM_ATTN", 0, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties111_0_02[] =
