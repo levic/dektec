@@ -94,6 +94,10 @@ int Dta1xxIoCtl(
 	IoReqSize = 0;
 	switch (cmd)
     {
+    case IOCTL_DTA1XX_AD9789_WRITE:
+        IoctlStr = "IOCTL_DTA1XX_AD9789_WRITE";
+        IoReqSize = sizeof(DTA1XX_AD9789_WRITE);
+        break;
 
 	case IOCTL_DTA1XX_CDMA_CTRL:
 		IoctlStr = "IOCTL_DTA1XX_CDMA_CTRL";
@@ -228,19 +232,9 @@ int Dta1xxIoCtl(
 		IoReqSize = sizeof(DTA1XX_NWSTATCNT);
 		break;
 
-	case IOCTL_DTA1XX_GET_OUTPUT_LEVEL:
-		IoctlStr = "IOCTL_DTA1XX_GET_OUTPUT_LEVEL";
-		IoReqSize = sizeof(DTA1XX_OUTPUT_LEVEL);
-		break;
-
 	case IOCTL_DTA1XX_GET_RATE2:		// Successor of IOCTL_DTA1XX_GET_TS_RATE
 		IoctlStr = "IOCTL_DTA1XX_GET_RATE2";
 		IoReqSize = sizeof(DTA1XX_RATE_INFO2);
-		break;
-	
-	case IOCTL_DTA1XX_GET_RF_CONTROL:
-		IoctlStr = "IOCTL_DTA1XX_GET_RF_CONTROL";
-		IoReqSize = sizeof(DTA1XX_RF_CONTROL);
 		break;
 
 	case IOCTL_DTA1XX_GET_RX_INFO:
@@ -366,31 +360,26 @@ int Dta1xxIoCtl(
 		IoctlStr = "IOCTL_DTA1XX_SET_NWSTATCNT";
 		IoReqSize = sizeof(DTA1XX_NWSTATCNT);
 		break;
-	
-	case IOCTL_DTA1XX_SET_OUTPUT_LEVEL:
-		IoctlStr = "IOCTL_DTA1XX_SET_OUTPUT_LEVEL";
-		IoReqSize = sizeof(DTA1XX_OUTPUT_LEVEL);
-		break;
 
-	case IOCTL_DTA1XX_SET_RATE2:		// Successor of IOCTL_DTA1XX_SET_TS_RATE
+    case IOCTL_DTA1XX_SET_RATE2:		// Successor of IOCTL_DTA1XX_SET_TS_RATE
 		IoctlStr = "IOCTL_DTA1XX_SET_RATE2";
 		IoReqSize = sizeof(DTA1XX_RATE_INFO2);
 		break;
+
+    case IOCTL_DTA1XX_SET_RATE3:        // Partial successor of IOCTL_DTA1XX_SET_TS_RATE2
+        IoctlStr = "IOCTL_DTA1XX_SET_RATE3";
+        IoReqSize = sizeof(DTA1XX_RATE_INFO2);
+        break;
 	
-	case IOCTL_DTA1XX_SET_RF_CONTROL:
-		IoctlStr = "IOCTL_DTA1XX_SET_RF_CONTROL";
-		IoReqSize = sizeof(DTA1XX_RF_CONTROL);
-		break;
-
-	case IOCTL_DTA1XX_SET_RF_MODE:
-		IoctlStr = "IOCTL_DTA1XX_SET_RF_MODE";
-		IoReqSize = sizeof(DTA1XX_RF_MODE);
-		break;
-
 	case IOCTL_DTA1XX_SET_RX_MODE:
 		IoctlStr = "IOCTL_DTA1XX_SET_RX_MODE";
 		IoReqSize = sizeof(DTA1XX_RX_MODE);
 		break;
+
+    case IOCTL_DTA1XX_SET_SPI_CLK:
+        IoctlStr = "IOCTL_DTA1XX_SET_SPI_CLK";
+        IoReqSize = sizeof(DTA1XX_SPI_CLK);
+        break;
 
 	case IOCTL_DTA1XX_SET_TS_RATE:		// LEGACY, replaced by IOCTL_DTA1XX_SET_RATE2
 		IoctlStr = "IOCTL_DTA1XX_SET_TS_RATE";
@@ -479,6 +468,11 @@ int Dta1xxIoCtl(
 
 	switch (cmd)
     {
+
+    case IOCTL_DTA1XX_AD9789_WRITE:
+        ChannelType = DTA1XX_TS_TX_CHANNEL;
+        PortIndex = IoData.m_Ad9789Write.m_PortIndex;
+        break;
 
 	case IOCTL_DTA1XX_CDMA_CTRL:
 		ChannelType = IoData.m_CdmaControl.m_ChannelType;
@@ -782,7 +776,7 @@ int Dta1xxIoCtl(
 	case IOCTL_DTA1XX_SET_NWSTATCNT:
 		break;
 
-	case IOCTL_DTA1XX_SET_RATE2:		// Successor of IOCTL_DTA1XX_SET_TS_RATE
+    case IOCTL_DTA1XX_SET_RATE2:		// Successor of IOCTL_DTA1XX_SET_TS_RATE
 		ChannelType = DTA1XX_TS_TX_CHANNEL;
 		if ( pFdo->m_TypeNumber==140 && IoData.m_RateInfo2.m_PortIndex==0 )
 			PortIndex = 1;
@@ -790,9 +784,18 @@ int Dta1xxIoCtl(
 			PortIndex = IoData.m_RateInfo2.m_PortIndex;
 		break;
 
+     case IOCTL_DTA1XX_SET_RATE3:        // Successor of SET_TS_RATE2 for modulators
+        ChannelType = DTA1XX_TS_TX_CHANNEL;
+        PortIndex = IoData.m_RateInfo2.m_PortIndex;
+        break;
+
 	case IOCTL_DTA1XX_SET_RX_MODE:
 		PortIndex = IoData.m_RxMode.m_PortIndex;
 		break;
+
+	case IOCTL_DTA1XX_SET_SPI_CLK:
+        PortIndex = IoData.m_SpiClk.m_PortIndex;
+        break;
 
 	case IOCTL_DTA1XX_SET_TS_RATE:		// LEGACY, replaced by IOCTL_DTA1XX_SET_RATE2
 		ChannelType = DTA1XX_TS_TX_CHANNEL;
@@ -857,23 +860,6 @@ int Dta1xxIoCtl(
 		PortIndex   = IoData.m_Port2Intpar.m_PortIndex;
 		break;
 
-	// input buffer IOCTL_DTA1XX_GET_OUTPUT_LEVEL
-	case IOCTL_DTA1XX_GET_OUTPUT_LEVEL:
-	case IOCTL_DTA1XX_SET_OUTPUT_LEVEL:
-		PortIndex   = IoData.m_OutputLevel.m_PortIndex;
-		break;
-
-	// input buffer DTA1XX_RF_CONTROL
-	case IOCTL_DTA1XX_GET_RF_CONTROL:
-	case IOCTL_DTA1XX_SET_RF_CONTROL:
-		PortIndex   = IoData.m_RfControl.m_PortIndex;
-		break;
-
-	// input buffer DTA1XX_RF_MODE
-	case IOCTL_DTA1XX_SET_RF_MODE:
-		PortIndex   = IoData.m_RfMode.m_PortIndex;
-		break;
-
 	default:
 		break;
 	}
@@ -885,6 +871,17 @@ int Dta1xxIoCtl(
 
 	switch (cmd)
     {
+
+    //.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_AD9789_WRITE .-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+    //
+    // Issue AD9789 write
+    //
+    case IOCTL_DTA1XX_AD9789_WRITE:
+        ReturnStatus = Dta1xxAd9789Write(pFdo, PortIndex,
+                                               IoData.m_Ad9789Write.m_RegAddr,
+                                               IoData.m_Ad9789Write.m_NumToWrite,
+                                               IoData.m_Ad9789Write.m_Data);
+        break;
 
 	//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_CDMA_CTRL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 	//
@@ -1193,13 +1190,6 @@ int Dta1xxIoCtl(
 		}
 		break;
 
-	//.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_GET_OUTPUT_LEVEL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-	//
-	case IOCTL_DTA1XX_GET_OUTPUT_LEVEL:
-		ReturnStatus = Dta1xxTxGetOutputLevel( pFdo, PortIndex,
-				&IoData.m_OutputLevel.m_OutputLevel);
-		break;
-
 	//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_GET_RATE2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 	//
 	// Sucessor of IOCTL_DTA1XX_GET_TS_RATE
@@ -1210,14 +1200,6 @@ int Dta1xxIoCtl(
 									   &IoData.m_RateInfo2.m_TsSymOrSampRate);
 		break;
 	
-	//.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_GET_RF_CONTROL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-	//
-	case IOCTL_DTA1XX_GET_RF_CONTROL:
-		ReturnStatus = Dta1xxTxGetRfControl( pFdo, PortIndex,
-			&IoData.m_RfControl.m_RfRate,
-			&IoData.m_RfControl.m_LockStatus );
-		break;
-
 	//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_GET_RX_INFO -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 	//
 	// Get receive-channel info.
@@ -1276,7 +1258,7 @@ int Dta1xxIoCtl(
 	//.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_I2C_TRANSFER -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 	//
 	case IOCTL_DTA1XX_I2C_TRANSFER:
-		ReturnStatus = Dta1xxI2cTransferIoctl(pFdo, &IoData.m_I2cTransfer);
+		ReturnStatus = Dta1xxI2cTransferIoctl(pFdo, filp, &IoData.m_I2cTransfer);
 		break;
 
 
@@ -1487,27 +1469,7 @@ int Dta1xxIoCtl(
 			}
 		}
 		break;
-	//.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_SET_OUTPUT_LEVEL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-	//
-	case IOCTL_DTA1XX_SET_OUTPUT_LEVEL:
-		ReturnStatus = Dta1xxTxSetOutputLevel(pFdo, PortIndex,
-			IoData.m_OutputLevel.m_OutputLevel );
-		break;
-
-	//.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_SET_RF_CONTROL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-	//
-	case IOCTL_DTA1XX_SET_RF_CONTROL:
-		ReturnStatus = Dta1xxTxSetRfControl( pFdo, PortIndex,
-			IoData.m_RfControl.m_RfRate );
-		break;
-
-	//.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_SET_RF_MODE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-	//
-	case IOCTL_DTA1XX_SET_RF_MODE:
-		ReturnStatus = Dta1xxTxSetRfMode( pFdo, PortIndex,
-			IoData.m_RfMode.m_RfMode );
-		break;
-
+	
 	//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_SET_RATE2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 	//
 	// Succesor of IOCTL_DTA1XX_SET_TS_RATE
@@ -1517,6 +1479,14 @@ int Dta1xxIoCtl(
 										IoData.m_RateInfo2.m_ClockGenMode,
 										IoData.m_RateInfo2.m_TsSymOrSampRate);
 		break;
+
+    //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_SET_RATE3 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+    // Succesor of IOCTL_DTA1XX_SET_TS_RATE2 for modulators
+    case IOCTL_DTA1XX_SET_RATE3:
+        ReturnStatus = Dta1xxTxSetRate3(pFdo, PortIndex,
+                                        IoData.m_RateInfo2.m_ClockGenMode,
+                                        IoData.m_RateInfo2.m_TsSymOrSampRate);
+        break;
 
 	//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOCTL_DTA1XX_SET_RX_MODE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 	//
@@ -2041,6 +2011,7 @@ Int  Dta1xxFirmwareReboot(
 //
 Int  Dta1xxI2cTransferIoctl(
 	DTA1XX_FDO* pFdo,		// Functional device object, representing the DTA-1xx card
+    struct file* pFileObj,
 	DTA1XX_I2C_TRANSFER*  pI2cTransf)
 {
 	char*  CmdStr;						// Mnemonic string for Command
@@ -2069,12 +2040,12 @@ Int  Dta1xxI2cTransferIoctl(
 	switch (pI2cTransf->m_Command)
 	{
 	case DTA1XX_I2CCMD_READ:
-		ReturnStatus = Dta1xxI2cRead(pFdo, pI2cTransf->m_DeviceAddr,
+		ReturnStatus = Dta1xxI2cRead(pFdo, pFileObj, pI2cTransf->m_DeviceAddr,
 									 pI2cTransf->m_Length, pI2cTransf->m_Buf);
 		break;
 
 	case DTA1XX_I2CCMD_WRITE:
-		ReturnStatus = Dta1xxI2cWrite(pFdo, pI2cTransf->m_DeviceAddr,
+		ReturnStatus = Dta1xxI2cWrite(pFdo, pFileObj, pI2cTransf->m_DeviceAddr,
 									  pI2cTransf->m_Length, pI2cTransf->m_Buf);
 		break;
 

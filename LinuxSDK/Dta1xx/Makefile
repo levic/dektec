@@ -39,8 +39,8 @@ endif
 
 SRCDIR = ./Source/
 TARGET = Dta1xx
-SRC    =  $(SRCDIR)CrossPlatform.$(EXT) $(SRCDIR)DacVga.$(EXT) \
-          $(SRCDIR)Dma.$(EXT) $(SRCDIR)Dta1xx.$(EXT) $(SRCDIR)Dta2111.$(EXT) \
+SRC    =  $(SRCDIR)Ad9789.$(EXT) $(SRCDIR)CrossPlatform.$(EXT) $(SRCDIR)DacVga.$(EXT) \
+          $(SRCDIR)Dma.$(EXT) $(SRCDIR)Dta1xx.$(EXT) \
           $(SRCDIR)EepromControl.$(EXT) $(SRCDIR)Exclusive.$(EXT) $(SRCDIR)Flags.$(EXT) \
           $(SRCDIR)Genlock.$(EXT) $(SRCDIR)Init.$(EXT) $(SRCDIR)Interrupt.$(EXT) \
           $(SRCDIR)IoCtl.$(EXT) $(SRCDIR)LowLevel.$(EXT) $(SRCDIR)MapMemory.$(EXT) \

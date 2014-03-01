@@ -932,10 +932,12 @@ typedef struct _Dta1xxTx {
 	volatile UInt  m_SdiMode		: 1;	//  SDI mode enable/disbale
 	volatile UInt  m_Sdi10Bit		: 1;	//  SDI 10-bit mode
 	volatile UInt  m_TxOutEn		: 1;	//  Transmit channel output enable
-			 UInt  m_Reserved1		: 2;
+    volatile UInt  m_TxTimestamp    : 1;    //  Transmit on time(stamp)
+    volatile UInt  m_TxLock         : 1;    //  Lock transmit rate to input
 	volatile UInt  m_SdiHuffEn		: 1;	//  Enable Huffman decompression
+    volatile UInt  m_TxTsRel		: 1;	//  Use relative mode for tx-on-time
 
-	}  m_TxControl;
+    }  m_TxControl;
 
 	//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Transmit-Status register -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 	//
@@ -1055,9 +1057,10 @@ typedef struct _Dta1xxTx {
 #define DTA1XX_TXCTRL_SDI_MODE			0x02000000
 #define DTA1XX_TXCTRL_SDI_10BIT			0x04000000
 #define DTA1XX_TXCTRL_OUT_EN			0x08000000
-#define DTA1XX_TXCTRL_TIMESTAMP			0x10000000
-#define DTA1XX_TXCTRL_LOCK				0x20000000
+#define DTA1XX_TXCTRL_TXONTIME		0x10000000
+#define DTA1XX_TXCTRL_LOCK2INP			0x20000000
 #define DTA1XX_TXCTRL_HUFF_EN			0x40000000
+#define DTA1XX_TXCTRL_TXTSREL			0x80000000
 
 // Tx Control: Register access
 static __inline UInt  Dta1xxTxGetTxCtrlReg(volatile UInt8* pBase) {
@@ -1314,6 +1317,28 @@ static __inline void  Dta1xxTxCtrlRegSetOutputEn(volatile UInt8* pBase, UInt Out
 	Dta1xxTxSetTxCtrlReg(pBase, Val);
 }
 
+// Tx Control: Transmit on time(stamp)
+static __inline UInt Dta1xxTxCtrlRegGetTxOnTime(volatile UInt8* pBase) {
+	return ((Dta1xxTxGetTxCtrlReg(pBase)&DTA1XX_TXCTRL_TXONTIME)!=0) ? 1 : 0;
+}
+static __inline void  Dta1xxTxCtrlRegSetTxOnTime(volatile UInt8* pBase, UInt TxOnTime) {
+	UInt  Val = Dta1xxTxGetTxCtrlReg(pBase);
+	if (TxOnTime != 0)   Val |=  DTA1XX_TXCTRL_TXONTIME;
+	else				 Val &= ~DTA1XX_TXCTRL_TXONTIME;
+	Dta1xxTxSetTxCtrlReg(pBase, Val);
+}
+
+// Tx Control: lock-to-input
+static __inline UInt Dta1xxTxCtrlRegGetLock2Input(volatile UInt8* pBase) {
+    return ((Dta1xxTxGetTxCtrlReg(pBase)&DTA1XX_TXCTRL_LOCK2INP)!=0) ? 1 : 0;
+}
+static __inline void  Dta1xxTxCtrlRegSetLock2Input(volatile UInt8* pBase, UInt Lock2Inp) {
+	UInt  Val = Dta1xxTxGetTxCtrlReg(pBase);
+	if (Lock2Inp != 0)   Val |=  DTA1XX_TXCTRL_LOCK2INP;
+	else				 Val &= ~DTA1XX_TXCTRL_LOCK2INP;
+	Dta1xxTxSetTxCtrlReg(pBase, Val);
+}
+
 // Tx Control: SDI Huffman decompression enable
 static __inline UInt Dta1xxTxCtrlRegGetSdiDecomprModeEn(volatile UInt8* pBase) {
 	return ((Dta1xxTxGetTxCtrlReg(pBase)&DTA1XX_TXCTRL_HUFF_EN)!=0) ? 1 : 0;
@@ -1533,11 +1558,14 @@ static __inline UInt  Dta1xxTxGetLoopBackDataReg(volatile UInt8* pBase) {
 #define DTA1XX_TXMODC_USER_LEVEL	0x01000000
 #define DTA1XX_TXMODC_SPEC_INV		0x02000000
 #define DTA1XX_TXMODC_MUTE_I		0x04000000
+#define DTA1XX_TXMODC_MUTE_I_SH     26
 #define DTA1XX_TXMODC_MUTE_Q		0x08000000
+#define DTA1XX_TXMODC_MUTE_Q_SH     27
 #define DTA1XX_TXMODC_TESTPAT_MSK	0xF0000000
 #define DTA1XX_TXMODC_TESTPAT_SH	28
 
 // Modulation-Type field: values
+// Values must be the same as DTU2XX_TXMODC_xxx
 #define DTA1XX_TXMODC_QPSK			0
 #define DTA1XX_TXMODC_BPSK			1
 #define DTA1XX_TXMODC_QAM4			3
@@ -1552,6 +1580,7 @@ static __inline UInt  Dta1xxTxGetLoopBackDataReg(volatile UInt8* pBase) {
 #define DTA1XX_TXMODC_IQDIRECT		15		// Direct I/Q
 
 // I/Q Mapping field: values
+// Values must be the same as DTU2XX_IQMAP_xxx
 #define DTA1XX_IQMAP_QAM			0		// General QAM I/Q mapping
 #define DTA1XX_IQMAP_QAM16			1		// Optimised I/Q mapping for 16-QAM
 #define DTA1XX_IQMAP_QAM32			2		// Optimised I/Q mapping for 32-QAM
@@ -1560,6 +1589,7 @@ static __inline UInt  Dta1xxTxGetLoopBackDataReg(volatile UInt8* pBase) {
 #define DTA1XX_IQMAP_VSB16			5
 
 // Roll-Off factor field: values
+// Values must be the same as DTU2XX_ROLOFF_xxx
 #define DTA1XX_ROLLOFF_12			0
 #define DTA1XX_ROLLOFF_13			1
 #define DTA1XX_ROLLOFF_15			2
@@ -1567,10 +1597,12 @@ static __inline UInt  Dta1xxTxGetLoopBackDataReg(volatile UInt8* pBase) {
 #define DTA1XX_ROLLOFF_5			4
 
 // Roll-Off factor field: values
+// Values must be the same as DTU2XX_INTPOL_xxx
 #define DTA1XX_INTPOL_QAM			0		// Use interpolator optimised for n-QAM
 #define DTA1XX_INTPOL_OFDM			1		// Use interpolator optimised for OFDM
 
 // Test patterns
+// Values must be the same as DTU2XX_TP_xxx
 #define DTA1XX_TP_NORMAL			0		// Normal mode
 #define DTA1XX_TP_NYQUIST			1		// Nyquist test-pattern
 #define DTA1XX_TP_HALFNYQ			2		// Half-nyquist tets-pattern
@@ -2379,7 +2411,9 @@ typedef struct _Dta1xxRx {
 #define DTA1XX_RXCTRL_EQUALISE			0x00000010
 #define DTA1XX_RXCTRL_RXCTRL			0x00000020
 #define DTA1XX_RXCTRL_ANTPWR			0X00000040
-#define DTA1XX_RXCTRL_TIMESTAMP			0x00000080
+#define DTA1XX_RXCTRL_TIMESTAMP			0x00000080 // OBSOLETE
+#define DTA1XX_RXCTRL_TIMESTAMP32		0x00000080
+#define DTA1XX_RXCTRL_TIMESTAMP64		0x00000100
 #define DTA1XX_RXCTRL_PERINT_EN			0x00000100
 #define DTA1XX_RXCTRL_OVFINT_EN			0x00000200
 #define DTA1XX_RXCTRL_SYNCINT_EN		0x00000400
@@ -2465,13 +2499,24 @@ static __inline void  Dta1xxRxCtrlRegSetAntPwr(volatile UInt8* pBase, UInt EnaPw
 }
 
 // Rx Control: RxTimeStamp
-static __inline UInt  Dta1xxRxCtrlRegGetTimeStamping(volatile UInt8* pBase) {
-	return ((Dta1xxRxGetRxCtrlReg(pBase)&DTA1XX_RXCTRL_TIMESTAMP)!=0) ? 1 : 0;
+#define Dta1xxRxCtrlRegGetTimeStamping Dta1xxRxCtrlRegGetTimeStamping32 // OBSOLETE
+#define Dta1xxRxCtrlRegSetTimeStamping Dta1xxRxCtrlRegSetTimeStamping32 // OBSOLETE
+static __inline UInt  Dta1xxRxCtrlRegGetTimeStamping32(volatile UInt8* pBase) {
+	return ((Dta1xxRxGetRxCtrlReg(pBase)&DTA1XX_RXCTRL_TIMESTAMP32)!=0) ? 1 : 0;
 }
-static __inline void  Dta1xxRxCtrlRegSetTimeStamping(volatile UInt8* pBase, UInt RxTimeStamp) {
+static __inline UInt  Dta1xxRxCtrlRegGetTimeStamping64(volatile UInt8* pBase) {
+	return ((Dta1xxRxGetRxCtrlReg(pBase)&DTA1XX_RXCTRL_TIMESTAMP64)!=0) ? 1 : 0;
+}
+static __inline void  Dta1xxRxCtrlRegSetTimeStamping32(volatile UInt8* pBase, UInt RxTimeStamp) {
 	UInt  Val = Dta1xxRxGetRxCtrlReg(pBase);
-	if (RxTimeStamp != 0)	Val |=  DTA1XX_RXCTRL_TIMESTAMP;
-	else					Val &= ~DTA1XX_RXCTRL_TIMESTAMP;
+	if (RxTimeStamp != 0)	Val |=  DTA1XX_RXCTRL_TIMESTAMP32;
+	else					Val &= ~DTA1XX_RXCTRL_TIMESTAMP32;
+	Dta1xxRxSetRxCtrlReg(pBase, Val);
+}
+static __inline void  Dta1xxRxCtrlRegSetTimeStamping64(volatile UInt8* pBase, UInt RxTimeStamp) {
+	UInt  Val = Dta1xxRxGetRxCtrlReg(pBase);
+	if (RxTimeStamp != 0)	Val |=  DTA1XX_RXCTRL_TIMESTAMP64;
+	else					Val &= ~DTA1XX_RXCTRL_TIMESTAMP64;
 	Dta1xxRxSetRxCtrlReg(pBase, Val);
 }
 

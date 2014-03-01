@@ -1,9 +1,6 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dtu2xxRegs.h *#*#*#*#*#*#*#*# (C) 2000-2003 DEKTEC
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dtu2xxRegs.h *#*#*#*#*#*#*#*# (C) 2000-2010 DekTec
 //
-// Definition of USB commands for DTU-2XX USB devices.
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Change History -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//	RZ	2003.11.09	Created 
+// Definition of USB commands for DTU-2XX USB devices
 
 #ifndef __DTU2XXREGS_H
 #define __DTU2XXREGS_H
@@ -174,6 +171,7 @@ typedef struct _Dtu2xxGen {
 //-.-.-.-.-.-.-.-.-.- Modulation control register field value defines -.-.-.-.-.-.-.-.-.-.
 
 // Modulation-Type field: values
+// Values must be the same as DTA1XX_TXMODC_xxx
 #define DTU2XX_TXMODC_QPSK			0
 #define DTU2XX_TXMODC_BPSK			1
 #define DTU2XX_TXMODC_QAM4			3
@@ -188,6 +186,7 @@ typedef struct _Dtu2xxGen {
 #define DTU2XX_TXMODC_IQDIRECT		15		// Direct I/Q
 
 // I/Q Mapping field: values
+// Values must be the same as DTA1XX_IQMAP_xxx
 #define DTU2XX_IQMAP_QAM			0		// General QAM I/Q mapping
 #define DTU2XX_IQMAP_QAM16			1		// Optimised I/Q mapping for 16-QAM
 #define DTU2XX_IQMAP_QAM32			2		// Optimised I/Q mapping for 32-QAM
@@ -196,17 +195,15 @@ typedef struct _Dtu2xxGen {
 #define DTU2XX_IQMAP_VSB16			5
 
 // Roll-Off factor field: values
+// Values must be the same as DTA1XX_ROLOFF_xxx
 #define DTU2XX_ROLLOFF_12			0
 #define DTU2XX_ROLLOFF_13			1
 #define DTU2XX_ROLLOFF_15			2
 #define DTU2XX_ROLLOFF_18			3
 #define DTU2XX_ROLLOFF_5			4
 
-// Roll-Off factor field: values
-#define DTU2XX_INTPOL_QAM			0		// Use interpolator optimised for n-QAM
-#define DTU2XX_INTPOL_OFDM			1		// Use interpolator optimised for OFDM
-
 // Test patterns
+// Values must be the same as DTA1XX_TP_xxx
 #define DTU2XX_TP_NORMAL			0		// Normal mode
 #define DTU2XX_TP_NYQUIST			1		// Nyquist test-pattern
 #define DTU2XX_TP_HALFNYQ			2		// Half-nyquist tets-pattern

@@ -96,6 +96,116 @@ Int  Dtu2xxRequestExclusiveAccess(
 	return 0;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxI2cReqExclAccess -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int  Dtu2xxI2cReqExclAccess(
+	IN PDTU2XX_FDO  pFdo,			    // Functional device object
+	IN struct file* pFileObj,	        // File object requesting/dropping excl. access
+	IN Int  Request,					// 0 = Request exclusive access
+										// 1 = Release exclusive access
+	OUT Int*  pGranted)					// Granted Yes / No
+{
+    int Access;
+    unsigned long OldIrqL;
+    int Recursive;
+
+    Access = 1;
+    Recursive = 0;
+
+	if (Request!=0 && Request!=1) {
+		DTU2XX_LOG(KERN_INFO, "Dtu2xxI2cReqExclAccess: ILLEGAL "
+				   "exclusive-access Request code %d", Request);
+		return -EFAULT;
+	}
+
+    spin_lock_irqsave(&pFdo->m_I2cExclAccSpinLock, OldIrqL);
+	if (Request == 0)
+    {
+
+		// Request exclusive access
+		if (pFdo->m_pI2cExclAccFileObj == NULL) 
+        {
+			pFdo->m_pI2cExclAccFileObj = pFileObj;
+			*pGranted = 1;
+			pFdo->m_I2cExclAccRecursiveCount = 0;
+		}
+        else 
+        {
+            Access = (pFdo->m_pI2cExclAccFileObj == pFileObj);
+			if (Access) 
+            {
+				*pGranted = 1;
+				pFdo->m_I2cExclAccRecursiveCount++;
+				Recursive = pFdo->m_I2cExclAccRecursiveCount;
+			}
+            else 
+            {
+				*pGranted = 0;
+			}
+		}
+	}
+    else
+    {
+
+
+		// Only release exclusive access if we owned it just once
+        Access = (pFdo->m_pI2cExclAccFileObj == pFileObj);
+		if (Access) 
+        {
+            Recursive = pFdo->m_I2cExclAccRecursiveCount;
+			if (pFdo->m_I2cExclAccRecursiveCount == 0) 
+            {
+				pFdo->m_pI2cExclAccFileObj = NULL;
+			}
+            else
+            {
+				pFdo->m_I2cExclAccRecursiveCount--;
+			}
+		}
+	}
+    spin_unlock_irqrestore(&pFdo->m_I2cExclAccSpinLock, OldIrqL);
+
+#if LOG_LEVEL > 0
+    if (Access) 
+    {
+        if (Request == 0) 
+        {
+            if (Recursive == 0)
+            { 
+    			DTU2XX_LOG(KERN_INFO, "Dtu2xxI2cReqExclAccess: REQUEST "
+    					   "exclusive access GRANTED");
+            }
+            else 
+            {
+    			DTU2XX_LOG(KERN_INFO, "Dtu2xxI2cReqExclAccess: REQUEST "
+    					   "exclusive access GRANTED (recursive %d)", Recursive);
+            }
+        } 
+        else 
+        {
+            if (Recursive == 0) 
+            { 
+        		DTU2XX_LOG(KERN_INFO, "Dtu2xxI2cReqExclAccess: RELEASED exclusive "
+        				   "access");
+            }
+            else 
+            {
+    			DTU2XX_LOG(KERN_INFO, "Dtu2xxI2cReqExclAccess: Exclusive "
+    			   "access not release yet (%d remaining)",
+    			   Recursive);
+            }
+        }
+    }
+    else 
+    {
+		DTU2XX_LOG(KERN_INFO, "Dtu2xxI2cReqExclAccess: REQUEST "
+				   "exclusive access DENIED");
+    }
+#endif
+	
+	return 0;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxCheckExclusiveAccess -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Called by Close to check whether the current file object held exclusive access to the
@@ -106,7 +216,22 @@ Int  Dtu2xxCheckExclusiveAccess(
 	IN struct file* pFileObject)	// File object for which we should check excludive access
 {
 	Int  i;
+	unsigned long  OldIrqL;
 	Channel*  pCh;				// Channel pointer
+    int Release;
+
+	// I2C port
+	spin_lock_irqsave(&pFdo->m_I2cExclAccSpinLock, OldIrqL);
+    Release = (pFdo->m_pI2cExclAccFileObj == pFileObject) && (pFdo->m_pI2cExclAccFileObj != NULL);
+	if (Release)
+	    pFdo->m_pI2cExclAccFileObj = NULL;
+	pFdo->m_I2cExclAccRecursiveCount = 0;
+	spin_unlock_irqrestore(&pFdo->m_I2cExclAccSpinLock, OldIrqL);
+#if LOG_LEVEL > 0
+    if (Release) {
+        DTU2XX_LOG(KERN_INFO, "Dtu2xxCheckExclusiveAccess: I2C port: RELEASED exclusive access");
+    }
+#endif
 
 	// Check all channels
 	for (i=0; i<pFdo->m_NumChannels; i++)

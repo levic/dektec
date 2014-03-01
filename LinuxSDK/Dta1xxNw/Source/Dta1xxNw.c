@@ -1,13 +1,10 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dta1Nw.c *#*#*#*#*#*#*#*#*# (C) 2000-2007 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dta1xxNw.c *#*#*#*#*#*#*#*#* (C) 2000-2010 DekTec
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // This program is free software; You can freely use/modify this source code in any way
 // you desire, including for commercial applications.
 //
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Change History -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//	RD	21-08-2007	Created
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <linux/kernel.h>	// printk() stuff
@@ -130,6 +127,21 @@ static const struct ethtool_ops EthToolOps = {
 	//.get_msglevel = Dta1NwGetMessageLevel,
 	//.set_msglevel = Dta1NwSetMessageLevel,
 };
+
+// Starting at kernel 2.6.29 the net_device callback functions should be placed in the 
+// net_device_ops structure
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)
+
+static const struct net_device_ops dta1xxnw_netdev_ops = {
+	.ndo_open = Dta1xxNwOpen,
+	.ndo_start_xmit = Dta1xxNwStartXmit,
+	.ndo_stop = Dta1xxNwClose,
+	.ndo_get_stats = Dta1xxNwGetStats,
+	.ndo_set_multicast_list = Dta1xxNwSetMulticastList,
+	.ndo_set_mac_address = Dta1xxNwSetMacAddr,
+};
+
+#endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -345,12 +357,16 @@ static int __init Dta1xxNwInitModule(void)
 		g_pNwDevices[g_NumNwDevices++] = lp;
         
 		// Set callback routines
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)
+		pNwDev->netdev_ops = &dta1xxnw_netdev_ops;
+#else
 		pNwDev->open = &Dta1xxNwOpen;
 		pNwDev->hard_start_xmit = &Dta1xxNwStartXmit;
 		pNwDev->stop = &Dta1xxNwClose;
 		pNwDev->get_stats = &Dta1xxNwGetStats;
 		pNwDev->set_multicast_list = &Dta1xxNwSetMulticastList;
 		pNwDev->set_mac_address = &Dta1xxNwSetMacAddr;
+#endif
 		
 		//pNwDev->tx_timeout = Dta1xxNwTxTimeout;
 		//pNwDev->watchdog_timeo = TX_TIMEOUT;
@@ -490,6 +506,7 @@ int Dta1xxNwStartXmit(struct sk_buff* pSkb, struct net_device* pDevice)
 	Dta1xxNw_Private* lp = (Dta1xxNw_Private*)netdev_priv(pDevice);
 	Dta1xxDmaTxHeader* pTxHeader;
 	Int PktLength;
+	Int TotalLength;
 	UInt FreeSpaceUntilEnd;
 	UInt FreeSpaceFromBegin;
 	UInt ReadOffset;
@@ -525,11 +542,12 @@ int Dta1xxNwStartXmit(struct sk_buff* pSkb, struct net_device* pDevice)
 		return STATUS_UNSUCCESSFUL;
 	}
 	PktLength = (pSkb->len < ETH_ZLEN ? ETH_ZLEN : pSkb->len);
-	// Make sure we allign on multiples of 4
-	if ( (PktLength%4)!=0 )
-		PktLength += (4-(PktLength%4));
-
-	// Check if we have room in our Tx buffer
+    
+	// Make sure there is enough free space for a complete packet including header and alignment
+	TotalLength = PktLength + sizeof(Dta1xxDmaTxHeader);
+	if ((TotalLength%4)!=0)
+		TotalLength += (4-(TotalLength%4));
+	
 	ReadOffset = pNwTx->m_ReadOffset;
 	WriteOffset = pNwTx->m_WriteOffset;
 	if (WriteOffset < ReadOffset) {
@@ -543,16 +561,19 @@ int Dta1xxNwStartXmit(struct sk_buff* pSkb, struct net_device* pDevice)
 			FreeSpaceFromBegin = ReadOffset - 1;
 	}
 
-	if (FreeSpaceUntilEnd >= PktLength+sizeof(Dta1xxDmaTxHeader)) {
-		// Copy transmit header
+	if (FreeSpaceUntilEnd >= TotalLength) {
+		// Found free space at end of buffer
 		pTxHeader = (Dta1xxDmaTxHeader*)(pNwTx->m_pBuffer + WriteOffset);
 
-	} else if (FreeSpaceFromBegin >= PktLength+sizeof(Dta1xxDmaTxHeader)) {
+	} else if (FreeSpaceFromBegin >= TotalLength) {
+		// Found free space at begin of buffer
+		// Mark first free byte at end of buffer as not used '*',
+		// so the TxThread knows to start next packet at begin of buffer.
 		pNwTx->m_pBuffer[WriteOffset] = '*';
 		WriteOffset = 0;
 		pTxHeader = (Dta1xxDmaTxHeader*)(pNwTx->m_pBuffer + WriteOffset);
 	} else {
-		// Not enough room, skip pakket
+		// Not enough free space, skip pakket
 		lp->m_NetStats.tx_dropped++;
 		return STATUS_UNSUCCESSFUL;
 	}
@@ -570,11 +591,16 @@ int Dta1xxNwStartXmit(struct sk_buff* pSkb, struct net_device* pDevice)
 		memset(pNwTx->m_pBuffer+WriteOffset, 0, ETH_ZLEN);
 	}
 	memcpy(pNwTx->m_pBuffer+WriteOffset, pSkb->data, pSkb->len);
+
+	// Make sure the next packet is aligned on multiples of 4
+	if ((PktLength%4)!=0)
+		PktLength += (4-(PktLength%4));
+
 	WriteOffset+= PktLength;
 
-	if (WriteOffset == pNwTx->m_BufSize) {
-		// Can not occur due to size check above. 
-		//If occurs then WriteOffset==ReadOffset can not be prevented!!
+	if (WriteOffset >= pNwTx->m_BufSize) {
+		// Can not occur due to free space check above. 
+		// If it occurs then WriteOffset==ReadOffset can not be prevented!!
 		WriteOffset = 0;
 	}
 
@@ -669,7 +695,7 @@ int  Dta1xxNwIpRxWorkerThread(
 				} else {
 					pSkb->dev = lp->m_pNwDevice;
 	
-					// Allign start of headers on DWORD boundary (ethernet header length <> DWORD boundary)
+					// Align start of headers on DWORD boundary (ethernet header length <> DWORD boundary)
 					skb_reserve(pSkb, 2);	
 					// Copy packet into Skb buffer without DMA header
 					memcpy(skb_put(pSkb, PktLength), (void*)(pBuf + sizeof(Dta1xxDmaRxHeader)), PktLength);
@@ -685,8 +711,8 @@ int  Dta1xxNwIpRxWorkerThread(
 					lp->m_NetStats.rx_packets++;
 				}
 				
-				// Make sure we allign on multiples of 4
-				if ( (PktLength%4)!=0 )
+				// Make sure we align on multiples of 4
+				if ((PktLength%4)!=0)
 					PktLength += (4-(PktLength%4));
 				
 				// Update read pointer
@@ -1104,12 +1130,12 @@ int  Dta1xxNwIpTxWorkerThread(
 					lp->m_NetStats.tx_packets++;
 				}
 
-				// Make sure we allign on multiples of 4
-				if ( (PktLength%4)!=0 )
+				// Make sure we align on multiples of 4 for the next packet
+				if ((PktLength%4)!=0)
 					PktLength += (4-(PktLength%4));
 
 				ReadOffset = pNwTx->m_ReadOffset + PktLength;
-				if (ReadOffset == pNwTx->m_BufSize)
+				if (ReadOffset >= pNwTx->m_BufSize)
 					ReadOffset = 0;
 
 				pNwTx->m_ReadOffset = ReadOffset;

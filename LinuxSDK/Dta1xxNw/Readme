@@ -18,6 +18,8 @@
 --------------------------------------------------------------------------------
 
 Date:		Version:	Remarks:
+2010.08.13	1.2.2.9		- Fixes compile issue, related to net_device_ops, on 
+						  Linux kernel 2.6.29 and later
 2010.06.26	1.2.1.8		- Fixes memory allignment issue on 64-bit kernels
 2009.11.04	1.2.0.7		- Fixes compile issues due to missing link to Dta1xx
 						  symbols

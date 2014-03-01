@@ -16,6 +16,105 @@
 #include "Dtu2xxRegs.h"
 #include "EzUsb.h"
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoctlAd9789Write -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  Dtu2xxTxIoctlAd9789Write(
+    IN PDTU2XX_FDO pFdo,                // Our device object
+    IN Int  PortIndex,                  // Zero-based port index (0=first port, ...)
+    IN Int  RegAddr,                    // Register address
+    IN Int  NumToWrite,                 // Number of bytes to write
+    IN UInt8*  pData)                   // Data bytes, max. 32bytes
+{
+    Int  Status = 0;
+    Channel*  pCh;
+    BOOLEAN  Is215 = (pFdo->m_TypeNumber == 215);
+
+#if LOG_LEVEL > 1
+    DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoctlAd9789Write: RegAddr=%d, NumToWrite=%d, "
+                          "Data[0]=0x%02X", PortIndex, RegAddr, NumToWrite, pData[0]);
+#endif
+
+    // Only supported by DTU-215
+    if (!Is215)
+    {
+        DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoctlAd9789Write: TypeNumber=%d "
+                                       "NOT SUPPROTED", PortIndex, pFdo->m_TypeNumber);
+        return -EFAULT;
+    }
+
+    // Check port index is valid
+    if (PortIndex<0 || PortIndex >= pFdo->m_NumChannels)
+    {
+        DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoctlAd9789Write: INVALID PORT NUMBER "
+                                     "NumChannels=%d", PortIndex, pFdo->m_NumChannels);
+        return -EINVAL;
+    }
+
+    // Set channel pointer
+    pCh = &pFdo->m_Channel[PortIndex];
+
+    // Call board specific handler
+    if (Is215)
+        Status = Dtu215SpiRegisterWrite(pCh, (UInt16)RegAddr, NumToWrite, pData);
+
+    return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlRegWriteMasked -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// I/O control handler for writing a field to an ALTERA register
+//
+Int  Dtu2xxTxIoCtlRegWriteMasked(
+	IN PDTU2XX_FDO  pFdo,       // Our device object
+    IN Int  PortIndex,          // Port index
+    Int  RegAddr,               // Register address relative to Tx base
+    Int  FieldMask,             // AND-mask to get field value in register
+    Int  FieldShift,            // Position of field in register (#times to shift left)
+    Int  FieldValue)            // Value to write in field
+{
+    UInt32*  pTxReg = NULL;            // Pointer to Altera register shadow value
+    UInt32  Cached;
+
+#if LOG_LEVEL_MODULATION > 1
+    DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlRegWriteMasked: RegAddr=0x%02X "
+                                  "FieldMask=0x%02X FieldShift=%d FieldValue=0x%X", 
+                                   PortIndex, RegAddr, FieldMask, FieldShift, FieldValue);
+#endif
+
+    // Check that port index is valid
+    if (PortIndex<0 || PortIndex>=pFdo->m_NumChannels)
+    {
+        DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlRegWriteMasked: INVALID PORT NUMBER "
+                                     "NumChannels=%d", PortIndex, pFdo->m_NumChannels);
+        return -EINVAL;
+    }
+
+    // Check that register address is multiple of four
+    if ((RegAddr & 3) != 0)
+    {
+        DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlRegWriteMasked: RegAddr IS "
+                                                        "NOT A MULTIPLE OF 4", PortIndex);
+        return -EINVAL;
+    }
+
+    // Add Tx base address to get the correct absolute address
+    RegAddr += DTU2XX_TX_BASE_ADDR;
+
+    // Get pointer to Tx register cache
+    pTxReg = (UInt32*)&(pFdo->m_Channel[PortIndex].m_TxRegs);
+
+    // Get cached value
+    Cached = pTxReg[RegAddr/4];
+    pTxReg[RegAddr/4] = (Cached & ~FieldMask) | (FieldValue << FieldShift);
+
+#if LOG_LEVEL_MODULATION > 1
+    DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlRegWriteMasked: Cached=0x%08X "
+                                      "New=0x%08X", PortIndex, Cached, pTxReg[RegAddr/4]);
+#endif
+
+    return Dtu2xxIoCtlWriteRegister(pFdo, RegAddr, pTxReg[RegAddr/4]);
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 Int  Dtu2xxTxIoCtlReset(
@@ -451,6 +550,39 @@ Int  Dtu2xxTxIoCtlTxPolarity(
 	// Update register value to match cache
 	return Dtu2xxIoCtlWriteRegister(pFdo, DTU2XX_TX_BASE_ADDR+DTU2XX_TX_REG_TXCTRL,
 									 pTxRegs->m_TxControl.All);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlSetFifoExtrap -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// I/O control handler for setting FIFO-extrapolation parameters.
+//
+Int  Dtu2xxTxIoCtlSetFifoExtrap(
+    IN PDTU2XX_FDO pFdo,              // Our device object
+    IN Int  PortIndex,                // Port index
+    IN Int  EnaFifoLoadExtrap,        // Enable FIFO load extrapolation
+    IN Int  NumTxBytesPerSec)         // Number of transmitted bytes per second
+{
+    Channel*  pCh = NULL;
+
+#if LOG_LEVEL > 1
+    DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetFifoExtrap: EnaFifoLoadExtrap=%d "
+                   "NumTxBytesPerSec=%d", PortIndex, EnaFifoLoadExtrap, NumTxBytesPerSec);
+#endif
+
+    // Check whether port index is valid
+    if (PortIndex<0 || PortIndex >= pFdo->m_NumChannels)
+    {
+        DTU2XX_LOG(KERN_INFO, "[%d] Dtu2xxTxIoCtlSetFifoExtrap: INVALID PORT NUMBER "
+                                     "NumChannels=%d", PortIndex, pFdo->m_NumChannels);
+        return -EINVAL;
+    }
+
+    // Save FIFO-extrapolation parameters in channel
+    pCh = &pFdo->m_Channel[PortIndex];
+    pCh->m_EnaFifoLoadExtrap = (BOOLEAN)EnaFifoLoadExtrap;
+    pCh->m_NumTxBytesPerSec = NumTxBytesPerSec;
+
+    return 0;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxTxIoCtlSetFifoSize -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

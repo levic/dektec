@@ -77,11 +77,19 @@
 //	2	Average (up to 10 per second)
 //	3	All
 
+// Other logs (0=off not supported)
+#ifdef DEBUG
+#define LOG_LEVEL					1
+#define TRACE               		DTU2XX_LOG(KERN_INFO,"trace: %s, %d",__FILE__,__LINE__)
+#else
+#define LOG_LEVEL					0
+// do not define TRACE in order to get compile errors on every remaining TRACE in the code
+#endif
+
 // DMA related
 #define LOG_LEVEL_DMA				0
-
-// Other logs (0=off not supported)
-#define LOG_LEVEL					0
+// Modulation related
+#define LOG_LEVEL_MODULATION        0
 
 // Driver log message helpers
 #define DTU2XX_LOG(l,m,args...)		printk(l DRIVER_NAME ": " m "\n", ## args)
@@ -308,6 +316,18 @@ typedef struct _DTU2XX_FDO
 	// Register cache
 	Dtu2xxGen m_GenRegs;			// Cached general registers
 
+	// I2C mutex and lock info
+	struct semaphore  m_I2cMutex;				// Mutex to protect against simultaneous access 
+										// to I2C interface
+	struct file*  m_pI2cExclAccFileObj;	// File object that owns the I2C lock
+	spinlock_t  m_I2cExclAccSpinLock;	// Protect updates to m_pI2cExclAccFileObj
+	Int  m_I2cExclAccRecursiveCount;	// Counts number of recursive exclusive access
+
+	// uCode upload state
+	spinlock_t m_UCodeUploadStateLock;
+	struct file*  m_UCodeUploadStateLockFileObj;
+	Int m_UCodeUploadState;
+
 	// Channel-specific data
 	Int  m_NumChannels;				// Total #channels
 	Channel  m_Channel[DTU2XX_MAX_CHANNELS];	// Actual channel data
@@ -330,6 +350,7 @@ Int  Dtu2xxIoCtlEepromControl(IN PDTU2XX_FDO, IN UInt);
 Int  Dtu2xxIoCtlUploadFirmware(IN PDTU2XX_FDO, IN UInt);
 Int  Dtu2xxIoCtlI2CRead(IN PDTU2XX_FDO, IN struct file*, OUT UInt8*, IN UInt, IN UInt);
 Int  Dtu2xxIoCtlI2CWrite(IN PDTU2XX_FDO, IN struct file*, IN UInt8*, IN UInt, IN UInt);
+Int  Dtu2xxIoCtlUCodeUploadState(IN PDTU2XX_FDO, IN struct file*, IN Int, IN Int, OUT Int*, OUT Int*);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xx.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void __exit Dtu2xxCleanupModule(void);
@@ -353,6 +374,8 @@ Int  Dtu215SetModControl(IN Channel*, IN Int, IN Int, IN Int, IN Int);
 Int  Dtu215SetRfControl(IN Channel*, IN Int64);
 Int  Dtu215SetRfMode(IN Channel*, IN Int);
 Int  Dtu215SetSymSampleRate(IN Channel*, IN Int);
+Int  Dtu215SpiRegisterRead(IN Channel*, IN UInt16, IN UInt, OUT UInt8*);
+Int  Dtu215SpiRegisterWrite(IN Channel*, IN UInt16, IN UInt, IN UInt8*);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu234.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 Int  Dtu2xxInitDtu234Hardware(IN PDTU2XX_FDO);
@@ -361,6 +384,7 @@ Int  Dtu2xxInitDtu234Hardware(IN PDTU2XX_FDO);
 Int  Dtu2xxCheckExclusiveAccess(IN PDTU2XX_FDO, IN struct file*);
 Int  Dtu2xxRequestExclusiveAccess(IN PDTU2XX_FDO, IN struct file*, IN Int,
 									   IN Int, OUT Int*);
+Int  Dtu2xxI2cReqExclAccess(IN PDTU2XX_FDO, IN struct file*, IN Int, OUT Int*);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Flags.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
@@ -400,6 +424,7 @@ Int  Dtu2xxRxIoCtlGetMaxFifoSize(IN PDTU2XX_FDO, IN Int, OUT Int*);
 Int  Dtu2xxRxIoCtlGetViolationCount(IN PDTU2XX_FDO, IN Int, OUT Int*);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- TxIoCtl.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+Int  Dtu2xxTxIoctlAd9789Write(IN PDTU2XX_FDO, IN Int, IN Int, IN Int, IN UInt8*);
 Int  Dtu2xxTxIoCtlReset(IN PDTU2XX_FDO, IN Int, IN Int);
 Int  Dtu2xxTxIoCtlGetFlags(IN PDTU2XX_FDO, IN Int, OUT Int*, OUT Int*);
 Int  Dtu2xxTxIoCtlClearFlags(IN PDTU2XX_FDO, IN Int, IN Int);
@@ -414,7 +439,9 @@ Int  Dtu2xxTxIoCtlGetTsRateBps(IN PDTU2XX_FDO, IN Int, OUT Int*);
 Int  Dtu2xxTxIoCtlGetTxControl(IN PDTU2XX_FDO, IN Int, OUT Int*);
 Int  Dtu2xxTxIoCtlGetTxMode(IN PDTU2XX_FDO, IN Int, OUT Int*, OUT Int*);
 Int  Dtu2xxTxIoCtlReadLoopBackData(IN PDTU2XX_FDO, IN Int, OUT UInt8*, IN Int);
+Int  Dtu2xxTxIoCtlRegWriteMasked(IN PDTU2XX_FDO, IN Int, IN Int, IN Int, IN Int, IN Int);
 Int  Dtu2xxTxIoCtlSetLoopBackMode(IN PDTU2XX_FDO, IN Int, IN Int);
+Int  Dtu2xxTxIoCtlSetFifoExtrap(IN PDTU2XX_FDO, IN Int, IN Int, IN Int);
 Int  Dtu2xxTxIoCtlBulkWrite(IN PDTU2XX_FDO, IN Int, IN Int, IN UInt8*);
 Int  Dtu2xxTxIoCtlGetMaxFifoSize(IN PDTU2XX_FDO, IN Int, OUT Int*);
 Int  Dtu2xxTxIoCtlGetFifoSize(IN PDTU2XX_FDO, IN Int, OUT Int*);

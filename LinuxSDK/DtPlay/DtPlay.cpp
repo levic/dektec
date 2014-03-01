@@ -21,8 +21,8 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlay Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DTPLAY_VERSION_MAJOR		3
-#define DTPLAY_VERSION_MINOR		10
-#define DTPLAY_VERSION_BUGFIX		5
+#define DTPLAY_VERSION_MINOR		12
+#define DTPLAY_VERSION_BUGFIX		0
 
 // Command line option flags
 const char c_LoopCountCmdLineFlag[]			= "l";
@@ -43,6 +43,7 @@ const char c_OutpLvlCmdLineFlag[]			= "ml";
 const char c_CodeRateCmdLineFlag[]			= "mc";
 const char c_QamJ83AnnexFlag[]				= "ma";
 
+const char c_IqInterpFilterFlag[]			= "if";
 
 const char c_OfdmConstellCmdLineFlag[]		= "mC";
 const char c_OfdmBandwidthCmdLineFlag[]		= "mB";
@@ -163,6 +164,8 @@ void CommandLineParams::Init()
 	m_CarrierFreq = -1.0;
 	m_OutpLevel = -27.5;
 	m_CodeRate = -1;
+
+	m_IqInterpFilter = DTAPI_MOD_INTERPOL_OFDM;
 
 	m_Snr = -1.0;
 
@@ -332,6 +335,8 @@ void  CommandLineParams::ParseParamFlag(char* pParam, bool First, bool Last)
 		m_SilentMode = true;
 		m_LastFlagReqsArg = false;
 	}
+	else if (0==strcmp(pParam, c_IqInterpFilterFlag))
+		m_LastFlagReqsArg = true;
 	else if ( 0==strcmp(pParam, c_DvbS2EnablePilotCmdLineFlag) )
 		m_LastFlagReqsArg = true;
 	else if ( 0==strcmp(pParam, c_DvbS2FecFrameLengthCmdLineFlag) )
@@ -353,7 +358,7 @@ void  CommandLineParams::ParseParamFlag(char* pParam, bool First, bool Last)
 		m_DblBuff = true;
 		m_LastFlagReqsArg = false;
 	}
-	else if ( 0==strcmp(pParam, c_HelpCmdLineFlag))
+	else if (0==strcmp(pParam, c_HelpCmdLineFlag))
 	{
 		m_ShowHelp = true;
 		m_LastFlagReqsArg = false;
@@ -439,7 +444,7 @@ void  CommandLineParams::ParseParamNotFlag(char* pParam, bool First, bool Last)
 	else if ( 0==strcmp(m_pLastFlag, c_TxRateCmdLineFlag) )
 	{
 		m_TxRate = atoi(pParam);
-		if ( m_TxRate <= 0 )
+		if ( m_TxRate<0 )
 			throw Exc(c_CleInvalidArgument, m_pLastFlag);
 	}
 	else if ( 0==strcmp(m_pLastFlag, c_DataPidCmdLineFlag) )
@@ -483,6 +488,8 @@ void  CommandLineParams::ParseParamNotFlag(char* pParam, bool First, bool Last)
 			m_ModType = DTAPI_MOD_DVBS2_8PSK;
 		else if ( 0 == strcmp(pParam, "DTMB") )
 			m_ModType = DTAPI_MOD_DTMB;
+		else if ( 0 == strcmp(pParam, "IQ") )
+			m_ModType = DTAPI_MOD_IQDIRECT;
 		else
 			throw Exc(c_CleInvalidArgument, m_pLastFlag);
 	}
@@ -726,6 +733,15 @@ void  CommandLineParams::ParseParamNotFlag(char* pParam, bool First, bool Last)
 		else
 			throw Exc(c_CleInvalidArgument, m_pLastFlag);
 	}
+	else if (0==strcmp(pParam, c_IqInterpFilterFlag))
+	{
+		if ( 0 == strcmp(pParam, "OFDM")  )
+			m_IqInterpFilter = DTAPI_MOD_INTERPOL_OFDM;			
+		else if ( 0 == strcmp(pParam, "QAM")  )
+			m_IqInterpFilter = DTAPI_MOD_INTERPOL_QAM;
+		else
+			throw Exc(c_CleInvalidArgument, m_pLastFlag);
+	}
 	else if ( 0==strcmp(m_pLastFlag, c_IpAddressCmdLineFlag) )
 	{
 		// Look for optional IP port, located after the semicolon
@@ -762,7 +778,7 @@ void  CommandLineParams::ParseParamNotFlag(char* pParam, bool First, bool Last)
 	}
 	else if ( 0==strcmp(m_pLastFlag, c_IpTtlCmdLineFlag) )
 	{
-		m_IpPars.m_TimeToLive = atof(pParam);
+		m_IpPars.m_TimeToLive = atoi(pParam);
 		if (m_IpPars.m_TimeToLive < 1 || m_IpPars.m_TimeToLive > 65535) 
 			throw Exc(c_CleInvalidArgument, m_pLastFlag);
 	}
@@ -864,6 +880,7 @@ const char* CommandLineParams::ModType2Str() const
 	case DTAPI_MOD_QAM256:		return "QAM256";
 	case DTAPI_MOD_QPSK:		return "QPSK";
 	case DTAPI_MOD_T2MI:		return "T2MI";
+	case DTAPI_MOD_IQDIRECT:	return "IQ";
 	default:					return "?";
 	}
 }
@@ -1049,6 +1066,18 @@ const char* CommandLineParams::DtmbFrameHdrMode2Str() const
 	}
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.- CommandLineParams::IqInterpFilter2Str -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+const char* CommandLineParams::IqInterpFilter2Str() const
+{
+	switch ( m_IqInterpFilter )
+	{
+	case DTAPI_MOD_INTERPOL_OFDM: return "OFDM";
+	case DTAPI_MOD_INTERPOL_QAM:  return "QAM";
+	default:					  return "?";
+	}
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.- CommandLineParams::IpProtocol2Str -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 const char* CommandLineParams::IpProtocol2Str() const
@@ -1109,7 +1138,7 @@ void Player::AttachToOutput()
 		// Skip non-bidir capabale inputs
 		if (   0!=(pHwf->m_ChanType & DTAPI_CHAN_INPUT)
 			&& 0==(pHwf->m_ChanType & DTAPI_CHAN_OUTPUT)
-			&& 0==(pHwf->m_Flags & DTAPI_CAP_BIDIR) )
+			&& (pHwf->m_Flags & DTAPI_CAP_BIDIR)==0 )
 			continue;
 
 		// Looking for a specific type??
@@ -1270,15 +1299,23 @@ void Player::DisplayPlayInfo()
 	LogF("- Play file name        : %s", m_CmdLineParams.m_FileName);
 	LogF("- Loop file             : %dx", m_CmdLineParams.m_LoopCnt);
 
-	// Skip bit-rate for DVB-H/DVB-T/ISDBT/CMMB/DTMB modulator and in case of SDI
+	// Skip bit-rate for DVB-H/DVB-T/ISDBT/IQ/CMMB/DTMB modulator and in case of SDI
 	if ( !(   ( m_Modulator
 				&& (   m_CmdLineParams.m_ModType==DTAPI_MOD_DVBT
 					|| m_CmdLineParams.m_ModType==DTAPI_MOD_CMMB
 					|| m_CmdLineParams.m_ModType==DTAPI_MOD_ISDBT
+					|| m_CmdLineParams.m_ModType==DTAPI_MOD_IQDIRECT
 					|| m_CmdLineParams.m_ModType==DTAPI_MOD_DTMB) )
            || ( !m_Modulator && 0!=(m_CmdLineParams.m_TxMode&DTAPI_TXMODE_SDI)) ) )
 	{
-		LogF("- Transport-Stream rate : %d bps", m_CmdLineParams.m_TxRate);
+        if ( m_CmdLineParams.m_TxRate==0 )
+		    LogF("- Transport-Stream rate : TX-on-time", m_CmdLineParams.m_TxRate);
+        else
+            LogF("- Transport-Stream rate : %d bps", m_CmdLineParams.m_TxRate);
+	}
+	else if ( m_Modulator && m_CmdLineParams.m_ModType==DTAPI_MOD_IQDIRECT )
+	{
+		LogF("- Sample rate           : %d Hz", m_CmdLineParams.m_TxRate);
 	}
 	LogF("- Transmit Mode         : %s", m_CmdLineParams.TxMode2Str() );
 	
@@ -1306,11 +1343,11 @@ void Player::DisplayPlayInfo()
 		LogF("- Modulation Type       : %s", m_CmdLineParams.ModType2Str() );
 		LogF("- Carrier Frequency     : %.2f MHz", m_CmdLineParams.m_CarrierFreq );
 		// Show output level (if supported)
-		if ( 0!=(m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_ADJLVL) )
+		if ( (m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_ADJLVL)!=0 )
 			LogF("- Output Level          : %.1f dBm", m_CmdLineParams.m_OutpLevel );
 
 		// Show SNR (if supported)
-		if ( 0!=(m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_SNR) )
+		if ( (m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_SNR)!=0 )
 		{
 			if ( m_CmdLineParams.m_Snr >= 0.0 )
 				LogF("- SNR                   : %.1f dB", m_CmdLineParams.m_Snr );
@@ -1356,9 +1393,15 @@ void Player::DisplayPlayInfo()
 			LogF("- Frame-Header-Mode     : %s", m_CmdLineParams.DtmbFrameHdrMode2Str() );
 			LogF("- Constellation         : %s", m_CmdLineParams.Constellation2Str() );
 		}
+		// IQ modulation parameters
+		else if ( m_CmdLineParams.m_ModType==DTAPI_MOD_IQDIRECT )
+		{
+			LogF("- Interpolation Filter  : %s", m_CmdLineParams.IqInterpFilter2Str() );
+		}
 		// QAM modulation parameters
 		else if (    m_CmdLineParams.m_ModType!=DTAPI_MOD_DVBT
 				  && m_CmdLineParams.m_ModType!=DTAPI_MOD_ISDBT
+				  && m_CmdLineParams.m_ModType!=DTAPI_MOD_IQDIRECT
 				  && m_CmdLineParams.m_ModType!=DTAPI_MOD_CMMB
 				  && m_CmdLineParams.m_ModType!=DTAPI_MOD_T2MI
 				  && m_CmdLineParams.m_ModType!=DTAPI_MOD_QPSK
@@ -1436,7 +1479,10 @@ void Player::InitOutput()
 		throw Exc( c_ErrFailSetTxControl, ::DtapiResult2Str(dr) );
 
 	// Set the transmission mode. NOTE: ISDB-T only supports 204 byte mode
-	dr = m_DtOutp.SetTxMode( m_CmdLineParams.m_TxMode, m_CmdLineParams.m_Stuffing );
+    int  TxMode = m_CmdLineParams.m_TxMode;
+    // Special case: if tx-rate is set to '0' we want to transmit on timestamp
+    TxMode |= (m_CmdLineParams.m_TxRate==0) ? DTAPI_TXMODE_TIMESTAMP: 0;
+    dr = m_DtOutp.SetTxMode( TxMode, m_CmdLineParams.m_Stuffing );
 	if ( dr != DTAPI_OK )
 		throw Exc( c_ErrFailSetTxMode, ::DtapiResult2Str(dr) );
 
@@ -1516,7 +1562,15 @@ void Player::InitOutput()
 			InitIsdbtPars(IsdbtPars);
 			dr = m_DtOutp.SetModControl( IsdbtPars );
 		}
-
+		else if (m_CmdLineParams.m_ModType==DTAPI_MOD_IQDIRECT )
+		{
+			// Set IQ direct mode
+			dr = m_DtOutp.SetModControl(
+						m_CmdLineParams.m_ModType,
+						m_CmdLineParams.m_IqInterpFilter,	// Interpolation filter
+						m_CmdLineParams.m_TxRate,			// Sample rate
+						0);
+		}
 		else if (   m_CmdLineParams.m_ModType==DTAPI_MOD_QPSK
 			     || m_CmdLineParams.m_ModType==DTAPI_MOD_BPSK )
 		{
@@ -1559,22 +1613,27 @@ void Player::InitOutput()
 			throw Exc( c_ErrFailSetModControl, ::DtapiResult2Str(dr) );
 	}
 
-	// Set bit-rate for non-SDI and modulators other than CMMB/T2MI/ISDBT/DVB-H/DVB-T/DTMB
+	// Set bit-rate for non-SDI and modulators other than CMMB/T2MI/ISDBT/IQ/DVB-H/DVB-T/DTMB
     if (    (  !m_Modulator && 0==(m_CmdLineParams.m_TxMode&DTAPI_TXMODE_SDI) )
          || (   m_Modulator && m_CmdLineParams.m_ModType!=DTAPI_MOD_DVBT
 							&& m_CmdLineParams.m_ModType!=DTAPI_MOD_CMMB
 							&& m_CmdLineParams.m_ModType!=DTAPI_MOD_T2MI
 							&& m_CmdLineParams.m_ModType!=DTAPI_MOD_ISDBT
+							&& m_CmdLineParams.m_ModType!=DTAPI_MOD_IQDIRECT
 							&& m_CmdLineParams.m_ModType!=DTAPI_MOD_DTMB) )
 
 	{
-		dr = m_DtOutp.SetTsRateBps( m_CmdLineParams.m_TxRate );
-		if ( dr != DTAPI_OK )
-			throw Exc( c_ErrFailSetTsRate, ::DtapiResult2Str(dr) );
+        // A rate of '0' is a special case (see code above)
+        if ( m_CmdLineParams.m_TxRate > 0 )
+        {
+		    dr = m_DtOutp.SetTsRateBps( m_CmdLineParams.m_TxRate );
+		    if ( dr != DTAPI_OK )
+			    throw Exc( c_ErrFailSetTsRate, ::DtapiResult2Str(dr) );
+        }
 	}
 
 	// Set output level of main output (if supported)
-	if ( 0!=(m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_ADJLVL) )
+	if ( (m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_ADJLVL)!=0 )
 	{
 		// The SetOutputLevel method expects a level expressed in 0.1dBm units
 		int LeveldBm = int(m_CmdLineParams.m_OutpLevel * 10.0);
@@ -1584,7 +1643,7 @@ void Player::InitOutput()
 	}
 
 	// Set signal-to-noise ratio
-	if ( m_Modulator && 0!=(m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_SNR) )
+	if ( m_Modulator && (m_DtOutp.m_HwFuncDesc.m_Flags & DTAPI_CAP_SNR)!=0 )
 	{
 		// Negative SNR means no noise generation
 		if ( m_CmdLineParams.m_Snr < 0.0 )
@@ -1853,7 +1912,8 @@ void Player::ShowHelp()
 	Log("Options:");
 	Log("   -l  Number of times to loop the file (0=loop infinitely)");
 	Log( "" );
-	Log("   -r  Transport-Stream Rate in bps");
+	Log("   -r  Transport-Stream Rate in bps or sample rate in case of IQ-modulation mode");
+    Log("         NOTE: set the rate to '0' to playout a file with timestamps");
 	Log( "" );
 	Log("   -t  Device type to use (default: any output device)");
 	Log("         100, 102, 105, 107, 110, 112, 115, 116, 117, 140, 145,");
@@ -1888,8 +1948,9 @@ void Player::ShowHelp()
 	Log("         DVBS2_8PSK DVB-S.2 8PSK modulation");
 	Log("         DVBS2_QPSK DVB-S.2 QPSK modulation");
 	Log("         DVBT       DVB-T/H modulation");
-	Log("         OFDM       DVB-T/H modulation");
 	Log("         ISDBT      ISDB-T modulation");
+	Log("         IQ         IQ-samples");
+	Log("         OFDM       DVB-T/H modulation");
 	Log("         QAMn       QAM-n modulation, n=4,16,32,64,128,256");
 	Log("         QPSK       DVB-S QPSK modulation");
 	Log("         T2MI       T2MI modulation");
@@ -1943,6 +2004,10 @@ void Player::ShowHelp()
 	Log("   -mI  Gold sequence initialisation value (default: 0)");
 	Log("         0 ... 262143");
 	Log( "" );
+	Log("   -if  Interpolation filter used in IQ mode (default: OFDM)");
+	Log("         OFDM      OFDM interpolation filter");
+	Log("         QAM       QAM interpolation filter");
+	Log( "" );
 	Log("   -snr Enable noise generation and set SNR in dB (e.g. -snr 26.0)");
 	Log( "" );
 	Log("   -ipa IP address/port (e.g. 192.168.0.1[:5768], port is optional)");
@@ -1984,7 +2049,7 @@ int main(int argc, char* argv[])
 	int RetValue(0);
 	Player ThePlayer;
 	try
-	{
+	{        
 		RetValue = ThePlayer.Play(argc, argv);
 	}
 	catch(...)

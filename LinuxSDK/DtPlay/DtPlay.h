@@ -58,6 +58,7 @@ public:
 	const char* DvbS2Pilots2Str() const;
 	const char* DvbS2FecFrameLength2Str() const;
 	const char* DtmbFrameHdrMode2Str() const;
+	const char* IqInterpFilter2Str() const;
 	const char* IpProtocol2Str() const;
 
 	//---- Application parameters ----
@@ -81,6 +82,8 @@ public:
 	double m_OutpLevel;			// -ml: Modulator output level
 	int m_CodeRate;				// -mc: code rate
 	int m_QamJ83Annex;			// -ma: J83 annex (QAM-A/B/C)
+
+	int m_IqInterpFilter;		// -if: Interpolation filter to use in IQ mode
 
 	double m_Snr;				// -snr: signal-to-noise ration (-1.0 is no noise)
 

@@ -71,15 +71,16 @@ Int  Dta1xxGetFreqEst(
 		ClockFreq = DTA160_REF_CLOCK*1000;
 		PerIntFact = 2;		// Periodic interrupt 2 times faster then normal
 	}
-	else if (   pFdo->m_TypeNumber==105  || pFdo->m_TypeNumber==145
-			 || pFdo->m_TypeNumber==111
-			 || pFdo->m_TypeNumber==112  || pFdo->m_TypeNumber==115
-			 || pFdo->m_TypeNumber==116  || pFdo->m_TypeNumber==117
-			 || pFdo->m_TypeNumber==124 
-			 || pFdo->m_TypeNumber==545
-			 || pFdo->m_TypeNumber==2135 || pFdo->m_TypeNumber==2137
-			 || pFdo->m_TypeNumber==2142 || pFdo->m_TypeNumber==2144
-			 || pFdo->m_TypeNumber==2145 )
+	else if (   pFdo->m_TypeNumber==105 || pFdo->m_TypeNumber==145
+             || pFdo->m_TypeNumber==111 
+             || pFdo->m_TypeNumber==112 || pFdo->m_TypeNumber==115
+             || pFdo->m_TypeNumber==116 || pFdo->m_TypeNumber==117
+             || pFdo->m_TypeNumber==124
+             || pFdo->m_TypeNumber==2135 || pFdo->m_TypeNumber==2136
+             || pFdo->m_TypeNumber==2137 || pFdo->m_TypeNumber==2139
+             || pFdo->m_TypeNumber==2142 || pFdo->m_TypeNumber==2144
+             || pFdo->m_TypeNumber==2145 || pFdo->m_TypeNumber==2148
+             || pFdo->m_TypeNumber==545)
 		ClockFreq = 54000000;
 	else
 		ClockFreq = 27000000;
@@ -137,7 +138,7 @@ NTSTATUS Dta1xxGetTxPhaseIncr(
 	pChannel = &pFdo->m_Channel[PortIndex];
 	pDta1xxTx = (Dta1xxTx*)(pChannel->m_pRegBase);
 	pPortIntPar->m_Parameter[0] = pDta1xxTx->m_TxClock;
-	if (pChannel->m_Capability&DTA1XX_CHCAP_RATESEL) {
+	if (pChannel->m_Capability&DTA1XX_CHCAP_TSRATESEL) {
 		pPortIntPar->m_Parameter[1] = pDta1xxTx->m_TxClockMod;
 	} else {
 		pPortIntPar->m_Parameter[1] = 0;
@@ -153,12 +154,11 @@ Int  Dta1xxGetTxRateSel(
 	Channel*  pChannel,
 	Int*  pRateSel)
 {
-	*pRateSel = DTA1XX_IORATESEL_INTCLK;
+	*pRateSel = DTA1XX_TSRATESEL_INTERNAL;
 	// If channel has rate selection capability
-	if (0!=(pChannel->m_Capability&DTA1XX_CHCAP_RATESEL)) 
+	if (0!=(pChannel->m_Capability&DTA1XX_CHCAP_TSRATESEL)) 
 	{
-		if (Dta1xxTxCtrl2RegIsRateSelExtClk(pChannel->m_pRegBase))
-			*pRateSel = DTA1XX_IORATESEL_EXTCLK;
+        *pRateSel = pChannel->m_TxRateSel;
 		return 0;
 	}
 	return -EFAULT;
@@ -181,7 +181,7 @@ NTSTATUS Dta1xxSetTxPhaseIncr(
 		return -EINVAL;
 	}
 	pChannel = &pFdo->m_Channel[PortIndex];
-	if (!(pChannel->m_Capability&DTA1XX_CHCAP_RATESEL)) {
+	if (!(pChannel->m_Capability&DTA1XX_CHCAP_PQNCO)) {
 		return -EFAULT;
 	}
 	pDta1xxTx = (Dta1xxTx*)(pChannel->m_pRegBase);
@@ -199,18 +199,29 @@ Int  Dta1xxSetTxRateSel(
 	Int  RateSel)
 {
 	// If channel has rate selection capability
-	if (0!=(pChannel->m_Capability&DTA1XX_CHCAP_RATESEL)) {
+	if (0!=(pChannel->m_Capability&DTA1XX_CHCAP_TSRATESEL)) {
 		switch (RateSel) 
 		{
-			case DTA1XX_IORATESEL_INTCLK:
+			case DTA1XX_TSRATESEL_INTERNAL:
 				Dta1xxTxCtrl2RegSetRateSelInt(pChannel->m_pRegBase);
 				break;
-			case DTA1XX_IORATESEL_EXTCLK:
-				Dta1xxTxCtrl2RegSetRateSelExt(pChannel->m_pRegBase);
+			case DTA1XX_TSRATESEL_EXTCLK:
+                Dta1xxTxCtrl2RegSetRateSelExt(pChannel->m_pRegBase);
+                if ((pChannel->m_Capability&DTA1XX_CHCAP_PQNCO) != 0)
+                {
+                    Dta1xxTx*  pDta1xxTx= (Dta1xxTx*)(pChannel->m_pRegBase);
+                    // Set 1:1 ratio
+                    pDta1xxTx->m_TxClockMod = 0x80000000;
+                    pDta1xxTx->m_TxClock = 0x80000000;
+                }
+                break;
+            case DTA1XX_TSRATESEL_EXTRATIO:
+             	Dta1xxTxCtrl2RegSetRateSelExt(pChannel->m_pRegBase);
 				break;
 			default:
 				return -EINVAL;
 		}
+        pChannel->m_TxRateSel = RateSel;
 		return 0;
 	}
 	return -EFAULT;
@@ -477,9 +488,6 @@ Int  Dta1xxTxSetRate2(
 		// Save sample rate for FIFO-load computations (Direct IQ modes)
 		pCh->m_ModSampRate = (Int)TsSymOrSampRate;
 
-		// call AD9789 specific implementation
-		status = Ad9789SetSymSampleRate(pCh, (Int)TsSymOrSampRate);
-
 	} else {	// *** Not a modulator card
 
 		// Set phase-increment register, depends on transport-stream rate and packet size
@@ -502,14 +510,13 @@ Int  Dta1xxTxSetRate2(
 #endif
 		status = STATUS_SUCCESS;
 
-		if (pCh->m_Capability&DTA1XX_CHCAP_RATESEL) {
+		if (pCh->m_Capability&DTA1XX_CHCAP_TSRATESEL) {
 			if (pCh->m_Capability&DTA1XX_CHCAP_SPI) {
-				Int Mode = DTA1XX_IOMODE_STANDARD;
-				Int ClkFreq = 0;
+				Int Mode = DTA1XX_SPIMODE_STANDARD;
 				UInt64 TxRateBps = Dta1xxBinDiv((TsSymOrSampRate * PckSize) + 94, 188, NULL);
 				if (TxRateBps>1000000000) TxRateBps=1000000000; // Limit to 1Gb/s (125 MHz)
-				status = Dta1xxSpiGetIoMode(pCh,&Mode,&ClkFreq);
-				if (Mode==DTA1XX_IOMODE_STANDARD) {
+				status = Dta1xxSpiGetSpiMode(pCh,&Mode);
+				if (Mode==DTA1XX_SPIMODE_STANDARD) {
 					status = Dta1xxSpiSetTxRateBps(pCh,(UInt32)TxRateBps);
 					// dPhm = dPhi = 0 will generate 0 bps, because the NCO will not increment
 					dPhi = 1;       // SPI: I/O clock to symbol ratio 1:1
@@ -542,4 +549,100 @@ Int  Dta1xxTxSetRate2(
 		Dta1xxTxCtrlRegSetUseExtClk(pTxRegs, ClockGenMode);
 
 	return status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxTxSetRate3 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Set a modulator's symbol- or sample rate.
+// This is the successor of Dta1xxTxSetRate2, for modulators only.
+// The intention is that this routine does not contain any computation based on the
+// modulation parameters, so that:
+//  - All modulation-specific logic is in DTAPI
+//  - New modes can be added without having to update the driver
+//
+Int  Dta1xxTxSetRate3(
+    DTA1XX_FDO*  pFdo,         // Functional device object, representing the DTA-1xx card
+    Int  PortIndex,            // Port index
+    Int  ClockGenMode,         // Clock-generator mode
+    Int  SymOrSampRateAsInt)   // Symbol or Sample rate (*2 for HW modulation)
+{
+    Int  Multiplier;                // Symbol-rate multiplier
+    //Int64  RateBase;                // Intermediate variable in bit-rate computation
+    Int64  SymOrSampRate = SymOrSampRateAsInt;
+                                    // Symbol- or sample rate as 64-bit integer
+    UInt32  dPhi = 0;               // Phase increment for NCO
+    Channel*  pCh;                  // Channel
+    Dta1xxTx*  pDta1xxTx;           // Pointer to transmit register block
+    Int  Status = STATUS_SUCCESS;
+
+    // Check port index
+    if (PortIndex >= pFdo->m_NumNonIpChannels) {
+        DTA1XX_LOG(KERN_INFO, "Dta1xxTxSetRate3: PortIndex=%d INVALID", PortIndex);
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    // Set channel pointer
+    pCh = &pFdo->m_Channel[PortIndex];
+
+    // Get pointer to transmit registers
+    pDta1xxTx = (Dta1xxTx*)(pCh->m_pRegBase);
+
+    // Processing depends on modulator card
+    if (pCh->m_pFdo->m_TypeNumber == 107)
+    {
+        // Compute multiplier M
+        if      (SymOrSampRate <= (Int64)175783)   Multiplier = 8; 
+        else if (SymOrSampRate <= (Int64)351566)   Multiplier = 7; 
+        else if (SymOrSampRate <= (Int64)703133)   Multiplier = 6; 
+        else if (SymOrSampRate <= (Int64)1406250)  Multiplier = 5; 
+        else if (SymOrSampRate <= (Int64)2812500)  Multiplier = 4; 
+        else if (SymOrSampRate <= (Int64)5625000)  Multiplier = 3; 
+        else if (SymOrSampRate <= (Int64)11250000) Multiplier = 2;
+        else if (SymOrSampRate <= (Int64)22500000) Multiplier = 1;
+        else                                       Multiplier = 0;
+
+        // Compute dPhi (verified that this cannot overflow)
+        dPhi = (UInt32) (Dta1xxBinDiv((SymOrSampRate << (Multiplier+23)), 390625, NULL));
+
+#if LOG_LEVEL_MODULATION > 0
+        DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxTxSetRate3: SymOrSampRate=%d M=%d dPhi=0x%08x",
+                                 pCh->m_PortIndex, (Int)SymOrSampRate, Multiplier, dPhi);
+#endif
+        // Set multiplier
+        Dta1xxTxModcRegSetM((UInt8*)pDta1xxTx, Multiplier);
+    }
+    else if (pCh->m_pFdo->m_TypeNumber==110
+                                  || (pCh->m_pFdo->m_TypeNumber==111 && PortIndex==0)
+                                  || (pCh->m_pFdo->m_TypeNumber==112 && PortIndex==1)
+                                  || (pCh->m_pFdo->m_TypeNumber==115 && PortIndex==1)
+                                  || (pCh->m_pFdo->m_TypeNumber==116 && PortIndex==1)
+                                  || (pCh->m_pFdo->m_TypeNumber==117 && PortIndex==1) )
+    {
+        // Save sample rate for FIFO-load computations (Direct IQ modes)
+        pCh->m_ModSampRate = (Int)SymOrSampRate;
+
+        // Compute dPhi
+        if (pCh->m_pFdo->m_TypeNumber==111 || pCh->m_pFdo->m_TypeNumber==112
+                || pCh->m_pFdo->m_TypeNumber==115 || pCh->m_pFdo->m_TypeNumber==116)
+            dPhi = (UInt32)(Dta1xxBinDiv(SymOrSampRate * ((Int64)1<<32), (Int64)18000000, NULL));
+        else if (pCh->m_pFdo->m_TypeNumber==117)
+            dPhi = (UInt32)(Dta1xxBinDiv(SymOrSampRate * ((Int64)1<<32), (Int64)22000000, NULL));
+        else
+            dPhi = (UInt32) (Dta1xxBinDiv((SymOrSampRate << 31), 25000000, NULL));
+
+#if LOG_LEVEL_MODULATION > 0
+        DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxTxSetRate3: SymOrSampRate=%d ModType=%d"
+              " dPhi=0x%08x", pCh->m_PortIndex, (Int)SymOrSampRate, pCh->m_ModType, dPhi);
+#endif
+    }
+    else if ((pCh->m_Capability&DTA1XX_CHCAP_AD9789) != 0)
+    {
+        // Save sample rate for FIFO-load computations (Direct IQ modes)
+        pCh->m_ModSampRate = (Int)SymOrSampRate;
+    }
+
+    // Set phase increment for NCO
+    pDta1xxTx->m_TxClock = dPhi;
+
+    return Status;
 }

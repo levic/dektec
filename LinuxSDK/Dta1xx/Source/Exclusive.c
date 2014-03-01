@@ -115,6 +115,22 @@ Int  Dta1xxCheckExclusiveAccess(
 	Int  i;
 	Channel*  pCh;				// Channel pointer
 
+    // Release potential hold on I2C-lock
+    if ( 0!=down_interruptible(&pFdo->m_I2cExclAccLock) )
+        return -ERESTARTSYS;
+    // Who has the lock?
+    if (pFdo->m_pI2cExclAccFileObj==pFileObject)
+    {
+        // Current ownwer is closing handle to driver => reset lock count
+        pFdo->m_I2cExclAccRecursiveCount = 0;
+        pFdo->m_pI2cExclAccFileObj = NULL;   // Clear owner as well
+#if LOG_LEVEL > 0
+        DTA1XX_LOG(KERN_INFO, 
+                         "Dta1xxCheckExclusiveAccess: I2C-exclusive-access lock CLEARED");
+#endif
+    }
+    up(&pFdo->m_I2cExclAccLock);
+
 	// Check all channels
 	for (i=0; i<pFdo->m_NumChannels; i++)
 	{
@@ -143,4 +159,89 @@ Int  Dta1xxCheckExclusiveAccess(
 	}
 
 	return 0;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxI2cReqExclAccess -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int  Dta1xxI2cReqExclAccess(
+	DTA1XX_FDO*  pFdo,	       // Device Extension
+	struct file*	 pFileObj, // FileObject that requests excl access
+	Int  Request,			   // 0 = Request exclusive access
+							   // 1 = Release exclusive access
+	Int*  pGranted)		       // Granted Yes / No
+{
+	Int  ExclAccessFlag;
+
+	if (Request!=0 && Request!=1) 
+    {
+        DTA1XX_LOG(KERN_INFO, "Dta1xxI2cReqExclAccess: ILLEGAL "
+				   "exclusive-access Request code %d", Request);
+		return STATUS_INVALID_PARAMETER;
+	}
+
+    if ( 0!=down_interruptible(&pFdo->m_I2cExclAccLock) )
+        return -ERESTARTSYS;
+
+	if (Request == 0) 
+    {
+		// Request exclusive access
+		if (pFdo->m_pI2cExclAccFileObj == NULL) 
+        {
+			pFdo->m_pI2cExclAccFileObj = pFileObj;
+			*pGranted = 1;
+			pFdo->m_I2cExclAccRecursiveCount = 0;
+#if LOG_LEVEL > 0
+			DTA1XX_LOG(KERN_INFO, "Dta1xxI2cReqExclAccess: REQUEST "
+					                                          "exclusive access GRANTED");
+#endif
+		}
+        else 
+        {
+			if (pFdo->m_pI2cExclAccFileObj == pFileObj) 
+            {
+				*pGranted = 1;
+				pFdo->m_I2cExclAccRecursiveCount++;
+#if LOG_LEVEL > 0
+			DTA1XX_LOG(KERN_INFO, "Dta1xxI2cReqExclAccess: REQUEST "
+					   "exclusive access GRANTED (recursive %d)", 
+                                                        pFdo->m_I2cExclAccRecursiveCount);
+#endif
+			}
+            else
+            {
+				*pGranted = 0;
+#if LOG_LEVEL > 0
+			DTA1XX_LOG(KERN_INFO, "Dta1xxI2cReqExclAccess: REQUEST "
+					                                           "exclusive access DENIED");
+#endif
+			}
+		}
+	} 
+    else 
+    {
+		// Only release exclusive access if we owned it just once
+		if (pFdo->m_pI2cExclAccFileObj == pFileObj) 
+        {
+			if (pFdo->m_I2cExclAccRecursiveCount == 0) 
+            {
+				pFdo->m_pI2cExclAccFileObj = NULL;
+#if LOG_LEVEL > 0
+		DTA1XX_LOG(KERN_INFO, "Dta1xxI2cReqExclAccess: RELEASED exclusive "
+				   "access");
+#endif
+			}
+            else
+            {
+				pFdo->m_I2cExclAccRecursiveCount--;
+#if LOG_LEVEL > 0
+				DTA1XX_LOG(KERN_INFO, "Dta1xxI2cReqExclAccess: Exclusive "
+				   "access not release yet (%d remaining)",
+				   pFdo->m_I2cExclAccRecursiveCount);
+#endif
+			}
+		}
+	}
+	up(&pFdo->m_I2cExclAccLock);
+	
+	return STATUS_SUCCESS;
 }

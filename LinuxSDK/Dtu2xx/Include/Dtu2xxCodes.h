@@ -7,6 +7,44 @@
 typedef unsigned long DTU2XX_RESULT;
 
 
+//+=+=+=+=+=+=+=+ Constants that should be moved to a common include file +=+=+=+=+=+=+=+=
+
+// Three modes for operating a modulator with Altera + AD9789 architecture.
+// 1. I/Q samples are written to the device and buffered in SDRAM. The 2x 16-bit I/Q
+//    samples from the SDRAM are written to the TxDAC.
+// 2. Symbols are written to the device and buffered in SDRAM. The symbols from SDRAM are
+//    routed through an I/Q mapper in the Altera FPGA. 8-bit I/Q samples are written to
+//    the TxDAC. This mode is used for QAM-B.
+// 3. TS bytes are written to the device and buffered in SDRAM. A QAM-A/C modulator in
+//    the Altera FPGA creates symbols that are written to the TxDAC.
+//
+// In mode 2 and 3, channel filtering is performed in the TxDAC.
+//
+#define DTCOM_MOD_HWMODE_IQ_SAMPLES 1       // I/Q samples to TxDAC
+#define DTCOM_MOD_HWMODE_IQ_MAPPED  2       // Symbols to Altera I/Q mapper to TxDac
+#define DTCOM_MOD_HWMODE_QAM_AC     3       // Altera QAM modulator, symbols to TxDac
+
+// Rolloff factors, directly corresponding to ALPHA field values in the AD9789
+// QAM/SRRC configuration register
+#define DTCOM_MOD_ALPHA_0_12        0       // Alpha = 0.12
+#define DTCOM_MOD_ALPHA_0_18        1       // Alpha = 0.18
+#define DTCOM_MOD_ALPHA_0_15        2       // Alpha = 0.15
+#define DTCOM_MOD_ALPHA_0_13        3       // Alpha = 0.13
+
+// QAM-encoding values, directly correspond to MAPPING field values in the AD9789
+// QAM/SRRC configuration register
+#define DTCOM_MOD_QAMENC_DOCSIS_64  0       // 64-QAM DOCSIS
+#define DTCOM_MOD_QAMENC_DOCSIS_256 1       // 256-QAM DOCSIS
+#define DTCOM_MOD_QAMENC_DVB_16     2       // 16-QAM DVB
+#define DTCOM_MOD_QAMENC_DVB_32     3       // 32-QAM DVB
+#define DTCOM_MOD_QAMENC_DVB_64     4       // 64-QAM DVB
+#define DTCOM_MOD_QAMENC_DVB_128    5       // 128-QAM DVB
+#define DTCOM_MOD_QAMENC_DVB_256    6       // 256-QAM DVB
+
+
+//+=+=+=+=+=+ End of: Constants that should be moved to a common include file +=+=+=+=+=+=
+
+
 //+=+=+=+=+=+=+=+=+=+=+ General definitions for the DTU-2xx devices +=+=+=+=+=+=+=+=+=+=+=
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- ALTERA program mode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

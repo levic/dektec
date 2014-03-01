@@ -37,8 +37,6 @@ Int  Dtu215InitAd9789(IN Channel*);
 Int  Dtu215IsSpiReady(IN Channel*, IN Int Timeout);
 UInt8  Dtu215ModType2QamMapping(IN Int, IN Int);
 UInt8  Dtu215ModType2Alpha(IN Int, IN Int);
-Int  Dtu215SpiRegisterRead(IN Channel*, IN UInt16, IN UInt, OUT UInt8*);
-Int  Dtu215SpiRegisterWrite(IN Channel*, IN UInt16, IN UInt, IN UInt8*);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Helper macros -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -239,6 +237,8 @@ Int  Dtu215FrequencyResponseCompensation(IN Channel* pCh)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu215SetModControl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
+// OBSOLETE
+//
 Int  Dtu215SetModControl(
 	IN Channel*  pCh,			// Our channel object
 	IN Int  ModType,			// Modulation type
@@ -409,6 +409,8 @@ Int  Dtu215SetModControl(
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu215SetRfControl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
+// OBSOLETE
+//
 Int  Dtu215SetRfControl(
 	IN Channel*  pCh,			// Our channel object
 	IN Int64  RfFreq)
@@ -461,6 +463,8 @@ Int  Dtu215SetRfControl(
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu215SetRfMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
+// OBSOLETE
+//
 Int  Dtu215SetRfMode(
 	IN Channel*  pCh,			// Our channel object
 	IN Int RfMode)				// Desired RF-mode
@@ -508,6 +512,8 @@ Int  Dtu215SetRfMode(
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu215SetSymSampleRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// OBSOLETE
 //
 Int  Dtu215SetSymSampleRate(
 	IN Channel*  pCh,			// Our channel object

@@ -198,27 +198,28 @@
 
 
 // Channel capabitilies
-#define DTA1XX_CHCAP_IN_PORT		0x0001
-#define DTA1XX_CHCAP_OUT_PORT		0x0002
-#define DTA1XX_CHCAP_BIDIR_PORT		0x0003	
-#define DTA1XX_CHCAP_DBLBUF			0x0010	// Must be or-ed with one of the cap_x_port
-#define DTA1XX_CHCAP_FAILSAFE		0x0020	// Must be or-ed with one of the cap_x_port
-#define DTA1XX_CHCAP_LOOPTHR		0x0040	// Must be or-ed with one of the cap_x_port
-#define	DTA1XX_CHCAP_DIVERSITY		0x0080	// Must be or-ed with one of the cap_x_port
-#define DTA1XX_CHCAP_SHARED			0x0100	// Must be or-ed with one of the cap_x_port		
-#define DTA1XX_CHCAP_GENREF			0x0200	// Must be or-ed with one of the cap_x_port		
-#define DTA1XX_CHCAP_GENLOCKED		0x0400	// Must be or-ed with one of the cap_x_port		
-#define DTA1XX_CHCAP_SPI			0x0800  // Must be or-ed with one of the cap_x_port
-#define DTA1XX_CHCAP_RATESEL		0x1000  // Must be or-ed with one of the cap_x_port
-#define DTA1XX_CHCAP_CLKSEL			0x2000  // Must be or-ed with one of the cap_x_port
-#define DTA1XX_CHCAP_APSK			0x4000  // Must be or-ed with one of the cap_x_port
-#define DTA1XX_CHCAP_AD9789			0x8000  // Channel has AD9789 RF-DAC
-#define DTA1XX_CHCAP_DACVGA			0x10000  // Channel has 10-bit RF output level control
+#define DTA1XX_CHCAP_IN_PORT        0x0001
+#define DTA1XX_CHCAP_OUT_PORT       0x0002
+#define DTA1XX_CHCAP_BIDIR_PORT     0x0003
+#define DTA1XX_CHCAP_DBLBUF         0x0010  // Must be or-ed with one of the cap_x_port
+#define DTA1XX_CHCAP_FAILSAFE       0x0020  // Must be or-ed with one of the cap_x_port
+#define DTA1XX_CHCAP_LOOPTHR        0x0040  // Must be or-ed with one of the cap_x_port
+#define	DTA1XX_CHCAP_DIVERSITY      0x0080  // Must be or-ed with one of the cap_x_port
+#define DTA1XX_CHCAP_SHARED         0x0100  // Must be or-ed with one of the cap_x_port
+#define DTA1XX_CHCAP_GENREF         0x0200  // Must be or-ed with one of the cap_x_port
+#define DTA1XX_CHCAP_GENLOCKED      0x0400  // Must be or-ed with one of the cap_x_port
+#define DTA1XX_CHCAP_SPI            0x0800  // Must be or-ed with one of the cap_x_port
+#define DTA1XX_CHCAP_SPICLKSEL      0x1000  // Must be or-ed with one of the cap_x_port
+#define DTA1XX_CHCAP_TSRATESEL      0x2000  // Must be or-ed with one of the cap_x_port
+#define DTA1XX_CHCAP_APSK           0x4000  // Must be or-ed with one of the cap_x_port
+#define DTA1XX_CHCAP_AD9789         0x8000  // Channel has AD9789 RF-DAC
+#define DTA1XX_CHCAP_DACVGA         0x10000 // Channel has 10-bit RF output level control
+#define DTA1XX_CHCAP_PQNCO          0x20000 // Channel has PQNCO 
 
 // PHY types
-#define PHY_UNKNOWN					0
-#define PHY_NATIONAL				1
-#define PHY_MARVELL					2
+#define PHY_UNKNOWN                 0
+#define PHY_NATIONAL                1
+#define PHY_MARVELL                 2
 
 // LED flashing
 #define DTA1XX_LEDFLASH_INIT        0
@@ -446,7 +447,8 @@ typedef struct _Channel
 	Int  m_Capability;					// Channel capability
 	Int  m_IoConfig;					// Current IO config
 	Int  m_IoConfigPar;					// Extra paremeter for IO config
-	Int  m_IoMode;						// Current I/O interface mode
+	Int  m_SpiMode;                     // Current SPI mode
+    Int  m_TxRateSel;                   // Current TxRate selection
 
 	// Port properties
 	UInt32  m_TxRate;					// Current Tx channel - Tx interface word rate (dHz)
@@ -920,6 +922,10 @@ typedef struct _DTA1XX_FDO {
 	struct semaphore  m_I2cMutex;		// Mutex to protect against simultaneous access
 										// to I2C interface
 
+    struct file*  m_pI2cExclAccFileObj; // File object that owns the I2C lock
+    struct semaphore  m_I2cExclAccLock; // Protect updates to m_pI2cExclAccFileObj
+    Int  m_I2cExclAccRecursiveCount;    // Counts number of recursive exclusive access
+
 	// IP Rx 
 	PKTHREAD  m_IPRxRecThread;			// System worker thread for IP receive reconstruction
 	KEVENT  m_IPRxPacketAvailEvent;		// New packet is available in 1 or more channels
@@ -971,14 +977,9 @@ extern DTA1XX_FDO  g_Dta1xxCards[DTA1XX_MAX_CARDS];	// DTA-1xx card data
 extern Int  g_NumOfCards;				// Number of DTA-1xx cards found in the system
 
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Ad9789.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-NTSTATUS  Ad9789FrequencyResponseCompensation(Channel* pCh);
-NTSTATUS  Ad9789GetRfControl(Channel* pCh, Int64 * pRfFreq, Int * pLockStatus);
-NTSTATUS  Ad9789Init(Channel* pCh);
-NTSTATUS  Ad9789SetModControl(Channel* pCh, Int ModType, Int ParXtra0, Int ParXtra1, Int  ParXtra2);
-NTSTATUS  Ad9789SetRfControl(Channel* pCh, Int64 RfFreq);
-NTSTATUS  Ad9789SetRfMode(Channel* pCh, Int RfMode);
-NTSTATUS  Ad9789SetSymSampleRate(Channel* pCh, Int SymSamplRate);
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Ad9789.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+Int  Dta1xxAd9789Write(DTA1XX_FDO* pFdo, Int PortIndex,
+                                               Int RegAddr, Int NumToWrite, UInt8* pData);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- CrossPlatform.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 NTSTATUS AllocateCdmaBuffer(Channel* pCh, UInt* BufSize);
@@ -1058,7 +1059,7 @@ Int  Dta1xxIoCtl(struct inode *inode, struct file *filp, unsigned int cmd,
 long  Dta1xxCompatIoCtl(struct file *filp, unsigned int cmd, unsigned long arg);
 #endif
 Int  Dta1xxFirmwareReboot(DTA1XX_FDO* pFdo);
-Int  Dta1xxI2cTransferIoctl(DTA1XX_FDO* pFdo, DTA1XX_I2C_TRANSFER*);
+Int  Dta1xxI2cTransferIoctl(DTA1XX_FDO* pFdo, struct file*, DTA1XX_I2C_TRANSFER*);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Init.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 Int  Dta1xxInitDevice(DTA1XX_FDO* pFdo);
@@ -1095,20 +1096,15 @@ BOOLEAN  Dta1xxIsHardQamAorC(Channel* pCh);
 Int  Dta1xxRxReset(Channel* pTsRx, Int);
 Int  Dta1xxRxSetRxMode(DTA1XX_FDO* pFdo, Int, Int);
 Int  Dta1xxTxGetModControl(DTA1XX_FDO* pFdo, Int, Int*,	Int*, Int*, Int*);
-Int  Dta1xxTxGetOutputLevel(DTA1XX_FDO* pFdo, Int, Int*);
-Int  Dta1xxTxGetRfControl(DTA1XX_FDO* pFdo, Int, Int64*, Int*);
 Int  Dta1xxTxGetTxControl(DTA1XX_FDO* pFdo, Int, Int*);
 Int  Dta1xxTxGetTxMode(DTA1XX_FDO* pFdo, Int, Int*, Int*);
 Int  Dta1xxTxReset(Channel* pTsTx, Int);
 Int  Dta1xxTxSetModControl2(DTA1XX_FDO* pFdo, Int, Int, Int, Int, Int);
-Int  Dta1xxTxSetOutputLevel(DTA1XX_FDO* pFdo, Int, Int);
-Int  Dta1xxTxSetRfControl(DTA1XX_FDO* pFdo, Int, Int64);
-Int  Dta1xxTxSetRfMode(DTA1XX_FDO* pFdo, Int, Int);
 Int  Dta1xxTxSetTxControl(DTA1XX_FDO* pFdo, Int, Int);
 Int  Dta1xxTxSetTxMode(DTA1XX_FDO* pFdo, Int, Int, Int);
 Int  Dta1xxGenSetLed(DTA1XX_FDO* pFdo, Int);
-Int  Dta1xxI2cRead(DTA1XX_FDO* pFdo, UInt, UInt Length, UInt8*);
-Int  Dta1xxI2cWrite(DTA1XX_FDO* pFdo, UInt, UInt Length, UInt8*);
+Int  Dta1xxI2cRead(DTA1XX_FDO* pFdo, struct file*, UInt, UInt Length, UInt8*);
+Int  Dta1xxI2cWrite(DTA1XX_FDO* pFdo, struct file*, UInt, UInt Length, UInt8*);
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- MapMemory.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1199,21 +1195,23 @@ NTSTATUS  Dta1xxTxSetTsRate(IN PDTA1XX_FDO_EXTENSION pFdoExt, IN Int PortIndex,
 							IN Int SetTsRate, IN Int TsRate);*/
 Int  Dta1xxTxGetRate2(DTA1XX_FDO* pFdo,	Int, Int*, Int*);
 Int  Dta1xxTxSetRate2(DTA1XX_FDO* pFdo, Int, Int, Int);
+Int  Dta1xxTxSetRate3(DTA1XX_FDO* pFdo, Int, Int, Int);
 Int  Dta1xxGetTxRateSel(Channel*, Int*);
 Int  Dta1xxSetTxRateSel(Channel*, Int);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Spi.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-NTSTATUS  Dta1xxSpiGetIoClksel(Channel* pChannel, Int* pClkSel);
-NTSTATUS  Dta1xxSpiGetIoMode(Channel* pChannel, Int* pMode, Int* pClkFreq);
-NTSTATUS  Dta1xxSpiGetIoStd(Channel* pChannel, Int* pStd);
+NTSTATUS  Dta1xxSpiGetSpiClksel(Channel* pChannel, Int* pClkSel);
+NTSTATUS  Dta1xxSpiGetSpiMode(Channel* pChannel, Int* pMode);
+NTSTATUS  Dta1xxSpiGetSpiStd(Channel* pChannel, Int* pStd);
 NTSTATUS  Dta1xxSpiGetRxClkFreq(Channel* pChannel, Int* pClkFreq);
 NTSTATUS  Dta1xxSpiGetTxRateBps(Channel* pChannel, UInt32* TxRateBps);
 NTSTATUS  Dta1xxSpiInit(Channel* pChannel);
-NTSTATUS  Dta1xxSpiSetIoClksel(Channel* pChannel, Int ClkSel);
-NTSTATUS  Dta1xxSpiSetIoMode(Channel* pChannel, Int Mode, Int ClkFreq);
-NTSTATUS  Dta1xxSpiSetIoStd(Channel* pChannel, Int Std);
+NTSTATUS  Dta1xxSpiSetSpiClkSel(Channel* pChannel, Int ClkSel);
+NTSTATUS  Dta1xxSpiSetSpiMode(Channel* pChannel, Int Mode);
+NTSTATUS  Dta1xxSpiSetSpiStd(Channel* pChannel, Int Std);
 NTSTATUS  Dta1xxSpiSetRxModeDvb(Channel* pChannel, Int RxMode);
 NTSTATUS  Dta1xxSpiSetSdiClock(Channel* pChannel);
+NTSTATUS  Dta1xxSpiSetSpiClock(Channel* pChannel, Int SpiClk);
 NTSTATUS  Dta1xxSpiSetTxRateBps(Channel* pChannel, UInt32 TxRateBps);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Target.c -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

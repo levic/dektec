@@ -277,6 +277,11 @@ Int  Dta1xxInitFdo(
 	pFdo->m_VpdEepromSize = PLX_VPD_SIZE;
 	pFdo->m_SupportsI2cItf = FALSE;
 
+     // Initialise I2C exclusive-access variables
+    init_MUTEX(&pFdo->m_I2cExclAccLock);
+	pFdo->m_pI2cExclAccFileObj = NULL;
+	pFdo->m_I2cExclAccRecursiveCount = 0;
+
 	// Set board-dependent variables
 	switch (pFdo->m_TypeNumber)
 	{
@@ -524,17 +529,10 @@ Int  Dta1xxInitFdo(
 				pCh->m_pRegBase = (pBase + pCh->m_AddrBaseOffset
 										 + pCh->m_AddrTxRegMapOffset);
 
-				// Initialise frequency-response compensation table and RF parameters
-				Dta2111Init(pCh);
+				pCh->m_TsSymOrSampRate = -1;
 
-        		pCh->m_TsSymOrSampRate = -1;
-
-				// Initialise shadow modulator-setting variables in device extension
-				Dta1xxTxDeriveModPars(pFdo, 0);
-				
-				// Set clock divider for CDMA buffer position computations (54 MHz
-				// 4 samples per clock)
-				pCh->m_CdmaClockDiv = 54000000/4;
+                // Initialise shadow modulator-setting variables in device extension
+                Dta1xxTxDeriveModPars(pFdo, 0);
 				break;
 
 	case 2142:
@@ -553,16 +551,16 @@ Int  Dta1xxInitFdo(
 					pCh->m_AddrRxRegMapOffset = 0x000;
 					pCh->m_AddrTxRegMapOffset = 0x080;
 					pCh->m_AddrDmaRegMapOffset = 0x100;
-					pCh->m_Capability = DTA1XX_CHCAP_BIDIR_PORT |
-						DTA1XX_CHCAP_RATESEL;
-					pCh->m_ChannelType = DTA1XX_TS_RX_CHANNEL;
+					pCh->m_Capability = DTA1XX_CHCAP_BIDIR_PORT | DTA1XX_CHCAP_TSRATESEL
+                                                                     | DTA1XX_CHCAP_PQNCO;
+                    pCh->m_ChannelType = DTA1XX_TS_RX_CHANNEL;
 					pCh->m_pRegBase = (pBase + pCh->m_AddrBaseOffset
 											 + pCh->m_AddrRxRegMapOffset);
 					if (i==0) {
 					} else if (i==1) {
 						pCh->m_pSpiReg = (struct _Dta1xxSpiGen *) (pBase + 0x080);
 						ExInitializeFastMutex(&pCh->m_DssMutex);
-						pCh->m_Capability |= DTA1XX_CHCAP_SPI | DTA1XX_CHCAP_CLKSEL;
+						pCh->m_Capability |= DTA1XX_CHCAP_SPI | DTA1XX_CHCAP_SPICLKSEL;
 					}
 				}
 				break;
@@ -1239,6 +1237,11 @@ Int  Dta1xxInitDeviceHardware(
 		// Select QAM interpolation filter
 		Dta1xxTxModcRegSetIntPolSel(pCh->m_pRegBase, DTA1XX_INTPOL_QAM);
 
+		// Set output level to the fixed default of -15dBm (for QAM)
+		// NOTE: Ideally we want the input attn to be set to 4.5dB
+		Dta1xxTxRfCtrl2RegSetInpAttn(pCh->m_pRegBase, 9);
+		Dta1xxTxRfCtrl2RegSetOutpAttn(pCh->m_pRegBase, 5);
+
 		// For Direct-IQ modulation modes we need a higher than usual PCI bandwitdh,
 		// so we set the latency timer to 96 PCI clocks
 		NewLatTimer = 96;
@@ -1329,35 +1332,14 @@ Int  Dta1xxInitDeviceHardware(
 		// sleep shortly to allow power-supply to settle
 		Dta1xxWaitMs(1);
 		
-		if ( pFdo->m_SupportsI2cItf ) {
-			// Init I2C clock speed to 200kHz. ClkDiv=54M/200k/4=0x43
- 			Dta1xxGenI2cCtrlRegSetClkDiv(pFdo->m_pGenRegs, 0x43);
-		}
-		
-		// Capability based channel initialisation, based on DTA1XX_CHCAP1_AD9789
-		// capability. This code works, without any change, outside this switch
-		// statement, in the generic part of this function.
-        for (i=0; i<pFdo->m_NumNonIpChannels; i++) {
-            volatile UInt8*  pTxRegs;
-            pCh = &pFdo->m_Channel[i];
-    		pTxRegs = (((volatile UInt8 *)pCh->m_pRegBase)+pCh->m_AddrTxRegMapOffset);
-            if ((pCh->m_Capability&DTA1XX_CHCAP_AD9789) != 0) {
-                // reset channel to force initialisation of all channel resources
-                Dta1xxTxCtrlRegTxReset(pTxRegs);
-                // initialise channel registers
-                Dta1xxInitAsiSdi(pCh);
-                // initialise AD9789 chip
-                Ad9789Init(pCh);
-                // set default mod-control (DVB-C)
-                Ad9789SetModControl(pCh, DTA1XX_MOD_QAM64, DTA1XX_MOD_J83_A, -1, -1);
-                // set default RF-frequency (474MHz)
-                Ad9789SetRfControl(pCh, 474000000LL);
-                // set default symbol rate (6.89MBd)
-                Ad9789SetSymSampleRate(pCh, 6890000);
-    		}
-            // Disable DMA TimeOut
-            Dta1xxDmaTimeOutSet(pCh->m_Dma.m_pRegBase, 0);
-        }
+        // Init I2C clock speed to 200kHz. ClkDiv=54M/200k/4=0x43
+        Dta1xxGenI2cCtrlRegSetClkDiv(pFdo->m_pGenRegs, 0x43);
+
+        // Set channel pointer
+        pCh = &pFdo->m_Channel[0];
+			
+		// Disable DMA TimeOut
+        Dta1xxDmaTimeOutSet(pCh->m_Dma.m_pRegBase, 0);
 		break;
 
 	case 120:
@@ -1467,7 +1449,7 @@ Int  Dta1xxInitDeviceHardware(
 			if ((pCh->m_Capability&DTA1XX_CHCAP_SPI) != 0) {
 				Dta1xxSpiInit(pCh);
 			}
-			Dta1xxSetTxRateSel(pCh,DTA1XX_IORATESEL_INTCLK);
+			Dta1xxSetTxRateSel(pCh,DTA1XX_TSRATESEL_INTERNAL);
 			Dta1xxInitAsiSdi(pCh);
 			// Disable DMA TimeOut
 			Dta1xxDmaTimeOutSet(pCh->m_Dma.m_pRegBase, 0);
@@ -1477,7 +1459,6 @@ Int  Dta1xxInitDeviceHardware(
 			// Init I2C clock speed to 200kHz. ClkDiv=54M/200k/4=0x43
  			Dta1xxGenI2cCtrlRegSetClkDiv((volatile UInt8*)pFdo->m_pGenRegs, 0x43);
 		}
-
 		break;
 
 	case 160:
@@ -2366,34 +2347,6 @@ void Dta1xxInitAsiSdi(Channel*  pCh)
 	return;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxAsiGetIoClksel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  Dta1xxAsiGetIoClksel(
-	Channel*  pChannel,
-	Int*  pIoConfig,
-	Int*  pIoConfigPar)
-{
-	*pIoConfig = DTA1XX_IOCLKSEL_INTCLK;
-	*pIoConfigPar = 0;
-	return 0;
-}
-
-
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxAsiSetIoClksel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  Dta1xxAsiSetIoClksel(
-	Channel*  pChannel,
-	Int  IoConfig,
-	Int  IoConfigPar)
-{
-	if (IoConfig==DTA1XX_IOCLKSEL_INTCLK)
-		return 0;
-
-	return -EINVAL;
-}
-
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxGetIoConfig -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Get configuration of an I/O port.
@@ -2478,7 +2431,12 @@ Int  Dta1xxGetIoConfig2(
 	if (pIoConfig->m_PortIndex<0 || pIoConfig->m_PortIndex>=pFdo->m_NumChannels)
 		return -EFAULT;
 
-	// Get channel pointer, capabilities
+	// We have to change the ConfigCode for backwards compatibility with applications
+    // build with old DTAPI.
+    if (pIoConfig->m_ConfigCode == 1)
+        pIoConfig->m_ConfigCode = DTA1XX_IOCONFIG_IOCONFIG;
+    
+    // Get channel pointer, capabilities
 	pChannel = &pFdo->m_Channel[pIoConfig->m_PortIndex];
 	Capability = pChannel->m_Capability;
 
@@ -2486,11 +2444,12 @@ Int  Dta1xxGetIoConfig2(
 	Status = -EFAULT;
 	switch (pIoConfig->m_ConfigCode) {
 
-	case DTA1XX_IOCONFIG_IOCLKSEL:
+	case DTA1XX_IOCONFIG_SPICLKSEL:
 		if (Capability&DTA1XX_CHCAP_SPI)
-			Status = Dta1xxSpiGetIoClksel(pChannel, &pIoConfig->m_IoConfig);
+			Status = Dta1xxSpiGetSpiClksel(pChannel, &pIoConfig->m_IoConfig);
 		else
-			Status = Dta1xxAsiGetIoClksel(pChannel, &pIoConfig->m_IoConfig, &pIoConfig->m_ParXtra);
+			return -EFAULT;
+	
 		break;
 
 	case DTA1XX_IOCONFIG_IOCONFIG:
@@ -2504,23 +2463,22 @@ Int  Dta1xxGetIoConfig2(
 		break;
 	}
 
-	case DTA1XX_IOCONFIG_IOMODE:
+	case DTA1XX_IOCONFIG_SPIMODE:
 		// DVB-SPI/BT.656 ports have the capability
 		if (Capability&DTA1XX_CHCAP_SPI)
-			Status = Dta1xxSpiGetIoMode(pChannel, &pIoConfig->m_IoConfig, 
-										&pIoConfig->m_ParXtra);
+			Status = Dta1xxSpiGetSpiMode(pChannel, &pIoConfig->m_IoConfig);
 		break;
 
-	case DTA1XX_IOCONFIG_IORATESEL:
+	case DTA1XX_IOCONFIG_TSRATESEL:
 		// if channel has rate selection capability
-		if (pChannel->m_Capability&DTA1XX_CHCAP_RATESEL)
+		if (pChannel->m_Capability&DTA1XX_CHCAP_TSRATESEL)
 			Status = Dta1xxGetTxRateSel(pChannel, &pIoConfig->m_IoConfig);
 		break;
 
-	case DTA1XX_IOCONFIG_IOSTD:
+	case DTA1XX_IOCONFIG_SPISTD:
 		// DVB-SPI/BT.656 ports have the capability
 		if (Capability&DTA1XX_CHCAP_SPI)
-			Status = Dta1xxSpiGetIoStd(pChannel, &pIoConfig->m_IoConfig);
+			Status = Dta1xxSpiGetSpiStd(pChannel, &pIoConfig->m_IoConfig);
 		break;
 
 	default:
@@ -3115,21 +3073,24 @@ Int  Dta1xxSetIoConfig2(
 	pChannel = &pFdo->m_Channel[pIoConfig->m_PortIndex];
 	Capability = pChannel->m_Capability;
 
-	// Dispatch on configuration code
+	// We have to change the ConfigCode for backwards compatibility with applications
+    // build with old DTAPI.
+    if (pIoConfig->m_ConfigCode == 1)
+        pIoConfig->m_ConfigCode = DTA1XX_IOCONFIG_IOCONFIG;
+
+    // Dispatch on configuration code
 	Status = -EFAULT;
 	pIoConfigName = 0;
 	pParXtraName = 0;
 	switch (pIoConfig->m_ConfigCode) {
 
-	case DTA1XX_IOCONFIG_IOCLKSEL:
-		pIoConfigName = "IoClksel";
-		pIoConfigName = "IoClkselPar";
-
-		if (Capability&DTA1XX_CHCAP_SPI)
-			Status = Dta1xxSpiSetIoClksel(pChannel, pIoConfig->m_IoConfig);
+	case DTA1XX_IOCONFIG_SPICLKSEL:
+		pIoConfigName = "SpiClksel";
+		
+		if (Capability&DTA1XX_CHCAP_SPICLKSEL)
+			Status = Dta1xxSpiSetSpiClkSel(pChannel, pIoConfig->m_IoConfig);
 		else
-			Status = Dta1xxAsiSetIoClksel(pChannel, pIoConfig->m_IoConfig,
-										  pIoConfig->m_ParXtra);
+            Status = -EFAULT;
 		break;
 
 	case DTA1XX_IOCONFIG_IOCONFIG: 
@@ -3143,27 +3104,27 @@ Int  Dta1xxSetIoConfig2(
 		break;
 	}
 	
-	case DTA1XX_IOCONFIG_IOMODE:
-		pIoConfigName = "IoMode";
-		pParXtraName = "IoModePar";
+	case DTA1XX_IOCONFIG_SPIMODE:
+		pIoConfigName = "SpiMode";
 		// DVB-SPI/BT.656 ports have the capability
 		if (0!=(Capability&DTA1XX_CHCAP_SPI))
-			Status = Dta1xxSpiSetIoMode(pChannel, pIoConfig->m_IoConfig,
-										pIoConfig->m_ParXtra);
+			Status = Dta1xxSpiSetSpiMode(pChannel, pIoConfig->m_IoConfig);
 		break;
 
-	case DTA1XX_IOCONFIG_IORATESEL:
-		pIoConfigName = "IoRatesel";
+	case DTA1XX_IOCONFIG_TSRATESEL:
+		pIoConfigName = "TsRatesel";
 		// if channel has rate selection capability
-		if (pChannel->m_Capability&DTA1XX_CHCAP_RATESEL)
+		if (pChannel->m_Capability&DTA1XX_CHCAP_TSRATESEL)
 			Status = Dta1xxSetTxRateSel(pChannel, pIoConfig->m_IoConfig);
+        else
+            Status = -EFAULT;
 		break;
 
-	case DTA1XX_IOCONFIG_IOSTD:
-		pIoConfigName = "IoStd";
+	case DTA1XX_IOCONFIG_SPISTD:
+		pIoConfigName = "SpiStd";
 		// DVB-SPI/BT.656 ports have the capability
 		if (Capability&DTA1XX_CHCAP_SPI)
-			Status = Dta1xxSpiSetIoStd(pChannel, pIoConfig->m_IoConfig);
+			Status = Dta1xxSpiSetSpiStd(pChannel, pIoConfig->m_IoConfig);
 	break;
 
 	default:

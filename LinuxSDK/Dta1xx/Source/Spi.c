@@ -80,49 +80,42 @@ NTSTATUS Dta1xxSpiGetTxRateBps(
 	return STATUS_SUCCESS;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiGetIoClksel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiGetSpiClksel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-NTSTATUS Dta1xxSpiGetIoClksel(
+NTSTATUS Dta1xxSpiGetSpiClksel(
 	IN Channel*	 pChannel,
 	IN Int* pClksel)
 {
 	if (pChannel->m_pSpiReg->m_Control.m_ExtClkSelect)
-		*pClksel = DTA1XX_IOCLKSEL_EXTCLK;
+		*pClksel = DTA1XX_SPICLKSEL_EXTCLK;
 	else
-		*pClksel = DTA1XX_IOCLKSEL_INTCLK;
+		*pClksel = DTA1XX_SPICLKSEL_INTERNAL;
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO,"[%d] Dta1xxSpiGetIoClksel: Clksel %d", pChannel->m_PortIndex, (int)*pClksel);
+	DTA1XX_LOG(KERN_INFO,"[%d] Dta1xxSpiGetSpiClksel: Clksel %d", pChannel->m_PortIndex, (int)*pClksel);
 #endif
 	return STATUS_SUCCESS;
 }
 
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiGetIoMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiGetSpiMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-NTSTATUS Dta1xxSpiGetIoMode(
+NTSTATUS Dta1xxSpiGetSpiMode(
 	IN Channel*	 pChannel,
-	OUT Int* pMode,
-	OUT Int* pClkFreq)
+	OUT Int* pMode)
 {
-	*pMode = pChannel->m_IoMode;
-	// ClkFreq = round(ClkFreq/10)
-#ifdef WINBUILD
-	*pClkFreq = (Int)((((Int64)(pChannel->m_DssFreq)) + 5LL) / 10LL);
-#else
-	*pClkFreq = (Int)Dta1xxBinDiv(((Int64)(pChannel->m_DssFreq) + 5LL), 10LL, NULL);
-#endif
-
+	*pMode = pChannel->m_SpiMode;
+	
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiGetIoMode: Mode %d, ClkFreq %d",
-		pChannel->m_PortIndex, *pMode, *pClkFreq);
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiGetSpiMode: Mode %d",
+		pChannel->m_PortIndex, *pMode);
 #endif
 	return STATUS_SUCCESS;
 }
 
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiGetIoStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiGetSpiStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-NTSTATUS Dta1xxSpiGetIoStd(
+NTSTATUS Dta1xxSpiGetSpiStd(
 	IN Channel*	 pChannel,
 	IN Int* pStd)
 {
@@ -131,19 +124,19 @@ NTSTATUS Dta1xxSpiGetIoStd(
 	if (pSpiReg->m_Control.m_IoEnable)
 	{
 		if (pSpiReg->m_Control.m_LvttlSelect)
-			*pStd = DTA1XX_IOSTD_LVTTL;
+			*pStd = DTA1XX_SPISTD_LVTTL;
 		else
 		{
 			if (pSpiReg->m_Control.m_FailSafeEnable)
-				*pStd = DTA1XX_IOSTD_LVDS2;
+				*pStd = DTA1XX_SPISTD_LVDS2;
 			else
-				*pStd = DTA1XX_IOSTD_LVDS1;
+				*pStd = DTA1XX_SPISTD_LVDS1;
 		}
-	}
-	else
-		*pStd = DTA1XX_IOSTD_DISABLED;
+	} else 
+        return STATUS_NOT_SUPPORTED;
+	
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiGetIoStd: Std %d", pChannel->m_PortIndex, *pStd);
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiGetSpiStd: Std %d", pChannel->m_PortIndex, *pStd);
 #endif
 	return STATUS_SUCCESS;
 }
@@ -199,52 +192,53 @@ NTSTATUS Dta1xxSpiInit(
 
 	// Update channel parameters
 	pChannel->m_DssFreq = 0;
-	pChannel->m_IoMode = DTA1XX_IOMODE_STANDARD;
+	pChannel->m_SpiMode = DTA1XX_SPIMODE_STANDARD;
 	pChannel->m_TxRate = 0;
 
 	return STATUS_SUCCESS;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiSetIoClksel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiSetSpiClkSel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-NTSTATUS Dta1xxSpiSetIoClksel(
+NTSTATUS Dta1xxSpiSetSpiClkSel(
 	IN Channel*	 pChannel,
 	IN Int  Clksel)
 {
 	Dta1xxSpiGen*  pSpiReg; // Pointer to SPI general register block
 #if LOG_LEVEL_SPI > 0
-	DTA1XX_LOG(KERN_INFO,"[%d] Dta1xxSpiSetIoClksel: Clksel %d", pChannel->m_PortIndex, Clksel);
+	DTA1XX_LOG(KERN_INFO,"[%d] Dta1xxSpiSetSpiClkSel: Clksel %d", pChannel->m_PortIndex, 
+                                                                                  Clksel);
 #endif
 	// Get pointer to register map
 	pSpiReg = pChannel->m_pSpiReg;
 	switch (Clksel) 
 	{
-	case DTA1XX_IOCLKSEL_EXTCLK:
+	case DTA1XX_SPICLKSEL_EXTCLK:
 		pSpiReg->m_Control.m_ExtClkSelect = 1;
 		// Turn off Internal clock
 		SetIntClkFreq(pChannel,0);
 		return STATUS_SUCCESS;
-	case DTA1XX_IOCLKSEL_INTCLK:
+    case DTA1XX_SPICLKSEL_INTERNAL:
 		pSpiReg->m_Control.m_ExtClkSelect = 0;
 		return STATUS_SUCCESS;
 	}
-	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetIoClksel: invalid parameter Clksel %d", pChannel->m_PortIndex, Clksel);
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetSpiClkSel: invalid parameter Clksel %d",
+                                                           pChannel->m_PortIndex, Clksel);
 	return STATUS_INVALID_PARAMETER;
 
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiSetIoMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiSetSpiMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-NTSTATUS Dta1xxSpiSetIoMode(
+NTSTATUS Dta1xxSpiSetSpiMode(
 	IN Channel*	 pChannel,
-	IN Int  Mode,
-	IN Int  ClkFreq)
+	IN Int  Mode)
 {
 	Dta1xxSpiGen*  pSpiReg; // Pointer to SPI general register block
 	Int64 ClkFreqDhz;
 	int TenBitMode;
 	int SerialMode;
-	NTSTATUS status;
+	NTSTATUS status = STATUS_SUCCESS;
 
 #if LOG_LEVEL_SPI > 0
 	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetIoMode: Mode %d, ClkFreq %d", pChannel->m_PortIndex, Mode, ClkFreq);
@@ -254,25 +248,19 @@ NTSTATUS Dta1xxSpiSetIoMode(
 	pSpiReg = pChannel->m_pSpiReg;
 
 	// Set defaults
-	ClkFreqDhz = (Int64)ClkFreq * 10LL;
 	TenBitMode = 0;
 	SerialMode = 0;
 
 	// Decode Mode parameter
 	switch (Mode)
 	{
-	case DTA1XX_IOMODE_STANDARD:
-		// I/O rate = Tx rate
-		ClkFreqDhz = pChannel->m_TxRate;
-		// limit values to min or max frequency
-		if (ClkFreqDhz > 1980000000LL) ClkFreq = 1980000000LL;
-		if (ClkFreqDhz < 0LL) ClkFreq = 0LL;
+	case DTA1XX_SPIMODE_STANDARD:
 		break;
-	case DTA1XX_IOMODE_SERIAL10B:
+	case DTA1XX_SPIMODE_SERIAL10B:
 		TenBitMode = 1;
-	case DTA1XX_IOMODE_SERIAL8B:
+	case DTA1XX_SPIMODE_SERIAL8B:
 		SerialMode = 1;
-	case DTA1XX_IOMODE_FIXEDCLK:
+	case DTA1XX_SPIMODE_FIXEDCLK:
 		break;
 	default:
 		DTA1XX_LOG(KERN_INFO,
@@ -280,28 +268,19 @@ NTSTATUS Dta1xxSpiSetIoMode(
 		return STATUS_INVALID_PARAMETER;
 	}
 
-	// Turn internal clock off when clock source is extern
-	if (pSpiReg->m_Control.m_ExtClkSelect)
-		ClkFreqDhz = 0;
-
-	// Set mode
-	status = SetIntClkFreq(pChannel,ClkFreqDhz);
-	if ( status==STATUS_SUCCESS )
-	{
-		pSpiReg->m_Control.m_TestMode = 0;
-		pSpiReg->m_Control.m_PrngMode = 0;
-		pSpiReg->m_Control.m_SerialMode = SerialMode;
-		pSpiReg->m_Control.m_10bMode = TenBitMode;
-		pChannel->m_IoMode = Mode;
-	}
+	pSpiReg->m_Control.m_TestMode = 0;
+	pSpiReg->m_Control.m_PrngMode = 0;
+	pSpiReg->m_Control.m_SerialMode = SerialMode;
+	pSpiReg->m_Control.m_10bMode = TenBitMode;
+	pChannel->m_SpiMode = Mode;
 	
 	return status;
 }
 
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiSetIoStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiSetSpiStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-NTSTATUS Dta1xxSpiSetIoStd(
+NTSTATUS Dta1xxSpiSetSpiStd(
 	IN Channel*	 pChannel,
 	IN Int  Std)
 {
@@ -311,28 +290,23 @@ NTSTATUS Dta1xxSpiSetIoStd(
 #endif
 	pSpiReg = pChannel->m_pSpiReg;
 	switch (Std) {
-		case DTA1XX_IOSTD_DISABLED:
-			pSpiReg->m_Control.m_IoEnable			= 0;
-			pSpiReg->m_Control.m_FailSafeEnable		= 1;
-			pSpiReg->m_Control.m_LvttlSelect		= 0;
-			return STATUS_SUCCESS;
-		case DTA1XX_IOSTD_LVDS1:
+		case DTA1XX_SPISTD_LVDS1:
 			pSpiReg->m_Control.m_FailSafeEnable		= 0;
 			pSpiReg->m_Control.m_LvttlSelect		= 0;
 			pSpiReg->m_Control.m_IoEnable			= 1;
 			return STATUS_SUCCESS;
-		case DTA1XX_IOSTD_LVDS2:
+		case DTA1XX_SPISTD_LVDS2:
 			pSpiReg->m_Control.m_FailSafeEnable		= 1;
 			pSpiReg->m_Control.m_LvttlSelect		= 0;
 			pSpiReg->m_Control.m_IoEnable			= 1;
 			return STATUS_SUCCESS;
-		case DTA1XX_IOSTD_LVTTL:
+		case DTA1XX_SPISTD_LVTTL:
 			pSpiReg->m_Control.m_LvttlSelect		= 1;
 			pSpiReg->m_Control.m_FailSafeEnable		= 1;
 			pSpiReg->m_Control.m_IoEnable			= 1;
 			return STATUS_SUCCESS;
 	}
-	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetIoStd: invalid parameter Std %d",
+	DTA1XX_LOG(KERN_INFO, "[%d] Dta1xxSpiSetSpiStd: invalid parameter Std %d",
 		pChannel->m_PortIndex, Std);
 	return STATUS_INVALID_PARAMETER;
 }
@@ -353,9 +327,14 @@ NTSTATUS Dta1xxSpiSetRxModeDvb(
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiSetSdiClock -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 NTSTATUS  Dta1xxSpiSetSdiClock(Channel* pChannel) {
-	if (pChannel->m_IoMode == DTA1XX_IOMODE_STANDARD)
+	if (pChannel->m_SpiMode == DTA1XX_SPIMODE_STANDARD)
 		pChannel->m_TxRate = 270000000;
 	return SetIntClkFreq(pChannel,(UInt64)pChannel->m_TxRate);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dta1xxSpiSetSpiClock -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+NTSTATUS  Dta1xxSpiSetSpiClock(Channel* pChannel, Int SpiClk) {
+	return SetIntClkFreq(pChannel,(UInt64)SpiClk*10);
 }
 
 
@@ -383,7 +362,7 @@ NTSTATUS Dta1xxSpiSetTxRateBps(
 	
 	// Update I/O clock frequency
 	status = STATUS_SUCCESS;
-	if (  (pChannel->m_IoMode==DTA1XX_IOMODE_STANDARD) &&
+	if (  (pChannel->m_SpiMode==DTA1XX_SPIMODE_STANDARD) &&
 	     !(pChannel->m_pSpiReg->m_Control.m_ExtClkSelect) ) 
 	{
 		status = SetIntClkFreq(pChannel,(UInt64)pChannel->m_TxRate);

@@ -67,20 +67,20 @@ Unzipping LinuxSDK.zip will lead to the following directory structure:
     |   |- install_files
 
 --------------------------------------------------------------------------------
-- Version info: July 2010
+- Version info: March 2011
 --------------------------------------------------------------------------------
 
 The Linux SDK includes the following versions of the Dta1xx device driver and
 the DTAPI library:
 
               Date:          Version:
-Dta1xx        2010.06.26	 V2.9.0.146
-Dta1xxNw      2010.06.26	 V1.2.1.8
-Dtu2xx        2010.06.22     V3.2.0.35
-DTAPI         2010.06.30     V4.7.3.136
-DtapiService  2010.06.30     V1.3.2.32
-DtPlay        2010.06.25     V3.10.5
-DtRecord      2010.06.14     V3.6.0
+Dta1xx        2011.03.02	 V2.10.0.148
+Dta1xxNw      2010.08.13	 V1.2.2.9
+Dtu2xx        2011.02.18     V3.3.0.36
+DTAPI         2011.03.02     V4.11.0.146
+DtapiService  2011.03.02     V1.4.4.65
+DtPlay        2010.10.13     V3.12.0
+DtRecord      2010.10.07     V3.4.0
 DtRmxUtil     2009.10.26     V1.0.4
 
 Refer to the readme files in the Dta1xx, Dta1xxNw and Dtu2xx directories for a

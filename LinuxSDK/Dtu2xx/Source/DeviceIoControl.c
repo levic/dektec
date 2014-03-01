@@ -233,6 +233,9 @@ Int  Dtu2xxDeviceControl(
 		IoReqSize = sizeof(DTU2XX_RW_INFO_32);
 		break;
 #endif	// #if defined(CONFIG_X86_64)
+    case IOCTL_DTU2XX_TX_AD9789_WRITE:
+		IoctlStr = "IOCTL_DTU2XX_TX_AD9789_WRITE";
+		break;
 	case IOCTL_DTU2XX_TX_CLEAR_FLAGS:
 		IoctlStr = "IOCTL_DTU2XX_TX_CLEAR_FLAGS";
 		IoReqSize = sizeof(DTU2XX_FLAGS);
@@ -281,9 +284,17 @@ Int  Dtu2xxDeviceControl(
 		IoctlStr = "IOCTL_DTU2XX_TX_RD_LOOPBACK_DATA";
 		//IoReqSize = sizeof(UInt);
 		break;
+    case IOCTL_DTU2XX_TX_REG_WRITE_MASKED:
+		IoctlStr = "IOCTL_DTU2XX_TX_REG_WRITE_MASKED";
+		IoReqSize = sizeof(DTU2XX_REG_WRITE_MASKED);
+		break;
 	case IOCTL_DTU2XX_TX_RESET:
 		IoctlStr = "IOCTL_DTU2XX_TX_RESET";
 		IoReqSize = sizeof(DTU2XX_RST_INFO);
+		break;
+    case IOCTL_DTU2XX_TX_SET_FIFO_EXTRAP:
+		IoctlStr = "IOCTL_DTU2XX_TX_SET_FIFO_EXTRAP";
+        IoReqSize = sizeof(DTU2XX_FIFO_EXTRAP);
 		break;
 	case IOCTL_DTU2XX_TX_SET_TX_POLARITY:
 		IoctlStr = "IOCTL_DTU2XX_TX_SET_TX_POLARITY";
@@ -340,6 +351,14 @@ Int  Dtu2xxDeviceControl(
 		IoReqSize = sizeof(DTU2XX_RW_INFO_32);
 		break;
 #endif	// #if defined(CONFIG_X86_64)
+	case IOCTL_DTU2XX_I2C_REQUEST_EXCL_ACCESS:	
+		IoctlStr = "IOCTL_DTU2XX_I2C_REQUEST_EXCL_ACCESS";
+		IoReqSize = sizeof(DTU2XX_I2C_EXCL_ACCESS_INFO);
+		break;
+	case IOCTL_DTU2XX_UCODE_UPLOAD_STATE:	
+		IoctlStr = "IOCTL_DTU2XX_UCODE_UPLOAD_STATE";
+		IoReqSize = sizeof(DTU2XX_UCODE_UPLOAD_STATE_INFO);
+		break;
 	default:
 		IoctlStr = "??UNKNOWN IOCTL CODE??";
 		break;
@@ -387,6 +406,8 @@ Int  Dtu2xxDeviceControl(
 	case IOCTL_DTU2XX_GET_USB_SPEED:
 	case IOCTL_DTU2XX_EEPROM_CONTROL:
 	case IOCTL_DTU2XX_UPLOAD_FIRMWARE:
+	case IOCTL_DTU2XX_I2C_REQUEST_EXCL_ACCESS:
+	case IOCTL_DTU2XX_UCODE_UPLOAD_STATE:
 		PortIndex = -1; ChannelType = -1;
 		break;
 
@@ -434,6 +455,7 @@ Int  Dtu2xxDeviceControl(
 		ChannelType = DTU2XX_TS_RX_CHANNEL;
 		break;
 
+    case IOCTL_DTU2XX_TX_AD9789_WRITE:
 	case IOCTL_DTU2XX_TX_CLEAR_FLAGS:
 	case IOCTL_DTU2XX_TX_GET_FIFO_LOAD:
 	case IOCTL_DTU2XX_TX_GET_FLAGS:
@@ -446,8 +468,10 @@ Int  Dtu2xxDeviceControl(
 	case IOCTL_DTU2XX_TX_GET_MAX_FIFO_SIZE:
 	case IOCTL_DTU2XX_TX_GET_FIFO_SIZE:
 	case IOCTL_DTU2XX_TX_RD_LOOPBACK_DATA:
+    case IOCTL_DTU2XX_TX_REG_WRITE_MASKED:
 	case IOCTL_DTU2XX_TX_RESET:
 	case IOCTL_DTU2XX_TX_SET_TX_POLARITY:
+    case IOCTL_DTU2XX_TX_SET_FIFO_EXTRAP:
 	case IOCTL_DTU2XX_TX_SET_FIFO_SIZE:
 	case IOCTL_DTU2XX_TX_SET_LOOPBACK_MODE:
 	case IOCTL_DTU2XX_TX_SET_MOD_CONTROL:
@@ -677,6 +701,13 @@ Int  Dtu2xxDeviceControl(
 		break;
 #endif	// #if defined(CONFIG_X86_64)
 
+    case IOCTL_DTU2XX_TX_AD9789_WRITE:
+		ReturnStatus = Dtu2xxTxIoctlAd9789Write(pFdo, PortIndex,
+                                                IoData.m_Ad9789Write.m_RegAddr,
+                                                IoData.m_Ad9789Write.m_NumToWrite,
+                                                IoData.m_Ad9789Write.m_Data);
+		break;
+
 	case IOCTL_DTU2XX_TX_CLEAR_FLAGS:
 		ReturnStatus = Dtu2xxTxIoCtlClearFlags(pFdo, PortIndex, IoData.m_Flags.m_Latched);
 		break;
@@ -732,12 +763,26 @@ Int  Dtu2xxDeviceControl(
 //		ReturnStatus = Dtu2xxTxIoCtlReadLoopBackData(pFdo, PortIndex, IoData.m_Value);
 		break;
 
+    case IOCTL_DTU2XX_TX_REG_WRITE_MASKED:
+		ReturnStatus = Dtu2xxTxIoCtlRegWriteMasked(pFdo, PortIndex,
+                                                   IoData.m_RegWriteMasked.m_RegAddr,
+                                                   IoData.m_RegWriteMasked.m_FieldMask,
+                                                   IoData.m_RegWriteMasked.m_FieldShift,
+                                                   IoData.m_RegWriteMasked.m_FieldValue);
+		break;
+
 	case IOCTL_DTU2XX_TX_RESET:
 		ReturnStatus = Dtu2xxTxIoCtlReset(pFdo, PortIndex, IoData.m_RstInfo.m_RstMode);
 		break;
 
 	case IOCTL_DTU2XX_TX_SET_TX_POLARITY:
 		ReturnStatus = Dtu2xxTxIoCtlTxPolarity(pFdo, PortIndex, IoData.m_Value);
+		break;
+
+    case IOCTL_DTU2XX_TX_SET_FIFO_EXTRAP:
+		ReturnStatus = Dtu2xxTxIoCtlSetFifoExtrap(pFdo, PortIndex,
+                                                  IoData.m_FifoExtrap.m_EnaFifoLoadExtrap,
+                                                  IoData.m_FifoExtrap.m_NumTxBytesPerSec);
 		break;
 
 	case IOCTL_DTU2XX_TX_SET_FIFO_SIZE:
@@ -811,6 +856,22 @@ Int  Dtu2xxDeviceControl(
                                               (UInt8*)((UInt64)IoData.m_RwInfo_32.m_pBuffer));
 		break;
 #endif	// #if defined(CONFIG_X86_64)
+
+	case IOCTL_DTU2XX_I2C_REQUEST_EXCL_ACCESS:	
+		ReturnStatus = Dtu2xxI2cReqExclAccess(
+									pFdo, filp,
+									IoData.m_I2cExclAccess.m_Request,
+									&IoData.m_I2cExclAccess.m_Granted);
+		break;
+
+	case IOCTL_DTU2XX_UCODE_UPLOAD_STATE:
+		ReturnStatus = Dtu2xxIoCtlUCodeUploadState(
+									pFdo, filp,
+									IoData.m_UCodeUploadState.m_RequestUpload,
+									IoData.m_UCodeUploadState.m_Uploaded,
+									&IoData.m_UCodeUploadState.m_Granted,
+									&IoData.m_UCodeUploadState.m_State);
+		break;
 
 	default:
 		return -ENOTTY;
@@ -1086,35 +1147,50 @@ Int  Dtu2xxIoCtlI2CRead(
 	if ( Length > DTU2XX_I2C_BUF_SIZE )
 		return -EFAULT;
 
-	// Divide transfer is chucks suitable for EP0
-	BufIndex = 0;
-    while ( BytesLeft > 0 )
-	{
-		// Do not transfer more than maximum allowed
-		TransferSize = ( BytesLeft > EZUSB_EP0_MAX_TR_SIZE ) ?
-									EZUSB_EP0_MAX_TR_SIZE : BytesLeft;
+	// Get I2C mutex
+	if (down_interruptible(&pFdo->m_I2cMutex))
+        return -EFAULT;
 
-		Status = Dtu2xxVendorRequest(
-								pFdo, DTU2XX_USB_I2C_READ,
-								(UInt16)(DvcAddr),				// Set the device address
-								0, DTU2XX_DIRECTION_READ,
-								TransferSize, &(pBuf[BufIndex]),
-								&ActualTransferred);
+	// Check that the I2C is not locked or locked by our caller
+	if ((pFdo->m_pI2cExclAccFileObj == NULL) ||
+		(pFdo->m_pI2cExclAccFileObj == pFileObj)) {
 
-		// Transfer must be succesful
-		if ( Status!=0 ) {
-			break;
+		// Divide transfer is chucks suitable for EP0
+		BufIndex = 0;
+		while ( BytesLeft > 0 )
+		{
+			// Do not transfer more than maximum allowed
+			TransferSize = ( BytesLeft > EZUSB_EP0_MAX_TR_SIZE ) ? 
+										EZUSB_EP0_MAX_TR_SIZE : BytesLeft;
+
+			Status = Dtu2xxVendorRequest(
+									pFdo, DTU2XX_USB_I2C_READ,
+									(UInt16)(DvcAddr),				// Set the device address
+									0, DTU2XX_DIRECTION_READ,
+									TransferSize, &(pBuf[BufIndex]),
+									&ActualTransferred);
+
+			// Transfer must be succesful
+			if ( Status!=0 ) {
+				break;
+			}
+
+			// Must have transferred all
+			if ( ActualTransferred != TransferSize ) {
+				Status = -EFAULT;
+				break;
+			}
+			// update bytes left and index with buffer
+			BytesLeft -= ActualTransferred;
+			BufIndex += ActualTransferred;
 		}
-
-		// Must have transferred all
-		if ( ActualTransferred != TransferSize ) {
-			Status = -EFAULT;
-			break;
-		}
-		// update bytes left and index with buffer
-		BytesLeft -= ActualTransferred;
-		BufIndex += ActualTransferred;
+	} else {
+		Status = -EFAULT;
 	}
+
+	// Release I2C mutex
+	up(&pFdo->m_I2cMutex);
+
 	return Status;
 }
 
@@ -1140,34 +1216,106 @@ Int  Dtu2xxIoCtlI2CWrite(
 	if ( BytesLeft == 0 )
 		return 0;
 
-	// Divide transfer is chucks suitable for EP0
-	BufIndex = 0;
-    while ( BytesLeft > 0 )
-	{
-		// Do not transfer more than maximum allowed
-		TransferSize = ( BytesLeft > EZUSB_EP0_MAX_TR_SIZE ) ?
-									EZUSB_EP0_MAX_TR_SIZE : BytesLeft;
+	// Get I2C mutex
+	if (down_interruptible(&pFdo->m_I2cMutex))
+        return -EFAULT;
 
-		Status = Dtu2xxVendorRequest(
-								pFdo, DTU2XX_USB_I2C_WRITE,
-								(UInt16)(DvcAddr),				// Set the device address
-								0, DTU2XX_DIRECTION_WRITE,
-								TransferSize, &(pBuf[BufIndex]),
-								&ActualTransferred);
+	// Check that the I2C is not locked or locked by our caller
+	if ((pFdo->m_pI2cExclAccFileObj == NULL) ||
+		(pFdo->m_pI2cExclAccFileObj == pFileObj)) {
 
-		// Transfer must be succesful
-		if ( Status!=0 ) {
-			break;
+		// Divide transfer is chucks suitable for EP0
+		BufIndex = 0;
+		while ( BytesLeft > 0 )
+		{
+			// Do not transfer more than maximum allowed
+			TransferSize = ( BytesLeft > EZUSB_EP0_MAX_TR_SIZE ) ? 
+										EZUSB_EP0_MAX_TR_SIZE : BytesLeft;
+
+			Status = Dtu2xxVendorRequest(
+									pFdo, DTU2XX_USB_I2C_WRITE,
+									(UInt16)(DvcAddr),				// Set the device address
+									0, DTU2XX_DIRECTION_WRITE,
+									TransferSize, &(pBuf[BufIndex]),
+									&ActualTransferred);
+
+			// Transfer must be succesful
+			if ( Status!=0 ) {
+				break;
+			}
+
+			// Must have transferred all
+			if ( ActualTransferred != TransferSize ) {
+				Status = -EFAULT;
+				break;
+			}
+			// update bytes left and index with buffer
+			BytesLeft -= ActualTransferred;
+			BufIndex += ActualTransferred;
 		}
-
-		// Must have transferred all
-		if ( ActualTransferred != TransferSize ) {
-			Status = -EFAULT;
-			break;
-		}
-		// update bytes left and index with buffer
-		BytesLeft -= ActualTransferred;
-		BufIndex += ActualTransferred;
+	} else {
+		Status = -EFAULT;
 	}
+
+	// Return I2C mutex
+	up(&pFdo->m_I2cMutex);
+
 	return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu2xxIoCtlUCodeUploadState -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int  Dtu2xxIoCtlUCodeUploadState(
+	IN PDTU2XX_FDO pFdo, // Our device object
+	IN struct file* pFileObj,		  // Caller file object for lock checking
+	IN Int Request,
+	IN Int Uploaded,
+	OUT Int* pGranted,
+	OUT Int* pState)
+{
+	unsigned long  OldIrqL;
+
+	// Check invalid paramters
+	if ((Request < -1) || (Request > 1)) {
+		return -EFAULT;
+	}
+
+	// Granted defaults to 0
+	*pGranted = 0;
+
+	// Handle uCode upload lock/unlock
+	if ((Request == 0) || (Request == 1)) {
+
+		// Get spinlock
+		spin_lock_irqsave(&pFdo->m_UCodeUploadStateLock, OldIrqL);
+		
+		if (Request == 1) {
+			// Handle lock request
+			if (pFdo->m_UCodeUploadState == DTU2XX_UCODE_NOT_LOADED) {
+				pFdo->m_UCodeUploadState = DTU2XX_UCODE_LOADING;
+				pFdo->m_UCodeUploadStateLockFileObj = pFileObj;
+				*pGranted = 1;
+			}
+		} else {
+			// Handle unlock request
+			if ((pFdo->m_UCodeUploadState == DTU2XX_UCODE_LOADING) &&
+				(pFdo->m_UCodeUploadStateLockFileObj == pFileObj)) {
+				if (Uploaded == 1) {
+					pFdo->m_UCodeUploadState = DTU2XX_UCODE_LOADED;
+				} else {
+					pFdo->m_UCodeUploadState = DTU2XX_UCODE_NOT_LOADED;
+				}
+				pFdo->m_UCodeUploadStateLockFileObj = NULL;
+				*pGranted = 1;
+			}
+		}
+        
+		// Release spinlock
+		spin_unlock_irqrestore(&pFdo->m_UCodeUploadStateLock, OldIrqL);
+	}
+
+	// Always return state
+	*pState = pFdo->m_UCodeUploadState;
+
+	return 0;
 }

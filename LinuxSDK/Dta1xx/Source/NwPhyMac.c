@@ -1061,20 +1061,33 @@ NTSTATUS  Dta1xxNwMacInitMacAddress(IN PNwStore pNwStore)
 		// powered up for the first time after manufacturing. In this case, the
 		// board should start up with MAC address 00-14-F4-00-00-00
 		MacSeq = 0;
+
+        // Update MAC-address with correct range
+        switch(pNwStore->m_pFdo->m_TypeNumber) {
+		    case 160:	// Nothing to do
+			    break;
+		    case 2160:
+                MacSeq += 0x010 << 14;
+			    break;
+	    }
 	}
+
+    // Type specific MAC-address handling
+    switch (pNwStore->m_pFdo->m_TypeNumber) {
+        case 160:   // Nothing special to do
+            break;
+        case 2160: 
+	        // The first releases of the DTA-2160 only had the first 14-bits stored in
+            // the 'MC' VPD item and not the complete 24-bits. Correct it here.
+	        if ((MacSeq & (0x3ff << 14)) == 0)
+		        MacSeq += 0x010 << 14;
+            break;
+    }
 
 	// Convert to 48-bit MAC address by prepending DekTec OUI (00-14-F4)
 	// MSB/LSB is swapped!
 	MacAddrHigh  = 0xF4000000 | MacSeq;
 	MacAddrLow   = 0x0014;
-
-	switch(pNwStore->m_pFdo->m_TypeNumber) {
-		case 160:	// Nothing to do
-			break;
-		case 2160:
-			MacAddrHigh+= 0x10 << 14;
-			break;
-	}
 
 	// Store MAC address in device extension
 	pNwStore->m_MacAddrPer[5] = (MacAddrHigh & 0xff);

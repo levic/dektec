@@ -17,7 +17,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtRecord Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #define DTRECORD_VERSION_MAJOR		3
-#define DTRECORD_VERSION_MINOR		6
+#define DTRECORD_VERSION_MINOR		7
 #define DTRECORD_VERSION_BUGFIX		0
 
 // Command line option flags
@@ -75,6 +75,7 @@ const char c_ErrFailToOpenFile[]		= "Can't open '%s' for writing";
 const char c_ErrWriteFile[]				= "File write error";
 const char c_ErrFailSetRxControl[]		= "SetRxControl failed (ERROR: %s)";
 const char c_ErrFailSetRxMode[]			= "SetRxMode failed (ERROR: %s)";
+const char c_ErrFailSetPolarCtrl[]		= "SetPolarityControl failed (ERROR: %s)";
 const char c_ErrFailSetDemodControl[]	= "SetModControl failed (ERROR: %s)";
 const char c_ErrFailSetRfControl[]		= "SetRfControl failed (ERROR: %s)";
 const char c_ErrFailSetIpPars[]			= "SetIpPars failed (ERROR: %s)";
@@ -341,7 +342,11 @@ void  CommandLineParams::ParseParamNotFlag(char* pParam, bool First, bool Last)
 		else if ( 0 == strcmp(pParam, "STRAW")  )
 			m_RxMode = DTAPI_RXMODE_STRAW;
 		else if ( 0 == strcmp(pParam, "STTRP")  )
-			m_RxMode = DTAPI_RXMODE_STTRP | DTAPI_RX_TIMESTAMP;
+			m_RxMode = DTAPI_RXMODE_STTRP | DTAPI_RX_TIMESTAMP32;
+        else if ( 0 == strcmp(pParam, "ST188T")  )
+            m_RxMode = DTAPI_RXMODE_ST188 | DTAPI_RX_TIMESTAMP32;
+        else if ( 0 == strcmp(pParam, "ST204T")  )
+            m_RxMode = DTAPI_RXMODE_ST204 | DTAPI_RX_TIMESTAMP32;
 		else if ( 0 == strcmp(pParam, "SDI8B")  )
 			m_RxMode = DTAPI_RXMODE_SDI_FULL;
 		else if ( 0 == strcmp(pParam, "SDI10B")  )
@@ -478,7 +483,7 @@ void  CommandLineParams::ParseParamNotFlag(char* pParam, bool First, bool Last)
 	{
 		if (0 == strcmp(pParam, "NORMAL") )
 			m_Polarity = DTAPI_POLARITY_NORMAL;
-		else if (0 == strcmp(pParam, "INVERST") )
+		else if (0 == strcmp(pParam, "INVERT") )
 			m_Polarity = DTAPI_POLARITY_INVERT;
 		else if (0 == strcmp(pParam, "AUTO") )
 			m_Polarity = DTAPI_POLARITY_AUTO;
@@ -525,8 +530,10 @@ const char* CommandLineParams::RxMode2Str() const
 	{
 		switch( m_RxMode&0x7 )
 		{
-		case DTAPI_RXMODE_ST188:	return "ST188";
-		case DTAPI_RXMODE_ST204:	return "ST204";
+        case DTAPI_RXMODE_ST188:	
+            return (m_RxMode & DTAPI_RX_TIMESTAMP32)==0 ? "ST188" : "ST188T";
+		case DTAPI_RXMODE_ST204:
+            return (m_RxMode & DTAPI_RX_TIMESTAMP32)==0 ? "ST204" : "ST204T";
 		case DTAPI_RXMODE_STRAW:	return "STRAW";
 		case DTAPI_RXMODE_STTRP:	return "STTRP";
 		default:					return "?";
@@ -871,14 +878,17 @@ void Recorder::InitInput()
 	}
 	
 	// Set the receive mode
-	dr = m_DtInp.SetRxMode( m_CmdLineParams.m_RxMode );
+    dr = m_DtInp.SetRxMode( m_CmdLineParams.m_RxMode );
 	if ( dr != DTAPI_OK )
 		throw Exc( c_ErrFailSetRxMode, ::DtapiResult2Str(dr) );
 
-	// Set the polarity mode
-	dr = m_DtInp.PolarityControl( m_CmdLineParams.m_Polarity );
-	if ( dr != DTAPI_OK )
-		throw Exc( c_ErrFailSetRxMode, ::DtapiResult2Str(dr) );
+	// Set the polarity mode (for ASI interface only)
+	if (m_CmdLineParams.m_Polarity!=-1 && m_DtInp.m_HwFuncDesc.m_StreamType==DTAPI_ASI_SDI && m_DtInp.m_HwFuncDesc.m_DvcDesc.m_TypeNumber!=225)
+	{
+		dr = m_DtInp.PolarityControl( m_CmdLineParams.m_Polarity );
+		if ( dr != DTAPI_OK )
+			throw Exc( c_ErrFailSetPolarCtrl, ::DtapiResult2Str(dr) );
+	}
 
 	// Apply de-modulation settings (if we have a de-modulator)
 	if ( m_Demod )
@@ -1053,13 +1063,23 @@ void Recorder::RecordFile()
 
 	// Init allignment
 	if ( (m_CmdLineParams.m_RxMode&0x7)==DTAPI_RXMODE_ST204 )
+    {   
 		m_Allign = 204;		// Allign on multiples of 204 bytes
+        // Do we need to account for timestamps?
+        if ( (m_CmdLineParams.m_RxMode & DTAPI_RX_TIMESTAMP)!=0 ) 
+            m_Allign += 4;
+    }
 	else if ( (m_CmdLineParams.m_RxMode&0x7)==DTAPI_RXMODE_STRAW )
 		m_Allign = 4;		// Allign on multiples of 4 bytes
 	else if ( (m_CmdLineParams.m_RxMode&0x7)==DTAPI_RXMODE_STTRP )
 		m_Allign = 212;		// Allign on multiples of 212 bytes (TRP-packet + timestamp)
 	else
+    {
 		m_Allign = 188;		// Allign on multiples of 188 bytes
+        // Do we need to account for timestamps?
+        if ( (m_CmdLineParams.m_RxMode & DTAPI_RX_TIMESTAMP32)!=0 ) 
+            m_Allign += 4;
+    }
 
 	// Start reception
 	dr = m_DtInp.SetRxControl(DTAPI_RXCTRL_RCV);
@@ -1282,7 +1302,9 @@ void Recorder::ShowHelp()
 	Log("         Use: ST188         Store packets as 188-byte packets");
 	Log("              ST204         Store packets as 204-byte packets");
 	Log("              STRAW         No notion of packets. Store all valid bytes");
-	Log("              STTRP		 Store in transparent-mode-packet + timestamp format");
+    Log("              STTRP		 Store in transparent-mode-packet + timestamp format");
+    Log("              ST188T        Store packets as 188-byte packets + timestamp");
+    Log("              ST204T        Store packets as 204-byte packets + timestamp");
 	Log("              SDI8B         Store complete SDI frame, in 8-bit format");
 	Log("              SDI10B        Store complete SDI frame, in 10-bit format");
 	Log("              SDI8B_ACTVID  Store active video only, in 8-bit format");

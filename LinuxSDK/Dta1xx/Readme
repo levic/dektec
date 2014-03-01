@@ -19,6 +19,13 @@
 --------------------------------------------------------------------------------
 
 Date:		Version:	Remarks:
+2011.03.02	2.10.0.148	- Support for new IO-configuration interface for 
+						  DTA-2142
+						- Support for locking I2C bus (this functionality is
+						  used by DtapiService and the DtApi::DemodControl class)
+						- Updated support for DTA-2111 (changes related to
+						  modifications of internal driver interface)
+						- Fixes issue with DTA-2136 reporting a faulty bitrate
 2010.06.26	2.9.0.146	- Prelimenairy support for DTA-2111
 2010.03.22	2.8.1.145	- Fixed "unclassified failure in device driver" bug when 
 						  selecting DVB-T2 modulation

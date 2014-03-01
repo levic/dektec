@@ -190,6 +190,18 @@ Int  Dtu2xxInitChannelsGeneric(IN PDTU2XX_FDO pFdo)
 	DTU2XX_LOG(KERN_INFO, "Dtu2xxInitChannelsGeneric: ENTER");
 #endif
 
+	// Init I2C mutex
+	sema_init(&pFdo->m_I2cMutex, 1);
+	// Initialise I2C exclusive-access variables
+	pFdo->m_I2cExclAccSpinLock = SPIN_LOCK_UNLOCKED;
+	pFdo->m_pI2cExclAccFileObj = NULL;
+	pFdo->m_I2cExclAccRecursiveCount = 0;
+
+	// Init uCode upload state vars
+	pFdo->m_UCodeUploadStateLock = SPIN_LOCK_UNLOCKED;
+	pFdo->m_UCodeUploadStateLockFileObj = NULL;
+	pFdo->m_UCodeUploadState = DTU2XX_UCODE_NOT_LOADED;
+
 	// General initialisation of Channel data structure
 	for (i=0; i<DTU2XX_MAX_CHANNELS; i++) {
 
@@ -462,7 +474,7 @@ Int  Dtu2xxProgramAltera(
 {
 	UInt8 BitTest;
 	UInt Total, i, l, BitNr, Dummy;
-	UInt16 WordBits[1024];
+	UInt16* pWordBits = NULL;
 	Int Status = 0;
 
 #if LOG_LEVEL > 0
@@ -491,6 +503,11 @@ Int  Dtu2xxProgramAltera(
 
 	//-.-.-.-.-.-.-.-.-.- Read all bytes and send them to the DTU-2xx -.-.-.-.-.-.-.-.-.-.
 
+    // Allocate memory for helper buffer
+	pWordBits = (UInt16*)kmalloc(1024*sizeof(UInt16), GFP_KERNEL);
+	if (pWordBits == NULL)
+		return -ENOMEM;
+
 	// Add 10 bytes extra to have 80 (=10*8) extra clock cycles to init Altera
 	for ( i=0; i<BufSize+10; i++)
 	{
@@ -506,37 +523,41 @@ Int  Dtu2xxProgramAltera(
 		{
 			if (BitTest&0x01)
 			{
-				WordBits[BitNr]=1;
-				WordBits[BitNr+1]=3;
+				pWordBits[BitNr]=1;
+				pWordBits[BitNr+1]=3;
 			}
 			else
 			{
-				WordBits[BitNr]=0;
-				WordBits[BitNr+1]=2;
+				pWordBits[BitNr]=0;
+				pWordBits[BitNr+1]=2;
 			}
 			BitNr+=2;
 			BitTest>>=1;
 		}
 
 		// Max number of bits (send data to DTU-2xx)
-		if (BitNr==1024){
-			Status = Dtu2xxSimpleBulkTransfer(
-						pFdo, DTU2XX_DIRECTION_WRITE, EZUSB_ENDPOINT_2, (BitNr*2),
-						(UInt8*)WordBits );
+		if (BitNr==1024)
+        {
+			Status = Dtu2xxSimpleBulkTransfer(pFdo, DTU2XX_DIRECTION_WRITE,
+                                         EZUSB_ENDPOINT_2, (BitNr*2), (UInt8*)pWordBits );
 
-			if ( Status!=0 ) {
+			if ( Status!=0 ) 
+            {
+                // Free helper buffer
+                kfree(pWordBits);
 				return Status;
 			}
 			BitNr=0;
 		}
 	}
 	// Write last chuck
-	Status = Dtu2xxSimpleBulkTransfer(
-			pFdo, DTU2XX_DIRECTION_WRITE, EZUSB_ENDPOINT_2, (BitNr*2), (UInt8*)WordBits);
-	if ( Status!=0 ) {
+	Status = Dtu2xxSimpleBulkTransfer(pFdo, DTU2XX_DIRECTION_WRITE, EZUSB_ENDPOINT_2,
+                                                            (BitNr*2), (UInt8*)pWordBits);
+    // Free helper buffer
+    kfree(pWordBits);
+	if ( Status!=0 )
 		return Status;
-	}
-
+	
 	//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Signal end of program -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 	Status = Dtu2xxVendorRequest(

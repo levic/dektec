@@ -16,6 +16,11 @@
 --------------------------------------------------------------------------------
 
 Date:		Version:	Remarks:
+2011.03.02	1.4.4.65	- Fixes issue with failing to tune DTA-2137 
+						- Improves signal locking acquisition speed and 
+						  reliability of DTA-2136
+						- Support for DtApi::DtDemodControl class
+						- Adds support for getting MER from a DTA-2137
 2010.06.30	1.3.2.32	- Support for DTA-2136 & DTU-236
 						- Bug fix: "DTA-2135 SNR always returns -1"
 						- Bug fix: "Cannot attach to DTA-2136 on 64-bit Linux"

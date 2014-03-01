@@ -31,8 +31,7 @@ Dtu2xx-objs := DeviceIoControl.o Dtu2xxMod.o Dtu215.o Dtu234.o Exclusive.o Flags
                Init.o RxIoCtl.o TxIoCtl.o Usb.o Utility.o Vpd.o
 
 clean:
-	rm -f *.o *.ko .*.o.cmd .*.ko.cmd *.mod.c ../Include/Cyclone2??.h \
-		../Include/Cypress2??.h Module.????ers
+	rm -f *.o *.ko .*.o.cmd .*.ko.cmd *.mod.c Module.????ers
 	rm -rf .tmp_versions
 
 .PHONY: all clean
