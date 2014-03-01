@@ -1,0 +1,1 @@
+BUS=="usb", SYSFS{manufacturer}=="DEKTEC", NAME="usb/DekTec/%k", MODE="0666"

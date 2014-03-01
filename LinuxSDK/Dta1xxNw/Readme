@@ -1,0 +1,105 @@
+--------------------------------------------------------------------------------
+- Readme for Dta1xxNw Linux device driver
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+- Table of Contents
+--------------------------------------------------------------------------------
+
+ 1. Version History
+ 2. Introduction
+ 3. Installation Instructions
+ 4. Usage Instructions
+ 5. Contact Information
+
+--------------------------------------------------------------------------------
+- 1. Version History
+--------------------------------------------------------------------------------
+
+Date:		Version:	Remarks:
+2009.11.04	1.2.0.7		- Fixes compile issues due to missing link to Dta1xx
+						  symbols
+2009.01.27	1.1.0.6		- Fixes compile issues on kernel v2.6.26 and later
+						- Support for 64-bit kernels
+2008.05.21	1.0.1.3		- Solves compilation error on kernel 2.6.24
+						- Fixed issue with kernel version 2.6.23: permanent
+						  address function support is removed in kernel v2.6.23
+2007.12.13	1.0.0.2		- Fixed compile error when compiling for SMP
+						  kernel < 2.6.1
+						- Fixed kernel panic for SMP kernel < 2.6.4
+						- Fixed checking return value after creating new thread
+						- Fixed enabling multicast IP packet receive. 						
+2007.11.12	0.0.1.1		- Initial version (compiled and tested
+                          on version 2.6.19 of the Linux kernel)
+
+
+--------------------------------------------------------------------------------
+- 2. Introduction
+--------------------------------------------------------------------------------
+
+The Dta1xxNw driver is a network driver for DekTec's DTA-1XX series of PCI cards.
+Currently the driver provides support for the following cards:
+ - DTA-160   (GigE TS-over-IP + 3 ASI Ports for PCI Bus)
+ - DTA-2160  (GigE TS-over-IP + 3 ASI Ports for PCI Express Bus)
+
+
+--------------------------------------------------------------------------------
+- 3. Installation Instructions
+--------------------------------------------------------------------------------
+
+To install this driver, perform the following steps:
+ - Compile the driver (type "make" in the directory containing the makefile);
+ - Install the driver (type "make install" in the directory containing the
+   makefile).
+   
+NOTE: MAKE SURE THE 'KERNEL_DIR' DEFINE IN THE MAKEFILE SPECIFIES THE CORRECT
+      PATH TO THE KERNEL SOURCES.  IF THE SPECIFIED PATH DOES NOT INCLUDE THE
+      KERNEL SOURCES, BUT ONLY THE 'USER' SOURCES THE COMPILER MIGHT GENERATE
+      THE FOLLOWING MESSAGE: "#warning Using kernel headers in userspace"
+
+--------------------------------------------------------------------------------
+- 4. Usage Instructions
+--------------------------------------------------------------------------------
+
+To be able to use this network driver, the Dta1xx driver must be installed and 
+loaded. See the README file of the Dta1xx driver for intalling the Dta1xx driver.
+If the Dta1xx driver is loaded, the network driver can be started using the 
+Dta1xxNwInit script.
+
+  "sh ./Dta1xxNwInit start"    Load the network driver.
+
+  "sh ./Dta1xxNwInit stop"     Unload the network driver.
+
+When the Dta1xxNw driver is loaded, and a DTA-160/2160 card is found a new network
+devices is created. The device name for the network card is dynamically
+generated and starts with "eth0" for the first network card. 
+The second will be "eth1", etc. 
+
+The network driver uses the Linux network stack, so the normal linux network 
+functions can be used for enabling and configuring the network driver. 
+
+After the driver is loaded you can enable the network interface manually by
+using the standard linux utilities like ipconfig or ip.
+E.g. for enabling eth0 with a static IP-address of 192.168.10.10 execute the
+following command: "ipconfig eth0 192.168.10.10 up".
+
+For using a dynamic IP-address use a program such as dhclient.
+E.g. "dhclient eth0"
+
+
+--------------------------------------------------------------------------------
+- 5. Contact Information
+--------------------------------------------------------------------------------
+
+Please find our contact information below:
+
+DekTec Digital Video B.V.
+Van Riebeeckweg 43A
+1212 EH Hilversum
+The Netherlands
+
+Tel:		+31 (0)35 64 69 210
+Fax:		+31 (0)35 68 31 015
+email: 		support@dektec.com / info@dektec.com
+website:	www.dektec.com

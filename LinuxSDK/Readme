@@ -1,0 +1,88 @@
+--------------------------------------------------------------------------------
+- Readme for DekTec's Linux SDK
+--------------------------------------------------------------------------------
+
+The Linux SDK provides developers with a driver and an API for using DekTec's
+DVB/MPEG-2 PCI and USB-2 devices in applications running under Linux.
+
+The Linux SDK consists of:
+ - Dta1xx:        Linux driver for DTA-100, DTA-102, DTA-105, DTA-107(S2),
+			      DTA-110(T), DTA-112, DTA-115, DTA-116, DTA-120, DTA-122,
+			      DTA-124, DTA-140, DTA-145, DTA-160, DTA-545, DTA-2135,
+			      DTA-2137, DTA-2144, DTA-2145 and DTA-2160;
+ - Dta1xxNw:      Network driver for DTA-160 and DTA-2160;
+ - Dtu2xx:        Linux driver for DTU-205, DTU-225, DTU-234, DTU-235 and
+                  DTU-245;
+ - DTAPI:         C++ API that wraps the driver calls into an easy-to-use and
+                  object-oriented programming interface.
+ - DtapiService:  DTAPI daemon (service) that controls demodulator boards (e.g.
+                  DTA-2135, DTA-2136 or DTA-2137).
+ - DtPlay:        Command-line player application
+ - DtRecord:      Command-line recorder application
+ - DtRmxUtil:     Command-line remultiplexing utility
+
+To use the SDK, you first have to compile the Dta1xx, Dta1xxNw and Dtu2xx drivers.
+The DTAPI is profied as precompiled binairy without the source code. Please refer
+to the readme files in the Dtu2xx-, Dta1xxNw- and Dta1xx-directories for additional
+compilation, installation and usage instructions.
+
+Unzipping LinuxSDK.zip will lead to the following directory structure:
+
+ - LinuxSDK
+	|
+    |- Dta1xx			(DTA-1xx PCI card driver)
+    |   |- Source
+    |   |- Include
+    |
+    |- Dta1xxNw			(DTA-1xx network driver)
+    |   |- Source
+    |   |- Include
+    |
+    |- DTAPI			(C++ wrapper library)
+    |   |- Bin			
+    |       |- GCC3.4.6	(Contains 32-bit DTAPI object file compiled with GCC 3.4.6)
+    |       |- GCC4.1.2	(Contains 32-bit DTAPI object file compiled with GCC 4.1.2)
+    |		|- GCC4.3.2 (Contains 32-bit DTAPI object file compiled with GCC 4.3.2)
+    |   |- Bin64
+    |       |- GCC3.4.6	(Contains 64-bit DTAPI object file compiled with GCC 3.4.6)
+    |		|- GCC4.1.2 (Contains 64-bit DTAPI object file compiled with GCC 4.1.2)
+    |		|- GCC4.3.2 (Contains 64-bit DTAPI object file compiled with GCC 4.3.2)
+    |   |- Include
+    |   |- Doc			(Documentation)
+    |   |- DTAPI.o		(32-bit DTAPI object file. Compiled with latest GCC4.3.2)
+    |   |- DTAPI64.o	(64-bit DTAPI object file. Compiled with latest GCC4.3.2)
+    |
+    |- DtapiService		(DTAPI service/daemon)
+    |   |- DtapiService.bin  (self-extracting binairy installer for DtapiService)
+    |
+    |- DtPlay			(command-line player utility)
+    |
+    |- DtRecord			(command-line recorder utility)
+    |
+    |- DtRmxUtil		(command-line remultiplexing utility)
+    |
+    |- Dtu2xx			(DTU-2xx USB-2 driver)
+    |   |- Source
+	|   |- Include
+    |   |- install_files
+
+--------------------------------------------------------------------------------
+- Version info: March 2010
+--------------------------------------------------------------------------------
+
+The Linux SDK includes the following versions of the Dta1xx device driver and
+the DTAPI library:
+
+              Date:          Version:
+Dta1xx        2010.02.26	 V2.8.1.145
+Dta1xxNw      2009.11.04	 V1.2.0.7
+Dtu2xx        2010.03.22     V3.1.1.32
+DTAPI         2010.03.08     V4.6.1.132
+DtapiService  2010.03.08     V1.2.0.24
+DtPlay        2010.03.18     V3.10.2
+DtRecord      2009.12.11     V3.5.3
+DtRmxUtil     2008.10.26     V1.0.4
+
+Refer to the readme files in the Dta1xx, Dta1xxNw and Dtu2xx directories for a
+detailed version history. For the DTAPI please refer to the "DTAPI.pdf" document
+included in the ./LinuxSDK/DTAPI/Doc directory

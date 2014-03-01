@@ -1,0 +1,263 @@
+--------------------------------------------------------------------------------
+- Readme for Dta1xx Linux device driver
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+- Table of Contents
+--------------------------------------------------------------------------------
+
+ 1. Version History
+ 2. Introduction
+ 3. Installation Instructions
+ 4. Usage Instructions
+ 5. Contact Information
+ 6. Pre-version 2 History
+
+--------------------------------------------------------------------------------
+- 1. Version History
+--------------------------------------------------------------------------------
+
+Date:		Version:	Remarks:
+2010.03.22	2.8.1.145	- Fixed "unclassified failure in device driver" bug when 
+						  selecting DVB-T2 modulation
+						- Prelimenairy support for DTA-111
+						- Fixes compile issues on kernel v2.6.28 and later
+2009.11.04	2.8.0.142	- Support for APSK mode on DTA-2137
+						- Prelimenairy support for DTA-2160
+2009.06.29	2.7.2.141	- Fixed issue where setting the rx-mode always failed
+2009.06.19	2.7.1.140	- Fixed issue with DTA-2142 not being detected
+2009.06.10	2.7.0.139	- Prelimenairy support for DTA-2142
+2009.02.26	2.5.1.138	- Fix for compilation troubles on kernel versions
+                          2.6.0 - 2.6.14
+2009.01.27	2.5.0.137	- Support for DTA-2137/DTA-2144
+						- Support for genlock functionality of DTA-145/2145
+						- Fixes compile issues on kernel v2.6.26 and later
+						- Fixes crash with DTA-160 on a 64-bit kernel
+						NOTE: 
+						  This version has not been tested/validated for kernel
+						  2.4 and does not officially support kernel 2.4. Future
+						  versions of this driver will drop kernel 2.4 support
+						  all together. 
+2008.12.03	2.4.0.134	- Support for 64-bit kernels
+2008.10.12	2.3.1.131	- Fixed issue where DTA-112 was not detected by driver
+2008.06.30	2.3.0.130	- Support transparent-mode-packet receive mode for
+						  DTA-160 IP port
+2008.05.21	2.2.3.129	- Solves compilation error on kernel 2.6.24
+						- Fixes divide by zero error and several other bugs
+						  in IP-recive code
+2008.04.10	2.2.2.127	- Fixes problem with setting/getting of ASI burst-mode
+						  with several cards including the DTA-145, DTA-160
+						  and DTA-2145
+2008.03.27	2.2.1.126	- Fixed issue causing kernel crash during exit of a
+						  thread
+2008.02.27  2.2.0.124	- Support for DTA-2135
+2008.02.15	2.1.3.122	- Fixed error in bit-rate returned for ASI ports
+						  on DTA-112/115/116/117
+						- Fixed lock-up issue with IP transmit, due to problem
+						  with locking pages of user buffer 
+2008.01.09	2.1.2.120	- Fixed driver crash when using a DTA-110T and specific
+						  combinations of DVB-T modulation parameters
+						- Fixed issue with input bit-rate computation
+						- Fixed issue with driver resources which were not always
+						  released, resulting in failure to attach to a card
+						  after having opened the driver a number of times
+						- Fixed number of compile issues on Redhat and CentOS-3
+						  Linux distri's with kernel: 2.4.21-20, 2.6.9-42 and
+						  2.6.9-22
+2007.12.13	2.1.0.117	- Fixed compile error when compiling for SMP
+						  kernel < 2.6.1
+						- Fixed kernel panic for SMP kernel < 2.6.4 when using
+						  DTA-160
+						- Fixed checking return value after creating new thread
+						- Changed implementation clock detect status and bitrate
+						  calculation IP receive for DTA-160.
+						  If no packets are received whitin 1 second after the 
+						  last received packet, the bitrate is set to 0 and the
+						  clock detect status is set to 0 (clock detect fail).
+						- Support for double-buffered and loop-through
+						  capabilities on DTA-145/160/2145
+2007.11.29  2.0.1.116	- Fixed compile error in kernel 2.6.20 and higher, due 
+						  to changes in definition INIT_WORK
+						- Cleaned up code to reduce number of compile warnings
+						- Fixed fault in handling of IOCTL_DTA1XX_GET_RX_INFO
+						  IoCtl-call, causing DtInpChannel::GetTsRateBps to fail
+2007.11.07	2.0.0.114	- First release of version 2 driver. 
+						  NOTE: Version 2 is a completely rewritten driver and
+							    is not backwards compatible with PRE V4 DTAPI
+							    versions
+						        
+--------------------------------------------------------------------------------
+- 2. Introduction
+--------------------------------------------------------------------------------
+
+The Dta1xx driver is a char driver for DekTec's DTA-1XX series of PCI cards.
+Currently the driver provides support for the following cards:
+ - DTA-100   (DVB-ASI Output Adapter for PCI Bus)
+ - DTA-102   (DVB-SPI Output Adapter for PCI Bus)
+ - DTA-105   (DVB-ASI Output Adapter for PCI Bus)
+ - DTA-107   (QPSK Modulator / Upconverter for PCI Bus)
+ - DTA-110   (QAM Modulator / UHF Upconverter for PCI Bus)
+ - DTA-110T  (OFDM Modulator / UHF Upconverter for PCI Bus)
+ - DTA-112   (QAM Modulator / VHF&UHF Upconverter for PCI Bus)
+ - DTA-115   (Multi-Standard Modulator for PCI Bus)
+ - DTA-116   (Multi-Standard Modulator with IF and Digital Output for PCI Bus)
+ - DTA-120   (DVB-ASI Input Adapter for PCI Bus)
+ - DTA-122   (DVB-SPI Input Adapter for PCI Bus)
+ - DTA-124   (QUAD ASI/SDI Input Adapter for PCI Bus)
+ - DTA-140   (DVB-ASI Input/Output Adapter for PCI Bus) 
+ - DTA-145   (Multi-Purpose ASI/SDI Adapter for PCI Bus)
+ - DTA-160   (Gigabit Ethernet + 3x ASI for PCI Bus)
+ - DTA-545   (DVB-ASI  Input/Output Adapter for PC104+)
+ - DTA-2144  (Quad ASI/SDI Input/Output Adapter for PCI Express)
+ - DTA-2145  (Multi-Purpose ASI/SDI Adapter for PCI Express)
+ - DTA-2160  (Gigabit Ethernet + 3x ASI for PCI Express)
+ 
+ 
+ NOTE: The DTA-110T is not supported on 64-bit Linux. 
+ 
+--------------------------------------------------------------------------------
+- 3. Installation Instructions
+--------------------------------------------------------------------------------
+
+To install the driver, perform the following steps:
+ - Compile the driver (type "make" in the directory containing the makefile);
+ - Install the driver (type "make install" in the directory containing the
+   makefile).
+
+NOTE: MAKE SURE THE 'KERNEL_DIR' DEFINE IN THE MAKEFILE SPECIFIES THE CORRECT
+      PATH TO THE KERNEL SOURCES.  IF THE SPECIFIED PATH DOES NOT INCLUDE THE
+      KERNEL SOURCES, BUT ONLY THE 'USER' SOURCES THE COMPILER MIGHT GENERATE
+      THE FOLLOWING MESSAGE: "#warning Using kernel headers in userspace"
+
+--------------------------------------------------------------------------------
+- 4. Usage Instructions
+--------------------------------------------------------------------------------
+
+To be able to use a DTA-1XX PCI(e) card, the driver must be started and at least
+one device file must have been created.
+
+The Dta1xx.init script is provided to start or stop the driver and to create
+the device files:
+
+  "sh ./Dta1xxInit start"    Load the driver and create 8 device files
+                             in the "/dev" directory.
+
+  "sh ./Dta1xxInit stop"     Unload the driver and remove the device files.
+
+The script uses the following naming convention for device files. The file
+name consists of "Dta1xx", followed by the relative board number (0-based).
+For example: if the system contains two DTA-1XX cards, then "Dta1xx0"
+represents the first board and "Dta1xx1 the second one.
+
+All of the driver's functionality is exposed via the ioctl mechanism (see
+"Dta1xxCommon.h" for all ioctl commands). 
+
+For easy usage of the driver, DekTec provides the DTAPI wrapper library.
+The DTAPI hides the complexities of using the driver in a few easy-to-use
+classes. The DTAPI is included in the Linux SDK.
+
+--------------------------------------------------------------------------------
+- 5. Contact Information
+--------------------------------------------------------------------------------
+
+Please find our contact information below:
+
+DekTec Digital Video B.V.
+Van Riebeeckweg 43A
+1212 EH Hilversum
+The Netherlands
+
+Tel:		+31 (0)35 64 69 210
+Fax:		+31 (0)35 68 31 015
+email: 		support@dektec.com / info@dektec.com
+website:	www.dektec.com
+
+--------------------------------------------------------------------------------
+- 6. Pre-version 2 History
+--------------------------------------------------------------------------------
+
+Date:		Version:	Remarks:
+2007.07.19  1.12.4.112	- Fixed issue with enabling/disabling double-bufferd mode
+						  with FW version 1 of DTA-105
+2007.06.11  1.12.3.111	- Solved issue with DMA blocking when using DTA-115 in
+						  QAM mode
+						- Init periodic interrupt period for DTA-124 is to
+						  38.83ms, so that bit-rate is computed correctly
+						- Fixed bug in Dta1xxIoCtlLedControl (mismatch between
+						  DTAPI and driver defines)
+2007.06.04	1.12.1.109	- Add support for DTA-124 with FW version 1
+2007.05.16	1.12.0.108	- Added support for DTA-115
+2007.04.03	1.11.3.107	- Fixed bug SglDesc structure related to 64-bit systems
+						- Add support for ISDB-T modulation via DTA-110T
+2007.02.16	1.11.2.104	- Fixed read and write blocking bug with DTA-140
+2007.02.15	1.11.1.104	- Fixed multiple Tx channels support
+						- Removed dependancy on do_div method (caused link
+						  problems on kernel 2.4.x)
+2007.01.31	1.11.0.103	- Added support for DTA-160 (ASI only)
+						- IO cofiguration can be retrieved
+2007.01.25	1.10.0.101	- Added support for DTA-145 and DTA-2145
+						- Fixed issue with serial number (always 0) for
+						  DTA-110(T)
+2007.01.23	1.9.2.100	- Made sure that all CDMA resources are released when an
+						  application, using the DTA-110T, terminates unexpected
+						- Fixed issue with setting a carrier freq. higher than
+						  813MHz for DTA-110(T)
+2006.12.21	1.9.0.98	- Beta version with support for DTA-110T (OFDM)
+2006.08.14	1.8.0.96	- Changed to new register map for 105 (offset changes)
+						- Updated Vpd/ Eeprom routines
+2005.09.26  1.7.1.95    - Fixed error where the returned bit-rate for
+                          the DTA-124 was always the bit-rate of
+						  channel 0
+                        - Fixed several errors where DTA-110 and DTA-107
+                          settings where swapped
+2005.08.25	1.7.0.94    - Added support for DTA-110
+2005.07.22  1.6.0.93	- Added support for DTA-545
+                        - Prepared for DTA-105 and DTA-110
+2005.06.06	1.5.1.91	- Fixed bit-rate computation error when using the
+						  DTA-120
+						- Fixed bug in makefile for Kernel 2.6.x (failed to copy
+						  driver if install directory did not exist)
+2005.03.10	1.5.0.90	- Added suport for DTA-124
+2004.12.06	1.4.2.88	- Fixed compilation bug when compiling for Kernel 2.4.x
+                        - Fixed bug when getting the clock count register
+2004.11.11	1.4.0.86	- Added support for DTA-107. Removed 64-bit caculations
+						  from driver (now performed in the DTAPI (user space)).
+2004.08.30	1.3.1.82	- Made sure that the interrupt handler returns IRQ_NONE
+						  or IRQ_HANDLED
+2004.08.16	1.3.0.81	- Added support for Linux kernel 2.6.x
+2004.02.10	1.2.2.79	- Added support for enabling timestamping
+2003.12.08	1.2.1.77	- Fixed problem when CTRL-C is used to terminate a
+						  process (sometimes the driver left the hardware in
+						  an undefined state).
+2003.06.30	1.2.0.75	- Added support for store MP2 receive mode and for
+						  timestamping
+						- Added support for FW4 of the DTA-120 and prepared
+						  driver for FW4 of the DTA-122
+						- Added IoCtl command for getting the firmware version
+						- Added module version support (MODVERSIONS)
+						- Added missing calls to RxIoCtl commands (GetFlags
+						  and ClearFlags)
+2003.04.25	1.1.1.71	- Fixed backward compatibilty issue, related to addition
+						  of VPD support
+2003.04.23	1.1.0.70	- Added support for reading/writing to VPD resources
+						- Fixed bug related to DTA-102. Output was disabled,
+						  instead of enabled when starting transmission
+						- Replaced 'KERNEL_DIR=/usr/src/linux' define in
+						  makefile with a more generic path (see note in
+						  Installation Instructions)
+2003.04.08	1.0.0.68	- Added fix to prevent tainted message to be shown when
+						  loading the module
+2003.03.28	1.0.0.67	- Replaced wait loop in DMA routine with a wait for
+						  event (the wait loop caused a high processor load)
+						- This version has been compiled and tested on version
+						  2.4.20 of the linux kernel
+						- With the SUSE 8.0 distribution of linux (kernel 2.4.18)
+						  using a wake_up_interruptible from the interrupt
+						  routine caused the system to freeze. It is
+						  recommended to upgrade to a newer version of the
+						  compiler and kernel than provided by the SUSE 8.0
+						  distribution
+2003.01.16	0.1.0.57	- Added detection routine for DTA-140
+2002.12.06	0.0.0.55	- Initial version (alpha) (compiled and tested
+                          on version 2.4.18 of the Linux kernel)

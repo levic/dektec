@@ -1,0 +1,14 @@
+#!/bin/bash
+# Usage: sh `$0`
+#
+# for safety, this will only echo the commands to be executed
+#
+
+cd `dirname $0`
+
+for file in `find * ! \( -regex '.*arch.*' \) -a \( -type f \) -a ! \( -name install \)`
+do
+    echo Installing /$file
+    install -d $(dirname "/$file")
+    install "$file" "/$file"
+done

@@ -1,0 +1,77 @@
+--------------------------------------------------------------------------------
+- Readme for DTAPI Service/Daemon
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+- Table of Contents
+--------------------------------------------------------------------------------
+
+ 1. Version History
+ 2. Introduction
+ 3. Installation Instructions
+ 4. Contact Information
+
+--------------------------------------------------------------------------------
+- 1. Version History
+--------------------------------------------------------------------------------
+
+Date:		Version:	Remarks:
+2010.03.08	1.2.0.24	- Several fixes to improve stability
+						- Prepared for DTA-2136
+2009.11.03	1.1.0.20	- Several fixes to improve stability 
+						- Support for DTA-2137 in APSK mode
+2009.07.23	1.0.0.9	    - First version released to the fields
+
+						        
+--------------------------------------------------------------------------------
+- 2. Introduction
+--------------------------------------------------------------------------------
+
+The DTAPI service is a Linux daemon (service) that manages DekTec's range of 
+demodulator boards. The following demodulators are supported:
+ - DTA-2135  Dual DVB-T Receiver for PCI Express Bus 
+ - DTA-2137  Dual DVB-S2 Receiver for PCI Express Bus
+ 
+NOTE: this service must be running to be able to use the above boards.
+ 
+--------------------------------------------------------------------------------
+- 3. Installation Instructions
+--------------------------------------------------------------------------------
+
+The DtapiService dynamically links to a set of shared libraries. Make sure you
+have installed the following shared library versions.
+ - libstdc++.so.6
+ - libgcc_s.so.1
+ - libpthread.so.0
+ - libm.so.6
+ - libc.so.6
+
+To install the DtapiService, execute the self-extracting binary DtapiService.bin.
+This should be done as super user, for example: "sudo ./DtapiService.bin".
+The installer will use temporary storage in "/tmp/DtapiServiceInstaller".
+
+After having installed the DtapiService it should start automatically whenever you
+boot. To manually start and stop the daemon you can use the DtapiServiceInit
+script located in your init directory. Type "DtapiServiceInit start" to start the daemon and 
+"DtapiServiceInit stop" to stop it.
+
+IMPORTANT: For the DtapiService to properly work the Dta1xx driver must be
+running. Please refer to the Dta1xx readme file for instructions on how to
+compile and install the driver. The DtapiService also needs write-access to
+the /tmp directory.
+
+--------------------------------------------------------------------------------
+- 4. Contact Information
+--------------------------------------------------------------------------------
+
+Please find our contact information below:
+
+DekTec Digital Video B.V.
+Van Riebeeckweg 43A
+1212 EH Hilversum
+The Netherlands
+
+Tel:		+31 (0)35 64 69 210
+Fax:		+31 (0)35 68 31 015
+email: 		support@dektec.com / info@dektec.com
+website:	www.dektec.com

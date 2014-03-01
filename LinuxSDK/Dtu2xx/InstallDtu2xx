@@ -1,0 +1,12 @@
+# ===================================== InstallDtu2xx ================ (C) 2000-2008 DEKTEC
+#
+# Script for installing the Dtu2xx driver
+
+# ==================================== Script defines ====================================
+
+sudo install -d /lib/modules/`uname -r`/kernel/drivers/usb/DekTec/
+sudo cp Source/Dtu2xx.ko /lib/modules/`uname -r`/kernel/drivers/usb/DekTec/
+sudo /sbin/depmod -a
+sudo /sbin/rmmod Dtu2xx || true
+
+sh ./install_files/install
