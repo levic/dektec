@@ -46,7 +46,6 @@ typedef struct _DtuShBuffer DtuShBuffer;
 #include <Messages.h>
 
 // Dtu sub-module headers
-#include <DtIoConfigDefs.h>
 #include <DtuDevice.h>
 #include <DtRegs.h>
 #include <DtuRegs.h>

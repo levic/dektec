@@ -100,8 +100,8 @@ static inline void  DtDmaSgSetPage(
 #endif
 }
 
-// DMA_32BIT_MASK/DMA_64BIT_MASK are removed from v3.1 kernel (Fedore 15,2.6.40).
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,40)
+// DMA_32BIT_MASK/DMA_64BIT_MASK are deprecated at least since 2.6.18 and later removed
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
     #define DT_DMA_32BIT_MASK  DMA_32BIT_MASK
     #define DT_DMA_64BIT_MASK  DMA_64BIT_MASK
 #else  

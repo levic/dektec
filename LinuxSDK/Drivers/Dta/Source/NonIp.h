@@ -137,6 +137,8 @@ typedef struct _DtaFrameProps
     Int  m_HancNumS;            // # of symbols in hanc part of line
     Int  m_SavNumS, m_EavNumS;  // # of symbols for EAV and SAV
 
+    Int  m_SwitchingLines[2];
+
 } DtaFrameProps;
 
 // DtaMatrixMemTrSetup
@@ -164,6 +166,11 @@ typedef enum _DtaMatrixPortState
     MATRIX_PORT_RUN             // Port is running (transmitting/receiving)
 } DtaMatrixPortState;
 
+typedef struct _DtaMatrixFrameInfo
+{
+    Int64  m_RefClk;            // Latched version of reference clock at new frame int.
+} DtaMatrixFrameInfo;
+
 // DtaMatrixPort
 typedef struct _DtaMatrixPort
 {
@@ -187,6 +194,8 @@ typedef struct _DtaMatrixPort
     volatile Int64  m_NextFrame;  // Forced next frame to transmit/receive
     volatile Int64  m_SofFrame; // Frame transmitted/received @SOF-interrupt-event
     volatile Int  m_SofLine;    // Line transmitted/received @SOF-interrupt-event
+
+    DtaMatrixFrameInfo  m_FrameInfo[DTA_FRMBUF_MAX_FRAMES];
 
     Int64  m_AsiDmaNumBytes;
     Int  m_AsiFifoSize;

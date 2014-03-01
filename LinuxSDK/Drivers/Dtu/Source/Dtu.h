@@ -110,7 +110,8 @@ typedef struct _DtuFileHandleInfo
 typedef struct _DtuPortLookup
 {
     Int  m_PortType;
-    Int  m_Index;
+    Int  m_Index;           // Index in NonIp or IP port array
+    Int  m_PortNumber;      // Port number as seen by user
 } DtuPortLookup;
 
 #define DTU3_PID_UNIT_EEPROM     0x00F3      // PID of an uninitialised DTU-3xx 
@@ -223,5 +224,6 @@ DtStatus  DtuGetNonIpPortIndex(DtuDeviceData* pDvcData, Int PortIndex,
                                                                     Int* pNonIpPortIndex);
 DtStatus  DtuGetPortIndexNonIp(DtuDeviceData*  pDvcData, Int  NonIpPortIndex,
                                                                         Int*  pPortIndex);
+DtStatus  DtuGetPortNumber(DtuDeviceData* pDvcData, Int PortIndex, Int* pPortNumber);
 
 #endif // #ifndef __DTU_H

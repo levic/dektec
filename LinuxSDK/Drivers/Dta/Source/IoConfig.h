@@ -31,11 +31,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Type definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 // IoConfigValue
-typedef struct _DtaIoConfigValue {
-    Int  m_Value;
-    Int  m_SubValue;
-    Int64  m_ParXtra[DT_MAX_PARXTRA_COUNT];
-} DtaIoConfigValue;
+typedef DtIoConfigValueDriver  DtaIoConfigValue;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtaIoConfigInit(DtaDeviceData* pDvcData);

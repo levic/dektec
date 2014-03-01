@@ -403,6 +403,7 @@ DtStatus  DtaIpInit(
     pIpPort->m_IpPortIndex = IpPortIndex;
     pIpPort->m_pDvcData = pDvcData;
     pIpPort->m_NumRxFifoOverflow = 0;
+    pIpPort->m_NumIncorrectDmaRxHeaders = 0;
     
     // Initialize register mappings
     pIpPort->m_pGenNwRegs = NULL;

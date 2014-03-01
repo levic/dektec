@@ -117,6 +117,62 @@ static const  Int  DTA_NONIP_MATRIX_VIDSTD_2_FORMAT[][4] =
 static const  Int  DTA_NONIP_MATRIX_VIDSTD_2_FORMAT_NUM_ENTRIES = 
 sizeof(DTA_NONIP_MATRIX_VIDSTD_2_FORMAT) / sizeof(DTA_NONIP_MATRIX_VIDSTD_2_FORMAT[0]);
 
+
+static const  UInt  DTA_NONIP_MATRIX_VIDSTD_2_SMPTE_VIDID[][2] =
+{
+    {DT_VIDSTD_525I59_94,            0x81060000 },
+    {DT_VIDSTD_625I50,               0x81050000 },
+    {DT_VIDSTD_720P23_98,            0x84420000 },
+    {DT_VIDSTD_720P24,               0x84430000 },
+    {DT_VIDSTD_720P25,               0x84450000 },
+    {DT_VIDSTD_720P29_97,            0x84460000 },
+    {DT_VIDSTD_720P30,               0x84470000 },
+    {DT_VIDSTD_720P50,               0x84490000 },
+    {DT_VIDSTD_720P59_94,            0x844A0000 },
+    {DT_VIDSTD_720P60,               0x844B0000 },
+    {DT_VIDSTD_1080P23_98,           0x85C20000 },
+    {DT_VIDSTD_1080P24,              0x85C30000 },
+    {DT_VIDSTD_1080P25,              0x85C50000 },
+    {DT_VIDSTD_1080P29_97,           0x85C60000 },
+    {DT_VIDSTD_1080P30,              0x85C70000 },
+    {DT_VIDSTD_1080I50,              0x85050000 },
+    {DT_VIDSTD_1080I59_94,           0x85060000 },
+    {DT_VIDSTD_1080I60,              0x85070000 },
+    {DT_VIDSTD_1080P50,              0x89C90000 },
+    {DT_VIDSTD_1080P59_94,           0x89CA0000 },
+    {DT_VIDSTD_1080P60,              0x89CB0000 }
+};
+static const  Int  DTA_NONIP_MATRIX_VIDSTD_2_SMPTE_VIDID_LEN =
+                                         sizeof(DTA_NONIP_MATRIX_VIDSTD_2_SMPTE_VIDID) /
+                                         sizeof(DTA_NONIP_MATRIX_VIDSTD_2_SMPTE_VIDID[0]);
+
+static const UInt16  PARITY_TABLE256_DATA[256] =
+{
+    #define P0(n, v) ((((!(n))+1)<<8) | (v))
+    #define P2(n, v) P0(n,v), P0(n^1,v+1), P0(n^1,v+2), P0(n,v+3)
+    #define P4(n, v) P2(n,v), P2(n^1,v+4), P2(n^1,v+8), P2(n,v+12)
+    #define P6(n, v) P4(n,v), P4(n^1,v+16), P4(n^1,v+32), P4(n,v+48)
+            P6(0,0), P6(1,64), P6(1,128), P6(0,192)
+};
+#undef P0
+#undef P2
+#undef P4
+#undef P6
+
+static DtStatus  GetSmptePayloadId(Int  VidStd, UInt*  pPayloadId)
+{
+    Int  i;
+    for (i=0; i<DTA_NONIP_MATRIX_VIDSTD_2_SMPTE_VIDID_LEN; i++)
+    {
+        if ((Int)DTA_NONIP_MATRIX_VIDSTD_2_SMPTE_VIDID[i][0] == VidStd)
+        {
+            *pPayloadId = DTA_NONIP_MATRIX_VIDSTD_2_SMPTE_VIDID[i][1];
+            return DT_STATUS_OK;
+        }
+    }
+    return DT_STATUS_NOT_FOUND;
+}
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 #ifdef WINBUILD
@@ -233,6 +289,7 @@ DtStatus  DtaNonIpMatrixClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile)
             // Reset the state to HOLD when running
             if (pNonIpPort->m_Matrix.m_State == MATRIX_PORT_RUN)
                 DtaNonIpMatrixSetState(pNonIpPort, MATRIX_PORT_HOLD);
+            DtaNonIpMatrixAttachToRow(pNonIpPort, pNonIpPort->m_PortIndex);
         }
 
         DtMutexRelease(&pNonIpPort->m_Matrix.m_StateLock);
@@ -319,6 +376,15 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
                
         // Convert SMPTE video standard to our video standard
         DtaNonIpMatrixSdiFormat2VidStd(VideoId, PictRate, Progressive, pVidStd);
+
+        if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_SDI)
+        {
+            // If the port is configured as SD input, the detection of HD standards
+            // is not working properly. If this is the case, toggle to an HD standard
+            // to allow proper detection.
+            if (*pVidStd!=DT_VIDSTD_525I59_94 && *pVidStd!=DT_VIDSTD_625I50)
+                *pVidStd = DT_VIDSTD_UNKNOWN;
+        }
         
         // HW can not detect fractional formats while set to non-fractional mode and vice
         // versa, so toggle between the two and check again. NOTE: only  if the channel 
@@ -326,7 +392,8 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
         // a signal)
         if (*pVidStd==DT_VIDSTD_UNKNOWN && DtaRegHdStatGetCarrierDetect(pHdRegs)!=0)
         {
-            Int  l, VidStdToggle = DT_VIDSTD_UNKNOWN;
+            Int  i, l, NumVidStdToggle = 0;
+            Int  VidStdToggle[2] = {DT_VIDSTD_UNKNOWN, DT_VIDSTD_UNKNOWN};
             DtaMatrixPortState  State;
 
             DtDbgOut(AVG, NONIP, "Cannot detect vidstd; will try toggling frac-mode"); 
@@ -348,56 +415,72 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
                 return DT_STATUS_OK;
             }
 
-            //-.-.-.-.-.-.- Step 2: check if current standard is fractional -.-.-.-.-.-.-.
+            //-.-.-.-.-.-.-.-.- Step 2: check what we have to toggle to -.-.-.-.-.-.-.-.-.
 
+            // Check if we're configured as SD input
+            if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_SDI)
+            {
+                // Toggle to both a fractional and a non-fractional HD format
+                DT_ASSERT(pNonIpPort->m_Cap1080I59_94);
+                DT_ASSERT(pNonIpPort->m_Cap1080I50);
+                VidStdToggle[0] = DT_VIDSTD_1080I59_94;
+                VidStdToggle[1] = DT_VIDSTD_1080I50;
+                NumVidStdToggle = 2;
+            }
             // Check if the current video standard is fractional
-            if (DtaVidStdIsFractional(pMatrix->m_FrameProps.m_VidStd))
+            else if (DtaVidStdIsFractional(pMatrix->m_FrameProps.m_VidStd))
             {
                 // Toggle to a non-fractional format
                 DT_ASSERT(pNonIpPort->m_Cap1080I50);
-                VidStdToggle = DT_VIDSTD_1080I50;
+                VidStdToggle[0] = DT_VIDSTD_1080I50;
+                NumVidStdToggle = 1;
             }
             else
             {
                 // Toggle to a fractional format
                 DT_ASSERT(pNonIpPort->m_Cap1080I59_94);
-                VidStdToggle = DT_VIDSTD_1080I59_94;
+                VidStdToggle[0] = DT_VIDSTD_1080I59_94;
+                NumVidStdToggle = 1;
             }
 
-            //.-.-.-.-.-.-.-.-.-.- Step 3: toggle the fractional mode -.-.-.-.-.-.-.-.-.-.
+            //.-.-.-.-.-.-.-.-.-.- Step 3: toggle the video standard -.-.-.-.-.-.-.-.-.-.-
 
-            DtaNonIpMatrixVidStd2SdiFormat(VidStdToggle, &VideoId, &PictRate, 
+            for (i=0; i<NumVidStdToggle && *pVidStd==DT_VIDSTD_UNKNOWN; i++)
+            {
+                DtaNonIpMatrixVidStd2SdiFormat(VidStdToggle[i], &VideoId, &PictRate, 
                                                                             &Progressive);
 
-            DtaRegHdSdiFormatSetVideoId(pHdRegs, VideoId);
-            DtaRegHdSdiFormatSetPictureRate(pHdRegs, PictRate);
-            DtaRegHdSdiFormatSetProgressive(pHdRegs, Progressive);
+                DtaRegHdSdiFormatSetVideoId(pHdRegs, VideoId);
+                DtaRegHdSdiFormatSetPictureRate(pHdRegs, PictRate);
+                DtaRegHdSdiFormatSetProgressive(pHdRegs, Progressive);
 
-            DtDbgOut(AVG, NONIP, "Toggling SDI format to: id=%d, r=%d, p=%d", VideoId, 
+                DtDbgOut(AVG, NONIP, "Toggling SDI format to: id=%d, r=%d, p=%d", VideoId,
                                                                    PictRate, Progressive);
 
-            //-.-.-.-.-.- Step 4: wait shortly and check which standard again  -.-.-.-.-.-
+                //-.-.-.-.- Step 4: wait shortly and check which standard again -.-.-.-.-.
 
-            // Initial wait to allow channel time to settle
-            DtSleep(100);
+                // Initial wait to allow channel time to settle
+                DtSleep(100);
             
-            // Check if we can detect a valid video standard (Max. 10x 40ms)
-            for (l=0; l<10; l++)
-            {
-                VideoId = DtaRegHdSdiStatusGetVideoId(pHdRegs);
-                PictRate = DtaRegHdSdiStatusGetPictureRate(pHdRegs);
-                Progressive = DtaRegHdSdiStatusGetProgressive(pHdRegs);
+                // Check if we can detect a valid video standard (Max. 10x 40ms)
+                for (l=0; l<10; l++)
+                {
+                    VideoId = DtaRegHdSdiStatusGetVideoId(pHdRegs);
+                    PictRate = DtaRegHdSdiStatusGetPictureRate(pHdRegs);
+                    Progressive = DtaRegHdSdiStatusGetProgressive(pHdRegs);
                
-                // Convert SMPTE video standard to our video standard
-                DtaNonIpMatrixSdiFormat2VidStd(VideoId, PictRate, Progressive, pVidStd);
-                DtDbgOut(MAX, NONIP, "Loop %d: id=%d, r=%d, p=%d => std=%d", 
+                    // Convert SMPTE video standard to our video standard
+                    DtaNonIpMatrixSdiFormat2VidStd(VideoId, PictRate, Progressive,
+                                                                                 pVidStd);
+                    DtDbgOut(MAX, NONIP, "Loop %d: id=%d, r=%d, p=%d => std=%d", 
                                              l, VideoId, PictRate, Progressive, *pVidStd);
 
-                if (*pVidStd != DT_VIDSTD_UNKNOWN)
-                    break;
+                    if (*pVidStd != DT_VIDSTD_UNKNOWN)
+                        break;
 
-                // Nothing yet, so wait a little more and try again
-                DtSleep(40);
+                    // Nothing yet, so wait a little more and try again
+                    DtSleep(40);
+                }
             }
 
             //-.-.-.-.-.-.-.- Step 5: finally restore the original setting -.-.-.-.-.-.-.-
@@ -1690,8 +1773,14 @@ DtStatus  DtaNonIpMatrixApplyConfig(DtaNonIpPort* pNonIpPort)
     // 6. Set video format; except for legacy interface
     if (!DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort))
     {
-        DtaNonIpMatrixVidStd2SdiFormat(pFrameProps->m_VidStd, 
+        Status = DtaNonIpMatrixVidStd2SdiFormat(pFrameProps->m_VidStd, 
                                                        &VideoId, &PictRate, &Progressive);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOut(ERR, NONIP, "Unknown video standard (0x%X)", pFrameProps->m_VidStd);
+            return Status;
+        }
+
         DtaRegHdSdiFormatSetVideoId(pHdRegs, VideoId);
         DtaRegHdSdiFormatSetPictureRate(pHdRegs, PictRate);
         DtaRegHdSdiFormatSetProgressive(pHdRegs, Progressive);
@@ -1768,13 +1857,13 @@ DtStatus  DtaNonIpMatrixInitFrameProps(DtaNonIpPort* pNonIpPort)
         pProps->m_Field1End = 262;
         pProps->m_Field1ActVidStart = 17;
         pProps->m_Field1ActVidEnd = 260;
-        //pProps->m_SwitchingLines[0] = 10;
+        pProps->m_SwitchingLines[0] = 10;
 
         pProps->m_Field2Start = 263; 
         pProps->m_Field2End = 525;
         pProps->m_Field2ActVidStart = 280;  
         pProps->m_Field2ActVidEnd = 522;
-        //pProps->m_SwitchingLines[1] = 273;
+        pProps->m_SwitchingLines[1] = 273;
 
         pProps->m_VancNumS = pProps->m_ActVidNumS = 720*2;
         pProps->m_HancNumS = 268;
@@ -1791,13 +1880,13 @@ DtStatus  DtaNonIpMatrixInitFrameProps(DtaNonIpPort* pNonIpPort)
         pProps->m_Field1End = 312;
         pProps->m_Field1ActVidStart = 23;   
         pProps->m_Field1ActVidEnd = 310;
-        //pProps->m_SwitchingLines[0] = 6;
+        pProps->m_SwitchingLines[0] = 6;
 
         pProps->m_Field2Start = 313;  
         pProps->m_Field2End = 625;
         pProps->m_Field2ActVidStart = 336;  
         pProps->m_Field2ActVidEnd  = 623;
-        //pProps->m_SwitchingLines[1] = 319;
+        pProps->m_SwitchingLines[1] = 319;
 
         pProps->m_VancNumS = pProps->m_ActVidNumS = 720*2;
         pProps->m_HancNumS = 280;
@@ -1818,8 +1907,8 @@ DtStatus  DtaNonIpMatrixInitFrameProps(DtaNonIpPort* pNonIpPort)
         pProps->m_Field1ActVidStart = 42;
         pProps->m_Field1ActVidEnd = 1121;
 
-        //pProps->m_SwitchingLines[0] = 7;
-        //pProps->m_SwitchingLines[1] = 569;
+        pProps->m_SwitchingLines[0] = 7;
+        pProps->m_SwitchingLines[1] = 569;
 
         pProps->m_Field2Start = 0;
         pProps->m_Field2End = 0;
@@ -1855,13 +1944,13 @@ DtStatus  DtaNonIpMatrixInitFrameProps(DtaNonIpPort* pNonIpPort)
 
         pProps->m_Field1ActVidStart = 42;
         pProps->m_Field1ActVidEnd = 1121;
-        //pProps->m_SwitchingLines[0] = 7;
+        pProps->m_SwitchingLines[0] = 7;
 
         pProps->m_Field2Start = 0;
         pProps->m_Field2End = 0;
         pProps->m_Field2ActVidStart = 0;
         pProps->m_Field2ActVidEnd = 0;
-        //pProps->m_SwitchingLines[1] = -1;
+        pProps->m_SwitchingLines[1] = -1;
 
         pProps->m_VancNumS = pProps->m_ActVidNumS = 1920*2;
         if (VidStd==DT_VIDSTD_1080P30 || VidStd==DT_VIDSTD_1080P29_97)
@@ -1889,13 +1978,13 @@ DtStatus  DtaNonIpMatrixInitFrameProps(DtaNonIpPort* pNonIpPort)
         pProps->m_Field1End = 563;
         pProps->m_Field1ActVidStart = 21; 
         pProps->m_Field1ActVidEnd = 560;
-        //pProps->m_SwitchingLines[0] = 7;
+        pProps->m_SwitchingLines[0] = 7;
 
         pProps->m_Field2Start = 564;
         pProps->m_Field2End = 1125;
         pProps->m_Field2ActVidStart = 584;
         pProps->m_Field2ActVidEnd = 1123;
-        //pProps->m_SwitchingLines[1] = 569;
+        pProps->m_SwitchingLines[1] = 569;
 
         pProps->m_VancNumS = pProps->m_ActVidNumS = 1920*2;
         if (VidStd==DT_VIDSTD_1080I60 || VidStd==DT_VIDSTD_1080I59_94)
@@ -1928,13 +2017,13 @@ DtStatus  DtaNonIpMatrixInitFrameProps(DtaNonIpPort* pNonIpPort)
         pProps->m_Field1End = 750;
         pProps->m_Field1ActVidStart = 26; 
         pProps->m_Field1ActVidEnd = 745;
-        //pProps->m_SwitchingLines[0] = 7;
+        pProps->m_SwitchingLines[0] = 7;
 
         pProps->m_Field2Start = 0;
         pProps->m_Field2End = 0;
         pProps->m_Field2ActVidStart = 0; 
         pProps->m_Field2ActVidEnd = 0;
-        //pProps->m_SwitchingLines[1] = -1;
+        pProps->m_SwitchingLines[1] = -1;
 
         pProps->m_VancNumS = pProps->m_ActVidNumS = 1280*2;
         if (VidStd==DT_VIDSTD_720P60 || VidStd==DT_VIDSTD_720P59_94)
@@ -2281,7 +2370,7 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
     DtaMatrixMemTrSetup  MemTrSetup;
     DtaFrameProps*  pProps = NULL;
     UInt8*  pLocalAddress = NULL;
-    UInt16 *pLineBuf=NULL, *pEav=NULL, *pSav=NULL;
+    UInt16 *pLineBuf=NULL, *pEav=NULL, *pSav=NULL, *pHanc=NULL;
     DtPageList* pPageList = NULL;
     Int  s, f, l, LineNumS=0, LineDmaSize=0, DmaSize=0;
     
@@ -2346,6 +2435,7 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
     {
         pEav = pLineBuf;
         pSav = pLineBuf + (pProps->m_EavNumS + pProps->m_HancNumS);
+        pHanc = pLineBuf + pProps->m_EavNumS;
 
         // Are we in field 1 or 2
         f = (l<=pProps->m_Field1End) ? 0 : 1;
@@ -2392,6 +2482,50 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
             *pSav++ = VSync ? SAV_VSYNC[f] : SAV_VIDEO[f];
         }
 
+        if (l>3 && (l-3==pProps->m_SwitchingLines[0] || l-3==pProps->m_SwitchingLines[1]))
+        {
+            // Insert SMPTE 352M video payload ID 3 lines after switching line
+            Int  SymbolOffset = 1;
+            UInt  PayloadId;
+            if (pProps->m_IsHd)
+            {
+                SymbolOffset = 2;
+                // Store packet in odd samples (luminance stream)
+                pHanc++;
+            }
+            if (DT_SUCCESS(GetSmptePayloadId(pProps->m_VidStd, &PayloadId)))
+            {
+                *pHanc = 0;
+                pHanc += SymbolOffset;
+                *pHanc = 0x3FF;
+                pHanc += SymbolOffset;
+                *pHanc = 0x3FF;
+                pHanc += SymbolOffset;
+                *pHanc = 0x241; // DID 0x41
+                pHanc += SymbolOffset;
+                *pHanc = 0x101; // SID 0x01
+                pHanc += SymbolOffset;
+                *pHanc = 0x104; // Packet size 4
+                pHanc += SymbolOffset;
+
+                *pHanc = PARITY_TABLE256_DATA[(PayloadId>>24) & 0xFF];
+                pHanc += SymbolOffset;
+                *pHanc = PARITY_TABLE256_DATA[(PayloadId>>16) & 0xFF];
+                pHanc += SymbolOffset;
+                *pHanc = PARITY_TABLE256_DATA[(PayloadId>>8) & 0xFF];
+                pHanc += SymbolOffset;
+                *pHanc = PARITY_TABLE256_DATA[PayloadId & 0xFF];
+                pHanc += SymbolOffset;
+            
+                *pHanc = 0x100; // CRC, corrected by fw
+                pHanc += SymbolOffset;
+            }
+        } else {
+            // Overwrite possible smpte 352m data with blanking
+            for (s=0; s<10*2; s++)
+                *pHanc++ = (s%2)==0 ? 0x200 : 0x040;
+        }
+
         // Prep for DMA
         MemTrSetup.m_StartLine = l; // set next line to write
         DmaSize = 0;
@@ -2435,6 +2569,9 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
     }
     
     //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Step 3: cleanup -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+    // Finalize transfer before cleanup
+    DtaDmaFinalTransfer(&pNonIpPort->m_DmaChannel);
     
     // Free line buffer
     DtaDmaCleanupKernelBuffer(&pNonIpPort->m_DmaChannel, pLineBuf, pPageList, DTA_TAG);

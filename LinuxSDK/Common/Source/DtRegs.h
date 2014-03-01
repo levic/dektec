@@ -243,15 +243,14 @@
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ HD Genlock registers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
-// NOTE: Offsets relative to general register base address
-#define DT_HDGENL_REG_CLKCONF           0x0080
-#define DT_HDGENL_REG_CTRL              0x0084
-#define DT_HDGENL_REG_STATUS            0x0088
-#define DT_HDGENL_REG_LEDCTRL           0x008C
-#define DT_HDGENL_REG_REFFRM_LSB        0x0090
-#define DT_HDGENL_REG_REFFRM_MSB        0x0094
-#define DT_HDGENL_REG_SOFFRM_LSB        0x0098
-#define DT_HDGENL_REG_SOFFRM_MSB        0x009C
+#define DT_HDGENL_REG_CLKCONF           0x0000
+#define DT_HDGENL_REG_CTRL              0x0004
+#define DT_HDGENL_REG_STATUS            0x0008
+#define DT_HDGENL_REG_LEDCTRL           0x000C
+#define DT_HDGENL_REG_REFFRM_LSB        0x0010
+#define DT_HDGENL_REG_REFFRM_MSB        0x0014
+#define DT_HDGENL_REG_SOFFRM_LSB        0x0018
+#define DT_HDGENL_REG_SOFFRM_MSB        0x001C
 
 //.-.-.-.-.-.-.-.-.-.-.- Genlock Clock Config register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.-
 

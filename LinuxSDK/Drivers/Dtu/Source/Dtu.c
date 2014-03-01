@@ -399,10 +399,38 @@ void  Dtu351WorkerThreadReadData(
 
     DT_ASSERT(pPort->m_SharedBuffer.m_Initialised);
 
+    BufHeader = (Dtu351BufHdr*)pPort->m_SharedBuffer.m_pBuffer;
+    DataBufHeaders = (Dtu351DataHdr*)(pPort->m_SharedBuffer.m_pBuffer + 
+                                                                    sizeof(Dtu351BufHdr));
+    Buf = pPort->m_SharedBuffer.m_pBuffer + sizeof(Dtu351BufHdr)
+                                          + BufHeader->m_NumBuffers*sizeof(Dtu351DataHdr);
+
+    DtuGetuFrameSize(pPort, &SingleDataBufSize);
+    DataBufSize = BufHeader->m_NumBuffers * SingleDataBufSize;
+    DT_ASSERT(BufHeader->m_TotalBufSize == sizeof(Dtu351BufHdr) + 
+                             BufHeader->m_NumBuffers*sizeof(Dtu351DataHdr) + DataBufSize);
+    
+    if (BufHeader->m_TotalBufSize != sizeof(Dtu351BufHdr) + 
+                              BufHeader->m_NumBuffers*sizeof(Dtu351DataHdr) + DataBufSize)
+    {
+        DtDbgOut(ERR, DTU, "Total buffer size is inconsistent");
+        DtEventWait(&pPort->m_RxStateChanged, -1);
+        return;
+    }
+    
+    NumAsyncRequests = BufHeader->m_NumAsyncReads;
+    DT_ASSERT(NumAsyncRequests*PacketsPerUrb < (Int)BufHeader->m_NumBuffers);
+    if (NumAsyncRequests*PacketsPerUrb >= (Int)BufHeader->m_NumBuffers)
+    {
+        DtDbgOut(ERR, DTU, "Not enough data buffers");
+        DtEventWait(&pPort->m_RxStateChanged, -1);
+        return;
+    }
+
     // Initialize send options used for URB timeouts
     WDF_REQUEST_SEND_OPTIONS_INIT(&SendOptions, WDF_REQUEST_SEND_OPTION_TIMEOUT);
-    // 100ms Timeout in 100ns units
-    WDF_REQUEST_SEND_OPTIONS_SET_TIMEOUT(&SendOptions, -10*1000*100);
+    // 500*NumAsyncRequests ms Timeout in 100ns units
+    WDF_REQUEST_SEND_OPTIONS_SET_TIMEOUT(&SendOptions, -10*1000*500*NumAsyncRequests);
     
     // Isochronous transfers are only started when the signal is valid. If the signal
     // turns out to be invalid we'll stop the transfers and detect it soon enough. While
@@ -422,12 +450,6 @@ void  Dtu351WorkerThreadReadData(
     // we hardcode the detected video standard here too.
     Status = GetConfiguredVidStd(pPort, &pPort->m_DetVidStd, &IsHd);
     DT_ASSERT(DT_SUCCESS(Status));
-
-    BufHeader = (Dtu351BufHdr*)pPort->m_SharedBuffer.m_pBuffer;
-    DataBufHeaders = (Dtu351DataHdr*)(pPort->m_SharedBuffer.m_pBuffer + 
-                                                                    sizeof(Dtu351BufHdr));
-    Buf = pPort->m_SharedBuffer.m_pBuffer + sizeof(Dtu351BufHdr)
-                                          + BufHeader->m_NumBuffers*sizeof(Dtu351DataHdr);
     
     DtDbgOut(MAX, SHBUF, "m_TotalBufSize = 0x%0X", BufHeader->m_TotalBufSize);
     DtDbgOut(MAX, SHBUF, "m_Overflow = 0x%0X", BufHeader->m_Overflow);
@@ -438,10 +460,10 @@ void  Dtu351WorkerThreadReadData(
         if (DataBufHeaders[i].m_Flags != 0)
         {
             DtDbgOut(ERR, DTU, "m_Flags != 0");
+            DataBufHeaders[i].m_Flags = 0;
         }
     }
     
-    NumAsyncRequests = BufHeader->m_NumAsyncReads;
     Requests = DtMemAllocPool(DtPoolNonPaged, sizeof(AsyncRequest) * NumAsyncRequests,
                                                                                  DTU_TAG);
 
@@ -449,13 +471,6 @@ void  Dtu351WorkerThreadReadData(
     
     wdmhUSBPipe = WdfUsbTargetPipeWdmGetPipeHandle(Pipe);
     IoTarget = WdfUsbTargetDeviceGetIoTarget(pDvcData->m_Device.m_UsbDevice);
-
-    DtuGetuFrameSize(pPort, &SingleDataBufSize);
-    DataBufSize = BufHeader->m_NumBuffers * SingleDataBufSize;
-    DT_ASSERT(BufHeader->m_TotalBufSize == sizeof(Dtu351BufHdr) + 
-                             BufHeader->m_NumBuffers*sizeof(Dtu351DataHdr) + DataBufSize);
-
-    DT_ASSERT(NumAsyncRequests*PacketsPerUrb < BufHeader->m_NumBuffers);
 
     UrbSize = sizeof(struct _URB_BULK_OR_INTERRUPT_TRANSFER);
 
@@ -676,7 +691,7 @@ void  Dtu351WorkerThreadReadData(
             continue;
         //WdfRequestCancelSentRequest(Req->m_WdfRequest);
         // Wait until request is either cancelled or completed.
-        DtEventWait(&Req->m_EvtRequestDone, 100);
+        DtEventWait(&Req->m_EvtRequestDone, -1);
         WdfObjectDelete(Req->m_WdfRequest);
         WdfObjectDelete(Req->m_UrbMemory);
     }
@@ -2054,6 +2069,21 @@ DtStatus  DtuGetPortIndexNonIp(
     return DT_STATUS_NOT_FOUND;
 }
 
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuGetPortNumber -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtuGetPortNumber(DtuDeviceData* pDvcData, Int PortIndex, Int* pPortNumber)
+{
+    if (PortIndex >= pDvcData->m_NumPorts)
+        return DT_STATUS_NOT_FOUND;
+    if (PortIndex < 0)
+        return DT_STATUS_NOT_FOUND;
+
+    *pPortNumber = pDvcData->m_pPortLookup[PortIndex].m_PortNumber;
+
+    return DT_STATUS_OK;
+}
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuCalculateAndCreatePortsStruct -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2095,6 +2125,7 @@ DtStatus  DtuCalculateAndCreatePortsStruct(DtuDeviceData* pDvcData)
             // Setup reverse lookup
             pDvcData->m_pPortLookup[i].m_PortType = DTU_PORT_TYPE_NONIP;
             pDvcData->m_pPortLookup[i].m_Index = pDvcData->m_NumNonIpPorts;
+            pDvcData->m_pPortLookup[i].m_PortNumber = i + 1;
 
             // We found one, increment number nonip ports
             pDvcData->m_NumNonIpPorts++;

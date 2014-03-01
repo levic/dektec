@@ -123,7 +123,6 @@ static DtStatus  DtaLmh1983WriteInitSeq(DtaLmh1983*  pLmh1983Data)
 DtStatus  DtaLmh1983InitPowerup(DtaLmh1983*  pLmh1983Data)
 {
     DtStatus  Status = DT_STATUS_OK;
-    DtaDeviceData*  pDvcData = pLmh1983Data->m_pDvcData;
     
     Status = DtaLmh1983WriteInitSeq(pLmh1983Data);
 
@@ -412,11 +411,11 @@ DtStatus  DtaLmh1983SetupRefSource(
     Int*  pOutVidStd)
 {
     Int  ClkSrc = 0;
-    volatile UInt8*  pGenRegs = pLmh1983Data->m_pDvcData->m_pGenRegs;
     DtaGenlock*  pGenlock = &pLmh1983Data->m_pDvcData->m_Genlock;
+    volatile UInt8*  pGenlRegs = pGenlock->m_pGenlRegs;
 
     // Start with resetting LHM-1983
-    DtaRegHdGenlClkConfSetAsyncReset(pGenRegs, 1);
+    DtaRegHdGenlClkConfSetAsyncReset(pGenlRegs, 1);
     DtSleep(5);
     
     if (pGenlock->m_RefPortIndex  == DTA_GENLOCK_REFPORT_INT)
@@ -438,16 +437,16 @@ DtStatus  DtaLmh1983SetupRefSource(
     }
 
     // Set clock source
-    DtaRegHdGenlClkConfSetRefSrc(pGenRegs, ClkSrc);
+    DtaRegHdGenlClkConfSetRefSrc(pGenlRegs, ClkSrc);
 
     // Set interlaced flags
     if (DtaVidStdIsInterlaced(*pRefVidStd))
-        DtaRegHdGenlClkConfSetInterlaced(pGenRegs, 1);
+        DtaRegHdGenlClkConfSetInterlaced(pGenlRegs, 1);
     else
-        DtaRegHdGenlClkConfSetInterlaced(pGenRegs, 0);
+        DtaRegHdGenlClkConfSetInterlaced(pGenlRegs, 0);
 
     // Finally remove reset
-    DtaRegHdGenlClkConfSetAsyncReset(pGenRegs, 0);
+    DtaRegHdGenlClkConfSetAsyncReset(pGenlRegs, 0);
     DtSleep(5);
 
     return DT_STATUS_OK;

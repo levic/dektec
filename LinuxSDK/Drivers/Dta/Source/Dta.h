@@ -137,7 +137,8 @@ struct _DtaFileHandleInfo
 typedef struct _DtaPortLookup
 {
     Int  m_PortType;
-    Int  m_Index;
+    Int  m_Index;           // Index in NonIp or IP port array
+    Int  m_PortNumber;      // Port number as seen by user
 } DtaPortLookup;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaChildDeviceData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -276,6 +277,7 @@ DtStatus  DtaGetPortIndexNonIp(DtaDeviceData* pDvcData, Int NonIpPortIndex,
                                                                          Int* pPortIndex);
 DtStatus  DtaGetIpPortIndex(DtaDeviceData* pDvcData, Int PortIndex, Int* pIpPortIndex);
 DtStatus  DtaGetPortIndexIp(DtaDeviceData* pDvcData, Int IpPortIndex, Int* pPortIndex);
+DtStatus  DtaGetPortNumber(DtaDeviceData* pDvcData, Int PortIndex, Int* pPortNumber);
 
 void  DtaRfPwrMeasLock(DtaDeviceData* pDvcData, Int PortIndex, Int Lock);
 

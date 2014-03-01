@@ -332,6 +332,7 @@ struct _DtaIpPort
     DtaIpNrtChannels  m_NrtChannels;
 
     UInt64  m_NumRxFifoOverflow;
+    UInt64  m_NumIncorrectDmaRxHeaders;
     UserIpRxChannel**  m_pIpRxListeners;        // Array of channels listening on the
                                                 // current stream received.
     Int  m_MaxNumListeners;                     // Max. array size of m_pIpRxListeners

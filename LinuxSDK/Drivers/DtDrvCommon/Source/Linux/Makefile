@@ -60,6 +60,7 @@ endif
 
 SRCDIR := ..
 SRC     = $(SRCDIR)/DtProperties.o	    \
+		  $(SRCDIR)/DtIoConfig.o        \
 		  $(SRCDIR)/IoConfigCodes.o     \
 		  $(SRCDIR)/DtTables.o          \
 		  $(SRCDIR)/DtUtilities.o

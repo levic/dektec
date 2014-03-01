@@ -33,7 +33,9 @@
 #include <DtProperties.h>
 #include <DtTables.h>
 #include <DtUtilities.h>
+#include <DtIoConfigDefs.h>
 #include <IoConfigCodes.h>
+#include <DtIoConfig.h>
 
 
 // COMMON related logging

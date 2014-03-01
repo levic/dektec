@@ -72,6 +72,9 @@
 #include <linux/swap.h>
 #include <linux/pagemap.h>
 #include <linux/workqueue.h>
+#include <asm/segment.h>
+#include <asm/uaccess.h>
+#include <linux/buffer_head.h>
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,4)
     #define NO_KTHREAD_SUPPORT
     #include <linux/sched.h>        // task_struct

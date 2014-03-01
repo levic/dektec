@@ -139,7 +139,7 @@ void  DtaNonIpRs422IntDpc(DtDpcArgs* pArgs)
         pRs422->m_RxNumBytes += NumBytes;
         DtEventSet(&pRs422->m_RxDataAvailEvent);
     }
-    DtSpinLockRelease(&pRs422->m_StateLock);
+    DtSpinLockReleaseFromDpc(&pRs422->m_StateLock);
 }
 
 

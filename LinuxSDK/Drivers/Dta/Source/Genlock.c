@@ -80,15 +80,15 @@ DtStatus  DtaGenlockInit(DtaDeviceData* pDvcData)
     {
         UInt16  Offset = -1;
         Offset = DtPropertiesGetUInt16(&pDvcData->m_PropData, "REGISTERS_GENL", -1);
-        if (Offset == -1)
+        if (Offset == (UInt16)-1)
         {
             DtDbgOut(ERR, GENL, "Failed to get genlock register offset property");
             return DT_STATUS_FAIL;
         }
-        pDvcData->m_Genlock.m_pGenRegs = (UInt8*)pDvcData->m_DtaRegs.m_pKernel + Offset;
+        pDvcData->m_Genlock.m_pGenlRegs = (UInt8*)pDvcData->m_DtaRegs.m_pKernel + Offset;
     }
     else
-        pDvcData->m_Genlock.m_pGenRegs = pDvcData->m_pGenRegs;
+        pDvcData->m_Genlock.m_pGenlRegs = NULL;
         
     if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2152)
     {

@@ -366,7 +366,13 @@ DtStatus  DtaMacGetCounter(PhyMac* pPhyMac, UInt CounterId, UInt64* pValue)
         *pValue = DtaIpGetNumRxFifoOverflow(
                      &pPhyMac->m_pDvcData->m_IpDevice.m_pIpPorts[pPhyMac->m_IpPortIndex]);
         break;
-    
+    case DTA_MAC_CNT_GEN_RCV_HDR_ERROR:
+    {
+        DtaIpPort*  pMyIpPort;
+        pMyIpPort = pPhyMac->m_pDvcData->m_IpDevice.m_pIpPorts + (pPhyMac->m_IpPortIndex);
+        *pValue = pMyIpPort->m_NumIncorrectDmaRxHeaders;
+        break;
+    }
     case DTA_MAC_CNT_GEN_RCV_CRC_ERROR:
         if (pPhyMac->m_MacType == MAC_TYPE_ALTERA) 
         {

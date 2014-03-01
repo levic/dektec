@@ -87,9 +87,11 @@ static DtStatus  DtaReleaseAddressRegsForFileObject(DtaDeviceData* pDvcData,
 static irqreturn_t  DtaInterrupt(Int Irq, void* pContext);
 
 // Character device interface
-static long  DtaIoctl(struct inode* pInode, struct file* pFile, unsigned int Cmd, 
+static int  DtaIoctl(struct inode* pInode, struct file* pFile, unsigned int Cmd, 
                                                                        unsigned long Arg);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
 static long  DtaUnlockedIoctl(struct file* pFile, unsigned int Cmd, unsigned long Arg);
+#endif
 #ifdef CONFIG_COMPAT
 // 32-bit applications using 64-bit driver
 static long  DtaIoctlCompat(struct file *filp, unsigned int cmd, unsigned long arg);
@@ -1006,6 +1008,7 @@ long DtaIoctlCompat(
 }
 #endif  // #ifdef CONFIG_COMPAT
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaUnlockedIoctl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 static long  DtaUnlockedIoctl(struct file* pFile, unsigned int Cmd, unsigned long Arg)
@@ -1017,10 +1020,11 @@ static long  DtaUnlockedIoctl(struct file* pFile, unsigned int Cmd, unsigned lon
 #endif
     return DtaIoctl(pInode, pFile, Cmd, Arg);
 }
+#endif
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-static long  DtaIoctl(
+static int  DtaIoctl(
     struct inode*  pInode,
     struct file*  pFile,
     unsigned int  Cmd,

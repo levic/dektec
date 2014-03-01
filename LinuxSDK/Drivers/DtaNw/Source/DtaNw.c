@@ -67,11 +67,6 @@ static DtStatus  DtaNwCreateThreads(DtaNwDeviceData* pDvcData);
 static void  DtaNwPowerdown(DtaNwDeviceData* pDvcData);
 static DtStatus  DtaNwPowerup(DtaNwDeviceData* pDvcData);
 static DtStatus  DtaNwCheckDtaDriverVersion(DtaNwDeviceData* pDvcData);
-static DtStatus  DtaNwGetPropertyIoCtrl(DtaNwDeviceData* pDvcData, Int IpPortIndex,
-                                     char* pName, DtPropertyValue* pValue, 
-                                     DtPropertyValueType* pType, DtPropertyScope* pScope);
-static Bool  DtaNwPropertiesGetBool(DtaNwDeviceData* pDvcData, Int IpPortIndex,
-                                                                             char* pName);
 
 
 
@@ -715,26 +710,6 @@ static void  DtaNwPowerdown(DtaNwDeviceData* pDvcData)
     
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwPropertiesGetBool -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-static Bool  DtaNwPropertiesGetBool(DtaNwDeviceData* pDvcData, Int IpPortIndex,
-                                                                              char* pName)
-{
-    DtStatus  Status;
-    DtPropertyValue  Value;
-    DtPropertyValueType  Type;
-    DtPropertyScope  Scope;
-    Status = DtaNwGetPropertyIoCtrl(pDvcData, IpPortIndex, pName, &Value, &Type, &Scope);
-    DT_ASSERT(DT_SUCCESS(Status));
-
-    if (!DT_SUCCESS(Status))
-        return FALSE;
-
-    DT_ASSERT((Scope&PROPERTY_SCOPE_DRIVER) == PROPERTY_SCOPE_DRIVER);
-    DT_ASSERT(Type == PROPERTY_VALUE_TYPE_BOOL);
-    return (Value != 0);
-}
-
 
 //=+=+=+=+=+=+=+=+=+=+=+ Callback functions for direct Dta calls +=+=+=+=+=+=+=+=+=+=+=
 
@@ -1195,39 +1170,5 @@ static DtStatus  DtaNwGetDtaDriverVersionIoCtrl(
         *pMinor = IoGetDriverVersionOutput.m_Minor;
         *pMicro = IoGetDriverVersionOutput.m_Micro;
     }
-    return Status;
-}
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwGetPropertyIoCtrl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-static DtStatus  DtaNwGetPropertyIoCtrl(
-    DtaNwDeviceData*  pDvcData,
-    Int  IpPortIndex,
-    char*  pName,
-    DtPropertyValue*  pValue,
-    DtPropertyValueType*  pType,
-    DtPropertyScope*  pScope)
-{
-    DtStatus  Status;
-    DtaIoctlGetPropertyInput  GetPropInput;
-    DtaIoctlGetPropertyOutput  GetPropOutput;
-
-    GetPropInput.m_FirmwareVersion = pDvcData->m_FwVersion;
-    GetPropInput.m_HardwareRevision = pDvcData->m_HwRevision;
-    GetPropInput.m_PortIndex = IpPortIndex;
-    strcpy(GetPropInput.m_Name, pName);
-
-    Status = DtIoctl(&pDvcData->m_IoCtrlParent, DTA_IOCTL_GET_PROPERTY, 
-                                        sizeof(DtaIoctlGetPropertyInput), &GetPropInput,
-                                        sizeof(DtaIoctlGetPropertyOutput), &GetPropOutput,
-                                        NULL);
-    if (!DT_SUCCESS(Status))
-        return Status;
-
-    *pValue = GetPropOutput.m_Value;
-    if (pType != NULL)
-        *pType = (DtPropertyValueType)GetPropOutput.m_Type;
-    if (pScope != NULL)
-        *pScope = (DtPropertyScope)GetPropOutput.m_Scope;
     return Status;
 }

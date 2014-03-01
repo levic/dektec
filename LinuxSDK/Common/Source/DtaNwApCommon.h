@@ -87,6 +87,7 @@
 enum {
     FUNC_DTANWAP_GET_GUIDVLAN = DTANWAP_IOCTL_BASE,
     FUNC_DTANWAP_GET_DRIVER_VERSION,
+    FUNC_DTANWAP_RECONFIGURE,
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTANWAP_IOCTL_GET_GUIDVLAN -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -97,13 +98,13 @@ typedef struct _DtaNwApIoctlGetGuidVlanInput {
     UInt8  m_Reserved[2];                   // Alignment
     Int  m_VlanId;                          // Vlan ID
 } DtaNwApIoctlGetGuidVlanInput;
-ASSERT_SIZE(DtaNwApIoctlGetGuidVlanInput, 12)
+//ASSERT_SIZE(DtaNwApIoctlGetGuidVlanInput, 12)
 
 // Ioctl output data type
 typedef struct _DtaNwApIoctlGetGuidVlanOutput {
     GUID  m_Guid;                           // Guid of Vlan
 } DtaNwApIoctlGetGuidVlanOutput;
-ASSERT_SIZE(DtaNwApIoctlGetGuidVlanOutput, 16)
+//ASSERT_SIZE(DtaNwApIoctlGetGuidVlanOutput, 16)
 
 #define DTANWAP_IOCTL_GET_GUIDVLAN  CTL_CODE(DTANWAP_DEVICE_TYPE,                        \
                                                           FUNC_DTANWAP_GET_GUIDVLAN,     \
@@ -117,16 +118,27 @@ typedef struct _DtaNwApIoctlGetDriverVersionOutput {
     Int  m_Micro;
     Int  m_Build;
 } DtaNwApIoctlGetDriverVersionOutput;
-ASSERT_SIZE(DtaNwApIoctlGetDriverVersionOutput, 16)
+//ASSERT_SIZE(DtaNwApIoctlGetDriverVersionOutput, 16)
 
 #define DTANWAP_IOCTL_GET_DRIVER_VERSION  CTL_CODE(DTANWAP_DEVICE_TYPE, \
                          FUNC_DTANWAP_GET_DRIVER_VERSION, METHOD_BUFFERED, FILE_READ_DATA)
+
+    // Ioctl output data type
+typedef struct _DtaNwApIoctlReconfigureInput {
+    GUID  m_AdapterGuid;                           // Guid of Adapter
+} DtaNwApIoctlReconfigureInput;
+//ASSERT_SIZE(DtaNwApIoctlReconfigureInput, 16)
+
+#define DTANWAP_IOCTL_RECONFIGURE  CTL_CODE(DTANWAP_DEVICE_TYPE,                        \
+                                                          FUNC_DTANWAP_RECONFIGURE,     \
+                                                          METHOD_BUFFERED, FILE_READ_DATA)
 
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwApIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef union _DtaNwApIoctlInputData {
     DtaNwApIoctlGetGuidVlanInput  m_GetGuidVlan;
+    DtaNwApIoctlReconfigureInput  m_Reconfigure;
 } DtaNwApIoctlInputData;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwApIoctlOutputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

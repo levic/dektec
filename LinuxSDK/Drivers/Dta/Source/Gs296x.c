@@ -42,6 +42,12 @@
 #define  GS2960_REG_RASTER_STRUCT_4      0x22
 #define  GS2960_REG_RATE_SEL             0x24
 
+// GS2962 registers
+#define  GS2962_REG_IOPROC               0x00
+
+// GS2962_REG_IOPROC flags
+#define GS2962_IOPROC_SMPTE_352M_INS     0x0040
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 static DtStatus  DtaGs296xReadRegister(DtaNonIpPort*  pNonIpPort, Int Addr, 
                                                                           UInt32* pValue);
@@ -129,6 +135,8 @@ DtStatus  DtaGs2961GetVideoStd(DtaNonIpPort*  pNonIpPort, Int*  pVidStd)
 //
 DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort)
 {
+    UInt32  Value = 0;
+
     // Port must has a matrix-API register interface
     if (!pNonIpPort->m_CapMatrix)
         return DT_STATUS_NOT_SUPPORTED;
@@ -140,8 +148,11 @@ DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort)
     DtSleep(5);
     DtaRegHdCtrl1SetIoReset(pNonIpPort->m_pTxRegs, 0);
     DtSleep(5);
-
-    return DT_STATUS_OK;
+    
+    // Disable SMPTE 352M video payload identifier insertion
+    DT_RETURN_ON_ERROR(DtaGs296xReadRegister(pNonIpPort, GS2962_REG_IOPROC, &Value));
+    Value |= GS2962_IOPROC_SMPTE_352M_INS;
+    return DtaGs296xWriteRegister(pNonIpPort, GS2962_REG_IOPROC, Value);
 }
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+

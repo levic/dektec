@@ -59,7 +59,7 @@ typedef struct _DtaGenlock
     Int  m_RefPortIndex;        // Port to be used as reference input (-1=INTERNAL)
     Int  m_RefVidStd;           // Video standard on reference input 
 
-    volatile UInt8*  m_pGenRegs;  // Pointer to base of genlock registers
+    volatile UInt8*  m_pGenlRegs; // Pointer to base of genlock registers
     
     // Specific controllers
     DtaLmh1982  m_Lmh1982;              // LMH-1982 controller

@@ -242,6 +242,12 @@ DtStatus  DtaMatrixIoctl(
         OutReqSize += sizeof(DtaIoctlMatrixCmdGetReqDmaSizeOutput);
         break;
 
+    case DTA_MATRIX_CMD_GET_FRM_INFO:
+        pCmdStr = "DTA_MATRIX_CMD_GET_FRM_INFO";
+        InReqSize += sizeof(DtaIoctlMatrixCmdGetFrmInfoInput);
+        OutReqSize += sizeof(DtaIoctlMatrixCmdGetFrmInfoOutput);
+        break;
+
     default:
         pCmdStr = "??UNKNOWN MATRIXCMD CODE??";
         Status = DT_STATUS_NOT_SUPPORTED;
@@ -674,6 +680,15 @@ DtStatus  DtaMatrixIoctl(
 
             Status = DtaNonIpMatrixGetReqDmaSize(pNonIpPort, &MemTrSetup,
                                      &pMatrixCmdOutput->m_Data.m_GetReqDmaSize.m_ReqSize);
+            break;
+        }
+
+        case DTA_MATRIX_CMD_GET_FRM_INFO:
+        {
+            Int  FrameIdx = DtaNonIpMatrixFrame2Index(pNonIpPort,
+                                            pMatrixCmdInput->m_Data.m_GetFrmInfo.m_Frame);
+            pMatrixCmdOutput->m_Data.m_GetFrmInfo.m_RfClkLatched =
+                                      pNonIpPort->m_Matrix.m_FrameInfo[FrameIdx].m_RefClk;
             break;
         }
 

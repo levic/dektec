@@ -44,7 +44,6 @@ typedef struct _DtaIpPort DtaIpPort;        // Needed for NwPhyMac.h
 typedef struct _DmaChannel DmaChannel;      // Needed for DtaUtility and Dma.h
 
 // Dta headers
-#include <DtIoConfigDefs.h>
 #include <DtaUtility.h>
 #include <I2c.h>
 #include <Eeprom.h>

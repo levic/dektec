@@ -52,8 +52,6 @@ typedef struct _DtuIoConfigStorageNames {
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-static DtStatus  DtuIoConfigReadFromNonVolatileStorage(DtuNonIpPort* pNonIpPort,
-                                                Int IoGroup, DtuIoConfigValue* pCfgValue);
 static DtStatus  DtuIoConfigUpdateApply(DtuDeviceData* pDvcData,
                                DtuIoConfigUpdate* pUpdate, Bool SaveToNonVolatileStorage);
 static DtStatus  DtuIoConfigUpdateLoadCache(DtuDeviceData* pDvcData,
@@ -366,66 +364,6 @@ DtStatus  DtuIoConfigSet(
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Private helpers -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-//.-.-.-.-.-.-.-.-.-.-.-.- DtuIoConfigReadFromNonVolatileStorage -.-.-.-.-.-.-.-.-.-.-.-.-
-//
-static DtStatus  DtuIoConfigReadFromNonVolatileStorage(
-    DtuNonIpPort*  pNonIpPort,
-    Int  IoGroup,
-    DtuIoConfigValue*  pCfgValue)
-{
-    DtStatus  Result;
-    Int32  Value;
-    Int64  BinValue;
-    Char StrValue[IOCONFIG_NAME_MAX_SIZE];
-    Int  ParXtraIdx;
-    DtuIoConfigValue  IoConfig;
-    DtuDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
-    Char GroupName[IOCONFIG_NAME_MAX_SIZE];
-
-    // Get the IO group name
-    Result = IoConfigNameGet(IoGroup, GroupName, sizeof(GroupName) );
-    if (!DT_SUCCESS(Result))
-        return Result;
-
-    // Get config value
-    Result = DtNonVolatileSettingsStringRead(&pDvcData->m_Driver, 
-                                    pDvcData->m_DevInfo.m_Serial, pNonIpPort->m_PortIndex,
-                                    GroupName, "ConfigValue", StrValue, sizeof(StrValue));
-    if (!DT_SUCCESS(Result))
-        return Result;
-    Result = IoConfigCodeGet(StrValue, &Value);
-    if (!DT_SUCCESS(Result))
-        return Result;
-    IoConfig.m_Value = (Int)Value;
-
-    // Get config subvalue
-    Result = DtNonVolatileSettingsStringRead(&pDvcData->m_Driver, 
-                                 pDvcData->m_DevInfo.m_Serial, pNonIpPort->m_PortIndex,
-                                 GroupName, "ConfigSubValue", StrValue, sizeof(StrValue));
-    if (!DT_SUCCESS(Result))
-        return Result;
-    Result = IoConfigCodeGet(StrValue, &Value);
-    if (!DT_SUCCESS(Result))
-        return Result;
-    IoConfig.m_SubValue = Value;
-    
-    // Read ParXtra
-    for (ParXtraIdx=0; ParXtraIdx<DT_MAX_PARXTRA_COUNT; ParXtraIdx++)
-    {
-        Result = DtNonVolatileSettingsValueRead(&pDvcData->m_Driver,
-                                 pDvcData->m_DevInfo.m_Serial, pNonIpPort->m_PortIndex,
-                                 GroupName, (Char*)IoParXtraNames[ParXtraIdx], &BinValue);
-            if (!DT_SUCCESS(Result))
-                return DT_STATUS_CONFIG_ERROR;
-        IoConfig.m_ParXtra[ParXtraIdx] = BinValue;
-    }
-
-    // Copy result only if succeeded
-    *pCfgValue = IoConfig;
-
-    return DT_STATUS_OK;
-}
-
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuIoConfigUpdateApply -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -515,7 +453,11 @@ static DtStatus  DtuIoConfigUpdateLoadNonVolatileStorage(
 {
     DtStatus  Result = DT_STATUS_OK;
     Int  NonIpIndex;
+#ifdef WINBUILD
     Int  IoConfig;
+#else
+    Int  PortNumber;
+#endif
     DtuNonIpPort*  pNonIpPort;
     DtuIoConfigNonIpPortUpdate*  pPortUpdate;
 
@@ -523,13 +465,27 @@ static DtStatus  DtuIoConfigUpdateLoadNonVolatileStorage(
     {
         pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
         pPortUpdate = &pUpdate->m_pNonIpPortUpdate[NonIpIndex];
+#ifdef WINBUILD
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
-            Result = DtuIoConfigReadFromNonVolatileStorage(pNonIpPort, IoConfig,
+            Result = DtIoConfigReadFromNonVolatileStorage(&pDvcData->m_Driver,
+                                                      pDvcData->m_DevInfo.m_Serial,
+                                                      pNonIpPort->m_PortIndex, IoConfig,
                                                       &pPortUpdate->m_CfgValue[IoConfig]);
             if (!DT_SUCCESS(Result) && Result!=DT_STATUS_NOT_FOUND)
                 break;
         }
+#else
+
+        Result = DtuGetPortNumber(pDvcData, pNonIpPort->m_PortIndex, &PortNumber);
+        if (!DT_SUCCESS(Result))
+            break;
+        Result = DtIoConfigReadFromIniFile("Dtu", pDvcData->m_DevInfo.m_Serial,
+                                                     pDvcData->m_DevInfo.m_TypeNumber,
+                                                     PortNumber, pPortUpdate->m_CfgValue);
+        if (!DT_SUCCESS(Result) && Result!=DT_STATUS_NOT_FOUND)
+            break;
+#endif
     }
 
     if (Result == DT_STATUS_NOT_FOUND)

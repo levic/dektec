@@ -202,6 +202,9 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
                                                  // implementation
 #define ASI_SDI_SER_ITF_GS2962       4           // Uses Gennum GS2962
 
+// Fan controller types
+#define FAN_TYPE_MAX6639             0           // Maxim 6639 controller
+
 
 // Properties
 #define PROPERTY_NAME_MAX_SIZE      50

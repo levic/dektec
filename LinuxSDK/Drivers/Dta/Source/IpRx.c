@@ -4432,6 +4432,7 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
                 } else {
                     DtDbgOut(ERR, IP_RX, "Header complete but INCORRECT. Skip all"
                                      "  previous data. PrevDataSize: %d", PrevDataLength);
+                    pIpPort->m_NumIncorrectDmaRxHeaders++;
                     // Skip all previous data, and take only the new data
                     PrevDataLength = 0;
                     NumBytesRx = DtaPPBufferGetTransferSize(pPPBuffer);
@@ -4457,7 +4458,7 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
             {
                 // Error in DMA header
                 DtDbgOut(ERR, IP_RX, "[%i] INCORRECT DMA header RT/NRT.", pIpPort->m_IpPortIndex);
-
+                pIpPort->m_NumIncorrectDmaRxHeaders++;
 
                 // Find packet header
                 while (NumBytesRx>=sizeof(DtaDmaRxHeader) && 
@@ -4533,6 +4534,7 @@ void DtaIpRxRtCheckHeaderAndParseDataType2(
             DT_ASSERT(FALSE);
             DtDbgOut(ERR, IP_RX, "[%i] Partly DMA header received. Error.", 
                                                                   pIpPort->m_IpPortIndex);
+            pIpPort->m_NumIncorrectDmaRxHeaders++;
             break;
         }
         pRxHeader = (DtaDmaRxHeader*)pRxData;
@@ -4540,6 +4542,7 @@ void DtaIpRxRtCheckHeaderAndParseDataType2(
         {
             // Error in DMA header
             DtDbgOut(ERR, IP_RX, "[%i] INCORRECT DMA header RT.", pIpPort->m_IpPortIndex);
+            pIpPort->m_NumIncorrectDmaRxHeaders++;
 
             // Find packet header
             while (RxDataSize>=sizeof(DtaDmaRxHeader) && 
@@ -4572,6 +4575,7 @@ void DtaIpRxRtCheckHeaderAndParseDataType2(
             // End of chain marker. Should not happen anymore
             DtDbgOut(ERR, IP_RX, "[%i] End of chain", pIpPort->m_IpPortIndex);
             DT_ASSERT(FALSE);
+            pIpPort->m_NumIncorrectDmaRxHeaders++;
             break;
         }
 

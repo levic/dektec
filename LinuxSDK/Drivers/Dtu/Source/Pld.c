@@ -76,7 +76,6 @@ DtStatus  DtuFx3LoadPldFirmware(
     DtStatus  Status;
     Int  Len;
     Int  Dummy;
-    UInt8  DummyBuf[32];
     UInt16  TypeNumber;
     Int  MaxChunkSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
                                                           pDvcData->m_DevInfo.m_UsbSpeed);

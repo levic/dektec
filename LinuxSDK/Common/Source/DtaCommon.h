@@ -1649,6 +1649,7 @@ typedef struct _DtaIoctlPhyMacGetPacketFilterOutput {
 #define DTA_MAC_CNT_802_3_XMIT_HEARTBEAT_FAILURE   17
 #define DTA_MAC_CNT_802_3_XMIT_TIMES_CRS_LOST      18
 #define DTA_MAC_CNT_802_3_XMIT_LATE_COLLISIONS     19
+#define DTA_MAC_CNT_GEN_RCV_HDR_ERROR              20
 
 typedef struct _DtaIoctlPhyMacGetCounterInput {
     UInt  m_CounterId;
@@ -2004,6 +2005,7 @@ ASSERT_SIZE(DtaIoctlGetStrPropertyOutput, 100)
 #define  DTA_MATRIX_CMD_SET_ASI_CTRL      14
 #define  DTA_MATRIX_CMD_GET_BUF_CONFIG    15    // Returns the buffer configuration
 #define  DTA_MATRIX_CMD_GET_REQ_DMA_SIZE  16    // Returns the minimum req DMA buffer size
+#define  DTA_MATRIX_CMD_GET_FRM_INFO      17    // Get the timing on a frame in the buffer
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_WAIT_FRAME -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -2189,6 +2191,19 @@ typedef struct _DtaIoctlMatrixCmdGetReqDmaSizeOutput {
 } DtaIoctlMatrixCmdGetReqDmaSizeOutput;
 ASSERT_SIZE(DtaIoctlMatrixCmdGetReqDmaSizeOutput, 4)
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_GET_FRM_INFO -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctlMatrixCmdGetFrmInfoInput {
+    Int64A  m_Frame;            // Frame number to get timestamp from
+} DtaIoctlMatrixCmdGetFrmInfoInput;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetFrmInfoInput, 8)
+
+typedef struct _DtaIoctlMatrixCmdGetFrmInfoOutput {
+    Int64A  m_RfClkLatched;     // Latched version of ref clock at start of frame
+} DtaIoctlMatrixCmdGetFrmInfoOutput;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetFrmInfoOutput, 8)
+
+
 // Ioctl input data type
 typedef struct _DtaIoctlMatrixCmdInput {
     Int  m_Cmd;
@@ -2202,6 +2217,7 @@ typedef struct _DtaIoctlMatrixCmdInput {
         DtaIoctlMatrixCmdSetFifoSizeInput  m_SetFifoSize;
         DtaIoctlMatrixCmdSetAsiCtrlInput  m_SetAsiCtrl;
         DtaIoctlMatrixCmdGetReqDmaSizeInput  m_GetReqDmaSize;
+        DtaIoctlMatrixCmdGetFrmInfoInput  m_GetFrmInfo;
     } m_Data;
 } DtaIoctlMatrixCmdInput;
 #ifdef LINBUILD
@@ -2226,6 +2242,7 @@ typedef struct _DtaIoctlMatrixCmdOutput {
         DtaIoctlMatrixCmdGetFifoSizeMaxOutput  m_GetFifoSizeMax;
         DtaIoctlMatrixCmdGetReqDmaSizeOutput  m_GetReqDmaSize;
         DtaIoctlMatrixCmdGetBufConfigOutput  m_GetBufConfig;
+        DtaIoctlMatrixCmdGetFrmInfoOutput  m_GetFrmInfo;
     } m_Data;
 } DtaIoctlMatrixCmdOutput;
 ASSERT_SIZE(DtaIoctlMatrixCmdOutput, 408)

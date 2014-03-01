@@ -61,9 +61,11 @@ typedef struct _DtuNonIpPort
     Bool  m_CapLoopS2Ts;
     Bool  m_CapLoopThr;
     // IOSTD (I/O standard) - Capabilities
+    Bool  m_Cap3GSdi;
     Bool  m_CapAsi;
     Bool  m_CapDemod;
     Bool  m_CapHdSdi;
+    Bool  m_CapIfAdc;
     Bool  m_CapIp;
     Bool  m_CapMod;
     Bool  m_CapSdi;
@@ -92,6 +94,10 @@ typedef struct _DtuNonIpPort
     Bool  m_Cap720P50;
     Bool  m_Cap720P59_94;
     Bool  m_Cap720P60;
+    // IOSTD - SDI (3G-SDI) - Sub capabilities
+    Bool  m_Cap1080P50;
+    Bool  m_Cap1080P59_94;
+    Bool  m_Cap1080P60;
     // RFCLKSEL (RF clock source selection) - Capabilities
     Bool  m_CapRfClkExt;
     Bool  m_CapRfClkInt;

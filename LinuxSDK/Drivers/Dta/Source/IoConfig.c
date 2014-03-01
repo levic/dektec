@@ -26,7 +26,6 @@
 // TORT, IN NEGLIGENCE, OR OTHERWISE, ARISING FROM THE USE OF, OR INABILITY TO USE THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <DtaIncludes.h>
 
@@ -52,8 +51,6 @@ typedef struct _DtaIoConfigStorageNames {
 } DtaIoConfigStorageNames;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-static DtStatus  DtaIoConfigReadFromNonVolatileStorage(DtaNonIpPort* pNonIpPort, 
-                                                Int IoGroup, DtaIoConfigValue* pCfgValue);
 static DtStatus  DtaIoConfigUpdateApply(DtaDeviceData* pDvcData,
                                DtaIoConfigUpdate* pUpdate, Bool SaveToNonVolatileStorage);
 static DtStatus  DtaIoConfigUpdateLoadCache(DtaDeviceData* pDvcData,
@@ -330,7 +327,7 @@ DtStatus  DtaIoConfigSet(
     if (Update.m_pNonIpPortUpdate == NULL)
     {    
         DtDbgOut(ERR, IOCONFIG, "Failed to allocate %dkB for update structure",
-                   (sizeof(DtaIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts)/1024);
+            (int)((sizeof(DtaIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts)/1024));
 
         DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);   
         return DT_STATUS_OUT_OF_MEMORY;
@@ -338,7 +335,7 @@ DtStatus  DtaIoConfigSet(
     else
     {
         DtDbgOut(MAX, IOCONFIG, "Allocated %dkB for update structure",
-                   (sizeof(DtaIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts)/1024);
+            (int)((sizeof(DtaIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts)/1024));
     }
 
     // Non Ip configuration
@@ -440,69 +437,6 @@ DtStatus  DtaIoConfigSet(
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private helpers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-//.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigReadFromNonVolatileStorage -.-.-.-.-.-.-.-.-.-.-.-.-
-//
-static DtStatus  DtaIoConfigReadFromNonVolatileStorage(
-    DtaNonIpPort*  pNonIpPort,
-    Int  IoGroup,
-    DtaIoConfigValue*  pCfgValue)
-{
-    DtStatus  Result;
-    Int32  Value;
-    Int64  BinValue;
-    Char StrValue[IOCONFIG_NAME_MAX_SIZE];
-    Int  ParXtraIdx;
-    DtaIoConfigValue  IoConfig;
-    DtaDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
-    Char GroupName[IOCONFIG_NAME_MAX_SIZE];
-
-    
-    // Get the IO group name
-    Result = IoConfigNameGet(IoGroup, GroupName, sizeof(GroupName) );
-    if (!DT_SUCCESS(Result))
-        return Result;
-
-    // Get config value
-    Result = DtNonVolatileSettingsStringRead(&pDvcData->m_Driver, 
-                                    pDvcData->m_DevInfo.m_Serial, pNonIpPort->m_PortIndex,
-                                    GroupName, "ConfigValue", StrValue, sizeof(StrValue));
-    if (!DT_SUCCESS(Result))
-        return Result;
-
-    Result = IoConfigCodeGet(StrValue, &Value);
-    if (!DT_SUCCESS(Result))
-        return Result;
-    IoConfig.m_Value = (Int)Value;
-
-    // Get config subvalue
-    Result = DtNonVolatileSettingsStringRead(&pDvcData->m_Driver, 
-                                 pDvcData->m_DevInfo.m_Serial, pNonIpPort->m_PortIndex,
-                                 GroupName, "ConfigSubValue", StrValue, sizeof(StrValue));
-    if (!DT_SUCCESS(Result))
-        return Result;
-
-    Result = IoConfigCodeGet(StrValue, &Value);
-    if (!DT_SUCCESS(Result))
-        return Result;
-    IoConfig.m_SubValue = Value;
-    
-    // Read ParXtra
-    for (ParXtraIdx=0; ParXtraIdx<DT_MAX_PARXTRA_COUNT; ParXtraIdx++)
-    {
-        Result = DtNonVolatileSettingsValueRead(&pDvcData->m_Driver,
-                                 pDvcData->m_DevInfo.m_Serial, pNonIpPort->m_PortIndex,
-                                 GroupName, (Char*)IoParXtraNames[ParXtraIdx], &BinValue);
-        if (!DT_SUCCESS(Result))
-            return DT_STATUS_CONFIG_ERROR;
-        IoConfig.m_ParXtra[ParXtraIdx] = BinValue;
-    }
-
-    // Copy result only if succeeded
-    *pCfgValue = IoConfig;
-
-    return DT_STATUS_OK;
-}
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigUpdateApply -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Post: pDvcData->m_RegWriteBusy flag must be reset
@@ -586,7 +520,11 @@ static DtStatus  DtaIoConfigUpdateLoadNonVolatileStorage(
 {
     DtStatus  Result = DT_STATUS_OK;
     Int  NonIpIndex;
+#ifdef WINBUILD
     Int  IoConfig;
+#else
+    Int  PortNumber;
+#endif
     DtaNonIpPort*  pNonIpPort;
     DtaIoConfigNonIpPortUpdate*  pPortUpdate = NULL;
 
@@ -594,13 +532,27 @@ static DtStatus  DtaIoConfigUpdateLoadNonVolatileStorage(
     {
         pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpIndex];
         pPortUpdate = &pUpdate->m_pNonIpPortUpdate[NonIpIndex];
+#ifdef WINBUILD
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
-            Result = DtaIoConfigReadFromNonVolatileStorage(pNonIpPort, IoConfig, 
+            Result = DtIoConfigReadFromNonVolatileStorage(&pDvcData->m_Driver,
+                                                      pDvcData->m_DevInfo.m_Serial,
+                                                      pNonIpPort->m_PortIndex, IoConfig,
                                                       &pPortUpdate->m_CfgValue[IoConfig]);
             if (!DT_SUCCESS(Result) && Result!=DT_STATUS_NOT_FOUND)
                 break;
         }
+#else
+
+        Result = DtaGetPortNumber(pDvcData, pNonIpPort->m_PortIndex, &PortNumber);
+        if (!DT_SUCCESS(Result))
+            break;
+        Result = DtIoConfigReadFromIniFile("Dta", pDvcData->m_DevInfo.m_Serial,
+                                                     pDvcData->m_DevInfo.m_TypeNumber,
+                                                     PortNumber, pPortUpdate->m_CfgValue);
+        if (!DT_SUCCESS(Result) && Result!=DT_STATUS_NOT_FOUND)
+            break;
+#endif
     }
 
     if (Result == DT_STATUS_NOT_FOUND)
@@ -726,11 +678,11 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
             return DT_STATUS_CONFIG_ERROR;
             
         // If another port is set in APSK mode, we are not allowed to use this port
-        if (!pNonIpPort->m_CapSwS2Apsk)
-            break;            
         for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
-        {                
-            if(i != pNonIpPort->m_PortIndex)
+        {
+            Int  PortIndex;
+            DtaGetPortIndexNonIp(pDvcData, i, &PortIndex);
+            if(PortIndex != pNonIpPort->m_PortIndex)
             {                
                 if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_SWS2APSK].
                                                               m_Value == DT_IOCONFIG_TRUE)
@@ -752,6 +704,33 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
             // buddy is never our own index
             if (Buddy == pNonIpPort->m_PortIndex)
                 return DT_STATUS_CONFIG_ERROR;
+
+            if (Buddy < 0)
+            {
+                // Previous versions of the driver didn't check the buddy port parameter
+                // correctly, and DtInfo set it to -1. To prevent breaking compatibility
+                // with existing appliations we now check the BuddyPort parameter
+                // properly but fix it silently when it was incorrect.
+                Int  NumDemodPorts = 0;
+                Int  FirstDemodPortIdx = -1;
+                for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
+                {
+                    Int  PortIndex;
+                    DtaGetPortIndexNonIp(pDvcData, i, &PortIndex);
+                    if (pDvcData->m_pNonIpPorts[i].m_CapDemod)
+                    {
+                        NumDemodPorts++;
+                        if (FirstDemodPortIdx==-1 && PortIndex!=pNonIpPort->m_PortIndex)
+                            DtaGetPortIndexNonIp(pDvcData, i, &FirstDemodPortIdx);
+                    }
+                }
+                if (NumDemodPorts == 2)
+                {
+                    pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].m_ParXtra[0] =
+                                                                        FirstDemodPortIdx;
+                    Buddy = FirstDemodPortIdx;
+                }
+            }
 
             // check if the buddy port exists
             Status = DtaGetNonIpPortIndex(pDvcData, Buddy, &Buddy);
@@ -987,6 +966,10 @@ static DtStatus  DtaIoConfigUpdateValidateIoStd(
         break;
     case DT_IOCONFIG_MOD:
         if (!pNonIpPort->m_CapMod)
+            return DT_STATUS_CONFIG_ERROR;
+        break;
+    case DT_IOCONFIG_RS422:
+        if (!pNonIpPort->m_CapRs422)
             return DT_STATUS_CONFIG_ERROR;
         break;
     case DT_IOCONFIG_SDI:        
@@ -1311,6 +1294,9 @@ static DtStatus  DtaIoConfigUpdateValidateGenLocked(
     DtaIoConfigUpdate* pUpdate)
 {
     DtaDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
+    Bool  GenRefEnabled = FALSE;
+    Int  i = 0;
+    DtaNonIpPort*  pOtherNonIpPort = NULL;
     
     DtDbgOut(MAX, IOCONFIG, "Configuration GENLOCKED Value: %d SubValue: %d",
                                pPortUpdate->m_CfgValue[DT_IOCONFIG_GENLOCKED].m_Value,
@@ -1334,7 +1320,28 @@ static DtStatus  DtaIoConfigUpdateValidateGenLocked(
             DtDbgOut(ERR, IOCONFIG, "Genlock is not supported");
             return DT_STATUS_CONFIG_ERROR;
         }
-        if (pDvcData->m_Genlock.m_RefPortIndex == -1)
+
+        // Only one port may be enabled as genlock reference
+        for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
+        {
+            pOtherNonIpPort = &pDvcData->m_pNonIpPorts[i];
+            if (pOtherNonIpPort->m_PortIndex == pNonIpPort->m_PortIndex)
+                continue;   // Skip ourselves
+            if (!pOtherNonIpPort->m_CapGenRef)
+                continue;   // Skip port that does not support genref
+
+            // Check genref is enabled on other port
+            if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_GENREF].m_Value
+                                                                      == DT_IOCONFIG_TRUE)
+            {
+                GenRefEnabled = TRUE;
+            }
+        }
+        // Special case for slave FPGAs: GenRef ports not controlled by this driver,
+        // so just assume that one is set. Check should be done in DTAPI.
+        if (pDvcData->m_DevInfo.m_SubDvc > 0)
+            GenRefEnabled = TRUE;
+        if (!GenRefEnabled)
         {
             DtDbgOut(ERR, IOCONFIG, "No genref port has been set");
             return DT_STATUS_CONFIG_ERROR;

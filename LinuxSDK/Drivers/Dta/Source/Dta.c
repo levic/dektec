@@ -309,7 +309,7 @@ DtStatus  DtaDeviceInitPci905X(DtaDeviceData* pDvcData)
         WRITE_UINT32(p905XRegs, PCI905X_EEPROM_CTRL_STAT, CntrlReg);
     }
 
-	// For devices with a PLX set the DMA read and write command
+    // For devices with a PLX set the DMA read and write command
     // Write: B"0111" => PCI Write Command
     // Read:  B"1100" => PCI Memory Read Multiple Command
     WRITE_UINT8(p905XRegs, PCI905X_EEPROM_CTRL_STAT, 0x7C);
@@ -700,8 +700,10 @@ DtStatus  DtaDeviceInterruptEnable(DtaDeviceData* pDvcData)
         DtaRegI2cCtrlSetRdyIntEn(pDvcData->m_I2c.m_pI2cRegs, 1);
 
     // SOF-frame interrupts
-    if (pDvcData->m_Matrix.m_IsSupported)
-        DtaRegHdGenlCtrlSetSofIntEna(pDvcData->m_pGenRegs, 1);
+    if (pDvcData->m_Genlock.m_IsSupported &&
+                                 (pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2152 ||
+                                  pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2154))
+        DtaRegHdGenlCtrlSetSofIntEna(pDvcData->m_Genlock.m_pGenlRegs, 1);
 
     //-.-.-.-.-.-.-.-.-.-.-.- Step 2: Enable port-level interrupts -.-.-.-.-.-.-.-.-.-.-.-
 
@@ -814,8 +816,10 @@ DtStatus  DtaDeviceInterruptDisable(DtaDeviceData* pDvcData)
         DtaRegI2cCtrlSetRdyIntEn(pDvcData->m_I2c.m_pI2cRegs, 0);
 
     // Matrix interrupts
-    if (pDvcData->m_Matrix.m_IsSupported)
-        DtaRegHdGenlCtrlSetSofIntEna(pDvcData->m_pGenRegs, 0); // Disable SOF interrupt
+    if (pDvcData->m_Genlock.m_IsSupported &&
+                                 (pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2152 ||
+                                  pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2154))
+        DtaRegHdGenlCtrlSetSofIntEna(pDvcData->m_Genlock.m_pGenlRegs, 0); // Disable SOF interrupt
 
     //.-.-.-.-.-.-.-.-.-.-.- Step 2: disable port-level interrupts -.-.-.-.-.-.-.-.-.-.-.-
 
@@ -1399,10 +1403,10 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                                                 pInBuf->m_GetAddrRegs.m_RegsType, pPaMmap,
                                                 &pOutBuf->m_GetAddrRegs.m_Size,
                                                 (void**)&pUserVirt);
-#if defined(WIN32) || defined(LIN32)
-                pOutBuf->m_GetAddrRegs.m_pUserVirtual = (UInt32)pUserVirt;
-#else
+#if defined(WIN64) || defined(LIN64)
                 pOutBuf->m_GetAddrRegs.m_pUserVirtual = (UInt64)pUserVirt;
+#else
+                pOutBuf->m_GetAddrRegs.m_pUserVirtual = (UInt32)pUserVirt;
 #endif
                 
 #ifdef LINBUILD
@@ -2391,7 +2395,9 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
     if (pDvcData->m_Matrix.m_IsSupported)
     {
         // Check for SOF (start-of-frame) interrupt
-        if (DtaRegHdGenlStatGetSofInt(pDvcData->m_pGenRegs) != 0)
+        if ((pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2152 ||
+                          pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2154) &&
+                          DtaRegHdGenlStatGetSofInt(pDvcData->m_Genlock.m_pGenlRegs) != 0)
         {
             // Call handler. NOTE: the handler will clear the interrupt flag
             DtaInterruptSofIntHandler(pDvcData);
@@ -2641,7 +2647,8 @@ DtStatus  DtaInterruptSofIntHandler(DtaDeviceData* pDvcData)
     DT_ASSERT(pDvcData->m_Matrix.m_IsSupported);
     
     // Latch Reference SOF frame
-    pDvcData->m_Matrix.m_SofFrame = DtaRegHdGenlSofFrameGet(pDvcData->m_pGenRegs);
+    pDvcData->m_Matrix.m_SofFrame = DtaRegHdGenlSofFrameGet(
+                                                         pDvcData->m_Genlock.m_pGenlRegs);
     
     // Latch channel SOF frame and line registers
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
@@ -2661,7 +2668,7 @@ DtStatus  DtaInterruptSofIntHandler(DtaDeviceData* pDvcData)
     DtDpcSchedule(&pDvcData->m_Matrix.m_SofFrameIntDpc, &DpcArgs);
 
     // Finaly: clear SOF interrupt
-    DtaRegHdGenlStatClrSofInt(pDvcData->m_pGenRegs);
+    DtaRegHdGenlStatClrSofInt(pDvcData->m_Genlock.m_pGenlRegs);
     
     return DT_STATUS_OK;
 }
@@ -2672,6 +2679,7 @@ DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
 {
     DtDpcArgs  DpcArgs;
     Int  NextFrmIdx=0;
+    Int  CurFrmIdx = 0;
     Bool  IsRunning = TRUE;
     DtaFrameBufSectionConfig*  pSections = pNonIpPort->m_Matrix.m_BufConfig.m_Sections;
 
@@ -2738,6 +2746,15 @@ DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
             if (ChangeToHold)
                 DtDbgOut(AVG, NONIP, "Enter hold state; Repeating frame: %lld",
                                                                                NextFrame); 
+        }
+
+        if (NewState == MATRIX_PORT_RUN)
+        {
+            // Set reference clock for current frame
+            CurFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort,
+                                                         pNonIpPort->m_Matrix.m_CurFrame);
+            pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClk =
+                                 DtaRegRefClkCntGet64(pNonIpPort->m_pDvcData->m_pGenRegs);
         }
     
         if (NewState >= MATRIX_PORT_IDLE)
@@ -2831,6 +2848,20 @@ DtStatus  DtaGetIpPortIndex(DtaDeviceData* pDvcData, Int PortIndex, Int* pIpPort
         return DT_STATUS_NOT_FOUND;
 
     *pIpPortIndex = pDvcData->m_pPortLookup[PortIndex].m_Index;
+
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaGetPortNumber -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaGetPortNumber(DtaDeviceData* pDvcData, Int PortIndex, Int* pPortNumber)
+{
+    if (PortIndex >= pDvcData->m_NumPorts)
+        return DT_STATUS_NOT_FOUND;
+    if (PortIndex < 0)
+        return DT_STATUS_NOT_FOUND;
+
+    *pPortNumber = pDvcData->m_pPortLookup[PortIndex].m_PortNumber;
 
     return DT_STATUS_OK;
 }
@@ -3011,6 +3042,21 @@ DtStatus  DtaReleaseAddressRegs(
     return DtaReleaseAddressRegsForUserspace(pDvcData, pFile, PortIndex, ppPaMmap, pSize);
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- FindPortNumber -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static Int  DtaFindPortNumber(DtTableEntry*  pPortMap, Int  PortMapSize, Int  PortIndex)
+{
+    Int  i;
+    for (i=0; i<PortMapSize; i++)
+    {
+        if (pPortMap[i].m_Y == PortIndex+1)
+            return (Int)pPortMap[i].m_X;
+    }
+    // Fall back to default: PortIndex+1
+    return PortIndex + 1;
+
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaCalculateAndCreatePortsStruct -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // This function calculates the number of NonIp and IpPorts, allocates the port structures
@@ -3024,12 +3070,21 @@ DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData)
     Bool  CapRs422;
     Int  i;
     DtPropertyData*  pPropData = &pDvcData->m_PropData;
+    DtTableEntry  PortMap[16];
+    UInt  PortMapSize = 0;
+    DtStatus  PortMapStatus;
     
     pDvcData->m_NumNonIpPorts = 0;
     pDvcData->m_NumIpPorts = 0;
 
     // Get number of ports property
     PortCount = DtPropertiesGetInt(pPropData, "PORT_COUNT", -1);
+
+    PortMapStatus = DtTableGet(pPropData, "SUBDVC_PORT_MAP", -1,
+                                                  sizeof(PortMap)/sizeof(PortMap[0]),
+                                                  &PortMapSize, PortMap, sizeof(PortMap));
+    if (!DT_SUCCESS(PortMapStatus))
+        PortMapSize = 0;
 
     // Allocate memory for PortLookup
     DT_ASSERT(pDvcData->m_pPortLookup == NULL);
@@ -3057,8 +3112,10 @@ DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData)
             // Setup reverse lookup
             pDvcData->m_pPortLookup[i].m_PortType = DTA_PORT_TYPE_NONIP;
             pDvcData->m_pPortLookup[i].m_Index = pDvcData->m_NumNonIpPorts;
+            pDvcData->m_pPortLookup[i].m_PortNumber = DtaFindPortNumber(PortMap,
+                                                                          PortMapSize, i);
 
-            // We found one, increment number nonip ports
+            // We found one, increment number of non-IP ports
             pDvcData->m_NumNonIpPorts++;
         }
         else if (CapIp)
@@ -3066,8 +3123,10 @@ DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData)
             // Setup reverse lookup
             pDvcData->m_pPortLookup[i].m_PortType = DTA_PORT_TYPE_IP;
             pDvcData->m_pPortLookup[i].m_Index = pDvcData->m_NumIpPorts;
+            pDvcData->m_pPortLookup[i].m_PortNumber = DtaFindPortNumber(PortMap,
+                                                                          PortMapSize, i);
 
-            // We found one, increment number of non-IP ports
+            // We found one, increment number of IP ports
             pDvcData->m_NumIpPorts++;
         } else {
             pDvcData->m_NumNonIpPorts = 0;
