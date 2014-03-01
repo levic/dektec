@@ -19,12 +19,8 @@
 - 1. Version History
 --------------------------------------------------------------------------------
 
-Date:       Version:    Remarks:
-2013.02.15  3.2.0.13    Refer to "SDK - Revision History.pdf" for details
-2012.09.28  3.1.0.12    Refer to "SDK - Revision History.pdf" for details
-2012.05.14  3.0.7.11    First release to the field of new V3 driver
-                        NOTE: this driver requires DTAPI V5.0.5 or newer
-
+Refer to the "SDK - Revision History.pdf" document for an overview of the 
+changes included in the release.
 
 --------------------------------------------------------------------------------
 - 2. Introduction

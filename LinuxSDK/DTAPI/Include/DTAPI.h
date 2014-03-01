@@ -2,15 +2,15 @@
 //
 // DTAPI - C++ API for DekTec PCI/PCI-Express cards, USB-2 adapters and network devices
 //
-
+ 
 #ifndef __DTAPI_H
 #define __DTAPI_H
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        2
-#define DTAPI_VERSION_BUGFIX       4
-#define DTAPI_VERSION_BUILD        31
+#define DTAPI_VERSION_MINOR        3
+#define DTAPI_VERSION_BUGFIX       0
+#define DTAPI_VERSION_BUILD        35
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -3006,15 +3006,19 @@ protected:
 #define DTAPI_SCALING_1_4           2
 #define DTAPI_SCALING_1_16          3
 
-// Stride settings
-#define DTAPI_STRIDE_DISABLED       1
-#define DTAPI_STRIDE_ALLIGN64B      2
+// Symbol filter mode
+#define DTAPI_SYMFLT_ALL            0       // YCbCr sample (CbYCrY order)
+#define DTAPI_SYMFLT_LUM            1       // Luminance only (Y) 
+#define DTAPI_SYMFLT_CHROM          2       // Chrominance only (CbCr)
+#define DTAPI_SYMFLT_SWAP           3       // Swap order of lum and chrom (i.e. YCbYCr)
+#define DTAPI_SYMFLT_RGB            4       // Convert to/from RGB
 
-#define DTAPI_SDI_Y                 0x01
-#define DTAPI_SDI_CB                0x02
-#define DTAPI_SDI_CR                0x04
-#define DTAPI_SDI_CBCR              (DTAPI_SDI_CB | DTAPI_SDI_CR)
-#define DTAPI_SDI_YCBCR             (DTAPI_SDI_Y | DTAPI_SDI_CB | DTAPI_SDI_CR)
+// Ancillary filter mode
+#define DTAPI_ANCFLT_OFF            0
+#define DTAPI_ANCFLT_HANC_ALL       1
+#define DTAPI_ANCFLT_HANC_MIN       2
+#define DTAPI_ANCFLT_VANC_ALL       3
+#define DTAPI_ANCFLT_VANC_MIN       4
 
 // Receive mode hints for USB3 devices
 #define DTAPI_RXMODE_FRAMEBUFFER      0x10000
@@ -3065,6 +3069,78 @@ private:
     int  m_Size;                    // Size of user data buffer (in # of words)
 };
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtFrameBufTrPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+class DtFrameBufTrPars
+{
+public:
+    enum ParsType { PT_VIDEO, PT_ANC, PT_RAW };
+
+protected:
+    DtFrameBufTrPars(ParsType  Type);
+public:
+    virtual ~DtFrameBufTrPars();
+
+    // Operations
+public:
+    DTAPI_RESULT  SetCommon(__int64  Frame, unsigned char* pBuf,  int  BufSize,  
+                                    int  DataFormat, int  StartLine=1,  int  NumLines=-1);
+
+    ParsType GetType() const { return m_Type; } 
+
+public:
+    __int64  m_Frame;           // Frame to transfer
+    unsigned char* m_pBuf;      // Transfer buffer
+    int  m_BufSize;             // [in] size of buffer / [out] actual #bytes transferred
+    int  m_StartLine;           // [in] 1st line to transfer / [out] actual first line
+    int  m_NumLines;            // [in] #lines to transfer / [out] actual #lines
+    int  m_DataFormat;          // Format of data (8-, 10-, 16-bit)   
+
+private:
+    ParsType  m_Type;           // Parameter type
+};
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtFrameBufTrParsVideo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+class DtFrameBufTrParsVideo : public DtFrameBufTrPars
+{
+public:
+    DtFrameBufTrParsVideo(int  Field, int  Scaling=DTAPI_SCALING_OFF, int  Stride=-1,
+                                                            int  SymFlt=DTAPI_SYMFLT_ALL);
+    virtual ~DtFrameBufTrParsVideo();
+    
+public:
+    int  m_Field;               // Field to transfer
+    int  m_Scaling;             // Scaling mode
+    int  m_Stride;              // -1 means no stride
+    int  m_SymFlt;              // Symbol filter mode
+};
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtFrameBufTrParsAnc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+class DtFrameBufTrParsAnc : public DtFrameBufTrPars
+{
+public:
+    DtFrameBufTrParsAnc(int  HancVanc, int  AncFlt=DTAPI_ANCFLT_OFF);
+    virtual ~DtFrameBufTrParsAnc();
+
+public:
+    int  m_HancVanc;            // HANC or VANC
+    int  m_AncFlt;              // Anc filter mode
+};
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtFrameBufTrParsRaw -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+class DtFrameBufTrParsRaw : public DtFrameBufTrPars
+{
+public:
+    DtFrameBufTrParsRaw(int  SymFlt=DTAPI_SYMFLT_ALL);
+    virtual ~DtFrameBufTrParsRaw();
+
+public:
+    int  m_SymFlt;              // Symbol filter mode
+};
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtFrameBuffer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Class to represent an frame buffer
@@ -3097,9 +3173,11 @@ public:
     virtual DTAPI_RESULT  AncReadRaw(__int64 Frame, unsigned char* pBuf,
                                 int&  BufSize, int DataFormat, int StartLine,
                                 int NumLines, int HancVanc, bool EnableAncFilter = false);
+    virtual DTAPI_RESULT  AncReadRaw(DtFrameBufTrParsAnc&  TP);
     virtual DTAPI_RESULT  AncWriteRaw(__int64 Frame, unsigned char* pBuf, 
                                 int&  BufSize, int Format, int StartLine, 
                                 int NumLines, int HancVanc, bool EnableAncFilter = false);
+    virtual DTAPI_RESULT  AncWriteRaw(DtFrameBufTrParsAnc&  TP);
     virtual DTAPI_RESULT  AttachToInput(DtDevice*, int Port);
     virtual DTAPI_RESULT  AttachToOutput(DtDevice*, int Port, int Delay);
     virtual DTAPI_RESULT  Detach();
@@ -3109,11 +3187,13 @@ public:
     virtual DTAPI_RESULT  GetFrameInfo(__int64 Frame, DtFrameInfo&);
     virtual DTAPI_RESULT  ReadSdiLines(__int64 Frame, unsigned char* pBuf, 
                               int& BufSize, int DataFormat, int StartLine, int& NumLines);
+    virtual DTAPI_RESULT  ReadSdiLines(DtFrameBufTrParsRaw&  TP);
     virtual DTAPI_RESULT  ReadSdiLines(__int64 Frame, unsigned char* pBuf, 
                                                            int&  BufSize, int DataFormat);
     virtual DTAPI_RESULT  ReadVideo(__int64 Frame, unsigned char* pBuf,
                                            int& BufSize, int Field, int FullOrScaled,
                                            int DataFormat, int StartLine, int&  NumLines);
+    virtual DTAPI_RESULT  ReadVideo(DtFrameBufTrParsVideo&  TP);
     virtual DTAPI_RESULT  SetRxMode(int  RxMode, __int64&  FirstFrame);
     virtual DTAPI_RESULT  Start(bool Start=true);
     virtual DTAPI_RESULT  SetIoConfig(int Group, int Value, int SubValue = -1,
@@ -3124,8 +3204,10 @@ public:
                                                             int& BufSize, int DataFormat);
     virtual DTAPI_RESULT  WriteSdiLines(__int64 Frame, unsigned char*  pBuf, 
                             int&  BufSize, int DataFormat, int StartLine, int&  NumLines);
+    virtual DTAPI_RESULT  WriteSdiLines(DtFrameBufTrParsRaw&  TP);
     virtual DTAPI_RESULT  WriteVideo(__int64 Frame, unsigned char*  pBuf, int&  BufSize,
                                 int Field, int DataFormat, int StartLine, int&  NumLines);
+    virtual DTAPI_RESULT  WriteVideo(DtFrameBufTrParsVideo&  TP);
 
 protected:
     FrameBufImpl*  m_pImpl;         // Implementation class
@@ -3156,40 +3238,6 @@ public:
 private:
     SdiMatrixImpl*  m_pImpl;        // Implementation class
 };
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- HD constants/defines -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-
-// Rx/Tx control
-#define DTAPI_RXTXCTRL_IDLE         0
-#define DTAPI_RXTXCTRL_FREEZE       1
-#define DTAPI_RXTXCTRL_RUN          2
-
-// Operational mode
-#define DTAPI_OPMODE_DISABLE        0
-#define DTAPI_OPMODE_SD             1
-#define DTAPI_OPMODE_HD             2
-#define DTAPI_OPMODE_3G             3
-#define DTAPI_OPMODE_ASI            4
-
-// Symbol filter mode
-#define DTAPI_SYMFLTMODE_ALL        0
-#define DTAPI_SYMFLTMODE_LUM        1
-#define DTAPI_SYMFLTMODE_CHROM      2
-#define DTAPI_SYMFLTMODE_SWAP       3
-
-// Ancillary filter mode
-#define DTAPI_ANCFLTMODE_OFF        0
-#define DTAPI_ANCFLTMODE_HANC_ALL   1
-#define DTAPI_ANCFLTMODE_HANC_MIN   2
-#define DTAPI_ANCFLTMODE_VANC_ALL   3
-#define DTAPI_ANCFLTMODE_VANC_MIN   4
-
-// MemTr Command
-#define DTAPI_MEMTR_CMD_IDLE        0
-#define DTAPI_MEMTR_CMD_SECT0       1
-#define DTAPI_MEMTR_CMD_SECT1       2
-#define DTAPI_MEMTR_CMD_DUAL        3
-#define DTAPI_MEMTR_CMD_FRAME       4
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Global DTAPI Functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
@@ -3460,6 +3508,7 @@ const char*  DtapiVidStd2Str(int VidStd);
 #define DTAPI_E_INVALID_BTYPE       (DTAPI_E + 190)
 #define DTAPI_E_INVALID_PARTIAL     (DTAPI_E + 191)
 #define DTAPI_E_INVALID_NUMTS       (DTAPI_E + 192)
+#define DTAPI_E_INVALID             (DTAPI_E + 193)
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+ DVB-C2, DVB-S2, DVB-T2, ISDB-Tmm Multi PLP Parameters +=+=+=+=+=+=+=+=+

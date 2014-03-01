@@ -1190,6 +1190,9 @@ static DtStatus  DtaVpdUpdateCache(DtaDeviceData* pDvcData)
     // Load VPD cache
     switch (pDvcData->m_Vpd.m_EepromIoItf)
     {
+    case VPD_EEPROM_IO_NOT_SUPP:
+        // NOTHING TO DO
+        break;
     case VPD_EEPROM_IO_PLX:
         // Read entire content of VPD EEPROM (PLX) into cache buffer
         Status = DtaEepromPlxRead(pDvcData, 0, pDvcData->m_Vpd.m_pCache,
@@ -1217,6 +1220,71 @@ static DtStatus  DtaVpdUpdateCache(DtaDeviceData* pDvcData)
             DtDbgOut(MIN, VPD, "Empty EEPROM or illegal layout");
     }
 
+    return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVpdReadDirect -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static DtStatus  DtaVpdReadDirect(DtaDeviceData* pDvcData, UInt8* pData, Int Offset, 
+                                                                      Int* NumBytesToRead)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    switch (pDvcData->m_Vpd.m_EepromIoItf)
+    {
+    case VPD_EEPROM_IO_PLX:
+        // Read entire content of VPD EEPROM (PLX) into cache buffer
+        Status = DtaEepromPlxRead(pDvcData, Offset, pData, *NumBytesToRead);
+        break;
+
+    case VPD_EEPROM_IO_SPI:
+        // Read separate EEPROM connected to FPGA for VPD data
+        Status = DtaEepromSpiRead(pDvcData, Offset, pData, *NumBytesToRead);
+        break;
+
+    default:
+        Status = DT_STATUS_NOT_SUPPORTED;
+        break;
+    }
+    return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVpdWriteDirect -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static DtStatus  DtaVpdWriteDirect(DtaDeviceData* pDvcData, UInt8* pData, Int Offset, 
+                                                                      Int NumBytesToWrite)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    if (Offset%2 !=0)
+        return DT_STATUS_INVALID_PARAMETER;
+    // Load VPD cache
+    switch (pDvcData->m_Vpd.m_EepromIoItf)
+    {
+    case VPD_EEPROM_IO_PLX:
+        // Write only changed data.
+        // The PLX only supports WORD writes. We have to compensate the StartAdd 
+        // and length if needed.
+        if (Offset%2 != 0) 
+        {
+            Offset -= 1;
+            NumBytesToWrite += 1;
+        }
+        if (NumBytesToWrite%2 != 0)
+            NumBytesToWrite += 1;
+        
+        Status = DtaEepromPlxWrite(pDvcData, Offset, pData, NumBytesToWrite);
+        break;
+
+    case VPD_EEPROM_IO_SPI:
+        // Write entire cache to external EEPROM
+        Status = DtaEepromSpiWrite(pDvcData, Offset, pData, NumBytesToWrite);
+        break;
+
+    default:
+        Status = DT_STATUS_NOT_SUPPORTED;
+        break;
+    }
     return Status;
 }
 
@@ -1788,7 +1856,12 @@ static DtStatus  DtaVpdReadItem(
     // Read from the right section
     if (SectionType == DTA_VPD_SECT_ID)
         Status = DtaVpdReadId(pDvcData, pBuf, pBufLen);
-    else {
+    else if (SectionType == DTA_VPD_SECT_SECURITY)
+    {
+        
+        Status = DtaVpdReadDirect(pDvcData, pBuf, 
+                             pDvcData->m_Vpd.m_EepromSize - VPD_OFFSET_SECURITY, pBufLen);
+    } else {
         if (!DT_SUCCESS(Status) && ((SectionType&DTA_VPD_SECT_RO)!=0))
         {
             if (KeywordLen == 2)
@@ -1934,6 +2007,10 @@ static DtStatus DtaVpdWriteItem(
             Status = DT_STATUS_FAIL;
         }
         break;
+    case DTA_VPD_SECT_SECURITY:
+        return DtaVpdWriteDirect(pDvcData, pBuf, 
+                              pDvcData->m_Vpd.m_EepromSize - VPD_OFFSET_SECURITY, BufLen);
+
     default:
         DT_ASSERT(1 == 0);
         Status = DT_STATUS_FAIL;

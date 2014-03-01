@@ -180,20 +180,29 @@ DtStatus  DtaShBufferIoctl(
 #if defined(WINBUILD)
                 DtPageList  PageList;
                 PMDL  pMdl;
+                NTSTATUS  NtStatus;
                 // Retrieve MDL and virtual buffer from request object
-                WdfRequestRetrieveOutputWdmMdl(pIoctl->m_WdfRequest, &pMdl);
-                
-                pBuffer = MmGetMdlVirtualAddress(pMdl);
-                if (pBuffer == NULL)
-                    Status = DT_STATUS_OUT_OF_MEMORY;
-                Size = MmGetMdlByteCount(pMdl);
+                NtStatus = WdfRequestRetrieveOutputWdmMdl(pIoctl->m_WdfRequest, &pMdl);
+                if (NtStatus != STATUS_SUCCESS)
+                {
+                    DtDbgOut(ERR, SHBUF, "WdfRequestRetrieveOutputWdmMdl error: %08x", 
+                                                                                NtStatus);
+                    Status = DT_STATUS_OUT_OF_RESOURCES;
+                }
+                if (DT_SUCCESS(Status))
+                {
+                    pBuffer = MmGetMdlVirtualAddress(pMdl);
+                    if (pBuffer == NULL)
+                        Status = DT_STATUS_OUT_OF_MEMORY;
+                    Size = MmGetMdlByteCount(pMdl);
 
-                // Build pagelist object for user space buffer
-                pPageList = &PageList;
-                pPageList->m_BufType = DT_BUFTYPE_USER;
-                pPageList->m_OwnedByOs = TRUE;
-                pPageList->m_pMdl = pMdl;
-                pPageList->m_pVirtualKernel = NULL;
+                    // Build pagelist object for user space buffer
+                    pPageList = &PageList;
+                    pPageList->m_BufType = DT_BUFTYPE_USER;
+                    pPageList->m_OwnedByOs = TRUE;
+                    pPageList->m_pMdl = pMdl;
+                    pPageList->m_pVirtualKernel = NULL;
+                }
 #else // LINBUILD
                 Size = (UInt)pShBufCmdInput->m_Data.m_Init.m_BufferSize;
 #if defined(LIN32)

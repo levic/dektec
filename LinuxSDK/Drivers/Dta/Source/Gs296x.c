@@ -60,8 +60,6 @@ DtStatus  DtaGs2961Enable(DtaNonIpPort*  pNonIpPort)
 
     DT_ASSERT(pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_GS2961);
 
-    // Enable IO
-    DtaRegHdCtrl1SetIoEnable(pNonIpPort->m_pRxRegs, 1);
     // Toggle reset
     DtaRegHdCtrl1SetIoReset(pNonIpPort->m_pRxRegs, 1);
     DtSleep(5);
@@ -137,8 +135,6 @@ DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort)
 
     DT_ASSERT(pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_SER_ITF_GS2962);
 
-    // Enable IO
-    DtaRegHdCtrl1SetIoEnable(pNonIpPort->m_pTxRegs, 1);
     // Toggle reset
     DtaRegHdCtrl1SetIoReset(pNonIpPort->m_pTxRegs, 1);
     DtSleep(5);

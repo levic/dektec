@@ -129,6 +129,7 @@ typedef struct _DtuPortLookup
 typedef struct  _DtuAltSetting
 {
     Int  m_Bitrate;
+    Int  m_uFrameSize;
 } DtuAltSetting;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuDeviceData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

@@ -30,6 +30,7 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "Lmh1982.h"
+#include "Lmh1983.h"
 #include "FpgaGenlock.h"
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants / Defines -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -37,6 +38,7 @@
 #define DTA_GENLOCK_ARCH_145    145
 #define DTA_GENLOCK_ARCH_2144   2144
 #define DTA_GENLOCK_ARCH_2152   2152
+#define DTA_GENLOCK_ARCH_2154   2154
 
 #define DTA_GENLOCK_REFPORT_INT -1  // -1 denotes internal reference clock 
 
@@ -56,11 +58,12 @@ typedef struct _DtaGenlock
     Int  m_FracMode;            // Status fractional mode
     Int  m_RefPortIndex;        // Port to be used as reference input (-1=INTERNAL)
     Int  m_RefVidStd;           // Video standard on reference input 
+
+    volatile UInt8*  m_pGenRegs;  // Pointer to base of genlock registers
     
-
-
     // Specific controllers
     DtaLmh1982  m_Lmh1982;              // LMH-1982 controller
+    DtaLmh1983  m_Lmh1983;              // LMH-1983 controller
     DtaFpgaGenlock  m_FpgaGenlock;      // Genlock controlled by the FPGA
     
 } DtaGenlock;

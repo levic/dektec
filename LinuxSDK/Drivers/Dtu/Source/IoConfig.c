@@ -295,8 +295,11 @@ DtStatus  DtuIoConfigSet(
             pPortUpdate = &Update.m_pNonIpPortUpdate[NonIpIndex];
 
             // Check if we should update the IO configuration
+            // The DT_IOCONFIG_BW is special in that we always want to try and reapply
+            // it to try and grab bandwidth if it previously failed.
             if (pPortUpdate->m_CfgValue[IoGroup].m_Value != ConfigValue
-               || pPortUpdate->m_CfgValue[IoGroup].m_SubValue != ConfigSubValue)
+               || pPortUpdate->m_CfgValue[IoGroup].m_SubValue != ConfigSubValue
+               || IoGroup == DT_IOCONFIG_BW)
                 pPortUpdate->m_UpdateNeeded[IoGroup] = TRUE;
             else
             {

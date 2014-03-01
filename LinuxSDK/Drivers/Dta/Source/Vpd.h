@@ -58,9 +58,12 @@ typedef struct _DtaVpd
 } DtaVpd;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-#define  VPD_EEPROM_IO_PLX   0
-#define  VPD_EEPROM_IO_FPGA  1
-#define  VPD_EEPROM_IO_SPI   2
+#define  VPD_EEPROM_IO_NOT_SUPP -1
+#define  VPD_EEPROM_IO_PLX      0
+#define  VPD_EEPROM_IO_FPGA     1
+#define  VPD_EEPROM_IO_SPI      2
+// NOTE: This offset is from from top-of-EEPROM, not from bottom!!!
+#define  VPD_OFFSET_SECURITY    512
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtaVpdInit(DtaDeviceData* pDvcData);

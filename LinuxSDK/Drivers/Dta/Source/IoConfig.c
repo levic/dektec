@@ -329,8 +329,16 @@ DtStatus  DtaIoConfigSet(
                  sizeof(DtaIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts, DTA_TAG);
     if (Update.m_pNonIpPortUpdate == NULL)
     {    
+        DtDbgOut(ERR, IOCONFIG, "Failed to allocate %dkB for update structure",
+                   (sizeof(DtaIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts)/1024);
+
         DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);   
         return DT_STATUS_OUT_OF_MEMORY;
+    }
+    else
+    {
+        DtDbgOut(MAX, IOCONFIG, "Allocated %dkB for update structure",
+                   (sizeof(DtaIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts)/1024);
     }
 
     // Non Ip configuration
@@ -1368,6 +1376,9 @@ static DtStatus  DtaIoConfigUpdateValidateGenRef(
                                                                  pNonIpPort->m_PortIndex);
             return DT_STATUS_CONFIG_ERROR;
         }
+        // Only check for genlocked port if this port was the genlock reference.
+        if (pDvcData->m_Genlock.m_RefPortIndex != pNonIpPort->m_PortIndex)
+            break;
 
         // You cannot disable Genref if an output port has Genlocked enabled
         for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
@@ -1421,7 +1432,7 @@ static DtStatus  DtaIoConfigUpdateValidateGenRef(
                                                                       == DT_IOCONFIG_TRUE)
             {
                 DtDbgOut(ERR, IOCONFIG, "Port %i already enabled genref. Port %i can not"
-                    "be enabled.", pOtherNonIpPort->m_PortIndex, pNonIpPort->m_PortIndex);
+                   " be enabled.", pOtherNonIpPort->m_PortIndex, pNonIpPort->m_PortIndex);
             
                 return DT_STATUS_CONFIG_ERROR;
             }

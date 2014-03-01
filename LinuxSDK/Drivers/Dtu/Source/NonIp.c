@@ -483,21 +483,25 @@ DtStatus  DtuNonIpDetectVidStd(DtuNonIpPort* pNonIpPort, Int*  pVidStd)
     if ((RasterStruc & 0x1000) != 0)
     {
         IsFrac = (RasterStruc & 0x2000) != 0;
-        switch ((Ds1>>8) & 0x3F)
+        // Test for 3G clock: not supported
+        if ((RasterStruc&0xC0) != 0x80)
         {
-        case 0x00: *pVidStd = IsFrac ? DT_VIDSTD_720P59_94 : DT_VIDSTD_720P60; break;
-        case 0x02: *pVidStd = IsFrac ? DT_VIDSTD_720P29_97 : DT_VIDSTD_720P30; break;
-        case 0x04: *pVidStd = DT_VIDSTD_720P50; break;
-        case 0x06: *pVidStd = DT_VIDSTD_720P25; break;
-        case 0x08: *pVidStd = IsFrac ? DT_VIDSTD_720P23_98 : DT_VIDSTD_720P24; break;
-        case 0x0A: *pVidStd = IsFrac ? DT_VIDSTD_1080I59_94 : DT_VIDSTD_1080I60; break;
-        case 0x0B: *pVidStd = IsFrac ? DT_VIDSTD_1080P29_97 : DT_VIDSTD_1080P30; break;
-        case 0x0C: *pVidStd = DT_VIDSTD_1080I50; break;
-        case 0x0D: *pVidStd = DT_VIDSTD_1080P25; break;
-        case 0x10: *pVidStd = IsFrac ? DT_VIDSTD_1080P23_98 : DT_VIDSTD_1080P24; break;
-        case 0x16: *pVidStd = DT_VIDSTD_525I59_94; break;
-        case 0x18: *pVidStd = DT_VIDSTD_625I50; break;
-        default:   *pVidStd = DT_VIDSTD_UNKNOWN; break;
+            switch ((Ds1>>8) & 0x3F)
+            {
+            case 0x00: *pVidStd = IsFrac ? DT_VIDSTD_720P59_94 : DT_VIDSTD_720P60; break;
+            case 0x02: *pVidStd = IsFrac ? DT_VIDSTD_720P29_97 : DT_VIDSTD_720P30; break;
+            case 0x04: *pVidStd = DT_VIDSTD_720P50; break;
+            case 0x06: *pVidStd = DT_VIDSTD_720P25; break;
+            case 0x08: *pVidStd = IsFrac ? DT_VIDSTD_720P23_98 : DT_VIDSTD_720P24; break;
+            case 0x0A: *pVidStd = IsFrac ? DT_VIDSTD_1080I59_94 : DT_VIDSTD_1080I60;break;
+            case 0x0B: *pVidStd = IsFrac ? DT_VIDSTD_1080P29_97 : DT_VIDSTD_1080P30;break;
+            case 0x0C: *pVidStd = DT_VIDSTD_1080I50; break;
+            case 0x0D: *pVidStd = DT_VIDSTD_1080P25; break;
+            case 0x10: *pVidStd = IsFrac ? DT_VIDSTD_1080P23_98 : DT_VIDSTD_1080P24;break;
+            case 0x16: *pVidStd = DT_VIDSTD_525I59_94; break;
+            case 0x18: *pVidStd = DT_VIDSTD_625I50; break;
+            default:   *pVidStd = DT_VIDSTD_UNKNOWN; break;
+            }
         }
     }
     return DT_STATUS_OK;
@@ -1242,6 +1246,15 @@ DtStatus  DtuNonIpTxReset(DtuDeviceData*  pDvcData, DtuNonIpPort*  pNonIpPort,
     return Result;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuGetuFrameSize -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtuGetuFrameSize(DtuNonIpPort*  pNonIpPort, Int*  pUFrameSize)
+{
+    DtuDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
+    *pUFrameSize = pDvcData->m_AltSetting[pDvcData->m_CurAltSetting].m_uFrameSize;
+    return DT_STATUS_OK;
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuNonIpSetIsoBw -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtuNonIpSetIsoBw(DtuNonIpPort*  pNonIpPort, Int64*  pBw)
@@ -1254,7 +1267,7 @@ DtStatus  DtuNonIpSetIsoBw(DtuNonIpPort*  pNonIpPort, Int64*  pBw)
     UCHAR  i;
     DtuDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
     
-    for (i=0; i<pDvcData ->m_NumAltSettings; i++)
+    for (i=1; i<pDvcData->m_NumAltSettings; i++)
     {
         if (pDvcData->m_AltSetting[i].m_Bitrate >= *pBw && (AltSetting==-1 ||
                                    pDvcData->m_AltSetting[i].m_Bitrate < 
@@ -1286,7 +1299,8 @@ DtStatus  DtuNonIpSetIsoBw(DtuNonIpPort*  pNonIpPort, Int64*  pBw)
     {
         pNonIpPort->m_StateFlags |= DTU_PORT_FLAG_INSUFF_USB_BW;
         DtDbgOut(MIN, IOCONFIG, "Failed to select alternative setting. Not enough USB"
-                                                                 " bandwidth available?");
+                                                   " bandwidth available? NtStatus: 0x%X",
+                                                                                NtStatus);
         
         // Try to select alternative setting 0 to free any previously selected bw, but
         // don't check if this succeeds or not.

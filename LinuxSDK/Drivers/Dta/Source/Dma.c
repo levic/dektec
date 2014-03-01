@@ -322,7 +322,7 @@ DtStatus  DtaDmaInitChPowerup(
     Int  FwVersion = pDvcData->m_DevInfo.m_FirmwareVersion;
 
     pDmaCh->m_State = DTA_DMA_STATE_IDLE;
-    
+        
     if (pDvcData->m_DmaOptions.m_UseDmaInFpga)
     {   // Using DMA controller in FPGA
         pDmaCh->m_pRegBase = pDvcData->m_pGenRegs + pDmaCh->m_RegsOffset;
@@ -473,7 +473,10 @@ static DtStatus  DtaDmaInitTransfer(
     OldState = DtAtomicCompareExchange((Int*)&pDmaCh->m_State, DTA_DMA_STATE_IDLE, 
                                                                       DTA_DMA_STATE_INIT);
     if (OldState == DTA_DMA_STATE_ABORT)
+    {
+        DtDbgOut(ERR, DTA, "New DMA cancelled due to abort flag");
         return DT_STATUS_CANCELLED;
+    }
     DT_ASSERT(OldState == DTA_DMA_STATE_IDLE);
 
     // Create SglList and pagelist if databuffer is not re-used (HP Transfers)
@@ -999,7 +1002,8 @@ void DtaDmaCompletedDpc(DtDpcArgs* pArgs)
         // Report error in event viewer and stop. We don't want to see the BSOD.
         DtEvtLogReport(&pDmaCh->m_pDvcData->m_Device.m_EvtObject, DTA_LOG_FAKE_DMA_INT,
                                                                         NULL, NULL, NULL);
-        DtDbgOut(MAX, DMA, "DMA interrupt occured, but DMA not started");
+        DtDbgOut(ERR, DMA, "DMA interrupt occured, but DMA not started (State=0x%04X)",
+                                                                         pDmaCh->m_State);
         DT_ASSERT(FALSE);
         return;
     }
@@ -1045,8 +1049,8 @@ void DtaDmaCompletedDpc(DtDpcArgs* pArgs)
             DT_ASSERT(pDmaCh->m_DmaMode == DTA_DMA_MODE_DEFAULT);
             
             // Initialise the state for DtaDmaProgramTransfer
-            OldState = DtAtomicCompareExchange((Int*)&pDmaCh->m_State, DTA_DMA_STATE_STARTED, 
-                                                                      DTA_DMA_STATE_INIT);
+            OldState = DtAtomicCompareExchange((Int*)&pDmaCh->m_State, 
+                                               DTA_DMA_STATE_STARTED, DTA_DMA_STATE_INIT);
             if ((OldState & DTA_DMA_STATE_ABORT) != 0)
                 DtDbgOut(MAX, DMA, "DMA restart next SKIPPED...aborting");
             else {
@@ -1062,7 +1066,7 @@ void DtaDmaCompletedDpc(DtDpcArgs* pArgs)
     
     // Reset the flags but leave the abort flag
     DtAtomicSet((Int*)&pDmaCh->m_State, pDmaCh->m_State & DTA_DMA_STATE_ABORT);
-
+    
     if ((pDmaCh->m_DmaFlags&DTA_DMA_FLAGS_BLOCKING) == 0)
     {
         // Finalize DMA transfer and clean databuffer if buffer not re-used and blocking
@@ -1214,15 +1218,17 @@ UInt  DtaDmaGetBytesReceived(
 DtStatus  DtaDmaAbortDma(
     DmaChannel*  pDmaCh)
 {
-    Int  OldState = pDmaCh->m_State;
+    volatile Int  OldState = pDmaCh->m_State;
     Bool  UsesDmaInFpga = pDmaCh->m_pDvcData->m_DmaOptions.m_UseDmaInFpga;
         
 
     DtDbgOut(MAX, DMA, "Init");
 
     while ((pDmaCh->m_State & DTA_DMA_STATE_ABORT) == 0)
+    {
         OldState = DtAtomicCompareExchange((Int*)&pDmaCh->m_State, OldState, 
                                                     OldState | DTA_DMA_STATE_ABORT);
+    }
     if (pDmaCh->m_State == DTA_DMA_STATE_ABORT)
         return DT_STATUS_NOT_STARTED;
 
@@ -1279,6 +1285,23 @@ Bool  DtaDmaIsAbortActive(
     DmaChannel*  pDmaCh)
 {
     return ((pDmaCh->m_State & DTA_DMA_STATE_ABORT) != 0);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDmaClearAbortFlag -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtaDmaClearAbortFlag(DmaChannel* pDmaCh)
+{
+    Int  LoopCnt = 10; // Max 10 loops
+    volatile Int OldState = pDmaCh->m_State;
+
+    // Use loop to make sure only the abort flag is cleared (other threads could 
+    // change one of the other flags which we want to leave untouched)
+    while (LoopCnt>0 && (pDmaCh->m_State & DTA_DMA_STATE_ABORT)!=0)
+    {
+        OldState = DtAtomicCompareExchange((Int*)&pDmaCh->m_State, OldState, 
+                                                         OldState & ~DTA_DMA_STATE_ABORT);
+        LoopCnt--;
+    }
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDmaReInitCallback -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

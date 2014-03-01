@@ -289,7 +289,12 @@ DtStatus  DtUsbVendorRequest(
     UInt8*  pTmpBuf = NULL;
 #endif
 
-    DtDbgOut(MAX, SAL_USB, "Code=0x%02X, Value=0x%04X, Dir=%d", Code, Value, Dir);
+    if (BufSize == 2)
+        DtDbgOut(MAX, SAL_USB, "Code=0x%02X, Value=0x%04X, Index=0x%04X, Dir=%d, Buf=%02X %02X",
+                                               Code, Value, Index, Dir, pBuf[0], pBuf[1]);
+    else
+        DtDbgOut(MAX, SAL_USB, "Code=0x%02X, Value=0x%04X, Index=0x%04X, Dir=%d, Bufsize=%d",
+                                                        Code, Value, Index, Dir, BufSize);
 
     if (Dir!=DT_USB_HOST_TO_DEVICE && Dir!=DT_USB_DEVICE_TO_HOST)
         return DT_STATUS_INVALID_PARAMETER;

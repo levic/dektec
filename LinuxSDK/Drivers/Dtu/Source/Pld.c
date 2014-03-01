@@ -34,6 +34,14 @@ DtStatus  DtuPldInit(DtuDeviceData* pDvcData)
     DtStatus  Status = DT_STATUS_OK;
     Int  PldFwSize = 0;
     const UInt8*  pPldFirmware = NULL;
+
+    if ((pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+                                                     && pDvcData->m_DevInfo.m_UsbSpeed!=2)
+    {
+        DtDbgOut(MIN, DTU, "Skipping PLD firmware upload for USB3 device connected to"
+                                                                                 " USB2");
+        return DT_STATUS_OK;
+    }
     
     // Load firmware for PLD
     DtDbgOut(MIN, DTU, "Uploading PLD firmware");

@@ -177,8 +177,8 @@ DtStatus  DtuVpdInit(DtuDeviceData* pDvcData)
     DtFastMutexInit(&pDvcData->m_Vpd.m_IoctlMutex);
 
     // Allocate VPD cache
-    pDvcData->m_Vpd.m_pCache = DtMemAllocPool(DtPoolPaged, pDvcData->m_Vpd.m_EepromSize,
-                                                               DTU_VPD_CACHE_MEM_TAG);
+    pDvcData->m_Vpd.m_pCache = DtMemAllocPool(DtPoolNonPaged,
+                                     pDvcData->m_Vpd.m_EepromSize, DTU_VPD_CACHE_MEM_TAG);
     if (pDvcData->m_Vpd.m_pCache != NULL)
         // Initial load of the cache
         Status = DtuVpdUpdateCache(pDvcData);

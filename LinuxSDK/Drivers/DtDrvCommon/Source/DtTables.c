@@ -46,7 +46,8 @@ DtStatus  DtTablesInit(DtPropertyData* pPropData)
     // Find the table store for our device
     for (Index=0; Index<DtTableStoreCount; Index++)
     {
-        if (DtTableStores[Index].m_TypeNumber == pPropData->m_TypeNumber)
+        if (DtTableStores[Index].m_TypeNumber==pPropData->m_TypeNumber && 
+                                       DtTableStores[Index].m_SubDvc==pPropData->m_SubDvc)
         {
             pPropData->m_pTableStore = (void*)&DtTableStores[Index];
             break;
@@ -55,8 +56,9 @@ DtStatus  DtTablesInit(DtPropertyData* pPropData)
 
     // It's not a fault if no table store is found. Not all cards have tables
     if (pPropData->m_pTableStore == NULL)
-        DtDbgOut(MIN, TABLE, "Tablestore not found for %s-%d",pPropData->m_TypeName,
-                                                                 pPropData->m_TypeNumber);
+        DtDbgOut(MIN, TABLE, "Tablestore not found for %s-%d:%d", pPropData->m_TypeName,
+                                                                  pPropData->m_TypeNumber,
+                                                                     pPropData->m_SubDvc);
     return DT_STATUS_OK;
 }
 
@@ -87,7 +89,8 @@ DtStatus  DtTableGet(
     *pNumEntries = 0;
     if (pPropData->m_pTableStore == NULL)
     {
-        DT_ASSERT(FALSE);
+        DtDbgOut(ERR, TABLE, "There are no tables defined at all for DTX-%d", 
+                                                                 pPropData->m_TypeNumber);
         return DT_STATUS_NOT_FOUND;
     }
 
@@ -144,9 +147,10 @@ DtStatus  DtTableGet(
     if (pTableLinkFound == NULL)
     {
         Status = DT_STATUS_NOT_FOUND;
-        DtDbgOut(ERR, TABLE, "Failed to get table %s for DTX-%d, FW %d, HW %d port %i", 
+        DtDbgOut(ERR, TABLE, "Failed to get table %s for DTX-%d:%d, FW %d, HW %d port %i", 
                                                   pTableName,
                                                   pPropData->m_TypeNumber,
+                                                  pPropData->m_SubDvc,
                                                   pPropData->m_FirmwareVersion,
                                                   pPropData->m_HardwareRevision,
                                                   PortIndex);
@@ -154,9 +158,10 @@ DtStatus  DtTableGet(
     
     if (DT_SUCCESS(Status) && pTableLinkFound!=NULL)
     {
-        DtDbgOut(MAX, TABLE, "Found table %s for DTX-%d, FW %d, HW %d. #EL:%i #MAX:%i" ,
+        DtDbgOut(MAX, TABLE, "Found table %s for DTX-%d:%d, FW %d, HW %d. #EL:%i #MAX:%i" ,
                                                   pTableName,
                                                   pPropData->m_TypeNumber,
+                                                  pPropData->m_SubDvc,
                                                   pPropData->m_FirmwareVersion,
                                                   pPropData->m_HardwareRevision,
                                                   pTableLinkFound->m_TableEntryCount,
@@ -180,5 +185,39 @@ DtStatus  DtTableGet(
         }
     } 
     return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtTableGetForType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtTableGetForType(
+    const char*  pTypeName,
+    Int  TypeNumber, 
+    Int  SubDvc,
+    Int  HwRev,
+    Int  FwVer,
+    const char*  pTableName, 
+    Int  PortIndex, 
+    UInt  MaxNumEntries,
+    UInt* pNumEntries,
+    DtTableEntry* pTableEntry2,
+    UInt OutBufSize)
+{
+    DtPropertyData  PropData;
+    DtStatus  Status = DT_STATUS_OK;
+        
+    // Init property data structure
+    PropData.m_TypeNumber = TypeNumber;
+    PropData.m_SubDvc = SubDvc;
+    PropData.m_FirmwareVersion = FwVer;
+    PropData.m_HardwareRevision = HwRev;
+    PropData.m_TypeName = (char*)pTypeName;
+
+    Status = DtTablesInit(&PropData);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    // Now find the table
+    return DtTableGet(&PropData, pTableName, PortIndex, MaxNumEntries, pNumEntries,
+                                                                pTableEntry2, OutBufSize);
 }
 

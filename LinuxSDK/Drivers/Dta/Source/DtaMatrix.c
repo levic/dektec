@@ -44,22 +44,52 @@ DtStatus  DtaMatrixWaitFrame(DtaDeviceData*  pDvcData, DtaNonIpPort*  pNonIpPort
 //
 DtStatus  DtaMatrixInit(DtaDeviceData*  pDvcData)
 {
+
     Int  i;
     DtStatus  Status = DT_STATUS_OK;
+    DtaMatrix*  pMatrix = &pDvcData->m_Matrix;
+    DtPropertyData* pPropData = &pDvcData->m_PropData;
 
     // Matrix-API is supported if we have at-least one port with the MATRIX capability
-    pDvcData->m_Matrix.m_IsSupported = FALSE;
-    for (i=0; i<pDvcData->m_NumNonIpPorts && !pDvcData->m_Matrix.m_IsSupported; i++)
-        pDvcData->m_Matrix.m_IsSupported = pDvcData->m_pNonIpPorts[i].m_CapMatrix;
-    
-    pDvcData->m_Matrix.m_SofFrame = 0;
+    pMatrix->m_IsSupported = FALSE;
+    for (i=0; i<pDvcData->m_NumNonIpPorts && !pMatrix->m_IsSupported; i++)
+        pMatrix->m_IsSupported = pDvcData->m_pNonIpPorts[i].m_CapMatrix;
+  
+    // Get Matrix properties
+    if (pMatrix->m_IsSupported)
+    {
+        pMatrix->m_RamSize = DtPropertiesGetInt(pPropData, "MATRIX_RAM_SIZE", -1);
+        pMatrix->m_MemPckSize = DtPropertiesGetInt(pPropData, "MATRIX_MEM_PCK_SIZE", -1);
+        pMatrix->m_MemPckNumBitsUsed = DtPropertiesGetInt(pPropData, 
+                                                      "MATRIX_MEM_PCK_NUM_BITS_USED", -1);
+        pMatrix->m_MemLineAlignment = DtPropertiesGetInt(pPropData, 
+                                                         "MATRIX_MEM_LINE_ALIGNMENT", -1);
 
-    pDvcData->m_Matrix.m_SyncInfo.m_IsValid = FALSE;
-    DtSpinLockInit(&pDvcData->m_Matrix.m_SyncInfoSpinLock);
+        // Check if no property error occurred
+        Status = DtaPropertiesReportDriverErrors(pDvcData);
+        if (!DT_SUCCESS(Status))
+            return Status;
 
-    DtDpcInit(&pDvcData->m_Matrix.m_SofFrameIntDpc, DtaMatrixSofFrameIntDpc, TRUE);
-    DtEventInit(&pDvcData->m_Matrix.m_SofFrameIntEvent, FALSE);
-    DtEventInit(&pDvcData->m_Matrix.m_SofFrameSyncEvent, FALSE);
+        DtDbgOut(MIN, MATRIX, "Matrix Mem. Props: sz=%dMB, psz=%d, pusd=%d, align=%d", 
+                               pMatrix->m_RamSize, pMatrix->m_MemPckSize, 
+                               pMatrix->m_MemPckNumBitsUsed, pMatrix->m_MemLineAlignment);
+    }
+    else
+    {
+        pMatrix->m_RamSize = -1;
+        pMatrix->m_MemPckSize = -1;
+        pMatrix->m_MemPckNumBitsUsed = -1;
+        pMatrix->m_MemLineAlignment = -1;
+    }
+               
+    pMatrix->m_SofFrame = 0;
+
+    pMatrix->m_SyncInfo.m_IsValid = FALSE;
+    DtSpinLockInit(&pMatrix->m_SyncInfoSpinLock);
+
+    DtDpcInit(&pMatrix->m_SofFrameIntDpc, DtaMatrixSofFrameIntDpc, TRUE);
+    DtEventInit(&pMatrix->m_SofFrameIntEvent, FALSE);
+    DtEventInit(&pMatrix->m_SofFrameSyncEvent, FALSE);
 
     return Status;
 }
@@ -69,7 +99,8 @@ DtStatus  DtaMatrixInit(DtaDeviceData*  pDvcData)
 DtStatus  DtaMatrixIoctl(
     DtaDeviceData* pDvcData,
     DtFileObject* pFile,
-    DtIoctlObject* pIoctl)
+    DtIoctlObject* pIoctl,
+    Bool  PowerDownPending)
 {
     DtStatus  Status = DT_STATUS_OK;
     char*  pCmdStr;             // Mnemonic string for Command
@@ -117,9 +148,115 @@ DtStatus  DtaMatrixIoctl(
         InReqSize += 0;
         break;
 
+    case DTA_MATRIX_CMD_ATTACH_TO_ROW:
+        pCmdStr = "DTA_MATRIX_CMD_ATTACH_TO_ROW";
+        InReqSize += sizeof(DtaIoctlMatrixCmdAttachToRowInput);
+        // There is no additional out data
+        OutReqSize += 0;        
+        break;
+
+    case DTA_MATRIX_CMD_START:
+        pCmdStr = "DTA_MATRIX_CMD_START";
+        InReqSize += sizeof(DtaIoctlMatrixCmdStartInput);
+        // There is no additional out data
+        OutReqSize += 0;        
+        break;
+
+    case DTA_MATRIX_CMD_STOP:
+        pCmdStr = "DTA_MATRIX_CMD_STOP";
+        // There is no additional in or out data
+        OutReqSize += 0; InReqSize += 0;
+        break;
+
+    case DTA_MATRIX_CMD_GET_CURR_FRAME:
+        pCmdStr = "DTA_MATRIX_CMD_GET_CURR_FRAME";
+        OutReqSize += sizeof(DtaIoctlMatrixCmdGetCurrFrameOutput);
+        // We expect no additional data in the input buffer
+        InReqSize += 0;
+        break;
+
+     case DTA_MATRIX_CMD_DMA_WRITE:
+        pCmdStr = "DTA_MATRIX_CMD_DMA_WRITE";
+        InReqSize += sizeof(DtaIoctlMatrixCmdWriteDmaInput);
+#ifdef WINBUILD
+        OutReqSize = 0; // for write there is no output header
+#else
+        OutReqSize += sizeof(DtaIoctlMatrixCmdWriteDmaOutput);
+#endif
+        break;
+
+    case DTA_MATRIX_CMD_DMA_READ:
+        pCmdStr = "DTA_MATRIX_CMD_DMA_READ";
+        InReqSize += sizeof(DtaIoctlMatrixCmdReadDmaInput);
+#ifdef WINBUILD
+        OutReqSize = 0; // for read there is no output header
+#else
+        OutReqSize += sizeof(DtaIoctlMatrixCmdReadDmaOutput);
+#endif
+        break;
+
+    case DTA_MATRIX_CMD_GET_FIFOLOAD:
+        pCmdStr = "DTA_MATRIX_CMD_GET_FIFOLOAD";
+        OutReqSize += sizeof(DtaIoctlMatrixCmdGetFifoLoadOutput);
+        // We expect no additional data in the input buffer
+        InReqSize += 0;
+        break;
+
+    case DTA_MATRIX_CMD_GET_FIFOSIZE:
+        pCmdStr = "DTA_MATRIX_CMD_GET_FIFOSIZE";
+        OutReqSize += sizeof(DtaIoctlMatrixCmdGetFifoSizeOutput);
+        // We expect no additional data in the input buffer
+        InReqSize += 0;
+        break;
+
+    case DTA_MATRIX_CMD_GET_FIFOSIZE_MAX:
+        pCmdStr = "DTA_MATRIX_CMD_GET_FIFOSIZE_MAX";
+        OutReqSize += sizeof(DtaIoctlMatrixCmdGetFifoSizeMaxOutput);
+        // We expect no additional data in the input buffer
+        InReqSize += 0;
+        break;
+
+    case DTA_MATRIX_CMD_SET_FIFOSIZE:
+        pCmdStr = "DTA_MATRIX_CMD_SET_FIFOSIZE";
+        InReqSize += sizeof(DtaIoctlMatrixCmdSetFifoSizeInput);
+        // We expect no additional data in the output buffer
+        OutReqSize += 0;
+        break;
+
+    case DTA_MATRIX_CMD_SET_ASI_CTRL:
+        pCmdStr = "DTA_MATRIX_CMD_SET_ASI_CTRL";
+        InReqSize += sizeof(DtaIoctlMatrixCmdSetAsiCtrlInput);
+        // We expect no additional data in the output buffer
+        OutReqSize += 0;
+        break;
+
+    case DTA_MATRIX_CMD_GET_BUF_CONFIG:
+        pCmdStr = "DTA_MATRIX_CMD_GET_BUF_CONFIG";
+        OutReqSize += sizeof(DtaIoctlMatrixCmdGetBufConfigOutput);
+        // We expect no additional data in the input buffer
+        break;
+
+    case DTA_MATRIX_CMD_GET_REQ_DMA_SIZE:
+        pCmdStr = "DTA_MATRIX_CMD_GET_REQ_DMA_SIZE";
+        InReqSize += sizeof(DtaIoctlMatrixCmdGetReqDmaSizeInput);
+        OutReqSize += sizeof(DtaIoctlMatrixCmdGetReqDmaSizeOutput);
+        break;
+
     default:
         pCmdStr = "??UNKNOWN MATRIXCMD CODE??";
         Status = DT_STATUS_NOT_SUPPORTED;
+    }
+
+    if (PowerDownPending)
+    {
+        // Only skip channel specific IOCTL's
+        switch (pMatrixCmdInput->m_Cmd)
+        {
+            case DTA_MATRIX_CMD_DMA_WRITE:
+            case DTA_MATRIX_CMD_DMA_READ:
+                DtDbgOut(ERR, DTA, "%s: Matrix cmd because powerdown  occured!", pCmdStr);
+                return DT_STATUS_POWERDOWN;
+        } 
     }
 
     if (DT_SUCCESS(Status))
@@ -161,6 +298,378 @@ DtStatus  DtaMatrixIoctl(
             Status = DtaMatrixSyncInfoGet(pDvcData, &pMatrixCmdOutput->m_Data.m_SyncInfo);
             break;
 
+        case DTA_MATRIX_CMD_ATTACH_TO_ROW:
+            Status = DtaNonIpMatrixAttachToRow(pNonIpPort,
+                                          pMatrixCmdInput->m_Data.m_AttachToRow.m_RowIdx);
+            break;
+            
+        case DTA_MATRIX_CMD_START:
+            Status = DtaNonIpMatrixStart(pNonIpPort, 
+                                            pMatrixCmdInput->m_Data.m_Start.m_StartFrame);
+            break;
+
+        case DTA_MATRIX_CMD_STOP:
+            Status = DtaNonIpMatrixStop(pNonIpPort);
+            break;
+
+        case DTA_MATRIX_CMD_GET_CURR_FRAME:
+            Status = DtaNonIpMatrixGetCurrentFrame(pNonIpPort, 
+                                    &pMatrixCmdOutput->m_Data.m_GetCurrFrame.m_CurrFrame);
+            break;
+
+        case DTA_MATRIX_CMD_DMA_WRITE:
+        {
+            char*  pBuffer;
+            Int  Size;
+            DtPageList*  pPageList = NULL;
+            UInt8*  pLocalAddress;
+            DmaChannel*  pDmaCh = NULL;
+            DtaMatrixMemTrSetup  MemTrSetup;
+                
+#if defined(WINBUILD)
+            DtPageList  PageList;
+            PMDL  pMdl;
+            NTSTATUS  NtStatus;
+            DtaWdfRequestContext*  pRequestContext;
+            WDF_OBJECT_ATTRIBUTES  ObjAttr;
+
+            // Retrieve MDL and virtual buffer from request object
+            NtStatus = WdfRequestRetrieveOutputWdmMdl(pIoctl->m_WdfRequest, &pMdl);
+            if (NtStatus != STATUS_SUCCESS)
+            {
+                DtDbgOut(ERR, DTA, "WdfRequestRetrieveOutputWdmMdl error: %08x", 
+                                                                                NtStatus);
+                Status = DT_STATUS_OUT_OF_RESOURCES;
+            }
+            if (DT_SUCCESS(Status))
+            {
+                pBuffer = MmGetMdlVirtualAddress(pMdl);
+                if (pBuffer == NULL)
+                {
+                    DtDbgOut(ERR, DTA, "MmGetMdlVirtualAddress failed");
+                    Status = DT_STATUS_OUT_OF_MEMORY;
+                }
+                
+                Size = MmGetMdlByteCount(pMdl);
+
+                // Build pagelist object for user space buffer
+                pPageList = &PageList;
+                pPageList->m_BufType = DT_BUFTYPE_USER;
+                pPageList->m_OwnedByOs = TRUE;
+                pPageList->m_pMdl = pMdl;
+                pPageList->m_pVirtualKernel = NULL;
+            }
+#else // LINBUILD
+            Size = pMatrixCmdInput->m_Data.m_DmaWrite.m_NumBytesToWrite;
+#if defined(LIN32)
+            pBuffer = (char*)(UInt32)pMatrixCmdInput->m_Data.m_DmaWrite.m_BufferAddr;
+#else
+            pBuffer = (char*)(UInt64)pMatrixCmdInput->m_Data.m_DmaWrite.m_BufferAddr;
+#endif
+#endif
+            // Prep channel (memory) for DMA
+            MemTrSetup.m_IsWrite = TRUE;
+            MemTrSetup.m_Frame = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Frame;
+            MemTrSetup.m_StartLine = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Line;
+            MemTrSetup.m_NumLines = 
+                                   pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_NumLines;
+            MemTrSetup.m_TrCmd = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_TrCmd;
+            MemTrSetup.m_DataFormat = 
+                                 pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_DataFormat;
+            MemTrSetup.m_RgbMode = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_RgbMode;
+            MemTrSetup.m_SymFlt = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_SymFlt;
+            MemTrSetup.m_Scaling = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Scaling;
+            MemTrSetup.m_AncFlt = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_AncFlt;
+            MemTrSetup.m_Stride = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Stride;
+            
+            if (MemTrSetup.m_TrCmd==DT_MEMTR_TRCMD_ASIWR)
+            {
+                Int  BytesLeftFlat = pNonIpPort->m_Matrix.m_AsiFifoSize
+                                                    - pNonIpPort->m_Matrix.m_AsiDmaOffset;
+                
+                if (Size > BytesLeftFlat)
+                {
+                    DtDbgOut(MAX, DMA, "ASI buf wrap, will truncate wr-transfer: %d=>%d", 
+                                                                     Size, BytesLeftFlat);
+                    Size = BytesLeftFlat;
+                }
+            }
+            
+            if (DT_SUCCESS(Status))
+                Status = DtaNonIpMatrixPrepForDma(pNonIpPort, Size, &MemTrSetup, &Size);
+            
+            // If prepped, start DMA
+            if (DT_SUCCESS(Status))
+            {
+                pDmaCh = &pNonIpPort->m_DmaChannel;
+                pLocalAddress = (UInt8*)(size_t)pNonIpPort->m_FifoOffset;
+
+#ifdef WINBUILD
+                // Store the NonIpPort pointer in the request object
+                WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&ObjAttr, DtaWdfRequestContext);
+                if (!NT_SUCCESS(WdfObjectAllocateContext(pIoctl->m_WdfRequest, 
+                                                     &ObjAttr, (PVOID*)&pRequestContext)))
+                    Status = DT_STATUS_OUT_OF_RESOURCES;
+                else {
+                    pRequestContext->m_pData =  &pDvcData->m_pNonIpPorts[NonIpPortIndex];
+                    pRequestContext->m_Value = MemTrSetup.m_TrCmd;
+                }
+
+                if (DT_SUCCESS(Status))
+                {
+                    // Register a cancel routine
+                    if (!NT_SUCCESS(WdfRequestMarkCancelableEx(pIoctl->m_WdfRequest,
+                                                    DtaNonIpMatrixTxEvtRequestCancelDma)))
+                        Status = DT_STATUS_CANCELLED;
+                        
+                    // Store the WdfRequest for the completion routine
+                    DtaDmaReInitCallback(pDmaCh, DtaNonIpMatrixDmaCompletedWindows, 
+                                                                pIoctl->m_WdfRequest);
+                }
+#endif
+            }
+            if (DT_SUCCESS(Status))
+            {
+                Status = DtaDmaStartTransfer(pDmaCh, pPageList, DT_BUFTYPE_USER, 
+                                             DT_DMA_DIRECTION_TO_DEVICE, pBuffer, Size, 0,
+                                             pLocalAddress, 0, 0, FALSE, &Size);
+            }
+#ifdef WINBUILD
+            // Mark the IO request pending, we complete the request in the DMA 
+            // completion routine. This is an internal status and will be handled by
+            // the IAL
+            if (DT_SUCCESS(Status))
+                Status = DT_STATUS_IO_PENDING;
+            else {
+                WdfRequestUnmarkCancelable(pIoctl->m_WdfRequest);
+                pIoctl->m_OutputBufferBytesWritten = 0;
+            }
+#else
+            if (DT_SUCCESS(Status))
+                pMatrixCmdOutput->m_Data.m_DmaWrite.m_NumBytesWritten = 
+                          DtaNonIpMatrixDmaWriteFinished(pNonIpPort,  MemTrSetup.m_TrCmd);
+            else
+                pMatrixCmdOutput->m_Data.m_DmaWrite.m_NumBytesWritten = 0;
+#endif
+            break;
+        }
+        
+        case DTA_MATRIX_CMD_DMA_READ:
+        {
+            char*  pBuffer;
+            Int  Size;
+            DtPageList*  pPageList = NULL;
+            UInt8*  pLocalAddress;
+            DmaChannel*  pDmaCh = NULL;
+            DtaMatrixMemTrSetup  MemTrSetup;
+
+#if defined(WINBUILD)
+            DtPageList  PageList;
+            PMDL  pMdl;
+            NTSTATUS  NtStatus;
+            DtaWdfRequestContext*  pRequestContext;
+            WDF_OBJECT_ATTRIBUTES  ObjAttr;
+
+            // Retrieve MDL and virtual buffer from request object
+            NtStatus = WdfRequestRetrieveOutputWdmMdl(pIoctl->m_WdfRequest, &pMdl);
+            if (NtStatus != STATUS_SUCCESS)
+            {
+                DtDbgOut(ERR, DTA, "WdfRequestRetrieveOutputWdmMdl error: %08x", 
+                                                                                NtStatus);
+                Status = DT_STATUS_OUT_OF_RESOURCES;
+            }
+            if (DT_SUCCESS(Status))
+            {
+                pBuffer = MmGetMdlVirtualAddress(pMdl);
+                if (pBuffer == NULL)
+                 {
+                    DtDbgOut(ERR, DTA, "MmGetMdlVirtualAddress failed");
+                    Status = DT_STATUS_OUT_OF_MEMORY;
+                }
+                Size = MmGetMdlByteCount(pMdl);
+
+                // Build pagelist object for user space buffer
+                pPageList = &PageList;
+                pPageList->m_BufType = DT_BUFTYPE_USER;
+                pPageList->m_OwnedByOs = TRUE;
+                pPageList->m_pMdl = pMdl;
+                pPageList->m_pVirtualKernel = NULL;
+            }
+#else // LINBUILD
+            Size = pMatrixCmdInput->m_Data.m_DmaRead.m_NumBytesToRead;
+#if defined(LIN32)
+            pBuffer = (char*)(UInt32)pMatrixCmdInput->m_Data.m_DmaRead.m_BufferAddr;
+#else
+            pBuffer = (char*)(UInt64)pMatrixCmdInput->m_Data.m_DmaRead.m_BufferAddr;
+#endif
+#endif
+            // Prep channel (memory) for DMA
+            MemTrSetup.m_IsWrite = FALSE;
+            MemTrSetup.m_Frame = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Frame;
+            MemTrSetup.m_StartLine = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Line;
+            MemTrSetup.m_NumLines = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_NumLines;
+            MemTrSetup.m_TrCmd = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_TrCmd;
+            MemTrSetup.m_DataFormat = 
+                                  pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_DataFormat;
+            MemTrSetup.m_RgbMode = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_RgbMode;
+            MemTrSetup.m_SymFlt = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_SymFlt;
+            MemTrSetup.m_Scaling = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Scaling;
+            MemTrSetup.m_AncFlt = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_AncFlt;
+            MemTrSetup.m_Stride = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Stride;
+            
+            if (MemTrSetup.m_TrCmd==DT_MEMTR_TRCMD_ASIRD)
+            {
+                Int  BytesLeftFlat = pNonIpPort->m_Matrix.m_AsiFifoSize
+                                                    - pNonIpPort->m_Matrix.m_AsiDmaOffset;
+
+                if (Size > BytesLeftFlat)
+                {
+                    DtDbgOut(MAX, DMA, "ASI buf wrap, will truncate rd-transfer: %d=>%d", 
+                                                                     Size, BytesLeftFlat);
+                    Size = BytesLeftFlat;
+                }
+            }
+
+            if (DT_SUCCESS(Status))
+                Status = DtaNonIpMatrixPrepForDma(pNonIpPort, Size, &MemTrSetup, &Size);
+
+            // If prepped, start DMA
+            if (DT_SUCCESS(Status))
+            {           
+                pDmaCh = &pNonIpPort->m_DmaChannel;
+                pLocalAddress = (UInt8*)(size_t)pNonIpPort->m_FifoOffset;
+#ifdef WINBUILD
+                // Store the NonIpPort pointer in the request object
+                WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&ObjAttr, DtaWdfRequestContext);
+                if (!NT_SUCCESS(WdfObjectAllocateContext(pIoctl->m_WdfRequest, 
+                                                     &ObjAttr, (PVOID*)&pRequestContext)))
+                    Status = DT_STATUS_OUT_OF_RESOURCES;
+                else
+                {
+                    pRequestContext->m_pData = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
+                    pRequestContext->m_Value = MemTrSetup.m_TrCmd;
+                }
+
+                if (DT_SUCCESS(Status))
+                {
+                    // Register a cancel routine
+                    if (!NT_SUCCESS(WdfRequestMarkCancelableEx(pIoctl->m_WdfRequest,
+                                                    DtaNonIpMatrixRxEvtRequestCancelDma)))
+                        Status = DT_STATUS_CANCELLED;
+                        
+                    // Store the WdfRequest for the completion routine
+                    DtaDmaReInitCallback(pDmaCh, DtaNonIpMatrixDmaCompletedWindows, 
+                                                                    pIoctl->m_WdfRequest);
+                }
+#endif
+            }
+            if (DT_SUCCESS(Status))
+            {
+                Status = DtaDmaStartTransfer(pDmaCh, pPageList, DT_BUFTYPE_USER, 
+                                           DT_DMA_DIRECTION_FROM_DEVICE, pBuffer, Size, 0,
+                                           pLocalAddress, 0, 0, FALSE, &Size);
+            }
+#ifdef WINBUILD
+            // Mark the IO request pending, we complete the request in the DMA 
+            // completion routine. This is an internal status and will be handled by
+            // the IAL
+            if (DT_SUCCESS(Status))
+                Status = DT_STATUS_IO_PENDING;
+            else {
+                WdfRequestUnmarkCancelable(pIoctl->m_WdfRequest);
+                pIoctl->m_OutputBufferBytesWritten = 0;
+            }
+#else
+            if (DT_SUCCESS(Status))
+                pMatrixCmdOutput->m_Data.m_DmaRead.m_NumBytesRead = 
+                            DtaNonIpMatrixDmaReadFinished(pNonIpPort, MemTrSetup.m_TrCmd);
+            else
+                pMatrixCmdOutput->m_Data.m_DmaRead.m_NumBytesRead = 0;
+#endif
+
+            break;
+        }
+
+        case DTA_MATRIX_CMD_GET_FIFOLOAD:
+            // Only for ASI
+            DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI);
+            if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_INPUT)
+            {
+                pMatrixCmdOutput->m_Data.m_GetFifoLoad.m_FifoLoad = 
+                                     (Int)(DtaRegHdCurrentFrameGet(pNonIpPort->m_pTxRegs)-
+                                           pNonIpPort->m_Matrix.m_AsiDmaNumBytes);
+                pMatrixCmdOutput->m_Data.m_GetFifoLoad.m_FifoLoad &= ~0x1F;
+            } else {
+                Int64  NumBytesPlayed = DtaRegHdCurrentFrameGet(pNonIpPort->m_pTxRegs);
+                pMatrixCmdOutput->m_Data.m_GetFifoLoad.m_FifoLoad = 
+                            (Int)(pNonIpPort->m_Matrix.m_AsiDmaNumBytes - NumBytesPlayed);
+            }
+            break;
+
+        case DTA_MATRIX_CMD_GET_FIFOSIZE:
+            DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI);
+            pMatrixCmdOutput->m_Data.m_GetFifoSize.m_FifoSize =
+                                                       pNonIpPort->m_Matrix.m_AsiFifoSize;
+            break;
+
+        case DTA_MATRIX_CMD_GET_FIFOSIZE_MAX:
+            DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI);
+            //TODOTM: DTA_MATRIX_CMD_GET_FIFOSIZE_MAX
+            pMatrixCmdOutput->m_Data.m_GetFifoSizeMax.m_FifoSize = 32*1024*1024;
+            break;
+
+        case DTA_MATRIX_CMD_SET_FIFOSIZE:
+            DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI);
+            pNonIpPort->m_Matrix.m_AsiFifoSize =
+                                         pMatrixCmdInput->m_Data.m_SetFifoSize.m_FifoSize;
+            Status =  DtaNonIpMatrixConfigure(pNonIpPort, FALSE);
+            break;
+
+        case DTA_MATRIX_CMD_SET_ASI_CTRL:
+            DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI);
+            Status = DtaNonIpMatrixSetAsiCtrl(pNonIpPort,
+                                          pMatrixCmdInput->m_Data.m_SetAsiCtrl.m_AsiCtrl);
+            break;
+
+        case DTA_MATRIX_CMD_GET_BUF_CONFIG:
+
+            if (!pNonIpPort->m_CapMatrix)
+                Status = DT_STATUS_NOT_SUPPORTED;
+            else
+            {
+                pMatrixCmdOutput->m_Data.m_GetBufConfig.m_VidStd = 
+                                               pNonIpPort->m_Matrix.m_FrameProps.m_VidStd;
+                pMatrixCmdOutput->m_Data.m_GetBufConfig.m_NumFrames = 
+                                       pNonIpPort->m_Matrix.m_BufConfig.m_NumUsableFrames;
+
+                Status = DT_STATUS_OK;
+            }
+            break;
+
+        case DTA_MATRIX_CMD_GET_REQ_DMA_SIZE:
+        {
+            DtaMatrixMemTrSetup  MemTrSetup;
+            
+            // If it is an output we are writing
+            MemTrSetup.m_IsWrite = 
+                   (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_OUTPUT);
+            MemTrSetup.m_Frame = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_Frame;
+            MemTrSetup.m_StartLine = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_Line;
+            MemTrSetup.m_NumLines = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_NumLines;
+            MemTrSetup.m_TrCmd = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_TrCmd;
+            MemTrSetup.m_DataFormat = 
+                                     pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_DataFormat;
+            MemTrSetup.m_RgbMode = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_RgbMode;
+            MemTrSetup.m_SymFlt = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_SymFlt;
+            MemTrSetup.m_Scaling = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_Scaling;
+            MemTrSetup.m_AncFlt = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_AncFlt;
+            MemTrSetup.m_Stride = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_Stride;
+
+            Status = DtaNonIpMatrixGetReqDmaSize(pNonIpPort, &MemTrSetup,
+                                     &pMatrixCmdOutput->m_Data.m_GetReqDmaSize.m_ReqSize);
+            break;
+        }
+
         default:
             Status = DT_STATUS_NOT_SUPPORTED;
         }
@@ -173,7 +682,9 @@ DtStatus  DtaMatrixIoctl(
         if (Status == DT_STATUS_NOT_SUPPORTED)
             DtDbgOut(MIN, MATRIX, "MatrixCmd=0x%x: NOT SUPPORTED", 
                                                                  pMatrixCmdInput->m_Cmd);
-        else 
+        else if (Status == DT_STATUS_IO_PENDING)
+            DtDbgOut(MAX, MATRIX, "%s: ERROR %xh", pCmdStr, Status); // NOT A REAL ERROR
+        else
             DtDbgOut(MIN, MATRIX, "%s: ERROR %xh", pCmdStr, Status);
     }
 

@@ -191,7 +191,8 @@ DtStatus  DtaNonIpTxIoctl(
 DtStatus  DtaNonIpTxGetFlags(DtaNonIpPort* pNonIpPort, Int* pStatus, Int* pLatched)
 {
     // Update flags
-    DtaNonIpTxProcessFlagsFromUser(pNonIpPort);
+    if (!pNonIpPort->m_CapMatrix)
+        DtaNonIpTxProcessFlagsFromUser(pNonIpPort);
 
     // Update DMA pending status
     //if (NonIpTxIsDmaPending(pNonIpPort))
@@ -220,10 +221,13 @@ DtStatus  DtaNonIpTxClearFlags(DtaNonIpPort* pNonIpPort, Int FlagsToClear)
 
     // Also clear flags in Transmit Status register, to avoid that flags in
     // m_Latched are set again in next periodic interrupt.
-    if ((FlagsToClear&DTA_TX_FIFO_UFL) == DTA_TX_FIFO_UFL)
-        DtaRegTxStatClrUflInt(pNonIpPort->m_pTxRegs);
-    if ((FlagsToClear&DTA_TX_SYNC_ERR) == DTA_TX_SYNC_ERR)
-        DtaRegTxStatClrSyncInt(pNonIpPort->m_pTxRegs);
+    if (!pNonIpPort->m_CapMatrix)
+    {
+        if ((FlagsToClear&DTA_TX_FIFO_UFL) == DTA_TX_FIFO_UFL)
+            DtaRegTxStatClrUflInt(pNonIpPort->m_pTxRegs);
+        if ((FlagsToClear&DTA_TX_SYNC_ERR) == DTA_TX_SYNC_ERR)
+            DtaRegTxStatClrSyncInt(pNonIpPort->m_pTxRegs);
+    }
 
     // Special case for DTA-102
     if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 102)

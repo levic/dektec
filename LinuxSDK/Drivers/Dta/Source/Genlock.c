@@ -64,8 +64,7 @@ DtStatus  DtaGenlockInit(DtaDeviceData* pDvcData)
     
     pDvcData->m_Genlock.m_AsyncPortIndex = DtPropertiesGetInt(pPropData, 
                                                                 "GENLOCK_ASYNC_PORT", -1);
-       
-    
+           
     if (pDvcData->m_Genlock.m_AsyncPortIndex > 0)
         pDvcData->m_Genlock.m_AsyncPortIndex--;     // Convert to port-index
     else
@@ -75,12 +74,33 @@ DtStatus  DtaGenlockInit(DtaDeviceData* pDvcData)
     pDvcData->m_Genlock.m_FracMode = DTA_GENLOCK_FRACMODE_NA;
     pDvcData->m_Genlock.m_RefPortIndex = DTA_GENLOCK_REFPORT_INT;
     pDvcData->m_Genlock.m_RefVidStd = DT_VIDSTD_625I50;
-    
+
+    if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2152 || 
+                                  pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2154)
+    {
+        UInt16  Offset = -1;
+        Offset = DtPropertiesGetUInt16(&pDvcData->m_PropData, "REGISTERS_GENL", -1);
+        if (Offset == -1)
+        {
+            DtDbgOut(ERR, GENL, "Failed to get genlock register offset property");
+            return DT_STATUS_FAIL;
+        }
+        pDvcData->m_Genlock.m_pGenRegs = (UInt8*)pDvcData->m_DtaRegs.m_pKernel + Offset;
+    }
+    else
+        pDvcData->m_Genlock.m_pGenRegs = pDvcData->m_pGenRegs;
+        
     if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2152)
     {
         Status = DtaLmh1982Init(pDvcData, &pDvcData->m_Genlock.m_Lmh1982);
         if (!DT_SUCCESS(Status))
-            DtDbgOut(ERR, GENL, "Failed to init LMH-1982 module");       
+            DtDbgOut(ERR, GENL, "Failed to init LMH-1982 module");
+    }
+    else if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2154)
+    {
+        Status = DtaLmh1983Init(pDvcData, &pDvcData->m_Genlock.m_Lmh1983);
+        if (!DT_SUCCESS(Status))
+            DtDbgOut(ERR, GENL, "Failed to init LMH-1983 module");
     }
 
     // 145/2145/2144 architecture
@@ -115,7 +135,7 @@ void  DtaGenlockPowerDown(DtaDeviceData* pDvcData)
         return;     // Nothing to do
 
     if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2152)
-        DtaLmh1982PowerdownPre(&pDvcData->m_Genlock.m_Lmh1982);
+        DtaLmh1982Powerdown(&pDvcData->m_Genlock.m_Lmh1982);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaGenlockPowerDownPre -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -129,6 +149,8 @@ DtStatus  DtaGenlockPowerDownPre(DtaDeviceData* pDvcData)
 
     if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2152)
         Status = DtaLmh1982PowerdownPre(&pDvcData->m_Genlock.m_Lmh1982);
+    else if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2154)
+        Status = DtaLmh1983PowerdownPre(&pDvcData->m_Genlock.m_Lmh1983);
     return Status;
 }
 
@@ -182,6 +204,14 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
         // A change to genref state requires a reset of the LMH1982 state machine (chip 
         // must be re-initialised)
         Status = DtaLmh1982ResetStateMachine(&pGenlData->m_Lmh1982);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+    else if (pGenlData->m_GenlArch == DTA_GENLOCK_ARCH_2154)
+    {
+        // A change to genref state requires a reset of the LMH1983 state machine (chip 
+        // must be re-initialised)
+        Status = DtaLmh1983ResetStateMachine(&pGenlData->m_Lmh1983);
         if (!DT_SUCCESS(Status))
             return Status;
     }

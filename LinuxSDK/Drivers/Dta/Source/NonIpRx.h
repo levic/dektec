@@ -39,5 +39,6 @@ DtStatus  DtaNonIpRxGetFreqEstimation(DtaNonIpPort* pNonIpPort, Int* pFreqEstima
 DtStatus  DtaNonIpRxClearFlags(DtaNonIpPort* pNonIpPort, Int FlagsToClear);
 void  DtaNonIpRxProcessFlagsFromUser(DtaNonIpPort* pNonIpPort);
 void  DtaNonIpRxProcessFlagsFromDpc(DtaNonIpPort* pNonIpPort);
+void  DtaNonIpMatrixProcessRxFlagsFromUser(DtaNonIpPort* pNonIpPort);
 
 #endif // _NON_IP_RX_H

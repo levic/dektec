@@ -123,7 +123,11 @@ enum {
     FUNC_DTA_GET_DEV_SUBTYPE,
     FUNC_DTA_SET_MEMORY_TESTMODE,
     FUNC_DTA_GET_PROPERTY2,
-    FUNC_DTA_GET_DEV_GENLOCKSTATE
+    FUNC_DTA_GET_DEV_GENLOCKSTATE,
+    FUNC_DTA_GET_DEV_INFO2,
+    FUNC_DTA_GET_PROPERTY3,
+    FUNC_DTA_GET_STR_PROPERTY2,
+    FUNC_DTA_GET_TABLE2
 };
 
 // Ioctl input data type
@@ -147,6 +151,19 @@ typedef struct _DtaIoctlGetProperty2Input {
     Int  m_DtapiBugfix;                     // DTAPI bug fix version
 } DtaIoctlGetProperty2Input;
 ASSERT_SIZE(DtaIoctlGetProperty2Input, 80)
+
+typedef struct _DtaIoctlGetProperty3Input {
+    Int  m_TypeNumber;                      // Type number (-1 = get for current device)
+    Int  m_SubDvc;                          // Sub-device (-1 = get for current device)
+    Int  m_HardwareRevision;                // Hardware revision
+    Int  m_FirmwareVersion;                 // Firmware version
+    Int  m_PortIndex;                       // Port index
+    char  m_Name[PROPERTY_NAME_MAX_SIZE];   // Name of property
+    Int  m_DtapiMaj;                        // DTAPI major version
+    Int  m_DtapiMin;                        // DTAPI minor version
+    Int  m_DtapiBugfix;                     // DTAPI bug fix version
+} DtaIoctlGetProperty3Input;
+ASSERT_SIZE(DtaIoctlGetProperty3Input, 84)
 
 // Ioctl output data type
 // Don't use ENUMS in Ioctl's. Size is unknown
@@ -183,6 +200,19 @@ ASSERT_SIZE(DtaIoctlGetPropertyOutput, 16)
                                                                  DtaIoctlGetProperty2Data)
 #endif
 
+#ifdef WINBUILD
+    #define DTA_IOCTL_GET_PROPERTY3  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_GET_PROPERTY3, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlGetProperty3Data {
+        DtaIoctlGetProperty3Input  m_Input;
+        DtaIoctlGetPropertyOutput  m_Output;
+    } DtaIoctlGetProperty3Data;
+
+    #define DTA_IOCTL_GET_PROPERTY3  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_GET_PROPERTY3, \
+                                                                 DtaIoctlGetProperty3Data)
+#endif
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_GET_DEV_INFO +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //
 // Gets the device information
@@ -216,6 +246,40 @@ ASSERT_SIZE(DtaIoctlGetDevInfoOutput, 40)
                                                              DtaIoctlGetDevInfoData)
 #endif
 
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_GET_DEV_INFO2 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+// Gets the device information
+//
+typedef struct _DtaIoctlGetDevInfoOutput2 {
+    UInt16  m_DeviceId;         // Device ID
+    UInt16  m_VendorId;         // Vendor ID
+    UInt16  m_SubVendorId;      // Subsystem Vendor ID
+    UInt16  m_SubSystemId;      // Subsystem ID
+    Int  m_BusNumber;           // PCI-bus number
+    Int  m_SlotNumber;          // PCI-slot number
+    Int  m_TypeNumber;          // Type number in decimal, e.g. 2160 for DTA-2160
+    Int  m_SubDvc;              // Sub-device: 0=master, 1=slave1, 2=slave2, etc
+    Int  m_HardwareRevision;    // Hardware Revision
+    Int  m_FirmwareVersion;     // Firmware Version (= Altera revision), e.g. 3 for
+                                // "Firmware Version 3"
+    Int  m_FirmwareVariant;     // Firmware Variant, e.g. to distinguish between
+                                // firmware with different #inputs/#outputs
+    UInt64A  m_Serial;          // Serial number
+} DtaIoctlGetDevInfoOutput2;
+ASSERT_SIZE(DtaIoctlGetDevInfoOutput2, 48)
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_GET_DEV_INFO2  CTL_CODE(DTA_DEVICE_TYPE, \
+                          FUNC_DTA_GET_DEV_INFO2, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlGetDevInfoData2 {
+        DtaIoctlGetDevInfoOutput2  m_Output;
+    } DtaIoctlGetDevInfoData2;
+
+    #define DTA_IOCTL_GET_DEV_INFO2  _IOR(DTA_IOCTL_MAGIC, FUNC_DTA_GET_DEV_INFO2, \
+                                                             DtaIoctlGetDevInfoData2)
+#endif
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_VPD_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
 // Wrapper command to performs a VPD read, delete or write command.
@@ -232,6 +296,7 @@ ASSERT_SIZE(DtaIoctlGetDevInfoOutput, 40)
 #define DTA_VPD_SECT_ID                1
 #define DTA_VPD_SECT_RO                2
 #define DTA_VPD_SECT_RW                4
+#define DTA_VPD_SECT_SECURITY          8
 
 // DTA VPD flags
 #define DTA_VPD_FLAG_RO_WRITE_ALLOWED  1
@@ -807,7 +872,8 @@ ASSERT_SIZE(DtaIoctlSetIoConfigInput, 8)
 // Command definitions
 #define DTA_NONIP_CMD_EXCLUSIVE_ACCESS  1
 #define DTA_NONIP_CMD_GET_TARGET_ID     2
-#define DTA_NONIP_CMD_DETECT_VIDSTD     3
+#define DTA_NONIP_CMD_DETECT_VIDSTD     3   // DO NOT USE; REPLACED BY MATRIX COMMAND
+                                            // DTA_MATRIX_CMD_DETECT_VIDSTD
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_NONIP_CMD_EXCLUSIVE_ACCESS -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
@@ -1726,11 +1792,25 @@ typedef struct _DtaIoctlIpNwCmdOutput {
 
 // Ioctl input data type
 typedef struct _DtaIoctlGetTableInput {
-    Int  m_PortIndex;                           // Port index
-    char  m_Name[DTA_TABLE_NAME_MAX_SIZE];      // Name of table
-    UInt  m_MaxNumEntries;                      // Max. number of entry's to store
+    Int  m_PortIndex;                       // Port index
+    char  m_Name[DTA_TABLE_NAME_MAX_SIZE];  // Name of table
+    UInt  m_MaxNumEntries;                  // Max. number of entry's to store
 } DtaIoctlGetTableInput;
 ASSERT_SIZE(DtaIoctlGetTableInput, 60)
+
+typedef struct _DtaIoctlGetTable2Input {
+    Int  m_TypeNumber;                      // Type number (-1 = get for current device)
+    Int  m_SubDvc;                          // Sub-device (-1 = get for current device)
+    Int  m_HardwareRevision;                // Hardware revision
+    Int  m_FirmwareVersion;                 // Firmware version
+    Int  m_PortIndex;                       // Port index
+    char  m_Name[DTA_TABLE_NAME_MAX_SIZE];  // Name of table
+    UInt  m_MaxNumEntries;                  // Max. number of entry's to store
+    Int  m_DtapiMaj;                        // DTAPI major version
+    Int  m_DtapiMin;                        // DTAPI minor version
+    Int  m_DtapiBugfix;                     // DTAPI bug fix version
+} DtaIoctlGetTable2Input;
+ASSERT_SIZE(DtaIoctlGetTable2Input, 88)
 
 // Ioctl output data type
 typedef struct _DtaIoctlGetTableOutput {
@@ -1743,13 +1823,26 @@ ASSERT_SIZE(DtaIoctlGetTableOutput, 8)
     #define DTA_IOCTL_GET_TABLE  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_GET_TABLE, \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
-    typedef union _DtaIoctlGetTable {
+    typedef union _DtaIoctlGetTableData {
         DtaIoctlGetTableInput  m_Input;
         DtaIoctlGetTableOutput  m_Output;
-    } DtaIoctlGetTable;
+    } DtaIoctlGetTableData;
 
     #define DTA_IOCTL_GET_TABLE  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_GET_TABLE, \
-                                                                         DtaIoctlGetTable)
+                                                                     DtaIoctlGetTableData)
+#endif
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_GET_TABLE2  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_GET_TABLE2, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlGetTable2Data {
+        DtaIoctlGetTable2Input  m_Input;
+        DtaIoctlGetTableOutput  m_Output;
+    } DtaIoctlGetTable2Data;
+
+    #define DTA_IOCTL_GET_TABLE2  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_GET_TABLE2, \
+                                                                    DtaIoctlGetTable2Data)
 #endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_SET_MEMORY_TESTMODE +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -1837,6 +1930,19 @@ typedef struct _DtaIoctlGetStrPropertyInput {
 } DtaIoctlGetStrPropertyInput;
 ASSERT_SIZE(DtaIoctlGetStrPropertyInput, 68)
 
+typedef struct _DtaIoctlGetStrProperty2Input {
+    Int  m_TypeNumber;                      // Type number (-1 = get for current device)
+    Int  m_SubDvc;                          // Sub-device (-1 = get for current device)
+    Int  m_HardwareRevision;                // Hardware revision
+    Int  m_FirmwareVersion;                 // Firmware version
+    Int  m_PortIndex;                       // Port index
+    char  m_Name[PROPERTY_NAME_MAX_SIZE];   // Name of property
+    Int  m_DtapiMaj;                        // DTAPI major version
+    Int  m_DtapiMin;                        // DTAPI minor version
+    Int  m_DtapiBugfix;                     // DTAPI bug fix version
+} DtaIoctlGetStrProperty2Input;
+ASSERT_SIZE(DtaIoctlGetStrProperty2Input, 84)
+
 // Ioctl output data type
 typedef struct _DtaIoctlGetStrPropertyOutput {
     DtPropertyScope  m_Scope;               // Scope of property
@@ -1858,6 +1964,20 @@ ASSERT_SIZE(DtaIoctlGetStrPropertyOutput, 100)
                                                                DtaIoctlGetStrPropertyData)
 #endif
 
+#ifdef WINBUILD
+    #define DTA_IOCTL_GET_STR_PROPERTY2  CTL_CODE(DTA_DEVICE_TYPE,                       \
+                                                        FUNC_DTA_GET_STR_PROPERTY2,      \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlGetStrProperty2Data {
+        DtaIoctlGetStrProperty2Input  m_Input;
+        DtaIoctlGetStrPropertyOutput  m_Output;
+    } DtaIoctlGetStrProperty2Data;
+
+    #define DTA_IOCTL_GET_STR_PROPERTY2  _IOWR(DTA_IOCTL_MAGIC,                          \
+                                  FUNC_DTA_GET_STR_PROPERTY2, DtaIoctlGetStrProperty2Data)
+#endif
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_MATRIX_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
 // Wrapper IOCTL for all Matrix-API (HD-SDI) related commands
@@ -1867,6 +1987,21 @@ ASSERT_SIZE(DtaIoctlGetStrPropertyOutput, 100)
 #define  DTA_MATRIX_CMD_WAIT_FRAME        1     // Waits for a specific or simple the
                                                 // next frame to be received/transmitted
 #define  DTA_MATRIX_CMD_GET_SYNC_INFO     2     // Get SOF sync info
+#define  DTA_MATRIX_CMD_START             3     // Start reception/transmission
+#define  DTA_MATRIX_CMD_STOP              4     // Stop reception/transmission
+#define  DTA_MATRIX_CMD_GET_CURR_FRAME    5     // Get the frame currently being
+                                                // received/transmitted
+#define  DTA_MATRIX_CMD_DMA_WRITE         6     // Write DMA
+#define  DTA_MATRIX_CMD_DMA_READ          7     // Read DMA
+#define  DTA_MATRIX_CMD_ATTACH_TO_ROW     8     // Attach the port to the specified row
+#define  DTA_MATRIX_CMD_DETECT_VIDSTD     9     // Determine video standard at input
+#define  DTA_MATRIX_CMD_GET_FIFOLOAD      10
+#define  DTA_MATRIX_CMD_GET_FIFOSIZE      11
+#define  DTA_MATRIX_CMD_GET_FIFOSIZE_MAX  12
+#define  DTA_MATRIX_CMD_SET_FIFOSIZE      13
+#define  DTA_MATRIX_CMD_SET_ASI_CTRL      14
+#define  DTA_MATRIX_CMD_GET_BUF_CONFIG    15    // Returns the buffer configuration
+#define  DTA_MATRIX_CMD_GET_REQ_DMA_SIZE  16    // Returns the minimum req DMA buffer size
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_WAIT_FRAME -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -1897,21 +2032,198 @@ typedef struct _DtaIoctlMatrixCmdGetSyncInfoOutput {
 } DtaIoctlMatrixCmdGetSyncInfoOutput;
 ASSERT_SIZE(DtaIoctlMatrixCmdGetSyncInfoOutput, 24+16*24)
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_START -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+typedef struct _DtaIoctlMatrixCmdStartInput {
+    Int64A  m_StartFrame;       // First frame to transmit/receive
+} DtaIoctlMatrixCmdStartInput;
+ASSERT_SIZE(DtaIoctlMatrixCmdStartInput, 8)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_STOP -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// THIS COMMAND HAS NO EXTRA PARAMETERS 
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_GET_CURR_FRAME -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+typedef struct _DtaIoctlMatrixCmdGetCurrFrameOutput {
+    Int64A  m_CurrFrame;        // current frame
+} DtaIoctlMatrixCmdGetCurrFrameOutput;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetCurrFrameOutput, 8)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_DMA_WRITE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+typedef struct _DtaIoctlMatrixCmdDmaCommonPars
+{
+    Int64A  m_Frame;            // Frame to transfer
+    Int  m_Line;                // First line to transfer
+    Int  m_NumLines;            // Number of lines to transfer
+    Int  m_TrCmd;               // Transfer type
+    Int  m_DataFormat;          // Format of data (8-, 10-, 16-bit)
+    Int  m_RgbMode;             // RGB mode
+    Int  m_SymFlt;              // Symbol filter mode
+    Int  m_Scaling;             // Scaling mode
+    Int  m_AncFlt;              // Anc filter mode
+    Int  m_Stride;              // -1 means no stride
+} DtaIoctlMatrixCmdDmaCommonPars;
+
+typedef struct _DtaIoctlMatrixCmdWriteDmaInput {
+    DtaIoctlMatrixCmdDmaCommonPars  m_Common;
+#ifdef LINBUILD
+    UInt64A  m_BufferAddr;
+    Int  m_NumBytesToWrite;
+#endif
+} DtaIoctlMatrixCmdWriteDmaInput;
+#ifdef LINBUILD
+ASSERT_SIZE(DtaIoctlMatrixCmdWriteDmaInput, 64)
+#else
+ASSERT_SIZE(DtaIoctlMatrixCmdWriteDmaInput, 48)
+#endif
+
+#ifdef LINBUILD
+typedef struct _DtaIoctlMatrixCmdWriteDmaOutput {
+    Int  m_NumBytesWritten;
+} DtaIoctlMatrixCmdWriteDmaOutput;
+#endif
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_DMA_READ -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctlMatrixCmdReadDmaInput {
+    DtaIoctlMatrixCmdDmaCommonPars  m_Common;
+#ifdef LINBUILD
+    UInt64A  m_BufferAddr;
+    Int  m_NumBytesToRead;
+#endif
+} DtaIoctlMatrixCmdReadDmaInput;
+#ifdef LINBUILD
+ASSERT_SIZE(DtaIoctlMatrixCmdReadDmaInput, 64)
+#else
+ASSERT_SIZE(DtaIoctlMatrixCmdReadDmaInput, 48)
+#endif
+
+#ifdef LINBUILD
+typedef struct _DtaIoctlMatrixCmdReadDmaOutput {
+    Int  m_NumBytesRead;
+} DtaIoctlMatrixCmdReadDmaOutput;
+#endif
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_ATTACH_TO_ROW -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+typedef struct _DtaIoctlMatrixCmdAttachToRowInput {
+    Int  m_RowIdx;              // Matrix row the port should be associated with
+} DtaIoctlMatrixCmdAttachToRowInput;
+ASSERT_SIZE(DtaIoctlMatrixCmdAttachToRowInput, 4)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_DETECT_VIDSTD -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+// NO ADDITIONAL INPUT PARAMETERS
+
+typedef struct _DtaIoctlMatrixCmdDetectVidStdOutput {
+    Int  m_VidStd;              // Detected video standard
+} DtaIoctlMatrixCmdDetectVidStdOutput;
+ASSERT_SIZE(DtaIoctlMatrixCmdDetectVidStdOutput, 4)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_GET_FIFOLOAD -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+// NO ADDITIONAL INPUT PARAMETERS
+
+typedef struct _DtaIoctlMatrixCmdGetFifoLoadOutput {
+    Int  m_FifoLoad;
+} DtaIoctlMatrixCmdGetFifoLoadOutput;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetFifoLoadOutput, 4)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_GET_FIFOSIZE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+// NO ADDITIONAL INPUT PARAMETERS
+
+typedef struct _DtaIoctlMatrixCmdGetFifoSizeOutput {
+    Int  m_FifoSize;
+} DtaIoctlMatrixCmdGetFifoSizeOutput;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetFifoSizeOutput, 4)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_GET_FIFOSIZE_MAX -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+// NO ADDITIONAL INPUT PARAMETERS
+
+typedef struct _DtaIoctlMatrixCmdGetFifoSizeMaxOutput {
+    Int  m_FifoSize;
+} DtaIoctlMatrixCmdGetFifoSizeMaxOutput;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetFifoSizeMaxOutput, 4)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_SET_FIFOSIZE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctlMatrixCmdSetFifoSizeInput {
+    Int  m_FifoSize;
+} DtaIoctlMatrixCmdSetFifoSizeInput;
+ASSERT_SIZE(DtaIoctlMatrixCmdSetFifoSizeInput, 4)
+
+// NO ADDITIONAL OUTPUT PARAMETERS
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_SET_ASI_CTRL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctlMatrixCmdSetAsiCtrlInput {
+    Int  m_AsiCtrl;
+} DtaIoctlMatrixCmdSetAsiCtrlInput;
+ASSERT_SIZE(DtaIoctlMatrixCmdSetAsiCtrlInput, 4)
+
+// NO ADDITIONAL OUTPUT PARAMETERS
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_GET_BUF_CONFIG -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+// NO ADDITIONAL INPUT PARAMETERS
+
+typedef struct _DtaIoctlMatrixCmdGetBufConfigOutput {
+    Int  m_VidStd;              // Video standard the buffer is configured for
+    Int  m_NumFrames;           // # of frames that can be stored in buffer    
+} DtaIoctlMatrixCmdGetBufConfigOutput;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetBufConfigOutput, 8)
+    
+//-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_GET_REQ_DMA_SIZE -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef DtaIoctlMatrixCmdDmaCommonPars  DtaIoctlMatrixCmdGetReqDmaSizeInput;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetReqDmaSizeInput, 48)
+
+typedef struct _DtaIoctlMatrixCmdGetReqDmaSizeOutput {
+    Int  m_ReqSize;     // Minimum size of the DMA buffer
+} DtaIoctlMatrixCmdGetReqDmaSizeOutput;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetReqDmaSizeOutput, 4)
+
 // Ioctl input data type
 typedef struct _DtaIoctlMatrixCmdInput {
     Int  m_Cmd;
     Int  m_PortIndex;           // -1 signals a device level command
     union {
         DtaIoctlMatrixCmdWaitFrameInput  m_WaitFrame;
+        DtaIoctlMatrixCmdStartInput  m_Start;
+        DtaIoctlMatrixCmdWriteDmaInput  m_DmaWrite;
+        DtaIoctlMatrixCmdReadDmaInput  m_DmaRead;
+        DtaIoctlMatrixCmdAttachToRowInput  m_AttachToRow;
+        DtaIoctlMatrixCmdSetFifoSizeInput  m_SetFifoSize;
+        DtaIoctlMatrixCmdSetAsiCtrlInput  m_SetAsiCtrl;
+        DtaIoctlMatrixCmdGetReqDmaSizeInput  m_GetReqDmaSize;
     } m_Data;
 } DtaIoctlMatrixCmdInput;
-ASSERT_SIZE(DtaIoctlMatrixCmdInput, 24)
+#ifdef LINBUILD
+ASSERT_SIZE(DtaIoctlMatrixCmdInput, 72)
+#else
+ASSERT_SIZE(DtaIoctlMatrixCmdInput, 56)
+#endif
 
 // Ioctl output data type
 typedef struct _DtaIoctlMatrixCmdOutput {
     union {
         DtaIoctlMatrixCmdWaitFrameOutput  m_WaitFrame;
         DtaIoctlMatrixCmdGetSyncInfoOutput  m_SyncInfo;
+        DtaIoctlMatrixCmdGetCurrFrameOutput  m_GetCurrFrame;
+        DtaIoctlMatrixCmdDetectVidStdOutput  m_DetVidStd;
+#ifdef LINBUILD
+        DtaIoctlMatrixCmdWriteDmaOutput  m_DmaWrite;
+        DtaIoctlMatrixCmdReadDmaOutput  m_DmaRead;
+#endif
+        DtaIoctlMatrixCmdGetFifoLoadOutput  m_GetFifoLoad;
+        DtaIoctlMatrixCmdGetFifoSizeOutput  m_GetFifoSize;
+        DtaIoctlMatrixCmdGetFifoSizeMaxOutput  m_GetFifoSizeMax;
+        DtaIoctlMatrixCmdGetReqDmaSizeOutput  m_GetReqDmaSize;
+        DtaIoctlMatrixCmdGetBufConfigOutput  m_GetBufConfig;
     } m_Data;
 } DtaIoctlMatrixCmdOutput;
 ASSERT_SIZE(DtaIoctlMatrixCmdOutput, 408)
@@ -1925,7 +2237,7 @@ ASSERT_SIZE(DtaIoctlMatrixCmdOutput, 408)
         DtaIoctlMatrixCmdOutput  m_Output;
     } DtaIoctlMatrixCmd;
 
-    #define DTA_IOCTL_MATRIX_CMD  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_MATRIX_CMD, \
+    #define DTA_IOCTL_MATRIX_CMD  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_MATRIX_CMD, \
                                                                         DtaIoctlMatrixCmd)
 #endif
 
@@ -1983,6 +2295,7 @@ ASSERT_SIZE(DtaIoctlGetGenlockStateOutput, 8)
 typedef union _DtaIoctlInputData {
     DtaIoctlGetPropertyInput  m_GetProperty;
     DtaIoctlGetProperty2Input  m_GetProperty2;
+    DtaIoctlGetProperty3Input  m_GetProperty3;
     DtaIoctlVpdCmdInput  m_VpdCmd;
     DtaIoctlI2cCmdInput  m_I2cCmd;
     DtaIoctlGetAddressRegsInput  m_GetAddrRegs;
@@ -2001,8 +2314,10 @@ typedef union _DtaIoctlInputData {
     DtaIoctlPhyMacCmdInput  m_PhyMacCmd;
     DtaIoctlIpNwCmdInput  m_IpNwCmd;
     DtaIoctlGetTableInput  m_GetTable;
+    DtaIoctlGetTable2Input  m_GetTable2;
     DtaIoctlRebootFirmwareInput  m_RebootFirmware;
     DtaIoctlGetStrPropertyInput  m_GetStrProperty;
+    DtaIoctlGetStrProperty2Input m_GetStrProperty2;
     DtaIoctlMatrixCmdInput  m_NonIpHdCmd;
     DtaIoctlSetMemoryTestModeInput  m_SetMemoryTestMode;
 } DtaIoctlInputData;
@@ -2012,6 +2327,7 @@ typedef union _DtaIoctlInputData {
 typedef union _DtaIoctlOutputData {
     DtaIoctlGetPropertyOutput  m_GetProperty;
     DtaIoctlGetDevInfoOutput  m_GetDevInfo;
+    DtaIoctlGetDevInfoOutput2  m_GetDevInfo2;
     DtaIoctlVpdCmdOutput  m_VpdCmd;
     DtaIoctlGetDriverVersionOutput  m_GetDriverVersion;
     DtaIoctlI2cCmdOutput  m_I2cCmd;

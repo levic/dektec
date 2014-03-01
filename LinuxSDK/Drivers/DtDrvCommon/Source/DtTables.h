@@ -43,6 +43,7 @@ typedef struct _DtTableLink
 // Type to store all properties for a single device
 typedef struct _DtTableStore {
     Int  m_TypeNumber;
+    Int  m_SubDvc;
     UInt  m_TableLinkCount;
     const DtTableLink*  m_pTableLink;
 } DtTableStore;
@@ -52,4 +53,8 @@ DtStatus  DtTablesInit(DtPropertyData* pPropData);
 DtStatus  DtTableGet(DtPropertyData* pPropData,
                      const char*  pTableName, Int  PortIndex, UInt  MaxNumEntries,
                      UInt* pNumEntries, DtTableEntry* pTableEntry2, UInt OutBufSize);
+DtStatus  DtTableGetForType(const char*  pTypeName, Int  TypeNumber, Int  SubDvc, 
+                          Int  HwRev, Int  FwVer, const char*  pTableName, Int  PortIndex, 
+                          UInt  MaxNumEntries, UInt* pNumEntries, 
+                                             DtTableEntry* pTableEntry2, UInt OutBufSize);
 #endif // __DT_TABLES_H

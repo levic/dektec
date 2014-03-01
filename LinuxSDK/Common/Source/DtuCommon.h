@@ -119,6 +119,7 @@ enum {
     FUNC_DTU_TRIGGER_WATCHDOG,
     FUNC_DTU_SET_RX_MODE,
     FUNC_DTU_UPLOAD_FPGA_FW,
+    FUNC_DTU_GET_DATA_BUF_SIZE,
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_GET_PROPERTY -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1103,6 +1104,32 @@ ASSERT_SIZE(DtuIoctlUploadFpgaFwInput, 4)
                                                                      DtuIoctlUploadFpgaFw)
 #endif 
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_GET_DATA_BUF_SIZE_FLAGS -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+
+typedef struct _DtuIoctlGetDataBufSizeInput {
+    Int  m_PortIndex;
+} DtuIoctlGetDataBufSizeInput;
+ASSERT_SIZE(DtuIoctlGetDataBufSizeInput, 4)
+
+typedef struct _DtuIoctlGetDataBufSizeOutput {
+    Int  m_BufSize;
+} DtuIoctlGetDataBufSizeOutput;
+ASSERT_SIZE(DtuIoctlGetDataBufSizeOutput, 4)
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_GET_DATA_BUF_SIZE  CTL_CODE(DTU_DEVICE_TYPE, \
+                            FUNC_DTU_GET_DATA_BUF_SIZE, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtuIoctlGetDataBufSize {
+        DtuIoctlGetDataBufSizeInput  m_Input;
+        DtuIoctlGetDataBufSizeOutput  m_Output;
+    } DtuIoctlGetDataBufSize;
+
+    #define DTU_IOCTL_GET_DATA_BUF_SIZE  _IOWR(DTU_IOCTL_MAGIC, \
+                                       FUNC_DTU_GET_DATA_BUF_SIZE, DtuIoctlGetDataBufSize)
+#endif 
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef union _DtuIoctlInputData {
@@ -1123,6 +1150,7 @@ typedef union _DtuIoctlInputData {
     DtuIoctlGetStateFlagsInput  m_GetStateFlags;
     DtuIoctlSetRxModeInput  m_RxMode;
     DtuIoctlUploadFpgaFwInput  m_UploadFpgaFw;
+    DtuIoctlGetDataBufSizeInput  m_DataBufSize;
 } DtuIoctlInputData;
 ASSERT_SIZE(DtuIoctlInputData, 528)
 
@@ -1144,6 +1172,7 @@ typedef union _DtuIoctlOutputData {
     DtuIoctlVendorRequestOutput  m_VendorRequest;
     DtuIoctlGetStateFlagsOutput  m_GetStateFlags;
     DtuIoctlSetRxModeOutput  m_RxMode;
+    DtuIoctlGetDataBufSizeOutput  m_DataBufSize;
 } DtuIoctlOutputData;
 ASSERT_SIZE(DtuIoctlOutputData, 520)
 

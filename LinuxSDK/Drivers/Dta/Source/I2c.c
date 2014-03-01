@@ -54,6 +54,7 @@ DtStatus  DtaI2cInitValues(
 
     // Initialize additional I2cLock function
     pI2c->m_pI2cLockFunction = NULL;
+    pI2c->m_pLockOwner = NULL;
 
     // Initialize implementation data
     DtFastMutexInit(&pI2c->m_AccessMutex);

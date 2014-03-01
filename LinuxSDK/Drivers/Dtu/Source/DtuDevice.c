@@ -86,7 +86,7 @@ DtStatus  DtuDvcPowerSupplyInit(DtuDeviceData* pDvcData)
         else
             DtDbgOut(ERR, DTU, "DTU-%d power supply start ERROR. Error: %xh", TypeNumber, Status);
     }
-    else if (TypeNumber == 351)
+    else if (TypeNumber==351 && pDvcData->m_DevInfo.m_UsbSpeed==2)
     {
         Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
                            DTU_PNP_CMD_DVC_POWER, DTU_DVC_POWER_ON, DT_USB_HOST_TO_DEVICE,

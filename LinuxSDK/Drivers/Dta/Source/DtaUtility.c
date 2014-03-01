@@ -44,6 +44,21 @@ UInt16  DtaSubsystemId2TypeNumber(Int SubsystemId)
     return SubsystemId - (SubsystemId < 0xD100 ? 0 : (0xD100-100));
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDeviceId2SubDvcNumber -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtaDeviceId2SubDvcNumber(Int TypeNumber, Int  DeviceId)
+{
+    // Can only deduce type number from device ID if type number is encoded in bottom
+    // 12-bits of the DeviceId
+    if ((DeviceId&0X0FFF) == TypeNumber)
+    {
+        // Sub device number is encoded in MSB 4-bits of device ID
+        // NOTE: 0=master, 1=slave1, 2=slavee, etc, etc
+        return (DeviceId>>12 & 0x000F);
+    }   
+    return 0;   // assume this is the one and only sub-device
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaWatchdogToggle -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void DtaWatchdogToggle(volatile UInt8* pBase)
@@ -570,6 +585,35 @@ DtStatus  DtaPropertiesReportDriverErrors(DtaDeviceData* pDvcData)
  }
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Video Standard helpers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+Int  DtaIoStd2VidStd(Int  Value, Int  SubValue)
+{
+    switch (SubValue)
+    {
+    case DT_IOCONFIG_1080P50:       return DT_VIDSTD_1080P50;
+    case DT_IOCONFIG_1080P59_94:    return DT_VIDSTD_1080P59_94;
+    case DT_IOCONFIG_1080P60:       return DT_VIDSTD_1080P60;
+    case DT_IOCONFIG_1080I50:       return DT_VIDSTD_1080I50;
+    case DT_IOCONFIG_1080I59_94:    return DT_VIDSTD_1080I59_94;
+    case DT_IOCONFIG_1080I60:       return DT_VIDSTD_1080I60;
+    case DT_IOCONFIG_1080P23_98:    return DT_VIDSTD_1080P23_98;
+    case DT_IOCONFIG_1080P24:       return DT_VIDSTD_1080P24;
+    case DT_IOCONFIG_1080P25:       return DT_VIDSTD_1080P25;
+    case DT_IOCONFIG_1080P29_97:    return DT_VIDSTD_1080P29_97;
+    case DT_IOCONFIG_1080P30:       return DT_VIDSTD_1080P30;
+    case DT_IOCONFIG_720P23_98:     return DT_VIDSTD_720P23_98;
+    case DT_IOCONFIG_720P24:        return DT_VIDSTD_720P24;
+    case DT_IOCONFIG_720P25:        return DT_VIDSTD_720P25;
+    case DT_IOCONFIG_720P29_97:     return DT_VIDSTD_720P29_97;
+    case DT_IOCONFIG_720P30:        return DT_VIDSTD_720P30;
+    case DT_IOCONFIG_720P50:        return DT_VIDSTD_720P50;
+    case DT_IOCONFIG_720P59_94:     return DT_VIDSTD_720P59_94;
+    case DT_IOCONFIG_720P60:        return DT_VIDSTD_720P60;
+    case DT_IOCONFIG_525I59_94:     return DT_VIDSTD_525I59_94;
+    case DT_IOCONFIG_625I50:        return DT_VIDSTD_625I50;
+    }
+    return DT_VIDSTD_UNKNOWN;
+}
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStd2Fps -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //

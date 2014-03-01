@@ -197,6 +197,7 @@ UInt  DtaDmaGetBytesReceived(DmaChannel* pDmaCh);
 Bool  DtaDmaIsReady(DmaChannel* pDmaCh);
 DtStatus  DtaDmaAbortDma(DmaChannel* pDmaCh);
 Bool  DtaDmaIsAbortActive(DmaChannel* pDmaCh);
+void  DtaDmaClearAbortFlag(DmaChannel* pDmaCh);
 void  DtaDmaReInitCallback(DmaChannel* pDmaCh, DmaCallbackFunc pDmaFinishFunc, 
                                                                            void* pDmaFinishContext);
 void  ExecuteDmaCompletedFromDpc(DmaChannel* pDmaChannel);

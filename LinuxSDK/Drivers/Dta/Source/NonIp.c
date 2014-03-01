@@ -32,7 +32,6 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtaNonIpDetermineDmaRegsOffset(DtaDeviceData* pDvcData, Int PortIndex, 
                                                                    UInt*  pDmaRegsOffset);
-static void  DtaNonIpLastFrameIntDpc(DtDpcArgs* pArgs);
 Int  DtaNonIpGetMaxDmaBurstSize(DtaNonIpPort* pNonIpPort);
 Int  DtaNonIpGetMaxFifoSize(DtaNonIpPort* pNonIpPort);
 void  DtaNonIpRfPwrMeasLock(DtaNonIpPort* pNonIpPort, Int Lock);
@@ -60,6 +59,81 @@ static DtStatus  DtaNonIpIoConfigSetGenRef(DtaNonIpPort* pNonIpPort, Int Group,
                                                                DtaIoConfigValue CfgValue);
 static DtStatus  DtaNonIpIoConfigSetFracMode(DtaNonIpPort* pNonIpPort, Int Group,
                                                                DtaIoConfigValue CfgValue);
+
+#ifdef WINBUILD
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpTxEvtRequestCancelDma -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtaNonIpTxEvtRequestCancelDma(WDFREQUEST WdfRequest)
+{
+    DtStatus  Status;
+    DtaWdfRequestContext*  pRequestContext;
+    DtaNonIpPort*  pNonIpPort = NULL;
+    DmaChannel*  pDmaCh = NULL;
+
+    DtDbgOut(MIN, NONIP, "Init");
+    pRequestContext = WdfObjectGet_DtaWdfRequestContext(WdfRequest);
+    DT_ASSERT(pRequestContext != NULL);
+    
+    pNonIpPort = (DtaNonIpPort*)pRequestContext->m_pData;
+    pDmaCh = &pNonIpPort->m_DmaChannel;
+
+    // Possibly do some extra actions:
+    // Reset channel/clear fifo, set bitrate, TxCtrl send??
+    // ToDo
+    if (pDmaCh != NULL)
+        Status = DtaDmaAbortDma(pDmaCh);
+    DtDbgOut(MIN, NONIP, "Exit");
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpRxEvtRequestCancelDma -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtaNonIpRxEvtRequestCancelDma(WDFREQUEST WdfRequest)
+{
+    DtStatus  Status;
+    DtaWdfRequestContext*  pRequestContext;
+    DtaNonIpPort*  pNonIpPort = NULL;
+    DmaChannel*  pDmaCh = NULL;
+
+    DtDbgOut(MIN, NONIP, "Init");
+    pRequestContext = WdfObjectGet_DtaWdfRequestContext(WdfRequest);
+    DT_ASSERT(pRequestContext != NULL);
+    
+    pNonIpPort = (DtaNonIpPort*)pRequestContext->m_pData;
+    pDmaCh = &pNonIpPort->m_DmaChannel;
+
+    // Possibly do some extra actions:
+    // Reset channel/clear fifo, RxCtrl Rx??
+    // ToDo
+    if (pDmaCh != NULL)
+        Status = DtaDmaAbortDma(pDmaCh);
+    DtDbgOut(MIN, NONIP, "Exit");
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpDmaCompletedWindows -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// This function is executed after the DMA is completed (Windows ONLY!)
+// The WdfRequest is completed here
+//
+void  DtaNonIpDmaCompletedWindows(DmaChannel* pDmaCh, void* pContext)
+{
+    WDFREQUEST  WdfRequest = pContext;
+    DtStatus  Status = DT_STATUS_OK;
+    UInt  BytesRead = 0;
+    
+    DT_ASSERT(pContext != NULL);
+    
+    WdfRequestUnmarkCancelable(WdfRequest);
+    if (DtaDmaIsAbortActive(pDmaCh))
+        Status = DT_STATUS_CANCELLED;
+    
+    if (DT_SUCCESS(Status))
+    {
+        if (pDmaCh->m_DmaDirection == DT_DMA_DIRECTION_FROM_DEVICE)
+            BytesRead = pDmaCh->m_NumBytesRead;
+    }
+    WdfRequestCompleteWithInformation(WdfRequest, (NTSTATUS)Status, (ULONG_PTR)BytesRead);
+}
+#endif
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -414,9 +488,6 @@ DtStatus  DtaNonIpInit(
         DT_ASSERT(FALSE);
     }
 
-    
-
-
     // DT_IOCONFIG_RFCLKSEL
     if (pNonIpPort->m_CapRfClkInt) 
         pNonIpPort->m_IoCfg[DT_IOCONFIG_RFCLKSEL].m_Value = DT_IOCONFIG_RFCLKINT;
@@ -482,8 +553,6 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_FlagsLatched = 0;
     DtSpinLockInit(&pNonIpPort->m_FlagsSpinLock);
 
-
-
     // Init failsafe fields
     if (pNonIpPort->m_CapFailSafe)
         DtaNonIpTxSetFailsafeCfg(pNonIpPort, FALSE, 10);
@@ -508,14 +577,23 @@ DtStatus  DtaNonIpInit(
     {
         pNonIpPort->m_RxRegsOffset = DtPropertiesGetUInt16(pPropData,
                                                  "REGISTERS_RX", pNonIpPort->m_PortIndex);
-        pNonIpPort->m_FifoOffset = pNonIpPort->m_RxRegsOffset + DTA_LOCALADDR_FIFODATA;
+
+        // NOTE: matrix channels use a different offset for the local DMA address
+        if (pNonIpPort->m_CapMatrix)
+            pNonIpPort->m_FifoOffset = pNonIpPort->m_RxRegsOffset + DT_HD_REG_FIFO_FIRST;
+        else
+            pNonIpPort->m_FifoOffset = pNonIpPort->m_RxRegsOffset+DTA_LOCALADDR_FIFODATA;
     } else
         pNonIpPort->m_RxRegsOffset = (UInt16)-1;
     if (pNonIpPort->m_CapOutput)
     {
         pNonIpPort->m_TxRegsOffset = DtPropertiesGetUInt16(pPropData,
                                                  "REGISTERS_TX", pNonIpPort->m_PortIndex);
-        pNonIpPort->m_FifoOffset = pNonIpPort->m_TxRegsOffset + DTA_LOCALADDR_FIFODATA;
+        // NOTE: matrix channels use a different offset for the local DMA address
+        if (pNonIpPort->m_CapMatrix)
+            pNonIpPort->m_FifoOffset = pNonIpPort->m_TxRegsOffset + DT_HD_REG_FIFO_FIRST;
+        else
+            pNonIpPort->m_FifoOffset = pNonIpPort->m_TxRegsOffset+DTA_LOCALADDR_FIFODATA;
     } else
         pNonIpPort->m_TxRegsOffset = (UInt16)-1;
     if (pNonIpPort->m_CapSpi)
@@ -530,8 +608,6 @@ DtStatus  DtaNonIpInit(
         // Check if no property error occurred
         Status = DtaPropertiesReportDriverErrors(pNonIpPort->m_pDvcData);
 
-
-
     // Skip DMA initialisation for non-functional ports
     if (!pNonIpPort->m_IsNonFuntional)
     {
@@ -544,13 +620,18 @@ DtStatus  DtaNonIpInit(
             Status = DtaDmaInitCh(pDvcData, PortIndex, 
                                                    DtaNonIpGetMaxDmaBurstSize(pNonIpPort),
                                                    DTA_DMA_MODE_DEFAULT, DmaRegsOffset, 
-                                                   DTA_DMA_FLAGS_BLOCKING,-1, 
-                                                   NULL, NULL, &pNonIpPort->m_DmaChannel,
+#ifdef WINBUILD
+                                                   DTA_DMA_FLAGS_NONE, -1,
+                                                   DtaNonIpDmaCompletedWindows, NULL,
+#else
+                                                   DTA_DMA_FLAGS_BLOCKING, -1,
+                                                   NULL, NULL,
+#endif
+                                                   &pNonIpPort->m_DmaChannel,
                                                    TRUE);
         if (!DT_SUCCESS(Status))
             return Status;
     }
-    
 
      // Demod specific initialisation
     if (pNonIpPort->m_CapDemod)
@@ -566,38 +647,87 @@ DtStatus  DtaNonIpInit(
                 return Status;
         }
     }
-
-
+    
     // Matrix-API initialisation
     if (pNonIpPort->m_CapMatrix)
     {
-        Status = DtDpcInit(&pNonIpPort->m_Matrix.m_LastFrameIntDpc, 
-                                                         DtaNonIpLastFrameIntDpc, TRUE);
+        Status = DtaNonIpMatrixInit(pNonIpPort); 
         if (!DT_SUCCESS(Status))
             return Status;
-        Status = DtEventInit(&pNonIpPort->m_Matrix.m_LastFrameIntEvent, FALSE);
-        if (!DT_SUCCESS(Status))
-            return Status;
-        
-        pNonIpPort->m_Matrix.m_LastFrame = 0;
-        pNonIpPort->m_Matrix.m_SofFrame = 0;
-        pNonIpPort->m_Matrix.m_SofLine = 0;
     }
-
-
     return Status;
 }
 
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpInterruptEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Enables Non-IP port specific interrupts. 
+//
+// PRE-CONDITION: Interrupt-Enable-State lock (pDvcData->m_IntEnaStateLock) must have 
+// been acquired
+//
+DtStatus  DtaNonIpInterruptEnable(DtaNonIpPort* pNonIpPort)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtaDeviceData*  pDvcData = NULL;
+    DtIntEnableState  IntEnaState;
+
+    DT_ASSERT(pNonIpPort != NULL);
+
+    pDvcData =  pNonIpPort->m_pDvcData;
+    IntEnaState = pDvcData->m_IntEnableState;
+
+    // Do nothing if master state is not enabled or enabling
+    if (IntEnaState!=INT_ENABLING && IntEnaState!=INT_ENABLED)
+    {
+        DtDbgOut(AVG, NONIP, "Master-interupt state (%d) is not enabled", IntEnaState);
+        return DT_STATUS_OK;
+    }
+    
+    // Enable I2c interrupt on port level
+    if (pNonIpPort->m_I2c.m_IsSupported)
+        DtaRegI2cCtrlSetRdyIntEn(pNonIpPort->m_I2c.m_pI2cRegs, 1);
+
+    // Enable Matrix specific interrupts
+    if (pNonIpPort->m_CapMatrix)
+        Status = DtaNonIpMatrixInterruptEnable(pNonIpPort);
+    return Status;
+}
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpInterruptDisable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Disables Non-IP port specific interrupts
+//
+// PRE-CONDITION: Interrupt-Enable-State lock (pDvcData->m_IntEnaStateLock) must have 
+// been acquired
+//
+DtStatus  DtaNonIpInterruptDisable(DtaNonIpPort* pNonIpPort)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    DT_ASSERT(pNonIpPort != NULL);
+
+    // Disable I2c interrupt on port level
+    if (pNonIpPort->m_I2c.m_IsSupported)
+        DtaRegI2cCtrlSetRdyIntEn(pNonIpPort->m_I2c.m_pI2cRegs, 0);
+
+    // Disable Matrix specific interrupts
+    if (pNonIpPort->m_CapMatrix)
+        Status = DtaNonIpMatrixInterruptDisable(pNonIpPort);
+
+    return Status;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpDetermineDmaRegsOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaNonIpDetermineDmaRegsOffset( 
+DtStatus  DtaNonIpDetermineDmaRegsOffset(
     DtaDeviceData*  pDvcData,
-    Int  PortIndex,         // Physical port index    
+    Int  PortIndex,         // Physical port index
     UInt*  pDmaRegsOffset)  // out:The DMA register offset for fpga controlled DMA,
                             // or the DMA controller index if PLX is used.
 {
-    DtStatus  Status = DT_STATUS_OK;    
+    DtStatus  Status = DT_STATUS_OK;
     DmaOpt*  pDmaOptions = &pDvcData->m_DmaOptions;
     DtPropertyData*  pPropData = &pDvcData->m_PropData;
 
@@ -620,14 +750,14 @@ DtStatus  DtaNonIpDetermineDmaRegsOffset(
 
 #ifdef _DEBUG
     if (!pDmaOptions->m_UseDmaInFpga)
-    {      
+    {
         UInt DmaRegsOffset = 0;
 
         // Just check for a clean XML-file. REGISTERS_DMA is not used if only the PLX is
         // used for DMA.
         DmaRegsOffset = DtPropertiesGetUInt16(pPropData, "REGISTERS_DMA", PortIndex);
         DT_ASSERT(DmaRegsOffset==0 || DmaRegsOffset==-1 || 
-                                                  pPropData->m_PropertyNotFoundCounter==1);
+                                                 pPropData->m_PropertyNotFoundCounter==1);
         pPropData->m_PropertyNotFoundCounter = 0;
     }
 #endif
@@ -654,6 +784,33 @@ void  DtaNonIpCleanup(DtaDeviceData* pDvcData, Int PortIndex, DtaNonIpPort* pNon
     DtaDmaCleanupCh(pDvcData, &pNonIpPort->m_DmaChannel);
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpClose -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaNonIpClose(
+    DtaNonIpPort* pNonIpPort,
+    DtFileObject* pFile)
+{
+    DtStatus  HasAccess;
+    DT_ASSERT(pNonIpPort != NULL);
+
+    // Unlock all recursive I2C locks for this file object
+    if (pNonIpPort->m_I2c.m_IsSupported)
+        DtaI2cUnlock(pNonIpPort->m_pDvcData, pNonIpPort->m_PortIndex, pFile, TRUE);
+
+    // Call matrix specific close
+    if (pNonIpPort->m_CapMatrix)
+        DtaNonIpMatrixClose(pNonIpPort, pFile);
+
+    DtFastMutexAcquire(&pNonIpPort->m_pDvcData->m_ExclAccessMutex);
+    HasAccess = DtaNonIpHasAccess(pNonIpPort, pFile);
+    DtFastMutexRelease(&pNonIpPort->m_pDvcData->m_ExclAccessMutex);
+
+    if (DT_SUCCESS(HasAccess))
+        DtaDmaClearAbortFlag(&pNonIpPort->m_DmaChannel);
+
+    return DT_STATUS_OK;
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpPowerup -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // This function is called everytime the hardware is powered up. Resources like registers
@@ -665,13 +822,13 @@ DtStatus  DtaNonIpPowerup(DtaNonIpPort* pNonIpPort)
     // Recalculate registers
     if (pNonIpPort->m_RxRegsOffset != (UInt16)-1)
         pNonIpPort->m_pRxRegs = pNonIpPort->m_pDvcData->m_pGenRegs +
-                                                                 pNonIpPort->m_RxRegsOffset;
+                                                               pNonIpPort->m_RxRegsOffset;
     if (pNonIpPort->m_TxRegsOffset != (UInt16)-1)
         pNonIpPort->m_pTxRegs = pNonIpPort->m_pDvcData->m_pGenRegs +
-                                                                 pNonIpPort->m_TxRegsOffset;
+                                                               pNonIpPort->m_TxRegsOffset;
     if (pNonIpPort->m_SpiRegsOffset != (UInt16)-1)
         pNonIpPort->m_pSpiRegs = pNonIpPort->m_pDvcData->m_pGenRegs +
-                                                                pNonIpPort->m_SpiRegsOffset;
+                                                              pNonIpPort->m_SpiRegsOffset;
 
     // Skip init of DMA resources for a non-functional port
     if (!pNonIpPort->m_IsNonFuntional)
@@ -689,6 +846,21 @@ DtStatus  DtaNonIpPowerup(DtaNonIpPort* pNonIpPort)
     pNonIpPort->m_BitrateMeasure.m_NumValidSamps = 0;       // No valid samples yet
     pNonIpPort->m_BitrateMeasure.m_ValidCount256 = 0;       // Initial bitrate is 0
     
+    return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpPowerUpPost -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// This function is called after the DtaNonIpPowerup and the after device interrupts 
+// have been enabled
+//
+DtStatus  DtaNonIpPowerUpPost(DtaNonIpPort* pNonIpPort)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    if (pNonIpPort->m_CapMatrix)
+        Status = DtaNonIpMatrixPowerUpPost(pNonIpPort);
+
     return Status;
 }
 
@@ -1206,16 +1378,15 @@ DtStatus  DtaNonIpDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
         return DT_STATUS_FAIL;
     }
 
-    // For the moment we only support detection is a GS2961 deserialiser is used
-    if (pNonIpPort->m_AsiSdiDeserItfType != ASI_SDI_DESER_ITF_GS2961)
+    // For matrix capable ports forward to matrix function
+    if (pNonIpPort->m_CapMatrix)
+        return DtaNonIpMatrixDetectVidStd(pNonIpPort, pVidStd);
+    else
     {
-        DtDbgOut(ERR, NONIP, "Port %d does not use a GS2961 deserialiser", 
-                                                               pNonIpPort->m_PortIndex+1);
-        return DT_STATUS_FAIL;
+        // For now this function is not supported for any other boards
+        DtDbgOut(ERR, NONIP, "Not supported for this port %d", pNonIpPort->m_PortIndex+1);
+        return DT_STATUS_NOT_SUPPORTED;  
     }
-
-    // Get the video standard from the GS2961 chip 
-    return DtaGs2961GetVideoStd(pNonIpPort, pVidStd);
 }
 
 
@@ -1359,7 +1530,7 @@ static DtStatus  DtaNonIpIoConfigSetIoDir(
     DtaIoConfigValue CfgValue)
 {
     DtStatus  Status = DT_STATUS_OK;
-    DtaIoConfigValue  OldCfgValue;
+    DtaIoConfigValue  OldCfgValue = pNonIpPort->m_IoCfg[Group];
     Bool  ReApplyIoStd = FALSE;
 
     switch (CfgValue.m_Value)
@@ -1388,8 +1559,12 @@ static DtStatus  DtaNonIpIoConfigSetIoDir(
                 // Check for Matrix-API interface
                 if (pNonIpPort->m_CapMatrix)
                 {
-                    // Set IO-dir to input
-                    DtaRegHdCtrl1SetIoDir(pNonIpPort->m_pRxRegs, 1);
+                    // Save new config, before apply-ing
+                    pNonIpPort->m_IoCfg[Group] = CfgValue;
+                    Status =  DtaNonIpMatrixConfigure(pNonIpPort, FALSE);
+                    // Restore original config, if failed to apply new one
+                    if (!DT_SUCCESS(Status))
+                        pNonIpPort->m_IoCfg[Group] = OldCfgValue;
                 }
                 else
                 {
@@ -1397,11 +1572,7 @@ static DtStatus  DtaNonIpIoConfigSetIoDir(
                     DtaRegTxCtrlSetOutputEn(pNonIpPort->m_pTxRegs, 0); 
                 }
             }
-
-            // Check for GS2961 deserialiser and enable it
-            if (pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_GS2961)
-                DtaGs2961Enable(pNonIpPort);
-
+                        
             break;
 
         case DT_IOCONFIG_SHAREDANT:
@@ -1437,8 +1608,12 @@ static DtStatus  DtaNonIpIoConfigSetIoDir(
             // Check for Matrix-API interface
             if (pNonIpPort->m_CapMatrix)
             {
-                // Set IO-dir to output
-                DtaRegHdCtrl1SetIoDir(pNonIpPort->m_pRxRegs, 0);
+                // Save new config, before apply-ing
+                pNonIpPort->m_IoCfg[Group] = CfgValue;
+                Status =  DtaNonIpMatrixConfigure(pNonIpPort, FALSE);
+                // Restore original config, if failed to apply new one
+                if (!DT_SUCCESS(Status))
+                    pNonIpPort->m_IoCfg[Group] = OldCfgValue;
             }
             else
             {
@@ -1533,9 +1708,12 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
     Int Group,
     DtaIoConfigValue CfgValue)
 {
+    DtStatus  Status = DT_STATUS_OK;
+    DtaIoConfigValue  OldCfgValue = pNonIpPort->m_IoCfg[Group];
     DtaIoConfigValue  IoDirValue;
     DtaNonIpIoConfigGet(pNonIpPort, DT_IOCONFIG_IODIR, &IoDirValue);
 
+    
     switch (CfgValue.m_Value)
     {
     case DT_IOCONFIG_ASI:
@@ -1554,18 +1732,45 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
 
     case DT_IOCONFIG_3GSDI:
         DT_ASSERT(pNonIpPort->m_Cap3GSdi);
-        break;  // nothing to do for now
+
+        if (!pNonIpPort->m_CapMatrix)
+            break;  // Nothing to do for none matrix ports
+
+        // Save new config, before apply-ing
+        pNonIpPort->m_IoCfg[Group] = CfgValue;
+        Status =  DtaNonIpMatrixConfigure(pNonIpPort, FALSE);
+        // Restore original config, if failed to apply new one
+        if (!DT_SUCCESS(Status))
+            pNonIpPort->m_IoCfg[Group] = OldCfgValue;   
+        break;
 
     case DT_IOCONFIG_HDSDI:
         DT_ASSERT(pNonIpPort->m_CapHdSdi);
-        break;  // nothing to do for now
+        
+        if (!pNonIpPort->m_CapMatrix)
+            break;  // Nothing to do for none matrix ports
+        
+        // Save new config, before apply-ing
+        pNonIpPort->m_IoCfg[Group] = CfgValue;
+        Status =  DtaNonIpMatrixConfigure(pNonIpPort, FALSE);
+        // Restore original config, if failed to apply new one
+        if (!DT_SUCCESS(Status))
+            pNonIpPort->m_IoCfg[Group] = OldCfgValue;   
+        break;
 
     case DT_IOCONFIG_SDI:
         DT_ASSERT(pNonIpPort->m_CapSdi);
 
-        // For devices with matrix API interface there is nothing to do
         if (pNonIpPort->m_CapMatrix)
+        {
+            // Save new config, before apply-ing
+            pNonIpPort->m_IoCfg[Group] = CfgValue;
+            Status =  DtaNonIpMatrixConfigure(pNonIpPort, FALSE);
+            // Restore original config, if failed to apply new one
+            if (!DT_SUCCESS(Status))
+                pNonIpPort->m_IoCfg[Group] = OldCfgValue;   
             break;
+        }
 
         DtaNonIpUpdateSdiModes(pNonIpPort, IoDirValue.m_Value==DT_IOCONFIG_INPUT, TRUE);
         switch (CfgValue.m_SubValue)
@@ -1650,7 +1855,7 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
 
     pNonIpPort->m_IoCfg[Group] = CfgValue;  // Save new config to the cache
 
-    return DT_STATUS_OK;
+    return Status;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpIoConfigSetRfClkSel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -2251,18 +2456,4 @@ Bool  DtaNonIpIsVidStdSupported(DtaNonIpPort* pNonIpPort, Int  VidStd)
     return FALSE;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpLastFrameIntDpc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-void  DtaNonIpLastFrameIntDpc(DtDpcArgs* pArgs)
-{
-    DtaNonIpPort*  pNonIpPort = (DtaNonIpPort*)pArgs->m_pContext;
-#ifdef _DEBUG
-    Int64  LastFrame = (Int64)pArgs->m_Data1.m_UInt64;
-
-    DtDbgOut(MAX, NONIP, "New last-frame=%lld", LastFrame);
-#endif
-
-    // Fire last frame event
-    DtEventSet(&pNonIpPort->m_Matrix.m_LastFrameIntEvent);
-}
 

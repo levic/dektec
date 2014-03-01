@@ -81,6 +81,7 @@ SRC    = $(SRCDIR)/Linux/DtaIal.o         \
          $(SRCDIR)/Vpd.o                  \
          $(SRCDIR)/Events.o               \
          $(SRCDIR)/NonIp.o                \
+         $(SRCDIR)/NonIpMatrix.o          \
          $(SRCDIR)/NonIpTx.o              \
          $(SRCDIR)/NonIpRx.o              \
          $(SRCDIR)/Ip.o                   \
@@ -96,6 +97,7 @@ SRC    = $(SRCDIR)/Linux/DtaIal.o         \
          $(SRCDIR)/Genlock.o              \
          $(SRCDIR)/Gs296x.o               \
          $(SRCDIR)/Lmh1982.o              \
+         $(SRCDIR)/Lmh1983.o              \
          $(SRCDIR)/FpgaGenlock.o          \
          $(SRCDIR)/Linux/DtaDeviceTable.o \
          Messages.o

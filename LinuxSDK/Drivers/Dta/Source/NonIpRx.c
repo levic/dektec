@@ -175,7 +175,10 @@ DtStatus  DtaNonIpRxIoctl(
 DtStatus  DtaNonIpRxGetFlags(DtaNonIpPort* pNonIpPort, Int* pStatus, Int* pLatched)
 {
     // Update flags
-    DtaNonIpRxProcessFlagsFromUser(pNonIpPort);
+    if (pNonIpPort->m_CapMatrix)
+        DtaNonIpMatrixProcessRxFlagsFromUser(pNonIpPort);
+    else
+        DtaNonIpRxProcessFlagsFromUser(pNonIpPort);
 
     // Update DMA pending status
     //if (NonIpRxIsDmaPending(pNonIpPort))
@@ -209,15 +212,23 @@ DtStatus  DtaNonIpRxClearFlags(DtaNonIpPort* pNonIpPort, Int FlagsToClear)
     // Clear latched flags
     pNonIpPort->m_Flags &= ~FlagsToClear;
     pNonIpPort->m_FlagsLatched &= ~FlagsToClear;
-
+    
     // Also clear flags in Receive Status register, to avoid that flags in
     // m_Latched are set again in next periodic interrupt.
-    if ((FlagsToClear&DTA_RX_FIFO_OVF) == DTA_RX_FIFO_OVF)
-        DtaRegRxStatClrOvfInt(pNonIpPort->m_pRxRegs);
-    if ((FlagsToClear&DTA_RX_SYNC_ERR) == DTA_RX_SYNC_ERR)
-        DtaRegRxStatClrSyncInt(pNonIpPort->m_pRxRegs);
-    if ((FlagsToClear&DTA_RX_RATE_OVF) == DTA_RX_RATE_OVF)
-        DtaRegRxStatClrRateOvfInt(pNonIpPort->m_pRxRegs);
+    if (pNonIpPort->m_CapMatrix)
+    {
+        if ((FlagsToClear&DTA_RX_FIFO_OVF) == DTA_RX_FIFO_OVF)
+            DtaRegHdStatClrRxOvfErrInt(pNonIpPort->m_pRxRegs);
+        if ((FlagsToClear&DTA_RX_SYNC_ERR) == DTA_RX_SYNC_ERR)
+            DtaRegHdStatClrRxSyncErrInt(pNonIpPort->m_pRxRegs);
+    } else {
+        if ((FlagsToClear&DTA_RX_FIFO_OVF) == DTA_RX_FIFO_OVF)
+            DtaRegRxStatClrOvfInt(pNonIpPort->m_pRxRegs);
+        if ((FlagsToClear&DTA_RX_SYNC_ERR) == DTA_RX_SYNC_ERR)
+            DtaRegRxStatClrSyncInt(pNonIpPort->m_pRxRegs);
+        if ((FlagsToClear&DTA_RX_RATE_OVF) == DTA_RX_RATE_OVF)
+            DtaRegRxStatClrRateOvfInt(pNonIpPort->m_pRxRegs);
+    }
   
     DtSpinLockRelease(&pNonIpPort->m_FlagsSpinLock);
 

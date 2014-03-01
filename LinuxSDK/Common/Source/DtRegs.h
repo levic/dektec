@@ -82,8 +82,6 @@
 #define DT_RX_REG_GS2984CTRL           0x0074
 #define DT_RX_REG_GS2984STAT           0x0078
 
-
-
 //-.-.-.-.-.-.-.-.-.-.-.-.- General-Control register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-
 #define DT_GENCTRL_PE_MSK              0x00000001
 #define DT_GENCTRL_PE_SH               0
@@ -901,6 +899,23 @@ typedef union _DT_TXRFDAC_CONTROL
 #define DT_RXDIAG_SDFULL_MSK           0x00000800
 #define DT_RXDIAG_SDFULL_SH            11
 
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DMA Registers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+// Offsets relative to DMA register block base address
+#define DT_DMA_REG_DESCPTR              0x004
+#define DT_DMA_REG_CMDSTAT              0x008
+#define DT_DMA_REG_PCIDADDR             0x00C
+#define DT_DMA_REG_DESCPRE              0x010
+#define DT_DMA_REG_TIMEOUT              0x014
+#define DT_DMA_REG_TOTTR_CNT            0x034
+
+//-.-.-.-.-.-.-.-.-.-.- DMA Descriptor prefetch control: Bit fields -.-.-.-.-.-.-.-.-.-.-.
+#define DT_DMA_DESCPRE_EN_MSK           0x00000001
+#define DT_DMA_DESCPRE_EN_SH            0
+#define DT_DMA_DESCPRE_DESCOFF_MSK      0x00000030 
+#define DT_DMA_DESCPRE_DESCOFF_SH       4
+#define DT_DMA_DESCPRE_NUMDESC_MSK      0x00003F00
+#define DT_DMA_DESCPRE_NUMDESC_SH       8
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ HD channel register offsets +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -916,6 +931,8 @@ typedef union _DT_TXRFDAC_CONTROL
 #define DT_HD_REG_SOFFRM_LSB            0x0020
 #define DT_HD_REG_SOFFRM_MSB            0x0024
 #define DT_HD_REG_SOFLINE               0x0028
+#define DT_HD_REG_SDIFORMAT             0x002C
+#define DT_HD_REG_SDISTATUS             0x0030
 #define DT_HD_REG_MEMTRCTRL             0x0034
 #define DT_HD_REG_MEMTRSTAT             0x0038
 #define DT_HD_REG_MEMTRNUMS             0x003C
@@ -933,7 +950,13 @@ typedef union _DT_TXRFDAC_CONTROL
 #define DT_HD_REG_FRMCONF3              0x006C
 #define DT_HD_REG_FRMCONF4              0x0070
 #define DT_HD_REG_FRMCONF5              0x0074
+#define DT_HD_REG_ASI_CONTROL1          0x0078
+#define DT_HD_REG_ASI_CONTROL2          0x007C
 #define DT_HD_REG_GS29XXSPI             0x0080
+#define DT_HD_REG_S0_NEXTFRM_ADDR       0x0090
+#define DT_HD_REG_S1_NEXTFRM_ADDR       0x0094
+#define DT_HD_REG_FIFO_FIRST            0x0098
+#define DT_HD_REG_FIFO_LAST             0x009C
 
 //-.-.-.-.-.-.-.-.-.-.-.- HD-Channel Control1 register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.-
 
@@ -951,19 +974,43 @@ typedef union _DT_TXRFDAC_CONTROL
 #define DT_HD_CTRL1_OPMODE_SH            12
 #define DT_HD_CTRL1_RXTXCTRL_MSK         0x00018000
 #define DT_HD_CTRL1_RXTXCTRL_SH          15
+#define DT_HD_CTRL1_ASIINVERT_MSK        0x000C0000
+#define DT_HD_CTRL1_ASIINVERT_SH         18
+#define DT_HD_CTRL1_ASIRXMODE_MSK        0x00E00000
+#define DT_HD_CTRL1_ASIRXMODE_SH         21
+#define DT_HD_CTRL1_ASIRXTSENA_MSK       0x01000000
+#define DT_HD_CTRL1_ASIRXTSENA_SH        24
+#define DT_HD_CTRL1_ASIRXTSSIZE_MSK      0x02000000
+#define DT_HD_CTRL1_ASIRXTSSIZE_SH       25
 #define DT_HD_CTRL1_TXNOEAV_MSK          0x04000000
 #define DT_HD_CTRL1_TXNOEAV_SH           26
 #define DT_HD_CTRL1_TXNOSAV_MSK          0x08000000
 #define DT_HD_CTRL1_TXNOSAV_SH           27
+#define DT_HD_CTRL1_RXSYNCERRINTEN_MSK   0x10000000
+#define DT_HD_CTRL1_RXSYNCERRINTEN_SH    28
+#define DT_HD_CTRL1_RXOVFERRINTEN_MSK    0x20000000
+#define DT_HD_CTRL1_RXOVFERRINTEN_SH     29
 #define DT_HD_CTRL1_LASTFRMINTEN_MSK     0x80000000
 #define DT_HD_CTRL1_LASTFRMINTEN_SH      31
 
+// HD-Channel Control register: io-direction
+#define DT_HD_IODIR_OUTPUT               0x0
+#define DT_HD_IODIR_INPUT                0x1
+
 // HD-Channel Control register: op-mode value
-#define DT_HD_OPMODE_DISBABLE           0x0
+#define DT_HD_OPMODE_DISABLE            0x0
 #define DT_HD_OPMODE_SD                 0x1
 #define DT_HD_OPMODE_HD                 0x2
 #define DT_HD_OPMODE_3G                 0x3
 #define DT_HD_OPMODE_ASI                0x4
+
+// HD-Channel COntrol register: ASI Invert
+#define DT_ASI_INV_RX_AUTO              0
+#define DT_ASI_INV_RX_NORMAL            2
+#define DT_ASI_INV_RX_INVERT            3
+
+#define DT_ASI_INV_TX_NORMAL            0
+#define DT_ASI_INV_TX_INVERT            1
 
 // HD-Channel Control register: rx/tx control values
 #define DT_HD_RXTXCTRL_IDLE             0x0
@@ -982,12 +1029,18 @@ typedef union _DT_TXRFDAC_CONTROL
 
 //.-.-.-.-.-.-.-.-.-.-.- // HD-Channel Status register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.-
 
-#define  DT_HD_STATUS_DETVIDSTD_MSK     0x000003FF
-#define  DT_HD_STATUS_DETVIDSTD_SH      0
+#define  DT_HD_STATUS_RXLOCK_MSK        0x00000100
+#define  DT_HD_STATUS_RXLOCK_SH         9
 #define  DT_HD_STATUS_CD_MSK            0x00000400
 #define  DT_HD_STATUS_CD_SH             10
-#define  DT_HD_STATUS_REPCNT_MSK        0x07FFF800
-#define  DT_HD_STATUS_REPCNT_SH         11
+#define  DT_HD_STATUS_ASI_PCKSZ_MSK     0x06000000
+#define  DT_HD_STATUS_ASI_PCKSZ_SH      25
+#define  DT_HD_STATUS_ASIINV_MSK        0x08000000
+#define  DT_HD_STATUS_ASIINV_SH         27
+#define  DT_HD_STATUS_RXSYNCERRINT_MSK  0x10000000
+#define  DT_HD_STATUS_RXSYNCERRINT_SH   28
+#define  DT_HD_STATUS_RXOVFERRINT_MSK   0x20000000
+#define  DT_HD_STATUS_RXOVFERRINT_SH    29
 #define  DT_HD_STATUS_LASTFRMINT_MSK    0x80000000
 #define  DT_HD_STATUS_LASTFRMINT_SH     31
 
@@ -1054,6 +1107,65 @@ typedef union _DT_TXRFDAC_CONTROL
 #define DT_HD_SOFLINE_LINE_MSK          0x0000FFFF
 #define DT_HD_SOFLINE_LINE_SH           0
 
+//-.-.-.-.-.-.-.-.-.-.- HD-Channel  SDI Format register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.
+#define  DT_HD_SDIFMT_VIDEOID_MSK        0x000000FF
+#define  DT_HD_SDIFMT_VIDEOID_SH         0
+#define  DT_HD_SDIFMT_PICTRATE_MSK       0x00000F00
+#define  DT_HD_SDIFMT_PICTRATE_SH        8
+#define  DT_HD_SDIFMT_PROGRESSIVE_MSK    0x0000C000
+#define  DT_HD_SDIFMT_PROGRESSIVE_SH     14
+
+// HD-Channel SDI Format register: Video ID values
+#define  DT_HD_SDIFMT_VIDEOID_SD         129
+#define  DT_HD_SDIFMT_VIDEOID_HD720      132
+#define  DT_HD_SDIFMT_VIDEOID_HD1080     133
+#define  DT_HD_SDIFMT_VIDEOID_3GLVLA     137
+#define  DT_HD_SDIFMT_VIDEOID_3GLVLB     138
+
+// HD-Channel SDI Format register: Picture rate values
+#define  DT_HD_SDIFMT_PICTRATE_23_98     2     
+#define  DT_HD_SDIFMT_PICTRATE_24        3
+#define  DT_HD_SDIFMT_PICTRATE_25        5
+#define  DT_HD_SDIFMT_PICTRATE_29_97     6
+#define  DT_HD_SDIFMT_PICTRATE_30        7
+#define  DT_HD_SDIFMT_PICTRATE_50        9
+#define  DT_HD_SDIFMT_PICTRATE_59_94     10
+#define  DT_HD_SDIFMT_PICTRATE_60        11
+
+// HD-Channel SDI Format register: Progressive values
+#define  DT_HD_SDIFMT_PROGRESSIVE_OFF    0x0
+#define  DT_HD_SDIFMT_PROGRESSIVE_ON     0x3
+
+//-.-.-.-.-.-.-.-.-.-.- HD-Channel  SDI Status register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.
+// NOTE: bit fields are identical to SDI Format register
+#define  DT_HD_SDISTAT_VIDEOID_MSK       DT_HD_SDIFMT_VIDEOID_MSK    
+#define  DT_HD_SDISTAT_VIDEOID_SH        DT_HD_SDIFMT_VIDEOID_SH     
+#define  DT_HD_SDISTAT_PICTRATE_MSK      DT_HD_SDIFMT_PICTRATE_MSK   
+#define  DT_HD_SDISTAT_PICTRATE_SH       DT_HD_SDIFMT_PICTRATE_SH    
+#define  DT_HD_SDISTAT_PROGRESSIVE_MSK   DT_HD_SDIFMT_PROGRESSIVE_MSK
+#define  DT_HD_SDISTAT_PROGRESSIVE_SH    DT_HD_SDIFMT_PROGRESSIVE_SH 
+
+// HD-Channel SDI Format register: Video ID values
+#define  DT_HD_SDISTAT_VIDEOID_SD        DT_HD_SDIFMT_VIDEOID_SD    
+#define  DT_HD_SDISTAT_VIDEOID_HD720     DT_HD_SDIFMT_VIDEOID_HD720 
+#define  DT_HD_SDISTAT_VIDEOID_HD1080    DT_HD_SDIFMT_VIDEOID_HD1080
+#define  DT_HD_SDISTAT_VIDEOID_3GLVLA    DT_HD_SDIFMT_VIDEOID_3GLVLA
+#define  DT_HD_SDISTAT_VIDEOID_3GLVLB    DT_HD_SDIFMT_VIDEOID_3GLVLB
+
+// HD-Channel SDI Format register: Picture rate values
+#define  DT_HD_SDISTAT_PICTRATE_23_98    DT_HD_SDIFMT_PICTRATE_23_98    
+#define  DT_HD_SDISTAT_PICTRATE_24       DT_HD_SDIFMT_PICTRATE_24   
+#define  DT_HD_SDISTAT_PICTRATE_25       DT_HD_SDIFMT_PICTRATE_25   
+#define  DT_HD_SDISTAT_PICTRATE_29_97    DT_HD_SDIFMT_PICTRATE_29_97
+#define  DT_HD_SDISTAT_PICTRATE_30       DT_HD_SDIFMT_PICTRATE_30   
+#define  DT_HD_SDISTAT_PICTRATE_50       DT_HD_SDIFMT_PICTRATE_50   
+#define  DT_HD_SDISTAT_PICTRATE_59_94    DT_HD_SDIFMT_PICTRATE_59_94
+#define  DT_HD_SDISTAT_PICTRATE_60       DT_HD_SDIFMT_PICTRATE_60   
+
+// HD-Channel SDI Format register: Progressive values
+#define  DT_HD_SDISTAT_PROGRESSIVE_OFF   DT_HD_SDIFMT_PROGRESSIVE_OFF
+#define  DT_HD_SDISTAT_PROGRESSIVE_ON    DT_HD_SDIFMT_PROGRESSIVE_ON 
+
 //-.-.-.-.-.-.-.-.- HD-Channel Mem-Transfer Control register: Bit Fields -.-.-.-.-.-.-.-.-
 
 #define DT_HD_MEMTRCTRL_NUML_MSK        0x0000FFFF
@@ -1062,6 +1174,8 @@ typedef union _DT_TXRFDAC_CONTROL
 #define DT_HD_MEMTRCTRL_TRCMD_SH        16
 #define DT_HD_MEMTRCTRL_DATAFMT_MSK     0x00180000
 #define DT_HD_MEMTRCTRL_DATAFMT_SH      19
+#define DT_HD_MEMTRCTRL_RGBMODE_MSK     0x00200000
+#define DT_HD_MEMTRCTRL_RGBMODE_SH      21
 #define DT_HD_MEMTRCTRL_SYMFLTMODE_MSK  0x00C00000
 #define DT_HD_MEMTRCTRL_SYMFLTMODE_SH   22
 #define DT_HD_MEMTRCTRL_SCMODE_MSK      0x06000000
@@ -1075,13 +1189,19 @@ typedef union _DT_TXRFDAC_CONTROL
 #define  DT_MEMTR_TRCMD_IDLE            0x0
 #define  DT_MEMTR_TRCMD_SECT0           0x1
 #define  DT_MEMTR_TRCMD_SECT1           0x2
+#define  DT_MEMTR_TRCMD_ASIRD           0x3
 #define  DT_MEMTR_TRCMD_DUALFLD         0x4
+#define  DT_MEMTR_TRCMD_ASIWR           0x5
 #define  DT_MEMTR_TRCMD_FRAME           0x7
 
 // HD-Channel Mem-Transfer register: Data format values
 #define  DT_MEMTR_DATAFMT_8B            0x0
 #define  DT_MEMTR_DATAFMT_10B           0x1
 #define  DT_MEMTR_DATAFMT_16B           0x2
+
+// HD-Channel Mem-Transfer register: RGB-mode values
+#define  DT_MEMTR_RGBMODE_OFF           0x0
+#define  DT_MEMTR_RGBMODE_ON            0x1
 
 // HD-Channel Mem-Transfer register: Symbol filter mode values
 #define  DT_MEMTR_SYMFLTMODE_ALL        0x0
@@ -1209,5 +1329,56 @@ typedef union _DT_TXRFDAC_CONTROL
 #define DT_HD_GS29XXSPI_START_SH    30
 #define DT_HD_GS29XXSPI_DONE_MSK    0x80000000
 #define DT_HD_GS29XXSPI_DONE_SH     31
+
+//-.-.-.-.-.-.- HD-Channel S0 Next Frame Start Address register: Bit Fields -.-.-.-.-.-.-.
+
+#define DT_HD_S0NEXTFRMADDR_ADDR_MSK      0xFFFFFFFF
+#define DT_HD_S0NEXTFRMADDR_ADDR_SH       0
+
+//-.-.-.-.-.-.- HD-Channel S1 Next Frame Start Address register: Bit Fields -.-.-.-.-.-.-.
+
+#define DT_HD_S1NEXTFRMADDR_ADDR_MSK      0xFFFFFFFF
+#define DT_HD_S1NEXTFRMADDR_ADDR_SH       0
+
+//-.-.-.-.-.-.-.-.-.- Fast-flash programming interface register offsets -.-.-.-.-.-.-.-.-.
+
+#define DT_REG_FAST_FLASH_PROG_CTRL             0x00
+#define DT_REG_FAST_FLASH_PROG_ADDR             0x04
+#define DT_REG_FAST_FLASH_PROG_DATA             0x08
+#define DT_REG_FAST_FLASH_PROG_NBR_READ_WORDS   0x0C
+#define DT_REG_FAST_FLASH_PROG_UNLOCK           0x10
+
+//.-.-.-.-.-.- Fast-flash programming interface control register: Bit fields -.-.-.-.-.-.-
+
+#define DT_REG_FAST_FLASH_PROG_CTRL_BUSY_MSK            0x00000001
+#define DT_REG_FAST_FLASH_PROG_CTRL_BUSY_SH             0
+#define DT_REG_FAST_FLASH_PROG_CTRL_DATA_VALID_MSK      0x00000002
+#define DT_REG_FAST_FLASH_PROG_CTRL_DATA_VALID_SH       1
+#define DT_REG_FAST_FLASH_PROG_CTRL_READ_STATUS_CMD_MSK 0x00000004
+#define DT_REG_FAST_FLASH_PROG_CTRL_READ_STATUS_CMD_SH  2
+#define DT_REG_FAST_FLASH_PROG_CTRL_READ_DATA_CMD_MSK   0x00000008
+#define DT_REG_FAST_FLASH_PROG_CTRL_READ_DATA_CMD_SH    3
+
+//.-.-.-.-.-.- Fast-flash programming interface address register: Bit fields -.-.-.-.-.-.-
+
+#define DT_REG_FAST_FLASH_PROG_ADDR_MSK                 0x007FFFFF // 23 bits wide
+#define DT_REG_FAST_FLASH_PROG_ADDR_SH                  0
+
+//.-.-.-.-.-.-.- Fast-flash programming interface data register: Bit fields -.-.-.-.-.-.-.
+
+#define DT_REG_FAST_FLASH_PROG_DATA_MSK                 0x0000FFFF // 16 bits wide
+#define DT_REG_FAST_FLASH_PROG_DATA_SH                  0
+
+//.-.-.- Fast-flash programming interface number of read words register: Bit fields -.-.-.
+
+#define DT_REG_FAST_FLASH_PROG_NBR_READ_WORDS_MSK       0x0000001F // 5 bits wide
+#define DT_REG_FAST_FLASH_PROG_NBR_READ_WORDS_SH        0
+
+//-.-.-.-.-.-.- Fast-flash programming interface unlock register: Bit fields -.-.-.-.-.-.-
+
+#define DT_REG_FAST_FLASH_PROG_UNLOCK_MSK               0x0000000F // 4 bits wide
+#define DT_REG_FAST_FLASH_PROG_UNLOCK_SH                0
+#define DT_REG_FAST_FLASH_PROG_LOCKBIT_MSK              0x00000010
+#define DT_REG_FAST_FLASH_PROG_LOCKBIT_SH               4
 
 #endif // __DT_REGS_H

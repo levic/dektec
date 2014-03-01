@@ -327,7 +327,12 @@ DtStatus  DtDmaCreateSgList(
     pOsSgl->m_pSgList = kmalloc(sizeof(struct scatterlist) * pPageList->m_NumPages, 
                                                                               GFP_KERNEL);
     if (pOsSgl->m_pSgList == NULL)
+    {
+        DtDbgOut(ERR, SAL_DMA, 
+                           "Failed to allocate buffer (%d-bytes) for scatter-gather-list",
+                                      sizeof(struct scatterlist) * pPageList->m_NumPages);
         return DT_STATUS_OUT_OF_MEMORY;
+    }
 
     DtDmaSgInitTable(pOsSgl->m_pSgList, pPageList->m_NumPages);
    

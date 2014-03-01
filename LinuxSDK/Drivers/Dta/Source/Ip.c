@@ -1478,12 +1478,12 @@ DtStatus  DtaIpUpdateMacAddressFilter(DtaIpPort* pIpPort)
     // Max. wait time about 12us after update if fired for 1Gb
     while (DtaMacAddrFilterStatGetLutUpdatePending(pAddrMLUBase)!=0)
     {
-        DtDbgOut(ERR, IP, "[%i] MAC address filter pending: %u", pIpPort->m_IpPortIndex,
-                                   DtaMacAddrFilterStatGetLutUpdatePending(pAddrMLUBase));
+        DtDbgOut(ERR, PHYMAC, "[%i] MAC address filter pending: %u", 
+           pIpPort->m_IpPortIndex, DtaMacAddrFilterStatGetLutUpdatePending(pAddrMLUBase));
     }
 
 
-    DtDbgOut(AVG, IP, "[%i]  MAC Address=%02x%02x%02x%02x%02x%02x", 
+    DtDbgOut(AVG, PHYMAC, "[%i]  MAC Address=%02x%02x%02x%02x%02x%02x", 
                                       pIpPort->m_IpPortIndex,
                                       pPhyMac->m_MacAddrCur[0], pPhyMac->m_MacAddrCur[1],
                                       pPhyMac->m_MacAddrCur[2], pPhyMac->m_MacAddrCur[3],
@@ -1495,7 +1495,7 @@ DtStatus  DtaIpUpdateMacAddressFilter(DtaIpPort* pIpPort)
             NumEntries = DtaMacAddrLookupCtrlGetNumEntryPhy0(pAddrMLUBase);
         else
             NumEntries = DtaMacAddrLookupCtrlGetNumEntryPhy1(pAddrMLUBase);
-        DtDbgOut(MAX, IP, "[%i] NumEntries: %i", pIpPort->m_IpPortIndex, NumEntries);
+        DtDbgOut(MAX, PHYMAC, "[%i] NumEntries: %i", pIpPort->m_IpPortIndex, NumEntries);
 
         // Remove all entries
         // Start at entry 0
@@ -1520,7 +1520,7 @@ DtStatus  DtaIpUpdateMacAddressFilter(DtaIpPort* pIpPort)
 
         for (i=0; i<pPhyMac->m_NumMulticasts; i++) 
         {
-            DtDbgOut(MAX, IP, "[%i] ML[%02d]=%02x%02x%02x%02x%02x%02x", 
+            DtDbgOut(AVG, PHYMAC, "[%i] ML[%02d]=%02x%02x%02x%02x%02x%02x", 
                           pIpPort->m_IpPortIndex, i,
                           pPhyMac->m_MulticastList[i][0], pPhyMac->m_MulticastList[i][1],
                           pPhyMac->m_MulticastList[i][2], pPhyMac->m_MulticastList[i][3],
@@ -1541,10 +1541,10 @@ DtStatus  DtaIpUpdateMacAddressFilter(DtaIpPort* pIpPort)
         DtaMacAddrFilterLutUpdate(pIpPort->m_IpPortType2.m_pAddrMatcherRegs);
         DtaMacAddrFilterDelFilteredEn(pIpPort->m_IpPortType2.m_pAddrMatcherRegs, 1);
 
-        DtDbgOut(MAX, IP, "[%i]  Finished. Num. Entries: %i ",
+        DtDbgOut(MAX, PHYMAC, "[%i]  Finished. Num. Entries: %i ",
                                                       pIpPort->m_IpPortIndex, NumEntries);
     } else {
-        DtDbgOut(MAX, IP, "[%i] Finished. Num. Entries %i > 31. Deletion disabled",
+        DtDbgOut(MAX, PHYMAC, "[%i] Finished. Num. Entries %i > 31. Deletion disabled",
                                       pIpPort->m_IpPortIndex, pPhyMac->m_NumMulticasts+1);
         DtaMacAddrFilterDelFilteredEn(pIpPort->m_IpPortType2.m_pAddrMatcherRegs, 0);
     }

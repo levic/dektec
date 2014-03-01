@@ -36,6 +36,12 @@ typedef struct _DtaMatrix
     // Matrix properties
     Bool  m_IsSupported;
 
+    Int  m_RamSize;             // Size of the onboard RAM (SDRAM/DDR) buffer in MB
+    Int  m_MemPckSize;          // Size (in # bits) of super packets stored in memory
+    Int  m_MemPckNumBitsUsed;   // Number of bits used per super packet
+    Int  m_MemLineAlignment;    // Aligment (in # bits) used for each line stored in the 
+                                // frame buffer 
+
     // Status/Control attributes
     volatile Int64  m_SofFrame;  // Latched-SOF frame
 
@@ -45,12 +51,12 @@ typedef struct _DtaMatrix
     DtDpc  m_SofFrameIntDpc;
     DtEvent  m_SofFrameIntEvent;
     DtEvent  m_SofFrameSyncEvent;
-
+    
 } DtaMatrix;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtaMatrixInit(DtaDeviceData*  pDvcData);
 DtStatus  DtaMatrixIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
-                                                                   DtIoctlObject* pIoctl);
+                                           DtIoctlObject* pIoctl, Bool  PowerDownPending);
 
 #endif // __DTA_MATRIX_H

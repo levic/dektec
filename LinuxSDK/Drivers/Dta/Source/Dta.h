@@ -85,6 +85,7 @@
 typedef struct _DtaDeviceInfo
 {
     Int  m_TypeNumber;
+    Int  m_SubDvc;
 
     // PCI properties, loaded by IAL
     UInt16  m_DeviceId;         // Device ID
@@ -146,6 +147,16 @@ struct _DtaChildDeviceData
     DtaIalDataChild  m_IalData;         // IAL data for child network devices
 };
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIntEnableState -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// Interrupt enable state
+typedef enum _DtIntEnableState
+{
+    INT_DISABLED=0,         // Interrupts are disabled
+    INT_DISABLING,          // Disabling interrupts
+    INT_ENABLING,           // Enabling interrupts
+    INT_ENABLED             // Interrupts are enabled
+} DtIntEnableState;         
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDeviceData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 struct _DtaDeviceData
@@ -184,7 +195,8 @@ struct _DtaDeviceData
 
     // Interrupt
     DtIrqObject  m_Interrupt;
-
+    volatile DtIntEnableState  m_IntEnableState;  // Interrupt enable state
+        
     // Used during powerup to determine what should be initialised
     Bool  m_InitialPowerup;
 

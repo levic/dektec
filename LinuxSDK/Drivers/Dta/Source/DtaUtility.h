@@ -76,6 +76,7 @@ typedef struct _PPBuffer
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 UInt16  DtaSubsystemId2TypeNumber(Int SubsystemId);
+Int  DtaDeviceId2SubDvcNumber(Int TypeNumber, Int  DeviceId);
 void DtaWatchdogToggle(volatile UInt8* pBase);
 void DtaWatchdogPulse(volatile UInt8* pBase);
 UInt32 DtaGetPerIntItvUS(DtaDeviceData* pDvcData);
@@ -99,6 +100,7 @@ DtStatus  DtaPropertiesInit(DtaDeviceData* pDvcData);
 DtStatus  DtaPropertiesReportDriverErrors(DtaDeviceData* pDvcData);
 
 // Video-standard helepers
+Int  DtaIoStd2VidStd(Int  Value, Int  SubValue);
 Int  DtaVidStd2Fps(Int  VidStd);
 Bool  DtaVidStdIsFractional(Int  VidStd);
 Bool  DtaVidStdIsInterlaced(Int  VidStd);

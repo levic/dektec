@@ -84,7 +84,8 @@ DtStatus  DtPropertiesInit(DtPropertyData* pPropData)
     // Find the property store for our device
     for (Index=0; Index<DtPropertyStoreCount; Index++)
     {
-        if (DtPropertyStores[Index].m_TypeNumber == pPropData->m_TypeNumber)
+        if (DtPropertyStores[Index].m_TypeNumber==pPropData->m_TypeNumber &&
+                                  DtPropertyStores[Index].m_SubDvc == pPropData->m_SubDvc)
         {
             pPropData->m_pPropertyStore = (void*)&DtPropertyStores[Index];
             break;
@@ -369,7 +370,9 @@ DtStatus  DtPropertiesStrGet(
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGetForType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtPropertiesGetForType(
+    const char*  pTypeName,
     Int  TypeNumber,
+    Int  SubDvc,
     Int  HwRev,
     Int  FwVer,
     const char* pName,
@@ -386,8 +389,10 @@ DtStatus  DtPropertiesGetForType(
         
     // Init property data structure
     PropData.m_TypeNumber = TypeNumber;
+    PropData.m_SubDvc = SubDvc;
     PropData.m_FirmwareVersion = FwVer;
     PropData.m_HardwareRevision = HwRev;
+    PropData.m_TypeName = (char*)pTypeName;
 
     Status = DtPropertiesInit(&PropData);
     if (!DT_SUCCESS(Status))
@@ -401,7 +406,9 @@ DtStatus  DtPropertiesGetForType(
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesStrGetForType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtPropertiesStrGetForType(
+    const char*  pTypeName,
     Int  TypeNumber,
+    Int  SubDvc,
     Int  HwRev,
     Int  FwVer,
     const char* pName,
@@ -417,8 +424,10 @@ DtStatus  DtPropertiesStrGetForType(
         
     // Init property data structure
     PropData.m_TypeNumber = TypeNumber;
+    PropData.m_SubDvc = SubDvc;
     PropData.m_FirmwareVersion = FwVer;
     PropData.m_HardwareRevision = HwRev;
+    PropData.m_TypeName = (char*)pTypeName;
 
     Status = DtPropertiesInit(&PropData);
     if (!DT_SUCCESS(Status))

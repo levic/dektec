@@ -60,26 +60,139 @@ typedef struct _TargetIdDetection {
 typedef struct _BitrateMeasure
 {
     Int  m_ValidDiff[NUM_BITRATE_MEASURE_PERIODS];
-                                        // Number of Valid bytes received per period
-                                        // (=difference between successive Valid counts)
-    Int  m_LastIndex;                   // Index in ValidCnt of last sample
-    Int  m_LastValidCnt;                // Last absolute value of Valid counter
-    Int  m_NumBytesTotal;               // Total #valid bytes in measurement period
-    Int  m_NumValidSamps;               // Number of "valid" samples in m_ValidCnt[]
-    Int  m_ValidCount256;               // #Valid bytes per interval, times 256
-    Int  m_ValidCountSample;            // Valid count sample; read in interrupt routine
+                                // Number of Valid bytes received per period
+                                // (=difference between successive Valid counts)
+    Int  m_LastIndex;           // Index in ValidCnt of last sample
+    Int  m_LastValidCnt;        // Last absolute value of Valid counter
+    Int  m_NumBytesTotal;       // Total #valid bytes in measurement period
+    Int  m_NumValidSamps;       // Number of "valid" samples in m_ValidCnt[]
+    Int  m_ValidCount256;       // #Valid bytes per interval, times 256
+    Int  m_ValidCountSample;    // Valid count sample; read in interrupt routine
 } BitrateMeasure;
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Frame buffer configuration -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+#define  DTA_FRMBUF_NUM_SECTIONS    2  // number of section in frame buffer
+#define  DTA_FRMBUF_SECT_HANC       0  // HANC section number
+#define  DTA_FRMBUF_SECT_VID        1  // Video section number
+#define  DTA_FRMBUF_SECT_VANC       DTA_FRMBUF_SECT_VID // VANC shares section with video
+
+#define  DTA_FRMBUF_MAX_FRAMES      32  // Maximum # of frames stored in frame buffer
+#define  DTA_FRMBUF_HOLD_FRAME      -6789LL  // Special frame seq. number indicating the 
+                                        // HOLD frame
+
+// DtaFrameBufSectionConfig
+typedef struct _DtaFrameBufSectionConfig
+{
+    // Line settings
+    Int  m_LineNumSymbols;      // Number of (actual) symbols per line
+    Int  m_LineNumBytesInMem;   // Number of bytes per line (incl. padding)
+
+    // Frame settings
+    Int  m_NumFrames;           // Number of frames stored in section
+    Int  m_FrameSizeInMem;      // Size of frame in memory
+
+    // Global settings
+    UInt32  m_Size;             // Size of the section
+    UInt32  m_BaseAddr;         // Section base address (byte address)
+    UInt32  m_BeginAddr;        // Begin address for data  (byte address)
+    UInt32  m_EndAddr;          // End address for data (byte address)
+
+    UInt32  m_FrameStartAddr[DTA_FRMBUF_MAX_FRAMES];    // Start addresses of frames
+
+} DtaFrameBufSectionConfig;
+
+// DtaFrameBufConfig
+typedef struct _DtaFrameBufConfig
+{
+    Int  m_NumFrames;           // # of frames stored in buffer. NOTE: last frame 
+                                // is reserved for black frame playout in HOLD state
+    volatile Int  m_NumUsableFrames;  // # of frames that can be used (i.e. excluding any 
+                                // frames at the end of the frames buffer reserved for 
+                                // the HOLD state)
+    DtaFrameBufSectionConfig  m_Sections[DTA_FRMBUF_NUM_SECTIONS];
+} DtaFrameBufConfig;
+
+// DtaFrameProps
+typedef struct _DtaFrameProps
+{
+    Int  m_VidStd;              // Video standard
+    Bool  m_IsHd;               // Is an HD format
+    Bool  m_IsInterlaced;       // Is an interlaced format
+    Bool  m_IsFractional;       // Is a fraction format
+    Int  m_NumLines;            // # of lines
+       
+    // Field 1: Start/end lines
+    Int  m_Field1Start, m_Field1End;  
+    // Field 1: Start/end line active video
+    Int  m_Field1ActVidStart, m_Field1ActVidEnd;
+
+    // Field 2: Start/end lines
+    Int  m_Field2Start, m_Field2End;  
+    // Field 2: Start/end line active video
+    Int  m_Field2ActVidStart, m_Field2ActVidEnd; 
+
+    Int  m_ActVidNumS;          // # of symbols in active video part of line
+    Int  m_VancNumS;            // # of symbols in vanc part of line
+    Int  m_HancNumS;            // # of symbols in hanc part of line
+    Int  m_SavNumS, m_EavNumS;  // # of symbols for EAV and SAV
+
+} DtaFrameProps;
+
+// DtaMatrixMemTrSetup
+typedef struct _DtaMatrixMemTrSetup
+{
+    Bool  m_IsWrite;            // Transfer direction (rd=false, wr=true)
+    Int64  m_Frame;             // Frame to transfer
+    Int  m_StartLine;           // First line in transfer
+    Int  m_NumLines;            // Number of lines to write
+    Int  m_TrCmd;               // Transfer type
+    Int  m_DataFormat;          // Format of data (8-, 10-, 16-bit)
+    Int  m_RgbMode;             // RGB mode
+    Int  m_SymFlt;              // Symbol filter mode
+    Int  m_Scaling;             // Scaling mode
+    Int  m_AncFlt;              // Anc filter mode
+    Int  m_Stride;              // -1 means no stride
+} DtaMatrixMemTrSetup;
+
+typedef enum _DtaMatrixPortState
+{
+    MATRIX_PORT_UNINIT = 0,     // Port is uninitialised
+    MATRIX_PORT_CONFIGURING,    // Port is being configured
+    MATRIX_PORT_IDLE,           // Port is IDLE state (not receiving/transmitting)
+    MATRIX_PORT_HOLD,           // Port is in HOLD state (playing black-frames)
+    MATRIX_PORT_RUN             // Port is running (transmitting/receiving)
+} DtaMatrixPortState;
 
 // DtaMatrixPort
 typedef struct _DtaMatrixPort
 {
+    volatile DtaMatrixPortState  m_State;  // Channel state
+    DtMutex  m_StateLock;       // Mutex to protect MATRIX state (m_State)
+    volatile DtaMatrixPortState  m_LastStateAtInt;  
+                                // Last state seen by interrupt routine. NOTE: only 
+                                // interrupt routine may write to this variable
+
+    DtaFrameProps  m_FrameProps;  // Frame properties
+    DtaFrameBufConfig  m_BufConfig;  // Frame buffer configuration
+    Int  m_RowIdx;                // Matrix row the port is associated with
+    
     DtDpc  m_LastFrameIntDpc;   // DPC for last-frame-interrupt 
     DtEvent  m_LastFrameIntEvent;  // Event to signal last-frame-interrupt
 
+    DtDpc  m_RxErrIntDpc;       // DPC for RX ovf and RX sync error interrupts
+
+    volatile Int64  m_CurFrame; // Frame currently being transmitted/received
     volatile Int64  m_LastFrame;  // Last transmitted/received frame
+    volatile Int64  m_NextFrame;  // Forced next frame to transmit/receive
     volatile Int64  m_SofFrame; // Frame transmitted/received @SOF-interrupt-event
     volatile Int  m_SofLine;    // Line transmitted/received @SOF-interrupt-event
-                
+
+    Int64  m_AsiDmaNumBytes;
+    Int  m_AsiFifoSize;
+    Int  m_AsiDmaOffset;
+    Int  m_AsiCtrl;
+
 } DtaMatrixPort;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpPort -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -228,8 +341,12 @@ typedef struct _DtaNonIpPort
 void  DtaNonIpCleanup(DtaDeviceData* pDvcData, Int PortIndex, DtaNonIpPort* pNonIpPort);
 void  DtaNonIpCleanupPre(DtaDeviceData* pDvcData, Int PortIndex,
                                                                 DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile);
 DtStatus  DtaNonIpInit(DtaDeviceData* pDvcData, Int PortIndex, DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpInterruptEnable(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpInterruptDisable(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpPowerup(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpPowerUpPost(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd);
 DtStatus  DtaNonIpIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
                                                                    DtIoctlObject* pIoctl);
@@ -249,5 +366,40 @@ void  DtaNonIpEstimateRate(DtaNonIpPort* pNonIpPort);
 Int  DtaNonIpGetEstimatedRate(DtaNonIpPort* pNonIpPort);
 Bool  DtaNonIpIsVidStdSupported(DtaNonIpPort* pNonIpPort, Int  VidStd);
 
+
+DtStatus  DtaNonIpMatrixClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile);
+DtStatus  DtaNonIpMatrixConfigure(DtaNonIpPort* pNonIpPort, Bool  ForceConfig);
+DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd);
+DtStatus  DtaNonIpMatrixInit(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpMatrixInterruptEnable(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpMatrixInterruptDisable(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpMatrixPowerUpPost(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpMatrixAttachToRow(DtaNonIpPort* pNonIpPort, Int  RowIdx);
+DtStatus  DtaNonIpMatrixSetAsiCtrl(DtaNonIpPort* pNonIpPort, Int  AsiCtrl);
+DtStatus  DtaNonIpMatrixSetState(DtaNonIpPort* pNonIpPort, DtaMatrixPortState  NewState);
+DtStatus  DtaNonIpMatrixStart(DtaNonIpPort* pNonIpPort, Int64  StartFrame);
+DtStatus  DtaNonIpMatrixStop(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpMatrixGetCurrentFrame(DtaNonIpPort* pNonIpPort, Int64*  pFrame);
+DtStatus  DtaNonIpMatrixPrepForDma(DtaNonIpPort* pNonIpPort, Int  BufSize, 
+                                             const DtaMatrixMemTrSetup*,  Int*  pDmaSize);
+DtStatus  DtaNonIpMatrixGetReqDmaSize(DtaNonIpPort* pNonIpPort, 
+                               const DtaMatrixMemTrSetup* pMemTrSetup, Int*  pReqDmaSize);
+
+UInt32  DtaNonIpMatrixGetFrameAddrInMem(DtaNonIpPort* pNonIpPort, Int  Section, 
+                                                                 Int64  Frame, Int  Line);
+Int  DtaNonIpMatrixFrame2Index(DtaNonIpPort* pNonIpPort, Int64  Frame);
+Bool  DtaNonIpMatrixUsesLegacyHdChannelInterface(DtaNonIpPort* pNonIpPort);
+UInt  DtaNonIpMatrixDmaReadFinished(DtaNonIpPort* pNonIpPort, Int TrCmd);
+UInt  DtaNonIpMatrixDmaWriteFinished(DtaNonIpPort* pNonIpPort, Int TrCmd);
+
+#ifdef WINBUILD
+void  DtaNonIpDmaCompletedWindows(DmaChannel* pDmaChannel, void* pContext);
+void  DtaNonIpRxEvtRequestCancelDma(WDFREQUEST WdfRequest);
+void  DtaNonIpTxEvtRequestCancelDma(WDFREQUEST WdfRequest);
+void  DtaNonIpMatrixDmaCompletedWindows(DmaChannel* pDmaChannel, void* pContext);
+void  DtaNonIpMatrixRxEvtRequestCancelDma(WDFREQUEST WdfRequest);
+void  DtaNonIpMatrixTxEvtRequestCancelDma(WDFREQUEST WdfRequest);
+
+#endif
 
 #endif // _NON_IP_H

@@ -17,18 +17,8 @@
 - 1. Version History
 --------------------------------------------------------------------------------
 
-Date:		Version:	Remarks:
-2013.02.15	4.3.0.35	Refer to "SDK - Revision History.pdf" for details
-2012.12.06  4.2.0.33	Refer to "SDK - Revision History.pdf" for details
-2012.11.05	4.1.2.31	Bug fix for crash when one of the DTA-2152 ports is
-						enabled as a genlock reference
-2012.10.31	4.1.1.30	Refer to "SDK - Revision History.pdf" for details
-2012.09.28	4.1.0.29	Refer to "SDK - Revision History.pdf" for details
-2012.08.17	4.0.14.27	Refer to "SDK - Revision History.pdf" for details
-2012.07.02	4.0.13.25	Refer to "SDK - Revision History.pdf" for details
-2012.06.07  4.0.12.23	Refer to "SDK - Revision History.pdf" for details
-2012.05.14	4.0.11.20	First release to the field of new V4 driver
-						NOTE: this driver requires DTAPI V5.0.5 or newer
+Refer to the "SDK - Revision History.pdf" document for an overview of the 
+changes included in the release.
 						
 --------------------------------------------------------------------------------
 - 2. Introduction

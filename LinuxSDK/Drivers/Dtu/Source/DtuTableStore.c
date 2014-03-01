@@ -10,9 +10,9 @@
 #include "DtuIncludes.h"
 
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-215 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-215; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-static const DtTableEntry  DtTable215_001[] =
+static const DtTableEntry  DtTable215_0_001[] =
 {
     {   50, 117 }, {   60, 115 }, {   70, 115 }, {   80, 117 }, {   90, 121 },
     {  100, 125 }, {  110, 129 }, {  120, 132 }, {  130, 136 }, {  140, 139 },
@@ -35,7 +35,7 @@ static const DtTableEntry  DtTable215_001[] =
     {  950, 533 }, {  960, 544 }, {  970, 554 }, {  980, 565 }, {  990, 575 },
     { 1000, 584 }
 };
-static const DtTableEntry  DtTable215_002[] =
+static const DtTableEntry  DtTable215_0_002[] =
 {
     {   50, 128 }, {   60, 126 }, {   70, 126 }, {   80, 128 }, {   90, 131 },
     {  100, 133 }, {  110, 136 }, {  120, 139 }, {  130, 143 }, {  140, 145 },
@@ -58,20 +58,20 @@ static const DtTableEntry  DtTable215_002[] =
     {  950, 531 }, {  960, 535 }, {  970, 538 }, {  980, 542 }, {  990, 547 },
     { 1000, 553 }
 };
-static const DtTableEntry  DtTable215_000[] =
+static const DtTableEntry  DtTable215_0_000[] =
 {
     { 0, 0 }, { 1, -1500 }
 };
 
-static const DtTableLink  DtTableLink215[] = 
+static const DtTableLink  DtTableLink215_0[] = 
 {
-    { "MOD_FREQ_COMP00", 0, 0, 0, 96, DtTable215_001 },
-    { "MOD_FREQ_COMP01", 0, 0, 0, 96, DtTable215_002 },
-    { "MOD_FREQ_COMP_TABLES", 0, 0, 0, 2, DtTable215_000 }
+    { "MOD_FREQ_COMP00", 0, 0, 0, 96, DtTable215_0_001 },
+    { "MOD_FREQ_COMP01", 0, 0, 0, 96, DtTable215_0_002 },
+    { "MOD_FREQ_COMP_TABLES", 0, 0, 0, 2, DtTable215_0_000 }
 };
 
 const Int  DtTableStoreCount = 1;
 const DtTableStore  DtTableStores[] = 
 {
-    { 215, 3, DtTableLink215 }
+    { 215, 0, 3, DtTableLink215_0 }
 };
