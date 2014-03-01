@@ -3,7 +3,9 @@
 # Compiled Object files
 #*.slo
 #*.lo
-#*.o
+*.o
+!DTAPI.o
+!DTAPI64.o
 
 # Compiled Dynamic libraries
 #*.so
@@ -13,3 +15,10 @@
 #*.lai
 #*.la
 #*.a
+.*.cmd
+.tmp_versions
+
+*.ko
+*.mod.c
+modules.order
+Module.symvers
