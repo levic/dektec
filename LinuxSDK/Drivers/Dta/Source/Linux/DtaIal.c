@@ -54,6 +54,11 @@ extern DEFINE_PCI_DEVICE_TABLE(DtaDeviceTable);
 
 MODULE_AUTHOR("DekTec Digital Video B.V.");
 MODULE_DESCRIPTION("Dta Series Driver");
+// stringify operator can only be used in a macro; the two stage macro is so
+// that we get the value of the #define and not the #define itself
+#define STRINGIFY2(x)	#x
+#define STRINGIFY(x)	STRINGIFY2(x)
+MODULE_VERSION("v" STRINGIFY(DTA_VERSION_MAJOR) "." STRINGIFY(DTA_VERSION_MINOR) "." STRINGIFY(DTA_VERSION_MICRO) "." STRINGIFY(DTA_VERSION_BUILD));
 
 // ADDED TO PREVENT TAINTED MESSAGE. THIS MODULE CAN BE USED FREELY (SEE LICENSE
 // STATEMENT ABOVE).
