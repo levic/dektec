@@ -48,8 +48,6 @@
 #define  LOG_LEVEL_DMA           LOG_AVG
 // TARGET DETECTION
 #define  LOG_LEVEL_TRGDET        LOG_MAX
-// IoConfig
-#define  LOG_LEVEL_IOCONFIG      LOG_MAX
 // Shared Buffer
 #define  LOG_LEVEL_SHBUF         LOG_MAX
 // Phy Mac

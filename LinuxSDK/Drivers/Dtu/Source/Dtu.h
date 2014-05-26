@@ -48,8 +48,6 @@
 #define  LOG_LEVEL_EVENTS        LOG_AVG
 // Read/Write data
 #define  LOG_LEVEL_RDWR          LOG_AVG
-// IoConfig
-#define  LOG_LEVEL_IOCONFIG      LOG_AVG
 // Shared Buffer
 #define  LOG_LEVEL_SHBUF         LOG_MAX
 // NONIP

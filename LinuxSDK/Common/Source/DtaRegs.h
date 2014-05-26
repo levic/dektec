@@ -1697,339 +1697,6 @@ static __inline void  DtaRegTxClockModSet(volatile UInt8* pBase, UInt Val) {
     WRITE_UINT(Val, pBase, DT_TX_REG_TXCLOCK_MOD);
 }
 
-//-.-.-.-.-.-.-.-.-.- I- and Q-DAC-Control registers: Access Functions -.-.-.-.-.-.-.-.-.-
-
-// I- and Q-DAC-Control registers:: Register access
-static __inline UInt  DtaRegTxIDacCtrlGet(volatile UInt8* pBase) {
-    return READ_UINT(pBase, DT_TX_REG_IDAC_CONTROL);
-}
-static __inline UInt  DtaRegTxQDacCtrlGet(volatile UInt8* pBase) {
-    return READ_UINT(pBase, DT_TX_REG_QDAC_CONTROL);
-}
-static __inline void  DtaRegTxIDacCtrlSet(volatile UInt8* pBase, UInt Val) {
-    WRITE_UINT(Val, pBase, DT_TX_REG_IDAC_CONTROL);
-}
-static __inline void  DtaRegTxQDacCtrlSet(volatile UInt8* pBase, UInt Val) {
-    WRITE_UINT(Val, pBase, DT_TX_REG_QDAC_CONTROL);
-}
-
-// I- and Q-DAC-Control registers: Fine Gain
-static __inline UInt  DtaRegTxIDacCtrlGetFineGain(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_IDAC_CONTROL, DT_TXDACC_FINEGAIN_MSK, 
-                                                                   DT_TXDACC_FINEGAIN_SH);
-}
-static __inline UInt  DtaRegTxQDacCtrlGetFineGain(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_QDAC_CONTROL, DT_TXDACC_FINEGAIN_MSK, 
-                                                                   DT_TXDACC_FINEGAIN_SH);
-}
-static __inline void  DtaRegTxIDacCtrlSetFineGain(volatile UInt8* pBase, UInt FineGain) {
-    WRITE_UINT_MASKED(FineGain, pBase, DT_TX_REG_IDAC_CONTROL, DT_TXDACC_FINEGAIN_MSK,
-                                                                   DT_TXDACC_FINEGAIN_SH);
-}
-static __inline void  DtaRegTxQDacCtrlSetFineGain(volatile UInt8* pBase, UInt FineGain) {
-    WRITE_UINT_MASKED(FineGain, pBase, DT_TX_REG_QDAC_CONTROL, DT_TXDACC_FINEGAIN_MSK,
-                                                                   DT_TXDACC_FINEGAIN_SH);
-}
-
-// I- and Q-DAC-Control registers: Offset Direction
-static __inline UInt  DtaRegTxIDacCtrlGetOffsDir(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_IDAC_CONTROL, DT_TXDACC_OFFSDIR_MSK, 
-                                                                    DT_TXDACC_OFFSDIR_SH);
-}
-static __inline UInt  DtaRegTxQDacCtrlGetOffsDir(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_QDAC_CONTROL, DT_TXDACC_OFFSDIR_MSK, 
-                                                                    DT_TXDACC_OFFSDIR_SH);
-}
-static __inline void  DtaRegTxIDacCtrlSetOffsDir(volatile UInt8* pBase, UInt OffsDir) {
-    WRITE_UINT_MASKED(OffsDir, pBase, DT_TX_REG_IDAC_CONTROL, DT_TXDACC_OFFSDIR_MSK,
-                                                                    DT_TXDACC_OFFSDIR_SH);
-}
-static __inline void  DtaRegTxQDacCtrlSetOffsDir(volatile UInt8* pBase, UInt OffsDir) {
-    WRITE_UINT_MASKED(OffsDir, pBase, DT_TX_REG_QDAC_CONTROL, DT_TXDACC_OFFSDIR_MSK,
-                                                                    DT_TXDACC_OFFSDIR_SH);
-}
-
-// I- and Q-DAC-Control registers: Offset
-static __inline UInt  DtaRegTxIDacCtrlGetOffset(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_IDAC_CONTROL, DT_TXDACC_OFFSET_MSK, 
-                                                                     DT_TXDACC_OFFSET_SH);
-}
-static __inline UInt  DtaRegTxQDacCtrlGetOffset(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_QDAC_CONTROL, DT_TXDACC_OFFSET_MSK, 
-                                                                     DT_TXDACC_OFFSET_SH);
-}
-static __inline void  DtaRegTxIDacCtrlSetOffset(volatile UInt8* pBase, UInt Offset) {
-    WRITE_UINT_MASKED(Offset, pBase, DT_TX_REG_IDAC_CONTROL, DT_TXDACC_OFFSET_MSK,
-                                                                     DT_TXDACC_OFFSET_SH);
-}
-static __inline void  DtaRegTxQDacCtrlSetOffset(volatile UInt8* pBase, UInt Offset) {
-    WRITE_UINT_MASKED(Offset, pBase, DT_TX_REG_QDAC_CONTROL, DT_TXDACC_OFFSET_MSK,
-                                                                     DT_TXDACC_OFFSET_SH);
-}
-
-//.-.-.-.-.-.-.-.-.-.-.-.- RF-Control register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-
-
-// RF-Control register: Register access
-static __inline UInt  DtaRegTxRfCtrlGet(volatile UInt8* pBase) {
-    return READ_UINT(pBase, DT_TX_REG_RF_CONTROL);
-}
-static __inline void  DtaRegTxRfCtrlSet(volatile UInt8* pBase, UInt Val) {
-    WRITE_UINT(Val, pBase, DT_TX_REG_RF_CONTROL);
-}
-
-// RF-Control register: RF PLL A-Counter Modulus
-static __inline UInt  DtaRegTxRfCtrlGetPllA(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL, DT_TXRFCTRL_PLLA_MSK, 
-                                                                     DT_TXRFCTRL_PLLA_SH);
-}
-static __inline void  DtaRegTxRfCtrlSetPllA(volatile UInt8* pBase, UInt PllA) {
-    WRITE_UINT_MASKED(PllA, pBase, DT_TX_REG_RF_CONTROL, DT_TXRFCTRL_PLLA_MSK,
-                                                                     DT_TXRFCTRL_PLLA_SH);
-}
-
-// RF-Control register: RF PLL B-Counter Modulus
-static __inline UInt  DtaRegTxRfCtrlGetPllB(volatile UInt8* pBase) {
-    UInt  RegVal = READ_UINT(pBase, DT_TX_REG_RF_CONTROL);
-    UInt  PllBbit8to0 = (RegVal & DT_TXRFCTRL_PLLB_MSK)  >> DT_TXRFCTRL_PLLB_SH;
-    UInt  PllBbit9    = (RegVal & DT_TXRFCTRL_PLLB9_MSK) >> DT_TXRFCTRL_PLLB9_SH;
-    return ((PllBbit9 << 9) + PllBbit8to0);
-}
-static __inline void  DtaRegTxRfCtrlSetPllB(volatile UInt8* pBase, UInt PllB) {
-    UInt  RegVal = READ_UINT(pBase, DT_TX_REG_RF_CONTROL);
-    UInt  PllBbit8to0 =  PllB & 0x1FF;
-    UInt  PllBbit9    = (PllB>>9) & 1;
-    RegVal &= ~(DT_TXRFCTRL_PLLB_MSK | DT_TXRFCTRL_PLLB9_MSK);
-    RegVal |= PllBbit8to0<<DT_TXRFCTRL_PLLB_SH;
-    RegVal |= PllBbit9<<DT_TXRFCTRL_PLLB9_SH;
-    WRITE_UINT(RegVal, pBase, DT_TX_REG_RF_CONTROL);
-}
-
-// RF-Control register: RF PLL Reference-Counter Modulus
-static __inline UInt  DtaRegTxRfCtrlGetPllR(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL, DT_TXRFCTRL_PLLR_MSK, 
-                                                                     DT_TXRFCTRL_PLLR_SH);
-}
-static __inline void  DtaRegTxRfCtrlSetPllR(volatile UInt8* pBase, UInt PllR) {
-    WRITE_UINT_MASKED(PllR, pBase, DT_TX_REG_RF_CONTROL, DT_TXRFCTRL_PLLR_MSK,
-                                                                     DT_TXRFCTRL_PLLR_SH);
-}
-
-// RF-Control register: PLL Locked Status
-static __inline UInt  DtaRegTxRfCtrlGetPllLock(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL, DT_TXRFCTRL_PLL_LOCK_MSK, 
-                                                                 DT_TXRFCTRL_PLL_LOCK_SH);
-}
-
-//-.-.-.-.-.-.-.-.-.-.-.- RF-Control-1 register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.
-//
-// NOTE: this register has the same location as the RF-control register in
-// the DTA-107 and DTA-110
-//
-
-// RF-Control register 1: Register access
-static __inline UInt  DtaRegTxRfCtrl1Get(volatile UInt8* pBase) {
-    return DtaRegTxRfCtrlGet(pBase);
-}
-static __inline void  DtaRegTxRfCtrl1Set(volatile UInt8* pBase, UInt Val) {
-    DtaRegTxRfCtrlSet(pBase, Val);
-}
-
-// RF-Control-1 register: RF-PLL2 Modulus value
-static __inline UInt  DtaRegTxRfCtrl1GetPllM(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL1, DT_TXRFCTRL1_MOD_MSK, 
-                                                                     DT_TXRFCTRL1_MOD_SH);
-}
-static __inline void  DtaRegTxRfCtrl1SetPllM(volatile UInt8* pBase, UInt PllM) {
-    WRITE_UINT_MASKED(PllM, pBase, DT_TX_REG_RF_CONTROL1, DT_TXRFCTRL1_MOD_MSK,
-                                                                     DT_TXRFCTRL1_MOD_SH);
-}
-
-// RF-Control-1 register: RF-PLL2 Fractional value
-static __inline UInt  DtaRegTxRfCtrl1GetPllF(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL1, DT_TXRFCTRL1_FRAC_MSK, 
-                                                                    DT_TXRFCTRL1_FRAC_SH);
-}
-static __inline void  DtaRegTxRfCtrl1SetPllF(volatile UInt8* pBase, UInt PllF) {
-    WRITE_UINT_MASKED(PllF, pBase, DT_TX_REG_RF_CONTROL1, DT_TXRFCTRL1_FRAC_MSK,
-                                                                    DT_TXRFCTRL1_FRAC_SH);
-}
-
-// RF-Control-1 register: RF-PLL2 Integer value
-static __inline UInt  DtaRegTxRfCtrl1GetPllI(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL1, DT_TXRFCTRL1_INT_MSK, 
-                                                                     DT_TXRFCTRL1_INT_SH);
-}
-static __inline void  DtaRegTxRfCtrl1SetPllI(volatile UInt8* pBase, UInt PllI) {
-    WRITE_UINT_MASKED(PllI, pBase, DT_TX_REG_RF_CONTROL1, DT_TXRFCTRL1_INT_MSK,
-                                                                     DT_TXRFCTRL1_INT_SH);
-}
-
-//.-.-.-.-.-.-.-.-.-.-.-.- IF-Control register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-
-
-// IF-Control register: Register access
-static __inline UInt  DtaRegTxIfCtrlGet(volatile UInt8* pBase) {
-    return READ_UINT(pBase, DT_TX_REG_IF_CONTROL);
-}
-static __inline void  DtaRegTxIfCtrlSet(volatile UInt8* pBase, UInt Val) {
-    WRITE_UINT(Val, pBase, DT_TX_REG_IF_CONTROL);
-}
-
-// IF-Control register: IF PLL A-Counter Modulus
-static __inline UInt  DtaRegTxIfCtrlGetPllA(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_IF_CONTROL, DT_TXIFCTRL_PLLA_MSK, 
-                                                                     DT_TXIFCTRL_PLLA_SH);
-}
-static __inline void  DtaRegTxIfCtrlSetPllA(volatile UInt8* pBase, UInt PllA) {
-    WRITE_UINT_MASKED(PllA, pBase, DT_TX_REG_IF_CONTROL, DT_TXIFCTRL_PLLA_MSK,
-                                                                     DT_TXIFCTRL_PLLA_SH);
-}
-
-// IF-Control register: IF PLL B-Counter Modulus
-static __inline UInt  DtaRegTxIfCtrlGetPllB(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_IF_CONTROL, DT_TXIFCTRL_PLLB_MSK, 
-                                                                     DT_TXIFCTRL_PLLB_SH);
-}
-static __inline void  DtaRegTxIfCtrlSetPllB(volatile UInt8* pBase, UInt PllB) {
-    WRITE_UINT_MASKED(PllB, pBase, DT_TX_REG_IF_CONTROL, DT_TXIFCTRL_PLLB_MSK,
-                                                                     DT_TXIFCTRL_PLLB_SH);
-}
-
-// IF-Control register: IF PLL Reference-Counter Modulus
-static __inline UInt  DtaRegTxIfCtrlGetPllR(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_IF_CONTROL, DT_TXIFCTRL_PLLR_MSK, 
-                                                                     DT_TXIFCTRL_PLLR_SH);
-}
-static __inline void  DtaRegTxIfCtrlSetPllR(volatile UInt8* pBase, UInt PllR) {
-    WRITE_UINT_MASKED(PllR, pBase, DT_TX_REG_IF_CONTROL, DT_TXIFCTRL_PLLR_MSK,
-                                                                     DT_TXIFCTRL_PLLR_SH);
-}
-
-//-.-.-.-.-.-.-.-.-.-.-.- RF-Control-2 register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.
-
-// RF-Control-2 register: Register access
-static __inline UInt  DtaRegTxRfCtrl2Get(volatile UInt8* pBase) {
-    return READ_UINT(pBase, DT_TX_REG_RF_CONTROL2);
-}
-static __inline void  DtaRegTxRfCtrl2Set(volatile UInt8* pBase, UInt Val) {
-    WRITE_UINT(Val, pBase, DT_TX_REG_RF_CONTROL2);
-}
-
-// RF-Control-2 register: AGC setpoint
-static __inline UInt  DtaRegTxRfCtrl2GetAgcSetPoint(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_AGCSP_MSK, 
-                                                                   DT_TXRFCTRL2_AGCSP_SH);
-}
-
-// RF-Control-2 register: RF Output Attenuator
-static __inline UInt  DtaRegTxRfCtrl2GetOutpAttn(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_OUTATTN_MSK, 
-                                                                 DT_TXRFCTRL2_OUTATTN_SH);
-}
-static __inline void  DtaRegTxRfCtrl2SetOutpAttn(volatile UInt8* pBase, UInt Attn) {
-    WRITE_UINT_MASKED(Attn, pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_OUTATTN_MSK,
-                                                                 DT_TXRFCTRL2_OUTATTN_SH);
-}
-
-// RF-Control 2 register: 10-bit output level 
-static __inline Int32  DtaRegTxRfCtrl2GetOutputLevel10bOffset(volatile UInt8* pBase) {
-    Int32  Val = (Int32)READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL2, 
-                     DT_TXRFCTRL2_OUTLVL10B_OFFSET_MSK, DT_TXRFCTRL2_OUTLVL10B_OFFSET_SH);
-    // Sign extension
-    if ((Val&0x200)!=0) 
-        Val |= ~0x000003FF;
-    return Val;
-}
-static __inline void  DtaRegTxRfCtrl2SetOutputLevel10bOffset(volatile UInt8* pBase, 
-                                                                           Int32 Offset) {
-    // Remove sign extension
-    Offset &= 0x000003FF;
-    WRITE_UINT_MASKED(Offset, pBase, DT_TX_REG_RF_CONTROL2,
-                     DT_TXRFCTRL2_OUTLVL10B_OFFSET_MSK, DT_TXRFCTRL2_OUTLVL10B_OFFSET_SH);
-}
-
-// RF-Control-2 register: AGC Enable
-static __inline UInt  DtaRegTxRfCtrl2GetAgcEn(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_AGC_EN_MSK, 
-                                                                  DT_TXRFCTRL2_AGC_EN_SH);
-}
-static __inline void  DtaRegTxRfCtrl2SetAgcEn(volatile UInt8* pBase, UInt AgcEnable) {
-    WRITE_UINT_MASKED(AgcEnable, pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_AGC_EN_MSK, 
-                                                                  DT_TXRFCTRL2_AGC_EN_SH);
-}
-
-// RF-Control-2 register: RF Input Attenuator
-static __inline UInt  DtaRegTxRfCtrl2GetInpAttn(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_INPATTN_MSK, 
-                                                                 DT_TXRFCTRL2_INPATTN_SH);
-}
-static __inline void  DtaRegTxRfCtrl2SetInpAttn(volatile UInt8* pBase, UInt Attn) {
-    WRITE_UINT_MASKED(Attn, pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_INPATTN_MSK, 
-                                                                 DT_TXRFCTRL2_INPATTN_SH);
-}
-
-// RF-Control-2 register: Low Phase Noise Enable
-static __inline UInt  DtaRegTxRfCtrl2GetLowPhaseNoiseEn(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_LOWNOISE_EN_MSK, 
-                                                             DT_TXRFCTRL2_LOWNOISE_EN_SH);
-}
-static __inline void  DtaRegTxRfCtrl2SetLowPhaseNoiseEn(volatile UInt8* pBase, UInt Ena) {
-    WRITE_UINT_MASKED(Ena, pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_LOWNOISE_EN_MSK, 
-                                                             DT_TXRFCTRL2_LOWNOISE_EN_SH);
-}
-
-// RF-Control-2 register: Charge-pump current
-static __inline UInt  DtaRegTxRfCtrl2GetChargePumpCur(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_CPC_MSK, 
-                                                                     DT_TXRFCTRL2_CPC_SH);
-}
-static __inline void  DtaRegTxRfCtrl2SetChargePumpCur(volatile UInt8* pBase, UInt Cur) {
-    WRITE_UINT_MASKED(Cur, pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_CPC_MSK, 
-                                                                     DT_TXRFCTRL2_CPC_SH);
-}
-
-// RF-Control-2 register: PLL1 Locked Status
-static __inline UInt  DtaRegTxRfCtrl2GetPll1Lock(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_PLL1_LOCK_MSK, 
-                                                               DT_TXRFCTRL2_PLL1_LOCK_SH);
-}
-
-// RF-Control-2 register: PLL2 Locked Status
-static __inline UInt  DtaRegTxRfCtrl2GetPll2Lock(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_PLL2_LOCK_MSK, 
-                                                               DT_TXRFCTRL2_PLL2_LOCK_SH);
-}
-
-// RF-Control-2 register: PLL3 Locked Status
-static __inline UInt  DtaRegTxRfCtrl2GetPll3Lock(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_PLL3_LOCK_MSK, 
-                                                               DT_TXRFCTRL2_PLL3_LOCK_SH);
-}
-
-// RF-Control-2 register: AGC Locked Status
-static __inline UInt  DtaRegTxRfCtrl2GetAgcLock(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL2, DT_TXRFCTRL2_AGC_LOCK_MSK, 
-                                                                DT_TXRFCTRL2_AGC_LOCK_SH);
-}
-
-//-.-.-.-.-.-.-.-.-.-.-.- RF-Control-3 register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.
-
-// RF-Control-3 register: Register access
-static __inline UInt  DtaRegTxRfCtrl3Get(volatile UInt8* pBase) {
-    return READ_UINT(pBase, DT_TX_REG_RF_CONTROL3);
-}
-static __inline void  DtaRegTxRfCtrl3Set(volatile UInt8* pBase, UInt Val) {
-    WRITE_UINT(Val, pBase, DT_TX_REG_RF_CONTROL3);
-}
-
-// RF-Control-3 register: RF PLL reference clock selection 1: Int; 0 Ext
-static __inline UInt  DtaRegTxRfCtrl3GetRfClkSel(volatile UInt8* pBase) {
-    return READ_UINT_MASKED(pBase, DT_TX_REG_RF_CONTROL3, DT_TXRFCTRL3_RFCLKSEL_MSK, 
-                                                                DT_TXRFCTRL3_RFCLKSEL_SH);
-}
-static __inline void  DtaRegTxRfCtrl3SetRfClkSel(volatile UInt8* pBase, UInt RfClkSel) {
-    WRITE_UINT_MASKED(RfClkSel, pBase, DT_TX_REG_RF_CONTROL3, DT_TXRFCTRL3_RFCLKSEL_MSK, 
-                                                                DT_TXRFCTRL3_RFCLKSEL_SH);
-}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- FIFO Data register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -2060,22 +1727,6 @@ static __inline UInt  DtaRegTxSliceSizeGet(volatile UInt8* pBase) {
     return READ_UINT(pBase, DAT_TX_REG_SLICE_SIZE);
 }
 
-//-.-.-.-.-.-.-.-.-.-.- RFDAC SPI control register: Access Functions -.-.-.-.-.-.-.-.-.-.-
-static __inline UInt  DtaRegTxRfdacCtrlGet(volatile UInt8* pBase) {
-    return READ_UINT(pBase, DT_TX_REG_RFDAC_CONTROL);
-}
-static __inline void DtaRegTxRfdacCtrlSet(volatile UInt8* pBase, UInt Val) {
-    WRITE_UINT(Val, pBase, DT_TX_REG_RFDAC_CONTROL);
-}
-
-//.-.-.-.-.-.-.-.-.-.-.- RFDAC SPI data register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-
-static __inline UInt  DtaRegTxRfdacDataGet(volatile UInt8* pBase) {
-    return READ_UINT(pBase, DT_TX_REG_RFDAC_DATA);
-}
-static __inline void DtaRegTxRfdacDataSet(volatile UInt8* pBase, UInt32 Val) {
-    WRITE_UINT(Val, pBase, DT_TX_REG_RFDAC_DATA);
-}
-
 //.-.-.-.-.-.-.-.-.-.-.-.- GS2962 Stat register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.
 static __inline UInt  DtaRegTxGS2962StatGet(volatile UInt8* pBase) {
     return READ_UINT(pBase, DTA_TX_REG_GS2962STAT);
@@ -2090,6 +1741,139 @@ static __inline UInt  DtaRegTxGS2962SpiGet(volatile UInt8* pBase) {
 }
 static __inline void DtaRegTxGS2962SpiSet(volatile UInt8* pBase, UInt Val) {
     WRITE_UINT(Val, pBase, DTA_TX_REG_GS2962SPI);
+}
+
+
+//.-.-.-.-.-.-.-.-.-.-.-.- RF-Control register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-
+
+// RF-Control register: Register access
+static __inline UInt  DtaRegRfCtrlGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DT_RF_REG_RF_CONTROL);
+}
+static __inline void  DtaRegRfCtrlSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DT_RF_REG_RF_CONTROL);
+}
+
+// RF-Control register: RF PLL A-Counter Modulus
+static __inline UInt  DtaRegRfCtrlGetPllA(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_RF_REG_RF_CONTROL, DT_RFCTRL_PLLA_MSK, 
+                                                                     DT_RFCTRL_PLLA_SH);
+}
+static __inline void  DtaRegRfCtrlSetPllA(volatile UInt8* pBase, UInt PllA) {
+    WRITE_UINT_MASKED(PllA, pBase, DT_RF_REG_RF_CONTROL, DT_RFCTRL_PLLA_MSK,
+                                                                     DT_RFCTRL_PLLA_SH);
+}
+
+// RF-Control register: RF PLL B-Counter Modulus
+static __inline UInt  DtaRegRfCtrlGetPllB(volatile UInt8* pBase) {
+    UInt  RegVal = READ_UINT(pBase, DT_RF_REG_RF_CONTROL);
+    UInt  PllBbit8to0 = (RegVal & DT_RFCTRL_PLLB_MSK)  >> DT_RFCTRL_PLLB_SH;
+    UInt  PllBbit9    = (RegVal & DT_RFCTRL_PLLB9_MSK) >> DT_RFCTRL_PLLB9_SH;
+    return ((PllBbit9 << 9) + PllBbit8to0);
+}
+static __inline void  DtaRegRfCtrlSetPllB(volatile UInt8* pBase, UInt PllB) {
+    UInt  RegVal = READ_UINT(pBase, DT_RF_REG_RF_CONTROL);
+    UInt  PllBbit8to0 =  PllB & 0x1FF;
+    UInt  PllBbit9    = (PllB>>9) & 1;
+    RegVal &= ~(DT_RFCTRL_PLLB_MSK | DT_RFCTRL_PLLB9_MSK);
+    RegVal |= PllBbit8to0<<DT_RFCTRL_PLLB_SH;
+    RegVal |= PllBbit9<<DT_RFCTRL_PLLB9_SH;
+    WRITE_UINT(RegVal, pBase, DT_RF_REG_RF_CONTROL);
+}
+
+// RF-Control register: RF PLL Reference-Counter Modulus
+static __inline UInt  DtaRegRfCtrlGetPllR(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_RF_REG_RF_CONTROL, DT_RFCTRL_PLLR_MSK, 
+                                                                     DT_RFCTRL_PLLR_SH);
+}
+static __inline void  DtaRegRfCtrlSetPllR(volatile UInt8* pBase, UInt PllR) {
+    WRITE_UINT_MASKED(PllR, pBase, DT_RF_REG_RF_CONTROL, DT_RFCTRL_PLLR_MSK,
+                                                                     DT_RFCTRL_PLLR_SH);
+}
+
+// RF-Control register: PLL Locked Status
+static __inline UInt  DtaRegRfCtrlGetPllLock(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_RF_REG_RF_CONTROL, DT_RFCTRL_PLL_LOCK_MSK, 
+                                                                 DT_RFCTRL_PLL_LOCK_SH);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.- RF-Control-1 register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.
+//
+// NOTE: this register has the same location as the RF-control register in
+// the DTA-107 and DTA-110
+//
+
+// RF-Control register 1: Register access
+static __inline UInt  DtaRegRfCtrl1Get(volatile UInt8* pBase) {
+    return DtaRegRfCtrlGet(pBase);
+}
+static __inline void  DtaRegRfCtrl1Set(volatile UInt8* pBase, UInt Val) {
+    DtaRegRfCtrlSet(pBase, Val);
+}
+
+// RF-Control-1 register: RF-PLL2 Modulus value
+static __inline UInt  DtaRegRfCtrl1GetPllM(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_RF_REG_RF_CONTROL1, DT_RFCTRL1_MOD_MSK, 
+                                                                     DT_RFCTRL1_MOD_SH);
+}
+static __inline void  DtaRegRfCtrl1SetPllM(volatile UInt8* pBase, UInt PllM) {
+    WRITE_UINT_MASKED(PllM, pBase, DT_RF_REG_RF_CONTROL1, DT_RFCTRL1_MOD_MSK,
+                                                                     DT_RFCTRL1_MOD_SH);
+}
+
+// RF-Control-1 register: RF-PLL2 Fractional value
+static __inline UInt  DtaRegRfCtrl1GetPllF(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_RF_REG_RF_CONTROL1, DT_RFCTRL1_FRAC_MSK, 
+                                                                    DT_RFCTRL1_FRAC_SH);
+}
+static __inline void  DtaRegRfCtrl1SetPllF(volatile UInt8* pBase, UInt PllF) {
+    WRITE_UINT_MASKED(PllF, pBase, DT_RF_REG_RF_CONTROL1, DT_RFCTRL1_FRAC_MSK,
+                                                                    DT_RFCTRL1_FRAC_SH);
+}
+
+// RF-Control-1 register: RF-PLL2 Integer value
+static __inline UInt  DtaRegRfCtrl1GetPllI(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_RF_REG_RF_CONTROL1, DT_RFCTRL1_INT_MSK, 
+                                                                     DT_RFCTRL1_INT_SH);
+}
+static __inline void  DtaRegRfCtrl1SetPllI(volatile UInt8* pBase, UInt PllI) {
+    WRITE_UINT_MASKED(PllI, pBase, DT_RF_REG_RF_CONTROL1, DT_RFCTRL1_INT_MSK,
+                                                                     DT_RFCTRL1_INT_SH);
+}
+
+// RF-Control-2 register: PLL1 Locked Status
+static __inline UInt  DtaRegRfCtrl2GetPll1Lock(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_RF_REG_RF_CONTROL2, DT_RFCTRL2_PLL1_LOCK_MSK, 
+                                                                 DT_RFCTRL2_PLL1_LOCK_SH);
+}
+
+// RF-Control-2 register: PLL2 Locked Status
+static __inline UInt  DtaRegRfCtrl2GetPll2Lock(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_RF_REG_RF_CONTROL2, DT_RFCTRL2_PLL2_LOCK_MSK, 
+                                                                 DT_RFCTRL2_PLL2_LOCK_SH);
+}
+
+// RF-Control-2 register: PLL3 Locked Status
+static __inline UInt  DtaRegRfCtrl2GetPll3Lock(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_RF_REG_RF_CONTROL2, DT_RFCTRL2_PLL3_LOCK_MSK, 
+                                                                 DT_RFCTRL2_PLL3_LOCK_SH);
+}
+//-.-.-.-.-.-.-.-.-.-.-.- RF-Control-3 register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.
+// RF-Control-3 register: Register access
+static __inline UInt  DtaRegRfCtrl3Get(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DT_RF_REG_RF_CONTROL3);
+}
+static __inline void  DtaRegRfCtrl3Set(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DT_RF_REG_RF_CONTROL3);
+}
+// RF-Control-3 register: RF PLL reference clock selection 1: Int; 0 Ext
+static __inline UInt  DtaRegRfCtrl3GetRfClkSel(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_RF_REG_RF_CONTROL3, DT_RFCTRL3_RFCLKSEL_MSK, 
+                                                                  DT_RFCTRL3_RFCLKSEL_SH);
+}
+static __inline void  DtaRegRfCtrl3SetRfClkSel(volatile UInt8* pBase, UInt RfClkSel) {
+    WRITE_UINT_MASKED(RfClkSel, pBase, DT_RF_REG_RF_CONTROL3, DT_RFCTRL3_RFCLKSEL_MSK, 
+                                                                  DT_RFCTRL3_RFCLKSEL_SH);
 }
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ RX Registers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -4488,11 +4272,16 @@ static __inline void  DtaRegHdCurrentFrameSet(volatile UInt8* pBase, Int64  Val)
 
 static __inline Int64 DtaRegHdAsiByteCountGet(volatile UInt8* pBase)
 {
-    Int64  Frame = 0;
-    // Read LSB part first
-    Frame = (Int64)READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_LSB);
-    Frame |= ((Int64)READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_MSB))<<32;
-    return Frame;
+    UInt32 CountH = READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_MSB);
+    UInt32 CountL = READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_LSB);
+
+    // Read again in case the LSB part has wrapped
+    if (CountH != READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_MSB)) 
+    {
+        CountH++;
+        CountL = READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_LSB);
+    }
+    return (Int64)(((UInt64) CountH << 32) + CountL);
 }
 static __inline void  DtaRegHdAsiByteCountSet(volatile UInt8* pBase, Int64  Val)
 {

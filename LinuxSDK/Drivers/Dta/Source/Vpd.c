@@ -116,6 +116,8 @@ static void  DtaVpdInitIdOffset(DtaDeviceData* pDvcData);
 static DtStatus  DtaVpdUpdateCache(DtaDeviceData* pDvcData);
 static DtStatus DtaVpdUpdateEepromFromCache(DtaDeviceData* pDvcData, UInt StartAddr,
                                                                              UInt Length);
+static DtStatus  DtaVpdReadRaw(DtaDeviceData* pDvcData, UInt8* pBuf,
+                                                             UInt StartAddr, UInt Length);
 static DtStatus  DtaVpdReadFromCache(DtaDeviceData* pDvcData, UInt8* pBuf,
                                                              UInt StartAddr, UInt Length);
 static UInt  DtaVpdGetSectionLength(UInt8* pSection, UInt Length);
@@ -138,6 +140,8 @@ static DtStatus  DtaVpdWriteItemRw(DtaDeviceData* pDvcData, UInt KeywordLen,
                                    const char* pKeyword, char* pVpdItem, UInt ItemLength);
 static DtStatus  DtaVpdWrite(DtaDeviceData* pDvcData, UInt8* pBuf, UInt StartAddr,
                                                                              UInt Length);
+static DtStatus  DtaVpdWriteRaw(DtaDeviceData* pDvcData, UInt8* pBuf, UInt StartAddr,
+                                                                             UInt Length);
 static DtStatus  DtaVpdReadItem(DtaDeviceData* pDvcData, Int SectionType, 
                        UInt KeywordLen, const char* pKeyWord, UInt8* pBuf, UInt* pBufLen);
 static DtStatus  DtaVpdDeleteItem(DtaDeviceData* pDvcData, Int SectionType,
@@ -156,15 +160,47 @@ DtStatus  DtaVpdInit(DtaDeviceData* pDvcData)
 
     // Initialize properties
     pDvcData->m_Vpd.m_EepromIoItf = DtPropertiesGetInt(pPropData, "VPD_IO_ITF", -1);
+    pDvcData->m_Vpd.m_EepromVpdSize = DtPropertiesGetUInt(pPropData, "VPD_SIZE", -1);
     pDvcData->m_Vpd.m_EepromPageSize = DtPropertiesGetUInt(pPropData,
                                                                  "EEPROM_PAGE_SIZE", -1);
     pDvcData->m_Vpd.m_EepromSize = DtPropertiesGetUInt(pPropData, "EEPROM_SIZE", -1);
 
-    // Check if no property error occurred
+     // Check if no property error occurred
     Status = DtaPropertiesReportDriverErrors(pDvcData);
     if (!DT_SUCCESS(Status))
         return Status;
+        
+    if (pDvcData->m_Vpd.m_EepromIoItf!=VPD_EEPROM_IO_NOT_SUPP)
+    {
+        // VPD-size must be smaller or equal to full EEPROM size
+        if ((pDvcData->m_Vpd.m_EepromVpdSize==0 ||
+                            pDvcData->m_Vpd.m_EepromVpdSize>pDvcData->m_Vpd.m_EepromSize))
+        {
+            DtDbgOut(ERR, VPD, "ERROR: VPD-size (%d) is illegal (EEPROM size = %d)",
+                                                          pDvcData->m_Vpd.m_EepromVpdSize, 
+                                                            pDvcData->m_Vpd.m_EepromSize);
+            return DT_STATUS_CONFIG_ERROR;
+        }
+        // Page size must be valid
+        if (pDvcData->m_Vpd.m_EepromPageSize==0 || 
+                       (pDvcData->m_Vpd.m_EepromSize%pDvcData->m_Vpd.m_EepromPageSize)!=0)
+        {
+            DtDbgOut(ERR, VPD, "ERROR: Page-size (%d) is invalid  (EEPROM size = %d)",
+                                                         pDvcData->m_Vpd.m_EepromPageSize,
+                                                            pDvcData->m_Vpd.m_EepromSize);
+            return DT_STATUS_CONFIG_ERROR;
+        }
 
+        // Check vpd size aligns on page boundaries
+        if ((pDvcData->m_Vpd.m_EepromVpdSize%pDvcData->m_Vpd.m_EepromPageSize) != 0)
+        {
+            DtDbgOut(ERR, VPD, "ERROR: VPD-size (%d) no page (%d) aligned",
+                                                        pDvcData->m_Vpd.m_EepromVpdSize, 
+                                                        pDvcData->m_Vpd.m_EepromPageSize);
+            return DT_STATUS_CONFIG_ERROR;
+        }
+    }
+      
     // Initialize EEPROM module
     DtaEepromInit(pDvcData);
 
@@ -172,8 +208,9 @@ DtStatus  DtaVpdInit(DtaDeviceData* pDvcData)
     DtFastMutexInit(&pDvcData->m_Vpd.m_IoctlMutex);
 
     // Allocate VPD cache
-    pDvcData->m_Vpd.m_pCache = DtMemAllocPool(DtPoolPaged, pDvcData->m_Vpd.m_EepromSize,
-                                                               DTA_VPD_CACHE_MEM_TAG);
+    pDvcData->m_Vpd.m_pCache = (UInt8*)DtMemAllocPool(DtPoolPaged, 
+                                                          pDvcData->m_Vpd.m_EepromVpdSize, 
+                                                                   DTA_VPD_CACHE_MEM_TAG);
     if (pDvcData->m_Vpd.m_pCache != NULL)
         // Initial load of the cache
         Status = DtaVpdUpdateCache(pDvcData);
@@ -503,7 +540,7 @@ DtStatus  DtaVpdIoctl(DtaDeviceData* pDvcData, DtIoctlObject* pIoctl)
         break;
 
     case DTA_VPD_CMD_RAW_READ:
-        Status = DtaVpdReadFromCache(pDvcData, pVpdCmdOutput->m_Data.m_ReadRaw.m_Buf,
+        Status = DtaVpdReadRaw(pDvcData, pVpdCmdOutput->m_Data.m_ReadRaw.m_Buf,
                                              pVpdCmdInput->m_Data.m_ReadRaw.m_StartOffset,
                                              pVpdCmdInput->m_Data.m_ReadRaw.m_OutBufLen);
         if (DT_SUCCESS(Status))
@@ -514,7 +551,7 @@ DtStatus  DtaVpdIoctl(DtaDeviceData* pDvcData, DtIoctlObject* pIoctl)
         break;
 
     case DTA_VPD_CMD_RAW_WRITE:
-        Status = DtaVpdWrite(pDvcData, pVpdCmdInput->m_Data.m_WriteRaw.m_Buf,
+        Status = DtaVpdWriteRaw(pDvcData, pVpdCmdInput->m_Data.m_WriteRaw.m_Buf,
                                             pVpdCmdInput->m_Data.m_WriteRaw.m_StartOffset,
                                             pVpdCmdInput->m_Data.m_WriteRaw.m_BufLen);
         break;
@@ -1149,7 +1186,8 @@ static void  DtaVpdInitIdOffset(DtaDeviceData* pDvcData)
 
     i = VPD_END+1;
     p = pVpd->m_pCache;
-    if (i+8<pVpd->m_EepromSize && *(p+i)==VPD_INTSTART_TAG && !strncmp(p+i+1,"DekTec",6))
+    if (i+8<pVpd->m_EepromVpdSize && *(p+i)==VPD_INTSTART_TAG 
+                                                            && !strncmp(p+i+1,"DekTec",6))
     {
         Bool loop;
         // DekTec's internal start resource found
@@ -1195,18 +1233,18 @@ static DtStatus  DtaVpdUpdateCache(DtaDeviceData* pDvcData)
     switch (pDvcData->m_Vpd.m_EepromIoItf)
     {
     case VPD_EEPROM_IO_NOT_SUPP:
-        DtMemZero(pDvcData->m_Vpd.m_pCache, pDvcData->m_Vpd.m_EepromSize);
+        DtMemZero(pDvcData->m_Vpd.m_pCache, pDvcData->m_Vpd.m_EepromVpdSize);
         break;
     case VPD_EEPROM_IO_PLX:
         // Read entire content of VPD EEPROM (PLX) into cache buffer
         Status = DtaEepromPlxRead(pDvcData, 0, pDvcData->m_Vpd.m_pCache,
-                                                            pDvcData->m_Vpd.m_EepromSize);
+                                                         pDvcData->m_Vpd.m_EepromVpdSize);
         break;
 
     case VPD_EEPROM_IO_SPI:
         // Read separate EEPROM connected to FPGA for VPD data
         Status = DtaEepromSpiRead(pDvcData, 0, pDvcData->m_Vpd.m_pCache,
-                                                            pDvcData->m_Vpd.m_EepromSize);
+                                                         pDvcData->m_Vpd.m_EepromVpdSize);
         break;
 
     default:
@@ -1230,7 +1268,7 @@ static DtStatus  DtaVpdUpdateCache(DtaDeviceData* pDvcData)
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVpdReadDirect -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 static DtStatus  DtaVpdReadDirect(DtaDeviceData* pDvcData, UInt8* pData, Int Offset, 
-                                                                      Int* NumBytesToRead)
+                                                                       Int NumBytesToRead)
 {
     DtStatus  Status = DT_STATUS_OK;
 
@@ -1238,12 +1276,12 @@ static DtStatus  DtaVpdReadDirect(DtaDeviceData* pDvcData, UInt8* pData, Int Off
     {
     case VPD_EEPROM_IO_PLX:
         // Read entire content of VPD EEPROM (PLX) into cache buffer
-        Status = DtaEepromPlxRead(pDvcData, Offset, pData, *NumBytesToRead);
+        Status = DtaEepromPlxRead(pDvcData, Offset, pData, NumBytesToRead);
         break;
 
     case VPD_EEPROM_IO_SPI:
         // Read separate EEPROM connected to FPGA for VPD data
-        Status = DtaEepromSpiRead(pDvcData, Offset, pData, *NumBytesToRead);
+        Status = DtaEepromSpiRead(pDvcData, Offset, pData, NumBytesToRead);
         break;
 
     default:
@@ -1327,7 +1365,7 @@ static DtStatus DtaVpdUpdateEepromFromCache(
     case VPD_EEPROM_IO_SPI:
         // Write entire cache to external EEPROM
         Status = DtaEepromSpiWrite(pDvcData, 0, pDvcData->m_Vpd.m_pCache,
-                                                            pDvcData->m_Vpd.m_EepromSize);
+                                                         pDvcData->m_Vpd.m_EepromVpdSize);
         break;
 
     default:
@@ -1340,6 +1378,63 @@ static DtStatus DtaVpdUpdateEepromFromCache(
         DtaVpdUpdateCache(pDvcData);
 
     return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVpdReadRaw -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Read an raw byte array from the VPD EEMPROM
+//
+// NOTE: uses "normal" DtaVpdReadFromCache for data located within VPD cache and 
+// DtaVpdReadDirect for data located out-side of VPD cache, but within EEPROM
+//
+static DtStatus  DtaVpdReadRaw(
+    DtaDeviceData*  pDvcData,   // Device extension
+    UInt8*  pBuf,               // Buffer for data read from serial EEPROM
+    UInt  StartAddr,            // Start address (BYTE address)
+    UInt  Length)               // Number of BYTES to read
+{
+    DtStatus  Status = DT_STATUS_OK;
+    UInt8 *pCacheBuf=NULL, *pDirectBuf=NULL;
+    UInt  CacheStartAddr=0, DirectStartAddr=0;
+    UInt  CacheLength=0, DirectLength=0;
+
+    DT_ASSERT((StartAddr+Length)<=pDvcData->m_Vpd.m_EepromSize);
+
+    // Compute how much and which part of data to read from cache or direct
+    if (StartAddr < pDvcData->m_Vpd.m_EepromVpdSize)
+    {
+        pCacheBuf = pBuf;
+        CacheStartAddr = StartAddr;
+        CacheLength = ((StartAddr + Length) <= pDvcData->m_Vpd.m_EepromVpdSize) ?
+                                     Length : pDvcData->m_Vpd.m_EepromVpdSize - StartAddr;
+        
+    }
+    // Any data left for direct read?
+    if ((Length - CacheLength) > 0)
+    {
+        pDirectBuf = pBuf + CacheLength;
+        DirectStartAddr = (CacheLength>0) ? pDvcData->m_Vpd.m_EepromVpdSize : StartAddr;
+        DirectLength = Length - CacheLength;
+    }
+
+    // Anything to write via the cache?
+    if (CacheLength>0)
+    {
+        Status = DtaVpdReadFromCache(pDvcData, pCacheBuf, CacheStartAddr, CacheLength);
+        if (DT_SUCCESS(Status))
+            return Status;
+    }
+    
+    // Anything to read directly from the EEPROM?
+    if (DirectLength>0)
+    {
+        Status = DtaVpdReadDirect(pDvcData, pDirectBuf, DirectStartAddr, DirectLength);
+
+        if (DT_SUCCESS(Status))
+            return Status;
+    }
+    
+    return DT_STATUS_OK;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVpdReadFromCache -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1355,12 +1450,12 @@ static DtStatus  DtaVpdReadFromCache(
     DtDbgOut(MAX, VPD, "StartAddr=0x%03x Length=%d", StartAddr, Length);
 
     // Check parameters
-    if (StartAddr >= pDvcData->m_Vpd.m_EepromSize)
+    if (StartAddr >= pDvcData->m_Vpd.m_EepromVpdSize)
     {
         DtDbgOut(ERR, VPD, "StartAddr=0x%03x INVALID", StartAddr);
         return DT_STATUS_FAIL;
     }
-    if (StartAddr+Length > pDvcData->m_Vpd.m_EepromSize)
+    if (StartAddr+Length > pDvcData->m_Vpd.m_EepromVpdSize)
     {
         DtDbgOut(ERR, VPD, "Length=%d INVALID", Length);
         return DT_STATUS_FAIL;
@@ -1805,6 +1900,63 @@ static DtStatus  DtaVpdWriteItemRw(
     return DT_STATUS_OK;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVpdWriteRaw -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Write an raw byte array to the VPD EEMPROM
+//
+// NOTE: uses "normal" DtaVpdWrite for data located within VPD cache and 
+// DtaVpdWriteDirect for data located out-side of VPD cache, but within EEPROM
+//
+DtStatus  DtaVpdWriteRaw(
+    DtaDeviceData*  pDvcData,   // Device extension
+    UInt8*  pBuf,               // Buffer with data to write to serial EEPROM
+    UInt  StartAddr,            // Start address (BYTE address)
+    UInt  Length)               // Number of BYTES to write
+{
+    DtStatus  Status = DT_STATUS_OK;
+    UInt8 *pCacheBuf=NULL, *pDirectBuf=NULL;
+    UInt  CacheStartAddr=0, DirectStartAddr=0;
+    UInt  CacheLength=0, DirectLength=0;
+
+    DT_ASSERT((StartAddr+Length)<=pDvcData->m_Vpd.m_EepromSize);
+
+    // Compute how much and which part of data to write to cache or direct
+    if (StartAddr < pDvcData->m_Vpd.m_EepromVpdSize)
+    {
+        pCacheBuf = pBuf;
+        CacheStartAddr = StartAddr;
+        CacheLength = ((StartAddr + Length) <= pDvcData->m_Vpd.m_EepromVpdSize) ?
+                                     Length : pDvcData->m_Vpd.m_EepromVpdSize - StartAddr;
+        
+    }
+    // Any data left for direct write?
+    if ((Length - CacheLength) > 0)
+    {
+        pDirectBuf = pBuf + CacheLength;
+        DirectStartAddr = (CacheLength>0) ? pDvcData->m_Vpd.m_EepromVpdSize : StartAddr;
+        DirectLength = Length - CacheLength;
+    }
+
+    // Anything to write via the cache?
+    if (CacheLength>0)
+    {
+        Status = DtaVpdWrite(pDvcData, pCacheBuf, CacheStartAddr, CacheLength);
+        if (DT_SUCCESS(Status))
+            return Status;
+    }
+    
+    // Anything to write via the directly?
+    if (DirectLength>0)
+    {
+        Status = DtaVpdWriteDirect(pDvcData, pDirectBuf, DirectStartAddr, DirectLength);
+
+        if (DT_SUCCESS(Status))
+            return Status;
+    }
+    
+    return DT_STATUS_OK;
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVpdWrite -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Write an array of bytes to the VPD cache and update the serial EEPROM.
@@ -1821,12 +1973,12 @@ static DtStatus  DtaVpdWrite(
     DtDbgOut(MAX, VPD, "StartAddr=0x%03x Length=%d pBuf=0x%p", StartAddr, Length, pBuf);
 
     // Check parameters
-    if (StartAddr >= pDvcData->m_Vpd.m_EepromSize)
+    if (StartAddr >= pDvcData->m_Vpd.m_EepromVpdSize)
     {
         DtDbgOut(ERR, VPD, "StartAddr=0x%03x INVALID", StartAddr);
         return DT_STATUS_FAIL;
     }
-    if (StartAddr+Length > pDvcData->m_Vpd.m_EepromSize)
+    if (StartAddr+Length > pDvcData->m_Vpd.m_EepromVpdSize)
     {
         DtDbgOut(ERR, VPD, "Length=%d INVALID", Length);
         return DT_STATUS_FAIL;
@@ -1860,12 +2012,7 @@ static DtStatus  DtaVpdReadItem(
     // Read from the right section
     if (SectionType == DTA_VPD_SECT_ID)
         Status = DtaVpdReadId(pDvcData, pBuf, pBufLen);
-    else if (SectionType == DTA_VPD_SECT_SECURITY)
-    {
-        
-        Status = DtaVpdReadDirect(pDvcData, pBuf, 
-                             pDvcData->m_Vpd.m_EepromSize - VPD_OFFSET_SECURITY, pBufLen);
-    } else {
+    else {
         if (!DT_SUCCESS(Status) && ((SectionType&DTA_VPD_SECT_RO)!=0))
         {
             if (KeywordLen == 2)
@@ -2011,9 +2158,6 @@ static DtStatus DtaVpdWriteItem(
             Status = DT_STATUS_FAIL;
         }
         break;
-    case DTA_VPD_SECT_SECURITY:
-        return DtaVpdWriteDirect(pDvcData, pBuf, 
-                              pDvcData->m_Vpd.m_EepromSize - VPD_OFFSET_SECURITY, BufLen);
 
     default:
         DT_ASSERT(1 == 0);

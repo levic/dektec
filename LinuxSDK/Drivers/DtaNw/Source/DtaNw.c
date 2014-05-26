@@ -309,6 +309,9 @@ DtStatus  DtaNwTxGetPointerNewPacket(
     if (pDvcData->m_AlignedPayload)
         TotalLength+= 2;
 
+    if (TotalLength%4 != 0)
+        TotalLength+= 4 - (TotalLength % 4);
+
     ReadOffset = pSharedInfo->m_ReadOffset;
     *pWriteOffset = pSharedInfo->m_WriteOffset;
 

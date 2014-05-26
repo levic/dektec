@@ -2129,6 +2129,10 @@ void  DtaIpRxSendPacketToNwDriver(
     ReadOffset = pSharedInfo->m_ReadOffset;
     WriteOffset = pSharedInfo->m_WriteOffset;
 
+    // Align packets on DWORD's
+    if (TotalLength%4 != 0)
+        TotalLength+= 4 - (TotalLength%4);
+
     // Calculate free space
     if (WriteOffset < ReadOffset) 
     {
@@ -2158,10 +2162,6 @@ void  DtaIpRxSendPacketToNwDriver(
     DtMemCopy(pDst, pDmaRxHeader, sizeof(DtaDmaRxHeader));
     pDst+= sizeof(DtaDmaRxHeader);
     DtMemCopy(pDst, pPacket, PacketSize);
-
-    // Align packets on DWORD's
-    if (PacketSize%4 != 0)
-        TotalLength += 4 - (PacketSize % 4);
 
     WriteOffset+= TotalLength;
     if (WriteOffset >= pIpRxSharedBuf->m_BufSize)

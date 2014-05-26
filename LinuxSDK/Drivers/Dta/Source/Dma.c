@@ -648,20 +648,19 @@ static DtStatus  DtaDmaProgramTransfer(
         if (pDmaCh->m_Use64BitDma) 
         {
             WRITE_UINT32(pDmaCh->m_pRegDmaDescHigh, 0, SglPhysicalAddress.HighPart);
-            DtDbgOut(MAX, DMA, "[%d] SGL descriptor addr. Low:0x%08x High:0x%08x",
-                                                             pDmaCh->m_PortIndex,
-                                                             SglPhysicalAddress.LowPart,
-                                                             SglPhysicalAddress.HighPart);
+            DtDbgOut(MAX, DMA, "[%d] SGL descriptor addr. Low:0x%08x High:0x%08x"
+                          " (Offset:%x)", pDmaCh->m_PortIndex, SglPhysicalAddress.LowPart,
+                          SglPhysicalAddress.HighPart, pDmaCh->m_RegsOffset);
         } else if (pDmaOpt->m_Supports64Bit) 
         {
             WRITE_UINT32(pDmaCh->m_pRegDmaDescHigh, 0, 0);
-            DtDbgOut(MAX, DMA, "[%d] SGL descriptor addr. Low:0x%08x High:0",
-                                                              pDmaCh->m_PortIndex,
-                                                              SglPhysicalAddress.LowPart);
+            DtDbgOut(MAX, DMA, "[%d] SGL descriptor addr. Low:0x%08x High:0 (Offset:%x)",
+                                          pDmaCh->m_PortIndex, SglPhysicalAddress.LowPart,
+                                          pDmaCh->m_RegsOffset);
         } else {
-            DtDbgOut(MAX, DMA, "[%d] SGL descriptor addr. Low:0x%08x",
-                                                              pDmaCh->m_PortIndex,
-                                                              SglPhysicalAddress.LowPart);
+            DtDbgOut(MAX, DMA, "[%d] SGL descriptor addr. Low:0x%08x (Offset:%x)",
+                                          pDmaCh->m_PortIndex, SglPhysicalAddress.LowPart,
+                                          pDmaCh->m_RegsOffset);
         }
         
 
@@ -996,14 +995,19 @@ void DtaDmaCompletedDpc(DtDpcArgs* pArgs)
 {
     DmaChannel*  pDmaCh = (DmaChannel*)pArgs->m_pContext;
 
-    // Check if the DMA was started so the interrupt was valid.
-    if ((pDmaCh->m_State & DTA_DMA_STATE_STARTED) == 0)
+    // Check for DMA abort before start
+    if (pDmaCh->m_State == (DTA_DMA_STATE_INIT | DTA_DMA_STATE_ABORT))
+        DtDbgOut(ERR, DMA, "[%d] DMA ABORTED BEFORE START (Offset:%x)", 
+                                               pDmaCh->m_PortIndex, pDmaCh->m_RegsOffset);
+    else if ((pDmaCh->m_State & DTA_DMA_STATE_STARTED) == 0)
     {
+        // DMA was not started so the interrupt was invalid.
         // Report error in event viewer and stop. We don't want to see the BSOD.
         DtEvtLogReport(&pDmaCh->m_pDvcData->m_Device.m_EvtObject, DTA_LOG_FAKE_DMA_INT,
                                                                         NULL, NULL, NULL);
-        DtDbgOut(ERR, DMA, "DMA interrupt occured, but DMA not started (State=0x%04X)",
-                                                                         pDmaCh->m_State);
+        DtDbgOut(ERR, DMA, "[%d] DMA interrupt occured, but DMA not started"
+                                        " (State=0x%04X, Offset:%x)", pDmaCh->m_PortIndex,
+                                        pDmaCh->m_State, pDmaCh->m_RegsOffset);
         DT_ASSERT(FALSE);
         return;
     }
@@ -1052,9 +1056,11 @@ void DtaDmaCompletedDpc(DtDpcArgs* pArgs)
             OldState = DtAtomicCompareExchange((Int*)&pDmaCh->m_State, 
                                                DTA_DMA_STATE_STARTED, DTA_DMA_STATE_INIT);
             if ((OldState & DTA_DMA_STATE_ABORT) != 0)
-                DtDbgOut(MAX, DMA, "DMA restart next SKIPPED...aborting");
+                DtDbgOut(MAX, DMA, "[%d] DMA restart next SKIPPED...aborting (Offset:%x)",
+                                               pDmaCh->m_PortIndex, pDmaCh->m_RegsOffset);
             else {
-                DtDbgOut(MAX, DMA, "DMA restart next");
+                DtDbgOut(MAX, DMA, "[%d] DMA restart next (Offset:%x)", 
+                                               pDmaCh->m_PortIndex, pDmaCh->m_RegsOffset);
 
                 DT_ASSERT(OldState == DTA_DMA_STATE_STARTED);
                 // We start the next DMA transfer
@@ -1079,9 +1085,11 @@ void DtaDmaCompletedDpc(DtDpcArgs* pArgs)
     }
 
     if ((pDmaCh->m_State & DTA_DMA_STATE_ABORT) != 0)
-        DtDbgOut(MAX, DMA, "DMA abort event");
+        DtDbgOut(MAX, DMA, "[%d] DMA abort event (Offset:%x)", pDmaCh->m_PortIndex, 
+                                                                    pDmaCh->m_RegsOffset);
     else
-        DtDbgOut(MAX, DMA, "DMA completed event");
+        DtDbgOut(MAX, DMA, "[%d] DMA completed event (Offset:%x)", pDmaCh->m_PortIndex, 
+                                                                    pDmaCh->m_RegsOffset);
 
     if (pDmaCh->m_pDmaFinishFunc != NULL)
         pDmaCh->m_pDmaFinishFunc(pDmaCh, pDmaCh->m_pDmaFinishContext);
@@ -1258,7 +1266,8 @@ DtStatus  DtaDmaAbortDma(
         DtaNonIpPort*  pNonIpPort = NULL;
         UInt32  CmdStat;
         
-        DtDbgOut(AVG, DMA, "Stop DMA channel");
+        DtDbgOut(AVG, DMA, "[%d] Stop DMA channel (Offset:%x)", pDmaCh->m_PortIndex, 
+                                                                    pDmaCh->m_RegsOffset);
         // Stop DMA channel
         if (UsesDmaInFpga)
             CmdStat = READ_UINT32(pDmaCh->m_pRegCmdStat, 0);
@@ -1289,6 +1298,10 @@ DtStatus  DtaDmaAbortDma(
                     DtaRegHdMemTrControlSetAbort(pNonIpPort->m_pRxRegs, 1);
             }
         }
+    } else 
+    {
+        DtDbgOut(MAX, DMA, "[%d] DMA channel not started (Offset:%x)", 
+                                               pDmaCh->m_PortIndex, pDmaCh->m_RegsOffset);
     }
 
     DtDbgOut(MAX, DMA, "Exit");

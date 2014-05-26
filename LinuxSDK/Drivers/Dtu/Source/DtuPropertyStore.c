@@ -161,6 +161,11 @@ static const DtProperty  DtProperties205_0_40[] =
     { "VPD_IO_ITF", VPD_EEPROM_IO_EZUSB, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties205_0_41[] =
+{
+    { "VPD_SIZE", 512, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties205_0_42[] =
 {
     { "PROGRAMMING_ITF", PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, 6, 0,
@@ -254,7 +259,7 @@ static const DtPropertyHashSet  DtPropertyHashSets205_0[] =
     { NULL, 0 },
     { DtProperties205_0_39, 1 },
     { DtProperties205_0_40, 4 },
-    { NULL, 0 },
+    { DtProperties205_0_41, 1 },
     { DtProperties205_0_42, 2 },
     { DtProperties205_0_43, 2 },
     { NULL, 0 },
@@ -365,6 +370,11 @@ static const DtProperty  DtProperties215_0_16[] =
     { "PCB_MANUF", MANUF_PLANT_KCS, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties215_0_17[] =
+{
+    { "MOD_LEVEL_STEP_SIZE", 5, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties215_0_18[] =
 {
     { "CAP_CW", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, PROPERTY_SCOPE_DTAPI, 0, 0,
@@ -408,6 +418,11 @@ static const DtProperty  DtProperties215_0_25[] =
 static const DtProperty  DtProperties215_0_26[] =
 {
     { "REF_CLK_WIDTH", 32, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties215_0_28[] =
+{
+    { "REGISTERS_MOD", 0x80, NULL, PROPERTY_VALUE_TYPE_UINT16, 0, 0, 0,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties215_0_29[] =
@@ -463,7 +478,9 @@ static const DtProperty  DtProperties215_0_40[] =
 static const DtProperty  DtProperties215_0_41[] =
 {
     { "CAP_TX_GOLD", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, PROPERTY_SCOPE_DTAPI, 0,
-                                                                                   0, 0 } 
+                                                                                   0, 0 },
+    { "VPD_SIZE", 512, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties215_0_42[] =
 {
@@ -515,7 +532,9 @@ static const DtProperty  DtProperties215_0_51[] =
 static const DtProperty  DtProperties215_0_52[] =
 {
     { "CAP_TX_DVBC2", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, PROPERTY_SCOPE_DTAPI,
-                                                                                0, 0, 0 } 
+                                                                                0, 0, 0 },
+    { "REGISTERS_RF", 0x80, NULL, PROPERTY_VALUE_TYPE_UINT16, 0, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties215_0_53[] =
 {
@@ -588,7 +607,7 @@ static const DtPropertyHashSet  DtPropertyHashSets215_0[] =
     { DtProperties215_0_14, 1 },
     { NULL, 0 },
     { DtProperties215_0_16, 1 },
-    { NULL, 0 },
+    { DtProperties215_0_17, 1 },
     { DtProperties215_0_18, 1 },
     { DtProperties215_0_19, 2 },
     { DtProperties215_0_20, 2 },
@@ -599,7 +618,7 @@ static const DtPropertyHashSet  DtPropertyHashSets215_0[] =
     { DtProperties215_0_25, 2 },
     { DtProperties215_0_26, 1 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties215_0_28, 1 },
     { DtProperties215_0_29, 2 },
     { NULL, 0 },
     { NULL, 0 },
@@ -612,7 +631,7 @@ static const DtPropertyHashSet  DtPropertyHashSets215_0[] =
     { NULL, 0 },
     { DtProperties215_0_39, 1 },
     { DtProperties215_0_40, 3 },
-    { DtProperties215_0_41, 1 },
+    { DtProperties215_0_41, 2 },
     { DtProperties215_0_42, 3 },
     { DtProperties215_0_43, 3 },
     { NULL, 0 },
@@ -623,7 +642,7 @@ static const DtPropertyHashSet  DtPropertyHashSets215_0[] =
     { NULL, 0 },
     { DtProperties215_0_50, 1 },
     { DtProperties215_0_51, 1 },
-    { DtProperties215_0_52, 1 },
+    { DtProperties215_0_52, 2 },
     { DtProperties215_0_53, 3 },
     { NULL, 0 },
     { DtProperties215_0_55, 1 },
@@ -793,6 +812,11 @@ static const DtProperty  DtProperties225_0_40[] =
     { "VPD_IO_ITF", VPD_EEPROM_IO_EZUSB, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties225_0_41[] =
+{
+    { "VPD_SIZE", 512, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties225_0_42[] =
 {
     { "PROGRAMMING_ITF", PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, 6, 0,
@@ -886,7 +910,7 @@ static const DtPropertyHashSet  DtPropertyHashSets225_0[] =
     { NULL, 0 },
     { DtProperties225_0_39, 1 },
     { DtProperties225_0_40, 4 },
-    { NULL, 0 },
+    { DtProperties225_0_41, 1 },
     { DtProperties225_0_42, 2 },
     { DtProperties225_0_43, 2 },
     { NULL, 0 },
@@ -1012,6 +1036,11 @@ static const DtProperty  DtProperties234_0_40[] =
     { "VPD_IO_ITF", VPD_EEPROM_IO_EZUSB, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties234_0_41[] =
+{
+    { "VPD_SIZE", 512, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties234_0_42[] =
 {
     { "PROGRAMMING_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
@@ -1118,7 +1147,7 @@ static const DtPropertyHashSet  DtPropertyHashSets234_0[] =
     { NULL, 0 },
     { DtProperties234_0_39, 1 },
     { DtProperties234_0_40, 3 },
-    { NULL, 0 },
+    { DtProperties234_0_41, 1 },
     { DtProperties234_0_42, 1 },
     { DtProperties234_0_43, 2 },
     { NULL, 0 },
@@ -1240,6 +1269,11 @@ static const DtProperty  DtProperties235_0_40[] =
     { "VPD_IO_ITF", VPD_EEPROM_IO_EZUSB, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties235_0_41[] =
+{
+    { "VPD_SIZE", 512, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties235_0_42[] =
 {
     { "PROGRAMMING_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
@@ -1348,7 +1382,7 @@ static const DtPropertyHashSet  DtPropertyHashSets235_0[] =
     { NULL, 0 },
     { DtProperties235_0_39, 1 },
     { DtProperties235_0_40, 3 },
-    { NULL, 0 },
+    { DtProperties235_0_41, 1 },
     { DtProperties235_0_42, 1 },
     { DtProperties235_0_43, 2 },
     { NULL, 0 },
@@ -1507,6 +1541,11 @@ static const DtProperty  DtProperties236_0_40[] =
     { "VPD_IO_ITF", VPD_EEPROM_IO_EZUSB, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties236_0_41[] =
+{
+    { "VPD_SIZE", 512, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties236_0_42[] =
 {
     { "PROGRAMMING_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
@@ -1633,7 +1672,7 @@ static const DtPropertyHashSet  DtPropertyHashSets236_0[] =
     { NULL, 0 },
     { DtProperties236_0_39, 1 },
     { DtProperties236_0_40, 3 },
-    { NULL, 0 },
+    { DtProperties236_0_41, 1 },
     { DtProperties236_0_42, 1 },
     { DtProperties236_0_43, 3 },
     { NULL, 0 },
@@ -1838,6 +1877,11 @@ static const DtProperty  DtProperties245_0_40[] =
     { "VPD_IO_ITF", VPD_EEPROM_IO_EZUSB, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties245_0_41[] =
+{
+    { "VPD_SIZE", 512, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties245_0_42[] =
 {
     { "PROGRAMMING_ITF", PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, 6, 0,
@@ -1944,7 +1988,7 @@ static const DtPropertyHashSet  DtPropertyHashSets245_0[] =
     { NULL, 0 },
     { DtProperties245_0_39, 1 },
     { DtProperties245_0_40, 4 },
-    { NULL, 0 },
+    { DtProperties245_0_41, 1 },
     { DtProperties245_0_42, 2 },
     { DtProperties245_0_43, 2 },
     { NULL, 0 },
@@ -2095,6 +2139,11 @@ static const DtProperty  DtProperties255_0_40[] =
     { "VPD_IO_ITF", VPD_EEPROM_IO_EZUSB, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties255_0_41[] =
+{
+    { "VPD_SIZE", 512, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties255_0_42[] =
 {
     { "PROGRAMMING_ITF", PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, 6, 0,
@@ -2197,7 +2246,7 @@ static const DtPropertyHashSet  DtPropertyHashSets255_0[] =
     { NULL, 0 },
     { DtProperties255_0_39, 1 },
     { DtProperties255_0_40, 3 },
-    { NULL, 0 },
+    { DtProperties255_0_41, 1 },
     { DtProperties255_0_42, 2 },
     { DtProperties255_0_43, 1 },
     { NULL, 0 },
@@ -2297,6 +2346,11 @@ static const DtProperty  DtProperties299_0_40[] =
     { "VPD_IO_ITF", VPD_EEPROM_IO_EZUSB, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties299_0_41[] =
+{
+    { "VPD_SIZE", 512, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties299_0_42[] =
 {
     { "PROGRAMMING_ITF", PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, 6, 0,
@@ -2377,7 +2431,7 @@ static const DtPropertyHashSet  DtPropertyHashSets299_0[] =
     { NULL, 0 },
     { DtProperties299_0_39, 1 },
     { DtProperties299_0_40, 3 },
-    { NULL, 0 },
+    { DtProperties299_0_41, 1 },
     { DtProperties299_0_42, 2 },
     { DtProperties299_0_43, 1 },
     { NULL, 0 },
@@ -2536,6 +2590,11 @@ static const DtProperty  DtProperties351_0_40[] =
     { "VPD_IO_ITF", VPD_EEPROM_IO_EZUSB, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties351_0_41[] =
+{
+    { "VPD_SIZE", 4096, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties351_0_42[] =
 {
     { "PROGRAMMING_ITF", PROG_ITF_JTAG_NORMAL, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
@@ -2657,7 +2716,7 @@ static const DtPropertyHashSet  DtPropertyHashSets351_0[] =
     { DtProperties351_0_38, 1 },
     { DtProperties351_0_39, 1 },
     { DtProperties351_0_40, 3 },
-    { NULL, 0 },
+    { DtProperties351_0_41, 1 },
     { DtProperties351_0_42, 1 },
     { DtProperties351_0_43, 1 },
     { NULL, 0 },
@@ -2747,6 +2806,11 @@ static const DtProperty  DtProperties399_0_40[] =
     { "VPD_IO_ITF", VPD_EEPROM_IO_EZUSB, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties399_0_41[] =
+{
+    { "VPD_SIZE", 4096, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties399_0_42[] =
 {
     { "PROGRAMMING_ITF", PROG_ITF_JTAG_NORMAL, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
@@ -2825,7 +2889,7 @@ static const DtPropertyHashSet  DtPropertyHashSets399_0[] =
     { NULL, 0 },
     { DtProperties399_0_39, 1 },
     { DtProperties399_0_40, 3 },
-    { NULL, 0 },
+    { DtProperties399_0_41, 1 },
     { DtProperties399_0_42, 1 },
     { DtProperties399_0_43, 1 },
     { NULL, 0 },

@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2014 DekTec
 //
 // Dta driver - Common file shared between Dta driver and DTAPI
 //
@@ -6,7 +6,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2014 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -297,7 +297,6 @@ ASSERT_SIZE(DtaIoctlGetDevInfoOutput2, 48)
 #define DTA_VPD_SECT_ID                1
 #define DTA_VPD_SECT_RO                2
 #define DTA_VPD_SECT_RW                4
-#define DTA_VPD_SECT_SECURITY          8
 
 // DTA VPD flags
 #define DTA_VPD_FLAG_RO_WRITE_ALLOWED  1
@@ -2006,6 +2005,7 @@ ASSERT_SIZE(DtaIoctlGetStrPropertyOutput, 100)
 #define  DTA_MATRIX_CMD_GET_BUF_CONFIG    15    // Returns the buffer configuration
 #define  DTA_MATRIX_CMD_GET_REQ_DMA_SIZE  16    // Returns the minimum req DMA buffer size
 #define  DTA_MATRIX_CMD_GET_FRM_INFO      17    // Get the timing on a frame in the buffer
+#define  DTA_MATRIX_CMD_GET_FRM_PROPS     18    // Get the frame properties
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_WAIT_FRAME -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -2203,7 +2203,16 @@ typedef struct _DtaIoctlMatrixCmdGetFrmInfoOutput {
 } DtaIoctlMatrixCmdGetFrmInfoOutput;
 ASSERT_SIZE(DtaIoctlMatrixCmdGetFrmInfoOutput, 8)
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_GET_FRM_PROPS -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
+typedef struct _DtaIoctlMatrixCmdGetFrmPropsInput {
+    Int  m_VidStd;              // Video standard for which to get properties
+} DtaIoctlMatrixCmdGetFrmPropsInput;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetFrmPropsInput, 4)
+
+typedef DtAvFrameProps DtaIoctlMatrixCmdGetFrmPropsOutput;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetFrmPropsOutput, 72)
+    
 // Ioctl input data type
 typedef struct _DtaIoctlMatrixCmdInput {
     Int  m_Cmd;
@@ -2218,6 +2227,7 @@ typedef struct _DtaIoctlMatrixCmdInput {
         DtaIoctlMatrixCmdSetAsiCtrlInput  m_SetAsiCtrl;
         DtaIoctlMatrixCmdGetReqDmaSizeInput  m_GetReqDmaSize;
         DtaIoctlMatrixCmdGetFrmInfoInput  m_GetFrmInfo;
+        DtaIoctlMatrixCmdGetFrmPropsInput  m_GetFrmProps;
     } m_Data;
 } DtaIoctlMatrixCmdInput;
 #ifdef LINBUILD
@@ -2243,6 +2253,7 @@ typedef struct _DtaIoctlMatrixCmdOutput {
         DtaIoctlMatrixCmdGetReqDmaSizeOutput  m_GetReqDmaSize;
         DtaIoctlMatrixCmdGetBufConfigOutput  m_GetBufConfig;
         DtaIoctlMatrixCmdGetFrmInfoOutput  m_GetFrmInfo;
+        DtaIoctlMatrixCmdGetFrmPropsOutput  m_GetFrmProps;
     } m_Data;
 } DtaIoctlMatrixCmdOutput;
 ASSERT_SIZE(DtaIoctlMatrixCmdOutput, 408)

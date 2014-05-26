@@ -803,6 +803,7 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_BitrateMeasure.m_ValidCount256 = 0;       // Initial bitrate is 0
     
     // Initialize register mappings
+    pNonIpPort->m_pRfRegs = NULL;
     pNonIpPort->m_pRxRegs = NULL;
     pNonIpPort->m_pTxRegs = NULL;
     if (pNonIpPort->m_CapInput)
@@ -828,6 +829,12 @@ DtStatus  DtaNonIpInit(
             pNonIpPort->m_FifoOffset = pNonIpPort->m_TxRegsOffset+DTA_LOCALADDR_FIFODATA;
     } else
         pNonIpPort->m_TxRegsOffset = (UInt16)-1;
+    if (pNonIpPort->m_CapMod)
+    {
+        pNonIpPort->m_RfRegsOffset = DtPropertiesGetUInt16(pPropData,
+                                                "REGISTERS_RF", pNonIpPort->m_PortIndex);
+    } else
+        pNonIpPort->m_RfRegsOffset = (UInt16)-1;
     if (pNonIpPort->m_CapSpi)
     {
         pNonIpPort->m_SpiRegsOffset = DtPropertiesGetUInt16(pPropData,
@@ -1075,6 +1082,9 @@ DtStatus  DtaNonIpPowerup(DtaNonIpPort* pNonIpPort)
 {
     DtStatus  Status = DT_STATUS_OK;
     // Recalculate registers
+    if (pNonIpPort->m_RfRegsOffset != (UInt16)-1)
+        pNonIpPort->m_pRfRegs = pNonIpPort->m_pDvcData->m_pGenRegs +
+                                                               pNonIpPort->m_RfRegsOffset;
     if (pNonIpPort->m_RxRegsOffset != (UInt16)-1)
         pNonIpPort->m_pRxRegs = pNonIpPort->m_pDvcData->m_pGenRegs +
                                                                pNonIpPort->m_RxRegsOffset;
@@ -2052,6 +2062,8 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
                 pNonIpPort->m_IoCfg[Group] = OldCfgValue;   
             break;
         }
+        if (pNonIpPort->m_IsNonFuntional)
+            break; // Prevent register writes on ports without RX/TX registers
 
         DtaNonIpUpdateSdiModes(pNonIpPort, IoDirValue.m_Value==DT_IOCONFIG_INPUT, TRUE);
         switch (CfgValue.m_SubValue)
@@ -2155,12 +2167,12 @@ static DtStatus  DtaNonIpIoConfigSetRfClkSel(
         if (!pNonIpPort->m_CapRfClkExt)
             break;
         // Select internal clock
-        DtaRegTxRfCtrl3SetRfClkSel(pNonIpPort->m_pTxRegs, 1);
+        DtaRegRfCtrl3SetRfClkSel(pNonIpPort->m_pRfRegs, 1);
         break;
     case DT_IOCONFIG_RFCLKEXT:
         DT_ASSERT(pNonIpPort->m_CapRfClkExt);
         // Select external clock
-        DtaRegTxRfCtrl3SetRfClkSel(pNonIpPort->m_pTxRegs, 0);
+        DtaRegRfCtrl3SetRfClkSel(pNonIpPort->m_pRfRegs, 0);
         break;
     default:
         DtDbgOut(ERR, NONIP, "Invalid Config. Group: %d, Value: %d, SubValue: %d",

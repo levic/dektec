@@ -37,7 +37,8 @@ typedef struct _DtaVpd
     Int  m_EepromIoItf;
     UInt  m_EepromPageSize;       // Size of 1 EEPROM page
     UInt  m_EepromSize;           // Size of the complete EEPROM, only used by EPC
-                                  // implementation to calculate last sector address.
+                                  // implementation to calculate last sector address
+    UInt  m_EepromVpdSize;        // Size of VPD data section within the EEPROM
 
     // Implementation data
     UInt8*  m_pCache;             // Physical VPD cache buffer
@@ -62,8 +63,6 @@ typedef struct _DtaVpd
 #define  VPD_EEPROM_IO_PLX      0
 #define  VPD_EEPROM_IO_FPGA     1
 #define  VPD_EEPROM_IO_SPI      2
-// NOTE: This offset is from from top-of-EEPROM, not from bottom!!!
-#define  VPD_OFFSET_SECURITY    512
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtaVpdInit(DtaDeviceData* pDvcData);

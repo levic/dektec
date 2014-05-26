@@ -113,34 +113,6 @@ typedef struct _DtaFrameBufConfig
     DtaFrameBufSectionConfig  m_Sections[DTA_FRMBUF_NUM_SECTIONS];
 } DtaFrameBufConfig;
 
-// DtaFrameProps
-typedef struct _DtaFrameProps
-{
-    Int  m_VidStd;              // Video standard
-    Bool  m_IsHd;               // Is an HD format
-    Bool  m_IsInterlaced;       // Is an interlaced format
-    Bool  m_IsFractional;       // Is a fraction format
-    Int  m_NumLines;            // # of lines
-       
-    // Field 1: Start/end lines
-    Int  m_Field1Start, m_Field1End;  
-    // Field 1: Start/end line active video
-    Int  m_Field1ActVidStart, m_Field1ActVidEnd;
-
-    // Field 2: Start/end lines
-    Int  m_Field2Start, m_Field2End;  
-    // Field 2: Start/end line active video
-    Int  m_Field2ActVidStart, m_Field2ActVidEnd; 
-
-    Int  m_ActVidNumS;          // # of symbols in active video part of line
-    Int  m_VancNumS;            // # of symbols in vanc part of line
-    Int  m_HancNumS;            // # of symbols in hanc part of line
-    Int  m_SavNumS, m_EavNumS;  // # of symbols for EAV and SAV
-
-    Int  m_SwitchingLines[2];
-
-} DtaFrameProps;
-
 // DtaMatrixMemTrSetup
 typedef struct _DtaMatrixMemTrSetup
 {
@@ -180,7 +152,7 @@ typedef struct _DtaMatrixPort
                                 // Last state seen by interrupt routine. NOTE: only 
                                 // interrupt routine may write to this variable
 
-    DtaFrameProps  m_FrameProps;  // Frame properties
+    DtAvFrameProps  m_FrameProps;  // Frame properties
     DtaFrameBufConfig  m_BufConfig;  // Frame buffer configuration
     Int  m_RowIdx;                // Matrix row the port is associated with
     
@@ -326,11 +298,13 @@ typedef struct _DtaNonIpPort
     DtSpinLock  m_FlagsSpinLock;
 
     // Firmware register mapping
+    UInt16  m_RfRegsOffset;
     UInt16  m_RxRegsOffset;
     UInt16  m_TxRegsOffset;
     UInt16  m_SpiRegsOffset;
     UInt16  m_Rs422RegsOffset;
     UInt16  m_FifoOffset;
+    volatile UInt8*  m_pRfRegs;
     volatile UInt8*  m_pRxRegs;
     volatile UInt8*  m_pTxRegs;
     volatile UInt8*  m_pSpiRegs;

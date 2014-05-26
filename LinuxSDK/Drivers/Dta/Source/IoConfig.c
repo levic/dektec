@@ -162,7 +162,6 @@ DtStatus  DtaIoConfigInit(DtaDeviceData* pDvcData)
                                                            pDvcData->m_NumNonIpPorts+
                                                            pDvcData->m_NumIpPorts)))
                 DtDbgOut(ERR, IOCONFIG, "Error deleting registry key");
-                DT_ASSERT(FALSE);
         }
     }
 
@@ -275,6 +274,7 @@ DtStatus  DtaIoConfigSet(
     Int  ConfigValue;
     Int  ConfigSubValue;
     Int  ParXtra;
+    Int  NumIpCfgs = 0;
 
 
     // Get exclusive access lock to prevent ports from being opened/closed and other
@@ -286,15 +286,21 @@ DtStatus  DtaIoConfigSet(
         return DT_STATUS_BUSY;
     }
     
-    // Check if we are dealing with an IP port
+    // First do IoConfigSet for IP ports. We assume here that IoConfigs for IP and
+    // non-IP ports are completely unrelated. To do this properly we should validate
+    // the IoConfigs for both IP and non-IP ports first before applying any of them, but
+    // since currently IoConfigSet for IP ports is always a no-op (but can return an
+    // error for invalid values), we can set the IoConfigs for those first before worrying
+    // about non-IP ports.
     for (Cfg=0; Cfg<Count; Cfg++)
     {
         pCfg = &pIoConfigs[Cfg];
         Result = DtaGetIpPortIndex(pDvcData, pCfg->m_PortIndex, &IpIndex);
-        if (!DT_SUCCESS(Result)) // continue with Non IP
+        if (!DT_SUCCESS(Result))
         {
+            // Ignore IoConfig for now if not for an IP port
             Result = DT_STATUS_OK;
-            break;
+            continue;
         }
         // Get Idx of ConfigGroup
         Result = IoConfigCodeGet(pCfg->m_Group, &IoGroup);
@@ -317,6 +323,13 @@ DtStatus  DtaIoConfigSet(
             IpDataConfigValue.m_ParXtra[ParXtra] = pCfg->m_ParXtra[ParXtra];
 
         Result = DtaIpIoConfigSet(pIpPort, IoGroup, IpDataConfigValue);
+        if (!DT_SUCCESS(Result))
+            break;
+        NumIpCfgs++;
+    }
+    // Return on error or if all configs were for IP ports
+    if (!DT_SUCCESS(Result) || NumIpCfgs==Count)
+    {
         DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
         return Result;
     }
@@ -351,7 +364,10 @@ DtStatus  DtaIoConfigSet(
             pCfg = &pIoConfigs[Cfg];
             Result = DtaGetNonIpPortIndex(pDvcData, pCfg->m_PortIndex, &NonIpIndex);
             if (!DT_SUCCESS(Result))
-                break;
+            {
+                Result = DT_STATUS_OK;
+                continue;
+            }
 
             // Get Idx of ConfigGroup
             Result = IoConfigCodeGet(pCfg->m_Group, &IoGroup);
@@ -1315,13 +1331,6 @@ static DtStatus  DtaIoConfigUpdateValidateGenLocked(
             return DT_STATUS_CONFIG_ERROR;
 
         // Check if a genref port has been set
-        if (!pDvcData->m_Genlock.m_IsSupported)
-        {
-            DtDbgOut(ERR, IOCONFIG, "Genlock is not supported");
-            return DT_STATUS_CONFIG_ERROR;
-        }
-
-        // Only one port may be enabled as genlock reference
         for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
         {
             pOtherNonIpPort = &pDvcData->m_pNonIpPorts[i];

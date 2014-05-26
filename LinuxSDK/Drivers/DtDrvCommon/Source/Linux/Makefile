@@ -59,7 +59,8 @@ endif
 # Source definitions
 
 SRCDIR := ..
-SRC     = $(SRCDIR)/DtProperties.o	    \
+SRC     = $(SRCDIR)/DtAudioVideo.o	    \
+          $(SRCDIR)/DtProperties.o	    \
 		  $(SRCDIR)/DtIoConfig.o        \
 		  $(SRCDIR)/IoConfigCodes.o     \
 		  $(SRCDIR)/DtTables.o          \

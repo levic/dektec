@@ -54,7 +54,7 @@ static DtStatus  DtaNonIpMatrixVidStd2SdiFormat(Int  VidStd, Int* pVideoId,
 static DtStatus  DtaNonIpMatrixSdiFormat2VidStd(Int VideoId, Int  PictRate, 
                                                          Int  Progressive, Int*  pVidStd);
 static Bool  DtaNonIpMatrixValidateStartLineAndNumLines(
-                               DtaFrameProps* pFrameProps, Int  StartLine, Int  NumLines);
+                               DtAvFrameProps* pFrameProps, Int  StartLine, Int  NumLines);
 static Int  DtaNonIpMatrixCountMatrixPorts(DtaNonIpPort* pNonIpPort);
 static DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame);
 
@@ -521,7 +521,7 @@ DtStatus  DtaNonIpMatrixInit(DtaNonIpPort* pNonIpPort)
 {
     DtStatus  Status = DT_STATUS_OK;
     DtaMatrixPort*  pMatrix = &pNonIpPort->m_Matrix;
-    DtaFrameProps*  pFrameProps = &pNonIpPort->m_Matrix.m_FrameProps;
+    DtAvFrameProps*  pFrameProps = &pNonIpPort->m_Matrix.m_FrameProps;
     
     DT_ASSERT(pNonIpPort->m_CapMatrix);
     
@@ -882,7 +882,7 @@ UInt32  DtaNonIpMatrixGetFrameAddrInMem(
 {
     Int  Idx = 0;
     UInt32  FrameAddr = 0;
-    DtaFrameProps*  pFrameProps = NULL;
+    DtAvFrameProps*  pFrameProps = NULL;
     DtaFrameBufSectionConfig*  pSection = NULL;
 
     DT_ASSERT(pNonIpPort != NULL);
@@ -960,7 +960,7 @@ DtStatus  DtaNonIpMatrixPrepForDma(
     DtStatus  Status = DT_STATUS_OK;
     Int  ReqDmaSize = 0;
     UInt32  MemStartAddr = 0;
-    DtaFrameProps*  pFrameProps = NULL;
+    DtAvFrameProps*  pFrameProps = NULL;
     DtaFrameBufConfig*  pBufConf = NULL;
     volatile UInt8*  pHdRegs = NULL;
     
@@ -1200,7 +1200,7 @@ DtStatus  DtaNonIpMatrixGetReqDmaSize(
     Int*  pReqDmaSize)
 {
     Int  LineNumS = 0;
-    DtaFrameProps*  pFrameProps = NULL;
+    DtAvFrameProps*  pFrameProps = NULL;
     DtaFrameBufConfig*  pBufConf = NULL;
 
     DT_ASSERT(pNonIpPort!=NULL && pNonIpPort->m_CapMatrix);
@@ -1732,7 +1732,7 @@ DtStatus  DtaNonIpMatrixPowerUpPost(DtaNonIpPort* pNonIpPort)
 DtStatus  DtaNonIpMatrixApplyConfig(DtaNonIpPort* pNonIpPort)
 {
     DtStatus  Status = DT_STATUS_OK;
-    DtaFrameProps*  pFrameProps = NULL;
+    DtAvFrameProps*  pFrameProps = NULL;
     volatile UInt8* pHdRegs =  pNonIpPort->m_pRxRegs;
     Int  VideoId, PictRate, Progressive;
     
@@ -1842,224 +1842,10 @@ DtStatus  DtaNonIpMatrixApplyBufferConfig(DtaNonIpPort* pNonIpPort)
 //
 DtStatus  DtaNonIpMatrixInitFrameProps(DtaNonIpPort* pNonIpPort)
 {
-    DtStatus  Status = DT_STATUS_OK;
-    DtaFrameProps*  pProps = &pNonIpPort->m_Matrix.m_FrameProps;
     Int  VidStd = DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
 
-    switch (VidStd)
-    {
-    case DT_VIDSTD_525I59_94:
-        pProps->m_NumLines = 525;
-        pProps->m_IsFractional = TRUE;
-
-        pProps->m_Field1Start = 1;
-        pProps->m_Field1End = 262;
-        pProps->m_Field1ActVidStart = 17;
-        pProps->m_Field1ActVidEnd = 260;
-        pProps->m_SwitchingLines[0] = 10;
-
-        pProps->m_Field2Start = 263; 
-        pProps->m_Field2End = 525;
-        pProps->m_Field2ActVidStart = 280;  
-        pProps->m_Field2ActVidEnd = 522;
-        pProps->m_SwitchingLines[1] = 273;
-
-        pProps->m_VancNumS = pProps->m_ActVidNumS = 720*2;
-        pProps->m_HancNumS = 268;
-        pProps->m_SavNumS = 4;
-        pProps->m_EavNumS = 4;
-        pProps->m_IsInterlaced = TRUE;
-        break;
-
-    case DT_VIDSTD_625I50:
-        pProps->m_NumLines = 625;
-        pProps->m_IsFractional = FALSE;
-
-        pProps->m_Field1Start = 1;    
-        pProps->m_Field1End = 312;
-        pProps->m_Field1ActVidStart = 23;   
-        pProps->m_Field1ActVidEnd = 310;
-        pProps->m_SwitchingLines[0] = 6;
-
-        pProps->m_Field2Start = 313;  
-        pProps->m_Field2End = 625;
-        pProps->m_Field2ActVidStart = 336;  
-        pProps->m_Field2ActVidEnd  = 623;
-        pProps->m_SwitchingLines[1] = 319;
-
-        pProps->m_VancNumS = pProps->m_ActVidNumS = 720*2;
-        pProps->m_HancNumS = 280;
-        pProps->m_SavNumS = 4;
-        pProps->m_EavNumS = 4;
-        pProps->m_IsInterlaced = TRUE;
-        break;
-
-    case DT_VIDSTD_1080P60:
-    case DT_VIDSTD_1080P59_94:
-    case DT_VIDSTD_1080P50:
-        pProps->m_NumLines = 1125;
-        pProps->m_IsFractional = (VidStd == DT_VIDSTD_1080P59_94);
-
-        pProps->m_Field1Start = 1;
-        pProps->m_Field1End = 1125;
-
-        pProps->m_Field1ActVidStart = 42;
-        pProps->m_Field1ActVidEnd = 1121;
-
-        pProps->m_SwitchingLines[0] = 7;
-        pProps->m_SwitchingLines[1] = 569;
-
-        pProps->m_Field2Start = 0;
-        pProps->m_Field2End = 0;
-        
-        pProps->m_Field2ActVidStart = 0;
-        pProps->m_Field2ActVidEnd  = 0;
-        
-        pProps->m_VancNumS = pProps->m_ActVidNumS = 1920*2;
-        if (VidStd==DT_VIDSTD_1080P60 || VidStd==DT_VIDSTD_1080P59_94)
-            pProps->m_HancNumS = 268*2;
-        else if (VidStd == DT_VIDSTD_1080P50)
-            pProps->m_HancNumS = 708*2;
-        else
-            DT_ASSERT(1==0);
-
-        pProps->m_EavNumS = 8*2;
-        pProps->m_SavNumS = 4*2;
-
-        pProps->m_IsInterlaced = FALSE;
-        break;
-
-    case DT_VIDSTD_1080P30:
-    case DT_VIDSTD_1080P29_97:
-    case DT_VIDSTD_1080P25:
-    case DT_VIDSTD_1080P24:
-    case DT_VIDSTD_1080P23_98:
-        pProps->m_NumLines = 1125;
-        pProps->m_IsFractional = (VidStd==DT_VIDSTD_1080P29_97 
-                                                         || VidStd==DT_VIDSTD_1080P23_98);
-
-        pProps->m_Field1Start = 1;
-        pProps->m_Field1End = 1125;
-
-        pProps->m_Field1ActVidStart = 42;
-        pProps->m_Field1ActVidEnd = 1121;
-        pProps->m_SwitchingLines[0] = 7;
-
-        pProps->m_Field2Start = 0;
-        pProps->m_Field2End = 0;
-        pProps->m_Field2ActVidStart = 0;
-        pProps->m_Field2ActVidEnd = 0;
-        pProps->m_SwitchingLines[1] = -1;
-
-        pProps->m_VancNumS = pProps->m_ActVidNumS = 1920*2;
-        if (VidStd==DT_VIDSTD_1080P30 || VidStd==DT_VIDSTD_1080P29_97)
-            pProps->m_HancNumS = 268*2;
-        else if (VidStd == DT_VIDSTD_1080P25)
-            pProps->m_HancNumS = 708*2;
-        else if (VidStd==DT_VIDSTD_1080P24 || VidStd==DT_VIDSTD_1080P23_98)
-            pProps->m_HancNumS = 818*2;
-        else
-            DT_ASSERT(1==0);
-
-        pProps->m_EavNumS = 8*2;
-        pProps->m_SavNumS = 4*2;
-
-        pProps->m_IsInterlaced = FALSE;
-        break;
-
-    case DT_VIDSTD_1080I60:
-    case DT_VIDSTD_1080I59_94:
-    case DT_VIDSTD_1080I50:
-        pProps->m_NumLines = 1125;
-        pProps->m_IsFractional = (VidStd == DT_VIDSTD_1080I59_94);
-
-        pProps->m_Field1Start = 1; 
-        pProps->m_Field1End = 563;
-        pProps->m_Field1ActVidStart = 21; 
-        pProps->m_Field1ActVidEnd = 560;
-        pProps->m_SwitchingLines[0] = 7;
-
-        pProps->m_Field2Start = 564;
-        pProps->m_Field2End = 1125;
-        pProps->m_Field2ActVidStart = 584;
-        pProps->m_Field2ActVidEnd = 1123;
-        pProps->m_SwitchingLines[1] = 569;
-
-        pProps->m_VancNumS = pProps->m_ActVidNumS = 1920*2;
-        if (VidStd==DT_VIDSTD_1080I60 || VidStd==DT_VIDSTD_1080I59_94)
-            pProps->m_HancNumS = 268*2;
-        else if (VidStd == DT_VIDSTD_1080I50)
-            pProps->m_HancNumS = 708*2;
-        else
-            DT_ASSERT(1==0);
-        
-        pProps->m_EavNumS = 8*2;
-        pProps->m_SavNumS = 4*2;
-
-        pProps->m_IsInterlaced = TRUE;
-        break;
-
-    case DT_VIDSTD_720P60:
-    case DT_VIDSTD_720P59_94:
-    case DT_VIDSTD_720P50:
-    case DT_VIDSTD_720P30:
-    case DT_VIDSTD_720P29_97:
-    case DT_VIDSTD_720P25:
-    case DT_VIDSTD_720P24:
-    case DT_VIDSTD_720P23_98:
-        pProps->m_NumLines = 750;
-        pProps->m_IsFractional = (VidStd==DT_VIDSTD_720P59_94 
-                                                          || VidStd==DT_VIDSTD_720P29_97 
-                                                          || VidStd==DT_VIDSTD_720P23_98);
-
-        pProps->m_Field1Start = 1;
-        pProps->m_Field1End = 750;
-        pProps->m_Field1ActVidStart = 26; 
-        pProps->m_Field1ActVidEnd = 745;
-        pProps->m_SwitchingLines[0] = 7;
-
-        pProps->m_Field2Start = 0;
-        pProps->m_Field2End = 0;
-        pProps->m_Field2ActVidStart = 0; 
-        pProps->m_Field2ActVidEnd = 0;
-        pProps->m_SwitchingLines[1] = -1;
-
-        pProps->m_VancNumS = pProps->m_ActVidNumS = 1280*2;
-        if (VidStd==DT_VIDSTD_720P60 || VidStd==DT_VIDSTD_720P59_94)
-            pProps->m_HancNumS = 358*2;
-        else if (VidStd==DT_VIDSTD_720P50)
-            pProps->m_HancNumS = 688*2;
-        else if (VidStd==DT_VIDSTD_720P30 || VidStd==DT_VIDSTD_720P29_97)
-            pProps->m_HancNumS = 2008*2;
-        else if (VidStd==DT_VIDSTD_720P25)
-            pProps->m_HancNumS = 2668*2;
-        else if (VidStd==DT_VIDSTD_720P24 || VidStd==DT_VIDSTD_720P23_98)
-            pProps->m_HancNumS = 2833*2;
-        else
-            DT_ASSERT(1==0);
-
-        pProps->m_EavNumS = 8*2;
-        pProps->m_SavNumS = 4*2;
-
-        pProps->m_IsInterlaced = FALSE;
-        break;
-
-    default:
-        DtDbgOut(ERR, NONIP, "Unknown IO-standard");
-        return DT_STATUS_CONFIG_ERROR;
-    }
-    pProps->m_VidStd = VidStd;
-
-    // Set HD flags
-    if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value==DT_IOCONFIG_HDSDI
-                     || pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value==DT_IOCONFIG_3GSDI)
-        pProps->m_IsHd = TRUE;
-    else
-        pProps->m_IsHd = FALSE;
-
-
-    return Status;
+    return DtAvGetFrameProps(VidStd, &pNonIpPort->m_Matrix.m_FrameProps);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixComputeBufferConfig -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2067,7 +1853,7 @@ DtStatus  DtaNonIpMatrixInitFrameProps(DtaNonIpPort* pNonIpPort)
 static DtStatus  DtaNonIpMatrixComputeBufferConfig(DtaNonIpPort* pNonIpPort)
 {   
     DtStatus  Status = DT_STATUS_OK;
-    DtaFrameProps*  pFrameProps = &pNonIpPort->m_Matrix.m_FrameProps;
+    DtAvFrameProps*  pFrameProps = &pNonIpPort->m_Matrix.m_FrameProps;
     DtaFrameBufConfig*  pBufConf = &pNonIpPort->m_Matrix.m_BufConfig;
     UInt32  BaseAddr=0;
     Int  SizeOfChannelRam, NumFrames=0, NumLines=0, LineNumSymbols=0, LineSizeBytes=0; 
@@ -2326,7 +2112,7 @@ DtStatus  DtaNonIpMatrixSdiFormat2VidStd(
 //.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixValidateStartLineAndNumLines -.-.-.-.-.-.-.-.-.-.-.
 //
 Bool  DtaNonIpMatrixValidateStartLineAndNumLines(
-    DtaFrameProps* pFrameProps, 
+    DtAvFrameProps* pFrameProps, 
     Int  StartLine, 
     Int  NumLines)
 {
@@ -2368,7 +2154,7 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
     DtStatus  Status = DT_STATUS_OK;
     Bool  VSync;
     DtaMatrixMemTrSetup  MemTrSetup;
-    DtaFrameProps*  pProps = NULL;
+    DtAvFrameProps*  pProps = NULL;
     UInt8*  pLocalAddress = NULL;
     UInt16 *pLineBuf=NULL, *pEav=NULL, *pSav=NULL, *pHanc=NULL;
     DtPageList* pPageList = NULL;

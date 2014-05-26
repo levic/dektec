@@ -1,10 +1,10 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2014 DekTec
 //
 // SDK - Common definitions and types between for DTAPI/DTA/DTU drivers
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2014 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -138,6 +138,35 @@ typedef struct  _DtIoConfigValue
     Int64A  m_ParXtra[DT_MAX_PARXTRA_COUNT];
 } DtIoConfigValue;
 ASSERT_SIZE(DtIoConfigValue, 136)
+
+// DtAvFrameProps describes the properties of a Audio/Video frame (e.g. #lines, field 
+// start/end, etc)
+typedef struct _DtAvFrameProps
+{
+    Int  m_VidStd;              // Video standard (DT_VIDSTD_XXX)
+    Bool  m_IsHd;               // Is an HD format
+    Bool  m_IsInterlaced;       // Is an interlaced format
+    Bool  m_IsFractional;       // Is a fraction format
+    Int  m_NumLines;            // # of lines
+       
+    // Field 1: Start/end lines
+    Int  m_Field1Start, m_Field1End;  
+    // Field 1: Start/end line active video
+    Int  m_Field1ActVidStart, m_Field1ActVidEnd;
+
+    // Field 2: Start/end lines
+    Int  m_Field2Start, m_Field2End;  
+    // Field 2: Start/end line active video
+    Int  m_Field2ActVidStart, m_Field2ActVidEnd; 
+
+    Int  m_ActVidNumS;          // # of symbols in active video part of line
+    Int  m_VancNumS;            // # of symbols in vanc part of line
+    Int  m_HancNumS;            // # of symbols in hanc part of line
+    Int  m_SavNumS, m_EavNumS;  // # of symbols for EAV and SAV
+
+    Int  m_SwitchingLines[2];   // Switching lines for field 1 & 2
+} DtAvFrameProps;
+ASSERT_SIZE(DtAvFrameProps, 72)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 

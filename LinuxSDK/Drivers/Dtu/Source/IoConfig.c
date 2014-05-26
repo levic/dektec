@@ -135,7 +135,6 @@ DtStatus  DtuIoConfigInit(DtuDeviceData* pDvcData)
                                                            pDvcData->m_NumNonIpPorts+
                                                            pDvcData->m_NumIpPorts)))
                 DtDbgOut(ERR, IOCONFIG, "Error deleting registry key");
-                DT_ASSERT(FALSE);
         }
     }
 

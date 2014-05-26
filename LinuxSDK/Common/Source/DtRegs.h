@@ -377,29 +377,32 @@
 #define DT_TX_REG_DIAG                 0x001C
 #define DT_TX_REG_LOOPBKDATA           0x0020
 #define DT_TX_REG_THRESHCTRL           0x0024
-#define DT_TX_REG_MOD_CONTROL3         0x0024 // Reserved for future use
+// Modulation registers
+#define DT_TX_REG_MOD_CONTROL3         0x0024   // Reserved for future use
 #define DT_TX_REG_MOD_CONTROL1         0x0028
-#define DT_TX_REG_MOD_CONTROL2         0x002C // for modulator channel
-#define DT_TX_REG_TXCLOCK_MOD          0x002C // for ASI/SDI channel
-#define DT_TX_REG_IDAC_CONTROL         0x0030
-#define DT_TX_REG_QDAC_CONTROL         0x0034
-#define DT_TX_REG_RF_CONTROL           0x0038  // DTA-107 and DTA-110
-#define DT_TX_REG_RF_CONTROL1          0x0038
-#define DT_TX_REG_IF_CONTROL           0x0038
-#define DT_TX_REG_RF_CONTROL2          0x003C
-#define DT_TX_REG_RF_CONTROL3          0x0040
+#define DT_TX_REG_MOD_CONTROL2         0x002C   // for modulator channel
+#define DT_TX_REG_MOD_CHANLEVEL        0x0030
+
+// Non-modulation registers
+#define DT_TX_REG_TXCLOCK_MOD          0x002C   // for ASI/SDI channel
 #define DT_TX_REG_FIFO_FIRST           0x0040
-#define DT_TX_REG_RFDAC_CONTROL        0x0050
-#define DT_TX_REG_RFDAC_DATA           0x0054
+// More modulation registers
 #define DT_TX_REG_IQMAP_CONTROL        0x0044
 #define DT_TX_REG_IQMAP_DATA           0x0048
 #define DT_TX_REG_FILTER_CONTROL       0x004C
 #define DT_TX_REG_FILTER_DATA          0x0050 
 #define DT_TX_REG_DDS_CONTROL          0x0054
+#define DT_TX_REG_NCO_CONTROL          0x0054
 #define DT_TX_REG_DDS_DATA             0x0058
-#define DT_TX_REG_SATUR_COUNT          0x005C
+#define DT_TX_REG_NCO_DATA_LOW         0x0058
+#define DT_TX_REG_NCO_DATA_HIGH        0x005C
+#define DT_TX_REG_TIMSYNC_CONTROL      0x005C
+#define DT_TX_REG_TIMSYNC_DATA         0x0060
+#define DT_TX_REG_SRC_CONTROL1         0x0068
+#define DT_TX_REG_SRC_CONTROL2         0x006C
+#define DT_TX_REG_SRC_CONTROL3         0x0070
+#define DT_TX_REG_SRC_CONTROL4         0x0074
 #define DT_TX_REG_FIFO_LAST            0x007C
-
 //.-.-.-.-.-.-.-.-.-.-.-.-  Transmit-Control register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.
 #define DT_TXCTRL_TXMODE_MSK           0x00000003
 #define DT_TXCTRL_TXMODE_SH            0
@@ -573,22 +576,22 @@
 #define DT_TXMODC1_TESTPAT_SH          28
 
 // Modulation-Type field: values
-#define DT_TXMODC_QPSK                 0
-#define DT_TXMODC_BPSK                 1   // Not supported
-#define DT_TXMODC_QAM4                 3
-#define DT_TXMODC_QAM16                4
-#define DT_TXMODC_QAM32                5
-#define DT_TXMODC_QAM64                6
-#define DT_TXMODC_QAM128               7
-#define DT_TXMODC_QAM256               8
-#define DT_TXMODC_IQMAP                9   // I/Q Mapping
+#define DT_TXMODC_QPSK                 0x00
+#define DT_TXMODC_BPSK                 0x01   // Not supported
+#define DT_TXMODC_QAM4                 0x03
+#define DT_TXMODC_QAM16                0x04
+#define DT_TXMODC_QAM32                0x05
+#define DT_TXMODC_QAM64                0x06
+#define DT_TXMODC_QAM128               0x07
+#define DT_TXMODC_QAM256               0x08
+#define DT_TXMODC_IQMAP                0x09   // I/Q Mapping
+
 // IQ Mapping
-#define DT_TXMODC_SYMB8                8   // 8-bit symbol mode
-#define DT_TXMODC_SYMB8E               9   // 8-bit extended symbol mode
-#define DT_TXMODC_SYMB4                10  // 4-bit symbol mode
-#define DT_TXMODC_IQDIRBUF             14  // Direct I/Q, buffered
-#define DT_TXMODC_IQDIRECT             15  // Direct I/Q
-#define DT_TXMODC_IQDIRPCK             15  // Direct I/Q packed (DTA-2107)
+#define DT_TXMODC_SYMB8                0x08  // 8-bit symbol mode
+#define DT_TXMODC_SYMB8E               0x09  // 8-bit extended symbol mode
+#define DT_TXMODC_SYMB4                0x0A  // 4-bit symbol mode
+#define DT_TXMODC_IQDIRBUF             0x0E  // Direct I/Q, buffered
+#define DT_TXMODC_IQDIRPCK             0x0F  // Direct I/Q packed (DTA-2107)
 
 // I/Q Mapping field: values
 #define DT_IQMAP_QAM                   0   // General QAM I/Q mapping
@@ -639,83 +642,185 @@
 #define DT_TXMODC2_NOISELVL_SH         4
 #define DT_TXMODC2_NOISERNG_MSK        0x00007000
 #define DT_TXMODC2_NOISERNG_SH         12
+#define DT_TXMODC2_MODTYPE_MSK         0x003F0000
+#define DT_TXMODC2_MODTYPE_SH          16
+// Modulation-Type field the extended version: values
+#define DT_TXMODC2_QPSK                 0x00
+#define DT_TXMODC2_QAM4                 0x03
+#define DT_TXMODC2_QAM16                0x04
+#define DT_TXMODC2_QAM32                0x05
+#define DT_TXMODC2_QAM64                0x06
+#define DT_TXMODC2_QAM128               0x07
+#define DT_TXMODC2_QAM256               0x08
+// IQ Mapping
+#define DT_TXMODC2_SYMB8                0x09  // 8-bit symbol mode
+#define DT_TXMODC2_SYMB8E               0x0A  // 8-bit extended symbol mode
+#define DT_TXMODC2_SYMB4                0x0B  // 4-bit symbol mode
+#define DT_TXMODC2_IQDIRBUF             0x0C  // Direct I/Q, buffered
+#define DT_TXMODC2_IQDIRPCK             0x0D  // Direct I/Q packed
 
-//.-.-.-.-.-.-.-.-.-.- Tx I- and Q-DAC-Control registers: Bit Fields -.-.-.-.-.-.-.-.-.-.-
-#define DT_TXDACC_FINEGAIN_MSK         0x000000FF
-#define DT_TXDACC_FINEGAIN_SH          0
-#define DT_TXDACC_OFFSDIR_MSK          0x00000100
-#define DT_TXDACC_OFFSDIR_SH           8
-#define DT_TXDACC_OFFSET_MSK           0x0007FE00
-#define DT_TXDACC_OFFSET_SH            9
+//-.-.-.-.-.-.-.-.-.-.-.-.- Tx SRC-Control1 register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-
+#define DT_TXSRCCTRL1_POW2CTRL_MSK     0x0000000F
+#define DT_TXSRCCTRL1_POW2CTRL_SH      0
+#define DT_TXSRCCTRL1_MNINTINC_MSK     0x07FFFFF0
+#define DT_TXSRCCTRL1_MNINTINC_SH      4
 
-//-.-.-.-.-.-.-.-.-.-.-.-.- Tx RF-Control  register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.
-#define DT_TXRFCTRL_PLLA_MSK           0x0000001F
-#define DT_TXRFCTRL_PLLA_SH            0
-#define DT_TXRFCTRL_PLLB_MSK           0x00003FE0
-#define DT_TXRFCTRL_PLLB_SH            5
-#define DT_TXRFCTRL_PLL_LOCK_MSK       0x00020000
-#define DT_TXRFCTRL_PLL_LOCK_SH        17
-#define DT_TXRFCTRL_PLLB9_MSK          0x00040000
-#define DT_TXRFCTRL_PLLB9_SH           18
-#define DT_TXRFCTRL_PLLR_MSK           0xFFF80000
-#define DT_TXRFCTRL_PLLR_SH            19
-// Tx RF-Control 1 register 1: Bit fields (for DTA-115)
-#define DT_TXRFCTRL1_MOD_MSK           0x00000FFF
-#define DT_TXRFCTRL1_MOD_SH            0
-#define DT_TXRFCTRL1_FRAC_MSK          0x00FFF000
-#define DT_TXRFCTRL1_FRAC_SH           12
-#define DT_TXRFCTRL1_INT_MSK           0xFF000000
-#define DT_TXRFCTRL1_INT_SH            24
+//.-.-.-.-.-.-.-.-.-.- Tx Modulation NCO control register: Bit fields -.-.-.-.-.-.-.-.-.-.
+#define DT_TXNCOCTRL_NOISE_GAIN_MSK    0x00000001
+#define DT_TXNCOCTRL_NOISE_GAIN_SH     0
+#define DT_TXNCOCTRL_CARRIER_LEVEL_MSK 0x3C000000
+#define DT_TXNCOCTRL_CARRIER_LEVEL_SH  26
+#define DT_TXNCOCTRL_CARRIER_ONLY_MSK  0x40000000
+#define DT_TXNCOCTRL_CARRIER_ONLY_SH   30
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.- Tx IF-Control register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.
-#define DT_TXIFCTRL_PLLR_MSK           0x00003FFF
-#define DT_TXIFCTRL_PLLR_SH            0
-#define DT_TXIFCTRL_PLLB_MSK           0x07FFC000
-#define DT_TXIFCTRL_PLLB_SH            14
-#define DT_TXIFCTRL_PLLA_MSK           0xF8000000
-#define DT_TXIFCTRL_PLLA_SH            27
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ RF registers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- RF Register offsets -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Note for most devices the registers have the same offset as the TX Registers. 
+// Except for the DTA-2115 the offset is 0x460
+//
+#define DT_RF_REG_DAC_IRQCTRL          0x0020
+#define DT_RF_REG_DAC_IRQSTATUS        0x0024
+#define DT_RF_REG_IDAC_CONTROL         0x0030
+#define DT_RF_REG_QDAC_CONTROL         0x0034
+#define DT_RF_REG_DACITF_CONTROL       0x0030   // DTA-2115
+#define DT_RF_REG_DACSPI_CONTROL       0x0034   // DTA-2115
+#define DT_RF_REG_RF_CONTROL           0x0038   // DTA-107 and DTA-110
+#define DT_RF_REG_RF_CONTROL1          0x0038
+#define DT_RF_REG_IF_CONTROL           0x0038
+#define DT_RF_REG_RF_CONTROL2          0x003C
+#define DT_RF_REG_RF_CONTROL3          0x0040
+#define DT_RF_REG_RFDAC_CONTROL        0x0050
+#define DT_RF_REG_RFDAC_DATA           0x0054
+#define DT_RF_REG_SATUR_COUNT          0x005C
+#define DT_RF_REG_NLC_CONTROL1         0x006C
+#define DT_RF_REG_NLC_CONTROL2         0x0070
+//.-.-.-.-.-.-.-.-.-.- RF I- and Q-DAC-Control registers: Bit Fields -.-.-.-.-.-.-.-.-.-.-
+#define DT_RFDACC_FINEGAIN_MSK         0x000000FF
+#define DT_RFDACC_FINEGAIN_SH          0
+#define DT_RFDACC_OFFSDIR_MSK          0x00000100
+#define DT_RFDACC_OFFSDIR_SH           8
+#define DT_RFDACC_OFFSET_MSK           0x0007FE00
+#define DT_RFDACC_OFFSET_SH            9
+//-.-.-.-.-.-.- RF DAC Interface Control register: Bit fields (for DTA-2115) -.-.-.-.-.-.-
+#define DT_RFDACITFCTRL_MODE_MSK       0x00000003
+#define DT_RFDACITFCTRL_MODE_SH        0
+#define DT_RFDACITFCTRL_GAIN_MSK       0x00000004
+#define DT_RFDACITFCTRL_GAIN_SH        2
+#define DT_RFDACITFCTRL_RESETDET_MSK   0x00000020
+#define DT_RFDACITFCTRL_RESETDET_SH    5
+#define DT_RFDACITFCTRL_DACIRQ_MSK     0x00000040
+#define DT_RFDACITFCTRL_DACIRQ_SH      6
+// RF-DAC-ITF-Control: Mode
+#define DT_RFDACITF_MODE_NORMAL        0
+#define DT_RFDACITF_MODE_PARITY        1
+// RF-DAC-ITF-Control: Gain
+#define DT_RFDACITF_GAIN_0_14_4        0
+#define DT_RFDACITF_GAIN_1_14_3        1
+//-.-.-.-.-.-.-.-.- DAC SPI-Control register: Bit fields (for DTA-2115) -.-.-.-.-.-.-.-.-.
+#define DT_RFDACSPICTRL_SPIDATA_MSK    0x000000FF
+#define DT_RFDACSPICTRL_SPIDATA_SH     0
+#define DT_RFDACSPICTRL_SPIADDR_MSK    0x00007F00
+#define DT_RFDACSPICTRL_SPIADDR_SH     8
+#define DT_RFDACSPICTRL_SPIRDORWRN_MSK 0x00008000
+#define DT_RFDACSPICTRL_SPIRDORWRN_SH  15
+#define DT_RFDACSPICTRL_SPIUPDATE_MSK  0x00010000
+#define DT_RFDACSPICTRL_SPIUPDATE_SH   16
+#define DT_RFDACSPICTRL_SPIRESET_MSK   0x00020000
+#define DT_RFDACSPICTRL_SPIRESET_SH    17
+#define DT_RFDACSPICTRL_SPIREADY_MSK   0x00040000
+#define DT_RFDACSPICTRL_SPIREADY_SH    18
+//-.-.-.-.-.-.-.-.-.-.-.-.-.- RF-Control  register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define DT_RFCTRL_PLLA_MSK              0x0000001F
+#define DT_RFCTRL_PLLA_SH               0
+#define DT_RFCTRL_PLLB_MSK              0x00003FE0
+#define DT_RFCTRL_PLLB_SH               5
+#define DT_RFCTRL_PLL_LOCK_MSK          0x00020000
+#define DT_RFCTRL_PLL_LOCK_SH           17
+#define DT_RFCTRL_PLLB9_MSK              0x00040000
+#define DT_RFCTRL_PLLB9_SH              18
+#define DT_RFCTRL_PLLR_MSK              0xFFF80000
+#define DT_RFCTRL_PLLR_SH               19
+// RF-Control 1 register 1: Bit fields (for DTA-115)
+#define DT_RFCTRL1_MOD_MSK              0x00000FFF
+#define DT_RFCTRL1_MOD_SH               0
+#define DT_RFCTRL1_FRAC_MSK             0x00FFF000
+#define DT_RFCTRL1_FRAC_SH              12
+#define DT_RFCTRL1_INT_MSK              0xFF000000
+#define DT_RFCTRL1_INT_SH               24
+#define DT_RFCTRL1_SPEC_INV_MSK         0x02000000  // Global spectrum inversion DTA-2115
+#define DT_RFCTRL1_SPEC_INV_SH          25
 
-//-.-.-.-.-.-.-.-.-.-.-.-.- Tx RF-Control-2 register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-
-#define DT_TXRFCTRL2_AGCSP_MSK         0x00000FFF
-#define DT_TXRFCTRL2_AGCSP_SH          0
-#define DT_TXRFCTRL2_OUTATTN_MSK       0x0003F000
-#define DT_TXRFCTRL2_OUTATTN_SH        12
-#define DT_TXRFCTRL2_OUTLVL10B_OFFSET_MSK  0x003FF000
-#define DT_TXRFCTRL2_OUTLVL10B_OFFSET_SH   12
-#define DT_TXRFCTRL2_AGC_EN_MSK        0x00040000
-#define DT_TXRFCTRL2_AGC_EN_SH         18
-#define DT_TXRFCTRL2_INPATTN_MSK       0x00780000
-#define DT_TXRFCTRL2_INPATTN_SH        19
-#define DT_TXRFCTRL2_LOWNOISE_EN_MSK   0x00800000
-#define DT_TXRFCTRL2_LOWNOISE_EN_SH    23
-#define DT_TXRFCTRL2_CPC_MSK           0x0F000000
-#define DT_TXRFCTRL2_CPC_SH            24
-#define DT_TXRFCTRL2_PLL1_LOCK_MSK     0x10000000
-#define DT_TXRFCTRL2_PLL1_LOCK_SH      28
-#define DT_TXRFCTRL2_PLL2_LOCK_MSK     0x20000000
-#define DT_TXRFCTRL2_PLL2_LOCK_SH      29
-#define DT_TXRFCTRL2_PLL3_LOCK_MSK     0x40000000
-#define DT_TXRFCTRL2_PLL3_LOCK_SH      30
-#define DT_TXRFCTRL2_AGC_LOCK_MSK      0x80000000
-#define DT_TXRFCTRL2_AGC_LOCK_SH       31
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-  IF-Control register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define DT_TXIFCTRL_PLLR_MSK            0x00003FFF
+#define DT_TXIFCTRL_PLLR_SH             0
+#define DT_TXIFCTRL_PLLB_MSK            0x07FFC000
+#define DT_TXIFCTRL_PLLB_SH             14
+#define DT_TXIFCTRL_PLLA_MSK            0xF8000000
+#define DT_TXIFCTRL_PLLA_SH             27
 
-//-.-.-.-.-.-.-.-.-.-.-.-.- Tx RF-Control-3 register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-
-#define DT_TXRFCTRL3_RFCLKSEL_MSK      0x00000001
-#define DT_TXRFCTRL3_RFCLKSEL_SH       0
+//.-.-.-.-.-.-.-.-.-.-.-.-.- RF-Control-2 register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define DT_RFCTRL2_AGCSP_MSK            0x00000FFF
+#define DT_RFCTRL2_AGCSP_SH             0
+#define DT_RFCTRL2_OUTATTN_MSK          0x0003F000
+#define DT_RFCTRL2_OUTATTN_SH           12
+#define DT_RFCTRL2_OUTLVL10B_OFFSET_MSK 0x003FF000
+#define DT_RFCTRL2_OUTLVL10B_OFFSET_SH  12
+#define DT_RFCTRL2_AGC_EN_MSK           0x00040000
+#define DT_RFCTRL2_AGC_EN_SH            18
+#define DT_RFCTRL2_INPATTN_MSK          0x00780000
+#define DT_RFCTRL2_INPATTN_SH           19
+#define DT_RFCTRL2_LOWNOISE_EN_MSK      0x00800000
+#define DT_RFCTRL2_LOWNOISE_EN_SH       23
+#define DT_RFCTRL2_CPC_MSK              0x0F000000
+#define DT_RFCTRL2_CPC_SH               24
+#define DT_RFCTRL2_PLL1_LOCK_MSK        0x10000000
+#define DT_RFCTRL2_PLL1_LOCK_SH         28
+#define DT_RFCTRL2_PLL2_LOCK_MSK        0x20000000
+#define DT_RFCTRL2_PLL2_LOCK_SH         29
+#define DT_RFCTRL2_PLL3_LOCK_MSK        0x40000000
+#define DT_RFCTRL2_PLL3_LOCK_SH         30
+#define DT_RFCTRL2_AGC_LOCK_MSK         0x80000000
+#define DT_RFCTRL2_AGC_LOCK_SH          31
+//-.-.-.-.-.-.-.-.-.-.- RF-Control-2 register: Bit fields  DTA-2115 -.-.-.-.-.-.-.-.-.-.-.
+#define DT_RFCTRL2_ATTN1_MSK            0x0000003F
+#define DT_RFCTRL2_ATTN1_SH             0
+#define DT_RFCTRL2_ATTN2_MSK            0x00000FC0
+#define DT_RFCTRL2_ATTN2_SH             6
+#define DT_RFCTRL2_ATTN3_MSK            0x0003F000
+#define DT_RFCTRL2_ATTN3_SH             12
+//.-.-.-.-.-.-.-.-.-.-.-.-.- RF-Control-3 register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define DT_RFCTRL3_RFCLKSEL_MSK         0x00000001
+#define DT_RFCTRL3_RFCLKSEL_SH          0
+#define DT_RFCTRL3_CLKFRESEL_MSK        0x00000002
+#define DT_RFCTRL3_CLKFRESEL_SH         1
+#define DT_RFCTRL3_FILTERSEL_MSK        0x0000000C
+#define DT_RFCTRL3_FILTERSEL_SH         2
+#define DT_RFCTRL3_AMPPOWER_MSK         0x00000010
+#define DT_RFCTRL3_AMPPOWER_SH          4
+// RF-Control-3: ClkFreqSel
+#define DT_RFCLKFREQ_1600               0
+#define DT_RFCLKFREQ_2400               1
+// RF-Control-3: Post DAC Filter
+#define DT_RFFILTER_BAND_1              0
+#define DT_RFFILTER_BAND_2              1
+#define DT_RFFILTER_BAND_3              2
 
-//.-.-.-.-.-.-.-.-.-.-.-.- Tx RFDAC-Control register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-
-#define DT_TXRFDACCTRL_SPIREADY_MSK    0x00000001
-#define DT_TXRFDACCTRL_SPIREADY_SH     0
-#define DT_TXRFDACCTRL_SPISTART_MSK    0x00000002
-#define DT_TXRFDACCTRL_SPISTART_SH     1
-#define DT_TXRFDACCTRL_SPINUMBYTES_MSK 0x0000000C
-#define DT_TXRFDACCTRL_SPINUMBYTES_SH  2
-#define DT_TXRFDACCTRL_SPIRDORWRN_MS   0x00000010
-#define DT_TXRFDACCTRL_SPIRDORWRN_SH   4
-#define DT_TXRFDACCTRL_SPIADDR_MSK     0xFFFF0000
-#define DT_TXRFDACCTRL_SPIADDR_SH      16
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-  RFDAC-Control register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.
+#define DT_RFDACCTRL_SPIREADY_MSK       0x00000001
+#define DT_RFDACCTRL_SPIREADY_SH        0
+#define DT_RFDACCTRL_SPISTART_MSK       0x00000002
+#define DT_RFDACCTRL_SPISTART_SH        1
+#define DT_RFDACCTRL_SPINUMBYTES_MSK    0x0000000C
+#define DT_RFDACCTRL_SPINUMBYTES_SH     2
+#define DT_RFDACCTRL_SPIRDORWRN_MS      0x00000010
+#define DT_RFDACCTRL_SPIRDORWRN_SH      4
+#define DT_RFDACCTRL_SPIADDR_MSK        0xFFFF0000
+#define DT_RFDACCTRL_SPIADDR_SH         16
 // RFDAC SPI control register
-typedef union _DT_TXRFDAC_CONTROL
+typedef union _DT_RFDAC_CONTROL
 {
     struct
     {                                       
@@ -727,7 +832,20 @@ typedef union _DT_TXRFDAC_CONTROL
         volatile UInt  m_SpiAddr     : 16;  //  SPI ADDRESS
     }  Fields;                              //  For access to individual fields
     UInt32  All;                            //  For access to complete register
-} DT_TXRFDAC_CONTROL;
+} DT_RFDAC_CONTROL;
+//-.-.-.-.-.-.-.-.-.-.-.-.- RF NLC-Control1 register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-
+#define DT_RFNLCCTRL1_NLC2BETA0_MSK     0x00003FFF
+#define DT_RFNLCCTRL1_NLC2BETA0_SH      0
+#define DT_RFNLCCTRL1_NLC2BETA1_MSK     0x0FFFC000
+#define DT_RFNLCCTRL1_NLC2BETA1_SH      14
+//-.-.-.-.-.-.-.-.-.-.-.-.- RF NLC-Control2 register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-
+#define DT_RFNLCCTRL2_NLC3BETA0_MSK     0x00003FFF
+#define DT_RFNLCCTRL2_NLC3BETA0_SH      0
+#define DT_RFNLCCTRL2_NLC3BETA1_MSK     0x0FFFC000
+#define DT_RFNLCCTRL2_NLC3BETA1_SH      14
+#define DT_RFNLCCTRL2_NLCENA_MSK        0x10000000
+#define DT_RFNLCCTRL2_NLCENA_SH         28
+
 
 
 
