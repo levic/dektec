@@ -128,7 +128,8 @@ enum {
     FUNC_DTA_GET_PROPERTY3,
     FUNC_DTA_GET_STR_PROPERTY2,
     FUNC_DTA_GET_TABLE2,
-    FUNC_DTA_RS422_CMD
+    FUNC_DTA_RS422_CMD,
+    FUNC_DTA_GET_DEV_INFO3
 };
 
 // Ioctl input data type
@@ -279,6 +280,44 @@ ASSERT_SIZE(DtaIoctlGetDevInfoOutput2, 48)
 
     #define DTA_IOCTL_GET_DEV_INFO2  _IOR(DTA_IOCTL_MAGIC, FUNC_DTA_GET_DEV_INFO2, \
                                                              DtaIoctlGetDevInfoData2)
+#endif
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_GET_DEV_INFO3 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+// Gets the device information
+//
+typedef struct _DtaIoctlGetDevInfoOutput3 {
+    UInt16  m_DeviceId;         // Device ID
+    UInt16  m_VendorId;         // Vendor ID
+    UInt16  m_SubVendorId;      // Subsystem Vendor ID
+    UInt16  m_SubSystemId;      // Subsystem ID
+    Int  m_BusNumber;           // PCI-bus number
+    Int  m_SlotNumber;          // PCI-slot number
+    Int  m_TypeNumber;          // Type number in decimal, e.g. 2160 for DTA-2160
+    Int  m_SubDvc;              // Sub-device: 0=master, 1=slave1, 2=slave2, etc
+    Int  m_HardwareRevision;    // Hardware Revision
+    Int  m_FirmwareVersion;     // Firmware Version (= Altera revision), e.g. 3 for
+                                // "Firmware Version 3"
+    Int  m_FirmwareVariant;     // Firmware Variant, e.g. to distinguish between
+                                // firmware with different #inputs/#outputs
+    UInt64A  m_Serial;          // Serial number
+    Int  m_PcieNumLanes;        // Number of allocated PCIe lanes
+    Int  m_PcieMaxLanes;        // Maximum number of PCIe lanes
+    Int  m_PcieLinkSpeed;       // Current PCIe link speed
+    Int  m_PcieMaxSpeed;        // Maximum PCIe link speed
+} DtaIoctlGetDevInfoOutput3;
+ASSERT_SIZE(DtaIoctlGetDevInfoOutput3, 64)
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_GET_DEV_INFO3  CTL_CODE(DTA_DEVICE_TYPE, \
+                          FUNC_DTA_GET_DEV_INFO3, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlGetDevInfoData3 {
+        DtaIoctlGetDevInfoOutput3  m_Output;
+    } DtaIoctlGetDevInfoData3;
+
+    #define DTA_IOCTL_GET_DEV_INFO3  _IOR(DTA_IOCTL_MAGIC, FUNC_DTA_GET_DEV_INFO3, \
+                                                             DtaIoctlGetDevInfoData3)
 #endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_VPD_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -2426,6 +2465,7 @@ typedef union _DtaIoctlOutputData {
     DtaIoctlGetPropertyOutput  m_GetProperty;
     DtaIoctlGetDevInfoOutput  m_GetDevInfo;
     DtaIoctlGetDevInfoOutput2  m_GetDevInfo2;
+    DtaIoctlGetDevInfoOutput3  m_GetDevInfo3;
     DtaIoctlVpdCmdOutput  m_VpdCmd;
     DtaIoctlGetDriverVersionOutput  m_GetDriverVersion;
     DtaIoctlI2cCmdOutput  m_I2cCmd;

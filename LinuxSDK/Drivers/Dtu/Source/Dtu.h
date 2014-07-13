@@ -40,8 +40,6 @@
 #define  LOG_LEVEL_IAL           LOG_AVG
 // Toplevel related
 #define  LOG_LEVEL_DTU           LOG_AVG
-// VPD related
-#define  LOG_LEVEL_VPD           LOG_AVG
 // I2C related
 #define  LOG_LEVEL_I2C           LOG_AVG
 // Events
@@ -160,7 +158,7 @@ struct _DtuDeviceData
     Bool  m_RegistryWriteBusy;
 
     // VPD
-    DtuVpd  m_Vpd;
+    DtVpd  m_Vpd;
 
     // I2C
     DtuI2c  m_I2c;

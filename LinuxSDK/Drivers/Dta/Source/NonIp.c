@@ -35,6 +35,8 @@ DtStatus  DtaNonIpDetermineDmaRegsOffset(DtaDeviceData* pDvcData, Int PortIndex,
 Int  DtaNonIpGetMaxDmaBurstSize(DtaNonIpPort* pNonIpPort);
 Int  DtaNonIpGetMaxFifoSize(DtaNonIpPort* pNonIpPort);
 void  DtaNonIpRfPwrMeasLock(DtaNonIpPort* pNonIpPort, Int Lock);
+static DtStatus  DtaNonIpIoConfigSet3GLvl(DtaNonIpPort* pNonIpPort,  Int Group,
+                                                               DtaIoConfigValue CfgValue);
 static DtStatus  DtaNonIpIoConfigSetIoDir(DtaNonIpPort* pNonIpPort,  Int Group,
                                                                DtaIoConfigValue CfgValue);
 static DtStatus  DtaNonIpIoConfigSetIoStd(DtaNonIpPort* pNonIpPort,  Int Group,
@@ -143,7 +145,7 @@ DtStatus  DtaNonIpInit(
     DtaNonIpPort*  pNonIpPort)
 {
     DtStatus  Status = DT_STATUS_OK;
-    Int  IoConfig, ParXtra, DefIoStd=-1, OldPropertyNotFoundCounter=0;
+    Int  IoConfig, ParXtra, DefIoStd=-1, Def3GLvl=-1, OldPropertyNotFoundCounter=0;
     UInt  DmaRegsOffset;
     Bool  HasIc2RfPwrMeas;
     
@@ -154,6 +156,11 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_PortIndex = PortIndex;
 
     // Capabilities
+    // 3GLVL (3G-SDI level) - Capabilities
+    pNonIpPort->m_Cap3GLvlA = DtPropertiesGetBool(pPropData, "CAP_3GLVLA",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap3GLvlB = DtPropertiesGetBool(pPropData, "CAP_3GLVLB",
+                                                                 pNonIpPort->m_PortIndex);
     // IODIR (I/O direction) - Capabilities
     pNonIpPort->m_CapDisabled = DtPropertiesGetBool(pPropData, "CAP_DISABLED",
                                                                  pNonIpPort->m_PortIndex);
@@ -443,8 +450,24 @@ DtStatus  DtaNonIpInit(
         DT_ASSERT(FALSE);
     }
   
-
-
+    // DT_IOCONFIG_3GLVL; first check if a default has been defined
+    // NOTE: this default property is not required, so do not incr the not found counter
+    OldPropertyNotFoundCounter = pPropData->m_PropertyNotFoundCounter;
+    Def3GLvl = DtPropertiesGetInt(pPropData, "DEFAULT_3GLVL", pNonIpPort->m_PortIndex);
+    pPropData->m_PropertyNotFoundCounter = OldPropertyNotFoundCounter;
+    if (Def3GLvl != -1)
+    {
+        DT_ASSERT(pNonIpPort->m_Cap3GLvlA || pNonIpPort->m_Cap3GLvlB);
+        DT_ASSERT(Def3GLvl==DT_IOCONFIG_3GLVLA || Def3GLvl==DT_IOCONFIG_3GLVLB);
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_3GLVL].m_Value = Def3GLvl;
+    }
+    else if (pNonIpPort->m_Cap3GLvlA)
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_3GLVL].m_Value = DT_IOCONFIG_3GLVLA;
+    else  if (pNonIpPort->m_Cap3GLvlB)
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_3GLVL].m_Value = DT_IOCONFIG_3GLVLB;
+    else
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_3GLVL].m_Value = -1;
+    
     // DT_IOCONFIG_IOSTD; first check if a default has been defined
     // NOTE: this default property is not required, so do not incr the not found counter
     OldPropertyNotFoundCounter = pPropData->m_PropertyNotFoundCounter;
@@ -1723,6 +1746,11 @@ DtStatus  DtaNonIpIoConfigSet(
     
     switch (Group)
     {
+        // #G-SDI level
+    case DT_IOCONFIG_3GLVL:
+        Status = DtaNonIpIoConfigSet3GLvl(pNonIpPort, Group, CfgValue);
+        break;
+        
         // IO-direction
     case DT_IOCONFIG_IODIR:
         Status = DtaNonIpIoConfigSetIoDir(pNonIpPort, Group, CfgValue);
@@ -1787,6 +1815,51 @@ DtStatus  DtaNonIpIoConfigSet(
         DtDbgOut(ERR, NONIP, "Invalid Config. Group: %d, Value: %d, SubValue: %d",
                                             Group, CfgValue.m_Value, CfgValue.m_SubValue);
         Status = DT_STATUS_NOT_SUPPORTED;
+    }
+    return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpIoConfigSet3GLvl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static DtStatus  DtaNonIpIoConfigSet3GLvl(
+    DtaNonIpPort* pNonIpPort,
+    Int Group,
+    DtaIoConfigValue CfgValue)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    Bool  ForceConfig = FALSE;
+    DtaIoConfigValue  OldCfgValue = pNonIpPort->m_IoCfg[Group];
+    Bool  Is3GSdi = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_3GSDI);
+
+    switch (CfgValue.m_Value)
+    {
+    case DT_IOCONFIG_3GLVLA:
+        DT_ASSERT(pNonIpPort->m_Cap3GLvlA);
+        // NOTHING TODO HERE; CONFIG IS APPLIED BELOW
+        break;
+    case DT_IOCONFIG_3GLVLB:
+        DT_ASSERT(pNonIpPort->m_Cap3GLvlB);
+        // NOTHING TODO HERE; CONFIG IS APPLIED BELOW
+        break;
+
+    default:
+        DtDbgOut(ERR, NONIP, "Invalid Config. Group: %d, Value: %d, SubValue: %d",
+                                            Group, CfgValue.m_Value, CfgValue.m_SubValue);
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
+    // Backup current io-config
+    OldCfgValue = pNonIpPort->m_IoCfg[Group];
+    pNonIpPort->m_IoCfg[Group] = CfgValue;  // Save new config to the cache
+
+    // Check for matrix capable port, which is configured for 3G-SDI operation
+    if (pNonIpPort->m_CapMatrix && Is3GSdi)
+    {
+        // Re-configure port (force a re-config when the level has changed)
+        ForceConfig = (OldCfgValue.m_Value != CfgValue.m_Value);
+        Status = DtaNonIpMatrixConfigure(pNonIpPort, ForceConfig);
+        if (!DT_SUCCESS(Status))
+            pNonIpPort->m_IoCfg[Group] = OldCfgValue;  // Restore old config
     }
     return Status;
 }
@@ -1902,6 +1975,12 @@ static DtStatus  DtaNonIpIoConfigSetIoDir(
 
         case DT_IOCONFIG_DBLBUF:
             DT_ASSERT(pNonIpPort->m_CapDblBuf);
+            
+            // For matrix port, nothing TODO. All work was done in DtaNonIpMatrixConfigure 
+            // call above
+            if (pNonIpPort->m_CapMatrix)
+                break;  
+
             // Route output to double-buffered-buddy
             if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==105
                                 && pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==0)

@@ -38,8 +38,6 @@
 #define  LOG_LEVEL_IAL           LOG_AVG
 // Toplevel related
 #define  LOG_LEVEL_DTA           LOG_AVG
-// VPD related
-#define  LOG_LEVEL_VPD           LOG_MIN
 // I2C related
 #define  LOG_LEVEL_I2C           LOG_MIN
 // Events
@@ -94,6 +92,10 @@ typedef struct _DtaDeviceInfo
     UInt16  m_SubSystemId;      // Subsystem ID
     UInt  m_BusNumber;          // PCI Bus Number
     UInt  m_SlotNumber;         // PCI Slot Number
+    Int  m_PcieNumLanes;        // Number of allocated PCIe lanes
+    Int  m_PcieMaxLanes;        // Maximum number of PCIe lanes
+    Int  m_PcieLinkSpeed;       // Current PCIe link speed
+    Int  m_PcieMaxSpeed;        // Maximum PCIe link speed
 
     // Info determined during DtaDeviceInit
     Bool  m_UsesPlxChip;
@@ -205,7 +207,7 @@ struct _DtaDeviceData
     Bool   m_RegistryWriteBusy;
                    
     // VPD
-    DtaVpd  m_Vpd;
+    DtVpd  m_Vpd;
 
     // I2C
     DtaI2c  m_I2c;
@@ -247,6 +249,7 @@ DtStatus  DtaDriverInit(DtEvtLog* pEvtObject);
 void  DtaDriverExit(void);
 
 DtStatus  DtaDeviceInit(DtaDeviceData* pDvcData);
+DtStatus  DtaDeviceParsePciConfig(DtaDeviceData* pDvcData, UInt8* pPciConfig);
 DtStatus  DtaDeviceInitPci905X(DtaDeviceData* pDvcData);
 DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData);
 DtStatus  DtaDeviceInterruptEnable(DtaDeviceData* pDvcData);

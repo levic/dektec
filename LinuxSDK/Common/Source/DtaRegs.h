@@ -185,14 +185,27 @@ static __inline UInt32  DtaRegRefClkCntGet(volatile UInt8* pBase) {
 static __inline UInt32  DtaRegRefClkCntGetH(volatile UInt8* pBase) {
     return READ_UINT(pBase, DT_GEN_REG_REFCLKCNTH) & 0x3FFFFF;
 }
-
 static __inline UInt64  DtaRegRefClkCntGet64(volatile UInt8* pBase) {
-    UInt32 RefClkH = DtaRegRefClkCntGetH(pBase);
-    UInt32 RefClkL = DtaRegRefClkCntGet(pBase);
 
-    if (RefClkH != DtaRegRefClkCntGetH(pBase)) {
-        RefClkH++;
-        RefClkL = DtaRegRefClkCntGet(pBase);
+    // NOTE: there are two firmware implementations of the 64-bit clock count register:
+    //
+    // Method 1: simple 64-bit counter; reads as two seperate 32-bit actions, with the
+    //           risk that the LSB part wraps while reading the MSB part
+    // Method 2: smart 64-bit counter; when the LSB part is read the MSB part is latched,
+    //           so that we always have two parts that belong togehter
+    //
+    // Unfortunately we need to support both methods, until all old firmware has been
+    // replaced, therefore the below method (with work in FW implementation) of detecting 
+    // a wrap of the LSB part is used
+    UInt32 RefClkL = DtaRegRefClkCntGet(pBase);
+    UInt32 RefClkH = DtaRegRefClkCntGetH(pBase);
+    // Read again to check for wrap of LSB part
+    UInt32 RefClkL2 = DtaRegRefClkCntGet(pBase);
+    if (RefClkL2 < RefClkL)
+    {
+        // Get MSB once more
+        RefClkH = DtaRegRefClkCntGetH(pBase);
+        RefClkL = RefClkL2; // use 2nd read as LSB part
     }
     return ((UInt64) RefClkH << 32) + RefClkL;
 }
@@ -2402,15 +2415,25 @@ static __inline UInt32  DtaDmaTimeoutGet(volatile UInt8* pBase) {
     return READ_UINT(pBase, DTA_DMA_TIMEOUT_REG) & 0x1FF;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.- DMA Register: Descriptor frefetch control -.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.- DMA Register: Descriptor prefetch control -.-.-.-.-.-.-.-.-.-.-.-
 // Bit defines
 #define DTA_DMA_PREFETCH_EN            (0x1  << 0)
 #define DTA_DMA_DESC_OFFSET            (0x3  << 4)
-#define DTA_DMA_NUM_SECRIPTORS         (0x3f << 8)
+#define DTA_DMA_NUM_SECRIPTORS         (0x1f << 8)
 
-static __inline void  DtaDmaDescrPrefetchEn(volatile UInt8* pBase, UInt En, UInt Dma64) {
-    // We always enable 16 descriptors
-    UInt Val = DTA_DMA_PREFETCH_EN | (Dma64?2<<4 : 1<<4) | 16<<8;
+// Enable prefetching
+static __inline void  DtaDmaDescrPrefetchEnable(volatile UInt8* pBase, Bool  Dma64, 
+                                                                             UInt NumDesc) 
+{
+    UInt Val = DTA_DMA_PREFETCH_EN | (Dma64?2<<4 : 1<<4) | NumDesc<<8;
+    WRITE_UINT(Val, pBase, DTA_DMA_DESCR_PREFETCH_REG);
+}
+// Disable prefetching
+static __inline void  DtaDmaDescrPrefetchDisable(volatile UInt8* pBase)
+{
+
+    UInt  Val = READ_UINT(pBase, DTA_DMA_DESCR_PREFETCH_REG);
+    Val &= ~DTA_DMA_PREFETCH_EN;
     WRITE_UINT(Val, pBase, DTA_DMA_DESCR_PREFETCH_REG);
 }
 
@@ -4170,6 +4193,13 @@ static __inline void  DtaRegHdCtrl1SetIoReset(volatile UInt8* pBase, UInt  Rst)
 {
     WRITE_UINT_MASKED(Rst, pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_IORST_MSK, 
                                                                     DT_HD_CTRL1_IORST_SH);
+}
+
+// HD-Channel Control1 register:  double-buffered
+static __inline void  DtaRegHdCtrl1SetDblBuf(volatile UInt8* pBase, UInt  Buddy)
+{
+    WRITE_UINT_MASKED(Buddy, pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_DBLBUF_MSK,
+                                                                   DT_HD_CTRL1_DBLBUF_SH);
 }
 
 // HD-Channel Control1 register:  op-mode

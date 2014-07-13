@@ -37,6 +37,7 @@
 #include <IoConfigCodes.h>
 #include <DtIoConfig.h>
 #include <DtAudioVideo.h>
+#include <VpdCommon.h>
 
 
 // COMMON related logging
@@ -47,10 +48,13 @@
 // Properties related
 #define  LOG_LEVEL_PROP          LOG_MIN
 
-// AV realted
-#define  LOG_LEVEL_AV             LOG_MIN
+// AV related
+#define  LOG_LEVEL_AV            LOG_MIN
 
 // IoConfig
 #define  LOG_LEVEL_IOCONFIG      LOG_MAX
+
+// VPD related
+#define  LOG_LEVEL_VPD           LOG_MIN
 
 #endif // __DT_DRV_COMMON_H

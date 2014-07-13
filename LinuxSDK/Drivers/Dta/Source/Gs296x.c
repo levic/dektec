@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Gs296x.c *#*#*#*#*#*#*#*#*#*#*#* (C) 2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Gs296x.c *#*#*#*#*#*#*#*#*# (C) 2012-2014 DekTec
 //
 // Dta driver - Gennum GS296x - Implementation of GS296x interface functions
 
@@ -30,17 +30,18 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
-// GS2960 registers
-#define  GS2960_REG_ERROR_STAT1          0x02
-#define  GS2960_REG_ERROR_STAT2          0x03
-#define  GS2960_REG_EDH_FLAG_IN          0x04
-#define  GS2960_REG_DATA_FORMAT_D1       0x06
-#define  GS2960_REG_DATA_FORMAT_D2       0x07
-#define  GS2960_REG_RASTER_STRUCT_1      0x1F
-#define  GS2960_REG_RASTER_STRUCT_2      0x20
-#define  GS2960_REG_RASTER_STRUCT_3      0x21
-#define  GS2960_REG_RASTER_STRUCT_4      0x22
-#define  GS2960_REG_RATE_SEL             0x24
+// GS2961 registers
+#define  GS2961_REG_IOPROC_1             0x00
+#define  GS2961_REG_ERROR_STAT1          0x02
+#define  GS2961_REG_ERROR_STAT2          0x03
+#define  GS2961_REG_EDH_FLAG_IN          0x04
+#define  GS2961_REG_DATA_FORMAT_D1       0x06
+#define  GS2961_REG_DATA_FORMAT_D2       0x07
+#define  GS2961_REG_RASTER_STRUCT_1      0x1F
+#define  GS2961_REG_RASTER_STRUCT_2      0x20
+#define  GS2961_REG_RASTER_STRUCT_3      0x21
+#define  GS2961_REG_RASTER_STRUCT_4      0x22
+#define  GS2961_REG_RATE_SEL             0x24
 
 // GS2962 registers
 #define  GS2962_REG_IOPROC               0x00
@@ -58,7 +59,7 @@ static DtStatus  DtaGs296xWriteRegister(DtaNonIpPort*  pNonIpPort, Int Addr,
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaGs2961Enable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaGs2961Enable(DtaNonIpPort*  pNonIpPort)
+DtStatus  DtaGs2961Enable(DtaNonIpPort*  pNonIpPort, Bool  EnaAsiMode)
 {
     // Port must has a matrix-API register interface
     if (!pNonIpPort->m_CapMatrix)
@@ -72,8 +73,29 @@ DtStatus  DtaGs2961Enable(DtaNonIpPort*  pNonIpPort)
     DtaRegHdCtrl1SetIoReset(pNonIpPort->m_pRxRegs, 0);
     DtSleep(5);
 
-    // Finally: enable auto rate (SD, HD or 3G) detection
-    return DtaGs296xWriteRegister(pNonIpPort, GS2960_REG_RATE_SEL, 0x0004);
+    // ASI or SDI mode
+    if (EnaAsiMode)
+    {
+        // For ASI, set the mode fixed to 27Mhz (SD-rate)
+        DT_RETURN_ON_ERROR(DtaGs296xWriteRegister(pNonIpPort, 
+                                                            GS2961_REG_RATE_SEL, 0x0001));
+    }
+    else
+    {
+        // For SDI, enable auto rate (SD, HD or 3G) detection
+        DT_RETURN_ON_ERROR(DtaGs296xWriteRegister(pNonIpPort, 
+                                                            GS2961_REG_RATE_SEL, 0x0004));
+
+        // Set IO-processing:
+        // Enable:   TRS_INS_DS1, LNUM_INS_DS1, CRC_INS_DS1,  
+        //           EDH_CRC_INS, EDH_FLAG_UPDATE,
+        // Disable:  ANC_CSUM_INS_DS1, ILLEGAL_WORD_REMAP_DS1, TRS_WORD_REMAP_DS1,
+        //           ANC_DATA_EXT
+        // Other bits are set to their default (see GS2961 datasheet)
+        DT_RETURN_ON_ERROR(DtaGs296xWriteRegister(pNonIpPort, 
+                                                            GS2961_REG_IOPROC_1, 0x0218));
+    }
+    return DT_STATUS_OK;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaGs2961GetVideoStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -88,12 +110,12 @@ DtStatus  DtaGs2961GetVideoStd(DtaNonIpPort*  pNonIpPort, Int*  pVidStd)
     DT_ASSERT(pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_GS2961);
 
     // Read data-format 1 register
-    Status = DtaGs296xReadRegister(pNonIpPort, GS2960_REG_DATA_FORMAT_D1, &Ds1Reg);
+    Status = DtaGs296xReadRegister(pNonIpPort, GS2961_REG_DATA_FORMAT_D1, &Ds1Reg);
     if (!DT_SUCCESS(Status))
         return Status;
     
     // Read raster struct 4 register
-    Status = DtaGs296xReadRegister(pNonIpPort, GS2960_REG_RASTER_STRUCT_4, &Raster4Reg);
+    Status = DtaGs296xReadRegister(pNonIpPort, GS2961_REG_RASTER_STRUCT_4, &Raster4Reg);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -135,8 +157,6 @@ DtStatus  DtaGs2961GetVideoStd(DtaNonIpPort*  pNonIpPort, Int*  pVidStd)
 //
 DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort)
 {
-    UInt32  Value = 0;
-
     // Port must has a matrix-API register interface
     if (!pNonIpPort->m_CapMatrix)
         return DT_STATUS_NOT_SUPPORTED;
@@ -148,11 +168,14 @@ DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort)
     DtSleep(5);
     DtaRegHdCtrl1SetIoReset(pNonIpPort->m_pTxRegs, 0);
     DtSleep(5);
-    
-    // Disable SMPTE 352M video payload identifier insertion
-    DT_RETURN_ON_ERROR(DtaGs296xReadRegister(pNonIpPort, GS2962_REG_IOPROC, &Value));
-    Value |= GS2962_IOPROC_SMPTE_352M_INS;
-    return DtaGs296xWriteRegister(pNonIpPort, GS2962_REG_IOPROC, Value);
+
+    // Set IO-processing:
+    // Enable:   TRS_INS, LNUM_INS, CRC_INS, ANC_CSUM_INS, EDH_CRC_INS, 
+    //           ILLEGAL_WORD_REMAP
+    // Disable:  SMPTE_352_INS, ANC_INS
+    //
+    // Other bits are set to their default value (see GS2962 datasheet)
+    return DtaGs296xWriteRegister(pNonIpPort, GS2962_REG_IOPROC, 0x0A40);
 }
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -169,7 +192,7 @@ DtStatus  DtaGs296xReadRegister(DtaNonIpPort*  pNonIpPort, Int Addr, UInt32*  pV
 
     // Step 1: write read command to card
     SpiCmd = (Addr << DT_HD_GS29XXSPI_ADDR_SH) & DT_HD_GS29XXSPI_ADDR_MSK;
-    SpiCmd |= (1<<DT_HD_GS29XXSPI_AUTOINC_SH) & DT_HD_GS29XXSPI_AUTOINC_MSK;
+    SpiCmd |= (0<<DT_HD_GS29XXSPI_AUTOINC_SH) & DT_HD_GS29XXSPI_AUTOINC_MSK;
     SpiCmd |= (1<<DT_HD_GS29XXSPI_READ_SH) & DT_HD_GS29XXSPI_READ_MSK;
     SpiCmd |= (1<<DT_HD_GS29XXSPI_START_SH) & DT_HD_GS29XXSPI_START_MSK;
 
@@ -202,10 +225,12 @@ DtStatus  DtaGs296xWriteRegister(DtaNonIpPort*  pNonIpPort, Int Addr, UInt32  Va
     // Step 1: write write-command to card
     SpiCmd = (Value << DT_HD_GS29XXSPI_DATA_SH) & DT_HD_GS29XXSPI_DATA_MSK;
     SpiCmd |= (Addr << DT_HD_GS29XXSPI_ADDR_SH) & DT_HD_GS29XXSPI_ADDR_MSK;
-    SpiCmd |= (1<<DT_HD_GS29XXSPI_AUTOINC_SH) & DT_HD_GS29XXSPI_AUTOINC_MSK;
+    SpiCmd |= (0<<DT_HD_GS29XXSPI_AUTOINC_SH) & DT_HD_GS29XXSPI_AUTOINC_MSK;
     SpiCmd |= (0<<DT_HD_GS29XXSPI_READ_SH) & DT_HD_GS29XXSPI_READ_MSK;
     SpiCmd |= (1<<DT_HD_GS29XXSPI_START_SH) & DT_HD_GS29XXSPI_START_MSK;
 
+    DtDbgOut(MAX, DTA, "Addr=0x%04X, Value=0x%04X, SpiCmd=0x%08X", Addr, Value, SpiCmd);
+    
     WRITE_UINT(SpiCmd, pNonIpPort->m_pRxRegs, DT_HD_REG_GS29XXSPI);
 
     // Step 2: wait for done bit

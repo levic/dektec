@@ -29,7 +29,7 @@
 #define __GS296X_H
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-DtStatus  DtaGs2961Enable(DtaNonIpPort*  pNonIpPort);
+DtStatus  DtaGs2961Enable(DtaNonIpPort*  pNonIpPort, Bool  EnaAsiMode);
 DtStatus  DtaGs2961GetVideoStd(DtaNonIpPort*  pNonIpPort, Int*  pVidStd);
 DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort);
 

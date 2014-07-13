@@ -1,10 +1,10 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Lmh1983.cpp *#*#*#*#*#*#*#*#*#*#*# (C) 2013 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Lmh1983.c *#*#*#*#*#*#*#*#*# (C) 2013-2014 DekTec
 //
 // Dta driver - National LMH1983 (Video Clock Generator) controller
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2013 DekTec Digital Video B.V.
+// Copyright (C) 2013-2014 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -35,21 +35,33 @@
 #define DTA_LMH1983_POLL_EVENT      0
 #define DTA_LMH1983_SOF_EVENT       1
 
+// Bits for the device control register (addr 0x05) of the LMH1983
+#define LMH1983_DEVCTRL_SOFT_RESET  0x80
+#define LMH1983_DEVCTRL_POWERDOWN   0x40
+#define LMH1983_DEVCTRL_EN_AFD      0x20  // Enable Auto Format Detection
+#define LMH1983_DEVCTRL_PLL1(x)     ((x & 0x03) << 3)
+#define LMH1983_DEVCTRL_PLL1_MASK   0x18
+#define LMH1983_DEVCTRL_LOR_MODE    0x04
+#define LMH1983_DEVCTRL_FORCE_148   0x02  // Force PLL 2 and 3 to 148.5 resp 148.35 Mhz
+#define LMH1983_DEVCTRL_GOE         0x01  // Global Output Enable
+#define PLL1_MODE_FREERUN           0x0
+#define PLL1_MODE_GENLOCK           0x1
+#define PLL1_MODE_HOLDOVER          0x2
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 static void  DtaLmh1983ControllerThread(DtThread* pThread, void* pContext);
 static DtStatus  DtaLmh1983ReadReg(DtaLmh1983* pLmh1983Data, UInt8 RegAddr, UInt8* Value);
 static DtStatus  DtaLmh1983WriteReg(DtaLmh1983* pLmh1983Data, UInt8 RegAddr, UInt8 Value);
 static DtStatus  DtaLmh1983GoToNextState(DtaLmh1983* pLmh1983Data, Int ChangeEvent);
 static DtStatus  DtaLmh1983InitChip(DtaLmh1983* pLmh1983Data);
-static Int  DtaLmh1983PllLockStateGet(DtaLmh1983* pLmh1983Data);
-static DtStatus  DtaLmh1983StartTofAlign(DtaLmh1983* pLmh1983Data);
-static DtStatus  DtaLmh1983StopTofAlign(DtaLmh1983* pLmh1983Data);
+static Int  DtaLmh1983LockStateGet(DtaLmh1983* pLmh1983Data);
+static DtStatus  DtaLmh1983PllFastlockSet(DtaLmh1983* pLmh1983Data, Bool  Enable);
+static DtStatus  DtaLmh1983TofCrashLockSet(DtaLmh1983* pLmh1983Data, Bool  Enable);
 #ifdef _DEBUG
 static const char*  DtaLmh1983State2Str(Int State);
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
-
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -62,30 +74,48 @@ DtStatus  DtaLmh1983Init(DtaDeviceData* pDvcData, DtaLmh1983* pLmh1983Data)
     
     // Set initial state of state machine
     pLmh1983Data->m_State = DTA_LMH1983_STATE_INIT;
+    pLmh1983Data->m_EnteredStateTime = DtGetTickCount();
 
     // Init controller thread
-    DtThreadInit(&pLmh1983Data->m_ControlThread, DtaLmh1983ControllerThread, pLmh1983Data);
+    DtThreadInit(&pLmh1983Data->m_ControlThread, DtaLmh1983ControllerThread, 
+                                                                            pLmh1983Data);
     
     return DT_STATUS_OK;
 }
 
-
-#define DTA2154_I2C_INIT_SEQ_SIZE       9
-#define MAX_DTA2154_I2C_WRITE_RETRIES   4
-static UInt8  Dta2154Lmh1983InitSequence[DTA2154_I2C_INIT_SEQ_SIZE][2] = {
-    {DTA_LMH1983_REG_DEVICE_CTRL,             0x80},
-    {DTA_LMH1983_REG_OUT_MODE_MISC,           0x02},
-    {DTA_LMH1983_REG_OUT_MODE_MISC,           0x00},
-    {DTA_LMH1983_REG_DEVICE_CTRL,             0x03},
-    {DTA_LMH1983_REG_INPUT_FORMAT,            0x16},
-    {DTA_LMH1983_REG_OUT_BUF_CTRL,            0x8E},
-    {DTA_LMH1983_REG_ALIGNMENT_CTRL_TOF1,     0x04},
-    {DTA_LMH1983_REG_OUT_FRAME_CTRL_OFF1_MSB, 0x00},
-    {DTA_LMH1983_REG_OUT_FRAME_CTRL_OFF1_LSB, 0x01},
-};
-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983WriteInitSeq -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
 static DtStatus  DtaLmh1983WriteInitSeq(DtaLmh1983*  pLmh1983Data)
 {
+    // Init sequence for LMH1983 on DTA-2154 and DTA-2174
+    #define  DTA_LMH1983_I2C_INIT_SEQ_SIZE 9
+    #define  DTA_LMH1983_I2C_WRITE_RETRIES 4
+    static UInt8  DTA_LMH1983_INIT_SEQUENCE[DTA_LMH1983_I2C_INIT_SEQ_SIZE][2] = 
+    {
+        { DTA_LMH1983_IIC_REG05, 0x80 },    // Device Control: soft reset => will default
+                                            // all registers
+
+        { DTA_LMH1983_IIC_REG09, 0x02 },    // Output Mode – Misc: write 0x02 then 0x00 to 
+        { DTA_LMH1983_IIC_REG09, 0x00 },    // prevent poor CLKout3 duty cycle (see
+                                            // datasheet INITIALIZATION section)
+
+        { DTA_LMH1983_IIC_REG05, 0x03 },    // Device Control: GOE=1, Force_148=1,
+                                            // holdover on LOR, no auto detection
+
+        { DTA_LMH1983_IIC_REG20, 0x16 },    // Input Format: default to 1080i50
+
+        { DTA_LMH1983_IIC_REG0A, 0x8E },    // Output Buffer Control: enable Fout1 and 
+                                            // CLKout1..3 
+
+        { DTA_LMH1983_IIC_REG11, 0x04 },    // Alignment Control – TOF1: 
+                                            // Alignment mode = auto
+                                            // TOF_sync_far=crash mode, 
+                                            // TOF_sync_near=drift mode
+
+        { DTA_LMH1983_IIC_REG0B, 0x00 },    // Output Frame Control – Offset1: delay TOF1
+        { DTA_LMH1983_IIC_REG0C, 0x00 },    //  by 0 line
+    };
+
     DtStatus  Status = DT_STATUS_OK;
     DtaDeviceData*  pDvcData = pLmh1983Data->m_pDvcData;
     Int  i;
@@ -99,14 +129,16 @@ static DtStatus  DtaLmh1983WriteInitSeq(DtaLmh1983*  pLmh1983Data)
         return DT_STATUS_FAIL;
     }
 
-    for (i=0; Status==DT_STATUS_OK && i<DTA2154_I2C_INIT_SEQ_SIZE; i++)
+    for (i=0; Status==DT_STATUS_OK && i<DTA_LMH1983_I2C_INIT_SEQ_SIZE; i++)
     {
         Int  Retries = 0;
-        while (Retries < MAX_DTA2154_I2C_WRITE_RETRIES)
+        while (Retries < DTA_LMH1983_I2C_WRITE_RETRIES)
         {
-            DtDbgOut(ERR, GENL, "Writing: %X %X", Dta2154Lmh1983InitSequence[i][0], Dta2154Lmh1983InitSequence[i][1]);
+            DtDbgOut(MIN, GENL, "Writing: 0x%X 0x%X", DTA_LMH1983_INIT_SEQUENCE[i][0], 
+                                                         DTA_LMH1983_INIT_SEQUENCE[i][1]);
+
             Status = DtaI2cWrite(pDvcData, -1, DT_INVALID_FILE_OBJECT_PTR, 
-                               DTA_LMH1983_I2C_ADDR, 2, Dta2154Lmh1983InitSequence[i]);
+                                   DTA_LMH1983_I2C_ADDR, 2, DTA_LMH1983_INIT_SEQUENCE[i]);
             if (Status == DT_STATUS_TIMEOUT)
                 Retries++;
             else
@@ -120,6 +152,9 @@ static DtStatus  DtaLmh1983WriteInitSeq(DtaLmh1983*  pLmh1983Data)
     return Status;
 }
 
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983InitPowerup -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
 DtStatus  DtaLmh1983InitPowerup(DtaLmh1983*  pLmh1983Data)
 {
     DtStatus  Status = DT_STATUS_OK;
@@ -204,6 +239,7 @@ DtStatus  DtaLmh1983ResetStateMachine(DtaLmh1983* pLmh1983Data)
     // Acquire state mutex and reset state to initial value
     DtFastMutexAcquire(&pLmh1983Data->m_StateMutex);
     pLmh1983Data->m_State = DTA_LMH1983_STATE_INIT;
+    pLmh1983Data->m_EnteredStateTime = DtGetTickCount();
     DtFastMutexRelease(&pLmh1983Data->m_StateMutex);
     return DT_STATUS_OK;
 }
@@ -250,12 +286,11 @@ void  DtaLmh1983ControllerThread(DtThread* pThread, void* pContext)
             if (TimeoutCnt >= 10)
             {
                 // Update state-machine
-                Status = DtaLmh1983GoToNextState(pLmh1983Data, DTA_LMH1983_POLL_EVENT);
+                Status = DtaLmh1983GoToNextState(pLmh1983Data, DTA_LMH1983_SOF_EVENT);
                 TimeoutCnt = 0;
             }
         }
     }
-
     DtDbgOut(MAX, GENL, "Thread exit");
 }
 
@@ -263,14 +298,17 @@ void  DtaLmh1983ControllerThread(DtThread* pThread, void* pContext)
 //
 DtStatus DtaLmh1983GoToNextState(DtaLmh1983* pLmh1983Data, Int ChangeEvent)
 {
+    const UInt64  LMH1983_HOLDOVER_TIMEOUT_MS = 60000;  // 60sec time out
     DtStatus  Status = DT_STATUS_OK;
     Int  OldState, NewState;
+    UInt64  CurTime, TimeDiff;
 
     // Acquire state lock
     DtFastMutexAcquire(&pLmh1983Data->m_StateMutex);
 
     // Store current state
     NewState = OldState = pLmh1983Data->m_State;
+    CurTime = DtGetTickCount();
             
     switch (OldState)
     {
@@ -287,87 +325,65 @@ DtStatus DtaLmh1983GoToNextState(DtaLmh1983* pLmh1983Data, Int ChangeEvent)
         }
         else 
             NewState = DTA_LMH1983_STATE_NOREF;
-
+        
         // Fire a no-lock event
         Status = DtaEventsSet(pLmh1983Data->m_pDvcData, NULL, DTA_EVENT_TYPE_GENLOCK, 
                                                              DTA_EVENT_VALUE1_NO_LOCK, 0);
         DT_ASSERT(DT_SUCCESS(Status));
         break;
 
+        // No input reference, wait for an reference input
     case DTA_LMH1983_STATE_NOREF:
 
-        // Re-check PLL lock state
-        NewState = DtaLmh1983PllLockStateGet(pLmh1983Data);
-
-        break;
-
-    case DTA_LMH1983_STATE_PLL_LOCKING:
-
-        // Re-check PLL lock state
-        NewState = DtaLmh1983PllLockStateGet(pLmh1983Data);
-
-        break;
-
-    case DTA_LMH1983_STATE_PLL_LOCKED:
-
-        // Re-check PLL lock state
-        NewState = DtaLmh1983PllLockStateGet(pLmh1983Data);
-        if (NewState != DTA_LMH1983_STATE_PLL_LOCKED)
-            break;  // PLL is not locked anymore
-        // Wait for start-of-frame event to begin alignment procedure
-        else if (ChangeEvent == DTA_LMH1983_SOF_EVENT)
+        // Re-check lock state
+        NewState = DtaLmh1983LockStateGet(pLmh1983Data);
+        if (NewState == DTA_LMH1983_STATE_LOCKING)
         {
-            // Start TOF alignment
-            if (DT_SUCCESS(DtaLmh1983StartTofAlign(pLmh1983Data)))
-                NewState = DTA_LMH1983_STATE_ALIGN_TOF;
+            // Enable fast PLL lock and TOF crash lock modes
+            Status = DtaLmh1983PllFastlockSet(pLmh1983Data, TRUE);
+            DT_ASSERT(DT_SUCCESS(Status));
+            Status = DtaLmh1983TofCrashLockSet(pLmh1983Data, TRUE);
+            DT_ASSERT(DT_SUCCESS(Status));
         }
         break;
 
-    case DTA_LMH1983_STATE_ALIGN_TOF:
+        // No PLL and TOF lock yet => wait for lock
+    case DTA_LMH1983_STATE_LOCKING:
 
-        // Re-check PLL lock state
-        NewState = DtaLmh1983PllLockStateGet(pLmh1983Data);
-        if (NewState != DTA_LMH1983_STATE_PLL_LOCKED)
+        // Re-check lock state
+        NewState = DtaLmh1983LockStateGet(pLmh1983Data);
+        if (NewState == DTA_LMH1983_STATE_LOCKED)
         {
-            // Lost lock during alignment => stop tof alignment procedure
-            DtaLmh1983StopTofAlign(pLmh1983Data);
-            break;
-        }
-
-        // Wait for start-of-frame to end aligment process
-        if (ChangeEvent == DTA_LMH1983_SOF_EVENT)
-        {
-            Status = DtaLmh1983StopTofAlign(pLmh1983Data);
-            if (DT_SUCCESS(Status))
-                NewState = DTA_LMH1983_STATE_FULL_LOCK;
-            else
-                NewState = DTA_LMH1983_STATE_PLL_LOCKED;    // fall-back
+            // Disable fast PLL lock and TOF crash lock modes
+            Status = DtaLmh1983PllFastlockSet(pLmh1983Data, FALSE);
+            DT_ASSERT(DT_SUCCESS(Status));
+            Status = DtaLmh1983TofCrashLockSet(pLmh1983Data, FALSE);
+            DT_ASSERT(DT_SUCCESS(Status));
         }
         break;
 
-    case DTA_LMH1983_STATE_FULL_LOCK:
-        // Re-check PLL lock state
-        NewState = DtaLmh1983PllLockStateGet(pLmh1983Data);
-        if (NewState != DTA_LMH1983_STATE_PLL_LOCKED)
-            NewState = DTA_LMH1983_STATE_HOLD_OVER1; // Go to hold over state
-        else
-            NewState = DTA_LMH1983_STATE_FULL_LOCK; // Stay in current state
-        break;
+        // Full lock => remain here until lock is lost
+    case DTA_LMH1983_STATE_LOCKED:
 
-    case DTA_LMH1983_STATE_HOLD_OVER1:
-        // Check PLL lock state
-        NewState = DtaLmh1983PllLockStateGet(pLmh1983Data);
-        if (NewState == DTA_LMH1983_STATE_PLL_LOCKED)
-            NewState = DTA_LMH1983_STATE_FULL_LOCK;  // Go back to full lock
-        else
-            NewState = DTA_LMH1983_STATE_HOLD_OVER2; // Go to next hold over state
+        // Re-check lock state
+        NewState = DtaLmh1983LockStateGet(pLmh1983Data);
+        if (NewState != DTA_LMH1983_STATE_LOCKED)
+            NewState = DTA_LMH1983_STATE_HOLDOVER;    // Go to HOLDOVER state
         break;
+        
+        // Lost lock, but chip is set to operate in HOLD over mode. Stay in this state,
+        // until lock is reestablished or the HOLD over time-out is reached
+    case DTA_LMH1983_STATE_HOLDOVER:
 
-    case DTA_LMH1983_STATE_HOLD_OVER2:
-        // Check PLL lock state
-        NewState = DtaLmh1983PllLockStateGet(pLmh1983Data);
-        if (NewState == DTA_LMH1982_STATE_PLL_LOCKED)
-            NewState = DTA_LMH1982_STATE_FULL_LOCK;  // Go back to full lock
+        // Re-check lock state
+        NewState = DtaLmh1983LockStateGet(pLmh1983Data);
+        if (NewState == DTA_LMH1983_STATE_LOCKED)
+            break;  // Restored lock again
+        
+        // Did the hold over time-out expire?
+        TimeDiff = CurTime - pLmh1983Data->m_EnteredStateTime;
+        if (TimeDiff < LMH1983_HOLDOVER_TIMEOUT_MS)
+            NewState = DTA_LMH1983_STATE_HOLDOVER; // Stay in hold-over state
         break;
 
     default:
@@ -384,17 +400,23 @@ DtStatus DtaLmh1983GoToNextState(DtaLmh1983* pLmh1983Data, Int ChangeEvent)
     DtFastMutexRelease(&pLmh1983Data->m_StateMutex);
 
     if (OldState != NewState)
-        DtDbgOut(MIN, GENL, "state transition %s => %s", DtaLmh1983State2Str(OldState), 
-                                                           DtaLmh1983State2Str(NewState));
+    {
+        TimeDiff = CurTime - pLmh1983Data->m_EnteredStateTime;
+        
+        // Store time at which the new state was entered
+        pLmh1983Data->m_EnteredStateTime = CurTime;
+        DtDbgOut(MIN, GENL, "[dT=%llums] state transition %s => %s", TimeDiff,
+                            DtaLmh1983State2Str(OldState), DtaLmh1983State2Str(NewState));
+    }
+
     // Fire lock state event
-    if (OldState<DTA_LMH1983_STATE_FULL_LOCK && NewState==DTA_LMH1983_STATE_FULL_LOCK)
+    if (OldState<DTA_LMH1983_STATE_LOCKED && NewState==DTA_LMH1983_STATE_LOCKED)
     {
         Status = DtaEventsSet(pLmh1983Data->m_pDvcData, NULL, DTA_EVENT_TYPE_GENLOCK, 
                                                               DTA_EVENT_VALUE1_LOCKED, 0);
         DT_ASSERT(DT_SUCCESS(Status));
     }
-    else if (OldState>=DTA_LMH1983_STATE_FULL_LOCK && 
-                                                     NewState<DTA_LMH1983_STATE_FULL_LOCK)
+    else if (OldState>=DTA_LMH1983_STATE_LOCKED && NewState<DTA_LMH1983_STATE_LOCKED)
     {
         Status = DtaEventsSet(pLmh1983Data->m_pDvcData, NULL, DTA_EVENT_TYPE_GENLOCK, 
                                                              DTA_EVENT_VALUE1_NO_LOCK, 0);
@@ -466,15 +488,7 @@ DtStatus  DtaLmh1983InitChip(DtaLmh1983* pLmh1983Data)
         DtDbgOut(ERR, GENL, "Failed to set clock source. Error: 0x%x", Status);
         return DT_STATUS_FAIL;
     }
-
-
-    //Status = DtaLmh1983WriteInitSeq(pLmh1983Data);
-    if (!DT_SUCCESS(Status))
-    {
-        DtDbgOut(ERR, GENL, "Failed to re-initialize LMH-1983 chip. Error: 0x%x", Status);
-        return DT_STATUS_FAIL;
-    }
-
+    
     switch (RefVidStd)
     {
     case DT_VIDSTD_525I59_94: FormatCode = 0; break;
@@ -503,70 +517,186 @@ DtStatus  DtaLmh1983InitChip(DtaLmh1983* pLmh1983Data)
         FormatCode = 1;
         break;
     }
-    Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_REG_INPUT_FORMAT, FormatCode);
+    Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG20, FormatCode);
     if (!DT_SUCCESS(Status))
         DtDbgOut(ERR, GENL, "Failed to write input format register. Error: 0x%X", Status);
     DtDbgOut(ERR, GENL, "Formatcode: %d", FormatCode);
 
     if (DT_SUCCESS(Status))
     {
-        UInt8  DvcCtrl;
-        Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_REG_DEVICE_CTRL, &DvcCtrl);
-        // Set PLL1 operating mode to genlock
-        DvcCtrl &= ~0x18;
-        if (pLmh1983Data->m_pDvcData->m_Genlock.m_RefPortIndex != DTA_GENLOCK_REFPORT_INT)
-            DvcCtrl |= 0x08;
-        Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_REG_DEVICE_CTRL, DvcCtrl);
+        UInt8  DvcCtrl = 0;
+        Int  RefPortIdx = pLmh1983Data->m_pDvcData->m_Genlock.m_RefPortIndex;
+        Int  OpModeInSrc = pLmh1983Data->m_pDvcData->m_Genlock.m_OpModeIntSrc;
+
+        // Get current value device control register
+        Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_IIC_REG05, &DvcCtrl);
+        // Set Setup PLL1 mode and auto format detect
+        // Clear PLL mode and AFD flag
+        DvcCtrl &= ~(LMH1983_DEVCTRL_EN_AFD | LMH1983_DEVCTRL_PLL1_MASK);
+        if (RefPortIdx == DTA_GENLOCK_REFPORT_INT)
+        {
+            // Use internal clock source => setup according to desired op-mode
+            if (OpModeInSrc == GENLOCK_OPMODE_INTSRC_FREE_RUN)
+            {
+                // Set pll_mode=free-run && AFD=0
+                DvcCtrl |= LMH1983_DEVCTRL_PLL1(PLL1_MODE_FREERUN);
+            }
+            else if (OpModeInSrc == GENLOCK_OPMODE_INTSRC_AFD)
+            {
+                // Set pll_mode=genlock && AFD=1
+                DvcCtrl |= LMH1983_DEVCTRL_PLL1(PLL1_MODE_GENLOCK)|LMH1983_DEVCTRL_EN_AFD;
+            }
+            else
+            {
+                DT_ASSERT(1 == 0);
+                DtDbgOut(ERR, GENL, "Unknown op-mode: %d", OpModeInSrc);
+                return DT_STATUS_FAIL;
+            }
+        }
+        else
+        {
+            // Use external genlock => PLL_mode=genlock
+            DvcCtrl |= LMH1983_DEVCTRL_PLL1(PLL1_MODE_GENLOCK);    
+        }
+                    
+        Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG05, DvcCtrl);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOut(ERR, GENL, "Failed to setup device control. Error: 0x%X", Status);
+            return Status;
+        }
     }
 
-
+    // Enable Fast PLL locking
+    Status = DtaLmh1983PllFastlockSet(pLmh1983Data, TRUE);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, GENL, "Failed to enable Fast PLL locking. Error: 0x%X", Status);
+        return Status;
+    }
+    // Enable TOF crash lock mode
+    Status = DtaLmh1983TofCrashLockSet(pLmh1983Data, TRUE);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, GENL, "Failed to enable TOF crash lock mode. Error: 0x%X", Status);
+        return Status;
+    }
     return Status;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983PllLockStateGet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983LockStateGet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-Int  DtaLmh1983PllLockStateGet(DtaLmh1983* pLmh1983Data)
+Int  DtaLmh1983LockStateGet(DtaLmh1983* pLmh1983Data)
 {
     DtStatus  Status = DT_STATUS_OK;
     UInt8  DvcStatus1=0, DvcStatus2=0;
     Int  State = DTA_LMH1983_STATE_NOREF;
-        
-    Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_REG_DEVICE_STATUS1, &DvcStatus1);
+    
+    Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_IIC_REG00, &DvcStatus1);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, GENL, "Failed to read device status - input ref. Error: 0x%x",
                                                                                   Status);
         return State;
     }
-    Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_REG_DEVICE_STATUS2, &DvcStatus2);
+    Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_IIC_REG01, &DvcStatus2);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, GENL, "Failed to read device status. Error: 0x%x", Status);
         return State;
     }
+    
     // Check LOR_STATUS first
     if ((DvcStatus1 & 0x04) == 0)
-        State = DTA_LMH1983_STATE_NOREF;        // Invalid reference signal
-    else if ((DvcStatus2 & 0x80) == 0x80)
-        State = DTA_LMH1983_STATE_PLL_LOCKED;   // Have lock
+        State = DTA_LMH1983_STATE_NOREF;    // Invalid reference signal
+    else if ((DvcStatus2 & 0xC0) == 0xC0)       
+        State = DTA_LMH1983_STATE_LOCKED;   // PLL and TOF lock => full lock
     else
-        State = DTA_LMH1983_STATE_PLL_LOCKING;  // Valid reference, but PLL is not locked
-
+        State = DTA_LMH1983_STATE_LOCKING;  // Valid ref, but no PLL and/or TOF lock yet
     return State;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983StartTofAlign -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983PllFastlockSet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// 
+// Enable/Disable FAST PLL locking
 //
-DtStatus  DtaLmh1983StartTofAlign(DtaLmh1983* pLmh1983Data)
+// Step 1: Set Lock_Step_Size field, PLL1 Advanced Control Lock Step Size
+// Step 2: Set LOCK1_Threshold field, inLoss of Lock Threshold
+//
+// See "LOCK TIME CONSIDERATIONS" section in LMH1983 datasheet
+//
+DtStatus  DtaLmh1983PllFastlockSet(DtaLmh1983* pLmh1983Data, Bool  Enable)
 {
-    return DT_STATUS_OK;
+    DtStatus  Status = DT_STATUS_OK;
+    UInt8  RegValue;
+
+    // Step 1: Set Lock_Step_Size field to (enable=0x01, disable=0x10)
+    Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_IIC_REG2D, &RegValue);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, GENL, "Failed to read PLL1 Advanced Control Lock Step Size "
+                                                         "register. Error: 0x%X", Status);
+        return Status;
+    }
+    RegValue &= ~0x1F; RegValue |= Enable ? 0x01 : 0x10;
+    Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG2D, RegValue);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, GENL, "Failed to write to PLL1 Advanced Control Lock Step Size "
+                                                         "register. Error: 0x%X", Status);
+        return Status;
+    }
+
+    // Step 2: Set LOCK1_Threshold field to (enable=0x1F, disable=0x10)
+    Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_IIC_REG1C, &RegValue);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, GENL, "Failed to read Loss of Lock Threshold register. "
+                                                                   "Error: 0x%X", Status);
+        return Status;
+    }
+    RegValue &= ~0x1F; RegValue |= Enable ? 0x1F : 0x10; 
+    Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG1C, RegValue);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, GENL, "Failed to write to Loss of Lock Threshold register. "
+                                                                   "Error: 0x%X", Status);
+        return Status;
+    }
+
+    return Status;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983StopTofAlign -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983TofCrashLockSet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaLmh1983StopTofAlign(DtaLmh1983* pLmh1983Data)
+// Enable/disable TOF align crash lock mode
+//
+// See "TOF1 ALIGNMENT" section in LMH1983 datasheet
+//
+DtStatus  DtaLmh1983TofCrashLockSet(DtaLmh1983* pLmh1983Data, Bool  Enable)
 {
-    return DT_STATUS_OK;
+    DtStatus  Status = DT_STATUS_OK;
+    UInt8  RegValue;
+
+    // Set TOF1_Sync_Near and TOF1_Sync_Far
+    // - Enable: near=crash lock & far=crash lock
+    // - Disable: near=drift lock & near=drift lock
+    Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_IIC_REG11, &RegValue);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, GENL, "Failed to read Alignment Control – TOF1 register. "
+                                                                   "Error: 0x%X", Status);
+        return Status;
+    }
+    RegValue &= ~0x0C; RegValue |= Enable ? 0x0C : 0x00; 
+    Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG11, RegValue);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, GENL, "Failed to write to Alignment Control – TOF1 register. "
+                                                                   "Error: 0x%X", Status);
+        return Status;
+    }
+    return Status;
 }
 
 #ifdef _DEBUG
@@ -578,12 +708,9 @@ const char*  DtaLmh1983State2Str(Int State)
     {
     case DTA_LMH1983_STATE_INIT:            return "INIT";
     case DTA_LMH1983_STATE_NOREF:           return "NOREF";
-    case DTA_LMH1983_STATE_PLL_LOCKING:     return "PLL_LOCKING";
-    case DTA_LMH1983_STATE_PLL_LOCKED:      return "PLL_LOCKED";
-    case DTA_LMH1983_STATE_ALIGN_TOF:       return "ALIGN_TOF";
-    case DTA_LMH1983_STATE_FULL_LOCK:       return "FULL_LOCK";
-    case DTA_LMH1983_STATE_HOLD_OVER1:      return "HOLD_OVER1";
-    case DTA_LMH1983_STATE_HOLD_OVER2:      return "HOLD_OVER2";
+    case DTA_LMH1983_STATE_LOCKING:         return "LOCKING";
+    case DTA_LMH1983_STATE_LOCKED:          return "LOCKED";
+    case DTA_LMH1983_STATE_HOLDOVER:        return "HOLDOVER";
     default:                                return "UNKNOWN";
     }
 }

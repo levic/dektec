@@ -39,7 +39,7 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
 {
     DT_ASSERT(pProps != NULL);
 
-    switch (VidStd)
+    switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
     {
     case DT_VIDSTD_525I59_94:
         pProps->m_NumLines = 525;

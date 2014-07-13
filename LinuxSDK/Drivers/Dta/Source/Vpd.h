@@ -29,40 +29,6 @@
 #ifndef __VPD_H
 #define __VPD_H
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Type definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-// DtaVpd
-typedef struct _DtaVpd
-{
-    // Vpd properties
-    Int  m_EepromIoItf;
-    UInt  m_EepromPageSize;       // Size of 1 EEPROM page
-    UInt  m_EepromSize;           // Size of the complete EEPROM, only used by EPC
-                                  // implementation to calculate last sector address
-    UInt  m_EepromVpdSize;        // Size of VPD data section within the EEPROM
-
-    // Implementation data
-    UInt8*  m_pCache;             // Physical VPD cache buffer
-    UInt  m_IdOffset;             // Offset in the VPD data where the DekTec ID section
-                                  // starts
-    UInt  m_IdLength;             // Length of Identifier string
-    UInt  m_RoOffset;             // Offset of start PCI VPD-R
-    UInt  m_RoLength;             // Length of PCI VPD-R
-    UInt  m_RwOffset;             // Offset of start PCI VPD-W
-    UInt  m_RwLength;             // Length of PCI VPD-W
-    UInt  m_IntRoOffset;          // Offset of start internal VPD-R
-    UInt  m_IntRoLength;          // Length of internal VPD-R
-    UInt  m_IntRwOffset;          // Offset of start internal VPD-W
-    UInt  m_IntRwLength;          // Length of internal VPD-W
-        
-    DtFastMutex  m_EepromMutex;
-    DtFastMutex  m_IoctlMutex;
-} DtaVpd;
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-#define  VPD_EEPROM_IO_NOT_SUPP -1
-#define  VPD_EEPROM_IO_PLX      0
-#define  VPD_EEPROM_IO_FPGA     1
-#define  VPD_EEPROM_IO_SPI      2
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtaVpdInit(DtaDeviceData* pDvcData);

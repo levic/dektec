@@ -56,6 +56,7 @@ DtStatus  DtaGenlockInit(DtaDeviceData* pDvcData)
 
     // Assume genlock is not supported
     pDvcData->m_Genlock.m_IsSupported = FALSE;
+    pDvcData->m_Genlock.m_OpModeIntSrc = GENLOCK_OPMODE_INTSRC_UNDEF;
 
     pDvcData->m_Genlock.m_GenlArch = DtPropertiesGetInt(pPropData, "GENLOCK_ARCH", -1);
     // Do we have a valid architecture
@@ -98,6 +99,16 @@ DtStatus  DtaGenlockInit(DtaDeviceData* pDvcData)
     }
     else if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2154)
     {
+        // Must have an operational mode
+        Int  OpMode = DtPropertiesGetInt(pPropData, "GENLOCK_OPMODE_INTSRC", -1);
+        if (OpMode!=GENLOCK_OPMODE_INTSRC_FREE_RUN && OpMode!=GENLOCK_OPMODE_INTSRC_AFD)
+        {
+            DtDbgOut(ERR, GENL, "Invalid value (%d) for 'GENLOCK_OPMODE_INTSRC' property",
+                                                                                  OpMode);
+            return DT_STATUS_FAIL;
+        }
+        pDvcData->m_Genlock.m_OpModeIntSrc = OpMode;
+        
         Status = DtaLmh1983Init(pDvcData, &pDvcData->m_Genlock.m_Lmh1983);
         if (!DT_SUCCESS(Status))
             DtDbgOut(ERR, GENL, "Failed to init LMH-1983 module");

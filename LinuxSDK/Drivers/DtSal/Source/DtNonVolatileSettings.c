@@ -484,59 +484,76 @@ DtStatus  DtNonVolatileSettingsDelete(
     if (!DT_SUCCESS(Status))
         return Status;
     
-    if (DT_SUCCESS(Status))
+    // Remove all port settings
+    for (i = 0; i < (Int)NumPorts; i++)
     {
-        // Remove all port settings
-        for (i = 0; i < (Int)NumPorts; i++)
+        Status = DtStringClear(&RegKeyName);
+        if (!DT_SUCCESS(Status))
         {
-            Status = DtStringClear(&RegKeyName);
-            if (!DT_SUCCESS(Status))
-                return Status;
+            DtStringFree(&RegKeyName);
+            return Status;
+        }
             
-            Status = PathAppendSettingsSerialPortCategory(&RegKeyName, DvcSerial, i, NULL);
-            if (!DT_SUCCESS(Status))
-                return Status;
-
-            // First delete all subitems of PortX (=Categories)
-            NtStatus = DriverParametersSubKeyDelete(pDrvObj->m_WdfDriver, &RegKeyName);
-    
-            // Delete registry item: PortX
-            NtStatus = DriverParametersKeyDelete(pDrvObj->m_WdfDriver, &RegKeyName);
+        Status = PathAppendSettingsSerialPortCategory(&RegKeyName, DvcSerial, i, NULL);
+        if (!DT_SUCCESS(Status))
+        {
+            DtStringFree(&RegKeyName);
+            return Status;
         }
 
-        // Remove the device settings
-        Status = DtStringClear(&RegKeyName);
-        if (!DT_SUCCESS(Status))
-            return Status;
-
-        Status = PathAppendSettingsSerialDeviceCategory(&RegKeyName, DvcSerial, NULL);
-         if (!DT_SUCCESS(Status))
-                return Status;
-
-        // First delete all subitems of device(=Categories)
+        // First delete all subitems of PortX (=Categories)
         NtStatus = DriverParametersSubKeyDelete(pDrvObj->m_WdfDriver, &RegKeyName);
-
-        // Delete registry item: Device
+    
+        // Delete registry item: PortX
         NtStatus = DriverParametersKeyDelete(pDrvObj->m_WdfDriver, &RegKeyName);
-
-
-        // Now remove the serial number
-        Status = DtStringClear(&RegKeyName);
-        if (!DT_SUCCESS(Status))
-            return Status;
-
-        // Create path without port number
-        Status = PathAppendSettingsSerialPortCategory(&RegKeyName, DvcSerial, -1, NULL);
-        if (!DT_SUCCESS(Status))
-            return Status;
-        
-        // Delete registry item: serial number
-        NtStatus = DriverParametersKeyDelete(pDrvObj->m_WdfDriver, &RegKeyName);
-        if (!NT_SUCCESS(NtStatus))
-            return DT_STATUS_FAIL;
-        
     }
 
+    // Remove the device settings
+    Status = DtStringClear(&RegKeyName);
+    if (!DT_SUCCESS(Status))
+    {
+        DtStringFree(&RegKeyName);
+        return Status;
+    }
+
+    Status = PathAppendSettingsSerialDeviceCategory(&RegKeyName, DvcSerial, NULL);
+    if (!DT_SUCCESS(Status))
+    {
+        DtStringFree(&RegKeyName);
+        return Status;
+    }
+
+    // First delete all subitems of device(=Categories)
+    NtStatus = DriverParametersSubKeyDelete(pDrvObj->m_WdfDriver, &RegKeyName);
+
+    // Delete registry item: Device
+    NtStatus = DriverParametersKeyDelete(pDrvObj->m_WdfDriver, &RegKeyName);
+
+
+    // Now remove the serial number
+    Status = DtStringClear(&RegKeyName);
+    if (!DT_SUCCESS(Status))
+    {
+        DtStringFree(&RegKeyName);
+        return Status;
+    }
+
+    // Create path without port number
+    Status = PathAppendSettingsSerialPortCategory(&RegKeyName, DvcSerial, -1, NULL);
+    if (!DT_SUCCESS(Status))
+    {
+        DtStringFree(&RegKeyName);
+        return Status;
+    }
+        
+    // Delete registry item: serial number
+    NtStatus = DriverParametersKeyDelete(pDrvObj->m_WdfDriver, &RegKeyName);
+    if (!NT_SUCCESS(NtStatus))
+    {
+        DtStringFree(&RegKeyName);
+        return DT_STATUS_FAIL;
+    }
+    DtStringFree(&RegKeyName);
 #else
     // Not yet implemented in Linux.
     Status = DT_STATUS_OK;

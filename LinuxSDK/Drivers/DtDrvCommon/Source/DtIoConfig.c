@@ -46,6 +46,7 @@ int  kstrtos64(const char*  p, int Base, UInt64*  pRes)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Global data -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
+#ifdef WINBUILD
 // ParXtra names
 static const char*   IoParXtraNames[DT_MAX_PARXTRA_COUNT] = {
         "IoParXtra0", 
@@ -55,7 +56,6 @@ static const char*   IoParXtraNames[DT_MAX_PARXTRA_COUNT] = {
 
 
 
-#ifdef WINBUILD
 DtStatus  DtIoConfigReadFromNonVolatileStorage(
     DtDrvObject*  pSalDrvObj,
     UInt64  Serial,

@@ -1082,6 +1082,10 @@ typedef union _DT_RFDAC_CONTROL
 #define DT_HD_REG_FIFO_FIRST            0x0098
 #define DT_HD_REG_FIFO_LAST             0x009C
 
+#define DT_HD_REG_LMH0387SPI            0x0188  // NOTE: WE ASSUME THE CHANNEL SPI CONTROL 
+                                                // BLOCK IS LOCATED AT AN OFFSET (0x180)
+                                                // FROM THE RX/TX CHANNEL BASE ADDRESS
+
 //-.-.-.-.-.-.-.-.-.-.-.- HD-Channel Control1 register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.-
 
 #define DT_HD_CTRL1_IODIR_MSK            0x00000001
@@ -1094,10 +1098,14 @@ typedef union _DT_RFDAC_CONTROL
 #define DT_HD_CTRL1_IOBYPASSEQ_SH        3
 #define DT_HD_CTRL1_IOPORT_MSK           0x000000F0
 #define DT_HD_CTRL1_IOPORT_SH            4
+#define DT_HD_CTRL1_DBLBUF_MSK           0x00000700
+#define DT_HD_CTRL1_DBLBUF_SH            8
 #define DT_HD_CTRL1_OPMODE_MSK           0x00007000
 #define DT_HD_CTRL1_OPMODE_SH            12
 #define DT_HD_CTRL1_RXTXCTRL_MSK         0x00018000
 #define DT_HD_CTRL1_RXTXCTRL_SH          15
+#define DT_HD_CTRL1_TXNOVPIDREPLACE_MSK  0x00020000 
+#define DT_HD_CTRL1_TXNOVPIDREPLACE_SH   17
 #define DT_HD_CTRL1_ASIINVERT_MSK        0x000C0000
 #define DT_HD_CTRL1_ASIINVERT_SH         18
 #define DT_HD_CTRL1_ASIRXMODE_MSK        0x00E00000
@@ -1120,6 +1128,16 @@ typedef union _DT_RFDAC_CONTROL
 // HD-Channel Control register: io-direction
 #define DT_HD_IODIR_OUTPUT               0x0
 #define DT_HD_IODIR_INPUT                0x1
+
+// HD-Channel Control register: double-buffered value
+#define DT_HD_DBLBUF_NONE               0x0
+#define DT_HD_DBLBUF_PORT1              0x1
+#define DT_HD_DBLBUF_PORT2              0x2
+#define DT_HD_DBLBUF_PORT3              0x3
+#define DT_HD_DBLBUF_PORT4              0x4
+#define DT_HD_DBLBUF_PORT5              0x5
+#define DT_HD_DBLBUF_PORT6              0x6
+#define DT_HD_DBLBUF_PORT7              0x7
 
 // HD-Channel Control register: op-mode value
 #define DT_HD_OPMODE_DISABLE            0x0
@@ -1169,28 +1187,36 @@ typedef union _DT_RFDAC_CONTROL
 #define  DT_HD_STATUS_LASTFRMINT_SH     31
 
 // HD-Channel Status register: detected video standard values 
-#define  DT_VIDSTD_UNKNOWN              0x000
-#define  DT_VIDSTD_525I59_94            0x1D6
-#define  DT_VIDSTD_625I50               0x158
-#define  DT_VIDSTD_720P23_98            0x188
-#define  DT_VIDSTD_720P24               0x108
-#define  DT_VIDSTD_720P25               0x106
-#define  DT_VIDSTD_720P29_97            0x182
-#define  DT_VIDSTD_720P30               0x102
-#define  DT_VIDSTD_720P50               0x104
-#define  DT_VIDSTD_720P59_94            0x180
-#define  DT_VIDSTD_720P60               0x100
-#define  DT_VIDSTD_1080P23_98           0x190
-#define  DT_VIDSTD_1080P24              0x110
-#define  DT_VIDSTD_1080P25              0x10D
-#define  DT_VIDSTD_1080P29_97           0x18B
-#define  DT_VIDSTD_1080P30              0x10B
-#define  DT_VIDSTD_1080I50              0x14C
-#define  DT_VIDSTD_1080I59_94           0x1CA
-#define  DT_VIDSTD_1080I60              0x14A
-#define  DT_VIDSTD_1080P50              0x10C
-#define  DT_VIDSTD_1080P59_94           0x18A
-#define  DT_VIDSTD_1080P60              0x10A
+#define  DT_VIDSTD_UNKNOWN              0x0000
+#define  DT_VIDSTD_525I59_94            0x01D6
+#define  DT_VIDSTD_625I50               0x0158
+#define  DT_VIDSTD_720P23_98            0x0188
+#define  DT_VIDSTD_720P24               0x0108
+#define  DT_VIDSTD_720P25               0x0106
+#define  DT_VIDSTD_720P29_97            0x0182
+#define  DT_VIDSTD_720P30               0x0102
+#define  DT_VIDSTD_720P50               0x0104
+#define  DT_VIDSTD_720P59_94            0x0180
+#define  DT_VIDSTD_720P60               0x0100
+#define  DT_VIDSTD_1080P23_98           0x0190
+#define  DT_VIDSTD_1080P24              0x0110
+#define  DT_VIDSTD_1080P25              0x010D
+#define  DT_VIDSTD_1080P29_97           0x018B
+#define  DT_VIDSTD_1080P30              0x010B
+#define  DT_VIDSTD_1080I50              0x014C
+#define  DT_VIDSTD_1080I59_94           0x01CA
+#define  DT_VIDSTD_1080I60              0x014A
+#define  DT_VIDSTD_1080P50              0x010C
+#define  DT_VIDSTD_1080P59_94           0x018A
+#define  DT_VIDSTD_1080P60              0x010A
+
+#define  DT_VIDSTD_3GLVL_MASK           0xC000  // Mask for 3G-SDI level bits
+#define  DT_VIDSTD_3GLVLA               0x0000  // Level A
+                                        // NOTE: use 0 for backwards compatibility
+                                        // (i.e. DT_VIDSTD_1080P60|DT_VIDSTD_3GLVLA 
+                                        //                           == DT_VIDSTD_1080P60)
+#define  DT_VIDSTD_3GLVLB               0x4000  // Level B 
+
 
 //-.-.-.-.-.-.-.-.-.-.- HD-Channel LED Control register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.
 
@@ -1324,6 +1350,7 @@ typedef union _DT_RFDAC_CONTROL
 #define  DT_MEMTR_DATAFMT_8B            0x0
 #define  DT_MEMTR_DATAFMT_10B           0x1
 #define  DT_MEMTR_DATAFMT_16B           0x2
+#define  DT_MEMTR_DATAFMT_10B_NBO       0x3
 
 // HD-Channel Mem-Transfer register: RGB-mode values
 #define  DT_MEMTR_RGBMODE_OFF           0x0
@@ -1455,6 +1482,19 @@ typedef union _DT_RFDAC_CONTROL
 #define DT_HD_GS29XXSPI_START_SH    30
 #define DT_HD_GS29XXSPI_DONE_MSK    0x80000000
 #define DT_HD_GS29XXSPI_DONE_SH     31
+
+//-.-.-.-.-.-.-.-.- HD-Channel LMH0387 SPI Control register: Bit Fields -.-.-.-.-.-.-.-.-.
+
+#define DT_HD_LMH0387SPI_DATA_MSK   0x0000FFFF
+#define DT_HD_LMH0387SPI_DATA_SH     0
+#define DT_HD_LMH0387SPI_ADDR_MSK    0x0FFF0000
+#define DT_HD_LMH0387SPI_ADDR_SH     16
+#define DT_HD_LMH0387SPI_READ_MSK    0x20000000
+#define DT_HD_LMH0387SPI_READ_SH     29
+#define DT_HD_LMH0387SPI_START_MSK   0x40000000
+#define DT_HD_LMH0387SPI_START_SH    30
+#define DT_HD_LMH0387SPI_DONE_MSK    0x80000000
+#define DT_HD_LMH0387SPI_DONE_SH     31
 
 //-.-.-.-.-.-.- HD-Channel S0 Next Frame Start Address register: Bit Fields -.-.-.-.-.-.-.
 

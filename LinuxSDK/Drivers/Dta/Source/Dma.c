@@ -215,17 +215,34 @@ DtStatus  DtaDmaInitCh(
     Bool  FixedLocalAddress)    // TRUE: DMA Local address = fixed
 {
     DtStatus  Status = DT_STATUS_OK;
-    Int  DmaSglListSize;
+    Int  DmaSglListSize, SgDescPrefetchCnt=-1;
     DmaOpt*  pDmaOptions = &pDvcData->m_DmaOptions;
+    UInt16  DmaMemAlign;
+    
+    // Get DMA alignment property. NOTE: is optional, so no error if not found 
+    UInt  OldPropertyNotFoundCounter = pDvcData->m_PropData.m_PropertyNotFoundCounter;
+    DmaMemAlign = DtPropertiesGetUInt16(&pDvcData->m_PropData, "DMA_MEM_ALIGNMENT",
+                                                                               PortIndex);
+    pDvcData->m_PropData.m_PropertyNotFoundCounter = OldPropertyNotFoundCounter;
+    DT_ASSERT(DmaMemAlign==(UInt16)-1 || (DmaMemAlign%8)==0);
 
+    // Get sg-desc-prefetch-count property. NOTE: is optional, so no error if not found 
+    OldPropertyNotFoundCounter = pDvcData->m_PropData.m_PropertyNotFoundCounter;
+    SgDescPrefetchCnt = DtPropertiesGetInt(&pDvcData->m_PropData, 
+                                                  "DMA_SGDESC_PREFETCH_COUNT", PortIndex);
+    pDvcData->m_PropData.m_PropertyNotFoundCounter = OldPropertyNotFoundCounter;
+    DT_ASSERT(SgDescPrefetchCnt==-1 || (SgDescPrefetchCnt>=0 && SgDescPrefetchCnt<=31));
+    pDmaCh->m_SgDescPrefetchCount = SgDescPrefetchCnt;  // Save prefetch count
+    
     DT_ASSERT((pDmaFinishFunc!=NULL && ((DmaFlags&DTA_DMA_FLAGS_BLOCKING) == 0))
                                                                  || pDmaFinishFunc==NULL);
     DT_ASSERT((Timeout==-1 && (DmaMode&DTA_DMA_MODE_TIMEOUT_ENABLE)==0) ||
                                (Timeout!=-1 && (DmaMode&DTA_DMA_MODE_TIMEOUT_ENABLE)!=0));
     DT_ASSERT(pDvcData->m_DmaOptions.m_UseDmaInFpga || 
                                                 (DmaMode&DTA_DMA_MODE_TIMEOUT_ENABLE)==0);
-    DT_ASSERT(pDvcData->m_DmaOptions.m_UseDmaInFpga || 
-                                               (DmaMode&DTA_DMA_FLAGS_DESCR_PREFETCH)==0);
+    DT_ASSERT(pDvcData->m_DmaOptions.m_UseDmaInFpga || pDmaCh->m_SgDescPrefetchCount==-1);
+
+    
     pDmaCh->m_PortIndex = PortIndex;
     pDmaCh->m_pDvcData = pDvcData;
     pDmaCh->m_MaxDmaLength = MaxDmaLength;
@@ -235,6 +252,11 @@ DtStatus  DtaDmaInitCh(
     pDmaCh->m_Timeout = Timeout;
     pDmaCh->m_pDmaFinishFunc = pDmaFinishFunc;
     pDmaCh->m_pDmaFinishContext = pDmaFinishContext;
+    // If not specified default to 32-bit aligment
+    if (DmaMemAlign == (UInt16)-1)
+        pDmaCh->m_BufAlignment = 4;
+    else
+        pDmaCh->m_BufAlignment = DmaMemAlign/8;
     
     DT_ASSERT((!pDvcData->m_DmaOptions.m_UseDmaInFpga && pDmaCh->m_RegsOffset<2) || 
                                                    pDvcData->m_DmaOptions.m_UseDmaInFpga);
@@ -274,6 +296,14 @@ DtStatus  DtaDmaInitCh(
         DmaSglListSize = sizeof(SglDesc);
     else {
         Int NumSglElements = (MaxDmaLength / PAGE_SIZE) + 1;
+        // If sg-desc prefetching is supported make sure we allocate a multiple a buffer 
+        // that can contain a multiple of prefetch count
+        if (SgDescPrefetchCnt != -1)
+        {
+            NumSglElements = (NumSglElements + SgDescPrefetchCnt-1) / SgDescPrefetchCnt;
+            NumSglElements *= SgDescPrefetchCnt;
+        }
+        
         if (pDmaOptions->m_Supports64Bit)
         {
             pDmaCh->m_Use64BitDma = TRUE;
@@ -345,10 +375,12 @@ DtStatus  DtaDmaInitChPowerup(
         else // Disable timeout
             DtaDmaTimeOutSet(pDmaCh->m_pRegBase, 0);
 
-        // Enable descriptor prefetch
-        if ((pDmaCh->m_DmaFlags & DTA_DMA_FLAGS_DESCR_PREFETCH) != 0)
-            DtaDmaDescrPrefetchEn(pDmaCh->m_pRegBase, 1, (pDmaCh->m_Use64BitDma?1:0));
-
+        // Enable/disable descriptor prefetching
+        if (pDmaCh->m_SgDescPrefetchCount == 0)
+            DtaDmaDescrPrefetchDisable(pDmaCh->m_pRegBase);
+        else if (pDmaCh->m_SgDescPrefetchCount != -1)
+            DtaDmaDescrPrefetchEnable(pDmaCh->m_pRegBase, pDmaCh->m_Use64BitDma, 
+                                                           pDmaCh->m_SgDescPrefetchCount);
     } else {
         // No DMA controllers in FPGA, only use PLX DMA controllers
         pDmaCh->m_pRegBase = pDmaCh->m_pDvcData->m_Pci905XConfRegs.m_pKernel;
@@ -663,7 +695,6 @@ static DtStatus  DtaDmaProgramTransfer(
                                           pDmaCh->m_RegsOffset);
         }
         
-
         CmdStat = 0;
         // Check if we need to set the size enable and transfer length
         if ((pDmaCh->m_DmaMode&DTA_DMA_MODE_SIZE_ENABLE)!=0 ||
@@ -675,7 +706,7 @@ static DtStatus  DtaDmaProgramTransfer(
             CmdStat = ((pDmaCh->m_CurrentTransferLength<<8)&DTA_DMA_CMDSTAT_SIZE_MASK) 
                                                                 | DTA_DMA_CMDSTAT_SIZE_EN;
         }
-
+        
         // Enable dual address cycles (64-bit DMA)
         if (pDmaCh->m_Use64BitDma) 
             CmdStat |= DTA_DMA_CMDSTAT_DAC_EN;

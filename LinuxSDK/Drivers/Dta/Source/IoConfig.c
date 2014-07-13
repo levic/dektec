@@ -59,6 +59,8 @@ static DtStatus  DtaIoConfigUpdateLoadNonVolatileStorage(DtaDeviceData* pDvcData
                                                              DtaIoConfigUpdate*  pUpdate);
 static DtStatus  DtaIoConfigUpdateValidate(DtaDeviceData* pDvcData,
                                                              DtaIoConfigUpdate*  pUpdate);
+static DtStatus  DtaIoConfigUpdateValidate3GLvl(DtaNonIpPort* pNonIpPort, 
+                                         DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
 static DtStatus  DtaIoConfigUpdateValidateIoDir(DtaNonIpPort* pNonIpPort, 
                                          DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
 static DtStatus  DtaIoConfigUpdateValidateIoStd(DtaNonIpPort* pNonIpPort, 
@@ -599,6 +601,11 @@ static DtStatus  DtaIoConfigUpdateValidate(
     {
         pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
         pPortUpdate = &pUpdate->m_pNonIpPortUpdate[NonIpPortIndex];
+
+        // Validate DT_IOCONFIG_3GLVL
+        Result = DtaIoConfigUpdateValidate3GLvl(pNonIpPort, pPortUpdate, pUpdate);
+        if (!DT_SUCCESS(Result))
+            return Result;
                 
         // Validate DT_IOCONFIG_IODIR
         Result = DtaIoConfigUpdateValidateIoDir(pNonIpPort, pPortUpdate, pUpdate);
@@ -661,6 +668,41 @@ static DtStatus  DtaIoConfigUpdateValidate(
             return Result;
     }
     return Result;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigUpdateValidate3GLvl -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static DtStatus  DtaIoConfigUpdateValidate3GLvl(
+    DtaNonIpPort* pNonIpPort, 
+    DtaIoConfigNonIpPortUpdate*  pPortUpdate,
+    DtaIoConfigUpdate* pUpdate)
+{
+    DtDbgOut(MAX, IOCONFIG, "Configuration 3GLVL Value: %d SubValue: %d",
+                                   pPortUpdate->m_CfgValue[DT_IOCONFIG_3GLVL].m_Value,
+                                   pPortUpdate->m_CfgValue[DT_IOCONFIG_3GLVL].m_SubValue);
+
+    switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_3GLVL].m_Value)
+    {
+    case DT_IOCONFIG_NONE:
+        // Not applicable should only be set when we do not support level A/LevelB
+        DT_ASSERT(!pNonIpPort->m_Cap3GLvlA && !pNonIpPort->m_Cap3GLvlB);
+        break;
+    case DT_IOCONFIG_3GLVLA:
+        // Must a have 3G-SDI level A capability
+        if (!pNonIpPort->m_Cap3GLvlA)
+            return DT_STATUS_CONFIG_ERROR;
+        break;
+
+    case DT_IOCONFIG_3GLVLB:
+        // Must a have 3G-SDI level B capability
+        if (!pNonIpPort->m_Cap3GLvlB)
+            return DT_STATUS_CONFIG_ERROR;
+        break;
+
+    default:
+        return DT_STATUS_CONFIG_ERROR;
+    }
+    return DT_STATUS_OK;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigUpdateValidateIoDir -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -780,8 +822,30 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
                 Status = DtaGetNonIpPortIndex(pDvcData, Buddy, &Buddy);
                 if (DT_SUCCESS(Status))
                 {
-                    if (pUpdate->m_pNonIpPortUpdate[Buddy].
-                              m_CfgValue[DT_IOCONFIG_IODIR].m_Value != DT_IOCONFIG_OUTPUT)
+                    DtaIoConfigValue*  pCfgVal;
+
+                    // Matrix capable ports can only double-up in pairs (i.e. port 2 can
+                    // be a copy of port 1, port 4 of port 3, port 6 of port 5, etc).
+                    if (pNonIpPort->m_CapMatrix)
+                    {
+                        Int  PortNumBuddy=-1, PortNum=-1;
+                        Status = DtaGetPortNumber(pDvcData, Buddy, &PortNumBuddy);
+                        DT_ASSERT(DT_SUCCESS(Status));
+                        Status = DtaGetPortNumber(pDvcData, pNonIpPort->m_PortIndex, 
+                                                                                &PortNum);
+                        DT_ASSERT(DT_SUCCESS(Status));
+                        if ((PortNumBuddy+1) != PortNum)
+                        {
+                            DtDbgOut(ERR, IOCONFIG, "Matrix capable double-up in pairs "
+                                            "(port=%d, buddy=%d)", PortNum, PortNumBuddy);
+                            return DT_STATUS_CONFIG_ERROR;
+                        }
+                    }
+
+                    pCfgVal = &pUpdate->m_pNonIpPortUpdate[Buddy].
+                                                            m_CfgValue[DT_IOCONFIG_IODIR];
+                    if (pCfgVal->m_Value != DT_IOCONFIG_OUTPUT
+                                             || pCfgVal->m_SubValue != DT_IOCONFIG_OUTPUT)
                         return DT_STATUS_CONFIG_ERROR;
                 } else
                     return DT_STATUS_CONFIG_ERROR;

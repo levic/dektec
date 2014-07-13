@@ -197,6 +197,9 @@ typedef struct _DtaNonIpPort
     DtaDeviceData*  m_pDvcData;
 
     // Capabilities
+    // 3GLVL (3G-SDI level) - Capabilities
+    Bool  m_Cap3GLvlA;
+    Bool  m_Cap3GLvlB;
     // IODIR (I/O direction) - Capabilities
     Bool  m_CapDisabled;
     Bool  m_CapInput;

@@ -45,10 +45,9 @@ static DtStatus  DtaNonIpMatrixInitFrameBufSectionConfig(DtaNonIpPort* pNonIpPor
                                       Int NumFrames, Int  NumLines,  Int  LineNumSymbols);
 static Int  DtaNonIpMatrixNumSymbols2LineSizeInMem(DtaNonIpPort* pNonIpPort, 
                                                                          Int  NumSymbols);
-static Int  DtaNonIpMatrixNumSymbols2DmaSize(Int  NumSymbols, Int DataFormat, 
-                                                                            Int  RgbMode);
-static Int  DtaNonIpMatrixGetDmaSize(Int  LineNumS, Int  NumLines, 
-                                              Int DataFormat, Int  Scaling, Int  RgbMode);
+static Int  DtaNonIpMatrixGetDmaSize(DtaNonIpPort* pNonIpPort,
+                                              Int  LineNumS, Int  NumLines, 
+                                              Int DataFormat, Int  RgbMode, Int  Stride);
 static DtStatus  DtaNonIpMatrixVidStd2SdiFormat(Int  VidStd, Int* pVideoId,
                                                      Int*  pPictRate, Int*  pProgressive);
 static DtStatus  DtaNonIpMatrixSdiFormat2VidStd(Int VideoId, Int  PictRate, 
@@ -57,6 +56,12 @@ static Bool  DtaNonIpMatrixValidateStartLineAndNumLines(
                                DtAvFrameProps* pFrameProps, Int  StartLine, Int  NumLines);
 static Int  DtaNonIpMatrixCountMatrixPorts(DtaNonIpPort* pNonIpPort);
 static DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame);
+static DtStatus  DtaLmh0387WriteRegister(DtaNonIpPort*  pNonIpPort, 
+                                                                 Int Addr, UInt32  Value);
+#ifdef _DEBUG
+static DtStatus  DtaLmh0387ReadRegister(DtaNonIpPort*  pNonIpPort, 
+                                                               Int Addr, UInt32*  pValue);
+#endif
 
 #ifdef _DEBUG
 static const char*  DtaNonIpMatrixState2Str(DtaMatrixPortState State);
@@ -106,12 +111,25 @@ static const  Int  DTA_NONIP_MATRIX_VIDSTD_2_FORMAT[][4] =
                                                             DT_HD_SDIFMT_PROGRESSIVE_ON },
     { DT_VIDSTD_1080P30, DT_HD_SDIFMT_VIDEOID_HD1080, DT_HD_SDIFMT_PICTRATE_30, 
                                                             DT_HD_SDIFMT_PROGRESSIVE_ON },
-    // 3G 1080 formats
-    { DT_VIDSTD_1080P50, DT_HD_SDIFMT_VIDEOID_3GLVLA, DT_HD_SDIFMT_PICTRATE_50, 
+    // 3G 1080 formats (LEVEL A)
+    { DT_VIDSTD_1080P50 | DT_VIDSTD_3GLVLA, 
+                                 DT_HD_SDIFMT_VIDEOID_3GLVLA, DT_HD_SDIFMT_PICTRATE_50, 
                                                             DT_HD_SDIFMT_PROGRESSIVE_ON },
-    { DT_VIDSTD_1080P59_94, DT_HD_SDIFMT_VIDEOID_3GLVLA, DT_HD_SDIFMT_PICTRATE_59_94, 
+    { DT_VIDSTD_1080P59_94 | DT_VIDSTD_3GLVLA, 
+                              DT_HD_SDIFMT_VIDEOID_3GLVLA, DT_HD_SDIFMT_PICTRATE_59_94, 
                                                             DT_HD_SDIFMT_PROGRESSIVE_ON },
-    { DT_VIDSTD_1080P60, DT_HD_SDIFMT_VIDEOID_3GLVLA, DT_HD_SDIFMT_PICTRATE_60, 
+    { DT_VIDSTD_1080P60 | DT_VIDSTD_3GLVLA, 
+                                 DT_HD_SDIFMT_VIDEOID_3GLVLA, DT_HD_SDIFMT_PICTRATE_60, 
+                                                            DT_HD_SDIFMT_PROGRESSIVE_ON },
+    // 3G 1080 formats (LEVEL B)
+    { DT_VIDSTD_1080P50 | DT_VIDSTD_3GLVLB, 
+                                 DT_HD_SDIFMT_VIDEOID_3GLVLB, DT_HD_SDIFMT_PICTRATE_50, 
+                                                            DT_HD_SDIFMT_PROGRESSIVE_ON },
+    { DT_VIDSTD_1080P59_94 | DT_VIDSTD_3GLVLB, 
+                              DT_HD_SDIFMT_VIDEOID_3GLVLB, DT_HD_SDIFMT_PICTRATE_59_94, 
+                                                            DT_HD_SDIFMT_PROGRESSIVE_ON },
+    { DT_VIDSTD_1080P60 | DT_VIDSTD_3GLVLB, 
+                                 DT_HD_SDIFMT_VIDEOID_3GLVLB, DT_HD_SDIFMT_PICTRATE_60, 
                                                             DT_HD_SDIFMT_PROGRESSIVE_ON },
 };
 static const  Int  DTA_NONIP_MATRIX_VIDSTD_2_FORMAT_NUM_ENTRIES = 
@@ -120,27 +138,33 @@ sizeof(DTA_NONIP_MATRIX_VIDSTD_2_FORMAT) / sizeof(DTA_NONIP_MATRIX_VIDSTD_2_FORM
 
 static const  UInt  DTA_NONIP_MATRIX_VIDSTD_2_SMPTE_VIDID[][2] =
 {
-    {DT_VIDSTD_525I59_94,            0x81060000 },
-    {DT_VIDSTD_625I50,               0x81050000 },
-    {DT_VIDSTD_720P23_98,            0x84420000 },
-    {DT_VIDSTD_720P24,               0x84430000 },
-    {DT_VIDSTD_720P25,               0x84450000 },
-    {DT_VIDSTD_720P29_97,            0x84460000 },
-    {DT_VIDSTD_720P30,               0x84470000 },
-    {DT_VIDSTD_720P50,               0x84490000 },
-    {DT_VIDSTD_720P59_94,            0x844A0000 },
-    {DT_VIDSTD_720P60,               0x844B0000 },
-    {DT_VIDSTD_1080P23_98,           0x85C20000 },
-    {DT_VIDSTD_1080P24,              0x85C30000 },
-    {DT_VIDSTD_1080P25,              0x85C50000 },
-    {DT_VIDSTD_1080P29_97,           0x85C60000 },
-    {DT_VIDSTD_1080P30,              0x85C70000 },
-    {DT_VIDSTD_1080I50,              0x85050000 },
-    {DT_VIDSTD_1080I59_94,           0x85060000 },
-    {DT_VIDSTD_1080I60,              0x85070000 },
-    {DT_VIDSTD_1080P50,              0x89C90000 },
-    {DT_VIDSTD_1080P59_94,           0x89CA0000 },
-    {DT_VIDSTD_1080P60,              0x89CB0000 }
+    {DT_VIDSTD_525I59_94,                       0x81060001 },
+    {DT_VIDSTD_625I50,                          0x81050001 },
+    {DT_VIDSTD_720P23_98,                       0x84420001 },
+    {DT_VIDSTD_720P24,                          0x84430001 },
+    {DT_VIDSTD_720P25,                          0x84450001 },
+    {DT_VIDSTD_720P29_97,                       0x84460001 },
+    {DT_VIDSTD_720P30,                          0x84470001 },
+    {DT_VIDSTD_720P50,                          0x84490001 },
+    {DT_VIDSTD_720P59_94,                       0x844A0001 },
+    {DT_VIDSTD_720P60,                          0x844B0001 },
+    {DT_VIDSTD_1080P23_98,                      0x85C20001 },
+    {DT_VIDSTD_1080P24,                         0x85C30001 },
+    {DT_VIDSTD_1080P25,                         0x85C50001 },
+    {DT_VIDSTD_1080P29_97,                      0x85C60001 },
+    {DT_VIDSTD_1080P30,                         0x85C70001 },
+    {DT_VIDSTD_1080I50,                         0x85050001 },
+    {DT_VIDSTD_1080I59_94,                      0x85060001 },
+    {DT_VIDSTD_1080I60,                         0x85070001 },
+    // 3G-SDI level A
+    {DT_VIDSTD_1080P50 | DT_VIDSTD_3GLVLA,      0x89C90001 },
+    {DT_VIDSTD_1080P59_94 | DT_VIDSTD_3GLVLA,   0x89CA0001 },
+    {DT_VIDSTD_1080P60 | DT_VIDSTD_3GLVLA,      0x89CB0001 },
+    // 3G-SDI level B
+    {DT_VIDSTD_1080P50 | DT_VIDSTD_3GLVLB,      0x8AC90001 },
+    {DT_VIDSTD_1080P59_94 | DT_VIDSTD_3GLVLB,   0x8ACA0001 },
+    {DT_VIDSTD_1080P60 | DT_VIDSTD_3GLVLB,      0x8ACB0001 }
+    
 };
 static const  Int  DTA_NONIP_MATRIX_VIDSTD_2_SMPTE_VIDID_LEN =
                                          sizeof(DTA_NONIP_MATRIX_VIDSTD_2_SMPTE_VIDID) /
@@ -285,14 +309,17 @@ DtStatus  DtaNonIpMatrixClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile)
                 DtaNonIpMatrixSetAsiCtrl(pNonIpPort, DT_RXCTRL_IDLE);
             else
                 DtaNonIpMatrixSetAsiCtrl(pNonIpPort, DT_TXCTRL_IDLE);
+            DtMutexRelease(&pNonIpPort->m_Matrix.m_StateLock);
         } else {
             // Reset the state to HOLD when running
             if (pNonIpPort->m_Matrix.m_State == MATRIX_PORT_RUN)
                 DtaNonIpMatrixSetState(pNonIpPort, MATRIX_PORT_HOLD);
+            DtMutexRelease(&pNonIpPort->m_Matrix.m_StateLock);
+            // m_Matrix.m_StateLock must not be held when calling AttachToRow, since it'll
+            // call configure which takes that lock (and recursive locking is not
+            // supported under linux).
             DtaNonIpMatrixAttachToRow(pNonIpPort, pNonIpPort->m_PortIndex);
         }
-
-        DtMutexRelease(&pNonIpPort->m_Matrix.m_StateLock);
     }
 
     return DT_STATUS_OK;
@@ -304,6 +331,7 @@ DtStatus  DtaNonIpMatrixConfigure(DtaNonIpPort* pNonIpPort, Bool  ForceConfig)
 {
     DtStatus  Status = DT_STATUS_OK;
     Int  IoStdValue = pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value;
+    Bool  IsInput=FALSE, IsOutput=FALSE, IsDblBuf=FALSE;
 
     DT_ASSERT(pNonIpPort->m_CapMatrix);
 
@@ -311,6 +339,43 @@ DtStatus  DtaNonIpMatrixConfigure(DtaNonIpPort* pNonIpPort, Bool  ForceConfig)
                                            pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber,
                                                                  pNonIpPort->m_PortIndex);
 
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Common configuration -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+    IsInput = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_INPUT) &&
+                 (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue == DT_IOCONFIG_INPUT);
+    IsOutput = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_OUTPUT) &&
+                (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue == DT_IOCONFIG_OUTPUT);
+    IsDblBuf = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_OUTPUT) &&
+                (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue == DT_IOCONFIG_DBLBUF);
+    DT_ASSERT((IsInput && !IsOutput && !IsDblBuf) || (!IsInput && IsOutput && !IsDblBuf) 
+                                                  || (!IsInput && !IsOutput && IsDblBuf));
+
+    // Set double buffered configuration (if channel supports double-buffering)
+    if (pNonIpPort->m_CapDblBuf)
+    {
+        if (IsInput || IsOutput)
+            DtaRegHdCtrl1SetDblBuf(pNonIpPort->m_pRxRegs, DT_HD_DBLBUF_NONE);
+        else if (IsDblBuf)
+        {
+            Int  BuddyPort = DT_HD_DBLBUF_NONE;
+            switch (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_ParXtra[0])
+            {
+            case 0:  BuddyPort = DT_HD_DBLBUF_PORT1; break;
+            case 1:  BuddyPort = DT_HD_DBLBUF_PORT2; break;
+            case 2:  BuddyPort = DT_HD_DBLBUF_PORT3; break;
+            case 3:  BuddyPort = DT_HD_DBLBUF_PORT4; break;
+            case 4:  BuddyPort = DT_HD_DBLBUF_PORT5; break;
+            case 5:  BuddyPort = DT_HD_DBLBUF_PORT6; break;
+            case 6:  BuddyPort = DT_HD_DBLBUF_PORT7; break;
+            default: DT_ASSERT(1==0); break;
+            }
+            DtaRegHdCtrl1SetDblBuf(pNonIpPort->m_pRxRegs, BuddyPort);
+        }
+    }
+    
+    //-.-.-.-.-.-.-.-.-.- ASI / (SD/HD/3G)-SDI specific configuration -.-.-.-.-.-.-.-.-.-.
+
+    
     if (IoStdValue == DT_IOCONFIG_ASI)
         Status = DtaNonIpMatrixConfigureForAsi(pNonIpPort, ForceConfig);
     else if (IoStdValue == DT_IOCONFIG_SDI || IoStdValue == DT_IOCONFIG_HDSDI
@@ -367,7 +432,8 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
         if (!DT_SUCCESS(Status))
             return Status;
     }
-    else if (pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_FPGA_BASED)
+    else if (pNonIpPort->m_AsiSdiDeserItfType==ASI_SDI_DESER_ITF_FPGA_BASED || 
+                         pNonIpPort->m_AsiSdiDeserItfType==ASI_SDI_DESER_ITF_FPGA_LMH0387)
     {
         // FPGA based => get the video standard from SDI status register
         Int  VideoId = DtaRegHdSdiStatusGetVideoId(pHdRegs);
@@ -995,8 +1061,9 @@ DtStatus  DtaNonIpMatrixPrepForDma(
     }
     // Check: data format
     if (pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_8B
-                                       && pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_10B 
-                                       && pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_16B)
+                                   && pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_10B 
+                                   && pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_16B
+                                   && pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_10B_NBO)
     {
         DtDbgOut(ERR, NONIP, "Unsupported data format (%d)", pMemTrSetup->m_DataFormat);
         return DT_STATUS_INVALID_PARAMETER;
@@ -1035,12 +1102,6 @@ DtStatus  DtaNonIpMatrixPrepForDma(
                                                                    pMemTrSetup->m_AncFlt);
         return DT_STATUS_INVALID_PARAMETER;
     }
-    // Check: stride mode
-    if (pMemTrSetup->m_Stride > 0)
-    {
-        DtDbgOut(ERR, NONIP, "Unsupported stride (%d)", pMemTrSetup->m_Stride);
-        return DT_STATUS_INVALID_PARAMETER;
-    }
     // Check: line numbers
     if (!DtaNonIpMatrixValidateStartLineAndNumLines(pFrameProps, pMemTrSetup->m_StartLine, 
                                                                  pMemTrSetup->m_NumLines))
@@ -1049,6 +1110,7 @@ DtStatus  DtaNonIpMatrixPrepForDma(
                                        pMemTrSetup->m_StartLine, pMemTrSetup->m_NumLines);
         return DT_STATUS_INVALID_PARAMETER;
     }
+    // Stride mode is checked in DtaNonIpMatrixGetReqDmaSize()
 
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Compute req. DMA size -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -1185,6 +1247,10 @@ DtStatus  DtaNonIpMatrixPrepForDma(
         // For legacy we should divide the #lines by the scaling factor
         DtaRegHdMemTrControlSetNumLines(pHdRegs, pMemTrSetup->m_NumLines/ScalingFactor);
     }
+    else if (pMemTrSetup->m_Stride > 0)
+    {
+        DtaRegHdMemTrNumBytesSet(pHdRegs, pMemTrSetup->m_Stride);
+    }
 
     // Finally: set the actual transfer command to start the transfer
     DtaRegHdMemTrControlSetTrCmd(pHdRegs, pMemTrSetup->m_TrCmd);
@@ -1200,6 +1266,7 @@ DtStatus  DtaNonIpMatrixGetReqDmaSize(
     Int*  pReqDmaSize)
 {
     Int  LineNumS = 0;
+    Int  NumLines = 0;
     DtAvFrameProps*  pFrameProps = NULL;
     DtaFrameBufConfig*  pBufConf = NULL;
 
@@ -1220,14 +1287,6 @@ DtStatus  DtaNonIpMatrixGetReqDmaSize(
         DtDbgOut(ERR, NONIP, "Unsupported transfer command (%d)", pMemTrSetup->m_TrCmd);
         return DT_STATUS_INVALID_PARAMETER;
     }
-    // Check: data format
-    if (pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_8B
-                                       && pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_10B 
-                                       && pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_16B)
-    {
-        DtDbgOut(ERR, NONIP, "Unsupported data format (%d)", pMemTrSetup->m_DataFormat);
-        return DT_STATUS_INVALID_PARAMETER;
-    }
     // Check: RGB-mode
     if (pMemTrSetup->m_RgbMode!=DT_MEMTR_RGBMODE_OFF
                                            && pMemTrSetup->m_RgbMode!=DT_MEMTR_RGBMODE_ON)
@@ -1245,12 +1304,13 @@ DtStatus  DtaNonIpMatrixGetReqDmaSize(
                                                                    pMemTrSetup->m_SymFlt);
         return DT_STATUS_INVALID_PARAMETER;
     }
-    // Check: scaling mode
-    if (pMemTrSetup->m_Scaling!=DT_MEMTR_SCMODE_OFF
-                                          && pMemTrSetup->m_Scaling!=DT_MEMTR_SCMODE_1_4
-                                          && pMemTrSetup->m_Scaling!=DT_MEMTR_SCMODE_1_16)
+    // Check: data format
+    if (pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_8B
+                                   && pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_10B 
+                                   && pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_16B
+                                   && pMemTrSetup->m_DataFormat!=DT_MEMTR_DATAFMT_10B_NBO)
     {
-        DtDbgOut(ERR, NONIP, "Unsupported scaling mode (%d)", pMemTrSetup->m_Scaling);
+        DtDbgOut(ERR, NONIP, "Unsupported data format (%d)", pMemTrSetup->m_DataFormat);
         return DT_STATUS_INVALID_PARAMETER;
     }
     // Check: ancillary filter mode
@@ -1260,12 +1320,6 @@ DtStatus  DtaNonIpMatrixGetReqDmaSize(
     {
         DtDbgOut(ERR, NONIP, "Unsupported ancillary filter mode (%d)", 
                                                                    pMemTrSetup->m_AncFlt);
-        return DT_STATUS_INVALID_PARAMETER;
-    }
-    // Check: stride mode
-    if (pMemTrSetup->m_Stride > 0)
-    {
-        DtDbgOut(ERR, NONIP, "Unsupported stride (%d)", pMemTrSetup->m_Stride);
         return DT_STATUS_INVALID_PARAMETER;
     }
     // Check: line numbers
@@ -1287,10 +1341,70 @@ DtStatus  DtaNonIpMatrixGetReqDmaSize(
         LineNumS = pBufConf->m_Sections[0].m_LineNumSymbols;
         LineNumS += pBufConf->m_Sections[1].m_LineNumSymbols;
     }
+    NumLines = pMemTrSetup->m_NumLines;
+    
+    // Check: scaling mode
+    if (pMemTrSetup->m_Scaling == DT_MEMTR_SCMODE_1_4)
+    {
+        NumLines /= 2;
+        LineNumS /= 2;
+    }
+    else if (pMemTrSetup->m_Scaling == DT_MEMTR_SCMODE_1_16)
+    {
+        NumLines /= 4;
+        LineNumS /= 4;
+    }
+    else if (pMemTrSetup->m_Scaling != DT_MEMTR_SCMODE_OFF)
+    {
+        DtDbgOut(ERR, NONIP, "Unsupported scaling mode (%d)", pMemTrSetup->m_Scaling);
+        return DT_STATUS_INVALID_PARAMETER;
+    }
+
+    // Check: symbol filter (for CHROM and LUM-only div #symbols by 2)
+    if (pMemTrSetup->m_SymFlt==DT_MEMTR_SYMFLTMODE_CHROM || 
+                                           pMemTrSetup->m_SymFlt==DT_MEMTR_SYMFLTMODE_LUM)
+    {
+        if ((LineNumS % 2) != 0)
+            LineNumS += 1;
+        LineNumS /= 2;
+    }
+    
+    // Check: stride mode
+    if (pMemTrSetup->m_Stride > 0)
+    {
+        Int  TransferMinNumBits;
+        if (DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort))
+        {
+            DtDbgOut(ERR, NONIP, "Stride is not supported on legacy interface");
+            return DT_STATUS_INVALID_PARAMETER;
+        }
+    
+        if (pMemTrSetup->m_DataFormat == DT_MEMTR_DATAFMT_16B)
+            TransferMinNumBits = LineNumS * 16;
+        else if (pMemTrSetup->m_DataFormat==DT_MEMTR_DATAFMT_10B 
+                                   || pMemTrSetup->m_DataFormat==DT_MEMTR_DATAFMT_10B_NBO)
+            TransferMinNumBits = LineNumS * 10;
+        else // if (pMemTrSetup->m_DataFormat == DT_MEMTR_DATAFMT_8B)
+            TransferMinNumBits = LineNumS * 8;
+        
+        // With RGB mode enabled we get 3 symbols (R+G+B) for each YUV
+        // sample (Y+Cb or Y+Cr).
+        if (pMemTrSetup->m_RgbMode == DT_MEMTR_RGBMODE_ON)
+            TransferMinNumBits = (TransferMinNumBits*3) / 2;
+
+        if ((TransferMinNumBits+7)/8 > pMemTrSetup->m_Stride)
+        {
+            DtDbgOut(ERR, NONIP, "Stride too small (%d, min: %d)", pMemTrSetup->m_Stride,
+                                                                (TransferMinNumBits+7)/8);
+            return DT_STATUS_INVALID_PARAMETER;
+        }
+    }
+
     // Compute the expected DMA size
-    *pReqDmaSize = DtaNonIpMatrixGetDmaSize(LineNumS, pMemTrSetup->m_NumLines, 
-                                          pMemTrSetup->m_DataFormat, 
-                                          pMemTrSetup->m_Scaling, pMemTrSetup->m_RgbMode);
+    *pReqDmaSize = DtaNonIpMatrixGetDmaSize(pNonIpPort, LineNumS, NumLines,
+                                                                pMemTrSetup->m_DataFormat,
+                                                                pMemTrSetup->m_RgbMode,
+                                                                pMemTrSetup->m_Stride);
 
     return DT_STATUS_OK;
 }
@@ -1368,6 +1482,7 @@ static DtStatus  DtaNonIpMatrixConfigureForAsi(
 {
     DtStatus  Status = DT_STATUS_OK;
     volatile UInt8*  pHdRegs;
+    Bool  IsInput=FALSE, IsOutput=FALSE;
     DtaFrameBufSectionConfig*  pSect0;
     Int  SizeOfChannelRam = 0;
     Int  NumMatrixPorts = DtaNonIpMatrixCountMatrixPorts(pNonIpPort);
@@ -1401,6 +1516,10 @@ static DtStatus  DtaNonIpMatrixConfigureForAsi(
         DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_DISABLE);
         DtaRegHdCtrl1SetRxTxCtrl(pHdRegs, DT_HD_RXTXCTRL_IDLE);
 
+        // NOTE: must wait 100us after setting going to IDLE to allow HW to abort any 
+        // processing it was doing
+        DtWaitBlock(100);
+
         DtaNonIpMatrixVidStd2SdiFormat(DT_VIDSTD_1080I50, &VideoId, &PictRate,
                                                                             &Progressive);
         DtaRegHdSdiFormatSetVideoId(pHdRegs, VideoId);
@@ -1416,8 +1535,14 @@ static DtStatus  DtaNonIpMatrixConfigureForAsi(
     DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_DISABLE);
     DtaRegHdCtrl1SetRxTxCtrl(pHdRegs, DT_HD_RXTXCTRL_IDLE);
 
+    // NOTE: must wait 100us after setting going to IDLE to allow HW to abort any 
+    // processing it was doing
+    DtWaitBlock(100);
+
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Configure IO-direction -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
+    IsInput = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_INPUT);
+    IsOutput = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_OUTPUT);
     if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_INPUT)
         DtaRegHdCtrl1SetIoDir(pHdRegs, DT_HD_IODIR_INPUT);
     else if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_OUTPUT)
@@ -1457,12 +1582,53 @@ static DtStatus  DtaNonIpMatrixConfigureForAsi(
     DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_ASI);
         
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- Finally: init IO-interface  -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+    
     DtaRegHdCtrl1SetIoEnable(pHdRegs, 1);
 
-    // Issue a IO reset
+    // Issue a IO reset. NOTE: reset before enabling serialiser/de-serialisers
     DtaRegHdCtrl1SetIoReset(pHdRegs, 1);
     DtSleep(5);
     DtaRegHdCtrl1SetIoReset(pHdRegs, 0);
+    DtSleep(5);
+
+    if (IsInput)
+    {
+        // Check for GS2961 deserialiser
+        if (pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_GS2961)
+        {
+            Status = DtaGs2961Enable(pNonIpPort, TRUE/*ASI MODE*/);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOut(ERR, NONIP, "Failed to enabled GS2961 for ASI");
+                return Status;
+            }
+        }
+        // Check for FPGA based deser +  LMH0387
+        else if (pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_FPGA_LMH0387)
+        {
+            // Must set the lanch amplitude to recommended default value (30h). 
+            // See LMH0387 datasheet, LAUNCH AMPLITUDE OPTIMIZATION (REGISTER 02h)
+            Status = DtaLmh0387WriteRegister(pNonIpPort, 0x02, 0x30);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOut(ERR, NONIP, "Failed set LMH0387 launch amplitude");
+                return Status;
+            }
+        }
+    }
+    else if (IsOutput)
+    {
+        // Check for GS2962 serialiser
+        if (pNonIpPort->m_AsiSdiSerItfType == ASI_SDI_SER_ITF_GS2962)
+        {
+            Status = DtaGs2962Enable(pNonIpPort);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOut(ERR, NONIP, "Failed to enabled GS2962 for ASI");
+                return Status;
+            }
+        }
+    }
 
     pNonIpPort->m_Matrix.m_AsiDmaNumBytes = 0;
     pNonIpPort->m_Matrix.m_AsiDmaOffset = 0;
@@ -1500,8 +1666,9 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
     IsLegacy = DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort);
 
     // Check if reconfiguration is required
-    NewVidStd = DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value,
-                                       pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
+    NewVidStd = DtaIoStdAndLevel2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
+                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue, 
+                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_3GLVL].m_Value);
     if (pNonIpPort->m_Matrix.m_State==MATRIX_PORT_UNINIT || 
                                     pNonIpPort->m_Matrix.m_State==MATRIX_PORT_CONFIGURING)
         ConfigRequired = TRUE;  // Port not yet intialised => configure required
@@ -1533,6 +1700,10 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
     // Disable channel before configuring 
     DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_DISABLE);
     DtaRegHdCtrl1SetRxTxCtrl(pHdRegs, DT_HD_RXTXCTRL_IDLE);
+
+    // NOTE: must wait 100us after setting going to IDLE to allow HW to abort any 
+    // processing it was doing
+    DtWaitBlock(100);
 
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Configure IO-direction -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
@@ -1580,40 +1751,47 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
 
     DtaRegHdCtrl1SetIoEnable(pHdRegs, 1);
 
+    // Issue a IO reset. NOTE: reset before enabling serialiser/de-serialisers
+    DtaRegHdCtrl1SetIoReset(pHdRegs, 1);
+    DtSleep(5);
+    DtaRegHdCtrl1SetIoReset(pHdRegs, 0);
+
     if (IsInput)
     {
-        if (IsLegacy)
-        {
-            // TODO: Disable auto EAV & SAV repair
-        }
-
         // Check for GS2961 deserialiser
         if (pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_GS2961)
-            Status = DtaGs2961Enable(pNonIpPort);
-        else
         {
-            // Issue a IO reset
-            DtaRegHdCtrl1SetIoReset(pHdRegs, 1);
-            DtSleep(5);
-            DtaRegHdCtrl1SetIoReset(pHdRegs, 0);
+            Status = DtaGs2961Enable(pNonIpPort, FALSE/* SDI MODE*/);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOut(ERR, NONIP, "Failed to enabled GS2961 for SDI");
+                return Status;
+            }
+        }
+        // Check for FPGA based deser +  LMH0387
+        else if (pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_FPGA_LMH0387)
+        {
+            // Must set the lanch amplitude to recommended default value (30h). 
+            // See LMH0387 datasheet, LAUNCH AMPLITUDE OPTIMIZATION (REGISTER 02h)
+            Status = DtaLmh0387WriteRegister(pNonIpPort, 0x02, 0x30);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOut(ERR, NONIP, "Failed set LMH0387 launch amplitude");
+                return Status;
+            }
         }
     }
     else if (IsOutput)
     {
-        if (IsLegacy)
-        {
-            // TODO: Enable auto EAV & SAV repair
-        }
-
         // Check for GS2962 serialiser
         if (pNonIpPort->m_AsiSdiSerItfType == ASI_SDI_SER_ITF_GS2962)
-            Status = DtaGs2962Enable(pNonIpPort);
-        else
         {
-            // Issue a IO reset
-            DtaRegHdCtrl1SetIoReset(pHdRegs, 1);
-            DtSleep(5);
-            DtaRegHdCtrl1SetIoReset(pHdRegs, 0);
+            Status = DtaGs2962Enable(pNonIpPort);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOut(ERR, NONIP, "Failed to enabled GS2962 for SDI");
+                return Status;
+            }
         }
     }
 
@@ -1635,11 +1813,6 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
         }
     }
     
-    // Start transmission/reception @ specified frame. NOTE: for non-legacy channels, 
-    // if the black-frame is specified start at frame 0
-    if (!IsLegacy && StartFrame==DTA_FRMBUF_HOLD_FRAME)
-        StartFrame = 0;
-
     pNonIpPort->m_Matrix.m_CurFrame = StartFrame;
     n = DtaNonIpMatrixFrame2Index(pNonIpPort, StartFrame);
     
@@ -1687,7 +1860,11 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
     // Set frame for after the first one, but NOT for the legacy interface
     if (!IsLegacy)
     {
-        n = DtaNonIpMatrixFrame2Index(pNonIpPort, StartFrame+1);
+        // If we start with teh hold frame => next frame should also be the hold frame
+        if (StartFrame == DTA_FRMBUF_HOLD_FRAME)
+            n = DtaNonIpMatrixFrame2Index(pNonIpPort, StartFrame);
+        else
+            n = DtaNonIpMatrixFrame2Index(pNonIpPort, StartFrame+1);
         DT_ASSERT(pSections[0].m_FrameStartAddr[n] != -1);
         DtaRegHdS0NextFrmAddrSet(pNonIpPort->m_pRxRegs, pSections[0].m_FrameStartAddr[n]);
         DT_ASSERT(pSections[1].m_FrameStartAddr[n] != -1);
@@ -1842,9 +2019,10 @@ DtStatus  DtaNonIpMatrixApplyBufferConfig(DtaNonIpPort* pNonIpPort)
 //
 DtStatus  DtaNonIpMatrixInitFrameProps(DtaNonIpPort* pNonIpPort)
 {
-    Int  VidStd = DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
-                                       pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
-
+    Int  VidStd = DtaIoStdAndLevel2VidStd(
+                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
+                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue, 
+                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_3GLVL].m_Value);
     return DtAvGetFrameProps(VidStd, &pNonIpPort->m_Matrix.m_FrameProps);
 }
 
@@ -1975,28 +2153,38 @@ Int  DtaNonIpMatrixNumSymbols2LineSizeInMem(
     return NumBitsInMem / 8; // convert to number of bytes
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixNumSymbols2DmaSize -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixGetDmaSize -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-Int  DtaNonIpMatrixNumSymbols2DmaSize(
-    Int  NumSymbols,
-    Int  DataFormat,
-    Int  RgbMode)
+Int  DtaNonIpMatrixGetDmaSize(
+    DtaNonIpPort* pNonIpPort,
+    Int  LineNumS,
+    Int  NumLines,
+    Int DataFormat,
+    Int  RgbMode,
+    Int  Stride)
 {
     Int  NumSymbolBits=0, NumDmaBits=0;
 
-    // All DMA transfers must be 64-bit aligned
-    static const Int  DMA_TRANSFER_ALIGN_NUM_BITS = 64;
-    
-    if (DataFormat == DT_MEMTR_DATAFMT_16B)
-        NumSymbolBits = NumSymbols * 16;
-    else if (DataFormat == DT_MEMTR_DATAFMT_10B)
-        NumSymbolBits = NumSymbols * 10;
-    else if (DataFormat == DT_MEMTR_DATAFMT_8B)
-        NumSymbolBits = NumSymbols * 8;
+    // All DMA transfers must be aligned
+    const Int  DMA_TRANSFER_ALIGN_NUM_BITS = pNonIpPort->m_DmaChannel.m_BufAlignment * 8;
 
-    // with RGB mode enabled we get 3 symbols (R+G+B) for each YUV-sample (Y+Cb or Y+Cr)
-    if (RgbMode == DT_MEMTR_RGBMODE_ON)
-        NumSymbolBits = (NumSymbolBits*3) / 2;
+    if (Stride > 0)
+    {
+        NumSymbolBits = Stride * 8 * NumLines;
+    } else {
+        Int  NumSymbols = LineNumS * NumLines;
+
+        if (DataFormat == DT_MEMTR_DATAFMT_16B)
+            NumSymbolBits = NumSymbols * 16;
+        else if (DataFormat==DT_MEMTR_DATAFMT_10B || DataFormat==DT_MEMTR_DATAFMT_10B_NBO)
+            NumSymbolBits = NumSymbols * 10;
+        else if (DataFormat == DT_MEMTR_DATAFMT_8B)
+            NumSymbolBits = NumSymbols * 8;
+
+        // with RGB mode enabled we get 3 symbols (R+G+B) for each YUV-sample (Y+Cb or Y+Cr)
+        if (RgbMode == DT_MEMTR_RGBMODE_ON)
+            NumSymbolBits = (NumSymbolBits*3) / 2;
+    }
          
 
     // All DMA transfers must be aligned
@@ -2006,31 +2194,6 @@ Int  DtaNonIpMatrixNumSymbols2DmaSize(
 
     // Return number of bytes
     return (NumDmaBits / 8);
-}
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixGetDmaSize -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  DtaNonIpMatrixGetDmaSize(
-    Int  LineNumS,
-    Int  NumLines,
-    Int DataFormat,
-    Int  Scaling,
-    Int  RgbMode)
-{
-    Int  ScalingFactor=1, NumSymbols=0;
-    NumSymbols = LineNumS * NumLines;
-    if (Scaling == DT_MEMTR_SCMODE_OFF)
-        ScalingFactor = 1;
-    else if (Scaling == DT_MEMTR_SCMODE_1_4)
-        ScalingFactor = 2;
-    else if (Scaling == DT_MEMTR_SCMODE_1_16)
-        ScalingFactor = 4;
-    else
-        DT_ASSERT(1 == 0);
-
-    NumSymbols /= ScalingFactor;
-    
-    return DtaNonIpMatrixNumSymbols2DmaSize(NumSymbols, DataFormat, RgbMode);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixVidStd2SdiFormat -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -2117,7 +2280,7 @@ Bool  DtaNonIpMatrixValidateStartLineAndNumLines(
     Int  NumLines)
 {
     DT_ASSERT(pFrameProps != NULL);
-    return (StartLine>=1 && (StartLine+NumLines-1)<=pFrameProps->m_NumLines);
+    return StartLine>=1 && NumLines>=1 && (StartLine+NumLines-1)<=pFrameProps->m_NumLines;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixCountMatrixPorts -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -2141,6 +2304,120 @@ Int  DtaNonIpMatrixCountMatrixPorts(DtaNonIpPort* pNonIpPort)
     return NumMatrixPorts;
 }
 
+#ifdef _DEBUG
+static char*  VidStdName(Int VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_525I59_94:
+        return "525i59.94";
+        break;
+    case DT_VIDSTD_625I50:
+        return "625i50";
+        break;
+    case DT_VIDSTD_720P23_98:
+        return "720p23.98";
+        break;
+    case DT_VIDSTD_720P24:
+        return "720p24";
+        break;
+    case DT_VIDSTD_720P25:
+        return "720p25";
+        break;
+    case DT_VIDSTD_720P29_97:
+        return "720p29.97";
+        break;
+    case DT_VIDSTD_720P30:
+        return "720p30";
+        break;
+    case DT_VIDSTD_720P50:
+        return "720p50";
+        break;
+    case DT_VIDSTD_720P59_94:
+        return "720p59.94";
+        break;
+    case DT_VIDSTD_720P60:
+        return "720p60";
+        break;
+    case DT_VIDSTD_1080P23_98:
+        return "1080p23.98";
+        break;
+    case DT_VIDSTD_1080P24:
+        return "1080p24";
+        break;
+    case DT_VIDSTD_1080P25:
+        return "1080p25";
+        break;
+    case DT_VIDSTD_1080P29_97:
+        return "1080p29.97";
+        break;
+    case DT_VIDSTD_1080P30:
+        return "1080p30";
+        break;
+    case DT_VIDSTD_1080I50:
+        return "1080i50";
+        break;
+    case DT_VIDSTD_1080I59_94:
+        return "1080i59.94";
+        break;
+    case DT_VIDSTD_1080I60:
+        return "1080i60";
+        break;
+    case DT_VIDSTD_1080P50:
+        return "1080p50";
+        break;
+    case DT_VIDSTD_1080P59_94:
+        return "1080p59.94";
+        break;
+    case DT_VIDSTD_1080P60:
+        return "1080p60";
+        break;
+    }
+    return "Unknown";
+}
+#endif
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- AncPacketChecksum -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Calculates and inserts the checksum of an ancillary packet
+//
+static void  AncPacketChecksum(UInt16* pAncPacketData, Int SymbolOffset)
+{
+    UInt  Checksum = 0;
+    UInt16  ChecksumDataIndex, DataIndex;
+
+    // Check for 0x00 0x3FF 0x3FF header
+    if (*pAncPacketData!=0 && *(pAncPacketData+SymbolOffset)!=0x3FF && 
+                                                *(pAncPacketData+(SymbolOffset*2))!=0x3FF)
+    {
+        DtDbgOut(ERR, DTA, "Invalid format for ANC packet");
+        return;
+    }
+    // The length of the ANC data packet is encoded in the fifth word of the packet.
+    DataIndex = 5 * SymbolOffset;
+    DtDbgOut(AVG, NONIP, "Data index for DC word = %hu", DataIndex);
+    ChecksumDataIndex = (pAncPacketData[DataIndex]&0xFF) * SymbolOffset;
+    DtDbgOut(AVG, NONIP, "Data word count = %hu", ChecksumDataIndex / SymbolOffset);
+    // Add 3 words for header and add 3 words for DID, SDID/DBN and DC.
+    ChecksumDataIndex += 6 * SymbolOffset;
+    // First word to include in checksum is the first word after the header
+    DataIndex = 3 * SymbolOffset;
+    DtDbgOut(AVG, NONIP, "Start data index for checksum = %hu", DataIndex);
+    while (DataIndex < ChecksumDataIndex)
+    {
+        Checksum += pAncPacketData[DataIndex];
+        DataIndex += (UInt16)SymbolOffset;
+    }
+    Checksum %= 0x200; // Checksum is sum of data (excl. header) modulo 512
+
+    //  Bit 9 of the checksum word is then defined as the inverse of bit 8.
+    if (!(Checksum & 0x100))
+        Checksum |= 0x200;
+    DtDbgOut(AVG, NONIP, "Checksum for ANC packet = 0x%03X", (UInt16)Checksum);
+    DtDbgOut(AVG, NONIP, "Checksum data index = %hu", DataIndex);
+    pAncPacketData[ChecksumDataIndex] = (UInt16)Checksum;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixWriteBlackFrame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Writes a black-frame to the specified frame buffer
@@ -2158,7 +2435,7 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
     UInt8*  pLocalAddress = NULL;
     UInt16 *pLineBuf=NULL, *pEav=NULL, *pSav=NULL, *pHanc=NULL;
     DtPageList* pPageList = NULL;
-    Int  s, f, l, LineNumS=0, LineDmaSize=0, DmaSize=0;
+    Int  s, f, l = 0, LineNumS=0, LineDmaSize=0, DmaSize=0, LineBlockStart;
     
     // Status words (Field 1, Field 2)
     static const  UInt16  EAV_VSYNC[] = { 0x2D8, 0x3C4 };
@@ -2173,18 +2450,24 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
         
     pProps = &pNonIpPort->m_Matrix.m_FrameProps;
     pLocalAddress = (UInt8*)(size_t)pNonIpPort->m_FifoOffset;
-
+#ifdef _DEBUG
+    DtDbgOut(AVG, NONIP, "Black frame vid std = %s", VidStdName(pProps->m_VidStd));
+#endif
     //.-.-.-.-.-.-.-.-.- Step 1: Allocate buffer for black-frame lines -.-.-.-.-.-.-.-.-.-
 
     // Get size of a single line (in # symbols)
     LineNumS = pProps->m_EavNumS + pProps->m_HancNumS + pProps->m_SavNumS + 
                                                                        pProps->m_VancNumS;
+    DtDbgOut(AVG, NONIP, "One black frame line has %d symbols", LineNumS);
 
     // Get DMA size for a single line
     MemTrSetup.m_IsWrite = TRUE;
     MemTrSetup.m_Frame = Frame;
     MemTrSetup.m_StartLine = 1;
-    MemTrSetup.m_NumLines = 1;  // We will transfer one line at a time
+    
+    MemTrSetup.m_NumLines = 5;  // We will transfer five lines at a time
+    DT_ASSERT((pProps->m_NumLines % MemTrSetup.m_NumLines) == 0);
+    
     MemTrSetup.m_TrCmd = DT_MEMTR_TRCMD_FRAME;
     MemTrSetup.m_DataFormat = DT_MEMTR_DATAFMT_16B; // 16-bit format
     MemTrSetup.m_RgbMode = DT_MEMTR_RGBMODE_OFF;
@@ -2193,6 +2476,7 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
     MemTrSetup.m_AncFlt = DT_MEMTR_ANCFLTMODE_OFF;
     MemTrSetup.m_Stride = 0;
 
+    
     Status = DtaNonIpMatrixGetReqDmaSize(pNonIpPort, &MemTrSetup, &LineDmaSize);
     if (!DT_SUCCESS(Status))
     {
@@ -2206,120 +2490,130 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
                                                         &pPageList, LineDmaSize, DTA_TAG);
     if (!DT_SUCCESS(Status))
     {
-        DtDbgOut(ERR, DTA, "Cannot allocate DMA buffer for black-frame lines");
+        DtDbgOut(ERR, DTA, "Cannot allocate DMA buffer for five black-frame lines");
         return DT_STATUS_OUT_OF_MEMORY;
     }
 
     //-.-.-.-.-.-.-.-.-.- Step 2: Generate lines and write to hardware -.-.-.-.-.-.-.-.-.-
 
     // Init line buffer with blanking
-    for (s=0; s<LineNumS; s++)
+    for (s=0; s<(LineNumS * 5); s++)
         pLineBuf[s] = (s%2)==0 ? 0x200 : 0x040;
 
-    // Generate EAVs and SAVs
-    for (l=1; l<=pProps->m_NumLines; l++)
+    for (LineBlockStart=1; LineBlockStart<=pProps->m_NumLines; LineBlockStart+=5)
     {
-        pEav = pLineBuf;
-        pSav = pLineBuf + (pProps->m_EavNumS + pProps->m_HancNumS);
-        pHanc = pLineBuf + pProps->m_EavNumS;
-
-        // Are we in field 1 or 2
-        f = (l<=pProps->m_Field1End) ? 0 : 1;
-
-        if (f == 0)
-            VSync = l<pProps->m_Field1ActVidStart || l>pProps->m_Field1ActVidEnd;
-        else
-            VSync = l<pProps->m_Field2ActVidStart || l>pProps->m_Field2ActVidEnd;
-
-        if (pProps->m_IsHd)
+        for (l = LineBlockStart; l < LineBlockStart+5; l++)
         {
-            UInt16 LN0, LN1;
-            
-            // Generate EAV (both streams)
-            *pEav++ = 0x3FF; *pEav++ = 0x3FF; 
-            *pEav++ = 0x000; *pEav++ = 0x000;
-            *pEav++ = 0x000; *pEav++ = 0x000;
-            *pEav++ = VSync ? EAV_VSYNC[f] : EAV_VIDEO[f];
-            *pEav++ = VSync ? EAV_VSYNC[f] : EAV_VIDEO[f];
-            // Line number
-            LN0 = ((l&0x80)==0 ? 0x200 : 0x000) | ((l&0x07F)<<2);
-            LN1 = 0x200 | ((l>>5)&0x3C);
-            *pEav++ = LN0; *pEav++ = LN1; 
-            *pEav++ = LN0; *pEav++ = LN1; 
-            // CRC (just a place holder, HW will compute real CRC)
-            *pEav++ = 0x000; *pEav++ = 0x000; 
-            *pEav++ = 0x000; *pEav++ = 0x000; 
+            UInt  LineStartOffset;
 
-            // Generate SAV (both steams)
-            *pSav++ = 0x3FF; *pSav++ = 0x3FF; 
-            *pSav++ = 0x000; *pSav++ = 0x000;
-            *pSav++ = 0x000; *pSav++ = 0x000;
-            *pSav++ = VSync ? SAV_VSYNC[f] : SAV_VIDEO[f];
-            *pSav++ = VSync ? SAV_VSYNC[f] : SAV_VIDEO[f];
-        }
-        else
-        {
-            // Generate EAV
-            *pEav++ = 0x3FF; *pEav++ = 0x000; *pEav++ = 0x000;
-            *pEav++ = VSync ? EAV_VSYNC[f] : EAV_VIDEO[f];
+            LineStartOffset = ((l - 1) % 5) * LineNumS;
 
-            // Generate SAV
-            *pSav++ = 0x3FF; *pSav++ = 0x000; *pSav++ = 0x000;
-            *pSav++ = VSync ? SAV_VSYNC[f] : SAV_VIDEO[f];
-        }
+            // Generate EAVs and SAVs
+            pEav = pLineBuf + LineStartOffset;
+            pSav = pLineBuf + (pProps->m_EavNumS + pProps->m_HancNumS) + LineStartOffset;
+            pHanc = pLineBuf + pProps->m_EavNumS + LineStartOffset;
 
-        if (l>3 && (l-3==pProps->m_SwitchingLines[0] || l-3==pProps->m_SwitchingLines[1]))
-        {
-            // Insert SMPTE 352M video payload ID 3 lines after switching line
-            Int  SymbolOffset = 1;
-            UInt  PayloadId;
+            // Are we in field 1 or 2
+            f = (l<=pProps->m_Field1End) ? 0 : 1;
+
+            if (f == 0)
+                VSync = l<pProps->m_Field1ActVidStart || l>pProps->m_Field1ActVidEnd;
+            else
+                VSync = l<pProps->m_Field2ActVidStart || l>pProps->m_Field2ActVidEnd;
+
             if (pProps->m_IsHd)
             {
-                SymbolOffset = 2;
-                // Store packet in odd samples (luminance stream)
-                pHanc++;
-            }
-            if (DT_SUCCESS(GetSmptePayloadId(pProps->m_VidStd, &PayloadId)))
-            {
-                *pHanc = 0;
-                pHanc += SymbolOffset;
-                *pHanc = 0x3FF;
-                pHanc += SymbolOffset;
-                *pHanc = 0x3FF;
-                pHanc += SymbolOffset;
-                *pHanc = 0x241; // DID 0x41
-                pHanc += SymbolOffset;
-                *pHanc = 0x101; // SID 0x01
-                pHanc += SymbolOffset;
-                *pHanc = 0x104; // Packet size 4
-                pHanc += SymbolOffset;
-
-                *pHanc = PARITY_TABLE256_DATA[(PayloadId>>24) & 0xFF];
-                pHanc += SymbolOffset;
-                *pHanc = PARITY_TABLE256_DATA[(PayloadId>>16) & 0xFF];
-                pHanc += SymbolOffset;
-                *pHanc = PARITY_TABLE256_DATA[(PayloadId>>8) & 0xFF];
-                pHanc += SymbolOffset;
-                *pHanc = PARITY_TABLE256_DATA[PayloadId & 0xFF];
-                pHanc += SymbolOffset;
+                UInt16 LN0, LN1;
             
-                *pHanc = 0x100; // CRC, corrected by fw
-                pHanc += SymbolOffset;
-            }
-        } else {
-            // Overwrite possible smpte 352m data with blanking
-            for (s=0; s<10*2; s++)
-                *pHanc++ = (s%2)==0 ? 0x200 : 0x040;
-        }
+                // Generate EAV (both streams)
+                *pEav++ = 0x3FF; *pEav++ = 0x3FF; 
+                *pEav++ = 0x000; *pEav++ = 0x000;
+                *pEav++ = 0x000; *pEav++ = 0x000;
+                *pEav++ = VSync ? EAV_VSYNC[f] : EAV_VIDEO[f];
+                *pEav++ = VSync ? EAV_VSYNC[f] : EAV_VIDEO[f];
+                // Line number
+                LN0 = ((l&0x80)==0 ? 0x200 : 0x000) | ((l&0x07F)<<2);
+                LN1 = 0x200 | ((l>>5)&0x3C);
+                *pEav++ = LN0; *pEav++ = LN1; 
+                *pEav++ = LN0; *pEav++ = LN1; 
+                // CRC (just a place holder, HW will compute real CRC)
+                *pEav++ = 0x000; *pEav++ = 0x000; 
+                *pEav++ = 0x000; *pEav++ = 0x000; 
 
+                // Generate SAV (both steams)
+                *pSav++ = 0x3FF; *pSav++ = 0x3FF; 
+                *pSav++ = 0x000; *pSav++ = 0x000;
+                *pSav++ = 0x000; *pSav++ = 0x000;
+                *pSav++ = VSync ? SAV_VSYNC[f] : SAV_VIDEO[f];
+                *pSav++ = VSync ? SAV_VSYNC[f] : SAV_VIDEO[f];
+            }
+            else
+            {
+                // Generate EAV
+                *pEav++ = 0x3FF; *pEav++ = 0x000; *pEav++ = 0x000;
+                *pEav++ = VSync ? EAV_VSYNC[f] : EAV_VIDEO[f];
+
+                // Generate SAV
+                *pSav++ = 0x3FF; *pSav++ = 0x000; *pSav++ = 0x000;
+                *pSav++ = VSync ? SAV_VSYNC[f] : SAV_VIDEO[f];
+            }
+
+            if (l>3 && (l-3==pProps->m_SwitchingLines[0] || l-3==pProps->m_SwitchingLines[1]))
+            {
+                // Insert SMPTE 352M video payload ID 3 lines after switching line
+                Int  SymbolOffset = 1;
+                UInt  PayloadId;
+                if (pProps->m_IsHd)
+                {
+                    SymbolOffset = 2;
+                    // Store packet in odd samples (luminance stream)
+                    pHanc++;
+                }
+                if (DT_SUCCESS(GetSmptePayloadId(pProps->m_VidStd, &PayloadId)))
+                {
+                    UInt16*  pVpidAncPacket = pHanc;
+
+                    *pHanc = 0;
+                    pHanc += SymbolOffset;
+                    *pHanc = 0x3FF;
+                    pHanc += SymbolOffset;
+                    *pHanc = 0x3FF;
+                    pHanc += SymbolOffset;
+                    *pHanc = 0x241; // DID 0x41
+                    pHanc += SymbolOffset;
+                    *pHanc = 0x101; // SID 0x01
+                    pHanc += SymbolOffset;
+                    *pHanc = 0x104; // Packet size 4
+                    pHanc += SymbolOffset;
+
+                    *pHanc = PARITY_TABLE256_DATA[(PayloadId>>24) & 0xFF];
+                    pHanc += SymbolOffset;
+                    *pHanc = PARITY_TABLE256_DATA[(PayloadId>>16) & 0xFF];
+                    pHanc += SymbolOffset;
+                    *pHanc = PARITY_TABLE256_DATA[(PayloadId>>8) & 0xFF];
+                    pHanc += SymbolOffset;
+                    *pHanc = PARITY_TABLE256_DATA[PayloadId & 0xFF];
+                    pHanc += SymbolOffset;
+
+                    // calculate and insert VPID checksum
+                    *pHanc = 0x100;  // Temporary checksum
+                    pHanc += SymbolOffset;
+                    AncPacketChecksum(pVpidAncPacket, SymbolOffset);
+                }
+            } else {
+                // Overwrite possible smpte 352m data with blanking
+                for (s=0; s<10*2; s++)
+                    *pHanc++ = (s%2)==0 ? 0x200 : 0x040;
+            }
+        }
         // Prep for DMA
-        MemTrSetup.m_StartLine = l; // set next line to write
+        MemTrSetup.m_StartLine = l - 5; // set next line to write
         DmaSize = 0;
         Status = DtaNonIpMatrixPrepForDma(pNonIpPort, LineDmaSize, &MemTrSetup, &DmaSize);
         if (!DT_SUCCESS(Status))
         {
-            DtDbgOut(ERR, DTA, "Prep-DMA for black-frame (l=%d) failed (ERROR=0x%08X)",
-                                                                               l, Status);
+            DtDbgOut(ERR, DTA, "Prep-DMA for black-frame (l=%d-%d) failed (ERROR=0x%08X)",
+                              MemTrSetup.m_StartLine, MemTrSetup.m_StartLine + 5, Status);
             DtaDmaCleanupKernelBuffer(&pNonIpPort->m_DmaChannel, pLineBuf, pPageList, 
                                                                                  DTA_TAG);
             return Status;
@@ -2337,8 +2631,8 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
                                                          DmaSize, 0, pLocalAddress, 0, 0);
         if (!DT_SUCCESS(Status))
         {
-            DtDbgOut(ERR, DTA, "DMA-transfer for black-frame (l=%d) failed (ERROR=0x%08X)",
-                                                                               l, Status);
+            DtDbgOut(ERR, DTA, "DMA-transfer for black-frame (l=%d-%d) failed "
+            "(ERROR=0x%08X)", MemTrSetup.m_StartLine, MemTrSetup.m_StartLine + 5, Status);
             DtaDmaCleanupKernelBuffer(&pNonIpPort->m_DmaChannel, pLineBuf, pPageList, 
                                                                                  DTA_TAG);
             return Status;
@@ -2426,6 +2720,72 @@ void  DtaNonIpMatrixPeriodicInt(DtaNonIpPort* pNonIpPort)
     Int  FifoLoad;
     // The GetFifoLoad function will also set the overflow flag if an overflow occurred.
     DtaMatrixAsiRxGetFifoLoad(pNonIpPort, &FifoLoad);
+}
+
+#ifdef _DEBUG
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh0387ReadRegister -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaLmh0387ReadRegister(DtaNonIpPort*  pNonIpPort, Int Addr, UInt32*  pValue)
+{
+    UInt  Timeout=100, SpiCmd=0;
+
+    // Port must has a matrix-API register interface
+    if (!pNonIpPort->m_CapMatrix)
+        return DT_STATUS_NOT_SUPPORTED;
+
+    // Step 1: write read command to card
+    SpiCmd = (Addr << DT_HD_LMH0387SPI_ADDR_SH) & DT_HD_LMH0387SPI_ADDR_MSK;
+    SpiCmd |= (1<<DT_HD_LMH0387SPI_READ_SH) & DT_HD_LMH0387SPI_READ_MSK;
+    SpiCmd |= (1<<DT_HD_LMH0387SPI_START_SH) & DT_HD_LMH0387SPI_START_MSK;
+
+    WRITE_UINT(SpiCmd, pNonIpPort->m_pRxRegs, DT_HD_REG_LMH0387SPI);
+
+    // Step 2: wait for done bit
+    SpiCmd = READ_UINT(pNonIpPort->m_pRxRegs, DT_HD_REG_LMH0387SPI);
+    while ((SpiCmd & DT_HD_LMH0387SPI_DONE_MSK) == 0)
+    {
+        DtSleep(1);
+        SpiCmd = READ_UINT(pNonIpPort->m_pRxRegs, DT_HD_REG_LMH0387SPI);
+        Timeout--;
+        if (Timeout <= 0)
+            return DT_STATUS_TIMEOUT;
+    }
+    *pValue = (UInt32)((SpiCmd & DT_HD_LMH0387SPI_DATA_MSK) >> DT_HD_LMH0387SPI_DATA_SH);
+    return DT_STATUS_OK;
+}
+#endif
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh0387WriteRegister -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaLmh0387WriteRegister(DtaNonIpPort*  pNonIpPort, Int Addr, UInt32  Value)
+{
+    UInt  Timeout=100, SpiCmd=0;
+
+    // Port must has a matrix-API register interface
+    if (!pNonIpPort->m_CapMatrix)
+        return DT_STATUS_NOT_SUPPORTED;
+
+    // Step 1: write write-command to card
+    SpiCmd = (Value << DT_HD_LMH0387SPI_DATA_SH) & DT_HD_LMH0387SPI_DATA_MSK;
+    SpiCmd |= (Addr << DT_HD_LMH0387SPI_ADDR_SH) & DT_HD_LMH0387SPI_ADDR_MSK;
+    SpiCmd |= (0<<DT_HD_LMH0387SPI_READ_SH) & DT_HD_LMH0387SPI_READ_MSK;
+    SpiCmd |= (1<<DT_HD_LMH0387SPI_START_SH) & DT_HD_LMH0387SPI_START_MSK;
+
+    DtDbgOut(MAX, DTA, "Addr=0x%04X, Value=0x%04X, SpiCmd=0x%08X", Addr, Value, SpiCmd);
+    
+    WRITE_UINT(SpiCmd, pNonIpPort->m_pRxRegs, DT_HD_REG_LMH0387SPI);
+
+    // Step 2: wait for done bit
+    SpiCmd = READ_UINT(pNonIpPort->m_pRxRegs, DT_HD_REG_LMH0387SPI);
+    while ((SpiCmd & DT_HD_LMH0387SPI_DONE_MSK) == 0)
+    {
+        DtSleep(1);
+        SpiCmd = READ_UINT(pNonIpPort->m_pRxRegs, DT_HD_REG_LMH0387SPI);
+        Timeout--;
+        if (Timeout <= 0)
+            return DT_STATUS_TIMEOUT;
+    }
+    return DT_STATUS_OK;
 }
 
 #ifdef _DEBUG

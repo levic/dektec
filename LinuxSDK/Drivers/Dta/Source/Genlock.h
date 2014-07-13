@@ -53,6 +53,7 @@ typedef struct _DtaGenlock
 {
     Bool  m_IsSupported;        // Genlocking is supported
     Int  m_GenlArch;            // Genlock architecture
+    Int  m_OpModeIntSrc;        // Operational mode when locking to an internal source
     Int  m_AsyncPortIndex;      // Port-index of analog sync input (-1 = no aync port)
 
     Int  m_FracMode;            // Status fractional mode

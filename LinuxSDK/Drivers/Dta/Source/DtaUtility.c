@@ -586,6 +586,8 @@ DtStatus  DtaPropertiesReportDriverErrors(DtaDeviceData* pDvcData)
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Video Standard helpers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoStd2VidStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
 Int  DtaIoStd2VidStd(Int  Value, Int  SubValue)
 {
     switch (SubValue)
@@ -615,11 +617,26 @@ Int  DtaIoStd2VidStd(Int  Value, Int  SubValue)
     return DT_VIDSTD_UNKNOWN;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoStdAndLevel2VidStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int  DtaIoStdAndLevel2VidStd(Int  Value, Int  SubValue, Int  Level)
+{
+    // First get video standard without the 3G level
+    Int  VidStd = DtaIoStd2VidStd(Value, SubValue);
+    // Far a 3G SDI format: add the level
+    if (DtaVidStdIs3GSdi(VidStd))
+    {
+        DT_ASSERT(Level==DT_IOCONFIG_3GLVLA || Level==DT_IOCONFIG_3GLVLB);
+        VidStd |= (Level==DT_IOCONFIG_3GLVLB) ? DT_VIDSTD_3GLVLB : DT_VIDSTD_3GLVLA;
+    }
+    return VidStd;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStd2Fps -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 Int  DtaVidStd2Fps(Int  VidStd)
 {
-    switch (VidStd)
+    switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
     {
     case DT_VIDSTD_720P59_94:
     case DT_VIDSTD_720P60:
@@ -662,7 +679,7 @@ Int  DtaVidStd2Fps(Int  VidStd)
 //
 Bool  DtaVidStdIsFractional(Int  VidStd)
 {
-    switch (VidStd)
+    switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
     {
     case DT_VIDSTD_720P59_94:
     case DT_VIDSTD_1080P59_94:
@@ -682,13 +699,27 @@ Bool  DtaVidStdIsFractional(Int  VidStd)
 //
 Bool  DtaVidStdIsInterlaced(Int  VidStd)
 {
-    switch (VidStd)
+    switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
     {
     case DT_VIDSTD_525I59_94:
     case DT_VIDSTD_625I50:
     case DT_VIDSTD_1080I50:
     case DT_VIDSTD_1080I59_94:
     case DT_VIDSTD_1080I60:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStdIs3GSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtaVidStdIs3GSdi(Int  VidStd)
+{
+    switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
+    {
+    case DT_VIDSTD_1080P50:
+    case DT_VIDSTD_1080P59_94:
+    case DT_VIDSTD_1080P60:
         return TRUE;
     }
     return FALSE;

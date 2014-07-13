@@ -92,8 +92,6 @@ typedef struct _DmaOpt {
                                           // be directly used for DMA.
                                           // The copy to common buffer is not needed.
 #define  DTA_DMA_FLAGS_NOINT_AFTER_DONE     4
-#define  DTA_DMA_FLAGS_DESCR_PREFETCH       8
-                                          // Use descriptor prefetch
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DmaCallbackFunc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -123,6 +121,13 @@ struct _DmaChannel {
     UInt  m_MaxDmaLength;
     UInt  m_DmaMode;
     UInt  m_DmaFlags;
+    UInt  m_SgDescPrefetchCount;        // The number of scatter-gather-descriptors to 
+                                        // prefetch. 
+                                        // -1 = prefetching is not supported
+                                        //  0 = prefetching should be disabled
+                                        // >1 = # of desc. to prefetch
+    UInt  m_BufAlignment;               // Each buffer must be aligned to this number of
+                                        // bytes. The size must be a multiple of this.
     Int  m_Timeout;                     // in 2^14 clock cycles or -1 if not used
     Bool  m_ReUseDataBuffer;            // true if the databuffer is prepared for DMA and
                                         // and SGL list is not cleaned up after the DMA

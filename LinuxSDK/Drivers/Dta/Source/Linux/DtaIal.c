@@ -152,6 +152,19 @@ static struct device_attribute DtaAttributes[] = {
     __ATTR(serial, S_IRUGO, DtaShowSerial, NULL),
     __ATTR_NULL
 };
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
+static struct attribute *DtaAttributesArray[] = {
+    &DtaAttributes[0].attr,
+    NULL,
+};
+static struct attribute_group DtaAttributesGroup = {
+    .attrs = DtaAttributesArray,
+};
+static const struct attribute_group *DtaAttributesGroups[] = {
+    &DtaAttributesGroup,
+    NULL,
+}; 
+#endif
 #endif
 
 
@@ -1817,7 +1830,10 @@ static Int  DtaModuleInit(void)
         if (IS_ERR(g_pDtaClass))
             Result = PTR_ERR(g_pDtaClass);
         else {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
+            // Add device class attributes
+            g_pDtaClass->dev_groups = DtaAttributesGroups;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
             // Add device class attributes
             g_pDtaClass->dev_attrs = DtaAttributes;
 #endif

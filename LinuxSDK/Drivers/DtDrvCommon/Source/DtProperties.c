@@ -399,8 +399,13 @@ DtStatus  DtPropertiesGetForType(
         return Status;
 
     // Now find the property
-    return DtPropertiesGet(&PropData, pName, PortIndex, pValue, pType, pScope, DtapiMaj,
+    Status = DtPropertiesGet(&PropData, pName, PortIndex, pValue, pType, pScope, DtapiMaj,
                                                                    DtapiMin, DtapiBugfix);
+
+    // Dont forget the cleanup or we're leaving allocated data hanging around
+    DtPropertiesCleanup(&PropData);
+
+    return Status;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesStrGetForType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -434,8 +439,12 @@ DtStatus  DtPropertiesStrGetForType(
         return Status;
 
     // Now find the property
-    return DtPropertiesStrGet(&PropData, pName, PortIndex, pStr, pScope, DtapiMaj,
+    Status = DtPropertiesStrGet(&PropData, pName, PortIndex, pStr, pScope, DtapiMaj,
                                                                    DtapiMin, DtapiBugfix);
+    // Dont forget the cleanup or we're leaving allocated data hanging around
+    DtPropertiesCleanup(&PropData);
+
+    return Status;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesDriverGet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

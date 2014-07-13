@@ -92,6 +92,7 @@ SRC    = $(SRCDIR)/Linux/DtuIal.o         \
          $(SRCDIR)/Firmware.o             \
          $(SRCDIR)/EzUsb.o                \
          $(SRCDIR)/DtuRegs.o              \
+         $(SRCDIR)/DtuDemodFwStore.o      \
          $(SRCDIR)/DtuFwStore.o           \
          $(SRCDIR)/Demod.o                \
          $(SRCDIR)/DtuTableStore.o        \

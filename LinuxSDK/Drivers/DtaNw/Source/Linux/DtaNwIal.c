@@ -553,7 +553,15 @@ static Int  DtaNwEvtSetSettings(struct net_device* pDevice, struct ethtool_cmd* 
         else
             Speed = DTA_PHY_SPEED_100_FULL;
             pDvcData->m_IalData.m_AutoNegEn = FALSE;
-    } else 
+    } else if (pCmd->speed == SPEED_1000)
+    {
+        if (pCmd->duplex == DUPLEX_HALF) 
+            return -EINVAL;
+        // Note: We set the 1Gb speed select to master here. But MASTER/SLAVE configuration
+        // is automatically detected by phy.
+        Speed = DTA_PHY_SPEED_1000_MASTER;
+        pDvcData->m_IalData.m_AutoNegEn = FALSE;
+    } else
         return -EINVAL;
 
     Status = DtaNwSetPhySpeed(pDvcData, Speed);

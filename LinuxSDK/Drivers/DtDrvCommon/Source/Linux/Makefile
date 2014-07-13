@@ -59,11 +59,12 @@ endif
 # Source definitions
 
 SRCDIR := ..
-SRC     = $(SRCDIR)/DtAudioVideo.o	    \
-          $(SRCDIR)/DtProperties.o	    \
+SRC     = $(SRCDIR)/DtAudioVideo.o      \
+          $(SRCDIR)/DtProperties.o      \
 		  $(SRCDIR)/DtIoConfig.o        \
 		  $(SRCDIR)/IoConfigCodes.o     \
 		  $(SRCDIR)/DtTables.o          \
+		  $(SRCDIR)/VpdCommon.o         \
 		  $(SRCDIR)/DtUtilities.o
 		  
 EXTRA_CFLAGS += -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR) -I$(MYPWD)/$(SALSRCDIR)

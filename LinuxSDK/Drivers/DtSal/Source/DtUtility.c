@@ -564,6 +564,25 @@ void  DtWaitBlock(Int USec)
 #endif
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtGetTickCount -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Return the the number of ms elapsed since the system start 
+//
+UInt64  DtGetTickCount()
+{
+#ifdef WINBUILD
+   LARGE_INTEGER TickCount;
+   KeQueryTickCount(&TickCount);
+   // Convert to ms (NOTE: KeQueryTimeIncrement return number of 100ns in one tick)
+   return (UInt64)((TickCount.QuadPart * KeQueryTimeIncrement()) / 10000LL);
+#else
+    struct timespec  TickCount;
+    getnstimeofday(&TickCount);
+    return (UInt64)DtDivide64(((TickCount.tv_sec)*1000000000LL + (TickCount.tv_nsec)),
+                                                                           1000000, NULL);
+#endif
+}
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Memory (Page) functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtLockUserBuffer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1054,6 +1073,66 @@ UInt32  DtDjb2(const char* pStr)
     }
 
     return Hash;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtReadConfigSpace -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtReadConfigSpace(
+    DtDvcObject*  pDevice, 
+    UInt32  Offset, 
+    UInt32  Length, 
+    UInt8*  pBuffer)
+{
+#if defined (USB_DRIVER) || defined (NW_DRIVER)
+    return DT_STATUS_NOT_SUPPORTED;
+#else
+
+#ifdef WINBUILD
+#ifdef USES_KMDF
+    NTSTATUS  NtStatus;
+    BUS_INTERFACE_STANDARD  BusInterfaceStandard;
+    WDFDEVICE  parentDevice;
+#endif
+#else
+    Int i=0;
+    Int Result = 0;
+#endif
+
+    // Check for valid pointer
+    if (pBuffer == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Nothing to transfer
+    if (Length == 0)
+        return DT_STATUS_OK;
+
+#ifdef WINBUILD
+#ifdef USES_KMDF
+    parentDevice = WdfPdoGetParent(pDevice->m_WdfDevice);
+    NtStatus = WdfFdoQueryForInterface(pDevice->m_WdfDevice, 
+                          &GUID_BUS_INTERFACE_STANDARD, (PINTERFACE)&BusInterfaceStandard, 
+                          sizeof(BUS_INTERFACE_STANDARD), 1, NULL);
+
+    if (!NT_SUCCESS(NtStatus))
+        return DT_STATUS_FAIL;
+
+    if (BusInterfaceStandard.GetBusData(BusInterfaceStandard.Context, 
+                                     PCI_WHICHSPACE_CONFIG, pBuffer, Offset, Length) == 0)
+        return DT_STATUS_FAIL;
+#else
+    return DT_STATUS_NOT_SUPPORTED;
+#endif
+#else
+    // Read bytes
+    for (i=0; i<Length; i++)
+    {        
+        Result = pci_read_config_byte(pDevice->m_pPciDev, Offset+i, &pBuffer[i]);
+        if ( Result != 0 )
+            return DT_STATUS_FAIL;
+    }
+#endif
+    return DT_STATUS_OK;
+#endif // defined (USB_DRIVER) || defined (NW_DRIVER)
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtWriteConfigSpace -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

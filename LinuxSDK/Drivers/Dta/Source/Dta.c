@@ -220,6 +220,107 @@ DtStatus  DtaDeviceInit(DtaDeviceData* pDvcData)
     return DT_STATUS_OK;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaReadPex8724ConfigSpace -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static DtStatus  DtaReadPex8724ConfigSpace(
+    DtaDeviceData*  pDvcData, 
+    UInt32  Offset, 
+    UInt32  Length, 
+    UInt8*  pBuffer)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    UInt8  pPlxCommandByte[4];
+    // Port 0 is upstream, 1 = first fpga, 2 = second fpga
+    Int  Port = 0;
+
+    if ((Offset&0x03) != 0 || (Length&0x03) != 0)
+        return DT_STATUS_INVALID_PARAMETER;
+    
+    Status = DtaI2cLock(pDvcData, -1, DT_INVALID_FILE_OBJECT_PTR, 5000);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    while (DT_SUCCESS(Status) && Length>0)
+    {
+        UInt8  Temp;
+        pPlxCommandByte[0] = 4;
+        pPlxCommandByte[1] = (Port>>1) & 0x03;
+        pPlxCommandByte[2] = 0x3C | ((Port&0x01) << 7) | ((Offset >> 10) & 0x03);
+        pPlxCommandByte[3] = (Offset >> 2) & 0xFF;
+
+        Status = DtaI2cWriteRead(pDvcData, -1, DT_INVALID_FILE_OBJECT_PTR, 0x72, 4,
+                                                    pPlxCommandByte, 0x72, 4, pBuffer);
+        Temp = pBuffer[0];
+        pBuffer[0] = pBuffer[3];
+        pBuffer[3] = Temp;
+        Temp = pBuffer[1];
+        pBuffer[1] = pBuffer[2];
+        pBuffer[2] = Temp;
+        pBuffer += 4;
+        Offset += 4;
+        Length -= 4;
+    }
+
+    DtaI2cUnlock(pDvcData, -1, DT_INVALID_FILE_OBJECT_PTR, FALSE);
+    return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDeviceParsePciConfig -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaDeviceParsePciConfig(DtaDeviceData* pDvcData, UInt8* pPciConfig)
+{
+    Bool  Visited[256];
+    Int  i;
+    UInt8  NextCapAddr = pPciConfig[0x34]&0xFC;
+    UInt8  CapId;
+    UInt8*  pCapBuf;
+
+    // Make sure all fields are initialized.
+    pDvcData->m_DevInfo.m_PcieNumLanes = -1;
+    pDvcData->m_DevInfo.m_PcieMaxLanes = -1;
+    pDvcData->m_DevInfo.m_PcieLinkSpeed = -1;
+    pDvcData->m_DevInfo.m_PcieMaxSpeed = -1;
+
+    // We keep track of which bytes we've used as start of a capability struct to make
+    // sure we don't end in an infinite loop. 
+    for (i=0; i<256; i++)
+        Visited[i] = (i<64) ? TRUE : FALSE;
+
+    if ((pPciConfig[6]&0x10) == 0)
+    {
+        DtDbgOut(ERR, DTA, "New capabilities list not available in PCI config");
+        return DT_STATUS_OK;
+    }
+
+    while (!Visited[NextCapAddr])
+    {
+        Visited[NextCapAddr] = TRUE;
+        pCapBuf = &pPciConfig[NextCapAddr];
+        NextCapAddr = pCapBuf[1]&0xFC;
+        CapId = pCapBuf[0];
+        switch (CapId)
+        {
+        case 0x10: // PCI Express Capability structure
+            pDvcData->m_DevInfo.m_PcieNumLanes = (pCapBuf[0x12]>>4) |
+                                                                 ((pCapBuf[0x13]&0x3)<<4);
+            pDvcData->m_DevInfo.m_PcieLinkSpeed = pCapBuf[0x12]&0xF;
+            
+            pDvcData->m_DevInfo.m_PcieMaxLanes = (pCapBuf[0x0C]>>4) |
+                                                                 ((pCapBuf[0x0D]&0x3)<<4);
+            pDvcData->m_DevInfo.m_PcieMaxSpeed = pCapBuf[0x0C]&0xF;
+            DtDbgOut(AVG, DTA, "Num/Max lanes: %d / %d",
+                                                      pDvcData->m_DevInfo.m_PcieNumLanes,
+                                                      pDvcData->m_DevInfo.m_PcieMaxLanes);
+            DtDbgOut(AVG, DTA, "Cur/Max speed: %d / %d",
+                                                      pDvcData->m_DevInfo.m_PcieLinkSpeed,
+                                                      pDvcData->m_DevInfo.m_PcieMaxSpeed);
+            break;
+        }
+    }
+
+    return DT_STATUS_OK;
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDeviceInitPci905X -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // This function is called by the IAL for devices with a PLX chip after BAR 0 is mapped,
@@ -609,13 +710,13 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
     if (!DT_SUCCESS(Status))
         return Status;
 
-    // Perform IO configurations
-    Status = DtaIoConfigInit(pDvcData);
+    // Initialize I2C
+    Status = DtaI2cPowerUp(pDvcData);
     if (!DT_SUCCESS(Status))
         return Status;
 
-    // Initialize I2C
-    Status = DtaI2cPowerUp(pDvcData);
+    // Perform IO configurations
+    Status = DtaIoConfigInit(pDvcData);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -736,6 +837,45 @@ DtStatus  DtaDevicePowerUpPost(DtaDeviceData* pDvcData)
 {
     Int  i;
     DtStatus  Status = DT_STATUS_OK;
+    UInt8  PciConfigData[256];
+    Int  BridgeType = -1;
+    Int  MaxLanes = -1;
+    UInt  OldPropertyNotFoundCounter;
+
+    DtDbgOut(ERR, DTA, "Start");
+    OldPropertyNotFoundCounter = pDvcData->m_PropData.m_PropertyNotFoundCounter;
+    BridgeType = DtPropertiesGetInt(&pDvcData->m_PropData, "PCIE_BRIDGE_TYPE", -1);
+    MaxLanes = DtPropertiesGetInt(&pDvcData->m_PropData, "PCIE_MAX_LANES", -1);
+    pDvcData->m_PropData.m_PropertyNotFoundCounter = OldPropertyNotFoundCounter;
+        
+    if (BridgeType == PCIE_BRIDGE_TYPE_PEX811X)
+    {
+        // There is no easy way to read the PCIe configuration space from this chip.
+        // However since there is no reconfiguration possible we cheat a little and
+        // hardcode the only possible values here.
+        pDvcData->m_DevInfo.m_PcieNumLanes = 1;
+        pDvcData->m_DevInfo.m_PcieMaxLanes = 1;
+        pDvcData->m_DevInfo.m_PcieLinkSpeed = 1;
+        pDvcData->m_DevInfo.m_PcieMaxSpeed = 1;
+    } else {
+        if (BridgeType == PCIE_BRIDGE_TYPE_PEX87XX)
+            Status = DtaReadPex8724ConfigSpace(pDvcData, 0, sizeof(PciConfigData),
+                                                                           PciConfigData);
+        else
+            Status = DtReadConfigSpace(&pDvcData->m_Device, 0, sizeof(PciConfigData),
+                                                                           PciConfigData);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOut(ERR, DTA, "Failed reading PCI configuration space (0x%X)", Status);
+        } else {
+            Status = DtaDeviceParsePciConfig(pDvcData, PciConfigData);
+            if (!DT_SUCCESS(Status))
+                DtDbgOut(ERR, DTA, "Failed parsing PCI configuration space (0x%X)",
+                                                                                  Status);
+            else if (MaxLanes != -1)
+                pDvcData->m_DevInfo.m_PcieMaxLanes = MaxLanes;
+        }
+    }
 
     if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2154)
     {
@@ -1064,6 +1204,11 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
         InReqSize = 0;
         OutReqSize = sizeof(DtaIoctlGetDevInfoOutput2);
         break;
+    case DTA_IOCTL_GET_DEV_INFO3:
+        pIoctlStr = "DTA_IOCTL_GET_DEV_INFO3";
+        InReqSize = 0;
+        OutReqSize = sizeof(DtaIoctlGetDevInfoOutput3);
+        break;
     case DTA_IOCTL_VPD_CMD:
         pIoctlStr = "DTA_IOCTL_VPD_CMD";
         InReqSize = 0; // Checked later
@@ -1368,6 +1513,27 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
             pOutBuf->m_GetDevInfo2.m_FirmwareVariant =
                                                     pDvcData->m_DevInfo.m_FirmwareVariant;
             pOutBuf->m_GetDevInfo2.m_Serial = pDvcData->m_DevInfo.m_Serial;
+            break;
+        case DTA_IOCTL_GET_DEV_INFO3:
+            pOutBuf->m_GetDevInfo3.m_DeviceId = pDvcData->m_DevInfo.m_DeviceId;
+            pOutBuf->m_GetDevInfo3.m_VendorId = pDvcData->m_DevInfo.m_VendorId;
+            pOutBuf->m_GetDevInfo3.m_SubSystemId = pDvcData->m_DevInfo.m_SubSystemId;
+            pOutBuf->m_GetDevInfo3.m_SubVendorId = pDvcData->m_DevInfo.m_SubVendorId;
+            pOutBuf->m_GetDevInfo3.m_BusNumber = pDvcData->m_DevInfo.m_BusNumber;
+            pOutBuf->m_GetDevInfo3.m_SlotNumber = pDvcData->m_DevInfo.m_SlotNumber;
+            pOutBuf->m_GetDevInfo3.m_TypeNumber = pDvcData->m_DevInfo.m_TypeNumber;
+            pOutBuf->m_GetDevInfo3.m_SubDvc = pDvcData->m_DevInfo.m_SubDvc;
+            pOutBuf->m_GetDevInfo3.m_HardwareRevision =
+                                                   pDvcData->m_DevInfo.m_HardwareRevision;
+            pOutBuf->m_GetDevInfo3.m_FirmwareVersion =
+                                                    pDvcData->m_DevInfo.m_FirmwareVersion;
+            pOutBuf->m_GetDevInfo3.m_FirmwareVariant =
+                                                    pDvcData->m_DevInfo.m_FirmwareVariant;
+            pOutBuf->m_GetDevInfo3.m_Serial = pDvcData->m_DevInfo.m_Serial;
+            pOutBuf->m_GetDevInfo3.m_PcieNumLanes = pDvcData->m_DevInfo.m_PcieNumLanes;
+            pOutBuf->m_GetDevInfo3.m_PcieMaxLanes = pDvcData->m_DevInfo.m_PcieMaxLanes;
+            pOutBuf->m_GetDevInfo3.m_PcieLinkSpeed = pDvcData->m_DevInfo.m_PcieLinkSpeed;
+            pOutBuf->m_GetDevInfo3.m_PcieMaxSpeed = pDvcData->m_DevInfo.m_PcieMaxSpeed;
             break;
         case DTA_IOCTL_VPD_CMD:
             Status = DtaVpdIoctl(pDvcData, pIoctl);
@@ -3066,7 +3232,8 @@ DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData)
 {
     DtStatus  Status = DT_STATUS_OK;
     Int  PortCount;
-    Bool  CapAsi, CapSdi, CapHdSdi, CapSpi, CapIp, CapMod, CapDemod, CapIfAdc, CapGenRef;
+    Bool  CapAsi, CapSdi, CapHdSdi, Cap3gSdi, CapSpi, CapIp, CapMod, CapDemod, 
+                                                                      CapIfAdc, CapGenRef;
     Bool  CapRs422;
     Int  i;
     DtPropertyData*  pPropData = &pDvcData->m_PropData;
@@ -3099,6 +3266,7 @@ DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData)
         CapAsi = DtPropertiesGetBool(pPropData, "CAP_ASI", i);
         CapSdi = DtPropertiesGetBool(pPropData, "CAP_SDI", i);
         CapHdSdi = DtPropertiesGetBool(pPropData, "CAP_HDSDI", i);
+        Cap3gSdi = DtPropertiesGetBool(pPropData, "CAP_3GSDI", i);
         CapMod = DtPropertiesGetBool(pPropData, "CAP_MOD", i);
         CapDemod = DtPropertiesGetBool(pPropData, "CAP_DEMOD", i);
         CapSpi = DtPropertiesGetBool(pPropData, "CAP_SPI", i);
@@ -3106,8 +3274,8 @@ DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData)
         CapIfAdc = DtPropertiesGetBool(pPropData, "CAP_IFADC", i);
         CapGenRef = DtPropertiesGetBool(pPropData, "CAP_GENREF", i);
         CapRs422 = DtPropertiesGetBool(pPropData, "CAP_RS422", i);
-        if ((CapAsi || CapSdi || CapHdSdi || CapDemod || CapMod || CapSpi || 
-                                             CapIfAdc || CapGenRef || CapRs422) && !CapIp)
+        if ((CapAsi || CapSdi || CapHdSdi || Cap3gSdi || CapDemod || CapMod || 
+                                   CapSpi || CapIfAdc || CapGenRef || CapRs422) && !CapIp)
         {
             // Setup reverse lookup
             pDvcData->m_pPortLookup[i].m_PortType = DTA_PORT_TYPE_NONIP;
@@ -3240,15 +3408,12 @@ DtStatus  DtaDeviceGenlockIoctl(DtaDeviceData* pDvcData, Int* pState, Int* pRefV
                                                    pDvcData->m_Genlock.m_Lmh1983.m_State);
         switch (pDvcData->m_Genlock.m_Lmh1983.m_State)
         {
-        case DTA_LMH1983_STATE_PLL_LOCKED:
-        case DTA_LMH1983_STATE_ALIGN_TOF:
-        case DTA_LMH1983_STATE_HOLD_OVER1:
-        case DTA_LMH1983_STATE_HOLD_OVER2:
-        case DTA_LMH1983_STATE_PLL_LOCKING:
+        case DTA_LMH1983_STATE_LOCKING:
             *pState = DTA_GENLOCKSTATE_LOCKING;
             break;
 
-        case DTA_LMH1983_STATE_FULL_LOCK:
+        case DTA_LMH1983_STATE_LOCKED:
+        case DTA_LMH1983_STATE_HOLDOVER:
             *pState = DTA_GENLOCKSTATE_LOCKED;
             break;
 

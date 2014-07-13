@@ -224,15 +224,26 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
                                                  // implementation
 #define ASI_SDI_DESER_ITF_GS9060     3           // Uses Gennum GS9060
 #define ASI_SDI_DESER_ITF_GS2961     4           // Uses Gennum GS2961
+#define ASI_SDI_DESER_ITF_FPGA_LMH0387  5        // FPGA deserialiser + LMH0387 equaliser
 
 #define ASI_SDI_SER_ITF_NONE         0           // No ASI/SDI serialiser used
 #define ASI_SDI_SER_ITF_HOTLINK      1           // Use Cypress hotlink
 #define ASI_SDI_SER_ITF_FPGA_BASED   2           // Default DekTec FPGA based 
                                                  // implementation
 #define ASI_SDI_SER_ITF_GS2962       4           // Uses Gennum GS2962
+#define ASI_SDI_SER_ITF_FPGA_LMH0387 5           // FPGA serialiser + LMH0387 line driver
+
+// Genlock: operation mode for internal clock source
+#define GENLOCK_OPMODE_INTSRC_UNDEF     0        // Undefined operation mode
+#define GENLOCK_OPMODE_INTSRC_FREE_RUN  1        // Operate in free runnig mode
+#define GENLOCK_OPMODE_INTSRC_AFD       2        // Operate in auto format detect mode
 
 // Fan controller types
 #define FAN_TYPE_MAX6639             0           // Maxim 6639 controller
+
+// PCIe bridges
+#define PCIE_BRIDGE_TYPE_PEX87XX     0           // PLX PEX 87XX chip
+#define PCIE_BRIDGE_TYPE_PEX811X     1           // PLX PEX 8711/8712 chip
 
 
 // Properties

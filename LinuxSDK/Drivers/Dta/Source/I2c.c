@@ -803,7 +803,7 @@ DtStatus  DtaI2cWriteRead(
         return DT_STATUS_INVALID_PARAMETER;
 
     // Sanity check: write and read address must be on the same bus
-    if ((DvcWriteAddr&&~0xFF) != (DvcReadAddr&&~0xFF))
+    if ((DvcWriteAddr&~0xFF) != (DvcReadAddr&~0xFF))
         return DT_STATUS_INVALID_PARAMETER;
 
     // Protect I2C access against concurrent access

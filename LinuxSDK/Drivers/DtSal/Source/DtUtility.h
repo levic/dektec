@@ -175,6 +175,7 @@ Bool  DtAnsiCharArrayStartsWith(const char* pStr, const char* pStart);
 
 void  DtSleep(Int MSec);
 void  DtWaitBlock(Int USec);
+UInt64  DtGetTickCount(void);
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Memory (Page) functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -397,6 +398,8 @@ typedef DtStatus  (*IoCtrlFunc)(UInt32 IoctlCode, UInt InputBufferSize, void* pI
 #endif // WINBUILD
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ PCI Device helper functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+DtStatus  DtReadConfigSpace(DtDvcObject* pDevice, UInt32 Offset, UInt32 Length, 
+                                                                          UInt8* pBuffer);
 DtStatus  DtWriteConfigSpace(DtDvcObject* pDevice, UInt32 Offset, UInt32 Length, 
                                                                           UInt8* pBuffer);
 
