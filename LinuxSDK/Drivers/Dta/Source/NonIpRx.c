@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIpRx.c *#*#*#*#*#*#*#*#*# (C) 2010-2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIpRx.c *#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
 //
 // Dta driver - Non IP RX functionality - Implementation of RX specific functionality for
 //                                        non IP ports.
@@ -6,7 +6,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -14,8 +14,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -175,10 +173,7 @@ DtStatus  DtaNonIpRxIoctl(
 DtStatus  DtaNonIpRxGetFlags(DtaNonIpPort* pNonIpPort, Int* pStatus, Int* pLatched)
 {
     // Update flags
-    if (pNonIpPort->m_CapMatrix)
-        DtaNonIpMatrixProcessRxFlagsFromUser(pNonIpPort);
-    else
-        DtaNonIpRxProcessFlagsFromUser(pNonIpPort);
+    DtaNonIpRxProcessFlagsFromUser(pNonIpPort);
 
     // Update DMA pending status
     //if (NonIpRxIsDmaPending(pNonIpPort))
@@ -266,21 +261,39 @@ void  DtaNonIpRxProcessFlags(DtaNonIpPort* pNonIpPort)
     Int  Status = 0;
     UInt32  RxStatus;
 
-    RxStatus = DtaRegRxStatGet(pNonIpPort->m_pRxRegs);
-    if (RxStatus & DT_RXSTAT_OVFINT_MSK)
+    DT_ASSERT(pNonIpPort->m_pRxRegs != NULL);
+    if (pNonIpPort->m_CapMatrix)
     {
-        Status |= DTA_RX_FIFO_OVF;
-        DtaRegRxStatClrOvfInt(pNonIpPort->m_pRxRegs);
+        RxStatus = DtaRegHdStatusGet(pNonIpPort->m_pRxRegs);
+        if (RxStatus & DT_HD_STATUS_RXOVFERRINT_MSK)
+        {
+            Status |= DTA_RX_FIFO_OVF;
+            DtaRegHdStatClrRxOvfErrInt(pNonIpPort->m_pRxRegs);
+        }
+        if (RxStatus & DT_HD_STATUS_RXSYNCERRINT_MSK)
+        {
+            Status |= DTA_RX_SYNC_ERR;
+            DtaRegHdStatClrRxSyncErrInt(pNonIpPort->m_pRxRegs);
+        }
     }
-    if (RxStatus & DT_RXSTAT_SYNCINT_MSK)
+    else
     {
-        Status |= DTA_RX_SYNC_ERR;
-        DtaRegRxStatClrSyncInt(pNonIpPort->m_pRxRegs);
-    }
-    if (RxStatus & DT_RXSTAT_RATEOVFINT_MSK)
-    {
-        Status |= DTA_RX_RATE_OVF;
-        DtaRegRxStatClrRateOvfInt(pNonIpPort->m_pRxRegs);
+        RxStatus = DtaRegRxStatGet(pNonIpPort->m_pRxRegs);
+        if (RxStatus & DT_RXSTAT_OVFINT_MSK)
+        {
+            Status |= DTA_RX_FIFO_OVF;
+            DtaRegRxStatClrOvfInt(pNonIpPort->m_pRxRegs);
+        }
+        if (RxStatus & DT_RXSTAT_SYNCINT_MSK)
+        {
+            Status |= DTA_RX_SYNC_ERR;
+            DtaRegRxStatClrSyncInt(pNonIpPort->m_pRxRegs);
+        }
+        if (RxStatus & DT_RXSTAT_RATEOVFINT_MSK)
+        {
+            Status |= DTA_RX_RATE_OVF;
+            DtaRegRxStatClrRateOvfInt(pNonIpPort->m_pRxRegs);
+        }
     }
 
     // Latch status flags

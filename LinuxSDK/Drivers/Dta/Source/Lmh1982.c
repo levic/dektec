@@ -1,10 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Lmh1982.h *#*#*#*#*#*#*#*#*#*#*#* (C) 2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Lmh1982.c *#*#*#*#*#*#*#*#*# (C) 2012-2015 DekTec
 //
 // Dta driver - National LMH1982 (Video Clock Generator) controller
+//
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2012 DekTec Digital Video B.V.
+// Copyright (C) 2012-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -12,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -229,11 +228,27 @@ DtStatus DtaLmh1982GoToNextState(DtaLmh1982* pLmh1982Data, Int ChangeEvent)
         {
             // Start TOF alignment
             if (DT_SUCCESS(DtaLmh1982StartTofAlign(pLmh1982Data)))
-                NewState = DTA_LMH1982_STATE_ALIGN_TOF;
+                NewState = DTA_LMH1982_STATE_ALIGN_TOF1;
         }
         break;
 
-    case DTA_LMH1982_STATE_ALIGN_TOF:
+    case DTA_LMH1982_STATE_ALIGN_TOF1:
+
+        // Re-check PLL lock state
+        NewState = DtaLmh1982PllLockStateGet(pLmh1982Data);
+        if (NewState != DTA_LMH1982_STATE_PLL_LOCKED)
+        {
+            // Lost lock during alignment => stop tof alignment procedure
+            DtaLmh1982StopTofAlign(pLmh1982Data);
+            break;
+        }
+        // Wait for start-of-frame to continue to second phase of alignment process
+        else if (ChangeEvent == DTA_LMH1982_SOF_EVENT)
+            NewState = DTA_LMH1982_STATE_ALIGN_TOF2;
+        
+        break;
+
+     case DTA_LMH1982_STATE_ALIGN_TOF2:
 
         // Re-check PLL lock state
         NewState = DtaLmh1982PllLockStateGet(pLmh1982Data);
@@ -319,12 +334,13 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
 {
     DtStatus  Status = DT_STATUS_OK;
     Int Icp1NanoAmp, Icp1;
+    DtAvFrameProps  RefAvProps;
     DtaLmh1982Regs*  pRegs = &pLmh1982Data->m_RegCache;
     DtaGenlock*  pGenlock = &pLmh1982Data->m_pDvcData->m_Genlock;
     Bool  IsFrac = FALSE;
     Int  RefVidStd,  OutVidStd, Fps, TofVidStd;
-    UInt16 TofRst25Fps = 1;	    // Helper, required for calibration of genlock parameters
-
+    UInt16  TofOffset=0;
+    
     //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Step 1: Set clock source -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
     Status = DtaLmh1982SetupRefSource(pLmh1982Data, &RefVidStd, &OutVidStd);
@@ -384,6 +400,9 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
     // and normal device configuration can resume. All other output clocks do not 
     // require this initialization sequence for proper clock operation.
 
+    // Always use 27MHz for SD clock
+    pRegs->m_Reg08.Fields.m_SdFreq = DTA_LMH1982_IIC_SD_FREQ_27_00;
+
     if (DtaVidStdIsFractional(OutVidStd))
     {
         DtDbgOut(MIN, GENL, "Switching to DTA_LMH1982_IIC_HD_FREQ_148_35");
@@ -430,142 +449,130 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
     {
         DtDbgOut(MIN, GENL, "Switching to DTA_LMH1982_IIC_HD_FREQ_148_5");
         pRegs->m_Reg08.Fields.m_HdFreq = DTA_LMH1982_IIC_HD_FREQ_148_5;
+
+        Status = DtaLmh1982WriteReg(pLmh1982Data, DTA_LMH1982_IIC_REG08_8B, 
+                                                                      pRegs->m_Reg08.All);
+        if (!DT_SUCCESS(Status))
+            return DT_STATUS_FAIL;
     }
+    
     
     //.-.-.-.-.-.-.-.-.-.-.-.- Step 3.2: Set Reference Registers -.-.-.-.-.-.-.-.-.-.-.-.-
 
     // Set reference lines per frame, feedback divider and reference divider selection
+    // See LMH-1982 data sheet, Table 1 "Input Reference and Output Timing Parameters",
+    // INPUT TIMING PARAMETERS columns 
     switch (RefVidStd)
     {
     case DT_VIDSTD_525I59_94:   
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 1716;
         pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 1716;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 525;
-        TofRst25Fps = 1200;
         break;
 
     case DT_VIDSTD_625I50:      
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 1728;
         pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 1728;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 625;
-        TofRst25Fps = 1;
         break;
 
     case DT_VIDSTD_720P60:      
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 600;
         pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 600;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 750;
-        TofRst25Fps = 12;
         break;
 
     case DT_VIDSTD_720P59_94:
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 3003;
         pRegs->m_Reg03.Fields.m_RefDivSel = 2;     // PLL 1 divider = 5
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 3003;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 750;
-        TofRst25Fps = 2400;
         break;
 
     case DT_VIDSTD_720P50:      
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 3600;
-        pRegs->m_Reg03.Fields.m_RefDivSel = 2;     // PLL 1 divider = 5
-        pRegs->m_Reg0F_10.Fields.m_RefLpfm = 750/5;
-        TofRst25Fps = 2;
+        pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 720;
+        pRegs->m_Reg0F_10.Fields.m_RefLpfm = 750;
         break;
 
     case DT_VIDSTD_720P30:      
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 1200;
         pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 1200;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 750;
-        TofRst25Fps = 6;
         break;
 
     case DT_VIDSTD_720P29_97:
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 6006;
         pRegs->m_Reg03.Fields.m_RefDivSel = 2;     // PLL 1 divider = 5
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 6006;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 750;
-        TofRst25Fps = 1200;
         break;
 
     case DT_VIDSTD_720P25:      
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 1440;
         pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 1440;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 750;
-        TofRst25Fps = 1;
         break;
 
     case DT_VIDSTD_720P24:      
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 1500;
         pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 1500;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 750;
-        TofRst25Fps = 24;
         break;
 
     case DT_VIDSTD_720P23_98:   
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 3003;
         pRegs->m_Reg03.Fields.m_RefDivSel = 0;     // PLL 1 divider = 2
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 3003;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 750;
-        TofRst25Fps = 3003;
         break;
 
     case DT_VIDSTD_1080P60:     
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 400;
         pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 400;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125;
-        TofRst25Fps = 12;
         break;
 
     case DT_VIDSTD_1080P59_94:  
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 2002;
         pRegs->m_Reg03.Fields.m_RefDivSel = 2;     // PLL 1 divider = 5
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 2002;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125;
-        TofRst25Fps = 2400;
         break;
  
     case DT_VIDSTD_1080P50:     
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 2400;
-        pRegs->m_Reg03.Fields.m_RefDivSel = 2;     // PLL 1 divider = 5
-        pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125/5;
-        TofRst25Fps = 2;
+        pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 480;
+        pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125;
         break;
 
     case DT_VIDSTD_1080P30:
     case DT_VIDSTD_1080I60:
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 800;
         pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 800;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125;
-
-        TofRst25Fps = 6;
         break;
 
     case DT_VIDSTD_1080I59_94:  
     case DT_VIDSTD_1080P29_97:  
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 4004;
         pRegs->m_Reg03.Fields.m_RefDivSel = 2;     // PLL 1 divider = 5
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 4004;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125;
-
-        TofRst25Fps = 1200;
         break;
 
     case DT_VIDSTD_1080P25:
     case DT_VIDSTD_1080I50:     
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 4800;
-        pRegs->m_Reg03.Fields.m_RefDivSel = 2;     // PLL 1 divider = 5
-        pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125/5;
-        TofRst25Fps = 1;
+        pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 960;
+        pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125;
         break;
 
     case DT_VIDSTD_1080P24:	
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 1000;
         pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 1000;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125;
-        TofRst25Fps = 24;
         break;
 
     case DT_VIDSTD_1080P23_98:
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 1001;
         pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
+        pRegs->m_Reg04_05.Fields.m_FbDiv = 1001;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125;
-        TofRst25Fps = 3003;
         break;
 
     default:
@@ -585,6 +592,7 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
     // Select a video standard with matching frame rate to the desired output standard
     Fps = DtaVidStd2Fps(OutVidStd);
     IsFrac = DtaVidStdIsFractional(OutVidStd);
+    TofVidStd = OutVidStd;
 
     switch(Fps)
     {
@@ -597,11 +605,7 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
         break;
 
     case 30: 
-        // Both DT_VIDSTD_720P29_97 AND DT_VIDSTD_720P30 have issues
-        // TofVidStd = IsFrac ? DT_VIDSTD_720P29_97 : DT_VIDSTD_720P30;	
-        
-        // Workaround by using DT_VIDSTD_1080I59_94 and DT_VIDSTD_1080I60 instead
-        TofVidStd = IsFrac ? DT_VIDSTD_1080I59_94 : DT_VIDSTD_1080I60;
+        TofVidStd = IsFrac ? DT_VIDSTD_720P29_97 : DT_VIDSTD_720P30;	
         break;
 
     case 50: 
@@ -620,144 +624,167 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
     // Init TOF reset to default value of 1
     pRegs->m_Reg09_0A.Fields.m_TofRst = 1;
 
-    // Set TOF offset based genref source and video standard
-    if (DtaVidStdIsInterlaced(RefVidStd))
-    {
-        // Check for 'normal' port
-        if (pGenlock->m_RefPortIndex!=DTA_GENLOCK_REFPORT_INT 
-                                  && pGenlock->m_RefPortIndex!=pGenlock->m_AsyncPortIndex)
-        {
-            // Verified for Digital Sync SDI-625, measured delta -140 symbols, 
-            // sofline = 0x270
-            pRegs->m_Reg11_12.Fields.m_TofOffset = (pRegs->m_Reg0F_10.Fields.m_RefLpfm/2);
-        }
-        else	
-        {
-            // Verified for Analog Sync SDI-625, measured delta -040 symbols, sofline = 0
-            pRegs->m_Reg11_12.Fields.m_TofOffset = 
-                                               (pRegs->m_Reg0F_10.Fields.m_RefLpfm/2) - 1;
-        }
-    } 
-    else 
-    {
-
-        if (pGenlock->m_RefPortIndex!=DTA_GENLOCK_REFPORT_INT 
-                                  && pGenlock->m_RefPortIndex!=pGenlock->m_AsyncPortIndex)
-            pRegs->m_Reg11_12.Fields.m_TofOffset = pRegs->m_Reg0F_10.Fields.m_RefLpfm;
-        else
-            pRegs->m_Reg11_12.Fields.m_TofOffset = pRegs->m_Reg0F_10.Fields.m_RefLpfm-1;
-    }
-
     // Set TOF Clock, TOF pixels per line and TOF lines per frame     
+    // See LMH-1982 data sheet, Table 1 "Input Reference and Output Timing Parameters",
+    // OUTPUT TIMING PARAMETERS columns
     switch (TofVidStd)
     {
-    case DT_VIDSTD_720P23_98:
-        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27 MHZ
+    case DT_VIDSTD_525I59_94:   
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 1716;		
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 525;
+        break;
+
+    case DT_VIDSTD_625I50:      
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 1728;		
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 625;
+        break;
+
+    case DT_VIDSTD_720P60:      
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 600;		
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 750;
+        break;
+
+    case DT_VIDSTD_720P59_94:
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
         pRegs->m_Reg0B_0C.Fields.m_TofPpl = 3003;		
-        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 375;
-        // Enable crosslock from 25fps to 23.98fps
-        if (pGenlock->m_RefPortIndex == DTA_GENLOCK_REFPORT_INT)
-            pRegs->m_Reg09_0A.Fields.m_TofRst = 3125;
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 150;
         break;
 
-    case DT_VIDSTD_720P24:
-        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;
-        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 1500;
+    case DT_VIDSTD_720P50:      
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 720;
         pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 750;
-        // Enable crosslock from 25fps to 24fps
-        if (pGenlock->m_RefPortIndex == DTA_GENLOCK_REFPORT_INT)
-            pRegs->m_Reg09_0A.Fields.m_TofRst = 25;
         break;
 
-    case DT_VIDSTD_720P25:
-        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27 MHZ
-        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 1440;		
-        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 750;
-        // Enable crosslock from 25fps to 25fps
-        if (pGenlock->m_RefPortIndex == DTA_GENLOCK_REFPORT_INT)
-            pRegs->m_Reg09_0A.Fields.m_TofRst = 1;
-        else
-        {
-            // For genlock tests we need to be able to crosslock from all external 
-            // standards to SDI625
-            // Note: the TOF will not be aligned, but delta between two SD signals generated 
-            // by two different 2152 boards that are crosslocked to the same standard 
-            // will be the constant	
-            pRegs->m_Reg09_0A.Fields.m_TofRst = TofRst25Fps;
-        }
+    case DT_VIDSTD_720P30:      
+        // Note: has some issues. Not used for the moment
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 1200;		
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 150;
         break;
 
     case DT_VIDSTD_720P29_97:
         // Note: has some issues. Not used for the moment
-        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27 MHZ
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
         pRegs->m_Reg0B_0C.Fields.m_TofPpl = 6006;		
         pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 150;
-        // Enable crosslock from 25fps to 29.97fps
-        if (pGenlock->m_RefPortIndex == DTA_GENLOCK_REFPORT_INT)
-            pRegs->m_Reg09_0A.Fields.m_TofRst = 1001;
         break;
 
-    case DT_VIDSTD_1080I59_94:
-        // Used for generating 59.94 FPS instead of DT_VIDSTD_720P29_97
-        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27 MHZ
-        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 4004;		
+    case DT_VIDSTD_720P25:      
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 1440;		
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 750;
+        break;
+
+    case DT_VIDSTD_720P24:      
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 1500;
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 750;
+        break;
+
+    case DT_VIDSTD_720P23_98:   
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 3003;		
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 375;
+        break;
+
+
+    case DT_VIDSTD_1080P60:     
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 400;		
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 1125;
+        break;
+
+    case DT_VIDSTD_1080P59_94:  
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 2002;		
         pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 225;
-        // Enable crosslock from 25fps to 29.97fps
-        if (pGenlock->m_RefPortIndex == DTA_GENLOCK_REFPORT_INT)
-            pRegs->m_Reg09_0A.Fields.m_TofRst = 1001;
+        break;
+ 
+    case DT_VIDSTD_1080P50:     
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 480;		
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 1125;
         break;
 
-    case DT_VIDSTD_720P30:
-        // Note: has some issues. Not used for the moment
-        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27 MHZ
-        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 1200;		
-        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 150;
-        // Enable crosslock from 25fps to 30fps
-        if (pGenlock->m_RefPortIndex == DTA_GENLOCK_REFPORT_INT)
-            pRegs->m_Reg09_0A.Fields.m_TofRst = 5;
-        break;
-
+    case DT_VIDSTD_1080P30:
     case DT_VIDSTD_1080I60:
         // Used for generating 60.0 FPS instead of DT_VIDSTD_720P30
-        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27 MHZ
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
         pRegs->m_Reg0B_0C.Fields.m_TofPpl = 800;		
         pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 1125;
-        // Enable crosslock from 25fps to 30fps
-        if (pGenlock->m_RefPortIndex == DTA_GENLOCK_REFPORT_INT)
-            pRegs->m_Reg09_0A.Fields.m_TofRst = 5;
         break;
 
-    case DT_VIDSTD_720P50:
-        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27 MHZ
-        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 720;		
-        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 750;
-        // Enable crosslock from 25fps to 50fps
-        if (pGenlock->m_RefPortIndex == DTA_GENLOCK_REFPORT_INT)
-            pRegs->m_Reg09_0A.Fields.m_TofRst = 1;
+    case DT_VIDSTD_1080I59_94:  
+    case DT_VIDSTD_1080P29_97:  
+        // Used for generating 59.94 FPS instead of DT_VIDSTD_720P29_97
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 4004;		
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 225;
         break;
 
-    case DT_VIDSTD_720P59_94:
-        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27 MHZ
-        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 3003;		
-        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 150;
-        // Enable crosslock from 25fps to 59.94fps
-        if (pGenlock->m_RefPortIndex == DTA_GENLOCK_REFPORT_INT)
-            pRegs->m_Reg09_0A.Fields.m_TofRst = 1001;
-
-    case DT_VIDSTD_720P60:
-        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27 MHZ
-        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 600;		
-        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 750;
-        // Enable crosslock from 25fps to 60fps
-        if (pGenlock->m_RefPortIndex == DTA_GENLOCK_REFPORT_INT)
-            pRegs->m_Reg09_0A.Fields.m_TofRst = 5;
+    case DT_VIDSTD_1080P25:
+    case DT_VIDSTD_1080I50:     
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 960;
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 1125;
         break;
+
+    case DT_VIDSTD_1080P24:	
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 1000;		
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 1125;
+        break;
+
+    case DT_VIDSTD_1080P23_98:
+        pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
+        pRegs->m_Reg0B_0C.Fields.m_TofPpl = 1001;		
+        pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 1125;
+        break;       
 
     default: 
         DtDbgOut(ERR, GENL, "UNKNOWN TOF VIDEO STANDARD (TofVidStd=%d)", TofVidStd);
         return DT_STATUS_FAIL;
     }
+
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Step 4.1: set TOF offset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+    //
+    // We set a line offset 3 lines, asumming the sum of the input delay and output delay 
+    // is always smaller than 3 lines
+        
+    pGenlock->m_LineOffset = 3;
+    DT_ASSERT(pGenlock->m_RefLineDurationNs*pGenlock->m_LineOffset>
+                                                                 2*pGenlock->m_InDelayNs);
     
+    // Get frame properties for reference signal
+    Status = DtAvGetFrameProps(RefVidStd, &RefAvProps);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    // Compute the TOF offset to be applied. NOTE: an offset of zero is not allowed, so
+    // to get an offset of zero we must the tof-offset to the #lines in a frame. Next we 
+    // apply our line offset to make sure the TOF is generate just that bit earlier to 
+    // account for the in and out delays
+    if (RefAvProps.m_IsInterlaced)
+    {
+        // For interlaced the TOF is generates half-way through the frame
+        TofOffset = (UInt16)((RefAvProps.m_NumLines / 2) - pGenlock->m_LineOffset);
+        
+        // Account for half an extra line of delay (subtract from input delay)
+        if ((RefAvProps.m_NumLines%2) != 0)
+            pGenlock->m_InDelayNs -= pGenlock->m_RefLineDurationNs / 2;
+    }
+    else
+        TofOffset = (UInt16)(RefAvProps.m_NumLines - pGenlock->m_LineOffset);
+
+    pRegs->m_Reg11_12.Fields.m_TofOffset = TofOffset;
+
+    DtDbgOut(MIN, GENL, "RefVidStd=%d, TofVidStd=%d, TOF-offset=%d", 
+                                                         RefVidStd, TofVidStd, TofOffset);
+
     //-.-.-.-.-.-.-.-.-.- Step 5: Set 'miscellaneous' other registers  -.-.-.-.-.-.-.-.-.-
 
     // Set H-ERROR to max
@@ -798,12 +825,17 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
 
     // Finally enable genlock mode
     pRegs->m_Reg00.Fields.m_Gnlk = 1;
-    Status = DtaLmh1982WriteReg(pLmh1982Data, DTA_LMH1982_IIC_REG00_8B, pRegs->m_Reg00.All);
+    Status = DtaLmh1982WriteReg(pLmh1982Data, DTA_LMH1982_IIC_REG00_8B,
+                                                                      pRegs->m_Reg00.All);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, GENL, "Failed to enable genlock mode. Error: 0x%x", Status);
         return DT_STATUS_FAIL;
     }
+
+    // Sleep shortly (100ms) to allow chip to settle
+    DtSleep(100);
+
     return Status;
 }
 
@@ -814,7 +846,7 @@ DtStatus  DtaLmh1982SetupRefSource(
     Int*  pRefVidStd,
     Int*  pOutVidStd)
 {
-    Int  ClkSrc = 0;
+    Int  i, ClkSrc = 0;
     DtaGenlock*  pGenlock = &pLmh1982Data->m_pDvcData->m_Genlock;
     volatile UInt8*  pGenlRegs = pGenlock->m_pGenlRegs;
 
@@ -822,22 +854,23 @@ DtStatus  DtaLmh1982SetupRefSource(
     DtaRegHdGenlClkConfSetAsyncReset(pGenlRegs, 1);
     DtSleep(5);
     
-    if (pGenlock->m_RefPortIndex  == DTA_GENLOCK_REFPORT_INT)
+    if (pGenlock->m_RefPortIndex  == pGenlock->m_IntGenrefPortIndex)
     {
         ClkSrc = 0;     // Internal clock
-        *pRefVidStd = DT_VIDSTD_625I50;      // Internal clock always is 625I50, but we
-                                              // can generate any output standard from it
-        *pOutVidStd = pGenlock->m_RefVidStd;
+        *pRefVidStd = pGenlock->m_RefVidStd;
+        *pOutVidStd = pGenlock->m_OutVidStd;
     }
     else if (pGenlock->m_RefPortIndex == pGenlock->m_AsyncPortIndex)
     {
         ClkSrc = 15;    // analog clock
-        *pRefVidStd = *pOutVidStd = pGenlock->m_RefVidStd;
+        *pRefVidStd = pGenlock->m_RefVidStd;
+        *pOutVidStd = pGenlock->m_OutVidStd;
     }
     else
     {
         ClkSrc = pGenlock->m_RefPortIndex+1;    // Use specified port
-        *pRefVidStd = *pOutVidStd = pGenlock->m_RefVidStd;
+        *pRefVidStd = pGenlock->m_RefVidStd;
+        *pOutVidStd = pGenlock->m_OutVidStd;
     }
 
     // Set clock source
@@ -1261,7 +1294,8 @@ const char*  DtaLmh1982State2Str(Int State)
     case DTA_LMH1982_STATE_NOREF:           return "NOREF";
     case DTA_LMH1982_STATE_PLL_LOCKING:     return "PLL_LOCKING";
     case DTA_LMH1982_STATE_PLL_LOCKED:      return "PLL_LOCKED";
-    case DTA_LMH1982_STATE_ALIGN_TOF:       return "ALIGN_TOF";
+    case DTA_LMH1982_STATE_ALIGN_TOF1:      return "ALIGN_TOF1";
+    case DTA_LMH1982_STATE_ALIGN_TOF2:      return "ALIGN_TOF2";
     case DTA_LMH1982_STATE_FULL_LOCK:       return "FULL_LOCK";
     case DTA_LMH1982_STATE_HOLD_OVER1:      return "HOLD_OVER1";
     case DTA_LMH1982_STATE_HOLD_OVER2:      return "HOLD_OVER2";

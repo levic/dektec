@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIpTx.c *#*#*#*#*#*#*#*#*# (C) 2010-2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIpTx.c *#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
 //
 // Dta driver - Non IP TX functionality - Implementation of TX specific functionality for
 //                                        non IP ports.
@@ -6,7 +6,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -14,8 +14,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -191,8 +189,7 @@ DtStatus  DtaNonIpTxIoctl(
 DtStatus  DtaNonIpTxGetFlags(DtaNonIpPort* pNonIpPort, Int* pStatus, Int* pLatched)
 {
     // Update flags
-    if (!pNonIpPort->m_CapMatrix)
-        DtaNonIpTxProcessFlagsFromUser(pNonIpPort);
+    DtaNonIpTxProcessFlagsFromUser(pNonIpPort);
 
     // Update DMA pending status
     //if (NonIpTxIsDmaPending(pNonIpPort))
@@ -203,8 +200,6 @@ DtStatus  DtaNonIpTxGetFlags(DtaNonIpPort* pNonIpPort, Int* pStatus, Int* pLatch
     // Return flags
     *pStatus = pNonIpPort->m_Flags;
     *pLatched = pNonIpPort->m_FlagsLatched;
-    if (pNonIpPort->m_TxUfl)
-        *pStatus |= DTA_TX_FIFO_UFL;
 
     DtSpinLockRelease(&pNonIpPort->m_FlagsSpinLock);
 
@@ -220,8 +215,6 @@ DtStatus  DtaNonIpTxClearFlags(DtaNonIpPort* pNonIpPort, Int FlagsToClear)
     // Clear latched flags
     pNonIpPort->m_Flags &= ~FlagsToClear;
     pNonIpPort->m_FlagsLatched &= ~FlagsToClear;
-    if ((FlagsToClear&DTA_TX_FIFO_UFL) != 0)
-        pNonIpPort->m_TxUfl = FALSE;
 
     // Also clear flags in Transmit Status register, to avoid that flags in
     // m_Latched are set again in next periodic interrupt.
@@ -231,6 +224,13 @@ DtStatus  DtaNonIpTxClearFlags(DtaNonIpPort* pNonIpPort, Int FlagsToClear)
             DtaRegTxStatClrUflInt(pNonIpPort->m_pTxRegs);
         if ((FlagsToClear&DTA_TX_SYNC_ERR) == DTA_TX_SYNC_ERR)
             DtaRegTxStatClrSyncInt(pNonIpPort->m_pTxRegs);
+    }
+    else
+    {
+        if ((FlagsToClear&DTA_TX_FIFO_UFL) == DTA_TX_FIFO_UFL)
+            DtaRegHdStatClrTxUflErrInt(pNonIpPort->m_pTxRegs);
+        if ((FlagsToClear&DTA_TX_SYNC_ERR) == DTA_TX_SYNC_ERR)
+            DtaRegHdStatClrTxSyncErrInt(pNonIpPort->m_pTxRegs);
     }
 
     // Special case for DTA-102
@@ -277,21 +277,39 @@ void  DtaNonIpTxProcessFlags(DtaNonIpPort* pNonIpPort)
     Int  Status = 0;
     UInt32  TxStatus;
 
-    TxStatus = DtaRegTxStatGet(pNonIpPort->m_pTxRegs);
-    if (TxStatus & DT_TXSTAT_UFLINT_MSK)
+    DT_ASSERT(pNonIpPort->m_pTxRegs != NULL);
+    if (pNonIpPort->m_CapMatrix)
     {
-        Status |= DTA_TX_FIFO_UFL;
-        DtaRegTxStatClrUflInt(pNonIpPort->m_pTxRegs);
+        TxStatus = DtaRegHdStatusGet(pNonIpPort->m_pTxRegs);
+        if (TxStatus & DT_HD_STATUS_TXUFLERRINT_MSK)
+        {
+            Status |= DTA_TX_FIFO_UFL;
+            DtaRegHdStatClrTxUflErrInt(pNonIpPort->m_pTxRegs);
+        }
+        if (TxStatus & DT_HD_STATUS_TXSYNCERRINT_MSK)
+        {
+            Status |= DTA_TX_SYNC_ERR;
+            DtaRegHdStatClrTxSyncErrInt(pNonIpPort->m_pTxRegs);
+        }
     }
-    if (TxStatus & DT_TXSTAT_SYNCINT_MSK)
+    else
     {
-        Status |= DTA_TX_SYNC_ERR;
-        DtaRegTxStatClrSyncInt(pNonIpPort->m_pTxRegs);
-    }
-    if (TxStatus & DT_TXSTAT_SHORTINT_MSK)
-    {
-        Status |= DTA_TX_READBACK_ERR;
-        DtaRegTxStatClrShortInt(pNonIpPort->m_pTxRegs);
+        TxStatus = DtaRegTxStatGet(pNonIpPort->m_pTxRegs);
+        if (TxStatus & DT_TXSTAT_UFLINT_MSK)
+        {
+            Status |= DTA_TX_FIFO_UFL;
+            DtaRegTxStatClrUflInt(pNonIpPort->m_pTxRegs);
+        }
+        if (TxStatus & DT_TXSTAT_SYNCINT_MSK)
+        {
+            Status |= DTA_TX_SYNC_ERR;
+            DtaRegTxStatClrSyncInt(pNonIpPort->m_pTxRegs);
+        }
+        if (TxStatus & DT_TXSTAT_SHORTINT_MSK)
+        {
+            Status |= DTA_TX_READBACK_ERR;
+            DtaRegTxStatClrShortInt(pNonIpPort->m_pTxRegs);
+        }
     }
 
     // Latch status flags

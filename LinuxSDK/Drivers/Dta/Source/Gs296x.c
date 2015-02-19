@@ -1,10 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Gs296x.c *#*#*#*#*#*#*#*#*# (C) 2012-2014 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Gs296x.c *#*#*#*#*#*#*#*#*# (C) 2012-2015 DekTec
 //
 // Dta driver - Gennum GS296x - Implementation of GS296x interface functions
+//
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2012 DekTec Digital Video B.V.
+// Copyright (C) 2012-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -12,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -37,6 +36,8 @@
 #define  GS2961_REG_EDH_FLAG_IN          0x04
 #define  GS2961_REG_DATA_FORMAT_D1       0x06
 #define  GS2961_REG_DATA_FORMAT_D2       0x07
+#define  GS2961_REG_VIDEO_FORMAT_352_A_1 0x19
+#define  GS2961_REG_VIDEO_FORMAT_352_B_1 0x1A
 #define  GS2961_REG_RASTER_STRUCT_1      0x1F
 #define  GS2961_REG_RASTER_STRUCT_2      0x20
 #define  GS2961_REG_RASTER_STRUCT_3      0x21
@@ -45,6 +46,8 @@
 
 // GS2962 registers
 #define  GS2962_REG_IOPROC               0x00
+#define  GS2962_REG_VIDEO_FORMAT_351_OUT_WORD_1 0x0A
+#define  GS2962_REG_VIDEO_FORMAT_351_OUT_WORD_2 0x0B
 
 // GS2962_REG_IOPROC flags
 #define GS2962_IOPROC_SMPTE_352M_INS     0x0040
@@ -59,7 +62,7 @@ static DtStatus  DtaGs296xWriteRegister(DtaNonIpPort*  pNonIpPort, Int Addr,
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaGs2961Enable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaGs2961Enable(DtaNonIpPort*  pNonIpPort, Bool  EnaAsiMode)
+DtStatus  DtaGs2961Enable(DtaNonIpPort*  pNonIpPort, Bool  EnaAsiMode, Bool  EnaSdiProc)
 {
     // Port must has a matrix-API register interface
     if (!pNonIpPort->m_CapMatrix)
@@ -82,18 +85,23 @@ DtStatus  DtaGs2961Enable(DtaNonIpPort*  pNonIpPort, Bool  EnaAsiMode)
     }
     else
     {
+        UInt  IoProc = 0x1A18;
         // For SDI, enable auto rate (SD, HD or 3G) detection
         DT_RETURN_ON_ERROR(DtaGs296xWriteRegister(pNonIpPort, 
                                                             GS2961_REG_RATE_SEL, 0x0004));
 
         // Set IO-processing:
-        // Enable:   TRS_INS_DS1, LNUM_INS_DS1, CRC_INS_DS1,  
-        //           EDH_CRC_INS, EDH_FLAG_UPDATE,
+        // Enable:   
         // Disable:  ANC_CSUM_INS_DS1, ILLEGAL_WORD_REMAP_DS1, TRS_WORD_REMAP_DS1,
-        //           ANC_DATA_EXT
+        //           ANC_DATA_EXT, EDH_CRC_INS, EDH_FLAG_UPDATE
+        // Disable on EnaSdiProc flag: TRS_INS_DS1, LNUM_INS_DS1, CRC_INS_DS1, H_CONFIG
         // Other bits are set to their default (see GS2961 datasheet)
+
+        if (!EnaSdiProc)
+            IoProc |= 0x0007;
+
         DT_RETURN_ON_ERROR(DtaGs296xWriteRegister(pNonIpPort, 
-                                                            GS2961_REG_IOPROC_1, 0x0218));
+                                                            GS2961_REG_IOPROC_1, IoProc));
     }
     return DT_STATUS_OK;
 }
@@ -106,6 +114,8 @@ DtStatus  DtaGs2961GetVideoStd(DtaNonIpPort*  pNonIpPort, Int*  pVidStd)
     UInt32  Ds1Reg=0, Raster4Reg=0;
     Int  GsVidStd = 0;
     Bool  IsFrac=FALSE, IsStdLock=FALSE, IsInterlaced=FALSE;
+    UInt32  VpidA=0, VpidB=0;
+    UInt32  Vpid=0;
 
     DT_ASSERT(pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_GS2961);
 
@@ -118,6 +128,15 @@ DtStatus  DtaGs2961GetVideoStd(DtaNonIpPort*  pNonIpPort, Int*  pVidStd)
     Status = DtaGs296xReadRegister(pNonIpPort, GS2961_REG_RASTER_STRUCT_4, &Raster4Reg);
     if (!DT_SUCCESS(Status))
         return Status;
+
+    // Read SMPTE 352M VPID registers
+    Status = DtaGs296xReadRegister(pNonIpPort, GS2961_REG_VIDEO_FORMAT_352_A_1, &VpidA);
+    if (!DT_SUCCESS(Status))
+        return Status;
+    Status = DtaGs296xReadRegister(pNonIpPort, GS2961_REG_VIDEO_FORMAT_352_B_1, &VpidB);
+    if (!DT_SUCCESS(Status))
+        return Status;
+    Vpid = (VpidA<<24) | ((VpidA&0xFF00)<<8) | ((VpidB&0xFF)<<8) | (VpidB>>8);
 
     // Check if standard lock flag (bit 12) is set
     IsStdLock = (Raster4Reg & 0x1000)!=0;
@@ -133,7 +152,9 @@ DtStatus  DtaGs2961GetVideoStd(DtaNonIpPort*  pNonIpPort, Int*  pVidStd)
     
     // Convert to internal value
     GsVidStd = (Ds1Reg>>8) & 0x3F;
-
+    
+    // Assume non-psf standard by default. Only switch if vpid matches detected
+    // standard and indicates psf.
     switch (GsVidStd)
     {
     case 0x00: *pVidStd = IsFrac ? DT_VIDSTD_720P59_94 : DT_VIDSTD_720P60; break;
@@ -141,11 +162,28 @@ DtStatus  DtaGs2961GetVideoStd(DtaNonIpPort*  pNonIpPort, Int*  pVidStd)
     case 0x04: *pVidStd = DT_VIDSTD_720P50; break;
     case 0x06: *pVidStd = IsFrac ? DT_VIDSTD_UNKNOWN : DT_VIDSTD_720P25; break;
     case 0x08: *pVidStd = IsFrac ? DT_VIDSTD_720P23_98 : DT_VIDSTD_720P24; break;
-    case 0x0A: *pVidStd = IsFrac ? DT_VIDSTD_1080I59_94 : DT_VIDSTD_1080I60; break;
+    case 0x0A:
+        *pVidStd = IsFrac ? DT_VIDSTD_1080I59_94 : DT_VIDSTD_1080I60;
+        if (!IsFrac && (Vpid&0xFFCF0000)==0x85470000)
+            *pVidStd = DT_VIDSTD_1080PSF30;
+        else if (IsFrac && (Vpid&0xFFCF0000)==0x85460000)
+            *pVidStd = DT_VIDSTD_1080PSF29_97;
+        break;
     case 0x0B: *pVidStd = IsFrac ? DT_VIDSTD_1080P29_97 : DT_VIDSTD_1080P30; break;
-    case 0x0C: *pVidStd = DT_VIDSTD_1080I50; break;
+    case 0x0C:
+        *pVidStd = DT_VIDSTD_1080I50;
+        if ((Vpid&0xFFCF0000) == 0x85450000)
+            *pVidStd = DT_VIDSTD_1080PSF25;
+        break;
     case 0x0D: *pVidStd = DT_VIDSTD_1080P25; break;
     case 0x10: *pVidStd = IsFrac ? DT_VIDSTD_1080P23_98 : DT_VIDSTD_1080P24; break;
+    case 0x11:
+        *pVidStd = DT_VIDSTD_UNKNOWN;
+        if (!IsFrac && (Vpid&0xFFCF0000)==0x85430000)
+            *pVidStd = DT_VIDSTD_1080PSF24;
+        else if (IsFrac && (Vpid&0xFFCF0000)==0x85420000)
+            *pVidStd = DT_VIDSTD_1080PSF23_98;
+        break;
     case 0x16: *pVidStd = DT_VIDSTD_525I59_94; break;
     case 0x18: *pVidStd = DT_VIDSTD_625I50; break;
     default:   *pVidStd = DT_VIDSTD_UNKNOWN; break;
@@ -157,6 +195,7 @@ DtStatus  DtaGs2961GetVideoStd(DtaNonIpPort*  pNonIpPort, Int*  pVidStd)
 //
 DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort)
 {
+    UInt  IoProc;
     // Port must has a matrix-API register interface
     if (!pNonIpPort->m_CapMatrix)
         return DT_STATUS_NOT_SUPPORTED;
@@ -170,12 +209,40 @@ DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort)
     DtSleep(5);
 
     // Set IO-processing:
-    // Enable:   TRS_INS, LNUM_INS, CRC_INS, ANC_CSUM_INS, EDH_CRC_INS, 
-    //           ILLEGAL_WORD_REMAP
-    // Disable:  SMPTE_352_INS, ANC_INS
+    // Enable:   
+    // Disable:  ANC_INS
     //
     // Other bits are set to their default value (see GS2962 datasheet)
-    return DtaGs296xWriteRegister(pNonIpPort, GS2962_REG_IOPROC, 0x0A40);
+    IoProc = 0x0A00;
+    if (DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort))
+        IoProc |= 0x0040; // Disable VPID insertion
+    else 
+    {
+        // Disable: ILEGAL_WORD_REMAP, ANC_CSUM_INS, CRC_INS, LNUM_INS, TRS_INS
+        IoProc |= 0x002F;
+        // Set VPID insertion bytes
+        DtaGs2962SetVpid(pNonIpPort, DtaRegHdSdiFormat1Get(pNonIpPort->m_pTxRegs));
+    }
+    return DtaGs296xWriteRegister(pNonIpPort, GS2962_REG_IOPROC, IoProc);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaGs2962SetVpid -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaGs2962SetVpid(DtaNonIpPort*  pNonIpPort, UInt  Vpid)
+{
+    UInt16  VpidA, VpidB;
+    // Port must has a matrix-API register interface
+    if (!pNonIpPort->m_CapMatrix)
+        return DT_STATUS_NOT_SUPPORTED;
+    
+    DT_ASSERT(pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_SER_ITF_GS2962);
+    
+    VpidA = Vpid&0xFFFF;
+    VpidB = Vpid>>16;
+    DT_RETURN_ON_ERROR(DtaGs296xWriteRegister(pNonIpPort,
+                                          GS2962_REG_VIDEO_FORMAT_351_OUT_WORD_1, VpidA));
+    return DtaGs296xWriteRegister(pNonIpPort, GS2962_REG_VIDEO_FORMAT_351_OUT_WORD_2,
+                                                                                   VpidB);
 }
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+

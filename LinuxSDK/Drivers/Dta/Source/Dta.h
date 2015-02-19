@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dta.h *#*#*#*#*#*#*#*#*#*# (C) 2010-2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dta.h *#*#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
 //
 // Dta driver - Interface for the Dta common driver, used by the IAL.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -13,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -37,11 +35,11 @@
 // IAL related
 #define  LOG_LEVEL_IAL           LOG_AVG
 // Toplevel related
-#define  LOG_LEVEL_DTA           LOG_AVG
+#define  LOG_LEVEL_DTA           LOG_MIN
 // I2C related
 #define  LOG_LEVEL_I2C           LOG_MIN
 // Events
-#define  LOG_LEVEL_EVENTS        LOG_MAX
+#define  LOG_LEVEL_EVENTS        LOG_MIN
 // DMA
 #define  LOG_LEVEL_DMA           LOG_AVG
 // TARGET DETECTION
@@ -60,6 +58,8 @@
 #define  LOG_LEVEL_IP            LOG_MAX
 // IP Rx
 #define  LOG_LEVEL_IP_RX         LOG_AVG
+// IP Rx FEC Reconstructor
+#define  LOG_LEVEL_IP_RX_REC     LOG_MIN
 // IP Tx
 #define  LOG_LEVEL_IP_TX         LOG_MAX
 // IP Address Matcher
@@ -68,6 +68,8 @@
 #define  LOG_LEVEL_PP            LOG_MIN
 // Genlock
 #define  LOG_LEVEL_GENL          LOG_AVG
+// Fan
+#define  LOG_LEVEL_FAN           LOG_AVG
 
 
 #define  USES_GENREGS(pDvcData)  (pDvcData->m_DevInfo.m_TypeNumber!=100                  \
@@ -217,6 +219,9 @@ struct _DtaDeviceData
 
     // Genlock
     DtaGenlock  m_Genlock;
+
+    // FanControl
+    DtaFanControl  m_FanControl;
 
     // Saved power measurement lock data
     UInt m_RfPwrPreLockData;

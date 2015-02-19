@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtProperties.c *#*#*#*#*#*#*#* (C) 2011-2013 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtProperties.c *#*#*#*#*#*#*#* (C) 2011-2015 DekTec
 //
 // Driver common - Device and port property get functions
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2013 DekTec Digital Video B.V.
+// Copyright (C) 2011-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -13,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -172,7 +170,8 @@ DtStatus  DtPropertiesFind(DtPropertyData* pPropData, const char* pName, Int Por
                 if (PortIndex == pProp->m_PortIndex)
                 {
                     // Check minimal firmware version and hardware version
-                    if (FwVersion>=pProp->m_MinFw && HwRevision>=pProp->m_MinHw)
+                    if (FwVersion>=pProp->m_MinFw && HwRevision>=pProp->m_MinHw &&
+                                        (pProp->m_MaxHw==-1 || HwRevision<pProp->m_MaxHw))
                     {
                         Bool  DtapiVerOk = FALSE;
                         // -1 means the request came from the driver

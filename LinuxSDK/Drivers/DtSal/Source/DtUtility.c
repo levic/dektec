@@ -1,9 +1,9 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtUtility.c *#*#*#*#*#*#*#*#* (C) 2010-2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtUtility.c *#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -11,8 +11,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -114,10 +112,10 @@ void  DtEvtLogReport(DtEvtLog* pEvtObject, UInt32 ErrorCode, DtString* pInsert1,
     }
 
 #else
-
+    static const Int  MAX_MSG_LENGTH = 512;
     const char*  pMsg;
     const char*  pLevel;
-    char*  pMsgBuf;
+    char  MsgBuf[MAX_MSG_LENGTH];
     UInt  MsgBufLen;
 
     // First check if we have a GetEvtMessage function
@@ -133,22 +131,16 @@ void  DtEvtLogReport(DtEvtLog* pEvtObject, UInt32 ErrorCode, DtString* pInsert1,
         MsgBufLen += (pInsert2 != NULL ? strlen(pInsert2->m_Buffer) : 0);
         MsgBufLen += (pInsert3 != NULL ? strlen(pInsert3->m_Buffer) : 0);
         
-        // Allocate memory for message string
-        pMsgBuf = (char*)kmalloc(MsgBufLen, GFP_KERNEL);
-        
-        if (pMsgBuf != NULL)
+        if (MsgBufLen <= (MAX_MSG_LENGTH-1))
         {
             // Substitute inserts in msg string
-            sprintf(pMsgBuf, pMsg,
-                   (pInsert1 != NULL ? pInsert1->m_Buffer : NULL),
-                   (pInsert2 != NULL ? pInsert2->m_Buffer : NULL),
-                   (pInsert3 != NULL ? pInsert3->m_Buffer : NULL));
+            snprintf(MsgBuf, MAX_MSG_LENGTH, pMsg,
+                                          (pInsert1 != NULL ? pInsert1->m_Buffer : NULL),
+                                          (pInsert2 != NULL ? pInsert2->m_Buffer : NULL),
+                                          (pInsert3 != NULL ? pInsert3->m_Buffer : NULL));
                    
             // Use printk to write debug message
-            printk("%s" DRIVER_NAME ": %s\n", pLevel, pMsgBuf);
-        
-            // Free msg buffer
-            kfree(pMsgBuf);
+            printk("%s" DRIVER_NAME ": %s\n", pLevel, MsgBuf);
         }
     }
 #endif
@@ -703,6 +695,11 @@ UInt  DtGetPagesUserBufferAndLock(
     {
         for (i = 0; i < NumPages; i++)
             pVmArea[i]->vm_flags |= VM_LOCKED;
+    }
+    else if (NumPagesRet < 0)
+    {
+        NumPagesRet = 0;
+        DtDbgOut(ERR, SAL, "get_user_pages returned %i", NumPagesRet);
     } else {
         DtDbgOut(ERR, SAL, "Numpages(%i) != NumPagesRet(%i).", NumPages, NumPagesRet);
     }

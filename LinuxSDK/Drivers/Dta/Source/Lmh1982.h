@@ -1,10 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Lmh1982.h *#*#*#*#*#*#*#*#*#*#*#* (C) 2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Lmh1982.h *#*#*#*#*#*#*#*#*# (C) 2012-2015 DekTec
 //
 // Dta driver - National LMH1982 (Video Clock Generator) controller
+//
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2012 DekTec Digital Video B.V.
+// Copyright (C) 2012-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -12,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -39,10 +38,11 @@
 #define  DTA_LMH1982_STATE_NOREF        1
 #define  DTA_LMH1982_STATE_PLL_LOCKING  2
 #define  DTA_LMH1982_STATE_PLL_LOCKED   3
-#define  DTA_LMH1982_STATE_ALIGN_TOF    4
-#define  DTA_LMH1982_STATE_FULL_LOCK    5
-#define  DTA_LMH1982_STATE_HOLD_OVER1   6
-#define  DTA_LMH1982_STATE_HOLD_OVER2   7
+#define  DTA_LMH1982_STATE_ALIGN_TOF1   4
+#define  DTA_LMH1982_STATE_ALIGN_TOF2   5
+#define  DTA_LMH1982_STATE_FULL_LOCK    6
+#define  DTA_LMH1982_STATE_HOLD_OVER1   7
+#define  DTA_LMH1982_STATE_HOLD_OVER2   8
 
 #define  DTA_LMH1982_I2C_ADDR           0xDC    // I2C device address for LMH1982
 
@@ -293,6 +293,9 @@ typedef struct _DtaLmh1982Regs
 #define  DTA_LMH1982_IIC_REG08_TOF_HIZ	    5
 #define  DTA_LMH1982_IIC_REG08_RSV_MSK      0xC0
 #define  DTA_LMH1982_IIC_REG08_RSVSH        6
+
+#define  DTA_LMH1982_IIC_SD_FREQ_27_00      0		// 27.00  Mhz
+#define  DTA_LMH1982_IIC_SD_FREQ_67_50      1		// 67.50  Mhz
 
 #define  DTA_LMH1982_IIC_HD_FREQ_74_25      0		// 74.25  Mhz
 #define  DTA_LMH1982_IIC_HD_FREQ_74_176     1		// 74.176 Mhz (default)

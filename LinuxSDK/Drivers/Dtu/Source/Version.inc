@@ -1,8 +1,8 @@
-#//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Version.inc *#*#*#*#*#*#*#*#*#* (C) 2011-2013 DekTec
+#//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Version.inc *#*#*#*#*#*#*#*#*#* (C) 2011-2015 DekTec
 #//
 
 DTU_VERSION_MAJOR = 4
-DTU_VERSION_MINOR = 4
-DTU_VERSION_MICRO = 14
-DTU_VERSION_BUILD = 53
+DTU_VERSION_MINOR = 5
+DTU_VERSION_MICRO = 0
+DTU_VERSION_BUILD = 56
 DTU_VERSION = $(DTU_VERSION_MAJOR).$(DTU_VERSION_MINOR).$(DTU_VERSION_MICRO).$(DTU_VERSION_BUILD)

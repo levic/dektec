@@ -1,10 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Genlock.h *#*#*#*#*#*#*#*#*#*#*#* (C) 2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Genlock.h *#*#*#*#*#*#*#*#*# (C) 2012-2015 DekTec
 //
 // Dta driver - Declaration of genlock functions
+//
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2012 DekTec Digital Video B.V.
+// Copyright (C) 2012-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -12,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -40,8 +39,6 @@
 #define DTA_GENLOCK_ARCH_2152   2152
 #define DTA_GENLOCK_ARCH_2154   2154
 
-#define DTA_GENLOCK_REFPORT_INT -1  // -1 denotes internal reference clock 
-
 #define DTA_GENLOCK_FRACMODE_NA     -1      // Fractional mode is not applicable
 #define DTA_GENLOCK_FRACMODE_OFF    0       // Fractional mode is disabled
 #define DTA_GENLOCK_FRACMODE_ON     1       // Fractional mode is enabled
@@ -54,11 +51,21 @@ typedef struct _DtaGenlock
     Bool  m_IsSupported;        // Genlocking is supported
     Int  m_GenlArch;            // Genlock architecture
     Int  m_OpModeIntSrc;        // Operational mode when locking to an internal source
+    Int  m_VcxoValue;           // Manual VCXO control (-1 = no manual control)
+    void*  m_pVcxoOwner;        // Handle of app controlling VCXO
     Int  m_AsyncPortIndex;      // Port-index of analog sync input (-1 = no aync port)
+    Int  m_IntGenrefPortIndex;  // Port-index of internal genref port (-1 = no int port)
 
     Int  m_FracMode;            // Status fractional mode
     Int  m_RefPortIndex;        // Port to be used as reference input (-1=INTERNAL)
-    Int  m_RefVidStd;           // Video standard on reference input 
+    Int  m_RefVidStd;           // Video standard on ref. input (=IOSTD of genref port)
+    Int  m_OutVidStd;           // Desired output video standard (cross-lock)
+
+    // Genlock pipeline delay parameters
+    Int  m_RefLineDurationNs;   // Duration (in ns) of one line for the reference signal
+    Int  m_InDelayNs;           // Delay upto the LMH198X video clk generator (in ns)
+    Int  m_LineOffset;          // Offset used for TOF (Top-of-Frame) pulse compenstating
+                                // for delays introduced by "genlock pipeline"
 
     volatile UInt8*  m_pGenlRegs; // Pointer to base of genlock registers
     
@@ -76,10 +83,16 @@ DtStatus  DtaGenlockInit(DtaDeviceData* pDvcData);
 DtStatus  DtaGenlockInitPowerup(DtaDeviceData* pDvcData);
 void  DtaGenlockPowerDown(DtaDeviceData* pDvcData);
 DtStatus  DtaGenlockPowerDownPre(DtaDeviceData* pDvcData);
+void  DtaGenlockClose(DtaDeviceData* pDvcData, DtFileObject* pFile);
 DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData);
 DtStatus  DtaGenlockApplyFracModeConfig(DtaDeviceData* pDvcData);
 DtStatus  DtaGenlockGetRefState(DtaDeviceData* pDvcData, Int PortIndex, Int *pEnabled,
                                                                             Int *pInLock);
+void  DtaGenlockSetVcxo(DtaDeviceData* pDvcData, DtFileObject* pFile, Int  VcxoValue);
+void  DtaGenlockResetVcxo(DtaDeviceData* pDvcData);
+
+//DtStatus  DtaGenLockGetSyncDelays();
+
 #endif // #ifndef __GENLOCK_H
 
 

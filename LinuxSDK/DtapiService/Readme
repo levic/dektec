@@ -66,8 +66,8 @@ DtapiServiceInit script located in your init directory.
 Type "DtapiServiceInit start" to start the daemon and "DtapiServiceInit stop"
 to stop it.
 
-IMPORTANT: For the DtapiService to properly work the Dta1xx driver must be
-running. Please refer to the Dta1xx readme file for instructions on how to
+IMPORTANT: For the DtapiService to properly work the Dta driver must be
+running. Please refer to the Dta readme file for instructions on how to
 compile and install the driver. The DtapiService also needs write-access to
 the /tmp directory.
 
@@ -78,8 +78,8 @@ the /tmp directory.
 Please find our contact information below:
 
 DekTec Digital Video B.V.
-Van Riebeeckweg 43A
-1212 EH Hilversum
+Godelindeweg 4
+1217 HR Hilversum
 The Netherlands
 
 Tel:		+31 (0)35 2030 100

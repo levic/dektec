@@ -1,10 +1,10 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Lmh1983.c *#*#*#*#*#*#*#*#*# (C) 2013-2014 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Lmh1983.c *#*#*#*#*#*#*#*#*# (C) 2013-2015 DekTec
 //
 // Dta driver - National LMH1983 (Video Clock Generator) controller
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2013-2014 DekTec Digital Video B.V.
+// Copyright (C) 2013-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -12,8 +12,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -57,6 +55,7 @@ static DtStatus  DtaLmh1983InitChip(DtaLmh1983* pLmh1983Data);
 static Int  DtaLmh1983LockStateGet(DtaLmh1983* pLmh1983Data);
 static DtStatus  DtaLmh1983PllFastlockSet(DtaLmh1983* pLmh1983Data, Bool  Enable);
 static DtStatus  DtaLmh1983TofCrashLockSet(DtaLmh1983* pLmh1983Data, Bool  Enable);
+static UInt8  DtaLmh1983VidStd2Format(int  VidStd);
 #ifdef _DEBUG
 static const char*  DtaLmh1983State2Str(Int State);
 #endif
@@ -158,12 +157,11 @@ static DtStatus  DtaLmh1983WriteInitSeq(DtaLmh1983*  pLmh1983Data)
 DtStatus  DtaLmh1983InitPowerup(DtaLmh1983*  pLmh1983Data)
 {
     DtStatus  Status = DT_STATUS_OK;
-    
-    Status = DtaLmh1983WriteInitSeq(pLmh1983Data);
 
+    Status = DtaLmh1983WriteInitSeq(pLmh1983Data);
     if (Status != DT_STATUS_OK)
-        DtDbgOut(ERR, GENL, "Failed to initialize DTA-2154: 0x%x", Status);
-    
+        DtDbgOut(ERR, GENL, "Failed to write LMH-1983 init sequence: 0x%x", Status);
+
     DtThreadStart(&pLmh1983Data->m_ControlThread);
 
     return Status;
@@ -432,40 +430,57 @@ DtStatus  DtaLmh1983SetupRefSource(
     Int*  pRefVidStd,
     Int*  pOutVidStd)
 {
-    Int  ClkSrc = 0;
+    Int  i, ClkSrc = 0;
+    Bool  HasCapMatrix2 = FALSE;
     DtaGenlock*  pGenlock = &pLmh1983Data->m_pDvcData->m_Genlock;
     volatile UInt8*  pGenlRegs = pGenlock->m_pGenlRegs;
+
+    // Check if hardware supports Matrix 2.0
+    DT_ASSERT(pLmh1983Data->m_pDvcData != NULL);
+    HasCapMatrix2 = FALSE;
+    for (i=0; i<pLmh1983Data->m_pDvcData->m_NumNonIpPorts && !HasCapMatrix2; i++)
+    {
+        DT_ASSERT(pLmh1983Data->m_pDvcData->m_pNonIpPorts != NULL);
+        // Does the port support matrix 2.0
+        if (!pLmh1983Data->m_pDvcData->m_pNonIpPorts[i].m_CapMatrix2)
+            continue;
+        HasCapMatrix2 = TRUE;
+    }
 
     // Start with resetting LHM-1983
     DtaRegHdGenlClkConfSetAsyncReset(pGenlRegs, 1);
     DtSleep(5);
     
-    if (pGenlock->m_RefPortIndex  == DTA_GENLOCK_REFPORT_INT)
+    if (pGenlock->m_RefPortIndex  == pGenlock->m_IntGenrefPortIndex)
     {
         ClkSrc = 0;     // Internal clock
-        *pRefVidStd = DT_VIDSTD_625I50;      // Internal clock always is 625I50, but we
-                                              // can generate any output standard from it
-        *pOutVidStd = pGenlock->m_RefVidStd;
+        *pRefVidStd = pGenlock->m_RefVidStd;
+        *pOutVidStd = pGenlock->m_OutVidStd;
     }
     else if (pGenlock->m_RefPortIndex == pGenlock->m_AsyncPortIndex)
     {
         ClkSrc = 15;    // analog clock
-        *pRefVidStd = *pOutVidStd = pGenlock->m_RefVidStd;
+        *pRefVidStd = pGenlock->m_RefVidStd;
+        *pOutVidStd = pGenlock->m_OutVidStd;
     }
     else
     {
         ClkSrc = pGenlock->m_RefPortIndex+1;    // Use specified port
-        *pRefVidStd = *pOutVidStd = pGenlock->m_RefVidStd;
+        *pRefVidStd = pGenlock->m_RefVidStd;
+        *pOutVidStd = pGenlock->m_OutVidStd;
     }
 
     // Set clock source
     DtaRegHdGenlClkConfSetRefSrc(pGenlRegs, ClkSrc);
 
-    // Set interlaced flags
-    if (DtaVidStdIsInterlaced(*pRefVidStd))
-        DtaRegHdGenlClkConfSetInterlaced(pGenlRegs, 1);
-    else
-        DtaRegHdGenlClkConfSetInterlaced(pGenlRegs, 0);
+    if (!HasCapMatrix2)
+    {
+        // Set interlaced flags
+        if (DtaVidStdIsInterlaced(*pRefVidStd))
+            DtaRegHdGenlClkConfSetInterlaced(pGenlRegs, 1);
+        else
+            DtaRegHdGenlClkConfSetInterlaced(pGenlRegs, 0);
+    }
 
     // Finally remove reset
     DtaRegHdGenlClkConfSetAsyncReset(pGenlRegs, 0);
@@ -474,13 +489,76 @@ DtStatus  DtaLmh1983SetupRefSource(
     return DT_STATUS_OK;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983SetVcxoValue -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaLmh1983SetVcxoValue(DtaLmh1983* pLmh1983Data, Int  VcxoValue)
+{
+    UInt8  VCFreeMsb, VCFreeLsb;
+    DT_RETURN_ON_ERROR(DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_IIC_REG18,&VCFreeMsb));
+    VCFreeMsb &= ~0x3;
+    VCFreeMsb |= VcxoValue>>8;
+    VCFreeLsb = (UInt8)VcxoValue;
+    DT_RETURN_ON_ERROR(DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG18,VCFreeMsb));
+    DT_RETURN_ON_ERROR(DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG19,VCFreeLsb));
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983SetDevCtrl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaLmh1983SetDevCtrl(DtaLmh1983* pLmh1983Data)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    UInt8  DvcCtrl = 0;
+    Int  RefPortIdx = pLmh1983Data->m_pDvcData->m_Genlock.m_RefPortIndex;
+    Int  IntGenrefPortIdx = pLmh1983Data->m_pDvcData->m_Genlock.m_IntGenrefPortIndex;
+    Int  OpModeInSrc = pLmh1983Data->m_pDvcData->m_Genlock.m_OpModeIntSrc;
+
+    // Get current value device control register
+    Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_IIC_REG05, &DvcCtrl);
+    // Set Setup PLL1 mode and auto format detect
+    // Clear PLL mode and AFD flag
+    DvcCtrl &= ~(LMH1983_DEVCTRL_EN_AFD | LMH1983_DEVCTRL_PLL1_MASK);
+    if (RefPortIdx == IntGenrefPortIdx)
+    {
+        // Use internal clock source => setup according to desired op-mode
+        if (OpModeInSrc==GENLOCK_OPMODE_INTSRC_FREE_RUN ||
+                                    pLmh1983Data->m_pDvcData->m_Genlock.m_VcxoValue!=-1)
+        {
+            // Set pll_mode=free-run && AFD=0
+            DvcCtrl |= LMH1983_DEVCTRL_PLL1(PLL1_MODE_FREERUN);
+        }
+        else if (OpModeInSrc == GENLOCK_OPMODE_INTSRC_AFD)
+        {
+            // Set pll_mode=genlock && AFD=1
+            DvcCtrl |= LMH1983_DEVCTRL_PLL1(PLL1_MODE_GENLOCK)|LMH1983_DEVCTRL_EN_AFD;
+        }
+        else
+        {
+            DT_ASSERT(1 == 0);
+            DtDbgOut(ERR, GENL, "Unknown op-mode: %d", OpModeInSrc);
+            return DT_STATUS_FAIL;
+        }
+    }
+    else
+    {
+        // Use external genlock => PLL_mode=genlock
+        DvcCtrl |= LMH1983_DEVCTRL_PLL1(PLL1_MODE_GENLOCK)|LMH1983_DEVCTRL_EN_AFD;
+    }
+
+    Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG05, DvcCtrl);
+    return Status;
+}
+
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983InitChip -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtaLmh1983InitChip(DtaLmh1983* pLmh1983Data)
 {
     DtStatus  Status = DT_STATUS_OK;
     Int  RefVidStd,  OutVidStd;
-    UInt8  FormatCode;
+    UInt8  FormatCode=0, DvcCtrl=0, Offset=0;
+    Int  RefPortIdx = pLmh1983Data->m_pDvcData->m_Genlock.m_RefPortIndex;
+    Int  OpModeInSrc = pLmh1983Data->m_pDvcData->m_Genlock.m_OpModeIntSrc;
 
     Status = DtaLmh1983SetupRefSource(pLmh1983Data, &RefVidStd, &OutVidStd);
     if (!DT_SUCCESS(Status))
@@ -488,84 +566,77 @@ DtStatus  DtaLmh1983InitChip(DtaLmh1983* pLmh1983Data)
         DtDbgOut(ERR, GENL, "Failed to set clock source. Error: 0x%x", Status);
         return DT_STATUS_FAIL;
     }
-    
-    switch (RefVidStd)
+
+    //.-.-.-.-.-.-.-.-.-.-.- Step 1: Setup device control register -.-.-.-.-.-.-.-.-.-.-.-
+
+    // Get current value device control register
+    Status = DtaLmh1983SetDevCtrl(pLmh1983Data);
+    if (!DT_SUCCESS(Status))
     {
-    case DT_VIDSTD_525I59_94: FormatCode = 0; break;
-    case DT_VIDSTD_625I50: FormatCode = 1; break;
-    case DT_VIDSTD_720P23_98: FormatCode = 11; break;
-    case DT_VIDSTD_720P24: FormatCode = 10; break;
-    case DT_VIDSTD_720P25: FormatCode = 9; break;
-    case DT_VIDSTD_720P29_97: FormatCode = 8; break;
-    case DT_VIDSTD_720P30: FormatCode = 7; break;
-    case DT_VIDSTD_720P50: FormatCode = 6; break;
-    case DT_VIDSTD_720P59_94: FormatCode = 5; break;
-    case DT_VIDSTD_720P60: FormatCode = 4; break;
-    case DT_VIDSTD_1080P23_98: FormatCode = 19; break;
-    case DT_VIDSTD_1080P24: FormatCode = 18; break;
-    case DT_VIDSTD_1080P25: FormatCode = 17; break;
-    case DT_VIDSTD_1080P29_97: FormatCode = 16; break;
-    case DT_VIDSTD_1080P30: FormatCode = 15; break;
-    case DT_VIDSTD_1080I50: FormatCode = 22; break;
-    case DT_VIDSTD_1080I59_94: FormatCode = 21; break;
-    case DT_VIDSTD_1080I60: FormatCode = 20; break;
-    case DT_VIDSTD_1080P50: FormatCode = 14; break;
-    case DT_VIDSTD_1080P59_94: FormatCode = 13; break;
-    case DT_VIDSTD_1080P60: FormatCode = 12; break;
-    default:
-        DtDbgOut(ERR, GENL, "Unknown reference video standard: 0x%X", RefVidStd);
-        FormatCode = 1;
-        break;
+        DtDbgOut(ERR, GENL, "Failed to set device control register. Error: 0x%X", Status);
+        return Status;
     }
+    
+    //.-.-.-.-.-.-.-.-.-.-.- Step 2: setup input and output format -.-.-.-.-.-.-.-.-.-.-.-
+
+    // Set the reference format. NOTE: not needed in all cases, because we mostly will be 
+    // using auto detection (see above)
+    FormatCode = DtaLmh1983VidStd2Format(RefVidStd);
     Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG20, FormatCode);
     if (!DT_SUCCESS(Status))
-        DtDbgOut(ERR, GENL, "Failed to write input format register. Error: 0x%X", Status);
-    DtDbgOut(ERR, GENL, "Formatcode: %d", FormatCode);
-
-    if (DT_SUCCESS(Status))
     {
-        UInt8  DvcCtrl = 0;
-        Int  RefPortIdx = pLmh1983Data->m_pDvcData->m_Genlock.m_RefPortIndex;
-        Int  OpModeInSrc = pLmh1983Data->m_pDvcData->m_Genlock.m_OpModeIntSrc;
+        DtDbgOut(ERR, GENL, "Failed to set input format register. Error: 0x%X", Status);
+        return Status;
+    }
+    DtDbgOut(MIN, GENL, "Reference format-code: %d", FormatCode);
 
-        // Get current value device control register
-        Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_IIC_REG05, &DvcCtrl);
-        // Set Setup PLL1 mode and auto format detect
-        // Clear PLL mode and AFD flag
-        DvcCtrl &= ~(LMH1983_DEVCTRL_EN_AFD | LMH1983_DEVCTRL_PLL1_MASK);
-        if (RefPortIdx == DTA_GENLOCK_REFPORT_INT)
-        {
-            // Use internal clock source => setup according to desired op-mode
-            if (OpModeInSrc == GENLOCK_OPMODE_INTSRC_FREE_RUN)
-            {
-                // Set pll_mode=free-run && AFD=0
-                DvcCtrl |= LMH1983_DEVCTRL_PLL1(PLL1_MODE_FREERUN);
-            }
-            else if (OpModeInSrc == GENLOCK_OPMODE_INTSRC_AFD)
-            {
-                // Set pll_mode=genlock && AFD=1
-                DvcCtrl |= LMH1983_DEVCTRL_PLL1(PLL1_MODE_GENLOCK)|LMH1983_DEVCTRL_EN_AFD;
-            }
-            else
-            {
-                DT_ASSERT(1 == 0);
-                DtDbgOut(ERR, GENL, "Unknown op-mode: %d", OpModeInSrc);
-                return DT_STATUS_FAIL;
-            }
-        }
-        else
-        {
-            // Use external genlock => PLL_mode=genlock
-            DvcCtrl |= LMH1983_DEVCTRL_PLL1(PLL1_MODE_GENLOCK);    
-        }
-                    
-        Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG05, DvcCtrl);
+    // Set output format
+    FormatCode = DtaLmh1983VidStd2Format(OutVidStd);
+    if (DtaVidStdIsFractional(OutVidStd))
+    {
+        // Fractional timing is generated by PLL3
+        Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG08, FormatCode);
+    }
+    else
+    {
+        // Non-fractional timing is generated by PLL2
+        Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG07, FormatCode);
+    }
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, GENL, "Failed to set output format register. Error: 0x%X", Status);
+        return Status;
+    }
+
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.- Step 3: Miscellaneous setup -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+    // Set VCXO value
+    if (pLmh1983Data->m_pDvcData->m_Genlock.m_VcxoValue!=-1)
+    {
+        Status = DtaLmh1983SetVcxoValue(pLmh1983Data,
+                                         pLmh1983Data->m_pDvcData->m_Genlock.m_VcxoValue);
         if (!DT_SUCCESS(Status))
         {
-            DtDbgOut(ERR, GENL, "Failed to setup device control. Error: 0x%X", Status);
+            DtDbgOut(ERR, GENL, "Failed to set VCXO value. Error: 0x%X", Status);
             return Status;
         }
     }
+
+    Offset = 0;
+    if (RefPortIdx!=pLmh1983Data->m_pDvcData->m_Genlock.m_AsyncPortIndex)
+    {
+        DtAvFrameProps  VidProps;
+        Status = DtAvGetFrameProps(RefVidStd, &VidProps);
+        if (DT_SUCCESS(Status))
+        {
+            if (VidProps.m_IsInterlaced)
+                Offset = VidProps.m_NumLines - VidProps.m_Field2ActVidEnd;
+            else
+                Offset = VidProps.m_NumLines - VidProps.m_Field1ActVidEnd;
+        }
+    }
+    if (DT_SUCCESS(Status))
+        Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG0C, Offset);
 
     // Enable Fast PLL locking
     Status = DtaLmh1983PllFastlockSet(pLmh1983Data, TRUE);
@@ -697,6 +768,44 @@ DtStatus  DtaLmh1983TofCrashLockSet(DtaLmh1983* pLmh1983Data, Bool  Enable)
         return Status;
     }
     return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983VidStd2Format -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Convert a video standard to the coresponding LMH1983 video format code
+//
+UInt8  DtaLmh1983VidStd2Format(int  VidStd)
+{
+    UInt8  FormatCode = 1;
+    switch (VidStd)
+    {
+    case DT_VIDSTD_525I59_94:   FormatCode = 0; break;
+    case DT_VIDSTD_625I50:      FormatCode = 1; break;
+    case DT_VIDSTD_720P23_98:   FormatCode = 11; break;
+    case DT_VIDSTD_720P24:      FormatCode = 10; break;
+    case DT_VIDSTD_720P25:      FormatCode = 9; break;
+    case DT_VIDSTD_720P29_97:   FormatCode = 8; break;
+    case DT_VIDSTD_720P30:      FormatCode = 7; break;
+    case DT_VIDSTD_720P50:      FormatCode = 6; break;
+    case DT_VIDSTD_720P59_94:   FormatCode = 5; break;
+    case DT_VIDSTD_720P60:      FormatCode = 4; break;
+    case DT_VIDSTD_1080P23_98:  FormatCode = 19; break;
+    case DT_VIDSTD_1080P24:     FormatCode = 18; break;
+    case DT_VIDSTD_1080P25:     FormatCode = 17; break;
+    case DT_VIDSTD_1080P29_97:  FormatCode = 16; break;
+    case DT_VIDSTD_1080P30:     FormatCode = 15; break;
+    case DT_VIDSTD_1080I50:     FormatCode = 22; break;
+    case DT_VIDSTD_1080I59_94:  FormatCode = 21; break;
+    case DT_VIDSTD_1080I60:     FormatCode = 20; break;
+    case DT_VIDSTD_1080P50:     FormatCode = 14; break;
+    case DT_VIDSTD_1080P59_94:  FormatCode = 13; break;
+    case DT_VIDSTD_1080P60:     FormatCode = 12; break;
+    default:
+        DtDbgOut(ERR, GENL, "Unknown video standard: 0x%X", VidStd);
+        FormatCode = 1;
+        break;
+    }
+    return FormatCode;
 }
 
 #ifdef _DEBUG

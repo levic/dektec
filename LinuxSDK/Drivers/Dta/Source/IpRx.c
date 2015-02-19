@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* IpRx.c *#*#*#*#*#*#*#*#*#* (C) 2011-2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* IpRx.c *#*#*#*#*#*#*#*#*#* (C) 2011-2015 DekTec
 //
 // Dta driver - IP RX functionality - Implementation of RX specific functionality for
 //                                    IP ports.
@@ -6,7 +6,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2012 DekTec Digital Video B.V.
+// Copyright (C) 2011-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -14,8 +14,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -34,7 +32,7 @@
 // IPRX Tag
 #define  IPRX_TAG         0x78527049  // 'xRpI'
 
-#define DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE  2621440 
+#define  DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE  2621440 
                                         // The expected bitrate is 1GBit/s in a 
                                         // period of 20 ms.
                                         // calculation: 1GB/8 * 20mS = 2.5 Mbyte
@@ -52,11 +50,13 @@
 // Lower value for RHEL/CentOS kernels
 #undef DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE
 #define  DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE  (2*64*1024)
-#define  DTA_IPRX_RT_BUF_SIZE           (DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE)       // Type2
+#define  DTA_IPRX_RT_BUF_SIZE           (DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE/2)     // Type2
 #define  DTA_IPRX_DMA_BUF_SIZE          (64*1024)         // Type1
 #define  DTA_IPRX_NRT_SHARED_BUF_SIZE   (64*1024)
 #endif
 #endif
+
+#define  DTA_IPRX_RTP_LOOKUPTABLE_SIZE  (0xFFFF+1)
 
 #define  DTA_IPRX_RT_PINGPONG_BUF_SIZE  (DTA_IPRX_RT_BUF_SIZE * 2)
 #define  DTA_IPRX_PINGPONG_BUF_SIZE     (DTA_IPRX_DMA_BUF_SIZE * 2)
@@ -66,7 +66,9 @@
 #define  DTA_ETH_HEADER_SIZE  14
 #define  DTA_IPRX_MAX_PACKET_SIZE       (DT_IP_MAX_PACKET_SIZE)
 
-#define  MAX_OUTOFSYNC_SEQ_NUM          12  
+#define  MAX_OUTOFSYNC_SEQ_NUM          12
+
+#define  DTA_IPRX_LOST_PKT_SECOND         3
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext);
@@ -86,18 +88,19 @@ DtStatus  DtaIpRxGetTsRate(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
 DtStatus  DtaIpRxSetRxMode(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex, 
                                                                               Int RxMode);
 DtStatus  DtaIpRxReset(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex);
+void  DtaIpRxResetStatistics(UserIpRxChannel* pIpRxChannel);
 DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex, 
             UInt8* pSrcIp, UInt16 SrcPort, UInt8* pDstIp, UInt16 DstPort, Int VlanId,
             UInt8* pSrcIp2, UInt16 SrcPort2, UInt8* pDstIp2, UInt16 DstPort2, Int VlanId2,
-            Int FecMode, Int Protocol, Int Mode, Int Flags);
-
+            Int FecMode, Int Protocol, Int Mode, Int Flags, Int VidStd, Int MaxBitrate,
+            Int MaxSkew);
 DtStatus  DtaIpRxGetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
-                                                 Int* pDetFecNumCols, Int* pDetFecNumRows,
-                                                 Int* pDetNumTpPerIp, Int* pDetProtocol);
+                            Int* pDetFecNumCols, Int* pDetFecNumRows, Int* pDetNumTpPerIp,
+                            Int* pDetProtocol, Int* pDetVideoStd);
 DtStatus  DtaIpRxGetIpStat(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
-                              Int* pLostIPPacketsAfterFec, Int* pLostIPPacketsAfterSort,
-                              Int* pLostIPPacketsBeforeFec, Int* pLostIPPacketsBeforeSort,
-                              Int* pTotNumIPPackets);
+                            UInt* pLostIPPacketsAfterFec, UInt* pLostIPPacketsAfterSort,
+                            UInt* pLostIPPacketsBeforeFec, UInt* pLostIPPacketsBeforeSort,
+                            UInt* pTotNumIPPackets);
 DtStatus  DtaIpRxSetRxControl(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex, 
                                                                            Int RxControl);
 
@@ -119,16 +122,25 @@ Bool  DtaIpRxHandleLoopback(DtaIpUserChannels* pIpUserChannels, UInt8* pData, UI
 void  DtaIpRxProcessIpRawPayLoad(UserIpRxChannel* pIpRxChannel, UInt8* pPayLoad, 
                                           Int PayLoadSize, UInt64 TimeStamp, Bool Header);
 void  DtaIpRxRtpListsReset(UserIpRxChannel* pIpRxChannel);
-DtStatus  DtaIpRxRtpListsInit(UserIpRxChannel* pIpRxChannel);
 void  DtaIpRxRtpListsCleanup( UserIpRxChannel* pIpRxChannel);
 void  DtaIpRxSetBrmSkipUpdate(DtaIpUserChannels* pIpRxUserChannels, Bool State);
 void  DtaIpRxUpdateBrmDpc(DtDpcArgs* pArgs);
-void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel);
+void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel, 
+                                                        RtpListEntry** ppReconstructList);
 void  DtaIpRxRtSliceEventSetDpc(DtDpcArgs* pArgs);
 Int  DtaIpRxCalculateNumIpRxListenersType1(DtaIpPort* pIpPort, Bool IpV6Packet, 
                                            Int VlanId, UInt8* pSrcIp, 
                                            UInt8* pDstIp, UInt16 SrcPort, UInt16 DstPort);
 Int  DtaIpRxCalculateNumIpRxListenersType2(DtaIpPort* pIpPort, UInt32 IdTag);
+DtStatus  DtaIpRxSetupBuffer(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
+                                        UInt TsBufSize, UInt IpBufSize, UInt JumboPktSize,
+                                        UInt MinPktDelay, UInt MaxPktOutOfSync);
+UInt16  DtaIpRxGetSequenceNumberGap(UInt16 SequenceNum1, UInt16 SequenceNum2);
+void  DtaIpRxDoIpStatistics(DtaIpPort* pIpPort, UserIpRxChannel* pIpRxChannel,
+                                     UInt64 CurRefTimestamp, DtaDmaRxHeader* pDmaRxHeader,
+                                     UInt16 SeqNumber, UInt32 RtpTimestamp);
+DtStatus  DtaIpRxGetIpStat2(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
+                                               DtaIoctlIpRxCmdGetIpStat2Output* pIpStat2);
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -340,10 +352,8 @@ DtStatus  DtaIpRxInitType2(DtaIpPort* pIpPort)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxIoctl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaIpRxIoctl(
-    DtaDeviceData*  pDvcData,
-    DtFileObject*  pFile,
-    DtIoctlObject*  pIoctl)
+DtStatus  DtaIpRxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, 
+                                                                    DtIoctlObject* pIoctl)
 {
     DtStatus  Status = DT_STATUS_OK;
     char*  pCmdStr;             // Mnemonic string for Command
@@ -425,15 +435,35 @@ DtStatus  DtaIpRxIoctl(
         OutReqSize = 0;
         InReqSize += sizeof(DtaIoctlIpRxCmdSetIpPars2Input);
         break;
+    case DTA_IP_RX_CMD_SETIPPARS3:
+        pCmdStr = "DTA_IP_RX_CMD_SETIPPARS3";
+        OutReqSize = 0;
+        InReqSize += sizeof(DtaIoctlIpRxCmdSetIpPars3Input);
+        break;
     case DTA_IP_RX_CMD_GETIPPARS:
         pCmdStr = "DTA_IP_RX_CMD_GETIPPARS";
         OutReqSize += sizeof(DtaIoctlIpRxCmdGetIpParsOutput);
         InReqSize += sizeof(DtaIoctlIpRxCmdGetIpParsInput);
         break;
+    case DTA_IP_RX_CMD_GETIPPARS2:
+        pCmdStr = "DTA_IP_RX_CMD_GETIPPARS2";
+        OutReqSize += sizeof(DtaIoctlIpRxCmdGetIpPars2Output);
+        InReqSize += sizeof(DtaIoctlIpRxCmdGetIpPars2Input);
+        break;
     case DTA_IP_RX_CMD_GETIPSTAT:
         pCmdStr = "DTA_IP_RX_CMD_GETIPSTAT";
         OutReqSize += sizeof(DtaIoctlIpRxCmdGetIpStatOutput);
         InReqSize += sizeof(DtaIoctlIpRxCmdGetIpStatInput);
+        break;
+    case DTA_IP_RX_CMD_GETIPSTAT2:
+        pCmdStr = "DTA_IP_RX_CMD_GETIPSTAT2";
+        OutReqSize += sizeof(DtaIoctlIpRxCmdGetIpStat2Output);
+        InReqSize += sizeof(DtaIoctlIpRxCmdGetIpStat2Input);
+        break;
+    case DTA_IP_RX_CMD_SETUPBUFFER:
+        pCmdStr = "DTA_IP_RX_CMD_SETUPBUFFER";
+        OutReqSize = 0;
+        InReqSize += sizeof(DtaIoctlIpRxCmdSetupBufferInput);
         break;
     default:
         pCmdStr = "??UNKNOWN IP_RX_CMD CODE??";
@@ -489,7 +519,7 @@ DtStatus  DtaIpRxIoctl(
                                        &pIpRxCmdOutput->m_Data.m_GetFlags.m_Flags, 
                                        &pIpRxCmdOutput->m_Data.m_GetFlags.m_LatchedFlags);
             break;
-        case DTA_IP_RX_CMD_GETTSRATE:            
+        case DTA_IP_RX_CMD_GETTSRATE:
             Status = DtaIpRxGetTsRate(&pDvcData->m_IpDevice.m_IpUserChannels,
                                        pIpRxCmdInput->m_Data.m_GetTsRate.m_Channel,
                                        &pIpRxCmdOutput->m_Data.m_GetTsRate.m_TsRate);
@@ -519,7 +549,10 @@ DtStatus  DtaIpRxIoctl(
                                              0, NULL, 0, NULL, 0, 0,
                                              pIpRxCmdInput->m_Data.m_SetIpPars.m_FecMode,
                                              pIpRxCmdInput->m_Data.m_SetIpPars.m_Protocol,
-                                             DTA_IP_V4, DTA_IP_NORMAL);
+                                             DTA_IP_V4, DTA_IP_NORMAL,
+                                             DT_VIDSTD_TS,
+                                             270000000,
+                                             0);
             break;
         case DTA_IP_RX_CMD_SETIPPARS2:
             Status = DtaIpRxSetIpPars(&pDvcData->m_IpDevice.m_IpUserChannels,
@@ -537,7 +570,31 @@ DtStatus  DtaIpRxIoctl(
                                             pIpRxCmdInput->m_Data.m_SetIpPars2.m_FecMode,
                                             pIpRxCmdInput->m_Data.m_SetIpPars2.m_Protocol,
                                             pIpRxCmdInput->m_Data.m_SetIpPars2.m_Mode,
-                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_Flags);
+                                            pIpRxCmdInput->m_Data.m_SetIpPars2.m_Flags,
+                                            DT_VIDSTD_TS,
+                                            270000000,
+                                            0);
+            break;
+        case DTA_IP_RX_CMD_SETIPPARS3:
+            Status = DtaIpRxSetIpPars(&pDvcData->m_IpDevice.m_IpUserChannels,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_Channel,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_SrcIp,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_SrcPort,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_DstIp,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_DstPort,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_VlanId,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_SrcIp2,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_SrcPort2,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_DstIp2,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_DstPort2,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_VlanId2,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_FecMode,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_Protocol,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_Mode,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_Flags,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_VidStd,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_MaxBitrate,
+                                          pIpRxCmdInput->m_Data.m_SetIpPars3.m_MaxSkew);
             break;
         case DTA_IP_RX_CMD_GETIPPARS:
             Status = DtaIpRxGetIpPars(&pDvcData->m_IpDevice.m_IpUserChannels,
@@ -545,7 +602,17 @@ DtStatus  DtaIpRxIoctl(
                                          &pIpRxCmdOutput->m_Data.m_GetIpPars.m_FecNumCols,
                                          &pIpRxCmdOutput->m_Data.m_GetIpPars.m_FecNumRows,
                                          &pIpRxCmdOutput->m_Data.m_GetIpPars.m_NumTpPerIp,
-                                         &pIpRxCmdOutput->m_Data.m_GetIpPars.m_Protocol);
+                                         &pIpRxCmdOutput->m_Data.m_GetIpPars.m_Protocol,
+                                         NULL);
+            break;
+        case DTA_IP_RX_CMD_GETIPPARS2:
+            Status = DtaIpRxGetIpPars(&pDvcData->m_IpDevice.m_IpUserChannels,
+                                        pIpRxCmdInput->m_Data.m_GetIpPars.m_Channel,
+                                        &pIpRxCmdOutput->m_Data.m_GetIpPars2.m_FecNumCols,
+                                        &pIpRxCmdOutput->m_Data.m_GetIpPars2.m_FecNumRows,
+                                        &pIpRxCmdOutput->m_Data.m_GetIpPars2.m_NumTpPerIp,
+                                        &pIpRxCmdOutput->m_Data.m_GetIpPars2.m_Protocol,
+                                        &pIpRxCmdOutput->m_Data.m_GetIpPars2.m_VidStd);
             break;
         case DTA_IP_RX_CMD_GETIPSTAT:
             Status = DtaIpRxGetIpStat(&pDvcData->m_IpDevice.m_IpUserChannels,
@@ -555,6 +622,20 @@ DtStatus  DtaIpRxIoctl(
                             &pIpRxCmdOutput->m_Data.m_GetIpStat.m_LostIPPacketsBeforeFec,
                             &pIpRxCmdOutput->m_Data.m_GetIpStat.m_Reserved2,
                             &pIpRxCmdOutput->m_Data.m_GetIpStat.m_TotNumIPPackets);
+            break;
+        case DTA_IP_RX_CMD_GETIPSTAT2:
+            Status = DtaIpRxGetIpStat2(&pDvcData->m_IpDevice.m_IpUserChannels,
+                                              pIpRxCmdInput->m_Data.m_GetIpStat.m_Channel,
+                                              &pIpRxCmdOutput->m_Data.m_GetIpStat2);
+            break;
+        case DTA_IP_RX_CMD_SETUPBUFFER:
+            Status = DtaIpRxSetupBuffer(&pDvcData->m_IpDevice.m_IpUserChannels, 
+                                   pIpRxCmdInput->m_Data.m_SetupBuffer.m_Channel,
+                                   pIpRxCmdInput->m_Data.m_SetupBuffer.m_TsBufSize,
+                                   pIpRxCmdInput->m_Data.m_SetupBuffer.m_IpBufSize,
+                                   pIpRxCmdInput->m_Data.m_SetupBuffer.m_JumboPktSize,
+                                   pIpRxCmdInput->m_Data.m_SetupBuffer.m_MinPktDelay,
+                                   pIpRxCmdInput->m_Data.m_SetupBuffer.m_MaxPktOutOfSync);
             break;
         case DTA_IP_RX_CMD_SETCONTROL:
             Status = DtaIpRxSetRxControl(&pDvcData->m_IpDevice.m_IpUserChannels, 
@@ -589,12 +670,8 @@ DtStatus  DtaIpRxIoctl(
 // Precondition: PortIndex is the 0 based index to the Port set by the user
 //               IpPortIndex is the 0-based index to an IpPort
 //
-DtStatus  DtaIpRxUserChAttach(
-    DtaIpUserChannels*  pIpUserChannels,
-    Int  PortIndex, 
-    Int  IpPortIndex, 
-    DtFileObject*  pFile,
-    Int*  pChannelIndex)
+DtStatus  DtaIpRxUserChAttach(DtaIpUserChannels* pIpUserChannels, Int PortIndex, 
+                                 Int IpPortIndex, DtFileObject* pFile, Int* pChannelIndex)
 {
     UserIpRxChannel*  pIpRxChannel;
     Int  ChannelIndex = 0;
@@ -668,10 +745,8 @@ DtStatus  DtaIpRxUserChDetach(DtaIpUserChannels* pIpUserChannels, Int ChannelInd
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxUserChClearFlags -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaIpRxUserChClearFlags(
-    DtaIpUserChannels*  pIpUserChannels, 
-    Int  ChannelIndex,
-    Int  Flags)
+DtStatus  DtaIpRxUserChClearFlags(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
+                                                                                Int Flags)
 {
     UserIpRxChannel*  pIpRxChannel = DtaIpRxUserChGet(pIpUserChannels, ChannelIndex);
     if (pIpRxChannel == NULL)
@@ -687,11 +762,8 @@ DtStatus  DtaIpRxUserChClearFlags(
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxUserChGetFlags -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaIpRxUserChGetFlags(
-    DtaIpUserChannels*  pIpUserChannels, 
-    Int  ChannelIndex,
-    Int*  pFlags,
-    Int*  pLatchedFlags)
+DtStatus  DtaIpRxUserChGetFlags(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
+                                                          Int* pFlags, Int* pLatchedFlags)
 {
     UserIpRxChannel*  pIpRxChannel = DtaIpRxUserChGet(pIpUserChannels, ChannelIndex);
     if (pIpRxChannel == NULL)
@@ -704,23 +776,30 @@ DtStatus  DtaIpRxUserChGetFlags(
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-DtStatus DtaIpRxGetStatus(
-    DtaIpUserChannels*  pIpUserChannels, 
-    Int  ChannelIndex,
-    Int*  pClkDet,
-    Int*  pPacketSize)
+DtStatus DtaIpRxGetStatus(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
+                                                           Int* pClkDet, Int* pPacketSize)
 {
     UserIpRxChannel*  pIpRxChannel = DtaIpRxUserChGet(pIpUserChannels, ChannelIndex);
     if (pIpRxChannel == NULL)
         return DT_STATUS_INVALID_PARAMETER;
 
     // Received packet size
-    if (pIpRxChannel->m_PckSizeSrc == 188)
-        *pPacketSize = DT_PCKSIZE_188;
-    else if (pIpRxChannel->m_PckSizeSrc == 204)
-        *pPacketSize = DT_PCKSIZE_204;
-    else
-        *pPacketSize = DT_PCKSIZE_INV;
+    if (pIpRxChannel->m_DetVidStd == DT_VIDSTD_TS)
+    {
+        if (pIpRxChannel->m_PckSizeSrc == 188)
+            *pPacketSize = DT_PCKSIZE_188;
+        else if (pIpRxChannel->m_PckSizeSrc == 204)
+            *pPacketSize = DT_PCKSIZE_204;
+        else
+            *pPacketSize = DT_PCKSIZE_INV;
+    } else {
+        switch(pIpRxChannel->m_DetVidStd)
+        {
+        case DT_VIDSTD_525I59_94: *pPacketSize = DT_SDIMODE_525; break;
+        case DT_VIDSTD_625I50: *pPacketSize = DT_SDIMODE_625; break;
+        default: *pPacketSize = DT_SDIMODE_INV; 
+        }
+    }
 
     // ClkDet
     *pClkDet = (pIpRxChannel->m_BrmEstimate == 0 ? 0 : 1);
@@ -732,10 +811,8 @@ DtStatus DtaIpRxGetStatus(
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetTsRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-DtStatus  DtaIpRxGetTsRate(
-    DtaIpUserChannels*  pIpUserChannels, 
-    Int  ChannelIndex,
-    Int*  pTsRate)
+DtStatus  DtaIpRxGetTsRate(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
+                                                                             Int* pTsRate)
 {
     UserIpRxChannel*  pIpRxChannel = DtaIpRxUserChGet(pIpUserChannels, ChannelIndex);
     if (pIpRxChannel == NULL)
@@ -748,7 +825,7 @@ DtStatus  DtaIpRxGetTsRate(
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxHandleLoopback -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-Bool DtaIpRxHandleLoopback(DtaIpUserChannels* pIpUserChannels, UInt8* pData, UInt Size)
+Bool  DtaIpRxHandleLoopback(DtaIpUserChannels* pIpUserChannels, UInt8* pData, UInt Size)
 {
     Bool  DataHandled = FALSE;
     UserIpRxChannel*  pIpRxChannel;
@@ -849,7 +926,8 @@ DtStatus DtaIpRxSetRxControl(DtaIpUserChannels* pIpUserChannels, Int ChannelInde
 
     if (RxControl == DT_RXCTRL_RCV) 
     {
-        if (!pIpRxChannel->m_SharedBuffer.m_Initialised) 
+        if (!pIpRxChannel->m_SharedBuffer.m_Initialised || 
+                                                      pIpRxChannel->m_pBufferHeader==NULL)
         {
             DtDbgOut(ERR, IP_RX, "Fifo buffer not initialized for channel %d.", 
                                                                             ChannelIndex);
@@ -882,7 +960,7 @@ DtStatus  DtaIpRxReset(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex)
 
     DtaIpRxUserChReset(pIpRxChannel, FALSE);
 
-    if (pIpRxChannel->m_SharedBuffer.m_Initialised)
+    if (pIpRxChannel->m_SharedBuffer.m_Initialised && pIpRxChannel->m_pBufferHeader!=NULL)
         DtaIpRxRtpListsReset(pIpRxChannel);
 
     return DT_STATUS_OK;
@@ -997,7 +1075,8 @@ DtStatus  DtaIpRxAddrMatcherPrepareAndAddEntry(DtaIpPort* pIpPort,
 DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex, 
             UInt8* pSrcIp, UInt16 SrcPort, UInt8* pDstIp, UInt16 DstPort, Int VlanId,
             UInt8* pSrcIp2, UInt16 SrcPort2, UInt8* pDstIp2, UInt16 DstPort2, Int VlanId2,
-            Int FecMode, Int Protocol, Int Mode, Int Flags)
+            Int FecMode, Int Protocol, Int Mode, Int Flags, Int VidStd, Int MaxBitrate,
+            Int MaxSkew)
 {
     Int  i;
     DtaIpDevice*  pIpDevice = &pIpUserChannels->m_pDvcData->m_IpDevice;
@@ -1027,6 +1106,11 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
     pIpRxChannel->m_VlanId = VlanId;
     pIpRxChannel->m_VlanId2 = VlanId2;
 
+    // Profile values
+    pIpRxChannel->m_VidStd = VidStd;
+    pIpRxChannel->m_MaxBitrate = MaxBitrate;
+    pIpRxChannel->m_MaxSkew = MaxSkew;
+
     for (i=0; i<16; i++) 
     {
         pIpRxChannel->m_SrcIPAddress[i] = pSrcIp[i];
@@ -1038,7 +1122,34 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
     }
 
     pIpRxChannel->m_FecMode = FecMode;
-    
+
+    if (((Mode & DTA_IP_RX_2022_7) != 0) || FecMode!=DTA_FEC_DISABLE)
+    {
+        if (pIpRxChannel->m_pRtpAvailLookup1 == NULL)
+        {
+            pIpRxChannel->m_pRtpAvailLookup1 = (UInt32*)DtMemAllocPool(DtPoolNonPaged, 
+                                               DTA_IPRX_RTP_LOOKUPTABLE_SIZE*4, IPRX_TAG);
+            if (pIpRxChannel->m_pRtpAvailLookup1 == NULL)
+                return DT_STATUS_OUT_OF_MEMORY;
+        }
+        if (pIpRxChannel->m_pRtpAvailLookup2 == NULL)
+        {
+            pIpRxChannel->m_pRtpAvailLookup2 = (UInt32*)DtMemAllocPool(DtPoolNonPaged, 
+                                               DTA_IPRX_RTP_LOOKUPTABLE_SIZE*4, IPRX_TAG);
+            if (pIpRxChannel->m_pRtpAvailLookup2 == NULL)
+                return DT_STATUS_OUT_OF_MEMORY;
+        }
+        DtMemZero(pIpRxChannel->m_pRtpAvailLookup1, DTA_IPRX_RTP_LOOKUPTABLE_SIZE*4);
+        DtMemZero(pIpRxChannel->m_pRtpAvailLookup2, DTA_IPRX_RTP_LOOKUPTABLE_SIZE*4);
+    } else {
+        if (pIpRxChannel->m_pRtpAvailLookup1 != NULL)
+            DtMemFreePool(pIpRxChannel->m_pRtpAvailLookup1, IPRX_TAG);
+        pIpRxChannel->m_pRtpAvailLookup1 = NULL;
+        if (pIpRxChannel->m_pRtpAvailLookup2 != NULL)
+            DtMemFreePool(pIpRxChannel->m_pRtpAvailLookup2, IPRX_TAG);
+        pIpRxChannel->m_pRtpAvailLookup2 = NULL;
+    }
+
     if (pIpUserChannels->m_pDvcData->m_IpDevice.m_PortType == DTA_IPPORT_TYPE2)
     {
         DtaIpPort*  pIpPortFirst = 
@@ -1098,7 +1209,7 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
             DtaIpAddrMatcherDeleteEntry(pIpPort, pEntry, pEntryPart2);
         }
 
-        if ((Mode & DTA_IP_RX_DBLBUF) != 0)
+        if ((Mode & DTA_IP_RX_2022_7) != 0)
         {
             DtaIpPort*  pIpPort = &pIpDevice->m_pIpPorts[pIpPortFirst->m_IpPortIndex+1];
             AddressMatcherLookupEntry*  pEntry = 
@@ -1213,12 +1324,12 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
     DtaIpRxUserChReset(pIpRxChannel, TRUE);
     if ((Flags & DTA_IP_V6) != 0)
         DtDbgOut(MIN, IP_RX, "Channel %d: New IP pars: SrcPort=%d; DstPort=%d "
-                       "DstIP: %d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d",
-                       pIpRxChannel->m_ChannelIndex, 
-                       pIpRxChannel->m_SrcPort, pIpRxChannel->m_DstPort,
-                       pIpRxChannel->m_DstIPAddress[0],pIpRxChannel->m_DstIPAddress[1],
-                       pIpRxChannel->m_DstIPAddress[2],pIpRxChannel->m_DstIPAddress[3],
-                       pIpRxChannel->m_DstIPAddress[4],pIpRxChannel->m_DstIPAddress[5],
+                          "DstIP: %d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d",
+                          pIpRxChannel->m_ChannelIndex, 
+                          pIpRxChannel->m_SrcPort, pIpRxChannel->m_DstPort,
+                          pIpRxChannel->m_DstIPAddress[0],pIpRxChannel->m_DstIPAddress[1],
+                          pIpRxChannel->m_DstIPAddress[2],pIpRxChannel->m_DstIPAddress[3],
+                          pIpRxChannel->m_DstIPAddress[4],pIpRxChannel->m_DstIPAddress[5],
                        pIpRxChannel->m_DstIPAddress[6],pIpRxChannel->m_DstIPAddress[7],
                        pIpRxChannel->m_DstIPAddress[8],pIpRxChannel->m_DstIPAddress[9],
                        pIpRxChannel->m_DstIPAddress[10],pIpRxChannel->m_DstIPAddress[11],
@@ -1237,15 +1348,53 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
     return DT_STATUS_OK;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxSetupBuffer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaIpRxSetupBuffer(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
+                                        UInt TsBufSize, UInt IpBufSize, UInt JumboPktSize,
+                                        UInt MinPktDelay, UInt MaxPktOutOfSync)
+{
+    UserIpRxChannel*  pIpRxChannel = DtaIpRxUserChGet(pIpUserChannels, ChannelIndex);
+    if (pIpRxChannel == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+    
+    // Only allowed in Receive-Control state IDLE
+    if (pIpRxChannel->m_RxControl != DT_RXCTRL_IDLE) 
+    {
+        DtDbgOut(ERR, IP_RX, "Setting IpRx buffers not allowed if channel is NOT IDLE");
+        return DT_STATUS_FAIL;
+    }
+    
+    // Check if total buf size less then shared buffer
+    if (TsBufSize+IpBufSize+JumboPktSize > (UInt)pIpRxChannel->m_BufSize)
+    {
+        DtDbgOut(ERR, IP_RX, "Error setting IpRx buffers. Buffer too small");
+        return DT_STATUS_INVALID_PARAMETER;
+    }
+
+    pIpRxChannel->m_pFifo = pIpRxChannel->m_SharedBuffer.m_pBuffer +
+                                                                 sizeof(IpRxBufferHeader);
+    pIpRxChannel->m_FifoSize = TsBufSize - DTA_IPRX_BUFWRAPSIZE;
+
+    // Jumbo packet buffer
+    pIpRxChannel->m_MaxJumboPktSize = JumboPktSize;
+    pIpRxChannel->m_pJumboPktBuffer = pIpRxChannel->m_pFifo + TsBufSize;
+
+    // Initialize RTP List entries
+    pIpRxChannel->m_pRtpListEntries = pIpRxChannel->m_pJumboPktBuffer + JumboPktSize;
+    pIpRxChannel->m_pRtpBuffer = DtaIpRxRtpListsInit(pIpRxChannel, IpBufSize);
+
+    // RTP Packet delays
+    pIpRxChannel->m_MinPacketDelay = MinPktDelay;
+    pIpRxChannel->m_MaxPacketOutOfSync = MaxPktOutOfSync;
+    return DT_STATUS_OK;
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetIpPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaIpRxGetIpPars(
-    DtaIpUserChannels*  pIpUserChannels,
-    Int  ChannelIndex,
-    Int*  pDetFecNumCols,
-    Int*  pDetFecNumRows,
-    Int*  pDetNumTpPerIp,
-    Int*  pDetProtocol)
+DtStatus  DtaIpRxGetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
+         Int* pDetFecNumCols, Int* pDetFecNumRows, Int* pDetNumTpPerIp, Int* pDetProtocol,
+         Int* pDetVidStd)
 {
     UserIpRxChannel*  pIpRxChannel = DtaIpRxUserChGet(pIpUserChannels, ChannelIndex);
     if (pIpRxChannel == NULL)
@@ -1255,23 +1404,20 @@ DtStatus  DtaIpRxGetIpPars(
     *pDetFecNumRows = pIpRxChannel->m_DetFecNumRows;
     *pDetNumTpPerIp = pIpRxChannel->m_DetNumTpPerIp;
     *pDetProtocol = pIpRxChannel->m_DetProtocol;
+    if (pDetVidStd != NULL)
+        *pDetVidStd = pIpRxChannel->m_DetVidStd;
     DtDbgOut(MIN, IP_RX, "Channel %d: NumCols=%d; NumRows=%d;" 
-                       "NumTpPerIp=%d; m_Protocol=%d", pIpRxChannel->m_ChannelIndex, 
-                       *pDetFecNumCols, *pDetFecNumRows, *pDetNumTpPerIp, *pDetProtocol);
-
+               "NumTpPerIp=%d; Protocol=%d; DetVideoStd=%d", pIpRxChannel->m_ChannelIndex,
+               *pDetFecNumCols, *pDetFecNumRows, *pDetNumTpPerIp, *pDetProtocol, 
+               pIpRxChannel->m_DetVidStd);
     return DT_STATUS_OK;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetIpStat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaIpRxGetIpStat(
-    DtaIpUserChannels*  pIpUserChannels,
-    Int  ChannelIndex,
-    Int*  pLostIPPacketsAfterFec,
-    Int*  pReserved1,
-    Int*  pLostIPPacketsBeforeFec,
-    Int*  pReserved2,
-    Int*  pTotNumIPPackets)
+DtStatus  DtaIpRxGetIpStat(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
+            UInt* pLostIPPacketsAfterFec, UInt* pReserved1, UInt* pLostIPPacketsBeforeFec,
+            UInt* pReserved2, UInt* pTotNumIPPackets)
 {    
     UserIpRxChannel*  pIpRxChannel = DtaIpRxUserChGet(pIpUserChannels, ChannelIndex);
     if (pIpRxChannel == NULL)
@@ -1288,6 +1434,73 @@ DtStatus  DtaIpRxGetIpStat(
 
     DtSpinLockRelease(&pIpRxChannel->m_StatisticsSpinLock);
 
+    return DT_STATUS_OK;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetIpStat2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaIpRxGetIpStat2(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
+                                                DtaIoctlIpRxCmdGetIpStat2Output* pIpStat2)
+{
+    UserIpRxChannel*  pIpRxChannel = DtaIpRxUserChGet(pIpUserChannels, ChannelIndex);
+    Int  i;
+    Int  Index;
+    if (pIpRxChannel == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+    
+    DtSpinLockAcquire(&pIpRxChannel->m_StatisticsSpinLock);
+    pIpStat2->m_TotNumIPPackets = pIpRxChannel->m_TotNumPackets;
+    pIpStat2->m_LostIPPacketsAfterFec = pIpRxChannel->m_NumPacketsNotReconstructed;
+    pIpStat2->m_LostIPPacketsBeforeFec = pIpRxChannel->m_NumPacketsNotReconstructed +
+                                                  pIpRxChannel->m_NumPacketsReconstructed;
+    pIpStat2->m_Spare = 0;
+    DtSpinLockRelease(&pIpRxChannel->m_StatisticsSpinLock);
+
+    if ((pIpRxChannel->m_IpParsMode & DTA_IP_RX_2022_7) == 0)
+        Index = 0;
+    else if (pIpRxChannel->m_BerNumIpPacketsMainMinute[0]!=0 && 
+                                                    pIpRxChannel->m_LastSeqNumStat[0]!=-1)
+        Index = 0;
+    else 
+        Index = 1;
+
+    pIpStat2->m_BerNumIpPacketsMainSec = pIpRxChannel->m_BerNumIpPacketsMainSecond[Index];
+    pIpStat2->m_BerNumIpPacketsMainMin = pIpRxChannel->m_BerNumIpPacketsMainMinute[Index];
+        
+    pIpStat2->m_BerNumIpPacketsLostMainSec = 
+                                     pIpRxChannel->m_BerNumIpPacketsLostMainSecond[Index];
+    pIpStat2->m_BerNumIpPacketsLostMainMin = 
+                                     pIpRxChannel->m_BerNumIpPacketsLostMainMinute[Index];
+    
+    for (i=0; i<2; i++)
+    {
+        pIpStat2->m_BerNumIpPacketsSec[i] = pIpRxChannel->m_BerNumIpPacketsSecond[i];
+        pIpStat2->m_BerNumIpPacketsLostSec[i] = 
+                                             pIpRxChannel->m_BerNumIpPacketsLostSecond[i];
+        pIpStat2->m_BerNumIpPacketsMin[i] = pIpRxChannel->m_BerNumIpPacketsMinute[i];
+        pIpStat2->m_BerNumIpPacketsLostMin[i] = 
+                                             pIpRxChannel->m_BerNumIpPacketsLostMinute[i];
+    
+        pIpStat2->m_DelayFactorSec[i] = pIpRxChannel->m_MaxDelayFSecond[i] - 
+                                                       pIpRxChannel->m_MinDelayFSecond[i];
+        pIpStat2->m_DelayFactorMin[i] = pIpRxChannel->m_MaxDelayFMinute[i] - 
+                                                       pIpRxChannel->m_MinDelayFMinute[i];
+        pIpStat2->m_MinIpatSec[i] = pIpRxChannel->m_MinIpatSecond[i];
+        pIpStat2->m_MaxIpatSec[i] = pIpRxChannel->m_MaxIpatSecond[i];
+        pIpStat2->m_MinIpatMin[i] = pIpRxChannel->m_MinIpatMinute[i];
+        if (pIpRxChannel->m_MaxIpatMinute[i] == -1)
+            pIpStat2->m_MaxIpatMin[i] = 0;
+        else
+            pIpStat2->m_MaxIpatMin[i] = pIpRxChannel->m_MaxIpatMinute[i];
+
+        pIpStat2->m_MinSkewSec = pIpRxChannel->m_MinSkewSecond;
+        pIpStat2->m_MaxSkewSec = pIpRxChannel->m_MaxSkewSecond;
+        pIpStat2->m_MinSkewMin = pIpRxChannel->m_MinSkewMinute;
+        pIpStat2->m_MaxSkewMin = pIpRxChannel->m_MaxSkewMinute;
+
+        pIpStat2->m_NumIpPacketsReceived[i] = pIpRxChannel->m_NumIpPacketsReceived[i];
+        pIpStat2->m_NumIpPacketsLost[i] = pIpRxChannel->m_NumIpPacketsLost[i];
+    }
     return DT_STATUS_OK;
 }
 
@@ -1467,11 +1680,10 @@ DtStatus  DtaIpRxPowerup(DtaIpPort* pIpPort)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxUserChGetUnsafe -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-UserIpRxChannel*  DtaIpRxUserChGetUnsafe(
-    DtaIpUserChannels*  pIpUserChannels, 
-    Int  ChannelIndex)
+UserIpRxChannel*  DtaIpRxUserChGetUnsafe(DtaIpUserChannels* pIpUserChannels, 
+                                                                         Int ChannelIndex)
 {
-    UserIpRxChannel* pIpRxChannel = pIpUserChannels->m_pIpRxChannel;
+    UserIpRxChannel*  pIpRxChannel = pIpUserChannels->m_pIpRxChannel;
     while (pIpRxChannel != NULL)
     {        
         if (pIpRxChannel->m_ChannelIndex == ChannelIndex)
@@ -1513,9 +1725,8 @@ UserIpRxChannel*  DtaIpRxUserChGet(DtaIpUserChannels* pIpUserChannels, Int Chann
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxUserChDestroy -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtaIpRxUserChDestroy(
-    DtaIpUserChannels*  pIpUserChannels,
-    UserIpRxChannel*  pIpRxChannel)
+void  DtaIpRxUserChDestroy(DtaIpUserChannels* pIpUserChannels,
+                                                            UserIpRxChannel* pIpRxChannel)
 {
     DtaIpDevice*  pIpDevice = &pIpUserChannels->m_pDvcData->m_IpDevice;
     Int  i;
@@ -1572,8 +1783,13 @@ void  DtaIpRxUserChDestroy(
     DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
     
     // Free internal resources
-    DtaIpRxRtpListsCleanup(pIpRxChannel);
+    //DtaIpRxRtpListsCleanup(pIpRxChannel);
     DtaShBufferClose(&pIpRxChannel->m_SharedBuffer);
+    if (pIpRxChannel->m_pRtpAvailLookup1 != NULL)
+        DtMemFreePool(pIpRxChannel->m_pRtpAvailLookup1, IPRX_TAG);
+    if (pIpRxChannel->m_pRtpAvailLookup2 != NULL)
+        DtMemFreePool(pIpRxChannel->m_pRtpAvailLookup2, IPRX_TAG);
+    
     DtMemFreePool(pIpRxChannel, IPRX_TAG);
     pIpRxChannel = NULL;
 
@@ -1602,6 +1818,9 @@ void  DtaIpRxUserChInit(UserIpRxChannel* pIpRxChannel)
     pIpRxChannel->m_RxControl = DT_RXCTRL_IDLE;
     pIpRxChannel->m_RxMode = DT_RXMODE_ST188;
     pIpRxChannel->m_FecMode = DTA_FEC_DISABLE;
+
+    pIpRxChannel->m_VidStd = DT_VIDSTD_TS;
+    pIpRxChannel->m_MaxBitrate = 270000000;
 
     for (i=0; i<3; i++)
     {
@@ -1649,6 +1868,11 @@ void  DtaIpRxUserChReset(UserIpRxChannel* pIpRxChannel, Bool ClearInputStatus)
     pIpRxChannel->m_NumPacketsReconstructed = 0;
     pIpRxChannel->m_TotNumPackets = 0;
 
+    pIpRxChannel->m_NumIpPacketsReceived[0] = 0;
+    pIpRxChannel->m_NumIpPacketsReceived[1] = 0;
+    pIpRxChannel->m_NumIpPacketsLost[0] = 0;
+    pIpRxChannel->m_NumIpPacketsLost[1] = 0;
+
     // Fragmented packets
     pIpRxChannel->m_FragmentId = 0;
     pIpRxChannel->m_FragmentOffset = 0;
@@ -1663,14 +1887,17 @@ void  DtaIpRxUserChReset(UserIpRxChannel* pIpRxChannel, Bool ClearInputStatus)
     {        
         ClearBrmValues(pIpRxChannel);
         pIpRxChannel->m_PckSizeSrc = DT_PCKSIZE_INV;
-
+        pIpRxChannel->m_SdiNumBytesCopied = -1;
+        
         // Detection status bytes
         pIpRxChannel->m_DetFecNumRows = 0;
         pIpRxChannel->m_DetFecNumColumns = 0;
         pIpRxChannel->m_DetNumTpPerIp = 0;
         pIpRxChannel->m_DetProtocol = DTA_PROTO_UNKN;
+        pIpRxChannel->m_DetVidStd = DT_VIDSTD_UNKNOWN;
         pIpRxChannel->m_RstCntFecRow = 0;
         pIpRxChannel->m_RstCntFecColumn = 0;
+        DtaIpRxResetStatistics(pIpRxChannel);
     }
 }
 
@@ -1680,9 +1907,8 @@ void  DtaIpRxUserChReset(UserIpRxChannel* pIpRxChannel, Bool ClearInputStatus)
 //
 // Pre: Mutex and spinlock to protect list must be aquired.
 //
-void  DtaIpRxUserChAddToList(
-    DtaIpUserChannels*  pIpUserChannels, 
-    UserIpRxChannel*  pIpRxNew)
+void  DtaIpRxUserChAddToList(DtaIpUserChannels* pIpUserChannels, 
+                                                                UserIpRxChannel* pIpRxNew)
 {
     UserIpRxChannel*  pIpRxChannel = NULL;
     UserIpRxChannel*  pLastIpRx = NULL;
@@ -1740,9 +1966,8 @@ void  DtaIpRxUserChAddToList(
 //
 // Remove a channel from the list, and link the previous and next item in the list
 //
-void  DtaIpRxUserChRemoveFromList(
-    DtaIpUserChannels*  pIpUserChannels, 
-    UserIpRxChannel*  pIpRxChannel)
+void  DtaIpRxUserChRemoveFromList(DtaIpUserChannels* pIpUserChannels, 
+                                                            UserIpRxChannel* pIpRxChannel)
 {
     DtDbgOut(AVG, IP_RX, "Removing channel %i from list", pIpRxChannel->m_ChannelIndex);
 
@@ -1764,13 +1989,10 @@ void  DtaIpRxUserChRemoveFromList(
 //
 // Create and returns an empty channel object. Only its identifiers are set.
 //
-UserIpRxChannel*  DtaIpRxUserChCreate(
-    Int  ChannelIndex,
-    Int  PortIndex,
-    Int  IpPortIndex, 
-    DtFileObject*  pFile)
+UserIpRxChannel*  DtaIpRxUserChCreate(Int ChannelIndex, Int PortIndex, Int IpPortIndex, 
+                                                                      DtFileObject* pFile)
 {    
-    // create a channel
+    // Create a channel
     UserIpRxChannel*  pIpRxChannel = DtMemAllocPool(DtPoolNonPaged, 
                                                        sizeof(UserIpRxChannel), IPRX_TAG);
 
@@ -1787,7 +2009,7 @@ UserIpRxChannel*  DtaIpRxUserChCreate(
     pIpRxChannel->m_PortIndex = PortIndex;
     pIpRxChannel->m_IpPortIndex = IpPortIndex;
     
-    // identifies channels to clean for channels that where never detached 
+    // Identifies channels to clean for channels that where never detached 
     pIpRxChannel->m_FileObject = *pFile;
 
     // Init shared buffer
@@ -1796,14 +2018,6 @@ UserIpRxChannel*  DtaIpRxUserChCreate(
     pIpRxChannel->m_SharedBuffer.m_pDmaCh = NULL;
     pIpRxChannel->m_SharedBuffer.m_Initialised = FALSE;
     pIpRxChannel->m_SharedBuffer.m_Purpose = DTA_SH_BUF_PURPOSE_GEN;
-
-    // Initialize RtpLists
-    if (DtaIpRxRtpListsInit(pIpRxChannel) != DT_STATUS_OK)
-    {
-        DtDbgOut(ERR, IP_RX, "Unable to initialize Rtp lists");
-        DtMemFreePool(pIpRxChannel, IPRX_TAG);
-        pIpRxChannel = NULL;
-    }
 
     DtDbgOut(AVG, IP_RX, "Created channel %i", ChannelIndex);
     return pIpRxChannel;
@@ -1854,12 +2068,8 @@ DtStatus  DtaIpRxNrtCreateBuffer(DtaIpNrtChannels* pNrtChannels)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetLocalAddress -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void  DtaIpRxGetLocalAddress(
-    void*  pContext,
-    UInt8**  pLocalAddress,
-    UInt*  pStart,
-    UInt*  pStop,
-    UInt*  pTransferSize)
+void  DtaIpRxGetLocalAddress(void* pContext, UInt8** pLocalAddress, UInt* pStart,
+                                                         UInt* pStop, UInt* pTransferSize)
 {
     DtaIpPort*  pIpPort = (DtaIpPort*)pContext;
 
@@ -1873,12 +2083,8 @@ void  DtaIpRxGetLocalAddress(
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxNrtGetLocalAddress -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtaIpRxNrtGetLocalAddress(
-    void*  pContext,
-    UInt8**  pLocalAddress,
-    UInt*  pStart,
-    UInt*  pStop,
-    UInt*  pTransferSize)
+void  DtaIpRxNrtGetLocalAddress(void* pContext, UInt8** pLocalAddress, UInt* pStart,
+                                                         UInt* pStop, UInt* pTransferSize)
 {
     DtaIpPort*  pIpPort = (DtaIpPort*)pContext;
 
@@ -1892,12 +2098,8 @@ void  DtaIpRxNrtGetLocalAddress(
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtGetLocalAddress -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void DtaIpRxRtGetLocalAddress(
-    void*  pContext,
-    UInt8**  pLocalAddress,
-    UInt*  pStart,
-    UInt*  pStop,
-    UInt*  pTransferSize)
+void DtaIpRxRtGetLocalAddress(void* pContext, UInt8** pLocalAddress, UInt* pStart,
+                                                         UInt* pStop, UInt* pTransferSize)
 {
     // The context is updated each transfer for port 0/1,
     DtaIpPort*  pIpPort = (DtaIpPort*)pContext;
@@ -2041,23 +2243,23 @@ void  DtaIpRxRtUpdateSlicePointer(DtaIpPort* pIpPort, Bool SliceOverflow)
         {
             // Read last 4 bytes of previous slice to clear the memory.
             UInt32  StartRtRxMemory = DtaMemGetPointer(
-                                        pIpPort->m_IpPortType2.m_pMemoryControllerRegs,
-                                        DTA_MEM_RT_RX_BUF_START);
+                                           pIpPort->m_IpPortType2.m_pMemoryControllerRegs,
+                                           DTA_MEM_RT_RX_BUF_START);
             pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] = 4;
 
             pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex] = 
-                                DtaRegRxSlicePointerGet(pIpType2->m_RxRt.m_pRegs) - 4;
+                                    DtaRegRxSlicePointerGet(pIpType2->m_RxRt.m_pRegs) - 4;
             if (pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex] < 
-                                                                        StartRtRxMemory)
+                                                                          StartRtRxMemory)
                 pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex] =
-                        DtaMemGetPointer(pIpPort->m_IpPortType2.m_pMemoryControllerRegs,
-                        DTA_MEM_RT_RX_BUF_END) - 4;
+                          DtaMemGetPointer(pIpPort->m_IpPortType2.m_pMemoryControllerRegs,
+                          DTA_MEM_RT_RX_BUF_END) - 4;
             DtDbgOut(ERR, IP_RX, "[%i] Firmware overflow. Clear state by reading last"
-                            "4 bytes from %xh", pIpPort->m_IpPortIndex,
-                            pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex]);
+                               "4 bytes from %xh", pIpPort->m_IpPortIndex,
+                               pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex]);
                 
             DT_ASSERT(pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] <=
-                                                                DTA_IPRX_RT_BUF_SIZE);
+                                                                    DTA_IPRX_RT_BUF_SIZE);
         } else {
             pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] = 0;
             pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex] = 
@@ -2066,9 +2268,9 @@ void  DtaIpRxRtUpdateSlicePointer(DtaIpPort* pIpPort, Bool SliceOverflow)
     } else {
         pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] = SliceSize;
         pIpType2->m_RxRtSlicePtr[pIpType2->m_RxRtSliceWriteIndex] = 
-                                DtaRegRxSlicePointerGet(pIpType2->m_RxRt.m_pRegs);
+                                        DtaRegRxSlicePointerGet(pIpType2->m_RxRt.m_pRegs);
         DT_ASSERT(pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] <=
-                                                            DTA_IPRX_RT_BUF_SIZE);
+                                                                    DTA_IPRX_RT_BUF_SIZE);
     }
     if (pIpType2->m_RxRtSliceSize[pIpType2->m_RxRtSliceWriteIndex] != 0)
     {
@@ -2096,11 +2298,8 @@ static __inline Bool  DtaIpRxIsDmaHeaderCorrect(DtaDmaRxHeader* pRxHeader)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxSendPacketToNwDriver -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void  DtaIpRxSendPacketToNwDriver(
-    DtaIpPort*  pIpPort,
-    DtaDmaRxHeader*  pDmaRxHeader,
-    UInt8*  pPacket,
-    UInt  PacketSize)   // Excluding CRC
+void  DtaIpRxSendPacketToNwDriver(DtaIpPort* pIpPort, DtaDmaRxHeader* pDmaRxHeader,
+                                       UInt8* pPacket, UInt PacketSize)   // Excluding CRC
 {
     UInt  FreeSpaceUntilEnd;
     UInt  FreeSpaceFromBegin;
@@ -2208,7 +2407,9 @@ UInt DtaIpRxIsPacketForDVB(
     while (pIpRxChannel != NULL) 
     {
         // Check if the channel is the one we are searching for
-
+        Bool  EmptySrcIp;
+        Bool  EmptyDstIp;
+        
         // For bitrate calculation to work in idle state, 
         // we check the RxControl somewhere else and only check here 
         // if the parameters are set. 
@@ -2234,11 +2435,20 @@ UInt DtaIpRxIsPacketForDVB(
         }
 
         // Check if source + destination IP address is correct.
+        EmptySrcIp = TRUE;
+        EmptyDstIp = TRUE;
+        for (i=0; i<(IpV6Packet?16:4); i++) 
+        {
+            if (pIpRxChannel->m_SrcIPAddress[i] != 0)
+                EmptySrcIp = FALSE;
+            if (pIpRxChannel->m_DstIPAddress[i] != 0)
+                EmptyDstIp = FALSE;
+        }
+
         Stop = FALSE;
         for (i=0; i<(IpV6Packet?16:4); i++) 
         {
-            if (pIpRxChannel->m_SrcIPAddress[i]!=0 && 
-                                               pIpRxChannel->m_SrcIPAddress[i]!=pIpSrc[i])
+            if (!EmptySrcIp && pIpRxChannel->m_SrcIPAddress[i]!=pIpSrc[i])
             {
                 Stop = TRUE;
                 break;
@@ -2246,7 +2456,7 @@ UInt DtaIpRxIsPacketForDVB(
 
             // If a multicast packet is received, 
             // the m_DstIPAddress may not be 0.0.0.0
-            if ((pIpRxChannel->m_DstIPAddress[i]!=0 || MulticastPkt) && 
+            if ((!EmptyDstIp || MulticastPkt) && 
                                                pIpRxChannel->m_DstIPAddress[i]!=pIpDst[i])
             {
                 Stop = TRUE;
@@ -2254,7 +2464,7 @@ UInt DtaIpRxIsPacketForDVB(
             }
         }
 
-        if (Stop) 
+        if (Stop)
         {
             pIpRxChannel = pIpRxChannel->m_pNext;
             continue;
@@ -2264,22 +2474,29 @@ UInt DtaIpRxIsPacketForDVB(
         // to determine if we must add the packet to a FEC stream
         // Add the channel if we cannot use the contents of the packet, and
         // the source port matches a FEC port.
+        // For COP#3 there was no requirement for the source port
+        // For SMPTE-2022 the source port must be equal.
         IsFecPortSrc = FALSE;
-        if (pIpRxChannel->m_SrcPort!=0 && pIpRxChannel->m_FecMode!=DTA_FEC_DISABLE && 
-                                               pIpRxChannel->m_DetProtocol==DTA_PROTO_RTP)
+        // This must be enabled if the applications supports the new DTAPI
+        //if ((pIpRxChannel->m_IpParsFlags & DTA_IP_RX_DIFFSRCPORTFEC) != 0)
         {
-            if (pIpRxChannel->m_SrcPort+FEC_INC_COLUMN_PORT==SrcPort ||
-                                        pIpRxChannel->m_SrcPort+FEC_INC_ROW_PORT==SrcPort)
+            if (pIpRxChannel->m_SrcPort!=0 && pIpRxChannel->m_FecMode!=DTA_FEC_DISABLE && 
+                                               pIpRxChannel->m_DetProtocol==DTA_PROTO_RTP)
             {
-                if (pRtpHeader != NULL)
+                if (pIpRxChannel->m_SrcPort+FEC_INC_COLUMN_PORT==SrcPort ||
+                                        pIpRxChannel->m_SrcPort+FEC_INC_ROW_PORT==SrcPort)
                 {
-                    // If we have a RTP header, determine if this is a FEC packet
-                    if (pRtpHeader->m_PayloadType==RTP_PAYLOAD_FEC && 
+                    if (pRtpHeader != NULL)
+                    {
+                        // If we have a RTP header, determine if this is a FEC packet
+                        if (pRtpHeader->m_PayloadType==RTP_PAYLOAD_FEC && 
                                                                  pRtpHeader->m_Version==2)
+                            IsFecPortSrc = TRUE;
+                    } else{
+                        // if we do not have a RTP header, assume that this is a FEC 
+                        // packet
                         IsFecPortSrc = TRUE;
-                } else{
-                    // if we do not have a RTP header, assume that this is a FEC packet
-                    IsFecPortSrc = TRUE;
+                    }
                 }
             }
         }
@@ -2313,8 +2530,8 @@ UInt DtaIpRxIsPacketForDVB(
                     // if we do not have a RTP header, assume that this is a FEC packet
                     IsFecPortDst = TRUE;
                 }
-            }           
-        }                
+            }
+        }
 
         // If the destination port matches or if the portnumber it used for a FEC stream
         // add the channel.
@@ -2342,14 +2559,10 @@ UInt DtaIpRxIsPacketForDVB(
 // This functions will increment the channel's use count returned in pIpRxA
 // Pre: m_IpRxListenersMutex mutex must be acquired
 //
-UInt  DtaIpRxGetChannelsForDVB(
-    DtaIpPort*  pIpPort, 
-    UInt32  IdTag,
-    UInt8*  pIpSrc,
-    UserIpRxChannel**  pIpRxA,
-    Int  MaxNumListeners)
+UInt  DtaIpRxGetChannelsForDVB(DtaIpPort* pIpPort, UInt32 IdTag, UInt8* pIpSrc,
+                                            UserIpRxChannel** pIpRxA, Int MaxNumListeners)
 {
-    Bool SSMIpV6 = FALSE;
+    Bool  SSMIpV6 = FALSE;
     DtaIpUserChannels*  pIpUserChannels = 
                                         &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels;
     UserIpRxChannel*  pIpRxChannel;
@@ -2378,7 +2591,7 @@ UInt  DtaIpRxGetChannelsForDVB(
         UInt8*  pIpAddr = NULL;
         Bool  StreamForThisChannel = TRUE;
             
-        if ((pIpRxChannel->m_IpParsMode & DTA_IP_RX_DBLBUF) !=0 )
+        if ((pIpRxChannel->m_IpParsMode & DTA_IP_RX_2022_7) !=0 )
         {
             if (((pIpPort->m_IpPortIndex&1)==0) && pIpRxChannel->m_DoSSMCheckSw)
                 pIpAddr = pIpRxChannel->m_SrcIPAddress;
@@ -2457,12 +2670,9 @@ UInt  DtaIpRxGetChannelsForDVB(
 // an array with the ChannelIndex'es and the number of channels found is returned
 // Pre: m_IpRxListenersMutex mutex must be acquired
 //
-UInt  DtaIpRxIsFragmentedPacketForDVB(
-    DtaIpUserChannels*  pIpUserChannels,
-    UInt16  FragmentID,
-    UInt16  IpFragmentOffset,
-    UserIpRxChannel**  pIpRxA,
-    Int  MaxNumListeners)
+UInt  DtaIpRxIsFragmentedPacketForDVB(DtaIpUserChannels* pIpUserChannels,
+                                            UInt16 FragmentID, UInt16 IpFragmentOffset, 
+                                            UserIpRxChannel** pIpRxA, Int MaxNumListeners)
 {
     UserIpRxChannel*  pIpRxChannel;
     Int  Index = 0;
@@ -2493,22 +2703,15 @@ UInt  DtaIpRxIsFragmentedPacketForDVB(
             continue;
         }
 
-        // Check if the fragment offset is not
-        // exceeding max. packet length of 64kb
-        // Note: FragmentOffset is given in units of 8-byte blocks!
-        //       See IP4 specs.
-        if (IpFragmentOffset < 0x2000) 
-        {
-            pIpRxA[Index++] = pIpRxChannel;
+        pIpRxA[Index++] = pIpRxChannel;
             
-            // Increment reference
-            DtaIpRxUserChRefAdd(pIpRxChannel);
+        // Increment reference
+        DtaIpRxUserChRefAdd(pIpRxChannel);
 
-            if (Index == MaxNumListeners) 
-            {
-                DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
-                return MaxNumListeners;
-            }
+        if (Index == MaxNumListeners) 
+        {
+            DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
+            return MaxNumListeners;
         }
         pIpRxChannel = pIpRxChannel->m_pNext;
     }
@@ -2521,15 +2724,9 @@ UInt  DtaIpRxIsFragmentedPacketForDVB(
 // Determine if the incoming DMA packet is part of a fragmented frame.
 // Return the channel holding a complete frame if the frame is complete.
 // Return status values to determine further actions after calling this function
-UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
-    DtaIpUserChannels*  pIpUserChannels,
-    DtaDmaRxHeader*  pDmaRxHeader,
-    UInt32  Size,
-    IpHeaderV4*  pIpHeader,
-    Bool  MulticastPacket,
-    DtaIpPort*  pIpPort,
-    Int  VlanId,
-    Bool*  pStopParsing)  // Output
+UserIpRxChannel*  DtaIpRxParseFragmentedFrame(DtaIpUserChannels* pIpUserChannels,
+                 DtaDmaRxHeader* pDmaRxHeader, UInt32 Size, IpHeaderV4* pIpHeader,
+                 Bool MulticastPacket, DtaIpPort* pIpPort, Int VlanId, Bool* pStopParsing)
 {    
     UInt  i;
     UInt16  IpFragmentOffset = 0;
@@ -2562,7 +2759,7 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
     {
 
         // Check if we have a valid UDP header
-        if (pIpHeader->m_Protocol != IPV4_HDR_PROT_UDP)   
+        if (pIpHeader->m_Protocol != IPV4_HDR_PROT_UDP)
         {
             DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
             *pStopParsing = TRUE;
@@ -2608,15 +2805,18 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
         for (i=0; i<NumChannels; i++) 
         {
             pIpRxChannel =  pIpPort->m_pIpRxListeners[i];
-            pIpRxChannel->m_FragmentId = pIpHeader->m_Identification;
-            // Store IP Header offset offset for later use
-            pIpRxChannel->m_CurIpHeaderOffset = 
+            if (Size-4 <= (UInt)pIpRxChannel->m_MaxJumboPktSize)
+            {
+                pIpRxChannel->m_FragmentId = pIpHeader->m_Identification;
+                // Store IP Header offset offset for later use
+                pIpRxChannel->m_CurIpHeaderOffset = 
                                        (UInt16)((UInt8*)pIpHeader - (UInt8*)pDmaRxHeader);
             
-            // Copy data including Dma/Eth/IP header into temp. buffer
-            // excluding checksum
-            DtMemCopy(pIpRxChannel->m_pRtpBuffer, pDmaRxHeader, Size - 4);
-            pIpRxChannel->m_FragmentOffset = (UInt16)Size - 4;
+                // Copy data including Dma/Eth/IP header into temp. buffer
+                // excluding checksum
+                DtMemCopy(pIpRxChannel->m_pJumboPktBuffer, pDmaRxHeader, Size - 4);
+                pIpRxChannel->m_FragmentOffset = (UInt16)Size - 4;
+            }
             
             // Decrement use count
             DtaIpRxUserChRefDecr(pIpRxChannel);
@@ -2660,15 +2860,16 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
         {
             pIpRxChannel = pIpPort->m_pIpRxListeners[i];
 
-            // Packet size max. 64kb
-            if ((IpPacketDataSize + pIpRxChannel->m_FragmentOffset) > 0xffff) 
+            // Check max. jumbo packet size
+            if (IpPacketDataSize+pIpRxChannel->m_FragmentOffset > 
+                                                          pIpRxChannel->m_MaxJumboPktSize)
             {
                 // Size too big, skip packet;
                 pIpRxChannel->m_FragmentId = 0;
                 pIpRxChannel->m_FragmentOffset = 0;
             } else {
                 // Copy data into temp. buffer
-                DtMemCopy(pIpRxChannel->m_pRtpBuffer + pIpRxChannel->m_FragmentOffset, 
+                DtMemCopy(pIpRxChannel->m_pJumboPktBuffer+pIpRxChannel->m_FragmentOffset, 
                                                          pIpPacketData, IpPacketDataSize);
                 pIpRxChannel->m_FragmentOffset+=(UInt16)IpPacketDataSize;
             }
@@ -2716,13 +2917,14 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
             // If so, use this packet
             // Set pointer to the UDP header
             pIpRxChannel =  pIpPort->m_pIpRxListeners[i];
-            pIpHeader = (IpHeaderV4*)(pIpRxChannel->m_pRtpBuffer + 
+            pIpHeader = (IpHeaderV4*)(pIpRxChannel->m_pJumboPktBuffer + 
                                                     pIpRxChannel->m_CurIpHeaderOffset);
 
-            pUdpHeader = (UdpHeader*)((UInt8*)pIpHeader + (pIpHeader->m_HeaderLength * 4));
+            pUdpHeader = (UdpHeader*)((UInt8*)pIpHeader + 
+                                                         (pIpHeader->m_HeaderLength * 4));
             UdpLength = pIpRxChannel->m_FragmentOffset + IpPacketDataSize - 
-                                        sizeof(DtaDmaRxHeader) - sizeof(EthernetIIHeader) -
-                                        (pIpHeader->m_HeaderLength * 4);
+                                       sizeof(DtaDmaRxHeader) - sizeof(EthernetIIHeader) -
+                                       (pIpHeader->m_HeaderLength * 4);
 
             if (DtUInt16ByteSwap(pUdpHeader->m_Length) > UdpLength) 
                 continue;
@@ -2736,10 +2938,10 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(
             }
 
             // Copy data into temp. buffer and update channel values
-            DtMemCopy(pIpRxChannel->m_pRtpBuffer + pIpRxChannel->m_FragmentOffset, 
+            DtMemCopy(pIpRxChannel->m_pJumboPktBuffer + pIpRxChannel->m_FragmentOffset, 
                                                                      pIpPacketData, Size);
             pIpRxChannel->m_FragmentOffset+=(UInt16)IpPacketDataSize;
-            pDmaRxHeader = (DtaDmaRxHeader*)(pIpRxChannel->m_pRtpBuffer);
+            pDmaRxHeader = (DtaDmaRxHeader*)(pIpRxChannel->m_pJumboPktBuffer);
             pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength = 
                                                            pIpRxChannel->m_FragmentOffset;
             // Output the found channel that needs to be processed
@@ -2988,7 +3190,259 @@ void  DtaIpRxProcessDvbPayLoad(
     }
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxProcessIpRawPayLoad -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+#ifdef _DEBUG
+static int PrevSeqNr = -1;
+#endif
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxProcessSdiPayLoad -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtaIpRxProcessSdiPayLoad(
+    UserIpRxChannel*  pIpRxChannel, // IP Rx channel
+    RtpHeader*  pRtpHeader,         // RTP header
+    UInt8*  pPayLoad,               // IP payload with packet data
+    Int  PayLoadSize,               // Size of payload in #bytes
+    UInt64  TimeStamp)              // Time stamp @54MHz
+{
+    UInt  NumFree;                  // Number of free bytes in buffer
+    Int  SyncErr;                   // Synchronisation Error
+    Int  FrameSize;
+    UInt8*  pRead;                  // Read pointer
+    UInt8*  pWrite;                 // Write pointer
+    UInt8*  pWrapArea;              // Start of the wrap area
+    Bool  SkipData = FALSE;
+    
+    HbrMediaPlHeader*  pHbrHeader = (HbrMediaPlHeader*)((UInt8*)
+                                                            pRtpHeader+sizeof(RtpHeader));
+
+    // Update last Rx timestamp for bitrate calculations
+    pIpRxChannel->m_BrmLastRxTimeStamp = TimeStamp;
+    pIpRxChannel->m_BrmNumPckBytesRcvd+= 11000/8;   // Just an estimation for both SDI
+                                                    // standards
+
+    // Don't store packet when Receive-Control state is IDLE
+    if (pIpRxChannel->m_RxControl == DT_RXCTRL_IDLE)
+        return;
+
+    //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Overflow Check -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+    // Compute free buffer space
+    // Take local copies of pointer for ease of reference, and to be sure they will not
+    // be changed by another thread (for pRead only)
+    pRead = pIpRxChannel->m_pFifo + pIpRxChannel->m_pBufferHeader->m_FifoReadOffset;
+    pWrite = pIpRxChannel->m_pFifo + pIpRxChannel->m_pBufferHeader->m_FifoWriteOffset;
+    pWrapArea = pIpRxChannel->m_pFifo + pIpRxChannel->m_FifoSize;
+    NumFree = (UInt)(pRead>pWrite ? 
+                                  pRead-pWrite : pIpRxChannel->m_FifoSize-(pWrite-pRead));
+    
+    if (pIpRxChannel->m_SdiNumBytesCopied == -1)
+    {
+        Int  ExtraSize = 0;
+        pIpRxChannel->m_SdiNumLeftOverBytes = 0;
+        if (pIpRxChannel->m_DetVidStd == DT_VIDSTD_525I59_94)
+        {
+            pIpRxChannel->m_SdiFrameSize = 900900*10/8;
+            pIpRxChannel->m_SdiFrameSize += 3; // Padding bytes
+        } else if (pIpRxChannel->m_DetVidStd == DT_VIDSTD_625I50)
+        {
+            pIpRxChannel->m_SdiFrameSize = 1080000*10/8;
+        } else 
+        {
+            DtDbgOut(ERR, IP_RX, "Video standard not detected");
+            return;
+        }
+        
+        //DtDbgOut(ERR, IP_RX, "Start new frame. FrameCounter: %i", pHbrHeader->m_FRCount);
+
+        pIpRxChannel->m_pSdiInternalWritePointer = pWrite;
+        pIpRxChannel->m_SdiCurFrameNumber = pHbrHeader->m_FRCount;
+        pIpRxChannel->m_SdiNumBytesCopied = 0;
+        
+        if ((pIpRxChannel->m_RxMode & DT_RX_TIMESTAMP) != 0) 
+            ExtraSize += 4;
+
+        // Check for overflow
+        // +5 for 10->8 bit overhead during copy
+        if (NumFree < (UInt)(pIpRxChannel->m_SdiFrameSize+ExtraSize+5)) 
+        {    // PckSizeToCopy + TimeStamp, +1 to prevent pRead == pWrite
+             DtDbgOut(AVG, IP_RX, "OVERFLOW");
+             
+            // Overflow!
+            // No need for spinlock: m_Flags is only written from Worker thread
+            pIpRxChannel->m_Flags |= DTA_RX_FIFO_OVF;
+
+            // Acquire spin lock for updating latched flags
+            DtSpinLockAcquire(&pIpRxChannel->m_FlagsSpinLock);
+            pIpRxChannel->m_LatchedFlags |= DTA_RX_FIFO_OVF;
+            DtSpinLockRelease(&pIpRxChannel->m_FlagsSpinLock);
+            return;
+        }
+        // Start with writing time stamp, if specified to do so
+        if ((pIpRxChannel->m_RxMode & DT_RX_TIMESTAMP) != 0) 
+        {
+            *(UInt32*)pIpRxChannel->m_pSdiInternalWritePointer = (UInt32)TimeStamp;
+            pIpRxChannel->m_pSdiInternalWritePointer += 4;
+        }
+    }
+    
+    DtDbgOut(MAX, IP_RX, "Channel %d: NumFree=%d pRead=0x%p pWrite=0x%p", 
+                       pIpRxChannel->m_ChannelIndex, NumFree, pRead, pWrite);
+
+    // No overflow
+    pIpRxChannel->m_Flags &= ~DTA_RX_FIFO_OVF;
+    SyncErr = 0;
+    DtDbgOut(MAX, IP_RX, "TimeStamp:%08x RTP SeqNr: %i FrameCounter: %i Marker: %i"
+                    " PayloadSize:%i", DtUInt32ByteSwap(pRtpHeader->m_TimeStamp), 
+                    DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber), pHbrHeader->m_FRCount, 
+                    pRtpHeader->m_Marker, PayLoadSize);
+#ifdef _DEBUG    
+    if (PrevSeqNr != -1)
+    {
+        if (((UInt16)(PrevSeqNr+1)) != DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber))
+             DtDbgOut(MIN, IP_RX_REC, "Seq. out of sync. Prev. Seq: %i TimeStamp:%08x RTP" 
+             " SeqNr: %i FrameCounter: %i", PrevSeqNr, 
+             DtUInt32ByteSwap(pRtpHeader->m_TimeStamp), 
+             DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber), pHbrHeader->m_FRCount);
+    }
+    PrevSeqNr = DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber);
+#endif
+
+    // Check if we are still in sync
+
+    // Frame counter as expected?
+    if (pIpRxChannel->m_SdiCurFrameNumber != pHbrHeader->m_FRCount)
+    {
+        SyncErr = 1;
+        DtDbgOut(ERR, IP_RX, "SYNC ERROR. Expected frame counter %i, Received: %i"
+                                     " (RTP seq.: %i)", pIpRxChannel->m_SdiCurFrameNumber, 
+                                     pHbrHeader->m_FRCount, pRtpHeader->m_SequenceNumber);
+    }
+    // Not end of frame marker, but already too much data?
+    if (pRtpHeader->m_Marker!=1 && (pIpRxChannel->m_SdiNumBytesCopied + PayLoadSize >=
+                                                            pIpRxChannel->m_SdiFrameSize))
+    {
+        SyncErr = 1;
+        DtDbgOut(ERR, IP_RX, "SYNC ERROR. NumBytesCopied:%i. FrameSize:%i PayloadSize:%i",
+            pIpRxChannel->m_SdiNumBytesCopied, pIpRxChannel->m_SdiFrameSize, PayLoadSize);
+    }
+    // End of frame marker, but not enough data?
+    if (pRtpHeader->m_Marker==1 && (pIpRxChannel->m_SdiNumBytesCopied + PayLoadSize <
+                                                            pIpRxChannel->m_SdiFrameSize))
+    {
+        SyncErr = 1;
+        DtDbgOut(ERR, IP_RX, "SYNC ERROR. Not enough bytes for last packet."
+            " NumBytesCopied:%i. FrameSize:%i PayloadSize:%i",
+            pIpRxChannel->m_SdiNumBytesCopied, pIpRxChannel->m_SdiFrameSize, PayLoadSize);
+        
+        // Increase frame number for next packet
+        pHbrHeader->m_FRCount++;
+        SkipData = TRUE;
+    }
+
+    // Update Synchronisation-Error flag
+    if (SyncErr != 0) 
+    {
+        // Sync error!
+        // No need for spinlock: m_Flags is only written from Worker thread
+        pIpRxChannel->m_Flags |= DTA_RX_SYNC_ERR;
+
+        // Acquire spin lock for updating latched flags
+        DtSpinLockAcquire(&pIpRxChannel->m_FlagsSpinLock);
+        pIpRxChannel->m_LatchedFlags |= DTA_RX_SYNC_ERR;
+        DtSpinLockRelease(&pIpRxChannel->m_FlagsSpinLock);
+
+        // Skip current IP packets and restart with new frame
+        pIpRxChannel->m_pSdiInternalWritePointer = pWrite;
+        pIpRxChannel->m_SdiCurFrameNumber = pHbrHeader->m_FRCount;
+        pIpRxChannel->m_SdiNumBytesCopied = 0;
+        pIpRxChannel->m_SdiNumLeftOverBytes = 0;
+        SyncErr = 0;
+        // Start with writing time stamp, if specified to do so
+        if ((pIpRxChannel->m_RxMode & DT_RX_TIMESTAMP) != 0) 
+        {
+            *(UInt32*)pIpRxChannel->m_pSdiInternalWritePointer = (UInt32)TimeStamp;
+            pIpRxChannel->m_pSdiInternalWritePointer += 4;
+        }
+    } else {
+        pIpRxChannel->m_Flags &= ~DTA_RX_SYNC_ERR;
+    }
+    if (SkipData)
+        return;
+
+    pWrite = pIpRxChannel->m_pSdiInternalWritePointer;
+    if (pIpRxChannel->m_SdiNumLeftOverBytes != 0)
+    {
+        // Copy the leftover bytes before current payload. We overwrite the headers, 
+        // but that's not a problem. We don't need it anymore.
+        pPayLoad-= pIpRxChannel->m_SdiNumLeftOverBytes;
+        DtMemCopy(pPayLoad, pIpRxChannel->m_SdiLeftOverBytes, 
+                                                     pIpRxChannel->m_SdiNumLeftOverBytes);
+        PayLoadSize+= pIpRxChannel->m_SdiNumLeftOverBytes;
+        pIpRxChannel->m_SdiNumLeftOverBytes = 0;
+    }
+
+    //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Write Packet to Buffer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+    // The code below works because the buffer is made 256 bytes longer than the size
+    // that is actually used. This way, packets that would wrap the buffer are written
+    // partly in the extra 256 bytes. The overflow bytes are then copied back to the
+    // beginning of the buffer.
+    //
+    while (PayLoadSize>=5 && 
+                           pIpRxChannel->m_SdiNumBytesCopied<pIpRxChannel->m_SdiFrameSize)
+    {
+        // Convert payload from BigEndian(network byte order) to LittleEndian
+        *pWrite++ = (pPayLoad[0]<<2) | (pPayLoad[1]>>6);
+        *pWrite++ = (pPayLoad[0]>>6) | (pPayLoad[1]<<6) | ((pPayLoad[2]&0xf0)>>2);
+        *pWrite++ = ((pPayLoad[1]>>2)&0xf) | ((pPayLoad[3]<<2)&0xf0);
+        *pWrite++ = ((pPayLoad[2]&0xf)<<2) | (pPayLoad[3]>>6) | (pPayLoad[4]<<6);
+        *pWrite++ = (pPayLoad[3]<<6) | (pPayLoad[4]>>2);
+        pPayLoad+=5;
+        pIpRxChannel->m_SdiNumBytesCopied+=5;
+        PayLoadSize-=5;
+
+        // Did we reach the end of the buffer?
+        if (pWrite >= pWrapArea)
+        {
+            if (pWrite != pWrapArea)
+                DtMemCopy(pIpRxChannel->m_pFifo, pWrapArea, (UInt)(pWrite-pWrapArea));
+            pWrite = pIpRxChannel->m_pFifo + (UInt)(pWrite-pWrapArea);
+        }
+    }
+    if (PayLoadSize !=0 && pIpRxChannel->m_SdiNumBytesCopied<pIpRxChannel->m_SdiFrameSize)
+    {
+        // We have leftover bytes.
+        // Copy to temp channel buffer
+        pIpRxChannel->m_SdiNumLeftOverBytes = PayLoadSize;
+        DtMemCopy(pIpRxChannel->m_SdiLeftOverBytes, pPayLoad,
+                                                     pIpRxChannel->m_SdiNumLeftOverBytes);
+    } else
+        pIpRxChannel->m_SdiNumLeftOverBytes = 0;
+
+    pIpRxChannel->m_pSdiInternalWritePointer = pWrite;
+
+    if (pIpRxChannel->m_SdiNumBytesCopied >= pIpRxChannel->m_SdiFrameSize)
+    {
+        // We are finished, update status
+        Int  ToMuchCopied = pIpRxChannel->m_SdiNumBytesCopied -
+                                                             pIpRxChannel->m_SdiFrameSize;
+        pIpRxChannel->m_SdiNumBytesCopied = -1;
+        
+        if (ToMuchCopied == 0)
+        {    pIpRxChannel->m_pBufferHeader->m_FifoWriteOffset = (UInt)
+                                                           (pWrite-pIpRxChannel->m_pFifo);
+        } else if ((pWrite-ToMuchCopied)<pIpRxChannel->m_pFifo)
+        {
+            ToMuchCopied -= (Int)(pWrite - pIpRxChannel->m_pFifo);
+            pIpRxChannel->m_pBufferHeader->m_FifoWriteOffset = 
+                                   (UInt)(pWrapArea-pIpRxChannel->m_pFifo) - ToMuchCopied;
+        } else {
+            pIpRxChannel->m_pBufferHeader->m_FifoWriteOffset = (UInt)
+                                            (pWrite-pIpRxChannel->m_pFifo) - ToMuchCopied;
+        }
+    }
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxProcessIpRawPayLoad -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Store the raw IP packet into the user buffer including a new header
 //
@@ -3133,48 +3587,51 @@ void  DtaIpRxRtpListsReset(UserIpRxChannel* pIpRxChannel)
         DtTailListInsert(&pIpRxChannel->m_RtpEmptyList, pListEntry);
     }
 
+    if (pIpRxChannel->m_pRtpAvailLookup1 != NULL)
+        DtMemZero(pIpRxChannel->m_pRtpAvailLookup1, DTA_IPRX_RTP_LOOKUPTABLE_SIZE*4);
+    if (pIpRxChannel->m_pRtpAvailLookup2 != NULL)
+        DtMemZero(pIpRxChannel->m_pRtpAvailLookup2, DTA_IPRX_RTP_LOOKUPTABLE_SIZE*4);
+
     DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpListsInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaIpRxRtpListsInit(UserIpRxChannel* pIpRxChannel)
+// returns Start of RTP buffer
+//
+UInt8*  DtaIpRxRtpListsInit(UserIpRxChannel* pIpRxChannel, UInt RtpBufSize)
 {
-    RtpListEntry*  pRtpList;
+    RtpListEntry*  pRtpList = NULL;
     UInt  i;
+    UInt  NumEntries;
 
     DtListHeadInitialize(&pIpRxChannel->m_RtpEmptyList);
     DtListHeadInitialize(&pIpRxChannel->m_RtpDvbList);
     DtListHeadInitialize(&pIpRxChannel->m_RtpFecColumnList);
     DtListHeadInitialize(&pIpRxChannel->m_RtpFecRowList);
 
-    pIpRxChannel->m_pRtpListEntries = (UInt8*)DtMemAllocPool(DtPoolNonPaged, 
-                                 DTA_IPRX_MAX_RTP_PACKETS*sizeof(RtpListEntry), IPRX_TAG);
+    DT_ASSERT(pIpRxChannel->m_pRtpListEntries != NULL);
 
-    if (pIpRxChannel->m_pRtpListEntries == NULL)
-        return DT_STATUS_OUT_OF_RESOURCES;
-    
     pRtpList = (RtpListEntry*)pIpRxChannel->m_pRtpListEntries;
 
+    // Calculate NumEntries
+    NumEntries = (UInt)DtDivide64(RtpBufSize, (DTA_IPRX_MAX_PACKET_LENGTH + 
+                                                             sizeof(RtpListEntry)), NULL);
+
     // Add all entries to the empty list
-    for (i=0; i<DTA_IPRX_MAX_RTP_PACKETS; i++) 
+    for (i=0; i<NumEntries; i++) 
     {
-        pRtpList->m_BufIndex = (UInt16)i;
+        pRtpList->m_BufIndex = i;
         pRtpList->m_InUse = 0;
         DtTailListInsert(&pIpRxChannel->m_RtpEmptyList, &pRtpList->m_ListEntry);
         pRtpList+=1;
     }
-
-    return DT_STATUS_OK;
-}
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpListsCleanup -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-void  DtaIpRxRtpListsCleanup( UserIpRxChannel* pIpRxChannel)
-{
-    if (pIpRxChannel->m_pRtpListEntries != NULL)
-        DtMemFreePool(pIpRxChannel->m_pRtpListEntries, IPRX_TAG);
-    pIpRxChannel->m_pRtpListEntries = NULL;
+    if (pIpRxChannel->m_pRtpAvailLookup1 != NULL)
+        DtMemZero(pIpRxChannel->m_pRtpAvailLookup1, DTA_IPRX_RTP_LOOKUPTABLE_SIZE*4);
+    if (pIpRxChannel->m_pRtpAvailLookup2 != NULL)
+        DtMemZero(pIpRxChannel->m_pRtpAvailLookup2, DTA_IPRX_RTP_LOOKUPTABLE_SIZE*4);
+        
+    return (UInt8*)pRtpList;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpGetFreeEntry -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -3182,7 +3639,7 @@ void  DtaIpRxRtpListsCleanup( UserIpRxChannel* pIpRxChannel)
 // Returns a new RtpListEntry from the m_RtpEmptyList list
 // If no entries are available NULL is returned
 //
-RtpListEntry* DtaIpRxRtpGetFreeEntry(UserIpRxChannel* pIpRxChannel)
+RtpListEntry*  DtaIpRxRtpGetFreeEntry(UserIpRxChannel* pIpRxChannel)
 {
     RtpListEntry*  pRtpEntry = NULL;
     DtListEntry*  pListEntry;
@@ -3202,9 +3659,8 @@ RtpListEntry* DtaIpRxRtpGetFreeEntry(UserIpRxChannel* pIpRxChannel)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpMoveEntryToEmptyListUnsafe -.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtaIpRxRtpMoveEntryToEmptyListUnsafe(
-    UserIpRxChannel*  pIpRxChannel, 
-    RtpListEntry*  pRtpEntry)
+void  DtaIpRxRtpMoveEntryToEmptyListUnsafe(UserIpRxChannel* pIpRxChannel, 
+                                                                  RtpListEntry* pRtpEntry)
 {
     DtTailListInsert(&pIpRxChannel->m_RtpEmptyList, &pRtpEntry->m_ListEntry);
 }
@@ -3212,9 +3668,8 @@ void  DtaIpRxRtpMoveEntryToEmptyListUnsafe(
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpMoveEntryToEmptyList -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Put a RtpListEntry to the m_RtpEmptyList list.
-void  DtaIpRxRtpMoveEntryToEmptyList(
-    UserIpRxChannel*  pIpRxChannel, 
-    RtpListEntry*  pRtpEntry)
+void  DtaIpRxRtpMoveEntryToEmptyList(UserIpRxChannel* pIpRxChannel, 
+                                                                  RtpListEntry* pRtpEntry)
 {
     DtSpinLockAcquire(&pIpRxChannel->m_RtpListSpinLock);
     DtTailListInsert(&pIpRxChannel->m_RtpEmptyList, &pRtpEntry->m_ListEntry);
@@ -3226,18 +3681,72 @@ void  DtaIpRxRtpMoveEntryToEmptyList(
 // return TRUE: SeqNum1 < SeqNum2
 //        FALSE: SeqNum1 >= SeqNum2
 //
-Bool   DtaIpRxRtpIsSeqNumLess(UInt16 SeqNum1, UInt16 SeqNum2)
+Bool  DtaIpRxRtpIsSeqNumLess(UInt16 SeqNum1, UInt16 SeqNum2)
 {
     if (SeqNum2 > SeqNum1)
-        if (SeqNum2-SeqNum1 < 0xFFF) return TRUE; else return FALSE;
+        if (SeqNum2-SeqNum1 < 0x1FFF) return TRUE; else return FALSE;
     else if (SeqNum1 > SeqNum2) 
     {   
-        if (SeqNum1-SeqNum2 < 0x7FFF) return FALSE;    
-        if (0xffff-SeqNum1+SeqNum2 < 0xFFF) return TRUE; else return FALSE;
+        if (SeqNum1-SeqNum2 < 0x7FFF) return FALSE;
+        if (0xffff-SeqNum1+SeqNum2 < 0x1FFF) return TRUE; else return FALSE;
     }
     return FALSE;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpIsTimestampLess -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// Timestamp max. 32-bit
+// return TRUE: Timestamp1 < Timestamp2
+//        FALSE: Timestamp1 >= Timestamp2
+//
+Bool  DtaIpRxRtpIsTimestampLess(UInt32 Timestamp1, UInt32 Timestamp2)
+{
+    if (Timestamp2 > Timestamp1)
+        if (Timestamp2-Timestamp1 < 0xFFFFFFF) return TRUE; else return FALSE;
+    else if (Timestamp1 > Timestamp2) 
+    {   
+        if (Timestamp1-Timestamp2 < 0x7FFFFFFF) return FALSE;
+        if (0xFFFFFFFF-Timestamp1+Timestamp2 < 0xFFFFFFF) return TRUE; else return FALSE;
+    }
+    return FALSE;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpGetTimestampDelta -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Only works if DtaIpRxRtpIsTimestampLess = FALSE
+//
+UInt32 DtaIpRxRtpGetTimestampDelta(UInt32 Timestamp1, UInt32 Timestamp2)
+{
+    if (Timestamp1 > Timestamp2)
+        return (0xFFFFFFFF-Timestamp1+Timestamp2);
+    return Timestamp2 - Timestamp1;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpIsSeqNumLess2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtaIpRxRtpIsSeqNumLess2(UInt16 SeqNum1, UInt32 TimeStamp1,
+                                                        UInt16 SeqNum2, UInt32 TimeStamp2)
+{
+    if (TimeStamp1 == TimeStamp2)
+    {
+        if (SeqNum2 > SeqNum1)
+            if (SeqNum2-SeqNum1 < 0x1FFF) return TRUE; else return FALSE;
+        else if (SeqNum1 > SeqNum2) 
+        {   
+            if (SeqNum1-SeqNum2 < 0x7FFF) return FALSE;
+            if (0xFFFF-SeqNum1+SeqNum2 < 0x1FFF) return TRUE; else return FALSE;
+        }
+        return FALSE;
+    }
+
+    if (TimeStamp2 > TimeStamp1)
+        if (TimeStamp2-TimeStamp1 < 0x1FFFFFFF) return TRUE; else return FALSE;
+    else if (TimeStamp1 > TimeStamp2) 
+    {   
+        if (TimeStamp1-TimeStamp2 < 0x7FFFFFFF) return FALSE;
+        if (0xFFFFFFFF-TimeStamp1+TimeStamp2 < 0x1FFFFFFF) return TRUE; else return FALSE;
+    }
+    return FALSE;
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpGetDvbEntryUnsafe -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -3245,17 +3754,22 @@ Bool   DtaIpRxRtpIsSeqNumLess(UInt16 SeqNum1, UInt16 SeqNum2)
 // If pLastUsedItem <> NULL, the search starts at pLastUsedItem
 // Pre: The m_RtpListSpinLock must be acquired 
 // 
-RtpListEntry*  DtaIpRxRtpGetDvbEntryUnsafe(
-    UserIpRxChannel*  pIpRxChannel,
-    UInt16  SequenceNumber,
-    DtListEntry*  pLastUsedItem)
+RtpListEntry*  DtaIpRxRtpGetDvbEntryUnsafe(UserIpRxChannel* pIpRxChannel, 
+                      UInt16 SequenceNumber, UInt32 Timestamp, DtListEntry* pLastUsedItem)
 {
     Bool  Found;
     DtListEntry*  pEntry;
     RtpListEntry*  pRtpQueuedEntry = NULL;
+
+    if (pIpRxChannel->m_pRtpAvailLookup1!=NULL && pIpRxChannel->m_pRtpAvailLookup2!=NULL)
+    {
+        if (pIpRxChannel->m_pRtpAvailLookup1[SequenceNumber]==0 && 
+                                      pIpRxChannel->m_pRtpAvailLookup2[SequenceNumber]==0)
+            return NULL;
+    }
     
     Found = FALSE;
-    if (pLastUsedItem != NULL)    
+    if (pLastUsedItem != NULL)
         pEntry = DtListNextGet(pLastUsedItem);
     else
         pEntry = DtListNextGet(&pIpRxChannel->m_RtpDvbList);
@@ -3263,7 +3777,8 @@ RtpListEntry*  DtaIpRxRtpGetDvbEntryUnsafe(
     while (pEntry!=&pIpRxChannel->m_RtpDvbList && !Found) 
     {
         pRtpQueuedEntry = DtContainingRecord(pEntry, RtpListEntry, m_ListEntry);
-        if (SequenceNumber == pRtpQueuedEntry->m_RTPSequenceNumber)
+        if ((SequenceNumber == pRtpQueuedEntry->m_RtpSequenceNumber) && 
+                    DtaIpRxRtpIsTimestampLess(pRtpQueuedEntry->m_RtpTimestamp, Timestamp))
             Found = TRUE;
         else
             pEntry = DtListNextGet(pEntry);
@@ -3271,7 +3786,6 @@ RtpListEntry*  DtaIpRxRtpGetDvbEntryUnsafe(
     
     if (Found)
         return pRtpQueuedEntry;
-    
     return NULL;
 }
 
@@ -3280,9 +3794,7 @@ RtpListEntry*  DtaIpRxRtpGetDvbEntryUnsafe(
 // Sort the RTP packet. If the packet with the same sequence number already exists,
 // FALSE is returned and insertion is skipped
 //
-Bool  DtaIpRxRtpListAddEntryUnsafe(
-    DtListEntry*  pRtpList,
-    RtpListEntry*  pRtpEntry)
+Bool  DtaIpRxRtpListAddEntryUnsafe(DtListEntry* pRtpList, RtpListEntry* pRtpEntry)
 {
     Bool  Found = FALSE;
     Bool  Exist = FALSE;
@@ -3296,15 +3808,29 @@ Bool  DtaIpRxRtpListAddEntryUnsafe(
     if (pEntry != pRtpList) 
     {
         pRtpQueuedEntry = DtContainingRecord(pEntry, RtpListEntry, m_ListEntry);
-        if (pRtpEntry->m_RTPSequenceNumber == pRtpQueuedEntry->m_RTPSequenceNumber) 
+        if (pRtpEntry->m_RtpSequenceNumber==pRtpQueuedEntry->m_RtpSequenceNumber &&
+                               pRtpEntry->m_RtpTimestamp==pRtpQueuedEntry->m_RtpTimestamp)
         {
             Found = TRUE;
             Exist = TRUE;
-        } else if (DtaIpRxRtpIsSeqNumLess(pRtpQueuedEntry->m_RTPSequenceNumber,
-                                                          pRtpEntry->m_RTPSequenceNumber))
+            DtDbgOut(ERR, IP_RX, "EXIST: SeqNumNew:%i TimeStampNew:%x QueuedSeqNum:%i" 
+                          " QueuedTimeStamp:%x", pRtpEntry->m_RtpSequenceNumber, 
+                          pRtpEntry->m_RtpTimestamp, pRtpQueuedEntry->m_RtpSequenceNumber,
+                           pRtpQueuedEntry->m_RtpTimestamp);
+
+            
+        } else if (DtaIpRxRtpIsSeqNumLess2(pRtpQueuedEntry->m_RtpSequenceNumber, 
+                          pRtpQueuedEntry->m_RtpTimestamp, pRtpEntry->m_RtpSequenceNumber,
+                          pRtpEntry->m_RtpTimestamp))
             Last = TRUE;
-        else 
+        else {
+            DtDbgOut(ERR, IP_RX, "Why NOT LAST??: SeqNumNew:%i TimeStampNew:%x "
+                     "QueuedSeqNum:%i QueuedTimeStamp:%x", pRtpEntry->m_RtpSequenceNumber,
+                     pRtpEntry->m_RtpTimestamp, pRtpQueuedEntry->m_RtpSequenceNumber, 
+                     pRtpQueuedEntry->m_RtpTimestamp);
+
             pRtpQueuedEntry = NULL;
+        }
         
     }
     if (!Last)
@@ -3314,13 +3840,15 @@ Bool  DtaIpRxRtpListAddEntryUnsafe(
     while (pEntry!=pRtpList && !Found && !Last) 
     {
         pRtpQueuedEntry = DtContainingRecord(pEntry, RtpListEntry, m_ListEntry);
-        if (pRtpEntry->m_RTPSequenceNumber == pRtpQueuedEntry->m_RTPSequenceNumber) 
+        if (pRtpEntry->m_RtpSequenceNumber==pRtpQueuedEntry->m_RtpSequenceNumber &&
+                               pRtpEntry->m_RtpTimestamp==pRtpQueuedEntry->m_RtpTimestamp)
         {
             Found = TRUE;
             Exist = TRUE;
         } else {
-            if (DtaIpRxRtpIsSeqNumLess(pRtpEntry->m_RTPSequenceNumber, 
-                                                    pRtpQueuedEntry->m_RTPSequenceNumber))
+            if (DtaIpRxRtpIsSeqNumLess2(pRtpEntry->m_RtpSequenceNumber, 
+                          pRtpEntry->m_RtpTimestamp, pRtpQueuedEntry->m_RtpSequenceNumber,
+                          pRtpQueuedEntry->m_RtpTimestamp))
                 Found = TRUE;
             else 
                 pEntry = DtListNextGet(pEntry);
@@ -3335,20 +3863,20 @@ Bool  DtaIpRxRtpListAddEntryUnsafe(
             DtTailListInsert(pRtpList, &pRtpEntry->m_ListEntry);
             if (pRtpQueuedEntry != NULL)
                 DtDbgOut(MAX, IP_RX, "Add at end: SnNew: %u SnEntry:%u NewEntry:%p"
-                         " pEntry:%p pRtpList:%p Last:%i", pRtpEntry->m_RTPSequenceNumber,
-                         pRtpQueuedEntry->m_RTPSequenceNumber, pRtpEntry, pEntry, 
+                         " pEntry:%p pRtpList:%p Last:%i", pRtpEntry->m_RtpSequenceNumber,
+                         pRtpQueuedEntry->m_RtpSequenceNumber, pRtpEntry, pEntry, 
                          pRtpList, Last?1:0);
             else
                 DtDbgOut(MAX, IP_RX, "Add at end: SnNew: %u NewEntry:%p pEntry:%p "
-                          "FIRST ONE pRtpList:%p Last:%i", pRtpEntry->m_RTPSequenceNumber,
+                          "FIRST ONE pRtpList:%p Last:%i", pRtpEntry->m_RtpSequenceNumber,
                           pRtpEntry, pEntry, pRtpList, Last?1:0);
         }
         else {
             // Insert element before entry
             DtTailListInsert(pEntry, &pRtpEntry->m_ListEntry);
             DtDbgOut(MAX, IP_RX, "Add before: SnNew: %u SnEntry:%u NewEntry:%p pEntry:%p"
-                       " pRtpList:%p", pRtpEntry->m_RTPSequenceNumber,
-                       pRtpQueuedEntry->m_RTPSequenceNumber, pRtpEntry, pEntry, pRtpList);
+                       " pRtpList:%p", pRtpEntry->m_RtpSequenceNumber,
+                       pRtpQueuedEntry->m_RtpSequenceNumber, pRtpEntry, pEntry, pRtpList);
         }
     }
     return !Exist;
@@ -3357,34 +3885,49 @@ Bool  DtaIpRxRtpListAddEntryUnsafe(
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpListAddEntry -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 Bool  DtaIpRxRtpListAddEntry(UserIpRxChannel* pIpRxChannel, DtListEntry* pRtpList,
-                                                                 RtpListEntry*  pRtpEntry)
+                                                                  RtpListEntry* pRtpEntry)
 {
     Bool  Added;
 
     DtSpinLockAcquire(&pIpRxChannel->m_RtpListSpinLock);
     // Check if entry is too late and user buffer is already further in time.
     if (pRtpList==&pIpRxChannel->m_RtpDvbList &&
-                         (pRtpEntry->m_RTPSequenceNumber==pIpRxChannel->m_RtpLastSeqNum || 
-                         DtaIpRxRtpIsSeqNumLess(pRtpEntry->m_RTPSequenceNumber, 
-                         pIpRxChannel->m_RtpLastSeqNum)))
+        ((pRtpEntry->m_RtpSequenceNumber==pIpRxChannel->m_RtpLastSeqNum&&
+        pRtpEntry->m_RtpTimestamp==pIpRxChannel->m_RtpLastTimestamp) ||
+        (DtaIpRxRtpIsSeqNumLess2(pRtpEntry->m_RtpSequenceNumber, pRtpEntry->m_RtpTimestamp,
+        pIpRxChannel->m_RtpLastSeqNum, pIpRxChannel->m_RtpLastTimestamp) && 
+        !pIpRxChannel->m_RtpFirstPacket)))
+    {
         Added = FALSE;
+        DtDbgOut(ERR, IP_RX, "Entry too late or already in buffer: SeqNumNew:%i "
+                         "TimeStampNew:%x LastSeqNum:%i LastTimeStamp:%x", 
+                         pRtpEntry->m_RtpSequenceNumber, pRtpEntry->m_RtpTimestamp, 
+                         pIpRxChannel->m_RtpLastSeqNum, pIpRxChannel->m_RtpLastTimestamp);
+    }
     else
         Added = DtaIpRxRtpListAddEntryUnsafe(pRtpList, pRtpEntry);
+    if (Added && pIpRxChannel->m_pRtpAvailLookup1!=NULL && 
+          pIpRxChannel->m_pRtpAvailLookup2!=NULL && pRtpList==&pIpRxChannel->m_RtpDvbList)
+    {
+        if (pIpRxChannel->m_pRtpAvailLookup1[pRtpEntry->m_RtpSequenceNumber] == 0)
+            pIpRxChannel->m_pRtpAvailLookup1[pRtpEntry->m_RtpSequenceNumber] = 
+                                                                pRtpEntry->m_RtpTimestamp;
+        else if (pIpRxChannel->m_pRtpAvailLookup2[pRtpEntry->m_RtpSequenceNumber] == 0)
+            pIpRxChannel->m_pRtpAvailLookup2[pRtpEntry->m_RtpSequenceNumber] = 
+                                                                pRtpEntry->m_RtpTimestamp;
+        else
+            DT_ASSERT(FALSE);
+    }
     DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
-
     return Added;
 }
 
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxCalculateChecksum -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxCalculateChecksum -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-// Calculates UDP checksum. 
+// Calculates UDP checksum.
 //
-UInt16 DtaIpRxCalculateUdpChecksum(
-    IpHeaderV4*  pIpHeader,
-    UdpHeader*  pUdpHeader,
-    UInt8*  pRxData,
-    UInt32  PayloadLength)
+UInt16 DtaIpRxCalculateUdpChecksum(IpHeaderV4* pIpHeader, UdpHeader* pUdpHeader,
+                                                     UInt8* pRxData, UInt32 PayloadLength)
 {
     UInt32  Checksum = 0;
     UInt32  ChecksumCs = 0;
@@ -3423,37 +3966,683 @@ UInt16 DtaIpRxCalculateUdpChecksum(
     return (UInt16)Checksum;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpParsePayloadMpeg -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxResetStatistics -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void  DtaIpRxParsePayLoadMpeg(
+void  DtaIpRxResetStatistics(UserIpRxChannel* pIpRxChannel)
+{
+    int  i;
+    // Reset elements
+    pIpRxChannel->m_NumIpatEl[0] = 0;
+    pIpRxChannel->m_NumIpatEl[1] = 0;
+    pIpRxChannel->m_CurIpatEl[0] = 0;
+    pIpRxChannel->m_CurIpatEl[1] = 0;
+    pIpRxChannel->m_CurSkewEl = 0;
+    pIpRxChannel->m_NumSkewEl = 0;
+
+    
+    // Reset status port 1 and 2
+    for (i=0; i<2; i++)
+    {
+        pIpRxChannel->m_LastSeqNumStat[i] = -1;
+        pIpRxChannel->m_NumSeqNumStat[i] = 0;
+        pIpRxChannel->m_MinIpatSecond[i] = -1;
+        pIpRxChannel->m_MaxIpatSecond[i] = 0;
+        pIpRxChannel->m_MinDelayFSecond[i] = 0;
+        pIpRxChannel->m_MaxDelayFSecond[i] = 0;
+        pIpRxChannel->m_BerNumIpPacketsLostMainSecond[i] = 0;
+        pIpRxChannel->m_BerNumIpPacketsLostSecond[i] = 0;
+        pIpRxChannel->m_BerNumIpPacketsMainSecond[i] = 0;
+        pIpRxChannel->m_BerNumIpPacketsSecond[i] = 0;
+
+        pIpRxChannel->m_MinIpatMinute[i] = -1;
+        pIpRxChannel->m_MaxIpatMinute[i] = -1;
+        pIpRxChannel->m_MinDelayFMinute[i] = 0;
+        pIpRxChannel->m_MaxDelayFMinute[i] = 0;
+        pIpRxChannel->m_BerNumIpPacketsLostMainMinute[i] = 0;
+        pIpRxChannel->m_BerNumIpPacketsLostMinute[i] = 0;
+        pIpRxChannel->m_BerNumIpPacketsMainMinute[i] = 0;
+        pIpRxChannel->m_BerNumIpPacketsMinute[i] = 0;
+    }
+    pIpRxChannel->m_MinSkewSecond = 0;
+    pIpRxChannel->m_MaxSkewSecond = 0;
+    pIpRxChannel->m_MinSkewMinute = 0;
+    pIpRxChannel->m_MaxSkewMinute = 0;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxCalcDiffValue32 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+UInt  DtaIpRxCalcDiffValue32(UInt StartValue,  UInt CurValue)
+{
+    if (StartValue > CurValue)  // Wrapped
+    {
+        UInt64  Value = (UInt64)0xffffffff + CurValue - StartValue;
+        return (UInt)Value;
+    }
+    return (CurValue - StartValue);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxDoIpStatistics -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtaIpRxDoIpStatistics(
+    DtaIpPort*  pIpPort,
     UserIpRxChannel*  pIpRxChannel,
+    UInt64  CurRefTimestamp,
     DtaDmaRxHeader*  pDmaRxHeader,
     UInt16  SeqNumber,
-    UInt  Size,
-    UInt16  DvbOffset,
-    UInt16  RtpOffset)
+    UInt32  RtpTimestamp)                  // 0 if no RTP packet
+{
+    IpRxIpat*  pIpat;
+    IpRxSkew*  pSkew;
+    Bool  Recalc = FALSE;
+    Int  IpPortIndex = pIpPort->m_IpPortIndex%2;
+    Int  IpPortIndex2;
+    UInt  NumPackets;
+
+    if (IpPortIndex == 0)
+        IpPortIndex2 = 1;
+    else
+        IpPortIndex2 = 0;
+    
+    if (pIpRxChannel->m_IpParsMode != DTA_IP_RX_2022_7)
+        IpPortIndex = 0;
+
+    //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Ipat / DelayFactor -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+    pIpat =  &pIpRxChannel->m_Ipat[IpPortIndex][pIpRxChannel->m_CurIpatEl[IpPortIndex]];
+    
+    if (pIpRxChannel->m_NumIpatEl[IpPortIndex] == 0)
+    {
+        pIpRxChannel->m_NumIpatEl[IpPortIndex] = 1;
+        pIpat->m_StartTime = CurRefTimestamp;
+        
+        pIpat->m_FirstSampleTime = pDmaRxHeader->m_Timestamp;
+        pIpat->m_LastSampleTime = pDmaRxHeader->m_Timestamp;
+        pIpat->m_MinIpat = -1;
+        pIpat->m_MaxIpat = -1;
+        pIpat->m_MinDelayF = 0;
+        pIpat->m_MaxDelayF = 0;
+        pIpat->m_MinMaxDelayValid = FALSE;
+        pIpat->m_FirstRtpTime = RtpTimestamp;
+        pIpat->m_LastRtpTime = RtpTimestamp;
+        pIpat->m_BerNumPacketsReceived = 0;
+        pIpat->m_BerNumPacketsLost = 0;
+        pIpat->m_BerNumPacketsMainStart = pIpRxChannel->m_TotNumPackets;
+        pIpat->m_BerNumPacketLostMainStart = pIpRxChannel->m_NumPacketsNotReconstructed;
+        pIpat->m_BerNumPacketsMainCur = pIpRxChannel->m_TotNumPackets;
+        pIpat->m_BerNumPacketLostMainCur = pIpRxChannel->m_NumPacketsNotReconstructed;
+    } else
+    {
+        Int  NewIpat;
+        Int  NewDelayF;
+        if (CurRefTimestamp-pIpat->m_StartTime>54000000)   // 1 second
+        {
+            IpRxIpat*  pIpatPrev = pIpat;
+            IpRxIpat*  pIpat2;
+            if (pIpat->m_MinIpat!=-1 && pIpat->m_MaxIpat!=-1)
+            {
+                // Store values per second for user
+                pIpRxChannel->m_MinIpatSecond[IpPortIndex] = pIpat->m_MinIpat;
+                pIpRxChannel->m_MaxIpatSecond[IpPortIndex] = pIpat->m_MaxIpat;
+            }
+            if (pIpat->m_MinMaxDelayValid)
+            {
+                pIpRxChannel->m_MinDelayFSecond[IpPortIndex] = pIpat->m_MinDelayF;
+                pIpRxChannel->m_MaxDelayFSecond[IpPortIndex] = pIpat->m_MaxDelayF;
+            }
+            
+            pIpRxChannel->m_BerNumIpPacketsSecond[IpPortIndex] = 
+                                                           pIpat->m_BerNumPacketsReceived;
+            pIpRxChannel->m_BerNumIpPacketsLostSecond[IpPortIndex] = 
+                                                               pIpat->m_BerNumPacketsLost;
+            pIpRxChannel->m_BerNumIpPacketsMainSecond[IpPortIndex] = 
+                                   DtaIpRxCalcDiffValue32(pIpat->m_BerNumPacketsMainStart,
+                                   pIpat->m_BerNumPacketsMainCur);
+            pIpRxChannel->m_BerNumIpPacketsLostMainSecond[IpPortIndex] = 
+                                DtaIpRxCalcDiffValue32(pIpat->m_BerNumPacketLostMainStart,
+                                pIpat->m_BerNumPacketLostMainCur);
+            
+            if (pIpRxChannel->m_IpParsMode == DTA_IP_RX_2022_7)
+            {
+                // Check if other channel is not receiving packets. If so, we estimate the 
+                // lost packets of the other channel
+                pIpat2 =  &pIpRxChannel->m_Ipat[IpPortIndex2]
+                                                [pIpRxChannel->m_CurIpatEl[IpPortIndex2]];
+                if (CurRefTimestamp - pIpat2->m_StartTime > 
+                                                        54000000*DTA_IPRX_LOST_PKT_SECOND)
+                {
+                    // Reset statistics
+                    pIpat2->m_BerNumPacketsReceived = 0;
+                    pIpat2->m_BerNumPacketsLost = 0;
+                    pIpRxChannel->m_NumSeqNumStat[IpPortIndex2] = 0;
+                    pIpRxChannel->m_LastSeqNumStat[IpPortIndex2] = -1;
+                    pIpRxChannel->m_NumIpPacketsLost[IpPortIndex2] = 
+                                      pIpRxChannel->m_NumIpPacketsReceived[IpPortIndex] -
+                                      pIpRxChannel->m_NumIpPacketsReceived[IpPortIndex2] +
+                                      pIpRxChannel->m_NumIpPacketsLost[IpPortIndex];
+
+                    pIpRxChannel->m_BerNumIpPacketsSecond[IpPortIndex2] = 
+                                                           pIpat->m_BerNumPacketsReceived;
+                    pIpRxChannel->m_BerNumIpPacketsLostSecond[IpPortIndex2] = 
+                                                           pIpat->m_BerNumPacketsReceived;
+                    pIpRxChannel->m_BerNumIpPacketsMinute[IpPortIndex2] = 
+                                                           pIpat->m_BerNumPacketsReceived;
+                    pIpRxChannel->m_BerNumIpPacketsLostMinute[IpPortIndex2] = 
+                                                           pIpat->m_BerNumPacketsReceived;
+                    pIpRxChannel->m_MinSkewSecond = 0;
+                    pIpRxChannel->m_MaxSkewSecond = 0;
+                    pIpRxChannel->m_MinSkewMinute = 0;
+                    pIpRxChannel->m_MaxSkewMinute = 0;
+                }
+            }
+            // Store values also in per minute statistics for user if we don't need
+            // to recalculate
+            if (pIpRxChannel->m_MinIpatMinute[IpPortIndex]==-1 || 
+                pIpRxChannel->m_MaxIpatMinute[IpPortIndex]==-1)
+            {
+                pIpRxChannel->m_MinIpatMinute[IpPortIndex] = pIpat->m_MinIpat;
+                pIpRxChannel->m_MaxIpatMinute[IpPortIndex] = pIpat->m_MaxIpat;
+                if (pIpat->m_MinMaxDelayValid)
+                {
+                    pIpRxChannel->m_MinDelayFMinute[IpPortIndex] = pIpat->m_MinDelayF;
+                    pIpRxChannel->m_MaxDelayFMinute[IpPortIndex] = pIpat->m_MaxDelayF;
+                }
+                // Calc BER
+                pIpRxChannel->m_BerNumIpPacketsMinute[IpPortIndex] = 
+                                                           pIpat->m_BerNumPacketsReceived;
+                pIpRxChannel->m_BerNumIpPacketsLostMinute[IpPortIndex] = 
+                                                               pIpat->m_BerNumPacketsLost;
+                pIpRxChannel->m_BerNumIpPacketsMainMinute[IpPortIndex] = 
+                                   pIpRxChannel->m_BerNumIpPacketsMainSecond[IpPortIndex];
+                pIpRxChannel->m_BerNumIpPacketsLostMainMinute[IpPortIndex] = 
+                               pIpRxChannel->m_BerNumIpPacketsLostMainSecond[IpPortIndex];
+
+            } else if (pIpRxChannel->m_NumIpatEl[IpPortIndex] != IPRX_IPAT_NUM_SECONDS)
+            {
+                UInt  BerNumPktsMin = 0;
+                UInt  BerNumLostMin = 0;
+                
+                UInt  BerNumPktsMainMin = 0;
+                UInt  BerNumLostMainMin = 0;
+                Int  i;
+                // Calc Ipat minute
+                if (pIpat->m_MinIpat!=-1 && pIpat->m_MaxIpat != -1)
+                {
+                    if (pIpat->m_MinIpat < pIpRxChannel->m_MinIpatMinute[IpPortIndex])
+                        pIpRxChannel->m_MinIpatMinute[IpPortIndex] = pIpat->m_MinIpat;
+                    if (pIpat->m_MaxIpat > pIpRxChannel->m_MaxIpatMinute[IpPortIndex])
+                        pIpRxChannel->m_MaxIpatMinute[IpPortIndex] = pIpat->m_MaxIpat;
+                }
+
+                // Calc Delay factor minute
+                if (pIpat->m_MinMaxDelayValid)
+                {
+                    if (pIpat->m_MinDelayF < pIpRxChannel->m_MinDelayFMinute[IpPortIndex])
+                        pIpRxChannel->m_MinDelayFMinute[IpPortIndex] = pIpat->m_MinDelayF;
+                    else if (pIpat->m_MaxDelayF > 
+                                             pIpRxChannel->m_MaxDelayFMinute[IpPortIndex])
+                        pIpRxChannel->m_MaxDelayFMinute[IpPortIndex] = pIpat->m_MaxDelayF;
+                }
+                // Calc BER minute
+                for (i=0; i<pIpRxChannel->m_NumIpatEl[IpPortIndex];i++)
+                {
+                    BerNumPktsMin+= 
+                             pIpRxChannel->m_Ipat[IpPortIndex][i].m_BerNumPacketsReceived;
+                    BerNumLostMin+= 
+                                 pIpRxChannel->m_Ipat[IpPortIndex][i].m_BerNumPacketsLost;
+                    
+                    BerNumPktsMainMin += DtaIpRxCalcDiffValue32(
+                            pIpRxChannel->m_Ipat[IpPortIndex][i].m_BerNumPacketsMainStart,
+                            pIpRxChannel->m_Ipat[IpPortIndex][i].m_BerNumPacketsMainCur);
+                    BerNumLostMainMin += DtaIpRxCalcDiffValue32(
+                         pIpRxChannel->m_Ipat[IpPortIndex][i].m_BerNumPacketLostMainStart,
+                         pIpRxChannel->m_Ipat[IpPortIndex][i].m_BerNumPacketLostMainCur);
+                    
+                }
+                pIpRxChannel->m_BerNumIpPacketsMinute[IpPortIndex] = BerNumPktsMin;
+                pIpRxChannel->m_BerNumIpPacketsLostMinute[IpPortIndex] = BerNumLostMin;
+                pIpRxChannel->m_BerNumIpPacketsMainMinute[IpPortIndex] = 
+                                                                        BerNumPktsMainMin;
+                pIpRxChannel->m_BerNumIpPacketsLostMainMinute[IpPortIndex] = 
+                                                                        BerNumLostMainMin;
+            }
+
+            pIpRxChannel->m_CurIpatEl[IpPortIndex]++;
+            if (pIpRxChannel->m_CurIpatEl[IpPortIndex] == IPRX_IPAT_NUM_SECONDS)
+                pIpRxChannel->m_CurIpatEl[IpPortIndex] = 0;
+
+            if (pIpRxChannel->m_NumIpatEl[IpPortIndex] == IPRX_IPAT_NUM_SECONDS)
+            {
+                // Max. reached, we have to recalculate
+                Recalc = TRUE;
+            } else 
+                pIpRxChannel->m_NumIpatEl[IpPortIndex]++;
+            pIpat = 
+               &pIpRxChannel->m_Ipat[IpPortIndex][pIpRxChannel->m_CurIpatEl[IpPortIndex]];
+            
+            pIpat->m_StartTime = CurRefTimestamp;
+            pIpat->m_MinIpat = -1;
+            pIpat->m_MaxIpat = -1;
+            pIpat->m_MinDelayF = 0;
+            pIpat->m_MaxDelayF = 0;
+            pIpat->m_MinMaxDelayValid = FALSE;
+            pIpat->m_BerNumPacketsReceived = 0;
+            pIpat->m_BerNumPacketsLost = 0;
+
+            // Take values from previous slice. IN case slice is too fast for the bitrate
+            pIpat->m_LastSampleTime = pIpatPrev->m_LastSampleTime;
+            pIpat->m_FirstSampleTime = pIpatPrev->m_LastSampleTime;
+            pIpat->m_FirstRtpTime = pIpatPrev->m_LastRtpTime;
+            pIpat->m_BerNumPacketsMainStart = pIpatPrev->m_BerNumPacketsMainCur;
+            pIpat->m_BerNumPacketLostMainStart = pIpatPrev->m_BerNumPacketLostMainCur;
+        }
+
+        pIpat->m_BerNumPacketsMainCur = pIpRxChannel->m_TotNumPackets;
+        pIpat->m_BerNumPacketLostMainCur = pIpRxChannel->m_NumPacketsNotReconstructed;
+
+        if (pIpRxChannel->m_NumSeqNumStat[IpPortIndex] == IPRX_MAX_RTP_SEQ_NUM_STAT)
+        {
+            // Calculate gap
+            if (pIpRxChannel->m_LastSeqNumStat[IpPortIndex] != -1)
+            {
+                NumPackets = DtaIpRxGetSequenceNumberGap(
+                                      (UInt16)pIpRxChannel->m_LastSeqNumStat[IpPortIndex],
+                                      (UInt16)pIpRxChannel->m_SeqNumStat[IpPortIndex][0]);
+
+                pIpat->m_BerNumPacketsLost += NumPackets-1;
+                pIpat->m_BerNumPacketsReceived += NumPackets;
+                pIpRxChannel->m_NumIpPacketsReceived[IpPortIndex] +=1;
+                pIpRxChannel->m_NumIpPacketsLost[IpPortIndex] += NumPackets-1;
+            }
+            pIpRxChannel->m_LastSeqNumStat[IpPortIndex] = 
+                                          (Int)pIpRxChannel->m_SeqNumStat[IpPortIndex][0];
+            // Remove first one
+            DtMemMove(&pIpRxChannel->m_SeqNumStat[IpPortIndex][0], 
+                                       &pIpRxChannel->m_SeqNumStat[IpPortIndex][1], 
+                                       sizeof(pIpRxChannel->m_SeqNumStat[IpPortIndex][0])*
+                                       (IPRX_MAX_RTP_SEQ_NUM_STAT-1));
+            pIpRxChannel->m_NumSeqNumStat[IpPortIndex] = IPRX_MAX_RTP_SEQ_NUM_STAT - 1;
+        }
+        // Add new seq. number
+        if (pIpRxChannel->m_NumSeqNumStat[IpPortIndex] == 0)
+        {
+            pIpRxChannel->m_SeqNumStat[IpPortIndex][0] = SeqNumber;
+            pIpRxChannel->m_NumSeqNumStat[IpPortIndex] = 1;
+        } else {
+            // Check if we can insert it at the end
+            if (SeqNumber!=pIpRxChannel->m_LastSeqNumStat[IpPortIndex] && 
+                                     !DtaIpRxRtpIsSeqNumLess(SeqNumber,
+                                     (UInt16)pIpRxChannel->m_LastSeqNumStat[IpPortIndex]))
+            {
+                // Not too late, add
+                // First check if the element must be inserted after the last one. This is
+                // the most common situation and then we don't need to walk through the
+                // entire list.
+                UInt16  SeqNumTmp = pIpRxChannel->m_SeqNumStat[IpPortIndex]
+                                           [pIpRxChannel->m_NumSeqNumStat[IpPortIndex]-1];
+                if (SeqNumTmp != SeqNumber)
+                {
+                    if (DtaIpRxRtpIsSeqNumLess(SeqNumTmp, SeqNumber))
+                    {
+                        // Add to end
+                        pIpRxChannel->m_SeqNumStat[IpPortIndex]
+                                 [pIpRxChannel->m_NumSeqNumStat[IpPortIndex]] = SeqNumber;
+                        pIpRxChannel->m_NumSeqNumStat[IpPortIndex]++;
+                    } else {
+                        // Insert sorted in list
+                        Bool  Ready = FALSE;
+                        Int  i=0;
+                        while (!Ready)
+                        {
+                            SeqNumTmp = pIpRxChannel->m_SeqNumStat[IpPortIndex][i];
+                            if (DtaIpRxRtpIsSeqNumLess(SeqNumber, SeqNumTmp))
+                            {
+                                // Found location
+                                DtMemMove(&pIpRxChannel->m_SeqNumStat[IpPortIndex][i+1], 
+                                       &pIpRxChannel->m_SeqNumStat[IpPortIndex][i], 
+                                       sizeof(pIpRxChannel->m_SeqNumStat[IpPortIndex][0])*
+                                       (pIpRxChannel->m_NumSeqNumStat[IpPortIndex]-i));
+                                pIpRxChannel->m_SeqNumStat[IpPortIndex][i] = SeqNumber;
+                                pIpRxChannel->m_NumSeqNumStat[IpPortIndex]++;
+                                Ready = TRUE;
+                            } else 
+                            {
+                                i++;
+                                if ((UInt)i >= pIpRxChannel->m_NumSeqNumStat[IpPortIndex])
+                                {
+                                    // Error. Clear list
+                                    pIpRxChannel->m_NumSeqNumStat[IpPortIndex] = 1;
+                                    pIpRxChannel->m_SeqNumStat[IpPortIndex][0] = 
+                                                                                SeqNumber;
+                                    Ready = TRUE;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Calculate Ipat
+        NewIpat = (Int)(pDmaRxHeader->m_Timestamp - pIpat->m_LastSampleTime);
+        if (pIpat->m_MinIpat==-1 || NewIpat<pIpat->m_MinIpat)
+            pIpat->m_MinIpat = NewIpat;
+
+        if (pIpat->m_MaxIpat==-1 || NewIpat>pIpat->m_MaxIpat)
+            pIpat->m_MaxIpat = NewIpat;
+
+        pIpat->m_LastSampleTime = pDmaRxHeader->m_Timestamp;
+        pIpat->m_LastRtpTime = RtpTimestamp;
+
+        // Calculate delay factor
+        if (pIpat->m_FirstRtpTime != pIpat->m_LastRtpTime)
+        {
+            // Calculate delay factor of new received packet
+            Int64  ActualTime;
+            Int64  ExpectedTime;
+            if (pIpat->m_FirstRtpTime > pIpat->m_LastRtpTime)
+                ExpectedTime = 0xffffffff - pIpat->m_FirstRtpTime + pIpat->m_LastRtpTime;
+            else
+                ExpectedTime = pIpat->m_LastRtpTime - pIpat->m_FirstRtpTime;
+
+
+            // We don't want to devide here, so we calculate in units of 54us
+            ExpectedTime = (ExpectedTime * 600);        // in 54 us units
+            ActualTime = pIpat->m_LastSampleTime - pIpat->m_FirstSampleTime; // in 54us units
+            NewDelayF = (Int)(ActualTime - ExpectedTime);
+            if (!pIpat->m_MinMaxDelayValid || NewDelayF<pIpat->m_MinDelayF)
+                pIpat->m_MinDelayF = NewDelayF;
+            if (!pIpat->m_MinMaxDelayValid || NewDelayF>pIpat->m_MaxDelayF)
+                pIpat->m_MaxDelayF = NewDelayF;
+            pIpat->m_MinMaxDelayValid = TRUE;
+        }
+
+        if (Recalc)
+        {
+            int  i;
+            Bool  Init = TRUE;
+            
+            UInt  BerNumPktsMin = 0;
+            UInt  BerNumLostMin = 0;
+                
+            UInt  BerNumPktsMainMin = 0;
+            UInt  BerNumLostMainMin = 0;
+            
+            // Calculate Min/Max Ipat / DelayF
+            Int  MinIpatMinute = pIpRxChannel->m_Ipat[IpPortIndex][0].m_MinIpat;
+            Int  MaxIpatMinute = pIpRxChannel->m_Ipat[IpPortIndex][0].m_MaxIpat;
+            Int  MinDelayFMinute = -1;
+            Int  MaxDelayFMinute = -1;
+
+            // Do local calculations to minimize disruptions 
+            for (i=0; i<pIpRxChannel->m_NumIpatEl[IpPortIndex]; i++)
+            {
+                if (pIpRxChannel->m_Ipat[IpPortIndex][i].m_MinIpat < MinIpatMinute)
+                    MinIpatMinute = pIpRxChannel->m_Ipat[IpPortIndex][i].m_MinIpat;
+                if (pIpRxChannel->m_Ipat[IpPortIndex][i].m_MaxIpat > MaxIpatMinute)
+                    MaxIpatMinute = pIpRxChannel->m_Ipat[IpPortIndex][i].m_MaxIpat;
+
+                if (pIpRxChannel->m_Ipat[IpPortIndex][i].m_MinMaxDelayValid)
+                {
+                    if (Init)
+                    {
+                        Init = FALSE;
+                        MinDelayFMinute = 
+                                         pIpRxChannel->m_Ipat[IpPortIndex][i].m_MinDelayF;
+                        MaxDelayFMinute = 
+                                         pIpRxChannel->m_Ipat[IpPortIndex][i].m_MaxDelayF;
+                    } else {
+                        if (pIpRxChannel->m_Ipat[IpPortIndex][i].m_MinDelayF < 
+                                                                          MinDelayFMinute)
+                            MinDelayFMinute = 
+                                         pIpRxChannel->m_Ipat[IpPortIndex][i].m_MinDelayF;
+                        if (pIpRxChannel->m_Ipat[IpPortIndex][i].m_MaxDelayF > 
+                                                                          MaxDelayFMinute)
+                            MaxDelayFMinute = 
+                                         pIpRxChannel->m_Ipat[IpPortIndex][i].m_MaxDelayF;
+                    }
+                }
+            }
+
+            pIpRxChannel->m_MinIpatMinute[IpPortIndex] = MinIpatMinute;
+            pIpRxChannel->m_MaxIpatMinute[IpPortIndex] = MaxIpatMinute;
+            pIpRxChannel->m_MinDelayFMinute[IpPortIndex] = MinDelayFMinute;
+            pIpRxChannel->m_MaxDelayFMinute[IpPortIndex] = MaxDelayFMinute;
+
+            // Calc BER minute
+            for (i=0; i<pIpRxChannel->m_NumIpatEl[IpPortIndex];i++)
+            {
+                BerNumPktsMin+= 
+                             pIpRxChannel->m_Ipat[IpPortIndex][i].m_BerNumPacketsReceived;
+                BerNumLostMin+= 
+                                 pIpRxChannel->m_Ipat[IpPortIndex][i].m_BerNumPacketsLost;
+                BerNumPktsMainMin += DtaIpRxCalcDiffValue32(
+                            pIpRxChannel->m_Ipat[IpPortIndex][i].m_BerNumPacketsMainStart,
+                            pIpRxChannel->m_Ipat[IpPortIndex][i].m_BerNumPacketsMainCur);
+                BerNumLostMainMin += DtaIpRxCalcDiffValue32(
+                         pIpRxChannel->m_Ipat[IpPortIndex][i].m_BerNumPacketLostMainStart,
+                         pIpRxChannel->m_Ipat[IpPortIndex][i].m_BerNumPacketLostMainCur);
+            }
+            
+            pIpRxChannel->m_BerNumIpPacketsMinute[IpPortIndex] = BerNumPktsMainMin;
+            pIpRxChannel->m_BerNumIpPacketsLostMinute[IpPortIndex] = BerNumLostMainMin;
+            pIpRxChannel->m_BerNumIpPacketsMainMinute[IpPortIndex] = BerNumPktsMainMin;
+            pIpRxChannel->m_BerNumIpPacketsLostMainMinute[IpPortIndex] = 
+                                                                        BerNumLostMainMin;
+        }
+    }
+    
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Skew -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+    // The skew can only be measured if using 2 ports. It's the packet delay between these
+    // ports
+    Recalc = FALSE;
+
+    if (pIpRxChannel->m_IpParsMode != DTA_IP_RX_2022_7)
+        return;
+    pSkew =  &pIpRxChannel->m_Skew[pIpRxChannel->m_CurSkewEl];
+    
+    if (pIpRxChannel->m_NumSkewEl == 0)
+    {
+        pIpRxChannel->m_NumSkewEl = 1;
+        pSkew->m_StartTime = CurRefTimestamp;
+        pSkew->m_SeqNum[0] = -1;
+        pSkew->m_SeqNum[1] = -1;
+        pSkew->m_SampleTime[IpPortIndex] = pDmaRxHeader->m_Timestamp;
+        pSkew->m_SeqNum[IpPortIndex] = SeqNumber;
+        pSkew->m_RtpTime[IpPortIndex] = RtpTimestamp;
+        pSkew->m_MinSkew = 0;
+        pSkew->m_MaxSkew = 0;
+        pSkew->m_MinMaxValid = FALSE;
+    } else 
+    {
+        if (CurRefTimestamp-pSkew->m_StartTime>54000000)   // 1 second
+        {
+            IpRxSkew*  pSkewPrev = pSkew;
+
+            // Store values per second for user
+            if (pSkew->m_MinMaxValid)
+            {
+                pIpRxChannel->m_MinSkewSecond = pSkew->m_MinSkew;
+                pIpRxChannel->m_MaxSkewSecond = pSkew->m_MaxSkew;
+            
+                // Store values also in per minute statistics for user if we don't need
+                // to recalculate
+                if (pIpRxChannel->m_NumSkewEl == 1)
+                {
+                    pIpRxChannel->m_MinSkewMinute = pSkew->m_MinSkew;
+                    pIpRxChannel->m_MaxSkewMinute = pSkew->m_MaxSkew;
+                } else if (pIpRxChannel->m_NumSkewEl != IPRX_SKEW_NUM_SECONDS)
+                {
+                    if (abs(pSkew->m_MinSkew) < abs(pIpRxChannel->m_MinSkewMinute))
+                        pIpRxChannel->m_MinSkewMinute = pSkew->m_MinSkew;
+                    if (abs(pSkew->m_MaxSkew) > abs(pIpRxChannel->m_MaxSkewMinute))
+                        pIpRxChannel->m_MaxSkewMinute = pSkew->m_MaxSkew;
+                }
+            }
+
+            pIpRxChannel->m_CurSkewEl++;
+            if (pIpRxChannel->m_CurSkewEl == IPRX_SKEW_NUM_SECONDS)
+                pIpRxChannel->m_CurSkewEl = 0;
+
+            if (pIpRxChannel->m_NumSkewEl == IPRX_SKEW_NUM_SECONDS)
+            {
+                // Max. reached, we have to recalculate
+                Recalc = TRUE;
+            } else 
+                pIpRxChannel->m_NumSkewEl++;
+
+            pSkew =  &pIpRxChannel->m_Skew[pIpRxChannel->m_CurSkewEl];
+
+            // Store last sample
+            pSkew->m_StartTime = CurRefTimestamp;
+            if (!pSkewPrev->m_MinMaxValid && (pSkew->m_SeqNum[0]==-1 || 
+                                                                  pSkew->m_SeqNum[1]==-1))
+            {
+                pSkew->m_SeqNum[0] = pSkewPrev->m_SeqNum[0];
+                pSkew->m_SeqNum[1] = pSkewPrev->m_SeqNum[1];
+                pSkew->m_RtpTime[0] = pSkewPrev->m_RtpTime[0];
+                pSkew->m_RtpTime[1] = pSkewPrev->m_RtpTime[1];
+                pSkew->m_SampleTime[0] = pSkewPrev->m_SampleTime[0];
+                pSkew->m_SampleTime[1] = pSkewPrev->m_SampleTime[1];
+            } else {
+                pSkew->m_SeqNum[0] = -1;
+                pSkew->m_SeqNum[1] = -1;
+                pSkew->m_RtpTime[0] = 0;
+                pSkew->m_RtpTime[1] = 0;
+            }
+            pSkew->m_MaxSkew = 0;
+            pSkew->m_MinMaxValid = FALSE;
+        }
+
+        // Check current sample
+        if (pSkew->m_SeqNum[0]==-1 && pSkew->m_SeqNum[1]==-1)
+        {
+            // Store first sample
+            pSkew->m_SampleTime[IpPortIndex] = pDmaRxHeader->m_Timestamp;
+            pSkew->m_SeqNum[IpPortIndex] = SeqNumber;
+            pSkew->m_RtpTime[IpPortIndex] = RtpTimestamp;
+        } else 
+        {
+            if (pSkew->m_SeqNum[IpPortIndex2] != -1)
+            {
+                // Check if we have a match
+                if (RtpTimestamp == pSkew->m_RtpTime[IpPortIndex2])
+                {
+                    if (SeqNumber == (UInt16)pSkew->m_SeqNum[IpPortIndex2])
+                    {
+                        // Found a match
+                        Int64  Skew = pDmaRxHeader->m_Timestamp - 
+                                                        pSkew->m_SampleTime[IpPortIndex2];
+                        if (pSkew->m_MinMaxValid)
+                        {
+                            if (abs(Skew) < abs(pSkew->m_MinSkew))
+                                pSkew->m_MinSkew = Skew;
+                            else if (abs(Skew) > abs(pSkew->m_MaxSkew))
+                                pSkew->m_MaxSkew = Skew;
+                        } else {
+                            pSkew->m_MinSkew = Skew;
+                            pSkew->m_MaxSkew = Skew;
+                            pSkew->m_MinMaxValid = TRUE;
+                        }
+
+                        // Reset
+                        pSkew->m_SeqNum[IpPortIndex] = -1;
+                        pSkew->m_SeqNum[IpPortIndex2] = -1;
+                    } else if (!DtaIpRxRtpIsSeqNumLess2(SeqNumber, RtpTimestamp,
+                                                    (UInt16)pSkew->m_SeqNum[IpPortIndex2],
+                                                    pSkew->m_RtpTime[IpPortIndex2]))
+                    {
+                        pSkew->m_SampleTime[IpPortIndex] = pDmaRxHeader->m_Timestamp;
+                        pSkew->m_SeqNum[IpPortIndex] = SeqNumber;
+                        pSkew->m_RtpTime[IpPortIndex] = RtpTimestamp;
+                        
+                        pSkew->m_SeqNum[IpPortIndex2] = -1;
+                    } else {
+                        // Skip this sample
+                    }
+                } else if (!DtaIpRxRtpIsTimestampLess(RtpTimestamp, 
+                                                      pSkew->m_RtpTime[IpPortIndex2]))
+                {
+                    if (pSkew->m_SeqNum[IpPortIndex] == -1)
+                    {
+                        pSkew->m_SampleTime[IpPortIndex] = pDmaRxHeader->m_Timestamp;
+                        pSkew->m_SeqNum[IpPortIndex] = SeqNumber;
+                        pSkew->m_RtpTime[IpPortIndex] = RtpTimestamp;
+                    }
+                } else
+                {
+                    // Skip this sample
+                }
+
+            } else 
+            {
+                // For now, skip
+            }
+        }
+
+        if (Recalc)
+        {
+            // Calculate Min/Max Skew
+            int  i;
+            Bool  Init = TRUE;
+            Int64  MinSkewMinute = 0;
+            Int64  MaxSkewMinute = 0; 
+            
+            // Do local calculations to minimize
+            for (i=0; i<pIpRxChannel->m_NumSkewEl; i++)
+            {
+                if (pIpRxChannel->m_Skew[i].m_MinMaxValid)
+                {    
+                    if (Init)
+                    {
+                        Init = FALSE;
+                        MinSkewMinute = pIpRxChannel->m_Skew[i].m_MinSkew;
+                        MaxSkewMinute = pIpRxChannel->m_Skew[i].m_MaxSkew;
+                    } else
+                    {
+                        if (abs(pIpRxChannel->m_Skew[i].m_MinSkew) < abs(MinSkewMinute))
+                            MinSkewMinute = pIpRxChannel->m_Skew[i].m_MinSkew;
+                        if (abs(pIpRxChannel->m_Skew[i].m_MaxSkew) > abs(MaxSkewMinute))
+                            MaxSkewMinute = pIpRxChannel->m_Skew[i].m_MaxSkew;
+                    }
+                }
+            }
+            pIpRxChannel->m_MinSkewMinute = MinSkewMinute;
+            pIpRxChannel->m_MaxSkewMinute = MaxSkewMinute;
+        }
+    }
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpParsePayloadMpeg -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtaIpRxParsePayLoadRtp(UserIpRxChannel* pIpRxChannel, DtaDmaRxHeader* pDmaRxHeader,
+        UInt16 SeqNumber, UInt32 Timestamp, UInt Size, UInt16 DvbOffset, UInt16 RtpOffset,
+        UInt8 FrameCount)
 {
     RtpListEntry*  pRtpListEntry;
-    
-    // It's a RTP packet with DVB content. Add to seq. buffer
-    pIpRxChannel->m_DetProtocol = DTA_PROTO_RTP;
+    Int  MaxNumRtpDvbPackets = MAX_NUM_RTP_PACKETS_TS;
+    // Timestamp must not be 0 for the lookup table to work
+    if (Timestamp == 0)
+        Timestamp = 1;
 
-    DtDbgOut(MAX, IP_RX, "Channel %d: MPEGII Packet rcvd. DVB-Offset=%d, FrameLength=%d",
-                               pIpRxChannel->m_ChannelIndex, DvbOffset, 
-                               pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength);
+    DtDbgOut(MAX, IP_RX_REC, "Channel %d: RTP packet rcvd.  SeqNr: %u, Timestamp: %08xh,"
+                            " payload offset=%d, FrameLength=%d",
+                            pIpRxChannel->m_ChannelIndex, SeqNumber, Timestamp, DvbOffset, 
+                            pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength);
 
+    if (pIpRxChannel->m_VidStd != DT_VIDSTD_TS)
+        MaxNumRtpDvbPackets = MAX_NUM_RTP_PACKETS_SDI;
 
     // Increment No Fec packets receive counter
-    if (++pIpRxChannel->m_RstCntFecColumn >= MAX_NUM_RTP_DVB_PACKETS)
+    if (++pIpRxChannel->m_RstCntFecColumn >= MaxNumRtpDvbPackets)
         pIpRxChannel->m_DetFecNumColumns = 0;
     
-    if (++pIpRxChannel->m_RstCntFecRow >= MAX_NUM_RTP_DVB_PACKETS)
+    if (++pIpRxChannel->m_RstCntFecRow >= MaxNumRtpDvbPackets)
         pIpRxChannel->m_DetFecNumRows = 0;
 
     if (pIpRxChannel->m_RxControl == DT_RXCTRL_IDLE) 
     {
         // We only need to calculate the bitrate
-        DtaIpRxProcessDvbPayLoad(
+        if (pIpRxChannel->m_DetVidStd == DT_VIDSTD_TS)
+            DtaIpRxProcessDvbPayLoad(
                 pIpRxChannel,
                 (UInt8*)pDmaRxHeader + DvbOffset + sizeof(DtaDmaRxHeader),
                 pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength - DvbOffset - 4,
@@ -3463,54 +4652,64 @@ void  DtaIpRxParsePayLoadMpeg(
         return;
     }
     
-    if (DtaIpRxRtpIsSeqNumLess(SeqNumber, pIpRxChannel->m_RtpLastSeqNum))
+    if (!pIpRxChannel->m_RtpFirstPacket && DtaIpRxRtpIsSeqNumLess2(SeqNumber, Timestamp, 
+                         pIpRxChannel->m_RtpLastSeqNum, pIpRxChannel->m_RtpLastTimestamp))
     {
         // Skip this packet. It's already too late
-        DtDbgOut(MAX, IP_RX, "SKIPPING PACKET SN:%d", SeqNumber);
+        DtDbgOut(ERR, IP_RX, "SKIPPING PACKET SN:%d Time:%x LastSN:%d LastTime:%x", 
+                                      SeqNumber, Timestamp, pIpRxChannel->m_RtpLastSeqNum,
+                                      pIpRxChannel->m_RtpLastTimestamp);
     } else {
-        pRtpListEntry = DtaIpRxRtpGetFreeEntry(pIpRxChannel);
-        if (pRtpListEntry != NULL)
-        {        
-            // Fill content
-            pRtpListEntry->m_RTPSequenceNumber = SeqNumber;
-            pRtpListEntry->m_PayloadOffset = DvbOffset;
-            pRtpListEntry->m_RTPOffset = RtpOffset;
+        // First check if seq. number already in list by checking lookup table
+        if ((pIpRxChannel->m_pRtpAvailLookup1==NULL && 
+                                pIpRxChannel->m_pRtpAvailLookup2==NULL) || 
+                                (pIpRxChannel->m_pRtpAvailLookup1[SeqNumber]!=Timestamp && 
+                                pIpRxChannel->m_pRtpAvailLookup2[SeqNumber]!=Timestamp))
+        {
+            pRtpListEntry = DtaIpRxRtpGetFreeEntry(pIpRxChannel);
+            if (pRtpListEntry != NULL)
+            {        
+                // Fill content
+                pRtpListEntry->m_RtpSequenceNumber = SeqNumber;
+                pRtpListEntry->m_RtpTimestamp = Timestamp;
+                pRtpListEntry->m_PayloadOffset = DvbOffset;
+                pRtpListEntry->m_RtpOffset = RtpOffset;
+                pRtpListEntry->m_FrameCount = FrameCount;
+                // Copy complete packet into the buffer
+                DtMemCopy(pIpRxChannel->m_pRtpBuffer + 
+                                 (pRtpListEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH),
+                                 pDmaRxHeader, Size);
+        
+                // Add packet to the RTP DVB List
+        
+                // DEBUGGING: Ad this for skipping a package to check reconstruction 
+                /*if ( pRtpListEntry->m_RTPSequenceNumber % 51 == 0 && 
+                                                      pRtpListEntry->m_RTPSequenceNumber != 0)
+                {
+                    DtDbgOut(ERR, IP_RX, "SKIPPING PACKET SN:%d", 
+                                                          pRtpListEntry->m_RTPSequenceNumber);
+                    DtaIpRxRtpMoveEntryToEmptyList(pIpRxChannel, pRtpListEntry);
+                } else */
 
-            // Copy complete packet into the buffer
-            DtMemCopy(pIpRxChannel->m_pRtpBuffer + 
-                (pRtpListEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH), pDmaRxHeader, 
-                                                                                    Size);
-        
-            // Add packet to the RTP DVB List
-        
-            // DEBUGGING: Ad this for skipping a package to check reconstruction 
-            /*if ( pRtpListEntry->m_RTPSequenceNumber % 51 == 0 && 
-                                                  pRtpListEntry->m_RTPSequenceNumber != 0)
-            {
-                DtDbgOut(ERR, IP_RX, "SKIPPING PACKET SN:%d", 
-                                                      pRtpListEntry->m_RTPSequenceNumber);
-                DtaIpRxRtpMoveEntryToEmptyList(pIpRxChannel, pRtpListEntry);
-            } else */
-
-        
-            if (!DtaIpRxRtpListAddEntry(pIpRxChannel, &pIpRxChannel->m_RtpDvbList, 
+            
+                if (!DtaIpRxRtpListAddEntry(pIpRxChannel, &pIpRxChannel->m_RtpDvbList, 
                                                                            pRtpListEntry))
-            {
-                // Packet already in list
-                // Set packet back to empty list
-                DtaIpRxRtpMoveEntryToEmptyList(pIpRxChannel, pRtpListEntry);
+                {
+                    // Packet already in list
+                    // Set packet back to empty list
+                    DtaIpRxRtpMoveEntryToEmptyList(pIpRxChannel, pRtpListEntry);
+                } else {
+                    // Tell the reconstruct thread that data is available
+                    pIpRxChannel->m_RxIncomingPackets = TRUE;
+                }
             } else {
-                // Tell the reconstruct thread that data is available
+                // Out of memory
+                DtDbgOut(ERR, IP_RX, "Channel %d: No queue elements available. Buffer "
+                           "FULL. Seq. Num: %d", pIpRxChannel->m_ChannelIndex, SeqNumber);
+
+                // Extra trigger reconstructor to parse the data
                 pIpRxChannel->m_RxIncomingPackets = TRUE;
             }
-        } else {
-            // Out of memory
-            DtDbgOut(ERR, IP_RX, 
-                     "Channel %d: No queue elements available. Buffer FULL. Seq. Num: %d",
-                     pIpRxChannel->m_ChannelIndex, SeqNumber);
-
-            // Extra trigger reconstructor to parse the data
-            pIpRxChannel->m_RxIncomingPackets = TRUE;
         }
     }
     DtaIpRxUserChRefDecr(pIpRxChannel);
@@ -3518,55 +4717,81 @@ void  DtaIpRxParsePayLoadMpeg(
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxParsePayLoadFec -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-Bool  DtaIpRxParsePayLoadFec(
-    UserIpRxChannel*  pIpRxChannel,
-    DtaDmaRxHeader*  pDmaRxHeader,
-    UInt16  SeqNumber,
-    Int  Size,
-    UInt16  DvbOffset,
-    UInt16  RtpOffset,
-    UInt  PacketSize,
-    DtaIpPort  *pIpPort,
-    Int  DestPort)
+Bool  DtaIpRxParsePayLoadFec(UserIpRxChannel* pIpRxChannel, DtaDmaRxHeader* pDmaRxHeader,
+            UInt16 SeqNumber, UInt32 Timestamp, Int Size, UInt16 DvbOffset, 
+            UInt16 RtpOffset, UInt PacketSize, DtaIpPort *pIpPort, Int DestPort, Bool Sdi)
 {
     
-    FecHeader* pFecHeader;
     RtpListEntry*  pRtpListEntry;
     UInt8*  pRxData = (UInt8*)pDmaRxHeader + sizeof(DtaDmaRxHeader);
-    pFecHeader = (FecHeader*) (pRxData + DvbOffset); 
-
-    // Check if the correct port number is used for this FEC Packet
-    if (((pFecHeader->m_D==0) && 
-                             (DestPort!=(pIpRxChannel->m_DstPort+FEC_INC_COLUMN_PORT))) ||
-        ((pFecHeader->m_D == 1) &&  
-                             (DestPort!=(pIpRxChannel->m_DstPort+FEC_INC_ROW_PORT))))
+    UInt16  SnBase;
+    UInt16  Na;
+    Bool  Row;
+    UInt16  Offset;
+    UInt  HeaderSize;
+    
+    if (Sdi)
     {
-        // Port number is incorrect for this fec type. 
-        DtDbgOut(ERR, IP_RX, 
+        FecHeader2022_5*  pFecHeader = (FecHeader2022_5*) (pRxData + DvbOffset);
+        HeaderSize = sizeof(FecHeader2022_5);
+        Na = ((UInt)pFecHeader->m_NAH<<2) + pFecHeader->m_NAL;
+        Offset = ((UInt16)pFecHeader->m_OffsetH<<2) + pFecHeader->m_OffsetL;
+        Row = (Offset == 1); 
+        SnBase = pFecHeader->m_SnBase;
+        DtDbgOut(AVG, IP_RX_REC, "Na: %xh Offset: %xh Row: %xh SnBase:%x", Na, Offset, 
+                                                                             Row, SnBase);
+    } else
+    {
+        FecHeader*  pFecHeader = (FecHeader*) (pRxData + DvbOffset);
+        Bool  DstPortCorrect = FALSE;
+        HeaderSize = sizeof(FecHeader);
+        // Check if the correct port number is used for this FEC Packet
+        Row = pFecHeader->m_D==1;
+        if (!Row && DestPort==(pIpRxChannel->m_DstPort+FEC_INC_COLUMN_PORT))
+            DstPortCorrect = TRUE;
+        else if (Row && DestPort==(pIpRxChannel->m_DstPort+FEC_INC_ROW_PORT))
+            DstPortCorrect = TRUE;
+        else if ((pIpRxChannel->m_IpParsMode & DTA_IP_RX_2022_7) != 0)
+        {
+            if (!Row && DestPort==(pIpRxChannel->m_DstPort2+FEC_INC_COLUMN_PORT))
+                DstPortCorrect = TRUE;
+            else if (Row && DestPort==(pIpRxChannel->m_DstPort2+FEC_INC_ROW_PORT))
+                DstPortCorrect = TRUE;
+        }
+        if (!DstPortCorrect)
+        {
+            // Port number is incorrect for this fec type. 
+            DtDbgOut(ERR, IP_RX, 
                "Channel %d: Incorrect destination port number %i for FEC packet type %i.",
                pIpRxChannel->m_ChannelIndex, DestPort, pFecHeader->m_D);
-        return FALSE;
-    }
+            // Don't release channel. It will be done autom.
+            return FALSE;
+        }
 
-    // Check if the correct error correction type is used
-    if (pFecHeader->m_Type != 0) 
-    {
-        // Fec packet is not XOR Fec. 
-        DtDbgOut(ERR, IP_RX,"Channel %d: Incorrect FEC error correction type %i",
+        // Check if the correct error correction type is used
+        if (pFecHeader->m_Type != 0) 
+        {
+            // Fec packet is not XOR Fec. 
+            DtDbgOut(ERR, IP_RX,"Channel %d: Incorrect FEC error correction type %i",
                                         pIpRxChannel->m_ChannelIndex, pFecHeader->m_Type);
 
-        return FALSE;
+            // Don't release channel. It will be done autom.
+            return FALSE;
+        }
+        Na = pFecHeader->m_NA;
+        Offset = pFecHeader->m_Offset;
+        SnBase = pFecHeader->m_SnBase;
     }
 
     if (pIpRxChannel->m_RxControl == DT_RXCTRL_IDLE) 
     {
         // We only update status in IDLE state
-        if (pFecHeader->m_D == 0)     // Column
+        if (!Row)     // Column
         {
-            pIpRxChannel->m_DetFecNumRows = pFecHeader->m_NA;
+            pIpRxChannel->m_DetFecNumRows = Na;
             pIpRxChannel->m_RstCntFecRow = 0;
         } else {
-            pIpRxChannel->m_DetFecNumColumns = pFecHeader->m_NA;
+            pIpRxChannel->m_DetFecNumColumns = Na;
             pIpRxChannel->m_RstCntFecColumn = 0;
         }
 
@@ -3574,18 +4799,34 @@ Bool  DtaIpRxParsePayLoadFec(
         return TRUE;
     }
 
+#ifdef _DEBUG
+    /*if (Offset == 1)
+    {
+        // We skip the row FEC.
+        DtDbgOut(ERR, IP_RX_REC, 
+               "Channel %d: RD TST:SKIP FEC ROW, SeqNum:%i, Base: %i, MaxSeqNum:%i",
+                         pIpRxChannel->m_ChannelIndex, 
+                        -1, 
+                         SnBase, ((Na-1)*Offset) + SnBase);
+
+        DtaIpRxUserChRefDecr(pIpRxChannel);
+        return TRUE;
+    }*/
+#endif
+
     pRtpListEntry = DtaIpRxRtpGetFreeEntry(pIpRxChannel);
     if (pRtpListEntry != NULL) 
     {
         // Fill content
-        pRtpListEntry->m_RTPSequenceNumber = SeqNumber;
-        pRtpListEntry->m_PayloadOffset = DvbOffset + sizeof(FecHeader);
-        pRtpListEntry->m_RTPOffset = RtpOffset;
+        pRtpListEntry->m_RtpSequenceNumber = SeqNumber;
+        pRtpListEntry->m_RtpTimestamp = Timestamp;
+        pRtpListEntry->m_PayloadOffset = DvbOffset + HeaderSize;
+        pRtpListEntry->m_RtpOffset = RtpOffset;
 
         // Store FEC information
-        pRtpListEntry->m_FecNA = pFecHeader->m_NA;
-        pRtpListEntry->m_FecOffset = pFecHeader->m_Offset;
-        pRtpListEntry->m_FecSNBase = DtUInt16ByteSwap(pFecHeader->m_SnBase);
+        pRtpListEntry->m_FecNA = Na;
+        pRtpListEntry->m_FecOffset = Offset;
+        pRtpListEntry->m_FecSNBase = DtUInt16ByteSwap(SnBase);
         
         // Copy complete packet into the buffer
         DtMemCopy(pIpRxChannel->m_pRtpBuffer + 
@@ -3593,12 +4834,12 @@ Bool  DtaIpRxParsePayLoadFec(
                                  pDmaRxHeader, Size);
 
         // Add packet to correct queue
-        if (pFecHeader->m_D == 0) 
+        if (!Row) 
         {   
             // Column            
-            pIpRxChannel->m_DetFecNumRows = pFecHeader->m_NA;
+            pIpRxChannel->m_DetFecNumRows = Na;
             pIpRxChannel->m_RstCntFecRow = 0;
-
+            
             // Add packet to the RTP Column List
             if (!DtaIpRxRtpListAddEntry(pIpRxChannel, 
                                         &pIpRxChannel->m_RtpFecColumnList, pRtpListEntry))
@@ -3610,12 +4851,24 @@ Bool  DtaIpRxParsePayLoadFec(
                 // Tell the reconstruct thread that data is available
                 pIpRxChannel->m_RxIncomingPackets = TRUE;
             }
+            DtDbgOut(AVG, IP_RX_REC, 
+             "Channel %d: AddFec: COLUMN. BufIndex:%i, SeqNum:%i, Base: %i, MaxSeqNum:%i",
+                                 pIpRxChannel->m_ChannelIndex, pRtpListEntry->m_BufIndex, 
+                                 pRtpListEntry->m_RtpSequenceNumber, 
+                                 pRtpListEntry->m_FecSNBase, 
+                                 ((pRtpListEntry->m_FecNA-1)*pRtpListEntry->m_FecOffset) + 
+                                 pRtpListEntry->m_FecSNBase);
         } else {  
-
             // Row
-            pIpRxChannel->m_DetFecNumColumns = pFecHeader->m_NA;
+            pIpRxChannel->m_DetFecNumColumns = Na;
             pIpRxChannel->m_RstCntFecColumn = 0;
-
+            DtDbgOut(AVG, IP_RX_REC, 
+                "Channel %d: AddFec: ROW. BufIndex:%i, SeqNum:%i, Base: %i, MaxSeqNum:%i",
+                                 pIpRxChannel->m_ChannelIndex, pRtpListEntry->m_BufIndex, 
+                                 pRtpListEntry->m_RtpSequenceNumber, 
+                                 pRtpListEntry->m_FecSNBase, 
+                                 ((pRtpListEntry->m_FecNA-1)*pRtpListEntry->m_FecOffset) + 
+                                 pRtpListEntry->m_FecSNBase);
             // Add packet to the RTP Row List
             if (!DtaIpRxRtpListAddEntry(pIpRxChannel,
                                            &pIpRxChannel->m_RtpFecRowList, pRtpListEntry))
@@ -3635,24 +4888,20 @@ Bool  DtaIpRxParsePayLoadFec(
         // Tell the FEC reconstruct thread that data is available
         pIpRxChannel->m_RxIncomingPackets = TRUE;
     }
-
     DtaIpRxUserChRefDecr(pIpRxChannel);
     return TRUE;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxParsePacket -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void  DtaIpRxParsePacket(
-    DtaIpPort*  pIpPort,
-    UInt8*  pData,
-    UInt  Size,
-    Bool  NrtRxType2)
+void  DtaIpRxParsePacket(DtaIpPort* pIpPort, UInt8* pData, UInt Size, Bool NrtRxType2)
 {   
     UInt  i;
     UInt  PacketSize;
     IpHeaderV4*  pIpHeaderV4 = NULL;
     IpHeaderV6*  pIpHeaderV6 = NULL;
     UdpHeader*  pUdpHeader = NULL;
+    HbrMediaPlHeader*  pHbrHeader = NULL;
     Bool  PacketProcessed = FALSE;
     
     Bool  MulticastPacket = FALSE;
@@ -3669,7 +4918,8 @@ void  DtaIpRxParsePacket(
     
     // fragmented frames
     UserIpRxChannel*  pIpRxFragment = NULL;
-    DtaIpUserChannels*  pIpUserChannels = &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels;
+    DtaIpUserChannels*  pIpUserChannels = 
+                                        &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels;
     UInt  FrameLength;
     UInt  DvbTotalLength;
 
@@ -3687,6 +4937,8 @@ void  DtaIpRxParsePacket(
     Int  EthType;
     Int  EthHeaderSize;
     Int  VlanId = 0;
+    Int  DetVideoStd;
+    UInt8  FrameCount = 0;
     
     // Calculate packetsize. Extract CRC + DMA header
     PacketSize = Size - 4 - sizeof(DtaDmaRxHeader);
@@ -4007,24 +5259,13 @@ void  DtaIpRxParsePacket(
     // or if it is DVB data, we first check the RTP header values.
     // This is not a solid proof, but enough to do the job.
     if ((pRtpHeader->m_PayloadType!=RTP_PAYLOAD_MPEGII && 
-                  pRtpHeader->m_PayloadType!=RTP_PAYLOAD_FEC) || pRtpHeader->m_Version!=2)
-    {
+              pRtpHeader->m_PayloadType!=RTP_PAYLOAD_FEC &&
+              pRtpHeader->m_PayloadType!=RTP_PAYLOAD_SDI && 
+              pRtpHeader->m_PayloadType!=RTP_PAYLOAD_FEC_SDI) || pRtpHeader->m_Version!=2)
+{
         // Known payload types not found with RTPVersion of 2.
         // It's a UDP packet.
         ProtocolType = DTA_PROTO_UDP;
-
-        // Check if the Payload is DVB data (0x47 must be the first byte of the payload
-        if (*(pRxData + DvbOffset) != 0x47)
-        {
-            // It's not a DVB packet or a DVB packet with unknown header/content
-            DtaIpRxUserChRefDecrAll(pIpPort->m_pIpRxListeners, NumChannels);
-            DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
-            if (pIpRxFragment != NULL)
-                    DtaIpRxUserChRefDecr(pIpRxFragment);
-
-            DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
-            return;
-        }
     } else {
         // RTP Packet with MPEG-II or FEC content received
         if (pIpRxFragment != NULL)
@@ -4058,6 +5299,7 @@ void  DtaIpRxParsePacket(
         // Subtract RTP header size
         DvbTotalLength -= ((pRtpHeader->m_CsrcCount * 4) + sizeof(RtpHeader));
         DvbOffset  += (pRtpHeader->m_CsrcCount * 4) + sizeof(RtpHeader);
+        
     }
 
     // Check for RTP header extension (RtpExt = FALSE for UDP packets)
@@ -4071,7 +5313,51 @@ void  DtaIpRxParsePacket(
         DvbOffset += (DtUInt16ByteSwap(pRtpHeaderExtension->m_Length) * 4) + 
                                                                      sizeof(RtpExtension);
     }
-
+    
+    if (ProtocolType==DTA_PROTO_RTP && pRtpHeader->m_PayloadType==RTP_PAYLOAD_SDI)
+    {
+        pHbrHeader = (HbrMediaPlHeader*) (pRxData + DvbOffset);
+        DvbOffset += sizeof(HbrMediaPlHeader);
+        DvbTotalLength -= sizeof(HbrMediaPlHeader);
+        if (pHbrHeader->m_F == 0)
+        {
+            // No video source format present. Put packet to NDIS
+            DtaIpRxUserChRefDecrAll(pIpPort->m_pIpRxListeners, NumChannels);
+            DtMutexRelease(&pIpPort->m_IpRxListenersMutex);
+            if (pIpRxFragment != NULL)
+                DtaIpRxUserChRefDecr(pIpRxFragment);
+            DtaIpRxSendPacketToNwDriver(pIpPort, pDmaRxHeader, pRxData, PacketSize);
+            return;
+            /*DvbOffset -= 4;
+            DvbTotalLength += 4;
+            DetVideoStd = DT_VIDSTD_UNKNOWN;
+            FrameCount = 0;*/
+        } else {
+            UInt8  Frame = ((UInt8)pHbrHeader->VSF.m_FrameH<<4)|pHbrHeader->VSF.m_FrameL;
+            DetVideoStd = DT_VIDSTD_UNKNOWN;
+                
+            switch(Frame)
+            {
+            case 0x10: DetVideoStd = DT_VIDSTD_525I59_94;break;
+            case 0x11: DetVideoStd = DT_VIDSTD_625I50; break;
+            }
+            FrameCount = pHbrHeader->m_FRCount;
+        }
+        if (pHbrHeader->m_CfH!=0 || pHbrHeader->m_CfL!=0)
+        {
+            // Extra video timestamp included 
+            DvbOffset += 4;
+            DvbTotalLength -= 4;
+        }
+        if (pHbrHeader->m_Ext != 0)
+        {
+            // header is extended
+            DvbOffset += 4*pHbrHeader->m_Ext;
+            DvbTotalLength -= 4*pHbrHeader->m_Ext;
+        }
+    } else if (pRtpHeader->m_PayloadType == RTP_PAYLOAD_MPEGII)
+        DetVideoStd = DT_VIDSTD_TS;
+    
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- CopyIpPacketsToUserChannels -.-.-.-.-.-.-.-.-.-.-.-.-.-.
     PacketProcessed = FALSE;
     for (i=0; i<NumChannels; i++) 
@@ -4085,7 +5371,7 @@ void  DtaIpRxParsePacket(
         pIpRxChannel->m_FragmentOffset = 0;
 
         // Check if packet is for correct VLAN
-        if ((pIpRxChannel->m_IpParsMode & DTA_IP_RX_DBLBUF)!=0 && 
+        if ((pIpRxChannel->m_IpParsMode & DTA_IP_RX_2022_7)!=0 && 
                                                             (pIpPort->m_IpPortIndex&1)!=0)
             VlanIdCh = pIpRxChannel->m_VlanId2;
         else
@@ -4112,7 +5398,7 @@ void  DtaIpRxParsePacket(
             DtaIpRxUserChRefDecr(pIpRxChannel);
             continue;
         }
-
+        
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Protocol UDP -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
         if (ProtocolType == DTA_PROTO_UDP) 
         {
@@ -4122,21 +5408,40 @@ void  DtaIpRxParsePacket(
             // It's a UDP packet with DVB content. 
             // If we are in double buffer mode we parse it like a RTP packet with packet
             // sorting otherwhise we copy it directly to the user buffer
+
             DT_ASSERT(*(pRxData + DvbOffset) == 0x47);
 
             pIpRxChannel->m_DetProtocol = DTA_PROTO_UDP;
             pIpRxChannel->m_DetFecNumColumns = 0;
             pIpRxChannel->m_DetFecNumRows = 0;
+            pIpRxChannel->m_DetVidStd = DT_VIDSTD_TS;
+            
+            if (pIpRxChannel->m_VidStd!=DT_VIDSTD_UNKNOWN &&
+                                                     pIpRxChannel->m_VidStd!=DT_VIDSTD_TS)
+            {
+                // Decrement use count, we don't want this format
+                DtaIpRxUserChRefDecr(pIpRxChannel);
+                continue;
+            }
+
+            DtaIpRxDoIpStatistics(pIpPort, pIpRxChannel, 
+                        pIpPort->m_pDvcData->m_IpDevice.m_RefTimeStored, 
+                        pDmaRxHeader, DtUInt16ByteSwap(pIpHeaderV4->m_Identification), 0);
 
             // We do not support doubly buffering with IpV6.
-            if (((pIpRxChannel->m_IpParsMode & DTA_IP_RX_DBLBUF)!=0) && pIpHeaderV4!=NULL)
+            if (((pIpRxChannel->m_IpParsMode & DTA_IP_RX_2022_7)!=0) && pIpHeaderV4!=NULL)
             {
-                DtDbgOut(MAX, IP_RX, "[%i]     PACKET SN:%d\t%d", pIpPort->m_IpPortIndex,
+                DtDbgOut(MAX, IP_RX_REC, "[%i]    PACKET SN:%d Time:%x\tLast: %d Time:%x", 
+                         pIpPort->m_IpPortIndex, 
+                         DtUInt16ByteSwap(pIpHeaderV4->m_Identification),
+                         (UInt32)pDmaRxHeader->m_Timestamp, pIpRxChannel->m_RtpLastSeqNum,
+                         pIpRxChannel->m_RtpLastTimestamp);
+                // Don't use Rx timestamp. Otherwise identification field for sorting
+                // does not work. We don't support high bitrates or long delays in that
+                // case. So UDP is limited supported.
+                DtaIpRxParsePayLoadRtp(pIpRxChannel, pDmaRxHeader, 
                                           DtUInt16ByteSwap(pIpHeaderV4->m_Identification),
-                                          pIpRxChannel->m_RtpLastSeqNum);
-                DtaIpRxParsePayLoadMpeg(pIpRxChannel, pDmaRxHeader, 
-                                          DtUInt16ByteSwap(pIpHeaderV4->m_Identification),
-                                          Size, DvbOffset, 0);
+                                          0, Size, DvbOffset, 0, 0);
 
                 // Notify the recontructor
                 if (pIpRxChannel->m_RxIncomingPackets)
@@ -4155,14 +5460,51 @@ void  DtaIpRxParsePacket(
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Protocol RTP -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
         //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Payload MPEGII -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-        if (pRtpHeader->m_PayloadType == RTP_PAYLOAD_MPEGII) 
+        if (pRtpHeader->m_PayloadType==RTP_PAYLOAD_MPEGII ||
+                                             pRtpHeader->m_PayloadType == RTP_PAYLOAD_SDI)
         {
-            DtDbgOut(MAX, IP_RX, "[%i]     PACKET SN:%d\t%d", pIpPort->m_IpPortIndex,
-                                           DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber),
-                                           pIpRxChannel->m_RtpLastSeqNum);
-            DtaIpRxParsePayLoadMpeg(pIpRxChannel, pDmaRxHeader,
+            DtDbgOut(ERR, IP_RX, "[%i]     PACKET SN:%d Time:%x\tLast:%d Time:%x", 
+                 pIpPort->m_IpPortIndex, DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber),
+                 DtUInt32ByteSwap(pRtpHeader->m_TimeStamp), pIpRxChannel->m_RtpLastSeqNum,
+                 pIpRxChannel->m_RtpLastTimestamp);
+            // It's a RTP packet with DVB content. Add to seq. buffer
+            pIpRxChannel->m_DetProtocol = DTA_PROTO_RTP;
+            pIpRxChannel->m_DetVidStd = DetVideoStd;
+
+            if (pIpRxChannel->m_VidStd!=DT_VIDSTD_UNKNOWN &&
+                                        pIpRxChannel->m_VidStd!=pIpRxChannel->m_DetVidStd)
+            {
+                DtDbgOut(MAX, IP_RX, 
+                           "Channel %d: Wrong video standard. Expected:%xh, received:%xh",
+                           pIpRxChannel->m_ChannelIndex, pIpRxChannel->m_VidStd, 
+                           pIpRxChannel->m_DetVidStd);
+                // Decrement use count, we don't want this format
+                DtaIpRxUserChRefDecr(pIpRxChannel);
+                continue;
+            }
+
+            DtaIpRxDoIpStatistics(pIpPort, pIpRxChannel, 
+                             pIpPort->m_pDvcData->m_IpDevice.m_RefTimeStored,
+                             pDmaRxHeader, DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber),
+                             DtUInt32ByteSwap(pRtpHeader->m_TimeStamp));
+#ifdef _DEBUG
+            /*if (((DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber)+1)%100 == 0) ||
+                ((DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber)+1)%101 == 0))
+            {
+                DtDbgOut(ERR, IP_RX_REC, 
+               "Channel %d: RD TST:SKIP PACKET, SeqNum:%i",
+                         pIpRxChannel->m_ChannelIndex, 
+                         DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber));
+                DtaIpRxUserChRefDecr(pIpRxChannel);
+                
+                continue;
+            }*/
+
+#endif
+            DtaIpRxParsePayLoadRtp(pIpRxChannel, pDmaRxHeader,
                                            DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber), 
-                                           Size, DvbOffset, RtpOffset);
+                                           DtUInt32ByteSwap(pRtpHeader->m_TimeStamp),
+                                           Size, DvbOffset, RtpOffset, FrameCount);
             
             // Notify the recontructor
             if (pIpRxChannel->m_RxIncomingPackets)
@@ -4171,7 +5513,8 @@ void  DtaIpRxParsePacket(
         }
 
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Payload FEC -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-        if (pRtpHeader->m_PayloadType == RTP_PAYLOAD_FEC) 
+        if (pRtpHeader->m_PayloadType==RTP_PAYLOAD_FEC || 
+                                           pRtpHeader->m_PayloadType==RTP_PAYLOAD_FEC_SDI) 
         {
              // It's a FEC packet
             if (pIpRxChannel->m_FecMode == DTA_FEC_DISABLE) 
@@ -4183,11 +5526,23 @@ void  DtaIpRxParsePacket(
                 DtaIpRxUserChRefDecr(pIpRxChannel);
                 continue;
             }
-
+            if (pIpRxChannel->m_VidStd!=DT_VIDSTD_UNKNOWN &&
+                                        pIpRxChannel->m_VidStd!=pIpRxChannel->m_DetVidStd)
+            {
+                // Decrement use count, we don't want this format
+                DtDbgOut(MAX, IP_RX, 
+                              "Channel %d: FEC packet received, but wrong video standard."
+                              "Expected:%xh, received:%xh", pIpRxChannel->m_ChannelIndex,
+                              pIpRxChannel->m_VidStd, pIpRxChannel->m_DetVidStd);
+                DtaIpRxUserChRefDecr(pIpRxChannel);
+                continue;
+            }
             if (!DtaIpRxParsePayLoadFec(pIpRxChannel, pDmaRxHeader,
-                                           DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber),
-                                           Size, DvbOffset, RtpOffset, PacketSize,
-                                           pIpPort, DestPort))
+                                          DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber),
+                                          DtUInt32ByteSwap(pRtpHeader->m_TimeStamp),
+                                          Size, DvbOffset, RtpOffset, PacketSize,
+                                          pIpPort, DestPort, 
+                                          pRtpHeader->m_PayloadType==RTP_PAYLOAD_FEC_SDI))
             {
                 DtaIpRxUserChRefDecrAll(pIpPort->m_pIpRxListeners, NumChannels);
                 if (pIpRxFragment != NULL)
@@ -4241,12 +5596,8 @@ void  DtaIpRxParsePacket(
 // NULL if no data is available. (*pRxDataSize = 0)
 // This function is not used for RT RX type2
 //
-UInt8*  CheckAndParseData(
-    DtaIpPort*  pIpPort,
-    UInt8*  pPrevData,
-    UInt*  pPrevDataSize,
-    UInt8*  pRxData, 
-    UInt*  pRxDataSize)
+UInt8*  CheckAndParseData(DtaIpPort* pIpPort, UInt8* pPrevData, UInt* pPrevDataSize,
+                                                        UInt8* pRxData, UInt* pRxDataSize)
 {
     UInt  NumBytesToChk;
     UInt8*  pDataToChk;
@@ -4339,8 +5690,8 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
     
     DtDbgOut(MAX, IP_RX, "Start");
 
-    pPrevData = DtMemAllocPool(DtPoolNonPaged, 2048, IPRX_TAG);
-    if (pPrevData == NULL) 
+    pPrevData = (UInt8*)DtMemAllocPool(DtPoolNonPaged, 2048, IPRX_TAG);
+    if (pPrevData == NULL)
     {
         DtDbgOut(ERR, IP_RX, "Not enough memory to allocate data buffer");
         return;
@@ -4382,7 +5733,7 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
         NumBytesRx = DtaPPBufferGetTransferSize(pPPBuffer);
         
         // Check received data.
-        pRxData = DtaPPBufferReadDataGetBuffer(pPPBuffer);
+        pRxData = (UInt8*)DtaPPBufferReadDataGetBuffer(pPPBuffer);
         
         //-.-.-.-.-.-.-.-.-.-.- Check if previous data is available -.-.-.-.-.-.-.-.-.-.-.
         if (PrevDataLength != 0)
@@ -4457,7 +5808,8 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
             if (!DtaIpRxIsDmaHeaderCorrect(pRxHeader))
             {
                 // Error in DMA header
-                DtDbgOut(ERR, IP_RX, "[%i] INCORRECT DMA header RT/NRT.", pIpPort->m_IpPortIndex);
+                DtDbgOut(ERR, IP_RX, "[%i] INCORRECT DMA header RT/NRT.", 
+                                                                  pIpPort->m_IpPortIndex);
                 pIpPort->m_NumIncorrectDmaRxHeaders++;
 
                 // Find packet header
@@ -4515,16 +5867,15 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
 
 //.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtCheckHeaderAndParseDataType2 -.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void DtaIpRxRtCheckHeaderAndParseDataType2(
-    DtaIpPort*  pIpPort, 
-    UInt8*  pRxData, 
-    UInt  RxDataSize)
+void DtaIpRxRtCheckHeaderAndParseDataType2(DtaIpPort* pIpPort, UInt8* pRxData, 
+                                                                          UInt RxDataSize)
 {
     DtaIpUserChannels*  pIpUserChannels = NULL;
     DtaDmaRxHeader*  pRxHeader;
     UInt  BytesToCopy;
     DT_ASSERT(pIpPort->m_PortType == DTA_IPPORT_TYPE2);
     
+    pIpUserChannels = &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels;
     // Parse the DMA data
     while (RxDataSize != 0)
     {
@@ -4588,6 +5939,7 @@ void DtaIpRxRtCheckHeaderAndParseDataType2(
             DT_ASSERT(pRxHeader->m_RxHeaderV3.m_AddrMatching.m_RealTime == 1);
             // It's for the RealTime Receive
             DtaIpRxParsePacket(pIpPort, pRxData, BytesToCopy, FALSE);
+            
         } else {
             // Copy to NDIS
             DtaIpRxSendPacketToNwDriver(pIpPort, pRxHeader,
@@ -4607,7 +5959,6 @@ void DtaIpRxRtCheckHeaderAndParseDataType2(
 
     // Finished parsing data
     // If packets are found process them in the reconstructor
-    pIpUserChannels = &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels;
     if (pIpUserChannels->m_IpRxRtpPacketAvailable)
     {
         pIpUserChannels->m_IpRxRtpPacketAvailable = FALSE;
@@ -4791,71 +6142,151 @@ void  DtaIpRxRtWorkerThread(DtThread* pThread, void* pContext)
     DtDbgOut(MAX, IP_RX, "Exit");
 }
 
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwIpRxGetMaxOutOfSync -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-UInt16  DtaNwIpRxGetMaxOutOfSync(UserIpRxChannel* pIpRxChannel) 
-{
-    if (pIpRxChannel->m_DetFecNumColumns!=0 && pIpRxChannel->m_DetFecNumRows!=0) 
-    {
-        return MAX_OUTOFSYNC_SEQ_NUM + 
-                         pIpRxChannel->m_DetFecNumColumns * pIpRxChannel->m_DetFecNumRows;
-    }
-    
-    return MAX_OUTOFSYNC_SEQ_NUM + MAX_NUM_RTP_DVB_PACKETS;
-}
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetSequenceNumberGap -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 UInt16  DtaIpRxGetSequenceNumberGap(UInt16 SequenceNum1, UInt16 SequenceNum2)
 {
-    if (SequenceNum1 > SequenceNum2)    
+    if (SequenceNum1 > SequenceNum2)
         return 0xffff - SequenceNum1 + SequenceNum2 + 1;
 
     return SequenceNum2 - SequenceNum1;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetSequenceNumberGap2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// 1/16 sec = 5625 ticks 90khz clock
+// 1/16 sec = 1687500 ticks 27Mhz clock
+// 1/16 sec:
+// = 6 packets 1Mbit, = 5936 packets 1Gbit, =59366 packets 10Gbit
+//
+// SDI = 270MBit is around 1100 ticks dT at 27Mhz clock (27e6*11000/270e6)
+//
+UInt32  DtaIpRxGetSequenceNumberGap2(UInt16 SequenceNum1, UInt32 RtpTimestamp1,
+                      UInt16 SequenceNum2, UInt32 RtpTimestamp2, Bool Clk90k, Int MaxRate)
+{
+    UInt32  dT;
+    UInt32  NumPackets;
+    UInt32 Gap;
+
+    Gap = DtaIpRxGetSequenceNumberGap(SequenceNum1, SequenceNum2);
+    if (RtpTimestamp1 == RtpTimestamp2)
+        return Gap;
+    if (DtaIpRxRtpIsTimestampLess(RtpTimestamp2, RtpTimestamp1))
+    {
+        // Message is no error when removing FEC packets
+        DtDbgOut(ERR, IP_RX, "ERR RtpTimestamp2(%08xh)<RtpTimestamp1(%08xh)", 
+                                                            RtpTimestamp2, RtpTimestamp1);
+        
+        return 0x1ffff;   // old data
+    }
+    // Calculate number of wraps
+    dT = DtaIpRxRtpGetTimestampDelta(RtpTimestamp1, RtpTimestamp2);
+    if (Clk90k)
+    {
+        // If MaxBitrate is set, we can optimise the check for lower and higher bitrates
+        if (MaxRate!=0 && MaxRate<10000000)
+        {
+            if (dT>(9557*5625) && Gap<0x1000)
+                Gap+= 0xFFFF;
+        } else if (MaxRate!=0 && MaxRate>270000000)
+        {
+            if (dT>(10*5625) && Gap<0x1000)
+                Gap+= 0xFFFF;
+        } else // If less, we never could get a wrap for 270Mbit stream and >10Mb.
+            if (dT>(4*11*5625) && Gap<0x1000)
+                Gap+= 0xffff;
+    } else {
+        NumPackets = dT/1100;
+        if (NumPackets>0xe000 && Gap<0x1000)
+            Gap+= 0xffff;
+    }
+    return Gap;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxIsNextPacketAvail -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// 1/16 sec = 5625 ticks 90khz clock
+// 1/16 sec = 1687500 ticks 27Mhz clock
+// 1/16 sec:
+// = 6 packets 1Mbit, = 5936 packets 1Gbit, =59366 packets 10Gbit
+//
+// SDI = 270MBit is around 1100 ticks dT at 27Mhz clock (27e6*11000/270e6)
+//
+Bool DtaIpRxIsNextPacketAvail(UInt16 SequenceNum1, UInt32 RtpTimestamp1,
+                                   UInt16 SequenceNum2, UInt32 RtpTimestamp2, Bool Clk90k)
+{
+    UInt32  dT = DtaIpRxRtpGetTimestampDelta(RtpTimestamp1, RtpTimestamp2);
+    if (Clk90k)
+        return  (SequenceNum2==SequenceNum1+1) && (dT < 5625);
+    return  (SequenceNum2==SequenceNum1+1) && (dT < 1687500);
+}
+
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetMaxOutOfSync -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 UInt16  DtaIpRxGetMaxOutOfSync(UserIpRxChannel* pIpRxChannel) 
 {
+    Int  MaxNumRtpDvbPackets = MAX_NUM_RTP_PACKETS_TS;
+    if (pIpRxChannel->m_VidStd != DT_VIDSTD_TS)
+        MaxNumRtpDvbPackets = MAX_NUM_RTP_PACKETS_SDI;
+
     if (pIpRxChannel->m_DetFecNumColumns!=0 && pIpRxChannel->m_DetFecNumRows!=0)
         return MAX_OUTOFSYNC_SEQ_NUM + 
                          pIpRxChannel->m_DetFecNumColumns * pIpRxChannel->m_DetFecNumRows;
-
-    return MAX_OUTOFSYNC_SEQ_NUM + MAX_NUM_RTP_DVB_PACKETS;
+    if (pIpRxChannel->m_DetFecNumColumns !=0)
+        return MAX_OUTOFSYNC_SEQ_NUM + pIpRxChannel->m_DetFecNumColumns;
+    return MAX_OUTOFSYNC_SEQ_NUM + MaxNumRtpDvbPackets;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxProcessRtpDvbPacket -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeqNum)
+void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeqNum, 
+                                                                   UInt32* pLastTimestamp)
 {
     DtaDmaRxHeader*  pDmaRxHeader;
-    UInt16  MaxOutOfSync;
-    UInt16  MinPacketsInBuffer;
+    UInt  MaxOutOfSync;
+    UInt  MinPacketsInBuffer;
     RtpListEntry*  pRtpListEntry = NULL;
     RtpListEntry*  pRtpLastListEntry = NULL;
-    UInt16  Gap;
-    UInt16  NumPackets = 1;
+    UInt  Gap;
+    UInt  NumPackets = 1;
     UInt16  LastSeqNum;
+    UInt32  LastTimestamp;
 
-    if (pIpRxChannel->m_IpParsMode == DTA_IP_RX_DBLBUF) 
+    if (pIpRxChannel->m_MinPacketDelay==0 && pIpRxChannel->m_MaxPacketOutOfSync==0)
     {
-        MaxOutOfSync = 200;
-        if (pIpRxChannel->m_FecMode == DTA_FEC_DISABLE) 
+        if (pIpRxChannel->m_IpParsMode == DTA_IP_RX_2022_7) 
+        {
+            MaxOutOfSync = 200;
+            if (pIpRxChannel->m_FecMode == DTA_FEC_DISABLE) 
+                MinPacketsInBuffer = 0;
+            else
+                MinPacketsInBuffer = 3 * DtaIpRxGetMaxOutOfSync(pIpRxChannel);
+        } else if (pIpRxChannel->m_FecMode == DTA_FEC_DISABLE) 
+        {
+            MaxOutOfSync = MAX_OUTOFSYNC_SEQ_NUM;
             MinPacketsInBuffer = 0;
-        else
-            MinPacketsInBuffer = 3 * DtaIpRxGetMaxOutOfSync(pIpRxChannel);
-    } else if (pIpRxChannel->m_FecMode == DTA_FEC_DISABLE) 
+        } else {
+            MaxOutOfSync = 3 * DtaIpRxGetMaxOutOfSync(pIpRxChannel);
+            // Is a Fec row + column packet received
+            MinPacketsInBuffer = MaxOutOfSync;
+        }
+    } else 
     {
-        MaxOutOfSync = MAX_OUTOFSYNC_SEQ_NUM;
-        MinPacketsInBuffer = 0;
-    } else {
-        MaxOutOfSync = 3 * DtaIpRxGetMaxOutOfSync(pIpRxChannel);
-        // Is a Fec row + column packet received
-        MinPacketsInBuffer = MaxOutOfSync;
-    }   
-
+        MinPacketsInBuffer = pIpRxChannel->m_MinPacketDelay;
+        MaxOutOfSync = pIpRxChannel->m_MaxPacketOutOfSync;
+    }
+#ifdef DEBUG
+    if (pIpRxChannel->m_DetFecNumColumns != 0)
+    { 
+        Int NumPkts = pIpRxChannel->m_DetFecNumColumns;
+        if (pIpRxChannel->m_DetFecNumRows != 0)
+        {
+            NumPkts *= pIpRxChannel->m_DetFecNumRows;
+        }
+        DT_ASSERT(MinPacketsInBuffer >= (MAX_OUTOFSYNC_SEQ_NUM+NumPkts));
+    }
+#endif
     while(TRUE)
     {
         DtSpinLockAcquire(&pIpRxChannel->m_RtpListSpinLock);
@@ -4871,14 +6302,43 @@ void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeq
             while (pRtpListEntry != pRtpListEntryTmp)
             {
                 DtHeadListRemove(&pIpRxChannel->m_RtpDvbList);
-                DtDbgOut(MAX, IP_RX, "Remove before: Sn: %u pEntry:%p pRtpList:%p", 
-                                           pRtpListEntryTmp->m_RTPSequenceNumber, 
+                DtDbgOut(ERR, IP_RX, "Remove before: Sn: %u pEntry:%p pRtpList:%p", 
+                                           pRtpListEntryTmp->m_RtpSequenceNumber, 
                                            pRtpListEntryTmp, &pIpRxChannel->m_RtpDvbList);
+                
+                if (pIpRxChannel->m_pRtpAvailLookup1!=NULL && 
+                   pIpRxChannel->m_pRtpAvailLookup1[pRtpListEntryTmp->m_RtpSequenceNumber]
+                                                       ==pRtpListEntryTmp->m_RtpTimestamp)
+                    pIpRxChannel->m_pRtpAvailLookup1
+                                              [pRtpListEntryTmp->m_RtpSequenceNumber] = 0;
+                else if (pIpRxChannel->m_pRtpAvailLookup2!=NULL && 
+                   pIpRxChannel->m_pRtpAvailLookup2[pRtpListEntryTmp->m_RtpSequenceNumber]
+                                                       ==pRtpListEntryTmp->m_RtpTimestamp)
+                    pIpRxChannel->m_pRtpAvailLookup2
+                                              [pRtpListEntryTmp->m_RtpSequenceNumber] = 0;
+                else
+                    DT_ASSERT(FALSE);
                 DtaIpRxRtpMoveEntryToEmptyListUnsafe(pIpRxChannel, pRtpListEntryTmp);
                 pRtpListEntryTmp = DtContainingRecord(
                    DtListNextGet(&pIpRxChannel->m_RtpDvbList), RtpListEntry, m_ListEntry);
             }
             DtHeadListRemove(&pIpRxChannel->m_RtpDvbList);
+            if (pIpRxChannel->m_pRtpAvailLookup1!=NULL && 
+                      pIpRxChannel->m_pRtpAvailLookup1[pRtpListEntry->m_RtpSequenceNumber]
+                                                          ==pRtpListEntry->m_RtpTimestamp)
+                pIpRxChannel->m_pRtpAvailLookup1[pRtpListEntry->m_RtpSequenceNumber] = 0;
+            else if (pIpRxChannel->m_pRtpAvailLookup2!=NULL && 
+                      pIpRxChannel->m_pRtpAvailLookup2[pRtpListEntry->m_RtpSequenceNumber]
+                                                          ==pRtpListEntry->m_RtpTimestamp)
+                pIpRxChannel->m_pRtpAvailLookup2[pRtpListEntry->m_RtpSequenceNumber] = 0;
+            else {
+                DT_ASSERT(FALSE);
+                DtDbgOut(ERR, IP_RX, "Seq not in lookup. : Seq.Nr.:%i Timestamp:%x L1:%x"
+                    " L2:%x", pRtpListEntry->m_RtpSequenceNumber, 
+                    pRtpListEntry->m_RtpTimestamp, 
+                    pIpRxChannel->m_pRtpAvailLookup1[pRtpListEntry->m_RtpSequenceNumber], 
+                    pIpRxChannel->m_pRtpAvailLookup2[pRtpListEntry->m_RtpSequenceNumber]);
+            }
             DtaIpRxRtpMoveEntryToEmptyListUnsafe(pIpRxChannel, pRtpListEntry);
         }
 
@@ -4897,57 +6357,100 @@ void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeq
                                                                RtpListEntry, m_ListEntry);
 
         if (pLastSeqNum != NULL)
+        {
             LastSeqNum = *pLastSeqNum;
-        else 
-            LastSeqNum = pRtpLastListEntry->m_RTPSequenceNumber;
+            LastTimestamp = *pLastTimestamp;
+            DtDbgOut(MAX, IP_RX_REC,
+                              "Channel %d: RtpDvbPacket1. LastSeqNum:%i,LastTimestamp:%x",
+                              pIpRxChannel->m_ChannelIndex, LastSeqNum, LastTimestamp);
+        } else {
+            LastSeqNum = pRtpLastListEntry->m_RtpSequenceNumber;
+            LastTimestamp = pRtpLastListEntry->m_RtpTimestamp;
+            DtDbgOut(MAX, IP_RX_REC,
+                              "Channel %d: RtpDvbPacket2. LastSeqNum:%i,LastTimestamp:%x",
+                              pIpRxChannel->m_ChannelIndex, LastSeqNum, LastTimestamp);
+        }
 
-        Gap = DtaIpRxGetSequenceNumberGap(pRtpListEntry->m_RTPSequenceNumber, LastSeqNum);
-        
+        Gap = DtaIpRxGetSequenceNumberGap2(pRtpListEntry->m_RtpSequenceNumber, 
+                     pRtpListEntry->m_RtpTimestamp, LastSeqNum, LastTimestamp, 
+                     pIpRxChannel->m_DetVidStd==DT_VIDSTD_TS, pIpRxChannel->m_MaxBitrate);
+
         // Minimal MinPacketsInBuffer packets in buffer for reconstruction
         if ((Gap>MaxOutOfSync) || 
-                (DtaIpRxGetSequenceNumberGap(pIpRxChannel->m_RtpLastSeqNum, 
-                                               pRtpListEntry->m_RTPSequenceNumber) == 1 &&
-                                               !pIpRxChannel->m_RtpFirstPacket && 
-                                               pRtpListEntry->m_InUse==0 && 
-                                               Gap>=MinPacketsInBuffer))
-        {   
+                  (DtaIpRxIsNextPacketAvail(pIpRxChannel->m_RtpLastSeqNum, 
+                   pRtpLastListEntry->m_RtpTimestamp, pRtpListEntry->m_RtpSequenceNumber,
+                   pRtpListEntry->m_RtpTimestamp, pIpRxChannel->m_DetVidStd==DT_VIDSTD_TS)
+                   && !pIpRxChannel->m_RtpFirstPacket && 
+                   pRtpListEntry->m_InUse==0 && Gap>=MinPacketsInBuffer))
+        {
             UInt16  PrevLastSeqNum = pIpRxChannel->m_RtpLastSeqNum;
-            pIpRxChannel->m_RtpLastSeqNum = pRtpListEntry->m_RTPSequenceNumber;
+            UInt32  PrevLastTimestamp = pIpRxChannel->m_RtpLastTimestamp;
+            pIpRxChannel->m_RtpLastSeqNum = pRtpListEntry->m_RtpSequenceNumber;
+            pIpRxChannel->m_RtpLastTimestamp = pRtpListEntry->m_RtpTimestamp;
             
             DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
 
             // Packet ready for user buffer
-
             // Count number of lost packets
             if (!pIpRxChannel->m_RtpFirstPacket) 
             {
                 DtSpinLockAcquire(&pIpRxChannel->m_StatisticsSpinLock);
-                NumPackets = DtaIpRxGetSequenceNumberGap(PrevLastSeqNum, 
-                                                      pRtpListEntry->m_RTPSequenceNumber);
-
+                NumPackets = DtaIpRxGetSequenceNumberGap2(PrevLastSeqNum,
+                                    PrevLastTimestamp, pRtpListEntry->m_RtpSequenceNumber,
+                                    pRtpListEntry->m_RtpTimestamp, 
+                                    pIpRxChannel->m_DetVidStd==DT_VIDSTD_TS,
+                                    pIpRxChannel->m_MaxBitrate);
                 pIpRxChannel->m_NumPacketsNotReconstructed += NumPackets-1;
                 pIpRxChannel->m_TotNumPackets += NumPackets;
                 DtSpinLockRelease(&pIpRxChannel->m_StatisticsSpinLock);
+                if (NumPackets !=1)
+                    DtDbgOut(AVG, IP_RX_REC, "Channel %d: RtpDvbPacketxx SeqNumPrev:%i," 
+                              " TimestampPrev:%x, SeqNum:%i,Timestamp:%x,NumPackets:%i",
+                              pIpRxChannel->m_ChannelIndex, /*pRtpListEntry->m_BufIndex,*/
+                              PrevLastSeqNum, PrevLastTimestamp,
+                              pRtpListEntry->m_RtpSequenceNumber, 
+                              pRtpListEntry->m_RtpTimestamp, NumPackets);
             }
             
             pDmaRxHeader = (DtaDmaRxHeader*)(pIpRxChannel->m_pRtpBuffer + 
                                 (pRtpListEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
 
-            DtDbgOut(MAX, IP_RX,
-                "Channel %d: RtpDvbPacket.BufIndex:%i,SeqNum:%i,Gap:%i,LSNTx:%i,LSNRx:%i",
-                pIpRxChannel->m_ChannelIndex, pRtpListEntry->m_BufIndex, 
-                pRtpListEntry->m_RTPSequenceNumber, Gap, 
-                pIpRxChannel->m_RtpLastSeqNum, LastSeqNum);
-            DtDbgOut(MAX, IP_RX, "CopytoDvb Sn: %u pEntry: %p", 
-                                       pRtpListEntry->m_RTPSequenceNumber, pRtpListEntry);
+            DtDbgOut(AVG, IP_RX_REC, "Channel %d: RtpDvbPacket. SeqNum:%i,Gap:%i, "
+                              "MinPacketsInBuffer:%i,LSNTx:%i,LSNRx:%i NR:%i",
+                              pIpRxChannel->m_ChannelIndex, /*pRtpListEntry->m_BufIndex,*/ 
+                              pRtpListEntry->m_RtpSequenceNumber, Gap, MinPacketsInBuffer,
+                              pIpRxChannel->m_RtpLastSeqNum, LastSeqNum, 
+                              pIpRxChannel->m_NumPacketsNotReconstructed);
                 
             // Store packet in DVB User buffer
-            DtaIpRxProcessDvbPayLoad(pIpRxChannel,
-                               (UInt8*)pDmaRxHeader + pRtpListEntry->m_PayloadOffset +
-                               sizeof(DtaDmaRxHeader),
-                               pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength -
-                               pRtpListEntry->m_PayloadOffset - 4,  // -4 for CRC
-                               pDmaRxHeader->m_Timestamp, NumPackets-1);
+            if (pIpRxChannel->m_DetVidStd == DT_VIDSTD_UNKNOWN)
+            {
+                DtDbgOut(MAX, IP_RX, "SKIPPED:CopytoDvb Sn:%u pEntry:%p SKIPPED. "
+                     "VidStd unknown", pRtpListEntry->m_RtpSequenceNumber, pRtpListEntry);
+            
+            } else if (pIpRxChannel->m_DetVidStd == DT_VIDSTD_TS)
+            {
+                DtDbgOut(MAX, IP_RX, "CopytoDvb Sn:%u pEntry:%p", 
+                                       pRtpListEntry->m_RtpSequenceNumber, pRtpListEntry);
+            
+                DtaIpRxProcessDvbPayLoad(pIpRxChannel,
+                              (UInt8*)pDmaRxHeader + pRtpListEntry->m_PayloadOffset +
+                              sizeof(DtaDmaRxHeader),
+                              pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength -
+                              pRtpListEntry->m_PayloadOffset - 4,  // -4 for CRC
+                              pDmaRxHeader->m_Timestamp, NumPackets-1);
+            } else {
+                 DtDbgOut(MAX, IP_RX, "CopytoSdi Sn:%u pEntry:%p", 
+                                       pRtpListEntry->m_RtpSequenceNumber, pRtpListEntry);
+              
+                 DtaIpRxProcessSdiPayLoad(pIpRxChannel, (RtpHeader*)((UInt8*)pDmaRxHeader+
+                                pRtpListEntry->m_RtpOffset+sizeof(DtaDmaRxHeader)),
+                                (UInt8*)pDmaRxHeader + pRtpListEntry->m_PayloadOffset +
+                                sizeof(DtaDmaRxHeader),
+                                pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength-
+                                pRtpListEntry->m_PayloadOffset - 4,  // -4 for CRC
+                                pDmaRxHeader->m_Timestamp);
+            }
             pIpRxChannel->m_RtpFirstPacket = FALSE;
         } else {
             DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
@@ -4965,9 +6468,14 @@ void  DtaIpRxReconstructThread(DtThread* pThread, void* pContext)
     Bool  StopThread = FALSE;
     UserIpRxChannel*  pIpRxChannel = NULL;
     Int  ChannelIndex;
+    RtpListEntry**  ppReconstructList = (RtpListEntry**)DtMemAllocPool(DtPoolNonPaged, 
+                           sizeof(RtpListEntry*)*MAX_FEC_RECONSTR_ELEMENTS_SDI, IPRX_TAG);
     
     DtDbgOut(MAX, IP_RX, "Start");
-
+    
+    if (ppReconstructList == NULL)
+        DtDbgOut(ERR, IP_RX, "Not enough memory to do FEC reconstruction");
+    
     while (!StopThread)
     {
         // Wait for RTP packets available or stop
@@ -4977,10 +6485,9 @@ void  DtaIpRxReconstructThread(DtThread* pThread, void* pContext)
         {
             StopThread = TRUE;
             continue;
-        }        
-        
+        }
         DtFastMutexAcquire(&pIpUserChannels->m_IpRxChThreadMutex);
-
+        
         pIpRxChannel = pIpUserChannels->m_pIpRxChannel;
         while (pIpRxChannel != NULL)
         {
@@ -5000,10 +6507,10 @@ void  DtaIpRxReconstructThread(DtThread* pThread, void* pContext)
             ChannelIndex = pIpRxChannel->m_ChannelIndex;
             DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
 
-            if (pIpRxChannel->m_FecMode == DTA_FEC_DISABLE)
-                DtaIpRxProcessRtpDvbPacket(pIpRxChannel, NULL);
+            if (pIpRxChannel->m_FecMode==DTA_FEC_DISABLE || ppReconstructList==NULL)
+                DtaIpRxProcessRtpDvbPacket(pIpRxChannel, NULL, NULL);
             else
-                DtaIpRxProcessDvbWithFec(pIpRxChannel);
+                DtaIpRxProcessDvbWithFec(pIpRxChannel, ppReconstructList);
 
             DtaIpRxUserChRefDecr(pIpRxChannel);
 
@@ -5021,6 +6528,8 @@ void  DtaIpRxReconstructThread(DtThread* pThread, void* pContext)
 
     // We have to wait until the thread received a stop command.
     DtThreadWaitForStop(pThread);
+    if (ppReconstructList != NULL)
+        DtMemFreePool(ppReconstructList, IPRX_TAG);
     DtDbgOut(MAX, IP_RX, "Exit");
 }
 
@@ -5038,10 +6547,8 @@ void  DtaIpRxSetBrmSkipUpdate(DtaIpUserChannels* pIpRxUserChannels, Bool State)
 // PRE-CONDITION:
 //  - This is not the first sample: pIpRxChannel->m_BrmNumSamples!=0
 //  - Time passed since previous sample is at least the minimum period (200ms)
-void  DtaIpRxBrmProcessSample(
-    UserIpRxChannel*  pIpRxChannel,
-    UInt64  RefClock, 
-    UInt64  TimeStamp)
+void  DtaIpRxBrmProcessSample(UserIpRxChannel* pIpRxChannel, UInt64 RefClock, 
+                                                                         UInt64 TimeStamp)
 {
     Int  IdxEldest;
     Int  IdxNew;
@@ -5089,7 +6596,7 @@ void  DtaIpRxBrmProcessSample(
     if (DiffTs != 0)
     {   
         DiffNumPckTime = DtDivide64(DiffNumPckTime, DiffTs, NULL);
-        pIpRxChannel->m_BrmEstimate = (Int)DiffNumPckTime;        
+        pIpRxChannel->m_BrmEstimate = (Int)DiffNumPckTime;
     }
 
     DtDbgOut(MAX, IP_RX,"Channel %d:DiffTs=%llu DiffNumPckBytes=%llu BrmEstimate=%d",
@@ -5117,6 +6624,7 @@ void  DtaIpRxUpdateBrmDpc(DtDpcArgs* pArgs)
     // Minimum time between samples in clock cycles = 200 mS
     MinPeriod = (pDvcData->m_DevInfo.m_RefClk / 1000) * 200;
     CurrentTime = DtaRegRefClkCntGet64(pDvcData->m_pGenRegs);
+    pIpDevice->m_RefTimeStored = CurrentTime;
 
     DtSpinLockAcquireAtDpc(&pIpUserChannels->m_IpRxBrmSpinLock);
     if (pIpUserChannels->m_IpRxBrmSkipUpdate)
@@ -5179,14 +6687,13 @@ void  DtaIpRxUpdateBrmDpc(DtDpcArgs* pArgs)
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxGetFecReconstructionList -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Returns the FEC Packet belonging to the SequenceNumber if all packets to reconstruct
-// are available. The pReconstructList is filled with all DVB packets needed to reconstruct
+// are available. The pReconstructList is filled with all DVB packets needed to 
+// reconstruct.
 // Pre: The m_RtpListSpinLock must be acquired 
 //
-RtpListEntry*  DtaIpRxGetFecReconstructionList(
-    UserIpRxChannel*  pIpRxChannel,
-    DtListEntry*  pFecList,
-    UInt16  SequenceNumber,
-    RtpListEntry*  pReconstructList[MAX_FEC_RECONSTR_ELEMENTS])
+RtpListEntry*  DtaIpRxGetFecReconstructionList(UserIpRxChannel* pIpRxChannel,
+                           DtListEntry* pFecList, UInt16 SequenceNumber, UInt32 Timestamp,
+                           RtpListEntry* pReconstructList[MAX_FEC_RECONSTR_ELEMENTS_SDI])
 {
     DtListEntry*  pListEntry;
     DtListEntry*  pDvbListEntry = NULL;
@@ -5206,10 +6713,12 @@ RtpListEntry*  DtaIpRxGetFecReconstructionList(
         pRtpEntry = DtContainingRecord(pListEntry, RtpListEntry, m_ListEntry);
         
         //Check if required sequence number is in the current FEC range.
-        EndSeqNum = (pRtpEntry->m_FecNA*pRtpEntry->m_FecOffset) + pRtpEntry->m_FecSNBase;
+        EndSeqNum = ((pRtpEntry->m_FecNA-1)*pRtpEntry->m_FecOffset) + 
+                                                                   pRtpEntry->m_FecSNBase;
         
-        if ((SequenceNumber>=pRtpEntry->m_FecSNBase && SequenceNumber<EndSeqNum) ||
-                                 (EndSeqNum>0xffff && SequenceNumber<(EndSeqNum%0x10000)))
+        if (((SequenceNumber>=pRtpEntry->m_FecSNBase && SequenceNumber<=EndSeqNum) ||
+                       (EndSeqNum>0xffff && SequenceNumber<=(EndSeqNum%0x10000)))
+                       && DtaIpRxRtpIsTimestampLess(Timestamp, pRtpEntry->m_RtpTimestamp))
         {
             // Required sequence number is in the correct range, 
             // Now check if the offset is at the correct position.
@@ -5220,6 +6729,9 @@ RtpListEntry*  DtaIpRxGetFecReconstructionList(
             {            
                 // This FEC belongs to the needed sequence number
                 Found = TRUE;
+                DtDbgOut(MAX, IP_RX_REC, "Reconstruct SequenceNumber:%i with FecBase:%i" 
+                                  " FecOffset:%i", SequenceNumber, pRtpEntry->m_FecSNBase,
+                                  pRtpEntry->m_FecOffset);
 
                 // Set search starting point to NULL, start from begin
                 pDvbListEntry = NULL;
@@ -5234,11 +6746,26 @@ RtpListEntry*  DtaIpRxGetFecReconstructionList(
                     {
                         //Skip this one, because we need to reconstruct it
                     } else {
-                        pRtpDvbEntry = DtaIpRxRtpGetDvbEntryUnsafe(pIpRxChannel, 
-                                                           (UInt16)SeqNum, pDvbListEntry);
-                        
-                        if (pRtpDvbEntry) 
-                        {                        
+                        // First check lookup table
+                        pRtpDvbEntry = NULL;
+                        if ((pIpRxChannel->m_pRtpAvailLookup1==NULL&&
+                                            pIpRxChannel->m_pRtpAvailLookup2==NULL) || 
+                                            pIpRxChannel->m_pRtpAvailLookup1[SeqNum]!=0 ||
+                                            pIpRxChannel->m_pRtpAvailLookup2[SeqNum]!=0)
+                        {
+                            pRtpDvbEntry = DtaIpRxRtpGetDvbEntryUnsafe(pIpRxChannel, 
+                                                (UInt16)SeqNum, pRtpEntry->m_RtpTimestamp, 
+                                                pDvbListEntry);
+                        } else {
+                            DtDbgOut(AVG, IP_RX_REC, "SEQ NUM NOT AVAIL. SeqNr:%i L1:%x "
+                                                 "L2:%x Time:%x", SeqNum, 
+                                                 pIpRxChannel->m_pRtpAvailLookup1[SeqNum],
+                                                 pIpRxChannel->m_pRtpAvailLookup2[SeqNum], 
+                                                 pRtpEntry->m_RtpTimestamp);
+                        }
+
+                        if (pRtpDvbEntry != NULL)
+                        {
                             pReconstructList[Index++] = pRtpDvbEntry;
 
                             // Next time start searching from the following point
@@ -5260,11 +6787,9 @@ RtpListEntry*  DtaIpRxGetFecReconstructionList(
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxCalcNewRxTimestamp -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-UInt64  DtaIpRxCalcNewRxTimestamp(
-    UserIpRxChannel*  pIpRxChannel,
-    RtpListEntry*  pRtpDestEntry, 
-    RtpListEntry*  pRtpFecEntry, 
-    RtpListEntry*  pReconstructList[MAX_FEC_RECONSTR_ELEMENTS])
+UInt64  DtaIpRxCalcNewRxTimestamp(UserIpRxChannel* pIpRxChannel, 
+                            RtpListEntry* pRtpDestEntry, RtpListEntry* pRtpFecEntry, 
+                            RtpListEntry* pReconstructList[MAX_FEC_RECONSTR_ELEMENTS_SDI])
 {
     DtaDmaRxHeader*  pDmaRxHeaderSrc1;
     DtaDmaRxHeader*  pDmaRxHeaderSrc2;
@@ -5285,9 +6810,9 @@ UInt64  DtaIpRxCalcNewRxTimestamp(
                           (pReconstructList[1]->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
 
     pRtpHeaderSrc1 = (RtpHeader*)((UInt8*)pDmaRxHeaderSrc1 + sizeof(DtaDmaRxHeader) + 
-                                                        pReconstructList[0]->m_RTPOffset);
+                                                        pReconstructList[0]->m_RtpOffset);
     pRtpHeaderSrc2 = (RtpHeader*)((UInt8*)pDmaRxHeaderSrc2 + sizeof(DtaDmaRxHeader) + 
-                                                        pReconstructList[1]->m_RTPOffset);
+                                                        pReconstructList[1]->m_RtpOffset);
     RtpSeqSrc1 = DtUInt16ByteSwap(pRtpHeaderSrc1->m_SequenceNumber);
     RtpSeqSrc2 = DtUInt16ByteSwap(pRtpHeaderSrc2->m_SequenceNumber);
 
@@ -5301,7 +6826,7 @@ UInt64  DtaIpRxCalcNewRxTimestamp(
     DtDbgOut(MAX, IP_RX, "Channel %d: dT:%llu TimeSrc1:%llu TimeSrc2:%llu "
              "Seq1: %u Seq2:%u DstSeq:%u FecOffset:%u", pIpRxChannel->m_ChannelIndex, dT, 
              (UInt64)pDmaRxHeaderSrc1->m_Timestamp, (UInt64)pDmaRxHeaderSrc2->m_Timestamp,
-             RtpSeqSrc1, RtpSeqSrc2, pRtpDestEntry->m_RTPSequenceNumber, 
+             RtpSeqSrc1, RtpSeqSrc2, pRtpDestEntry->m_RtpSequenceNumber, 
              pRtpFecEntry->m_FecOffset);
     if (RtpSeqSrc2 < RtpSeqSrc1) 
         SeqDiff = 0xffff-RtpSeqSrc1 + RtpSeqSrc2;
@@ -5333,12 +6858,12 @@ UInt64  DtaIpRxCalcNewRxTimestamp(
                       (pReconstructList[Index]->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
     
             pRtpHeaderSrc1 = (RtpHeader*)((UInt8*)pDmaRxHeaderSrc1 + 
-                           sizeof(DtaDmaRxHeader) + pReconstructList[Index]->m_RTPOffset);
+                           sizeof(DtaDmaRxHeader) + pReconstructList[Index]->m_RtpOffset);
             RtpSeqSrc1 = DtUInt16ByteSwap(pRtpHeaderSrc1->m_SequenceNumber);
 
             // Packet must be insterted after found packet?
             if (((RtpSeqSrc1+pRtpFecEntry->m_FecOffset)%0x10000) == 
-                                                       pRtpDestEntry->m_RTPSequenceNumber)
+                                                       pRtpDestEntry->m_RtpSequenceNumber)
             {
                  DtDbgOut(MAX, IP_RX, "Channel %d: 2-dT:%llu TimeSrc1:%llu "
                             "TimeSrc2:%llu Seq1: %d FecOffset:%d NewTime:%llu SeqDiff:%u",
@@ -5352,7 +6877,7 @@ UInt64  DtaIpRxCalcNewRxTimestamp(
             
             // Packet must be inserted before found packet?
             if (((RtpSeqSrc1-pRtpFecEntry->m_FecOffset)%0x10000) == 
-                                                       pRtpDestEntry->m_RTPSequenceNumber)
+                                                       pRtpDestEntry->m_RtpSequenceNumber)
             {
                 DtDbgOut(MAX, IP_RX, "Channel %d: 3-dT:%llu TimeSrc1:%llu"
                             "TimeSrc2:%llu Seq1: %d FecOffset:%d NewTime:%llu SeqDiff:%u",
@@ -5375,13 +6900,13 @@ UInt64  DtaIpRxCalcNewRxTimestamp(
 // Remark: If a RTP header extension is available, skip the reconstruction because the
 // IP packet lengths can have different sizes
 //
-Bool  DtaIpRxReconstructPacket(
-    UserIpRxChannel*  pIpRxChannel,
-    RtpListEntry*  pRtpDestEntry, 
-    RtpListEntry*  pRtpFecEntry, 
-    RtpListEntry*  pReconstructList[MAX_FEC_RECONSTR_ELEMENTS])
+Bool  DtaIpRxReconstructPacket(UserIpRxChannel* pIpRxChannel, RtpListEntry* pRtpDestEntry,
+                            RtpListEntry* pRtpFecEntry, 
+                            RtpListEntry* pReconstructList[MAX_FEC_RECONSTR_ELEMENTS_SDI])
 {
     FecHeader*  pFecHeader;
+    FecHeader2022_5*  pFecHeader2022_5;
+
     DtaDmaRxHeader*  pDmaRxHeader;
     RtpHeader*  pRtpHeader;
     RtpHeader*  pRtpHeaderDest;
@@ -5391,7 +6916,7 @@ Bool  DtaIpRxReconstructPacket(
     UInt8  CCBits;
     UInt8  MarkerBit;
     UInt8  PayloadType;
-    UInt32  TimeStamp;
+    UInt32  Timestamp;
     UInt16  Length;
     UInt8*  pDstData;
     UInt8*  pSrcData;
@@ -5403,6 +6928,7 @@ Bool  DtaIpRxReconstructPacket(
     Int  Index = 0;
     UInt16  RtpOffset;
     UInt16  PayloadOffset;
+    Bool  IsSdi;
     
     // Source FEC
     pSrcData = pIpRxChannel->m_pRtpBuffer + 
@@ -5413,31 +6939,50 @@ Bool  DtaIpRxReconstructPacket(
 
     pFecHeader = (FecHeader*)(pSrcData + pRtpFecEntry->m_PayloadOffset - 
                                                                        sizeof(FecHeader));
-    pRtpHeader = (RtpHeader*)(pSrcData + pRtpFecEntry->m_RTPOffset);
+    pFecHeader2022_5 = (FecHeader2022_5*)(pSrcData + pRtpFecEntry->m_PayloadOffset - 
+                                                                 sizeof(FecHeader2022_5));
+    pRtpHeader = (RtpHeader*)(pSrcData + pRtpFecEntry->m_RtpOffset);
+    IsSdi = pRtpHeader->m_PayloadType == RTP_PAYLOAD_FEC_SDI;
     
-    // Skip reconstruction if RTP header extension is available
-    if (pRtpHeader->m_Extension)
-        return FALSE;
-
     PacketSize = pDmaRxHeader->m_RxHeaderGen.m_ReceiveStatus.m_FrameLength - 
                                                         pRtpFecEntry->m_PayloadOffset - 4;
 
-    PaddingBit = 0;
-    ExtensionBit = 0;
-    CCBits = 0;
-    MarkerBit = 0;    
-    PayloadType = pFecHeader->m_PtRecovery;
-    TimeStamp = pFecHeader->m_TsRecovery;
-    Length = pFecHeader->m_LengthRecovery;
-
+    if (IsSdi)
+    {
+        PayloadType = pFecHeader2022_5->m_PtRecovery;
+        Timestamp = pFecHeader2022_5->m_TsRecovery;
+        Length = pFecHeader2022_5->m_LengthRecovery;
+        PaddingBit = pFecHeader2022_5->m_PRecovery;
+        ExtensionBit = pFecHeader2022_5->m_XRecovery;
+        CCBits = pFecHeader2022_5->m_CCRecovery;
+        MarkerBit = pFecHeader2022_5->m_MRecovery;
+    } else 
+    {
+        PayloadType = pFecHeader->m_PtRecovery;
+        Timestamp = pFecHeader->m_TsRecovery;
+        Length = pFecHeader->m_LengthRecovery;
+        PaddingBit = 0;
+        ExtensionBit = 0;
+        CCBits = 0;
+        MarkerBit = 0;
+    }
     // Destination
     pDstData = (pIpRxChannel->m_pRtpBuffer + 
                                 (pRtpDestEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
 
     // Get first reconstruction packet to retrieve the offsets
     // L==1: no reconstruction packet available, so take the offsets from the FEC packet
-    RtpOffset = pRtpFecEntry->m_RTPOffset;
-    PayloadOffset = pRtpFecEntry->m_PayloadOffset - sizeof(FecHeader);
+    RtpOffset = pRtpFecEntry->m_RtpOffset;
+    if (IsSdi)
+    {
+        PayloadOffset = pRtpFecEntry->m_PayloadOffset - sizeof(FecHeader2022_5);
+        pRtpDestEntry->m_PayloadOffset = PayloadOffset + sizeof(HbrMediaPlHeader);
+    
+    } else
+    {
+        PayloadOffset = pRtpFecEntry->m_PayloadOffset - sizeof(FecHeader);
+        pRtpDestEntry->m_PayloadOffset = PayloadOffset;
+    }
 
     // Copy start of packet into destination. Only needed for RAW ip mode and debugging
     if (pRtpFecEntry->m_FecNA > 1) 
@@ -5459,17 +7004,16 @@ Bool  DtaIpRxReconstructPacket(
     pDmaRxHeader = (DtaDmaRxHeader*)pDstData;
     pDmaRxHeader->m_Timestamp = DtaIpRxCalcNewRxTimestamp(pIpRxChannel, pRtpDestEntry,
                                                           pRtpFecEntry, pReconstructList);
-    pRtpDestEntry->m_PayloadOffset = PayloadOffset;
-    pRtpDestEntry->m_RTPOffset = RtpOffset;
+    pRtpDestEntry->m_RtpOffset = RtpOffset;
     
     // Sequence number already filled by main thread, so skip here
     // pRtpDestEntry->m_RTPSequenceNumber
     
     pDstData += sizeof(DtaDmaRxHeader);
-    pRtpHeaderDest = (RtpHeader*)(pDstData + pRtpDestEntry->m_RTPOffset);
-    pUdpHeaderDest = (UdpHeader*)(pDstData + pRtpDestEntry->m_RTPOffset - 
+    pRtpHeaderDest = (RtpHeader*)(pDstData + pRtpDestEntry->m_RtpOffset);
+    pUdpHeaderDest = (UdpHeader*)(pDstData + pRtpDestEntry->m_RtpOffset - 
                                                                        sizeof(UdpHeader));
-    pDstData = pDstData + pRtpDestEntry->m_PayloadOffset;
+    pDstData = pDstData + PayloadOffset;
 
     // Store the FEC recovery data into the destination packet
     DtMemCopy(pDstData, pSrcData, PacketSize);
@@ -5481,16 +7025,18 @@ Bool  DtaIpRxReconstructPacket(
         pRtpCurEntry = pReconstructList[Index++];
         pSrcData = (pIpRxChannel->m_pRtpBuffer + sizeof(DtaDmaRxHeader) +
                                  (pRtpCurEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
-        pRtpHeader = (RtpHeader*)(pSrcData + pRtpCurEntry->m_RTPOffset);
+        pRtpHeader = (RtpHeader*)(pSrcData + pRtpCurEntry->m_RtpOffset);
 
         // Skip reconstruction if RTP header extension is available
         if (pRtpHeader->m_Extension)
             return FALSE;
     
-        pSrcData += pRtpCurEntry->m_PayloadOffset;
+        pSrcData += PayloadOffset;
         pSrcPayload = (UInt32*)pSrcData;
 
         DT_ASSERT(PacketSize%4 == 0);
+        DtDbgOut(MAX, IP_RX_REC, "Pkt for RECON: RtpSeq:%i RtpTime:%x", 
+                         pRtpCurEntry->m_RtpSequenceNumber, pRtpCurEntry->m_RtpTimestamp);
 
         for (Counter = 0; Counter < PacketSize/4; Counter++)
             pDstPayload[Counter] = pDstPayload[Counter]^pSrcPayload[Counter];
@@ -5502,7 +7048,7 @@ Bool  DtaIpRxReconstructPacket(
         MarkerBit = MarkerBit^pRtpHeader->m_Marker;
         
         PayloadType = PayloadType^pRtpHeader->m_PayloadType;
-        TimeStamp = TimeStamp^pRtpHeader->m_TimeStamp;
+        Timestamp = Timestamp^pRtpHeader->m_TimeStamp;
         Length = Length^DtUInt16ByteSwap((UInt16)PacketSize);
     }
     
@@ -5513,19 +7059,31 @@ Bool  DtaIpRxReconstructPacket(
     pRtpHeaderDest->m_Marker = MarkerBit;
     pRtpHeaderDest->m_Padding = PaddingBit;
     pRtpHeaderDest->m_PayloadType = PayloadType;
-    pRtpHeaderDest->m_TimeStamp = TimeStamp;
+    // Timestamp must not be 0 for the lookup table to work
+    pRtpHeaderDest->m_TimeStamp = Timestamp;
     pRtpHeaderDest->m_Version = 2;
     pRtpHeaderDest->m_SequenceNumber = 
-                                     DtUInt16ByteSwap(pRtpDestEntry->m_RTPSequenceNumber);
+                                     DtUInt16ByteSwap(pRtpDestEntry->m_RtpSequenceNumber);
     pUdpHeaderDest->m_Checksum = 0;
     pRtpHeaderDest->m_Ssrc = pRtpHeader->m_Ssrc;    // Stream ID
-
-    DT_ASSERT(pRtpHeaderDest->m_Extension == 0);
-
-    // If header extension is active, we discard this packet because reconstruction 
-    // may have been failed due to packet length differences
-    if (pRtpHeaderDest->m_Extension != 0)
-        return FALSE;
+    if (Timestamp == 0)
+        Timestamp = 1;
+    pRtpDestEntry->m_RtpTimestamp = DtUInt32ByteSwap(Timestamp);
+    // Check if the source does include a clock. If so, we have to add 4 to the payload 
+    // offset
+    if (IsSdi)
+    {
+        HbrMediaPlHeader*  pHbrHeader = (HbrMediaPlHeader*)pDstPayload;
+        if (pHbrHeader->m_CfH!=0 || pHbrHeader->m_CfL!=0)
+            pRtpDestEntry->m_PayloadOffset += 4;
+        if (pHbrHeader->m_Ext != 0)
+            pRtpDestEntry->m_PayloadOffset += 4*pHbrHeader->m_Ext;
+        if (pHbrHeader->m_F == 0)
+            pRtpDestEntry->m_PayloadOffset -= 4;
+    }
+    DtDbgOut(MAX, IP_RX_REC, "RtpSeqRecon:%i RtpTime:%x M:%i", 
+                        pRtpDestEntry->m_RtpSequenceNumber, pRtpDestEntry->m_RtpTimestamp,
+                        pRtpHeaderDest->m_Marker);
     return TRUE;
 }
 
@@ -5535,23 +7093,20 @@ Bool  DtaIpRxReconstructPacket(
 // Post: The m_RtpListSpinLock is released and acquired again!! 
 // (New packets can be inserted to the list inbetween the release and acquire.)
 //
-RtpListEntry*  DtaIpRxTryReconstructPacket(
-    UserIpRxChannel*  pIpRxChannel, 
-    UInt16  SequenceNumber)
+RtpListEntry*  DtaIpRxTryReconstructPacket(UserIpRxChannel* pIpRxChannel, 
+                UInt16 SequenceNumber, UInt32 Timestamp, RtpListEntry** ppReconstructList)
 {
     RtpListEntry*  pRtpEntry = NULL;
     RtpListEntry*  pRtpFecEntry = NULL;
-    RtpListEntry*  ReconstructList[MAX_FEC_RECONSTR_ELEMENTS];
-    Int  i;    
+    Int  i;
 
     pRtpFecEntry = DtaIpRxGetFecReconstructionList(pIpRxChannel, 
-                         &pIpRxChannel->m_RtpFecRowList, SequenceNumber, ReconstructList);
+            &pIpRxChannel->m_RtpFecRowList, SequenceNumber, Timestamp, ppReconstructList);
 
     if (pRtpFecEntry == NULL)
     {
         pRtpFecEntry = DtaIpRxGetFecReconstructionList(pIpRxChannel, 
-                      &pIpRxChannel->m_RtpFecColumnList, SequenceNumber, ReconstructList);
-    
+         &pIpRxChannel->m_RtpFecColumnList, SequenceNumber, Timestamp, ppReconstructList);
     }
     if (pRtpFecEntry != NULL) 
     {   
@@ -5563,16 +7118,16 @@ RtpListEntry*  DtaIpRxTryReconstructPacket(
             // Mark all elements used for reconstruction
             pRtpFecEntry->m_InUse = 1;
             for (i = 0; i < pRtpFecEntry->m_FecNA - 1; i++)
-                ReconstructList[i]->m_InUse = 1;
+                ppReconstructList[i]->m_InUse = 1;
           
             // Release spinlock before reconstruction, so list can be accessed during
             // reconstruction
             DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
             pRtpEntry = DtContainingRecord(pListEntry, RtpListEntry, m_ListEntry);
-            pRtpEntry->m_RTPSequenceNumber = SequenceNumber;
+            pRtpEntry->m_RtpSequenceNumber = SequenceNumber;
             
             if (!DtaIpRxReconstructPacket(pIpRxChannel, pRtpEntry, pRtpFecEntry, 
-                                                                         ReconstructList))
+                                                                       ppReconstructList))
             {
                 // Reconstruction failed
                 DtTailListInsert(&pIpRxChannel->m_RtpEmptyList, &pRtpEntry->m_ListEntry);
@@ -5585,7 +7140,7 @@ RtpListEntry*  DtaIpRxTryReconstructPacket(
             // Release all elements
             pRtpFecEntry->m_InUse = 0;
             for (i = 0; i < pRtpFecEntry->m_FecNA - 1; i++)
-                ReconstructList[i]->m_InUse = 0;
+                ppReconstructList[i]->m_InUse = 0;
         } 
     }
     return pRtpEntry;
@@ -5595,40 +7150,51 @@ RtpListEntry*  DtaIpRxTryReconstructPacket(
 //
 // Pre: The m_RtpListSpinLock must be acquired 
 //
-void  DtaIpRxRemoveOldFecPackets(
-    UserIpRxChannel*  pIpRxChannel,
-    DtListEntry*  pFecList,
-    UInt16  LastSequenceNumber)
+void  DtaIpRxRemoveOldFecPackets(UserIpRxChannel* pIpRxChannel, DtListEntry* pFecList,
+                                          UInt16 LastSequenceNumber, UInt32 LastTimestamp)
 {
     DtListEntry*  pListEntry;
     DtListEntry*  pListEntryNext;
     RtpListEntry*  pRtpEntry;
     UInt32  EndSeqNum;
     UInt16  MaxGap = DtaIpRxGetMaxOutOfSync(pIpRxChannel);
-
+    
     if (DtIsListEmpty(pFecList))
         return;    
 
     pListEntry = DtListNextGet(pFecList);
 
-    while (pListEntry != pFecList)
+    while (pListEntry!=pFecList)
     {
         pRtpEntry = DtContainingRecord(pListEntry, RtpListEntry, m_ListEntry);
         
         // Get the last sequence number for this fec packet
         EndSeqNum = (pRtpEntry->m_FecNA*pRtpEntry->m_FecOffset) + pRtpEntry->m_FecSNBase;
         pListEntryNext = DtListNextGet(pListEntry);
-            
-        if (DtaIpRxRtpIsSeqNumLess((UInt16)EndSeqNum, LastSequenceNumber) || 
-           (!DtaIpRxRtpIsSeqNumLess((UInt16)EndSeqNum, LastSequenceNumber) && 
-           pRtpEntry->m_InUse == 0 &&
-           DtaIpRxGetSequenceNumberGap(LastSequenceNumber, (UInt16)EndSeqNum)>(4*MaxGap)))
+        
+        if (DtaIpRxRtpIsSeqNumLess2((UInt16)EndSeqNum, pRtpEntry->m_RtpTimestamp, 
+                                                     LastSequenceNumber, LastTimestamp) || 
+           (!DtaIpRxRtpIsSeqNumLess2((UInt16)EndSeqNum, pRtpEntry->m_RtpTimestamp, 
+                                                     LastSequenceNumber, LastTimestamp) && 
+           pRtpEntry->m_InUse == 0 && (
+               DtaIpRxGetSequenceNumberGap2(LastSequenceNumber, LastTimestamp, 
+               (UInt16)EndSeqNum, pRtpEntry->m_RtpTimestamp,
+                pIpRxChannel->m_DetVidStd==DT_VIDSTD_TS, pIpRxChannel->m_MaxBitrate)>
+                                                                     (UInt32)(4*MaxGap))))
         {
-            DtDbgOut(MAX, IP_RX, 
-               "Channel %d: RemoveOldFec. BufIndex:%i, SeqNum:%i, Base: %i, MaxSeqNum:%i",
-                         pIpRxChannel->m_ChannelIndex, pRtpEntry->m_BufIndex, 
-                         pRtpEntry->m_RTPSequenceNumber, 
-                         pRtpEntry->m_FecSNBase, EndSeqNum);
+            DtDbgOut(AVG, IP_RX_REC, 
+               "Channel %d: RemoveOldFec. BufIndex:%i, SeqNum:%i Timestamp:%x, Base: %i,"
+                    " MaxSeqNum:%i l1:%i l2:%i Gap:%i",
+                    pIpRxChannel->m_ChannelIndex, pRtpEntry->m_BufIndex, 
+                    pRtpEntry->m_RtpSequenceNumber, pRtpEntry->m_RtpTimestamp,
+                    pRtpEntry->m_FecSNBase, EndSeqNum,
+                    DtaIpRxRtpIsSeqNumLess2((UInt16)EndSeqNum, pRtpEntry->m_RtpTimestamp, 
+                                                       LastSequenceNumber, LastTimestamp),
+                    DtaIpRxRtpIsSeqNumLess2((UInt16)EndSeqNum, pRtpEntry->m_RtpTimestamp, 
+                                                       LastSequenceNumber, LastTimestamp),
+                    DtaIpRxGetSequenceNumberGap2(LastSequenceNumber, LastTimestamp, 
+                (UInt16)EndSeqNum, pRtpEntry->m_RtpTimestamp,
+                pIpRxChannel->m_DetVidStd==DT_VIDSTD_TS, pIpRxChannel->m_MaxBitrate));
 
             DtListEntryRemove(pListEntry);
             DtaIpRxRtpMoveEntryToEmptyListUnsafe(pIpRxChannel, pRtpEntry);
@@ -5640,7 +7206,8 @@ void  DtaIpRxRemoveOldFecPackets(
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxProcessDvbWithFec -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
+void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel, 
+                                                         RtpListEntry** ppReconstructList)
 {
     Bool  PacketReconstructed = FALSE;
     Bool  Stop;
@@ -5654,32 +7221,48 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
     UInt16  NumPacketsTried = 0;
     UInt16  Gap;
     UInt16  LastSeqNum;
+    UInt32  LastTimestamp;
+    UInt32  RtpLastTimestamp;
     UInt16  CurSeqNum;
+    UInt32  Timestamp;
     UInt16  MissingSeqNumber = 0;
     UInt16*  pLastSeqNumToTx = NULL;
-
+    UInt32*  pLastTimestampToTx = NULL;
+    UInt32  PrevLastTimestamp = pIpRxChannel->m_RtpLastTimestamp;
     DtSpinLockAcquire(&pIpRxChannel->m_RtpListSpinLock);
 
     // Try to reconstruct packets
-    if (!pIpRxChannel->m_RtpFirstPacket && !DtIsListEmpty(&pIpRxChannel->m_RtpDvbList))
+    if (!DtIsListEmpty(&pIpRxChannel->m_RtpDvbList))
     {
         PacketReconstructed = TRUE;    // First time
+        DtDbgOut(AVG, IP_RX_REC, "START RECONSTRUCT THREAD");
         while (PacketReconstructed)
         {
             // Retrieve the last received sequence number
+            NumPacketsTried = 0;
             pRtpLastListEntry = 
                             DtContainingRecord(DtListPrevGet(&pIpRxChannel->m_RtpDvbList),
                             RtpListEntry, m_ListEntry);
-            LastSeqNum = pRtpLastListEntry->m_RTPSequenceNumber;
+            LastSeqNum = pRtpLastListEntry->m_RtpSequenceNumber;
+            LastTimestamp = pRtpLastListEntry->m_RtpTimestamp;
             pLastSeqNumToTx = &LastSeqNum;
+            pLastTimestampToTx = &LastTimestamp;
         
             PacketReconstructed = FALSE;
             SeqNumMissing = FALSE;
             pRtpListEntry = DtContainingRecord(DtListNextGet(&pIpRxChannel->m_RtpDvbList),
                                                                RtpListEntry, m_ListEntry);
 
-            // The following works because m_RtpFirstPacket = FALSE;
-            CurSeqNum = pIpRxChannel->m_RtpLastSeqNum;
+            // If m_RtpFirstPacket is true, we take the first sequence number in list -1
+            if (pIpRxChannel->m_RtpFirstPacket)
+            {
+                CurSeqNum = pRtpListEntry->m_RtpSequenceNumber-1;
+                RtpLastTimestamp = pRtpListEntry->m_RtpTimestamp;
+            }
+            else {
+                CurSeqNum = pIpRxChannel->m_RtpLastSeqNum;
+                RtpLastTimestamp = pIpRxChannel->m_RtpLastTimestamp;
+            }
 
             while (TRUE) 
             {
@@ -5693,7 +7276,7 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
                 }
 
                 Stop = FALSE;
-                while ((UInt16)(CurSeqNum+1)!=pRtpListEntry->m_RTPSequenceNumber && !Stop)
+                while ((UInt16)(CurSeqNum+1)!=pRtpListEntry->m_RtpSequenceNumber && !Stop)
                 {
                     // We are missing at least one packet
                     // Try to reconstruct packet if gap is too big
@@ -5715,10 +7298,10 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
                     // Try to reconstruct this packet
                     CurSeqNum++;
 
-                    DtDbgOut(MAX, IP_RX, 
-                                      "Channel %d: TRY reconstruct SN:%i LSN:%i, NSN:%i",
-                                      pIpRxChannel->m_ChannelIndex, CurSeqNum, LastSeqNum,
-                                      pRtpListEntry->m_RTPSequenceNumber);
+                    DtDbgOut(AVG, IP_RX_REC, 
+                                   "Channel %d: TRY reconstruct SN:%i LSN:%i, RtpTime:%x",
+                                   pIpRxChannel->m_ChannelIndex, CurSeqNum, LastSeqNum,
+                                   RtpLastTimestamp);
 
                     // Store the backward link to known if some 
                     // elements are inserted before the entry
@@ -5727,7 +7310,7 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
                     // After this function, the spinlock is released and acquired again
                     // So some elements can be inserted inbetween
                     pRtpReconstructedEntry = DtaIpRxTryReconstructPacket(pIpRxChannel, 
-                                                                               CurSeqNum);
+                                         CurSeqNum, RtpLastTimestamp,  ppReconstructList);
                     if (pRtpReconstructedEntry != NULL) 
                     {                     
                         DtSpinLockAcquire(&pIpRxChannel->m_StatisticsSpinLock);
@@ -5736,7 +7319,7 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
 
                         PacketReconstructed = TRUE;
 
-                        DtDbgOut(MAX, IP_RX, "Channel %d: Reconstructed SN:%i", 
+                        DtDbgOut(AVG, IP_RX_REC, "Channel %d: Reconstructed SN:%i", 
                                                  pIpRxChannel->m_ChannelIndex, CurSeqNum);
                         
                         if (pBackElement == DtListPrevGet(&pRtpListEntry->m_ListEntry)) 
@@ -5745,19 +7328,37 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
                             // Insert packet into list before entry
                             DtTailListInsert(&pRtpListEntry->m_ListEntry , 
                                                     &pRtpReconstructedEntry->m_ListEntry);
+                            if (pIpRxChannel->m_pRtpAvailLookup1!=NULL && 
+                                           pIpRxChannel->m_pRtpAvailLookup1[CurSeqNum]==0)
+                                    pIpRxChannel->m_pRtpAvailLookup1[CurSeqNum] = 
+                                                   pRtpReconstructedEntry->m_RtpTimestamp;
+                                else if (pIpRxChannel->m_pRtpAvailLookup2!=NULL && 
+                                           pIpRxChannel->m_pRtpAvailLookup2[CurSeqNum]==0)
+                                    pIpRxChannel->m_pRtpAvailLookup2[CurSeqNum] = 
+                                                   pRtpReconstructedEntry->m_RtpTimestamp;
                         } else {
                             Bool Added;
-                            if ((pRtpReconstructedEntry->m_RTPSequenceNumber==
-                                                          pIpRxChannel->m_RtpLastSeqNum ||
-                                 DtaIpRxRtpIsSeqNumLess(
-                                              pRtpReconstructedEntry->m_RTPSequenceNumber,
-                                              pIpRxChannel->m_RtpLastSeqNum)))
+                            if (pIpRxChannel->m_RtpFirstPacket)
+                            {
+                                Added = !DtaIpRxRtpListAddEntryUnsafe(
+                                     &pIpRxChannel->m_RtpDvbList, pRtpReconstructedEntry);
+                            } else if ((((pRtpReconstructedEntry->m_RtpSequenceNumber==
+                                                         pIpRxChannel->m_RtpLastSeqNum) &&
+                                  (pRtpReconstructedEntry->m_RtpTimestamp==
+                                                     pIpRxChannel->m_RtpLastTimestamp)) ||
+                                 DtaIpRxRtpIsSeqNumLess2(
+                                              pRtpReconstructedEntry->m_RtpSequenceNumber,
+                                              pRtpReconstructedEntry->m_RtpTimestamp,
+                                              pIpRxChannel->m_RtpLastSeqNum, 
+                                              pIpRxChannel->m_RtpLastTimestamp)))
+                            {
                                 Added = FALSE;
-                            else 
+
+                            } else {
                                 Added = !DtaIpRxRtpListAddEntryUnsafe(
                                                               &pIpRxChannel->m_RtpDvbList,
                                                               pRtpReconstructedEntry);
-    
+                            }
                             // Sort element into list
                             if (!Added)
                             {
@@ -5767,9 +7368,23 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
                                                                   pRtpReconstructedEntry);
                                 // Get entry already in queue
                                 pRtpReconstructedEntry = DtaIpRxRtpGetDvbEntryUnsafe(
-                                                            pIpRxChannel,CurSeqNum, NULL);
-
-                            } 
+                                          pIpRxChannel, CurSeqNum, 
+                                          pRtpReconstructedEntry->m_RtpTimestamp+1, NULL);
+                                DtDbgOut(MAX, IP_RX_REC, "Channel %d: Reconstructed SN:%i"
+                                             " NOT ADDED. L1:%x L2:%x!!", 
+                                             pIpRxChannel->m_ChannelIndex, CurSeqNum,   
+                                             pIpRxChannel->m_pRtpAvailLookup1[CurSeqNum],
+                                             pIpRxChannel->m_pRtpAvailLookup2[CurSeqNum]);
+                            } else {
+                                if (pIpRxChannel->m_pRtpAvailLookup1!=NULL && 
+                                           pIpRxChannel->m_pRtpAvailLookup1[CurSeqNum]==0)
+                                    pIpRxChannel->m_pRtpAvailLookup1[CurSeqNum] = 
+                                                   pRtpReconstructedEntry->m_RtpTimestamp;
+                                else if (pIpRxChannel->m_pRtpAvailLookup2!=NULL && 
+                                           pIpRxChannel->m_pRtpAvailLookup2[CurSeqNum]==0)
+                                    pIpRxChannel->m_pRtpAvailLookup2[CurSeqNum] = 
+                                                   pRtpReconstructedEntry->m_RtpTimestamp;
+                            }
                             // Update next packet pointer
                             DT_ASSERT(pRtpReconstructedEntry != NULL);
                             if (pRtpReconstructedEntry == NULL)
@@ -5780,13 +7395,14 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
                                       RtpListEntry, m_ListEntry);
                         }
                     } else {                        
-                        DtDbgOut(MAX, IP_RX, "Channel %d: NOT Reconstructed SN:%i", 
+                        DtDbgOut(AVG, IP_RX_REC, "Channel %d: NOT Reconstructed SN:%i", 
                                                  pIpRxChannel->m_ChannelIndex, CurSeqNum);
                     }
 
                     NumPacketsTried++;
-                    // Only try to recover the first 2 matrixes.
-                    if (NumPacketsTried > 2*DtaIpRxGetMaxOutOfSync(pIpRxChannel))
+                    // Only try to recover the first 3 matrixes.
+                    if (NumPacketsTried > 3*DtaIpRxGetMaxOutOfSync(pIpRxChannel) && 
+                                                          !pIpRxChannel->m_RtpFirstPacket)
                         Stop = TRUE;
                 }
 
@@ -5796,7 +7412,8 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
                 if (DtListNextGet(&pRtpListEntry->m_ListEntry) == 
                                                               &pIpRxChannel->m_RtpDvbList)
                     break; // End of list
-                
+                if (!SeqNumMissing) 
+                    PrevLastTimestamp = pRtpListEntry->m_RtpTimestamp;
                 pRtpListEntry = 
                     DtContainingRecord(DtListNextGet(&pRtpListEntry->m_ListEntry),
                                                                RtpListEntry, m_ListEntry);
@@ -5804,25 +7421,25 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
                 NumPacketsTried++;
             }
         }
+        DtDbgOut(AVG, IP_RX_REC, "STOP RECONSTRUCT THREAD: reconstructed: %i Tried:%i", 
+                                                    PacketReconstructed, NumPacketsTried);
     } else {
         DvbListEmpty = TRUE;
     }
-    
+
     // Remove old FEC packets
-    if (!pIpRxChannel->m_RtpFirstPacket) 
+    if (!pIpRxChannel->m_RtpFirstPacket)
     {
         // Check if reconstruction block has run
-        if (!DvbListEmpty && !FecListEmpty) 
+        if (!DvbListEmpty && !FecListEmpty)
         {
-            if (SeqNumMissing) 
+            if (SeqNumMissing)
             {
-                UInt16 Gap;
-                if (MissingSeqNumber > LastSeqNum)
-                    Gap = 0xffff - MissingSeqNumber + LastSeqNum;
-                else 
-                    Gap = LastSeqNum - MissingSeqNumber;
-                
-                if (Gap > 2*DtaIpRxGetMaxOutOfSync(pIpRxChannel)) 
+                UInt32 Gap;
+                Gap = DtaIpRxGetSequenceNumberGap2(MissingSeqNumber, PrevLastTimestamp, 
+                     LastSeqNum, LastTimestamp,  
+                     pIpRxChannel->m_DetVidStd==DT_VIDSTD_TS, pIpRxChannel->m_MaxBitrate);
+                if (Gap > (UInt32)2*DtaIpRxGetMaxOutOfSync(pIpRxChannel)) 
                 {
                     // Let the transmitter decide to transmit the packets
                     LastSeqNum = LastSeqNum - 2*DtaIpRxGetMaxOutOfSync(pIpRxChannel);
@@ -5830,30 +7447,36 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel)
                 } else {
                     LastSeqNum = MissingSeqNumber;
                 }
+                // Update timestamp to last incremented seq. timestamp for removing old
+                // fec packets
+                LastTimestamp = PrevLastTimestamp;//pIpRxChannel->m_RtpLastTimestamp;
+                DtDbgOut(AVG, IP_RX_REC, "Channel %d: LastSeqNum:%d LastTimestamp:%x "
+                             "MissingSeqNumber:%d Gap:%i MaxOutOfSync:%i", 
+                             pIpRxChannel->m_ChannelIndex, LastSeqNum, LastTimestamp, 
+                             MissingSeqNumber, Gap, DtaIpRxGetMaxOutOfSync(pIpRxChannel));
+            } else {
+                DtDbgOut(AVG, IP_RX_REC, "Channel %d: LastSeqNum:%d LastTimestamp:%x", 
+                                 pIpRxChannel->m_ChannelIndex, LastSeqNum, LastTimestamp);
             }
 
             // Remove all FEC Packets not needed for packets < LastSeqNum
-            DtDbgOut(MAX, IP_RX, "Channel %d: LastSeqNum:%d", 
-                                                pIpRxChannel->m_ChannelIndex, LastSeqNum);
-            
             DtaIpRxRemoveOldFecPackets(pIpRxChannel, &pIpRxChannel->m_RtpFecRowList, 
-                                                                              LastSeqNum);
+                                                               LastSeqNum, LastTimestamp);
             DtaIpRxRemoveOldFecPackets(pIpRxChannel, &pIpRxChannel->m_RtpFecColumnList,
-                                                                              LastSeqNum);
+                                                               LastSeqNum, LastTimestamp);
         }
     }
 
     DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
 
     // Send all packets in sequence to user buffer
-    DtaIpRxProcessRtpDvbPacket(pIpRxChannel, pLastSeqNumToTx);
+    DtaIpRxProcessRtpDvbPacket(pIpRxChannel, pLastSeqNumToTx, pLastTimestampToTx);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxCalculateNumIpRxListenersType1 -.-.-.-.-.-.-.-.-.-.-.-.-
 //
 Int  DtaIpRxCalculateNumIpRxListenersType1(DtaIpPort* pIpPort, Bool IpV6Packet, 
-                                            Int VlanId, UInt8* pSrcIp, 
-                                            UInt8* pDstIp, UInt16 SrcPort, UInt16 DstPort)
+                 Int VlanId, UInt8* pSrcIp, UInt8* pDstIp, UInt16 SrcPort, UInt16 DstPort)
 {
     Int  i;
     DtaIpUserChannels*  pIpUserChannels =
@@ -5915,7 +7538,7 @@ Int  DtaIpRxCalculateNumIpRxListenersType1(DtaIpPort* pIpPort, Bool IpV6Packet,
             }
         }
 
-        if (Stop) 
+        if (Stop)
         {
             pIpRxChannel = pIpRxChannel->m_pNext;
             continue;
@@ -5950,7 +7573,7 @@ Int  DtaIpRxCalculateNumIpRxListenersType1(DtaIpPort* pIpPort, Bool IpV6Packet,
 //
 Int  DtaIpRxCalculateNumIpRxListenersType2(DtaIpPort* pIpPort, UInt32 IdTag)
 {
-    Bool SSMIpV6 = FALSE;
+    Bool  SSMIpV6 = FALSE;
     DtaIpUserChannels*  pIpUserChannels = 
                                         &pIpPort->m_pDvcData->m_IpDevice.m_IpUserChannels;
     UserIpRxChannel*  pIpRxChannel;
@@ -6016,4 +7639,3 @@ Int  DtaIpRxCalculateNumIpRxListenersType2(DtaIpPort* pIpPort, UInt32 IdTag)
                                                        Index, pIpPort->m_MaxNumListeners);
     return Index;
 }
-

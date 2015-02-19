@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIp.c *#*#*#*#*#*#*#*#*#* (C) 2010-2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIp.c *#*#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
 //
 // Dta driver - Non IP functionality - Implementation of generic non IP port functionality
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -13,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -183,6 +181,8 @@ DtStatus  DtaNonIpInit(
     // IOPROPS (I/O properties) - Capabilities
     pNonIpPort->m_CapMatrix = DtPropertiesGetBool(pPropData, "CAP_MATRIX",
                                                                  pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapMatrix2 = DtPropertiesGetBool(pPropData, "CAP_MATRIX2",
+                                                                 pNonIpPort->m_PortIndex);
     // IOSTD (I/O standard) - Capabilities
     pNonIpPort->m_Cap3GSdi = DtPropertiesGetBool(pPropData, "CAP_3GSDI",
                                                                  pNonIpPort->m_PortIndex);
@@ -197,6 +197,8 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_CapIp = DtPropertiesGetBool(pPropData, "CAP_IP",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapMod = DtPropertiesGetBool(pPropData, "CAP_MOD",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapPhaseNoise = DtPropertiesGetBool(pPropData, "CAP_PHASENOISE",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapRs422 = DtPropertiesGetBool(pPropData, "CAP_RS422",
                                                                  pNonIpPort->m_PortIndex);
@@ -232,6 +234,16 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_Cap1080P29_97 = DtPropertiesGetBool(pPropData, "CAP_1080P29_97",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_Cap1080P30 = DtPropertiesGetBool(pPropData, "CAP_1080P30",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080Psf23_98 = DtPropertiesGetBool(pPropData, "CAP_1080PSF23_98",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080Psf24 = DtPropertiesGetBool(pPropData, "CAP_1080PSF24",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080Psf25 = DtPropertiesGetBool(pPropData, "CAP_1080PSF25",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080Psf29_97 = DtPropertiesGetBool(pPropData, "CAP_1080PSF29_97",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080Psf30 = DtPropertiesGetBool(pPropData, "CAP_1080PSF30",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_Cap720P23_98 = DtPropertiesGetBool(pPropData, "CAP_720P23_98",
                                                                  pNonIpPort->m_PortIndex);
@@ -302,7 +314,6 @@ DtStatus  DtaNonIpInit(
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapSwS2Apsk = DtPropertiesGetBool(pPropData, "CAP_SWS2APSK",
                                                                  pNonIpPort->m_PortIndex);
-
 
     // Implementation details properties
 
@@ -505,6 +516,11 @@ DtStatus  DtaNonIpInit(
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_MOD;
             break;
 
+        case DT_IOCONFIG_PHASENOISE:
+            DT_ASSERT(pNonIpPort->m_CapPhaseNoise);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_PHASENOISE;
+            break;
+
         case DT_IOCONFIG_SPI:
             DT_ASSERT(pNonIpPort->m_CapSpi);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_SPI;
@@ -595,6 +611,31 @@ DtStatus  DtaNonIpInit(
             DT_ASSERT(pNonIpPort->m_Cap1080P30);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P30;
+            break;
+        case DT_IOCONFIG_1080PSF23_98:
+            DT_ASSERT(pNonIpPort->m_Cap1080Psf23_98);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080PSF23_98;
+            break;
+        case DT_IOCONFIG_1080PSF24:
+            DT_ASSERT(pNonIpPort->m_Cap1080Psf24);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080PSF24;
+            break;
+        case DT_IOCONFIG_1080PSF25:
+            DT_ASSERT(pNonIpPort->m_Cap1080Psf25);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080PSF25;
+            break;
+        case DT_IOCONFIG_1080PSF29_97:
+            DT_ASSERT(pNonIpPort->m_Cap1080Psf29_97);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080PSF29_97;
+            break;
+        case DT_IOCONFIG_1080PSF30:
+            DT_ASSERT(pNonIpPort->m_Cap1080Psf30);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080PSF30;
             break;
         case DT_IOCONFIG_720P23_98:
             DT_ASSERT(pNonIpPort->m_Cap720P23_98);
@@ -734,6 +775,8 @@ DtStatus  DtaNonIpInit(
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_IP;
     else if (pNonIpPort->m_CapMod)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_MOD;
+    else if (pNonIpPort->m_CapPhaseNoise)
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_PHASENOISE;
     else if (pNonIpPort->m_CapRs422)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_RS422;
     else  if (!pNonIpPort->m_IsNonFuntional)
@@ -789,7 +832,10 @@ DtStatus  DtaNonIpInit(
 
     // DT_IOCONFIG_GENREF
     if (pNonIpPort->m_CapGenRef)
-        pNonIpPort->m_IoCfg[DT_IOCONFIG_GENREF].m_Value = DT_IOCONFIG_FALSE;
+    {
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_GENREF].m_Value = 
+                 DtPropertiesGetInt(pPropData, "DEFAULT_GENREF", pNonIpPort->m_PortIndex);
+    }
     
     // DT_IOCONFIG_GENLOCK
     if (pNonIpPort->m_CapGenLocked)
@@ -805,7 +851,6 @@ DtStatus  DtaNonIpInit(
     // Initialize status flags
     pNonIpPort->m_Flags = 0;
     pNonIpPort->m_FlagsLatched = 0;
-    pNonIpPort->m_TxUfl = FALSE;
     DtSpinLockInit(&pNonIpPort->m_FlagsSpinLock);
 
     // Init failsafe fields
@@ -1132,7 +1177,6 @@ DtStatus  DtaNonIpPowerup(DtaNonIpPort* pNonIpPort)
     // Clear flags
     pNonIpPort->m_Flags = 0;
     pNonIpPort->m_FlagsLatched = 0;
-    pNonIpPort->m_TxUfl = FALSE;
 
     // Initialise bitrate measurement
     pNonIpPort->m_BitrateMeasure.m_NumValidSamps = 0;       // No valid samples yet
@@ -1806,7 +1850,7 @@ DtStatus  DtaNonIpIoConfigSet(
         Status = DtaNonIpIoConfigSetFracMode(pNonIpPort, Group, CfgValue);
         break;
 
-        // Fail-over relais available
+        // DVB-S2 APSK mode
     case DT_IOCONFIG_SWS2APSK:
         Status = DtaNonIpIoConfigSetSwS2Apsk(pNonIpPort, Group, CfgValue);
         break;
@@ -2057,11 +2101,11 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
     DtaIoConfigValue CfgValue)
 {
     DtStatus  Status = DT_STATUS_OK;
-    Bool  ForceConfig = FALSE;
+    Bool  ForceConfig=FALSE, IsSdiIoConfig=FALSE, IsTheGenref=FALSE;
     DtaIoConfigValue  OldCfgValue = pNonIpPort->m_IoCfg[Group];
     DtaIoConfigValue  IoDirValue;
     DtaNonIpIoConfigGet(pNonIpPort, DT_IOCONFIG_IODIR, &IoDirValue);
-        
+
     switch (CfgValue.m_Value)
     {
     case DT_IOCONFIG_ASI:
@@ -2093,6 +2137,7 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
 
     case DT_IOCONFIG_3GSDI:
         DT_ASSERT(pNonIpPort->m_Cap3GSdi);
+        IsSdiIoConfig = TRUE;
 
         if (!pNonIpPort->m_CapMatrix)
             break;  // Nothing to do for none matrix ports
@@ -2110,6 +2155,7 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
 
     case DT_IOCONFIG_HDSDI:
         DT_ASSERT(pNonIpPort->m_CapHdSdi);
+        IsSdiIoConfig = TRUE;
         
         if (!pNonIpPort->m_CapMatrix)
             break;  // Nothing to do for none matrix ports
@@ -2127,6 +2173,7 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
 
     case DT_IOCONFIG_SDI:
         DT_ASSERT(pNonIpPort->m_CapSdi);
+        IsSdiIoConfig = TRUE;
 
         if (pNonIpPort->m_CapMatrix)
         {
@@ -2176,6 +2223,7 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
 
     case DT_IOCONFIG_SPISDI:
         DT_ASSERT(pNonIpPort->m_CapSpiSdi);
+        IsSdiIoConfig = TRUE;
 
         // For devices with matrix API interface there is nothing to do
         if (pNonIpPort->m_CapMatrix)
@@ -2216,6 +2264,7 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
     case DT_IOCONFIG_IFADC:
     case DT_IOCONFIG_IP:
     case DT_IOCONFIG_MOD:
+    case DT_IOCONFIG_PHASENOISE:
     case DT_IOCONFIG_RS422:
         // No action required
         break;
@@ -2228,6 +2277,17 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
 
     pNonIpPort->m_IoCfg[Group] = CfgValue;  // Save new config to the cache
 
+    // If the port is a genlock reference we need to (re-)init the genlock engine to
+    // account for IO standard change (i.e. reference format change)
+    IsTheGenref = pNonIpPort->m_CapGenRef && 
+                      (pNonIpPort->m_IoCfg[DT_IOCONFIG_GENREF].m_Value==DT_IOCONFIG_TRUE);
+    if (IsTheGenref && IsSdiIoConfig)
+    {
+        // Apply genref configuration
+        Status = DtaGenlockApplyGenRefConfig(pNonIpPort->m_pDvcData);
+        if (!DT_SUCCESS(Status))
+            DtDbgOut(ERR, NONIP, "Failed to apply genref config after io-std change");
+    }
     return Status;
 }
 
@@ -2264,6 +2324,7 @@ static DtStatus  DtaNonIpIoConfigSetRfClkSel(
     return DT_STATUS_OK;
 }
 
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpIoConfigSetSpiClkSel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 static DtStatus  DtaNonIpIoConfigSetSpiClkSel(
@@ -2282,6 +2343,7 @@ static DtStatus  DtaNonIpIoConfigSetSpiClkSel(
             break;
         // Select internal clock
         DtaRegDvbSpiCtrlSetExtClkSelect(pNonIpPort->m_pSpiRegs, 0);
+
         break;
     case DT_IOCONFIG_SPICLKEXT:
         DT_ASSERT(pNonIpPort->m_CapSpiClkExt);
@@ -2580,7 +2642,7 @@ DtStatus  DtaNonIpIoConfigSetGenRef(DtaNonIpPort* pNonIpPort, Int Group,
     // Backup current io-config
     OldCfgValue = pNonIpPort->m_IoCfg[Group];
     pNonIpPort->m_IoCfg[Group] = CfgValue;  // Save new config to the cache
-    
+        
     // Apply genref configuration
     Status = DtaGenlockApplyGenRefConfig(pDvcData);
     if (!DT_SUCCESS(Status))
@@ -2813,8 +2875,13 @@ Bool  DtaNonIpIsVidStdSupported(DtaNonIpPort* pNonIpPort, Int  VidStd)
     case DT_VIDSTD_1080P23_98: return pNonIpPort->m_Cap1080P23_98;
     case DT_VIDSTD_1080P24:    return pNonIpPort->m_Cap1080P24;
     case DT_VIDSTD_1080P25:    return pNonIpPort->m_Cap1080P25;
-    case DT_VIDSTD_1080P30:    return pNonIpPort->m_Cap1080P30;
     case DT_VIDSTD_1080P29_97: return pNonIpPort->m_Cap1080P29_97;
+    case DT_VIDSTD_1080P30:    return pNonIpPort->m_Cap1080P30;
+    case DT_VIDSTD_1080PSF23_98: return pNonIpPort->m_Cap1080Psf23_98;
+    case DT_VIDSTD_1080PSF24:    return pNonIpPort->m_Cap1080Psf24;
+    case DT_VIDSTD_1080PSF25:    return pNonIpPort->m_Cap1080Psf25;
+    case DT_VIDSTD_1080PSF29_97: return pNonIpPort->m_Cap1080Psf29_97;
+    case DT_VIDSTD_1080PSF30:    return pNonIpPort->m_Cap1080Psf30;
     case DT_VIDSTD_1080P50:    return pNonIpPort->m_Cap1080P50;
     case DT_VIDSTD_1080P59_94: return pNonIpPort->m_Cap1080P59_94;
     case DT_VIDSTD_1080P60:    return pNonIpPort->m_Cap1080P60;

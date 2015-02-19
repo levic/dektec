@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dta.c *#*#*#*#*#*#*#*#*#*# (C) 2010-2013 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dta.c *#*#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
 //
 // Dta driver - Interface for the Dta common driver, used by the IAL.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2013 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -13,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -325,6 +323,8 @@ DtStatus  DtaDeviceParsePciConfig(DtaDeviceData* pDvcData, UInt8* pPciConfig)
 //
 // This function is called by the IAL for devices with a PLX chip after BAR 0 is mapped,
 // but before BAR 2 is mapped.
+// This function is also executed after the device restores to the D0 state after a
+// sleep or hibernate.
 // In principle, initialising the PCI-9054 or PCI-9056 is required only if the serial
 // EEPROM has not been programmed yet.
 // However, due to a bug in the PCI-9054 chip (see Errata #9 in 9054ABerrata-16.pdf),
@@ -446,6 +446,15 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
 
     DtDbgOut(MAX, DTA, "Start");
 
+    if (pDvcData->m_DevInfo.m_UsesPlxChip)
+    {
+        // Initialize the PLX. This is done here for restoring the registers after 
+        // a sleep/hibernate situation.
+        Status = DtaDeviceInitPci905X(pDvcData);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+
     // Make sure property not found counter is reset after a power resume
     DtResetPropertiesNotFoundCounter(&pDvcData->m_PropData);
 
@@ -501,7 +510,11 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
                 
     // Wait until FPGA is ready
     if (pDvcData->m_DevInfo.m_UsesPlxChip)
-        DtaWaitUntilFpgaIsReady(pDvcData);
+    {
+        Status = DtaWaitUntilFpgaIsReady(pDvcData);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
     
     if (pDvcData->m_InitialPowerup)
     {
@@ -668,6 +681,11 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
 
         // Initialize genlock (software)
         Status = DtaGenlockInit(pDvcData);
+        if (!DT_SUCCESS(Status))
+            return Status;
+
+        // Initialize fan control (software)
+        Status = DtaFanControlInit(pDvcData);
         if (!DT_SUCCESS(Status))
             return Status;
     }
@@ -880,6 +898,16 @@ DtStatus  DtaDevicePowerUpPost(DtaDeviceData* pDvcData)
     if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2154)
     {
         Status = DtaLmh1983InitPowerup(&pDvcData->m_Genlock.m_Lmh1983);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+
+    // Initialise fan controller max6639 if appropriate
+    if (pDvcData->m_FanControl.m_SwControlled && 
+                                     pDvcData->m_FanControl.m_FanType == FAN_TYPE_MAX6639)
+    {
+        
+        Status = DtaMax6639InitPowerUp(&pDvcData->m_FanControl.m_Max6639);
         if (!DT_SUCCESS(Status))
             return Status;
     }
@@ -1122,6 +1150,12 @@ DtStatus  DtaDeviceClose(DtaDeviceData* pDvcData, DtFileObject* pFile)
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {
         DtaNonIpClose(&pDvcData->m_pNonIpPorts[i], pFile);
+    }
+
+    // Release VCXO control
+    if (pDvcData->m_Genlock.m_IsSupported)
+    {
+        DtaGenlockClose(pDvcData, pFile);
     }
 
     // Remove file handle from the filehandle info array
@@ -1379,6 +1413,11 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
         InReqSize = 0; // Checked later
         OutReqSize = 0; // Checked later
         break;
+    case DTA_IOCTL_SET_VCXO:
+        pIoctlStr = "DTA_IOCTL_SET_VCXO";
+        InReqSize = sizeof(DtaIoctlSetVcxoInput);
+        OutReqSize = 0;
+        break;
     default:
         Status = DT_STATUS_NOT_SUPPORTED;
         break;
@@ -1614,7 +1653,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
         case DTA_IOCTL_GET_EVENT:
             Status = DtaEventsGet(pDvcData, pFile, NULL, &pOutBuf->m_GetEvent.m_EventType,
                                                     &pOutBuf->m_GetEvent.m_Value1,
-                                                    &pOutBuf->m_GetEvent.m_Value2, FALSE);
+                                                    &pOutBuf->m_GetEvent.m_Value2);
             break;
         case DTA_IOCTL_REGISTER_EVENTS:
             Status = DtaEventsRegister(pDvcData, pFile,
@@ -2139,6 +2178,17 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
             Status = DtaRs422Ioctl(pDvcData, pFile, pIoctl, PowerDownPending);
             break;
 
+        case DTA_IOCTL_SET_VCXO:
+            if (pInBuf->m_SetVcxo.m_VcxoIdx != 0)
+                Status = DT_STATUS_INVALID_PARAMETER;
+            if (pInBuf->m_SetVcxo.m_VcxoVal<-1 || pInBuf->m_SetVcxo.m_VcxoVal>1023)
+                Status = DT_STATUS_INVALID_PARAMETER;
+            if (DT_SUCCESS(Status) && pInBuf->m_SetVcxo.m_VcxoVal==-1)
+                DtaGenlockResetVcxo(pDvcData);
+            if (DT_SUCCESS(Status) && pInBuf->m_SetVcxo.m_VcxoVal>=0)
+                DtaGenlockSetVcxo(pDvcData, pFile, pInBuf->m_SetVcxo.m_VcxoVal);
+            break;
+
         default:
             Status = DT_STATUS_NOT_SUPPORTED;
             break;
@@ -2585,19 +2635,6 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
                 // Interrupt was ours
                 IrqHandled = TRUE;
             }
-
-            if (DtaRegHdStatGetRxSyncErrInt(pDvcData->m_pNonIpPorts[i].m_pRxRegs) != 0 ||
-                     DtaRegHdStatGetRxOvfErrInt(pDvcData->m_pNonIpPorts[i].m_pRxRegs) != 0)
-            {
-                DtDpcArgs  DpcArgs;
-                DpcArgs.m_pContext = &pDvcData->m_pNonIpPorts[i];
-                // Schedule DPC to handle the interrupt since we need to acquire
-                // a spinlock to store the flags. The DPC will also clear the interrupt
-                // flag.
-                DtDpcSchedule(&pDvcData->m_pNonIpPorts[i].m_Matrix.m_RxErrIntDpc,&DpcArgs);
-                // Interrupt was ours
-                IrqHandled = TRUE;
-            }
         }
     }
 
@@ -2844,8 +2881,7 @@ DtStatus  DtaInterruptSofIntHandler(DtaDeviceData* pDvcData)
 DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
 {
     DtDpcArgs  DpcArgs;
-    Int  NextFrmIdx=0;
-    Int  CurFrmIdx = 0;
+    Int  CurFrmIdx=0, NextFrmIdx=0, LastFrmIdx = 0;
     Bool  IsRunning = TRUE;
     DtaFrameBufSectionConfig*  pSections = pNonIpPort->m_Matrix.m_BufConfig.m_Sections;
 
@@ -2870,20 +2906,29 @@ DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
         //
         // AS WORKARROUND, we therefore now read the current frame register and subtract 
         // 1 to get the last frame
-        pNonIpPort->m_Matrix.m_LastFrame = 
-                                       DtaRegHdCurrentFrameGet(pNonIpPort->m_pRxRegs) - 1;
+        Int64  CurFrame = DtaRegHdCurrentFrameGet(pNonIpPort->m_pRxRegs);
+        UInt64  RefClk = DtaRegRefClkCntGet64(pNonIpPort->m_pDvcData->m_pGenRegs);
+        pNonIpPort->m_Matrix.m_LastFrame = CurFrame - 1;
+        // Set reference clock for current frame
+        CurFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, CurFrame);
+        LastFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, 
+                                                        pNonIpPort->m_Matrix.m_LastFrame);
+        // Set end time reference clock for just the rx-/tx-ed frame
+        pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClkStart = RefClk;
+        pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkEnd = RefClk;
     }
     else
     {
-        Int64  NextFrame;
+        Int64  NextFrame = DTA_FRMBUF_HOLD_FRAME;
         Bool  ChangeToRun=FALSE, ChangeToHold=FALSE;
         DtaMatrixPortState  NewState = pNonIpPort->m_Matrix.m_State;
 
+        // Set just completed frame as last received/transmitted
         pNonIpPort->m_Matrix.m_LastFrame = pNonIpPort->m_Matrix.m_CurFrame;
         
         // Check for state change
-        IsRunning = (pNonIpPort->m_Matrix.m_LastStateAtInt == MATRIX_PORT_RUN);
-        ChangeToRun = !IsRunning && (NewState==MATRIX_PORT_RUN);
+        IsRunning = (pNonIpPort->m_Matrix.m_LastStateAtInt >= MATRIX_PORT_RUN_AUTO);
+        ChangeToRun = !IsRunning && (NewState>=MATRIX_PORT_RUN_AUTO);
         ChangeToHold = NewState==MATRIX_PORT_HOLD && 
                                 (pNonIpPort->m_Matrix.m_LastStateAtInt!=MATRIX_PORT_HOLD);
 
@@ -2892,17 +2937,19 @@ DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
             NextFrame = pNonIpPort->m_Matrix.m_NextFrame;
             DT_ASSERT(NextFrame != -1);
             pNonIpPort->m_Matrix.m_CurFrame = NextFrame - 1;
-            
-            // Clear forced next frame
-            pNonIpPort->m_Matrix.m_NextFrame = -1;
 
             DtDbgOut(AVG, NONIP, "Enter run state; Starting with frame: %lld", NextFrame); 
         }
-        else if (NewState == MATRIX_PORT_RUN)
+        else if (NewState == MATRIX_PORT_RUN_AUTO)
         {
             // Update current frame
             pNonIpPort->m_Matrix.m_CurFrame++;  
             NextFrame = pNonIpPort->m_Matrix.m_CurFrame+1;  // set next
+        }
+        else if (NewState == MATRIX_PORT_RUN_MAN)
+        {
+            // Update current frame
+            pNonIpPort->m_Matrix.m_CurFrame = pNonIpPort->m_Matrix.m_NextFrame;
         }
         else
         {
@@ -2914,16 +2961,37 @@ DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
                                                                                NextFrame); 
         }
 
-        if (NewState == MATRIX_PORT_RUN)
-        {
-            // Set reference clock for current frame
-            CurFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort,
+        // Get Index of current and last frames
+        CurFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, 
                                                          pNonIpPort->m_Matrix.m_CurFrame);
-            pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClk =
-                                 DtaRegRefClkCntGet64(pNonIpPort->m_pDvcData->m_pGenRegs);
+        LastFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, 
+                                                        pNonIpPort->m_Matrix.m_LastFrame);
+        
+        if (NewState >= MATRIX_PORT_RUN_AUTO)
+        {
+            UInt64  RefClk;
+            // Read time the hardware started transmitting/receiving this frame. Use
+            // latched register if available, otherwise read the clock here.
+            if (pNonIpPort->m_CapMatrix2)
+            {
+                RefClk = DtaRegHdFrmTimeGet(pNonIpPort->m_pRxRegs);
+            } else {
+                RefClk = DtaRegRefClkCntGet64(pNonIpPort->m_pDvcData->m_pGenRegs);
+            }
+
+            // For the start time of the current frame there are two options, namely:
+            // 1. Repeat the same frame => use the previous end time as start time
+            // 2. New frame => end time of just rx-/tx-ed frame is start time
+            if (CurFrmIdx == LastFrmIdx)
+                pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClkStart = 
+                                 pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkEnd;
+            else
+                pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClkStart = RefClk;
+            // Set end time reference clock for just the rx-/tx-ed frame
+            pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkEnd = RefClk;
         }
     
-        if (NewState >= MATRIX_PORT_IDLE)
+        if (NewState>=MATRIX_PORT_IDLE && (ChangeToRun || NewState!=MATRIX_PORT_RUN_MAN))
         {
             // Set address for the next frame to be transmited/received
             NextFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, NextFrame);
@@ -2939,6 +3007,8 @@ DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
         // Save last state seen by interrupt
         pNonIpPort->m_Matrix.m_LastStateAtInt = NewState;
     }
+
+    pNonIpPort->m_Matrix.m_FrmIntCnt++;
 
     // Schedule DPC for handling of "low-prio" part of Last Frame interrupt, burt only if 
     // the channel is in running state
@@ -3146,7 +3216,6 @@ static DtStatus  DtaWaitUntilFpgaIsReady(DtaDeviceData* pDvcData)
                                                                                     NULL);
         return DT_STATUS_TIMEOUT;
     }
-
     return DT_STATUS_OK;
 }
 
@@ -3232,9 +3301,6 @@ DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData)
 {
     DtStatus  Status = DT_STATUS_OK;
     Int  PortCount;
-    Bool  CapAsi, CapSdi, CapHdSdi, Cap3gSdi, CapSpi, CapIp, CapMod, CapDemod, 
-                                                                      CapIfAdc, CapGenRef;
-    Bool  CapRs422;
     Int  i;
     DtPropertyData*  pPropData = &pDvcData->m_PropData;
     DtTableEntry  PortMap[16];
@@ -3263,31 +3329,11 @@ DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData)
     // Initialize reverse lookup structures
     for (i=0; i<PortCount; i++)
     {
-        CapAsi = DtPropertiesGetBool(pPropData, "CAP_ASI", i);
-        CapSdi = DtPropertiesGetBool(pPropData, "CAP_SDI", i);
-        CapHdSdi = DtPropertiesGetBool(pPropData, "CAP_HDSDI", i);
-        Cap3gSdi = DtPropertiesGetBool(pPropData, "CAP_3GSDI", i);
-        CapMod = DtPropertiesGetBool(pPropData, "CAP_MOD", i);
-        CapDemod = DtPropertiesGetBool(pPropData, "CAP_DEMOD", i);
-        CapSpi = DtPropertiesGetBool(pPropData, "CAP_SPI", i);
+        Bool CapIp;
         CapIp = DtPropertiesGetBool(pPropData, "CAP_IP", i);
-        CapIfAdc = DtPropertiesGetBool(pPropData, "CAP_IFADC", i);
-        CapGenRef = DtPropertiesGetBool(pPropData, "CAP_GENREF", i);
-        CapRs422 = DtPropertiesGetBool(pPropData, "CAP_RS422", i);
-        if ((CapAsi || CapSdi || CapHdSdi || Cap3gSdi || CapDemod || CapMod || 
-                                   CapSpi || CapIfAdc || CapGenRef || CapRs422) && !CapIp)
+        if (CapIp)
         {
-            // Setup reverse lookup
-            pDvcData->m_pPortLookup[i].m_PortType = DTA_PORT_TYPE_NONIP;
-            pDvcData->m_pPortLookup[i].m_Index = pDvcData->m_NumNonIpPorts;
-            pDvcData->m_pPortLookup[i].m_PortNumber = DtaFindPortNumber(PortMap,
-                                                                          PortMapSize, i);
-
-            // We found one, increment number of non-IP ports
-            pDvcData->m_NumNonIpPorts++;
-        }
-        else if (CapIp)
-        {
+            // IP-port
             // Setup reverse lookup
             pDvcData->m_pPortLookup[i].m_PortType = DTA_PORT_TYPE_IP;
             pDvcData->m_pPortLookup[i].m_Index = pDvcData->m_NumIpPorts;
@@ -3297,12 +3343,15 @@ DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData)
             // We found one, increment number of IP ports
             pDvcData->m_NumIpPorts++;
         } else {
-            pDvcData->m_NumNonIpPorts = 0;
-            pDvcData->m_NumIpPorts = 0;
-            PortCount = 0;
-            DtDbgOut(ERR, DTA, "[%d] Port type not supported", i);
-            Status = DT_STATUS_NOT_SUPPORTED;
-            break;
+            // Non-IP ports
+            // Setup reverse lookup
+            pDvcData->m_pPortLookup[i].m_PortType = DTA_PORT_TYPE_NONIP;
+            pDvcData->m_pPortLookup[i].m_Index = pDvcData->m_NumNonIpPorts;
+            pDvcData->m_pPortLookup[i].m_PortNumber = DtaFindPortNumber(PortMap,
+                                                                          PortMapSize, i);
+
+            // We found one, increment number of non-IP ports
+            pDvcData->m_NumNonIpPorts++;
         }
     }
     pDvcData->m_NumPorts = PortCount;
@@ -3377,7 +3426,8 @@ DtStatus  DtaDeviceGenlockIoctl(DtaDeviceData* pDvcData, Int* pState, Int* pRefV
         switch (pDvcData->m_Genlock.m_Lmh1982.m_State)
         {
         case DTA_LMH1982_STATE_PLL_LOCKED:
-        case DTA_LMH1982_STATE_ALIGN_TOF:
+        case DTA_LMH1982_STATE_ALIGN_TOF1:
+        case DTA_LMH1982_STATE_ALIGN_TOF2:
         case DTA_LMH1982_STATE_HOLD_OVER1:
         case DTA_LMH1982_STATE_HOLD_OVER2:
         case DTA_LMH1982_STATE_PLL_LOCKING:

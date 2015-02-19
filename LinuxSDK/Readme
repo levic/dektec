@@ -7,19 +7,20 @@ DVB/MPEG-2 PCI/PCIe and USB-2 devices in applications running under Linux.
 
 The Linux SDK consists of:
  - Dta:           Linux driver for DTA-100, DTA-102, DTA-105, DTA-107(S2),
-                  DTA-110(T), DTA-111, DTA-112, DTA-115, DTA-116, DTA-120,
-                  DTA-122, DTA-124, DTA-140, DTA-145, DTA-160, DTA-545, 
-                  DTA-2107, DTA-2131, DTA-2135, DTA-2136, DTA-2137,
-				  DTA-2139, DTA-2142, DTA-2144, DTA-2145, DTA-2152 
-				  and DTA-2160;
- - DtaNw:         Network driver for DTA-160 and DTA-2160;
+                  DTA-110, DTA-111, DTA-112, DTA-115, DTA-116, DTA-120,
+                  DTA-122, DTA-124, DTA-140, DTA-145, DTA-160, DTA-545,
+                  DTA-2107, DTA-2111, DTA-2115, DTA-2131, DTA-2135,
+                  DTA-2136, DTA-2137, DTA-2138, DTA-2139, DTA-2142,
+                  DTA-2144, DTA-2145, DTA-2152, DTA-2154, DTA-2160,
+                  DTA-2162 and DTA-2174;
+ - DtaNw:         Network driver for DTA-160, DTA-2160 and DTA-2162;
  - Dtu:           Linux driver for DTU-205, DTU-215, DTU-225, DTU-234, DTU-235,
                   DTU-236 and DTU-245;
  - DTAPI:         C++ API that wraps the driver calls into an easy-to-use and
                   object-oriented programming interface.
  - DtapiService:  DTAPI daemon (service) that controls demodulator boards (e.g.
                   DTU-235, DTU-236, DTA-2131, DTA-2135, DTA-2136, DTA-2137
-				  or DTA-2139).
+                  or DTA-2139).
 
 To use the SDK, you first have to compile the Dta, DtaNw and Dtu drivers.
 The DTAPI is provided as precompiled binary without the source code. Please refer

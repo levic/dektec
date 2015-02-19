@@ -1,10 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2014 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
 //
 // SDK - Common definitions and types between for DTAPI/DTA/DTU drivers
+//
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2014 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -12,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -164,9 +163,11 @@ typedef struct _DtAvFrameProps
     Int  m_HancNumS;            // # of symbols in hanc part of line
     Int  m_SavNumS, m_EavNumS;  // # of symbols for EAV and SAV
 
+    Int  m_SyncPointPixelOff;   // # of pixels offset to timing sync point
+
     Int  m_SwitchingLines[2];   // Switching lines for field 1 & 2
 } DtAvFrameProps;
-ASSERT_SIZE(DtAvFrameProps, 72)
+ASSERT_SIZE(DtAvFrameProps, 76)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -198,6 +199,7 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define DT_SH_CHANTYPE_UNDEFINED    0            // Undefined IP channel
 #define DT_SH_CHANTYPE_IPTX         1            // Transmit IP channel
 #define DT_SH_CHANTYPE_IPRX         2            // Receive IP channel
+#define DT_SH_CHANTYPE_IPRX_V2      3            // Receive IP channel: Dynamic RX buffers
 
 // Manufacturing plants
 #define MANUF_PLANT_DEKTEC          1            // Produced by DekTec
@@ -216,6 +218,7 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define PROG_ITF_SPI_EPCS1          0x0010       // SPI with EPCS1 device
 #define PROG_ITF_SPI_EPCS4          0x0020       // SPI with EPCS4 device
 #define PROG_ITF_SPI_EPCS16         0x0040       // SPI with EPCS16 device
+#define PROG_ITF_SPI_EPCS64         0x0080       // SPI with EPCS64 device
 #define PROG_ITF_CFI_FAST           0x0100       // CFI with EPCSx-like interface device
 
 #define ASI_SDI_DESER_ITF_NONE       0           // No ASI/SDI deserialiser used
@@ -225,6 +228,7 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define ASI_SDI_DESER_ITF_GS9060     3           // Uses Gennum GS9060
 #define ASI_SDI_DESER_ITF_GS2961     4           // Uses Gennum GS2961
 #define ASI_SDI_DESER_ITF_FPGA_LMH0387  5        // FPGA deserialiser + LMH0387 equaliser
+#define ASI_SDI_DESER_ITF_FPGA_GS3490  6         // FPGA deserialiser + GS3490 equaliser
 
 #define ASI_SDI_SER_ITF_NONE         0           // No ASI/SDI serialiser used
 #define ASI_SDI_SER_ITF_HOTLINK      1           // Use Cypress hotlink
@@ -232,6 +236,7 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
                                                  // implementation
 #define ASI_SDI_SER_ITF_GS2962       4           // Uses Gennum GS2962
 #define ASI_SDI_SER_ITF_FPGA_LMH0387 5           // FPGA serialiser + LMH0387 line driver
+#define ASI_SDI_SER_ITF_FPGA_GS3490 6            // FPGA serialiser + GS3490 line driver
 
 // Genlock: operation mode for internal clock source
 #define GENLOCK_OPMODE_INTSRC_UNDEF     0        // Undefined operation mode

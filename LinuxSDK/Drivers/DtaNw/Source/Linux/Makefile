@@ -115,7 +115,7 @@ all: PREREQ $(DTA_LINUX)/Module.symvers Messages.h Messages.c $(DTSAL)
 $(DTA_LINUX)/Module.symvers:
 	make MYPWD=$(PWD) -C $(DTA_LINUX)
 
-INSTALL_CMD := "rmmod $(TARGET) 2>/dev/null || true &&          \
+INSTALL_CMD := "/sbin/rmmod $(TARGET) 2>/dev/null || true &&          \
 				install -d $(INSTALLDIR) &&     \
 	            cp -v $(TARGET).ko $(INSTALLDIR) &&         \
 			    /sbin/depmod -a &&                  \

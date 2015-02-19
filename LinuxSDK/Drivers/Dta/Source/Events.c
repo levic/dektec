@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Events.c *#*#*#*#*#*#*#*#*# (C) 2010-2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Events.c *#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
 //
 // Dta driver - Events subsystem - Implements a mechanism to queue events for the user
 //
@@ -8,7 +8,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -16,8 +16,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -104,17 +102,11 @@ static DtaEvents*  DtaEventsAllocEventsObject(
 //
 static void  DtaEventsUnrefEventsObject(DtaDeviceData* pDvcData, DtaEvents* pDtaEvents)
 {
-    Int  OldState = -255;
-    Int  NewState = pDtaEvents->m_RefCount-1;
-    while (OldState != NewState+1)
+    if (DtAtomicDecrementReturn(&pDtaEvents->m_RefCount) == 0)
     {
-        OldState = pDtaEvents->m_RefCount;
-        NewState = OldState-1;
-        if (OldState > 0)
-            OldState = DtAtomicCompareExchange(&pDtaEvents->m_RefCount, OldState, 
-                                                                                NewState);
-        else
-            break;
+        DT_ASSERT(pDtaEvents->m_pPrev == NULL);
+        DT_ASSERT(pDtaEvents->m_pNext == NULL);
+        DtMemFreePool(pDtaEvents, DTA_TAG);
     }
 }
 
@@ -139,7 +131,7 @@ static DtStatus  DtaEventsSetEvent(
         {
             // Remove oldest event
             DtDbgOut(AVG, EVENTS, "Max. number of events. Remove old event");
-            DtMemCopy(&pDtaEvents->m_PendingEvents[0],
+            DtMemMove(&pDtaEvents->m_PendingEvents[0],
                                          &pDtaEvents->m_PendingEvents[1],
                                          sizeof(DtaEvent) * (MAX_PENDING_EVENTS - 1));
             pDtaEvent = &pDtaEvents->m_PendingEvents[MAX_PENDING_EVENTS - 1];
@@ -208,7 +200,7 @@ DtStatus  DtaEventsDequeue(
             Status = DtaEventsGet(pDvcData, pFile, pEvents,
                                                     &pOutBuf->m_GetEvent.m_EventType,
                                                     &pOutBuf->m_GetEvent.m_Value1,
-                                                    &pOutBuf->m_GetEvent.m_Value2, FALSE);
+                                                    &pOutBuf->m_GetEvent.m_Value2);
         }
 
         if (!NT_SUCCESS(NtStatus))
@@ -255,7 +247,7 @@ DtStatus  DtaEventsCleanup(DtaDeviceData* pDvcData)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEventsGet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// Return a pending event. This functions blocks if no events are pending.
+// Return a pending event if one is available.
 //
 DtStatus  DtaEventsGet(
     DtaDeviceData*  pDvcData,
@@ -263,13 +255,13 @@ DtStatus  DtaEventsGet(
     DtaEvents*  pEvents,                // If not NULL, we don't need the file object
     UInt*  pEventType, 
     UInt*  pValue1,
-    UInt*  pValue2,
-    Bool  Wait)
+    UInt*  pValue2)
 {
     DtStatus  Result = DT_STATUS_OK;
     DtaEvents*  pDtaEvents;
 
-    if (pFile==NULL || pEventType==NULL || pValue1==NULL || pValue2==NULL)
+    if ((pFile==NULL && pEvents==NULL) || pEventType==NULL || pValue1==NULL ||
+                                                                            pValue2==NULL)
         return DT_STATUS_INVALID_PARAMETER;
 
     // Get corresponding events object
@@ -284,14 +276,6 @@ DtStatus  DtaEventsGet(
     if (DT_SUCCESS(Result))
     {
         DtEventReset(&pDtaEvents->m_PendingEvent);
-
-        if (Wait && pDtaEvents->m_NumPendingEvents==0 && !pDtaEvents->m_CancelInProgress) 
-        {
-            DtDbgOut(MAX, EVENTS, "Waiting for event");
-        
-            // Wait for event to be triggered
-            DtEventWait(&pDtaEvents->m_PendingEvent, -1);
-        }
 
         // The next request will be rejected by the IoCtl function, so we can reset
         // the Cancel state here.
@@ -314,7 +298,7 @@ DtStatus  DtaEventsGet(
             if (pDtaEvents->m_NumPendingEvents != 0)
             {   
                 // Remove the old event
-                DtMemCopy(&pDtaEvents->m_PendingEvents[0],
+                DtMemMove(&pDtaEvents->m_PendingEvents[0],
                                        &pDtaEvents->m_PendingEvents[1],
                                        sizeof(DtaEvent) * pDtaEvents->m_NumPendingEvents);
             }
@@ -353,10 +337,8 @@ DtStatus  DtaEventsGetCancel(DtaDeviceData* pDvcData, DtFileObject* pFile)
 
     // We force the Pending event to be signaled.
     pDtaEvents = DtaEventsGetEventsObject(pDvcData, pFile);
-    if (pDtaEvents==NULL || pDtaEvents->m_RefCount==1)
+    if (pDtaEvents == NULL)
     {
-        if (pDtaEvents != NULL)
-            DtaEventsUnrefEventsObject(pDvcData, pDtaEvents);
         DtDbgOut(MAX, EVENTS, "Exit");
         return DT_STATUS_NOT_FOUND;
     }
@@ -379,30 +361,6 @@ DtStatus  DtaEventsGetCancel(DtaDeviceData* pDvcData, DtFileObject* pFile)
     return DT_STATUS_OK;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEventsNumPending -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-Int  DtaEventsNumPending(DtaDeviceData* pDvcData, DtFileObject* pFile)
-{
-    DtaEvents*  pDtaEvents;
-    Int  NumPending = 0;
-
-    DtDbgOut(MAX, EVENTS, "Start");
-
-    // We force the Pending event to be signaled.
-    pDtaEvents = DtaEventsGetEventsObject(pDvcData, pFile);
-    if (pDtaEvents != NULL)
-    {
-        NumPending = pDtaEvents->m_NumPendingEvents;
-        
-        // Decrement refcount
-        DtaEventsUnrefEventsObject(pDvcData, pDtaEvents);
-    }
-
-    DtDbgOut(MAX, EVENTS, "Exit (%d pending events)", NumPending);
-
-    return NumPending;
-}
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEventsRegister -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtaEventsRegister(
@@ -421,16 +379,12 @@ DtStatus DtaEventsRegister(
     if (pDtaEvents == NULL)
         return DT_STATUS_OUT_OF_RESOURCES;
 
-    // Decrement refcount
-    DtaEventsUnrefEventsObject(pDvcData, pDtaEvents);
-
     return DT_STATUS_OK;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEventsSet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// This function adds new events to the pending events. If the Events argument is 0, 
-// this function does nothing.
+// This function adds new events to the pending events.
 //
 DtStatus  DtaEventsSet(
     DtaDeviceData*  pDvcData,
@@ -494,25 +448,42 @@ DtStatus  DtaEventsSet(
 //
 void  DtaEventsUnregister(DtaDeviceData* pDvcData, DtFileObject* pFile)
 {
-    DtaEvents*  pDtaEvents;
+    DtaEvents*  pDtaEvents = NULL;
 
-    // We force the Pending event to be signaled.
-    pDtaEvents = DtaEventsGetEventsObject(pDvcData, pFile);
+    DtSpinLockAcquire(&pDvcData->m_EventsSpinlock);
+    pDtaEvents = pDvcData->m_pEvents;
+
+    while (pDtaEvents != NULL)
+    {
+        if (DtFileCompare(&pDtaEvents->m_File, pFile))
+            break;
+        pDtaEvents = pDtaEvents->m_pNext;
+    }
     if (pDtaEvents == NULL)
+    {
+        DtSpinLockRelease(&pDvcData->m_EventsSpinlock);
         return;
-
-    // Decrement refcount
-    DtaEventsUnrefEventsObject(pDvcData, pDtaEvents);
-
-    // Signal pending event (will remove object if event was pending)
-    DtaEventsGetCancel(pDvcData, pFile);
-    // Remove events struct from linked list
-
+    }
+    // Remove events struct from linked list while holding the spinlock
     if (pDtaEvents->m_pPrev != NULL)
         pDtaEvents->m_pPrev->m_pNext = pDtaEvents->m_pNext;
     else
         pDvcData->m_pEvents = pDtaEvents->m_pNext;
     if (pDtaEvents->m_pNext != NULL)
         pDtaEvents->m_pNext->m_pPrev = pDtaEvents->m_pPrev;
-    DtMemFreePool(pDtaEvents, DTA_TAG);
+
+    pDtaEvents->m_pPrev = NULL;
+    pDtaEvents->m_pNext = NULL;
+
+    DtSpinLockRelease(&pDvcData->m_EventsSpinlock);
+    
+    // Even if two threads call DtaEventsUnregister at the same time we'll only come here
+    // once. We remove the DtaEvents object from the linked-list while holding the
+    // spinlock, so the second thread won't find the object and return immediately.
+
+    // Signal pending event (will remove object if event was pending)
+    DtaEventsGetCancel(pDvcData, pFile);
+
+    // Decrement refcount to free object as soon as it's no longer in use
+    DtaEventsUnrefEventsObject(pDvcData, pDtaEvents);
 }

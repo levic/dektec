@@ -1,10 +1,10 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Lmh1983.h *#*#*#*#*#*#*#*#*# (C) 2013-2014 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Lmh1983.h *#*#*#*#*#*#*#*#*# (C) 2013-2015 DekTec
 //
 // Dta driver - National LMH1983 (Video Clock Generator) controller
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2013-2014 DekTec Digital Video B.V.
+// Copyright (C) 2013-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -12,8 +12,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -205,5 +203,7 @@ DtStatus  DtaLmh1983Init(DtaDeviceData*  pDvcData, DtaLmh1983*  pLmh1983Data);
 DtStatus  DtaLmh1983InitPowerup(DtaLmh1983* pLmh1983Data);
 DtStatus  DtaLmh1983ResetStateMachine(DtaLmh1983*  pLmh1983Data);
 DtStatus  DtaLmh1983PowerdownPre(DtaLmh1983*  pLmh1983Data);
+DtStatus  DtaLmh1983SetDevCtrl(DtaLmh1983* pLmh1983Data);
+DtStatus  DtaLmh1983SetVcxoValue(DtaLmh1983* pLmh1983Data, Int  VcxoValue);
 
 #endif // #ifndef __LMH1983_H

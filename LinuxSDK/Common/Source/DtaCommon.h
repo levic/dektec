@@ -1,12 +1,13 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2014 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
 //
 // Dta driver - Common file shared between Dta driver and DTAPI
 //
 // This file describes the Dta driver interface, which is used by the DTAPI.
+//
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2014 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -14,8 +15,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -129,7 +128,9 @@ enum {
     FUNC_DTA_GET_STR_PROPERTY2,
     FUNC_DTA_GET_TABLE2,
     FUNC_DTA_RS422_CMD,
-    FUNC_DTA_GET_DEV_INFO3
+    FUNC_DTA_GET_DEV_INFO3,
+    FUNC_DTA_SET_VCXO
+
 };
 
 // Ioctl input data type
@@ -785,6 +786,7 @@ ASSERT_SIZE(DtaIoctlDmaWriteInput, 4)
 #define DTA_SH_CHANTYPE_UNDEFINED      DT_SH_CHANTYPE_UNDEFINED
 #define DTA_SH_CHANTYPE_IPTX           DT_SH_CHANTYPE_IPTX
 #define DTA_SH_CHANTYPE_IPRX           DT_SH_CHANTYPE_IPRX
+#define DTA_SH_CHANTYPE_IPRX_V2        DT_SH_CHANTYPE_IPRX_V2   // Dynamic buf size layout
 
 // DTA HP Buf init command input data type
 typedef struct _DtaIoctlShBufCmdInitInput {
@@ -1338,7 +1340,7 @@ ASSERT_SIZE(DtaIoctlIpXxCmdSetControlInput, 8)
 // DTA_IP_TX_CMD_WRITENDISPCKT
 typedef struct _DtaIoctlIpTxCmdWriteNdisPcktInput {
     UInt  m_BufLen;
-    UInt8  m_Buf[0];                // Dynamic sized buffer    
+    UInt8  m_Buf[0];                 // Dynamic sized buffer
 } DtaIoctlIpTxCmdWriteNdisPcktInput;
 ASSERT_SIZE(DtaIoctlIpTxCmdWriteNdisPcktInput, 4)
 
@@ -1421,6 +1423,10 @@ ASSERT_SIZE(DtaIoctlIpTxCmdOutput, 8)
 #define DTA_IP_RX_CMD_GETIPPARS        11
 #define DTA_IP_RX_CMD_GETIPSTAT        12
 #define DTA_IP_RX_CMD_SETIPPARS2       13
+#define DTA_IP_RX_CMD_GETIPSTAT2       14
+#define DTA_IP_RX_CMD_SETUPBUFFER      15
+#define DTA_IP_RX_CMD_SETIPPARS3       16
+#define DTA_IP_RX_CMD_GETIPPARS2       17
 
 // DTA_IP_RX_CMD_GETSTATUS
 typedef struct _DtaIoctlIpRxCmdGetStatusInput {
@@ -1460,20 +1466,20 @@ ASSERT_SIZE(DtaIoctlIpRxCmdSetModeInput, 8)
 
 // Fec mode flags
 #define DTA_FEC_DISABLE          0
-#define DTA_FEC_2D               1       // FEC reconstruction
-#define DTA_FEC_2D_M1            1       // Mode1: FECdT = DVBdT + .5 * DVBdT
-#define DTA_FEC_2D_M2            2       // Mode2: FECdT = DVBdT
+#define DTA_FEC_2D               1      // FEC reconstruction
+#define DTA_FEC_2D_M1            1      // Mode1: FECdT = DVBdT + .5 * DVBdT
+#define DTA_FEC_2D_M2            2      // Mode2: FECdT = DVBdT
 
 // Mode
 #define DTA_IP_NORMAL            0
-#define DTA_IP_TX_DBLBUF         1
-#define DTA_IP_RX_DBLBUF         2
-#define DTA_IP_RX_FAILOVER       3
+#define DTA_IP_TX_2022_7         1
+#define DTA_IP_RX_2022_7         2
 
 // Flags
 #define DTA_IP_V4                1
 #define DTA_IP_V6                2
 #define DTA_IP_TX_MANSRCPORT     4
+#define DTA_IP_RX_DIFFSRCPORTFEC 8
 
 // DTA_IP_RX_CMD_SETIPPARS
 typedef struct _DtaIoctlIpRxCmdSetIpParsInput {
@@ -1491,38 +1497,79 @@ ASSERT_SIZE(DtaIoctlIpRxCmdSetIpParsInput, 24)
 typedef struct _DtaIoctlIpRxCmdSetIpPars2Input {
     Int  m_Channel;
     // Primary link
-    UInt8  m_DstIp[16];              // Destination: IP address
-    UInt16  m_DstPort;               // Destination: port number
-    UInt8  m_SrcIp[16];              // Source: IP address
-    UInt16  m_SrcPort;               // Source: port number
-    Int  m_VlanId;                   // VLAN ID
+    UInt8  m_DstIp[16];             // Destination: IP address
+    UInt16  m_DstPort;              // Destination: port number
+    UInt8  m_SrcIp[16];             // Source: IP address
+    UInt16  m_SrcPort;              // Source: port number
+    Int  m_VlanId;                  // VLAN ID
     // Redundant link
-    UInt8  m_DstIp2[16];             // Destination: IP address
-    UInt16  m_DstPort2;              // Destination: port number
-    UInt8  m_SrcIp2[16];             // Source: IP address
-    UInt16  m_SrcPort2;              // Source: port number
-    Int  m_VlanId2;                  // VLAN ID
+    UInt8  m_DstIp2[16];            // Destination: IP address
+    UInt16  m_DstPort2;             // Destination: port number
+    UInt8  m_SrcIp2[16];            // Source: IP address
+    UInt16  m_SrcPort2;             // Source: port number
+    Int  m_VlanId2;                 // VLAN ID
     // Options
-    Int  m_Mode;
-    Int  m_Flags;
-    Int  m_Protocol;                 // Protocol: UDP/RTP
-    Int  m_FecMode;                  // Error correction mode
+    Int  m_Mode;                    // Normal/SMPTE_2022_7
+    Int  m_Flags;                   // Control flags: IPv4/IPv6
+    Int  m_Protocol;                // Protocol: UDP/RTP
+    Int  m_FecMode;                 // Error correction mode
 } DtaIoctlIpRxCmdSetIpPars2Input;
 ASSERT_SIZE(DtaIoctlIpRxCmdSetIpPars2Input, 100)
+
+// DTA_IP_RX_CMD_SETIPPARS3
+typedef struct _DtaIoctlIpRxCmdSetIpPars3Input {
+    Int  m_Channel;
+    // Primary link
+    UInt8  m_DstIp[16];             // Destination: IP address
+    UInt16  m_DstPort;              // Destination: port number
+    UInt8  m_SrcIp[16];             // Source: IP address
+    UInt16  m_SrcPort;              // Source: port number
+    Int  m_VlanId;                  // VLAN ID
+    // Redundant link
+    UInt8  m_DstIp2[16];            // Destination: IP address
+    UInt16  m_DstPort2;             // Destination: port number
+    UInt8  m_SrcIp2[16];            // Source: IP address
+    UInt16  m_SrcPort2;             // Source: port number
+    Int  m_VlanId2;                 // VLAN ID
+    // Options
+    Int  m_Mode;                    // Normal/SMPTE_2022_7
+    Int  m_Flags;                   // Control flags: IPv4/IPv6
+    Int  m_Protocol;                // Protocol: UDP/RTP
+    Int  m_FecMode;                 // Error correction mode
+    // Profile
+    Int  m_Spare;                   // Not used
+    Int  m_VidStd;                  // Video standard to receive. -1 = undefined
+    Int  m_MaxBitrate;              // Maximal expected bitrate
+    Int  m_MaxSkew;                 // Max. skew in SMPTE_2022-7
+} DtaIoctlIpRxCmdSetIpPars3Input;
+ASSERT_SIZE(DtaIoctlIpRxCmdSetIpPars3Input, 116)
 
 // DTA_IP_RX_CMD_GETIPPARS
 typedef struct _DtaIoctlIpRxCmdGetIpParsInput {
     Int  m_Channel;
 } DtaIoctlIpRxCmdGetIpParsInput;
 ASSERT_SIZE(DtaIoctlIpRxCmdGetIpParsInput, 4)
+typedef struct _DtaIoctlIpRxCmdGetIpPars2Input {
+    Int  m_Channel;
+} DtaIoctlIpRxCmdGetIpPars2Input;
+ASSERT_SIZE(DtaIoctlIpRxCmdGetIpPars2Input, 4)
 
 typedef struct _DtaIoctlIpRxCmdGetIpParsOutput {
     Int  m_Protocol;                // Protocol: UDP/RTP/Unknown
-    Int  m_FecNumRows;              // @D@ = #rows in FEC matrix
-    Int  m_FecNumCols;              // @L@ = #columns in FEC matrix
+    Int  m_FecNumRows;              // 'D' = #rows in FEC matrix
+    Int  m_FecNumCols;              // 'L' = #columns in FEC matrix
     Int  m_NumTpPerIp;              // 0: Not detected
 } DtaIoctlIpRxCmdGetIpParsOutput;
 ASSERT_SIZE(DtaIoctlIpRxCmdGetIpParsOutput, 16)
+
+typedef struct _DtaIoctlIpRxCmdGetIpPars2Output{
+    Int  m_Protocol;                // Protocol: UDP/RTP/Unknown
+    Int  m_FecNumRows;              // 'D' = #rows in FEC matrix
+    Int  m_FecNumCols;              // 'L' = #columns in FEC matrix
+    Int  m_NumTpPerIp;              // 0: Not detected
+    Int  m_VidStd;                  // Detected video standard: DT_VIDSTD_xxx
+} DtaIoctlIpRxCmdGetIpPars2Output;
+ASSERT_SIZE(DtaIoctlIpRxCmdGetIpPars2Output, 20)
 
 // DTA_IP_RX_CMD_GETIPSTAT
 typedef struct _DtaIoctlIpRxCmdGetIpStatInput {
@@ -1532,12 +1579,65 @@ ASSERT_SIZE(DtaIoctlIpRxCmdGetIpStatInput, 4)
 
 typedef struct _DtaIoctlIpRxCmdGetIpStatOutput {
     UInt  m_TotNumIPPackets;
-    UInt  m_LostIPPacketsBeforeFec;     // (BER before FEC)
-    UInt  m_LostIPPacketsAfterFec;      // (BER after FEC)
+    UInt  m_LostIPPacketsBeforeFec; // (BER before FEC)
+    UInt  m_LostIPPacketsAfterFec;  // (BER after FEC)
     UInt  m_Reserved1;
     UInt  m_Reserved2;
 } DtaIoctlIpRxCmdGetIpStatOutput;
 ASSERT_SIZE(DtaIoctlIpRxCmdGetIpStatOutput, 20)
+
+// DTA_IP_RX_CMD_GETIPSTAT2
+typedef struct _DtaIoctlIpRxCmdGetIpStat2Input {
+    Int  m_Channel;
+} DtaIoctlIpRxCmdGetIpStat2Input;
+ASSERT_SIZE(DtaIoctlIpRxCmdGetIpStat2Input, 4)
+
+typedef struct _DtaIoctlIpRxCmdGetIpStat2Output {
+    UInt  m_TotNumIPPackets;
+    UInt  m_LostIPPacketsBeforeFec; // (BER before FEC)
+    UInt  m_LostIPPacketsAfterFec;  // (BER after FEC)
+    UInt  m_Spare;                  // Align;
+
+    UInt  m_NumIpPacketsReceived[2];
+    UInt  m_NumIpPacketsLost[2];
+
+    UInt  m_BerNumIpPacketsMainSec;
+    UInt  m_BerNumIpPacketsLostMainSec;
+    UInt  m_BerNumIpPacketsMainMin;
+    UInt  m_BerNumIpPacketsLostMainMin;
+    
+    UInt  m_BerNumIpPacketsSec[2];
+    UInt  m_BerNumIpPacketsLostSec[2];
+    UInt  m_BerNumIpPacketsMin[2];
+    UInt  m_BerNumIpPacketsLostMin[2];
+    
+    UInt64A  m_DelayFactorSec[2];
+    UInt64A  m_DelayFactorMin[2];
+    UInt64A  m_MinIpatSec[2];
+    UInt64A  m_MaxIpatSec[2];
+    UInt64A  m_MinIpatMin[2];
+    UInt64A  m_MaxIpatMin[2];
+
+    Int64A  m_MinSkewSec;
+    Int64A  m_MaxSkewSec;
+    Int64A  m_MinSkewMin;
+    Int64A  m_MaxSkewMin;
+} DtaIoctlIpRxCmdGetIpStat2Output;
+ASSERT_SIZE(DtaIoctlIpRxCmdGetIpStat2Output, 208)
+
+
+// DTA_IP_RX_CMD_SETUPBUFFER
+typedef struct _DtaIoctlIpRxCmdSetupBufferInput {
+    Int  m_Channel;
+    UInt  m_TsBufSize;              // Size of Ts buffer shared between DTAPI/DRIVER
+                                    // (including wrap area, excluding header)
+    UInt  m_IpBufSize;              // Size of IP buffer used only by driver for storing
+                                    // RTP/FEC packets
+    UInt  m_JumboPktSize;           // Max. size of jumbo packets
+    UInt  m_MinPktDelay;            // Min. # packets to wait before copy to user
+    UInt  m_MaxPktOutOfSync;        // Max. # packets out of sync
+} DtaIoctlIpRxCmdSetupBufferInput;
+ASSERT_SIZE(DtaIoctlIpRxCmdSetupBufferInput, 24)
 
 // Ioctl input data type
 typedef struct _DtaIoctlIpRxCmdInput {
@@ -1553,12 +1653,16 @@ typedef struct _DtaIoctlIpRxCmdInput {
         DtaIoctlIpRxCmdGetTsRateInput  m_GetTsRate;
         DtaIoctlIpRxCmdSetModeInput   m_SetRxMode;
         DtaIoctlIpRxCmdGetIpParsInput  m_GetIpPars;
+        DtaIoctlIpRxCmdGetIpPars2Input  m_GetIpPars2;
         DtaIoctlIpRxCmdSetIpParsInput  m_SetIpPars;
         DtaIoctlIpRxCmdGetIpStatInput  m_GetIpStat;
+        DtaIoctlIpRxCmdGetIpStat2Input  m_GetIpStat2;
         DtaIoctlIpRxCmdSetIpPars2Input  m_SetIpPars2;
+        DtaIoctlIpRxCmdSetIpPars3Input  m_SetIpPars3;
+        DtaIoctlIpRxCmdSetupBufferInput  m_SetupBuffer;
     } m_Data;
 } DtaIoctlIpRxCmdInput;
-ASSERT_SIZE(DtaIoctlIpRxCmdInput, 108)
+ASSERT_SIZE(DtaIoctlIpRxCmdInput, 124)
 
 // Ioctl output data type
 typedef struct _DtaIoctlIpRxCmdOutput {
@@ -1568,10 +1672,12 @@ typedef struct _DtaIoctlIpRxCmdOutput {
         DtaIoctlIpRxCmdGetStatusOutput  m_GetStatus;
         DtaIoctlIpRxCmdGetTsRateOutput  m_GetTsRate;
         DtaIoctlIpRxCmdGetIpParsOutput  m_GetIpPars;
+        DtaIoctlIpRxCmdGetIpPars2Output  m_GetIpPars2;
         DtaIoctlIpRxCmdGetIpStatOutput  m_GetIpStat;
+        DtaIoctlIpRxCmdGetIpStat2Output  m_GetIpStat2;
     } m_Data;
 } DtaIoctlIpRxCmdOutput;
-ASSERT_SIZE(DtaIoctlIpRxCmdOutput, 20)
+ASSERT_SIZE(DtaIoctlIpRxCmdOutput, 208)
 
 #ifdef WINBUILD
     #define DTA_IOCTL_IP_RX_CMD  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_IP_RX_CMD, \
@@ -2045,11 +2151,20 @@ ASSERT_SIZE(DtaIoctlGetStrPropertyOutput, 100)
 #define  DTA_MATRIX_CMD_GET_REQ_DMA_SIZE  16    // Returns the minimum req DMA buffer size
 #define  DTA_MATRIX_CMD_GET_FRM_INFO      17    // Get the timing on a frame in the buffer
 #define  DTA_MATRIX_CMD_GET_FRM_PROPS     18    // Get the frame properties
+#define  DTA_MATRIX_CMD_START_MAN         19    // Start reception/transmission with
+                                                // control over which buffers to use
+#define  DTA_MATRIX_CMD_SET_NEXT_FRAME    20    // Set the next frame that will be
+                                                // received/transmitted
+#define  DTA_MATRIX_CMD_GET_FRM_INFO2     21    // Get the timing on a frame in the buffer
+#define  DTA_MATRIX_CMD_WAIT_FRAME2       22    // Waits for a specific or simple the
+                                                // next frame to be received/transmitted
+#define  DTA_MATRIX_CMD_START2            23    // Start reception/transmission
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_WAIT_FRAME -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 typedef struct _DtaIoctlMatrixCmdWaitFrameInput {
-    Int64A  m_Frame;            // Frame to wait for (-1 signals wait for next frame)
+    Int64A  m_FrmIntCnt;        // Frame interrupt counter to wait for (-1 signals wait
+                                // for next frame interrupt)
     Int  m_Timeout;             // Max wait time (in ms)
 } DtaIoctlMatrixCmdWaitFrameInput;
 ASSERT_SIZE(DtaIoctlMatrixCmdWaitFrameInput, 16)
@@ -2250,8 +2365,46 @@ typedef struct _DtaIoctlMatrixCmdGetFrmPropsInput {
 ASSERT_SIZE(DtaIoctlMatrixCmdGetFrmPropsInput, 4)
 
 typedef DtAvFrameProps DtaIoctlMatrixCmdGetFrmPropsOutput;
-ASSERT_SIZE(DtaIoctlMatrixCmdGetFrmPropsOutput, 72)
-    
+ASSERT_SIZE(DtaIoctlMatrixCmdGetFrmPropsOutput, 76)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_SET_NEXT_FRAME -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+typedef struct _DtaIoctlMatrixCmdSetNextFrmInput {
+    Int64A  m_NextFrame;        // Next frame to transmit/receive
+} DtaIoctlMatrixCmdSetNextFrmInput;
+ASSERT_SIZE(DtaIoctlMatrixCmdSetNextFrmInput, 8)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_GET_FRM_INFO2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+typedef struct _DtaIoctlMatrixCmdGetFrmInfo2Output {
+    Int64A  m_RfClkLatchedStart; // Latched version of ref clock at start of frame
+    Int64A  m_RfClkLatchedEnd;   // Latched version of ref clock at end of frame
+} DtaIoctlMatrixCmdGetFrmInfo2Output;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetFrmInfo2Output, 16)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_WAIT_FRAME2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctlMatrixCmdWaitFrame2Output {
+    Int64A  m_Frame;             // The actual frame received/transmitted
+    Int64A  m_RfClkLatchedStart; // Latched version of ref clock at start of frame
+    Int64A  m_RfClkLatchedEnd;   // Latched version of ref clock at end of frame
+    Int64A  m_FrmIntCnt;         // Number of frame interrupts since driver start
+} DtaIoctlMatrixCmdWaitFrame2Output;
+ASSERT_SIZE(DtaIoctlMatrixCmdWaitFrame2Output, 32)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_START2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+#define DTA_MATRIX_STARTFLAGS_MANUAL            1
+#define DTA_MATRIX_STARTFLAGS_FORCE_RESTART     2
+
+typedef struct _DtaIoctlMatrixCmdStart2Input {
+    Int64A  m_StartFrame;       // First frame to transmit/receive
+    Int  m_StartFlags;          // DTA_MATRIX_STARTFLAGS_*
+    UInt32  m_Vpid;             // Vpid to insert (output only), 0=driver default
+} DtaIoctlMatrixCmdStart2Input;
+ASSERT_SIZE(DtaIoctlMatrixCmdStart2Input, 16)
+
+
 // Ioctl input data type
 typedef struct _DtaIoctlMatrixCmdInput {
     Int  m_Cmd;
@@ -2267,6 +2420,8 @@ typedef struct _DtaIoctlMatrixCmdInput {
         DtaIoctlMatrixCmdGetReqDmaSizeInput  m_GetReqDmaSize;
         DtaIoctlMatrixCmdGetFrmInfoInput  m_GetFrmInfo;
         DtaIoctlMatrixCmdGetFrmPropsInput  m_GetFrmProps;
+        DtaIoctlMatrixCmdSetNextFrmInput  m_SetNextFrm;
+        DtaIoctlMatrixCmdStart2Input  m_Start2;
     } m_Data;
 } DtaIoctlMatrixCmdInput;
 #ifdef LINBUILD
@@ -2293,6 +2448,8 @@ typedef struct _DtaIoctlMatrixCmdOutput {
         DtaIoctlMatrixCmdGetBufConfigOutput  m_GetBufConfig;
         DtaIoctlMatrixCmdGetFrmInfoOutput  m_GetFrmInfo;
         DtaIoctlMatrixCmdGetFrmPropsOutput  m_GetFrmProps;
+        DtaIoctlMatrixCmdGetFrmInfo2Output  m_GetFrmInfo2;
+        DtaIoctlMatrixCmdWaitFrame2Output  m_WaitFrame2;
     } m_Data;
 } DtaIoctlMatrixCmdOutput;
 ASSERT_SIZE(DtaIoctlMatrixCmdOutput, 408)
@@ -2427,6 +2584,27 @@ ASSERT_SIZE(DtaIoctlRs422CmdOutput, 260)
                                                                          DtaIoctlRs422Cmd)
 #endif
 
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_SET_VCXO +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+
+typedef struct _DtaIoctlSetVcxoInput {
+    Int  m_VcxoIdx;
+    Int  m_VcxoVal;
+} DtaIoctlSetVcxoInput;
+ASSERT_SIZE(DtaIoctlSetVcxoInput, 8)
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_SET_VCXO  CTL_CODE(DTA_DEVICE_TYPE, \
+                                                        FUNC_DTA_SET_VCXO, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlSetVcxo {
+        DtaIoctlSetVcxoInput  m_Input;
+    } DtaIoctlSetVcxo;
+
+    #define DTA_IOCTL_SET_VCXO  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_SET_VCXO, DtaIoctlSetVcxo)
+#endif
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef union _DtaIoctlInputData {
@@ -2457,6 +2635,7 @@ typedef union _DtaIoctlInputData {
     DtaIoctlGetStrProperty2Input m_GetStrProperty2;
     DtaIoctlMatrixCmdInput  m_NonIpHdCmd;
     DtaIoctlSetMemoryTestModeInput  m_SetMemoryTestMode;
+    DtaIoctlSetVcxoInput  m_SetVcxo;
 } DtaIoctlInputData;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlOutputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

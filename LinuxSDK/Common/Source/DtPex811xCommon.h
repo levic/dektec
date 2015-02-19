@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPex811xCommon.h *#*#*#*#*#*#*#*#*#* (C) 2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPex811xCommon.h *#*#*#*#*#*#*# (C) 2012-2015 DekTec
 //
 // DekTec SDK - PEX-811x common constants
 //
@@ -6,6 +6,7 @@
 // interface to the PCI Express bus.
 //
 // This file contains PEX-related constants that are shared between driver and DTAPI
+//
 
 #if defined(WIN32) || defined(WIN64)
 

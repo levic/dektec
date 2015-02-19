@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Ip.c *#*#*#*#*#*#*#*#*#*#*#*#* (C) 2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Ip.c *#*#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
 //
 // Dta driver - IP functionality - Implementation of generic IP port functionality
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -13,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -1327,7 +1325,7 @@ DtaShBuffer*  DtaIpGetSharedBuffer(
     UserIpRxChannel* pIpRxChannel = NULL;
     UserIpTxChannel* pIpTxChannel = NULL;
 
-    if (ChannelType == DTA_SH_CHANTYPE_IPRX)
+    if (ChannelType==DTA_SH_CHANTYPE_IPRX || ChannelType==DTA_SH_CHANTYPE_IPRX_V2)
     {      
       pIpRxChannel = DtaIpRxUserChGet(&pIpDevice->m_IpUserChannels, ChannelIndex);
       if (pIpRxChannel != NULL)
@@ -1343,9 +1341,46 @@ DtaShBuffer*  DtaIpGetSharedBuffer(
     return NULL;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpSharedBufferClosing -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaIpSharedBufferClosing(DtaIpDevice* pIpDevice, Int ChannelIndex, 
+                                                                          Int ChannelType)
+{   
+    UserIpRxChannel* pIpRxChannel = NULL;
+    UserIpTxChannel* pIpTxChannel = NULL;
+
+    if (ChannelType == DTA_SH_CHANTYPE_IPTX)
+    {
+        pIpTxChannel = DtaIpTxUserChGet(&pIpDevice->m_IpUserChannels, ChannelIndex);
+        if (pIpTxChannel != NULL)
+        {          
+            pIpTxChannel->m_pTxBufferHead = NULL;
+            return DT_STATUS_OK;
+        }
+    } else if (ChannelType == DTA_SH_CHANTYPE_IPRX)
+    { 
+        pIpRxChannel = DtaIpRxUserChGet(&pIpDevice->m_IpUserChannels, ChannelIndex);
+        if (pIpRxChannel != NULL)
+        {
+            pIpRxChannel->m_pBufferHeader = NULL;
+            return DT_STATUS_OK;
+        }       
+    } else if (ChannelType == DTA_SH_CHANTYPE_IPRX_V2)
+    { 
+        pIpRxChannel = DtaIpRxUserChGet(&pIpDevice->m_IpUserChannels, ChannelIndex);
+        if (pIpRxChannel != NULL)
+        {        
+            pIpRxChannel->m_pBufferHeader = NULL;
+            return DT_STATUS_OK;
+        }
+    }
+    return DT_STATUS_NOT_FOUND;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpSharedBufferReady -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Notify IP channels that the shared buffer is created for this channel
+//
 DtStatus  DtaIpSharedBufferReady(
     DtaIpDevice* pIpDevice, 
     Int ChannelIndex, 
@@ -1372,30 +1407,62 @@ DtStatus  DtaIpSharedBufferReady(
                                                                  sizeof(IpTxBufferHeader);
             return DT_STATUS_OK;
         }
-    }
-     
-    if (ChannelType == DTA_SH_CHANTYPE_IPRX)
+    } else if (ChannelType == DTA_SH_CHANTYPE_IPRX)
     { 
         // Buffer contents:
         // |======|======================|=========|====================|
-        // |Header|FIFO                  |WrapArea | Rtp/FEC scratchpad
+        // |Header|FIFO                  |WrapArea | RTP/FEC scratchpad
         //                               |Used by driver only
+        // The wrap area is only used for easy data copiing to TS buffer when free TS buf
+        // size is less then the TS packet size
+        pIpRxChannel = DtaIpRxUserChGet(&pIpDevice->m_IpUserChannels, ChannelIndex);
+        if (pIpRxChannel != NULL)
+        {   Int  RtpBufSize;
+            pIpRxChannel->m_pBufferHeader = (IpRxBufferHeader*)
+                                                   pIpRxChannel->m_SharedBuffer.m_pBuffer;
+            pIpRxChannel->m_BufSize = pIpRxChannel->m_pBufferHeader->m_BufSize;
+            pIpRxChannel->m_pFifo = pIpRxChannel->m_SharedBuffer.m_pBuffer +
+                                                                 sizeof(IpRxBufferHeader);
+            pIpRxChannel->m_FifoSize = pIpRxChannel->m_pBufferHeader->m_BufSize - 
+                                            DTA_IPRX_BUFWRAPSIZE - DTA_IPRX_BUFRTPSIZE_TS;
+            // We create the RTP list also in the IP-buffer
+            pIpRxChannel->m_pRtpListEntries = pIpRxChannel->m_pFifo + 
+                                          pIpRxChannel->m_FifoSize + DTA_IPRX_BUFWRAPSIZE;
+            RtpBufSize =  DTA_IPRX_MAX_PACKET_LENGTH * DTA_IPRX_MAX_RTP_PACKETS_TS;
+            // Initialize RTP List entries
+            pIpRxChannel->m_pRtpBuffer = DtaIpRxRtpListsInit(pIpRxChannel, RtpBufSize);
+            // The jumbo packets are stored in the RTP buffers.
+            pIpRxChannel->m_pJumboPktBuffer = pIpRxChannel->m_pRtpBuffer;
+            pIpRxChannel->m_MaxJumboPktSize = 0x10000; // 64kb
+            pIpRxChannel->m_MaxPacketOutOfSync = 0;
+            pIpRxChannel->m_MinPacketDelay = 0;
+            return DT_STATUS_OK;
+        }       
+    } else if (ChannelType == DTA_SH_CHANTYPE_IPRX_V2)
+    { 
+        // Buffer contents:
+        // |======|======================|=========|====================|
+        // |Header|FIFO                  |WrapArea | RTP/FEC scratchpad
+        //                               |Used by driver only
+        // The wrap area is only used for easy data copying to TS buffer when free TS buf
+        // size is less then the TS packet size
         pIpRxChannel = DtaIpRxUserChGet(&pIpDevice->m_IpUserChannels, ChannelIndex);
         if (pIpRxChannel != NULL)
         {        
             pIpRxChannel->m_pBufferHeader = (IpRxBufferHeader*)
                                                    pIpRxChannel->m_SharedBuffer.m_pBuffer;
-            pIpRxChannel->m_pFifo = pIpRxChannel->m_SharedBuffer.m_pBuffer + 
+            pIpRxChannel->m_BufSize = pIpRxChannel->m_pBufferHeader->m_BufSize;
+            pIpRxChannel->m_pFifo = pIpRxChannel->m_SharedBuffer.m_pBuffer +
                                                                  sizeof(IpRxBufferHeader);
-
-            pIpRxChannel->m_FifoSize = pIpRxChannel->m_pBufferHeader->m_BufSize - 
-                                               DTA_IPRX_BUFWRAPSIZE - DTA_IPRX_BUFRTPSIZE;
-
-            pIpRxChannel->m_pWrapArea = pIpRxChannel->m_pFifo + pIpRxChannel->m_FifoSize;
-
-            pIpRxChannel->m_pRtpBuffer = pIpRxChannel->m_pWrapArea + DTA_IPRX_BUFWRAPSIZE;
+            pIpRxChannel->m_FifoSize = 0;
+            pIpRxChannel->m_pRtpBuffer = NULL;
+            pIpRxChannel->m_pRtpListEntries = NULL;
+            pIpRxChannel->m_pJumboPktBuffer = NULL;
+            pIpRxChannel->m_MaxJumboPktSize = 0;
+            pIpRxChannel->m_MaxPacketOutOfSync = 0;
+            pIpRxChannel->m_MinPacketDelay = 0;
             return DT_STATUS_OK;
-        }       
+        }
     }
     return DT_STATUS_NOT_FOUND;
 }
@@ -1466,6 +1533,7 @@ DtStatus  DtaIpUpdateMacAddressFilter(DtaIpPort* pIpPort)
     UInt  FirstIpPortNum =  (pIpPort->m_IpPortIndex & 0xfffffffe);
     DtaIpPort*  pFirstPort = &pIpPort->m_pDvcData->m_IpDevice.m_pIpPorts[FirstIpPortNum];
     volatile UInt8*  pAddrMLUBase = pIpPort->m_IpPortType2.m_pAddrMatcherLookupRegs;
+    volatile UInt8*  pAddrMBase = pIpPort->m_IpPortType2.m_pAddrMatcherRegs;
     PhyMac*  pPhyMac = &pIpPort->m_PhyMac;
     UInt8  BroadcastAddress[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
     UInt32  LookupAddress;
@@ -1477,10 +1545,10 @@ DtStatus  DtaIpUpdateMacAddressFilter(DtaIpPort* pIpPort)
 
     // Busy wait until address matcher is ready updating a previous switch
     // Max. wait time about 12us after update if fired for 1Gb
-    while (DtaMacAddrFilterStatGetLutUpdatePending(pAddrMLUBase)!=0)
+    while (DtaMacAddrFilterStatGetLutUpdatePending(pAddrMBase)!=0)
     {
         DtDbgOut(ERR, PHYMAC, "[%i] MAC address filter pending: %u", 
-           pIpPort->m_IpPortIndex, DtaMacAddrFilterStatGetLutUpdatePending(pAddrMLUBase));
+             pIpPort->m_IpPortIndex, DtaMacAddrFilterStatGetLutUpdatePending(pAddrMBase));
     }
 
 
@@ -1539,15 +1607,15 @@ DtStatus  DtaIpUpdateMacAddressFilter(DtaIpPort* pIpPort)
             DtaMacAddrLookupCtrlSetNumEntryPhy1(pAddrMLUBase, NumEntries);
 
         // Update table for MAC Address matcher
-        DtaMacAddrFilterLutUpdate(pIpPort->m_IpPortType2.m_pAddrMatcherRegs);
-        DtaMacAddrFilterDelFilteredEn(pIpPort->m_IpPortType2.m_pAddrMatcherRegs, 1);
+        DtaMacAddrFilterLutUpdate(pAddrMBase);
+        DtaMacAddrFilterDelFilteredEn(pAddrMBase, 1);
 
         DtDbgOut(MAX, PHYMAC, "[%i]  Finished. Num. Entries: %i ",
                                                       pIpPort->m_IpPortIndex, NumEntries);
     } else {
         DtDbgOut(MAX, PHYMAC, "[%i] Finished. Num. Entries %i > 31. Deletion disabled",
                                       pIpPort->m_IpPortIndex, pPhyMac->m_NumMulticasts+1);
-        DtaMacAddrFilterDelFilteredEn(pIpPort->m_IpPortType2.m_pAddrMatcherRegs, 0);
+        DtaMacAddrFilterDelFilteredEn(pAddrMBase, 0);
     }
     DtMutexRelease(&pFirstPort->m_IpPortType2.m_MacAddrFiltMutex);
     return DT_STATUS_OK;

@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIp.c *#*#*#*#*#*#*#*#*#* (C) 2011-2013 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIp.c *#*#*#*#*#*#*#*#*#* (C) 2011-2015 DekTec
 //
 // Dtu driver - Non IP functionality - Implementation of generic non IP port functionality
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2013 DekTec Digital Video B.V.
+// Copyright (C) 2011-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -13,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -111,6 +109,16 @@ DtStatus  DtuNonIpInit(
     pNonIpPort->m_Cap1080P29_97 = DtPropertiesGetBool(pPropData, "CAP_1080P29_97",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_Cap1080P30 = DtPropertiesGetBool(pPropData, "CAP_1080P30",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080Psf23_98 = DtPropertiesGetBool(pPropData, "CAP_1080PSF23_98",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080Psf24 = DtPropertiesGetBool(pPropData, "CAP_1080PSF24",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080Psf25 = DtPropertiesGetBool(pPropData, "CAP_1080PSF25",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080Psf29_97 = DtPropertiesGetBool(pPropData, "CAP_1080PSF29_97",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080Psf30 = DtPropertiesGetBool(pPropData, "CAP_1080PSF30",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_Cap720P23_98 = DtPropertiesGetBool(pPropData, "CAP_720P23_98",
                                                                  pNonIpPort->m_PortIndex);
@@ -429,6 +437,31 @@ DtStatus  DtuNonIpInit(
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P30;
             break;
+        case DT_IOCONFIG_1080PSF23_98:
+            DT_ASSERT(pNonIpPort->m_Cap1080Psf23_98);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080PSF23_98;
+            break;
+        case DT_IOCONFIG_1080PSF24:
+            DT_ASSERT(pNonIpPort->m_Cap1080Psf24);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080PSF24;
+            break;
+        case DT_IOCONFIG_1080PSF25:
+            DT_ASSERT(pNonIpPort->m_Cap1080Psf25);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080PSF25;
+            break;
+        case DT_IOCONFIG_1080PSF29_97:
+            DT_ASSERT(pNonIpPort->m_Cap1080Psf29_97);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080PSF29_97;
+            break;
+        case DT_IOCONFIG_1080PSF30:
+            DT_ASSERT(pNonIpPort->m_Cap1080Psf30);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080PSF30;
+            break;
         case DT_IOCONFIG_720P23_98:
             DT_ASSERT(pNonIpPort->m_Cap720P23_98);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
@@ -627,7 +660,6 @@ DtStatus  DtuNonIpInit(
     if (pNonIpPort->m_CapGenLocked)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_GENLOCKED].m_Value = DT_IOCONFIG_FALSE;
 
-
     // Initialize register mappings
     pNonIpPort->m_RxRegsOffset = -1;
     pNonIpPort->m_TxRegsOffset = -1;
@@ -684,6 +716,8 @@ DtStatus  DtuNonIpDetectVidStd(DtuNonIpPort* pNonIpPort, Int*  pVidStd)
     UInt16  RegRateSel;
     DtuDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
     UInt16  Ds1, RasterStruc;
+    UInt16  VpidA=0, VpidB=0;
+    UInt32  Vpid=0;
 
     // Init to 'safe' value
     *pVidStd = DT_VIDSTD_UNKNOWN;
@@ -718,6 +752,9 @@ DtStatus  DtuNonIpDetectVidStd(DtuNonIpPort* pNonIpPort, Int*  pVidStd)
     
     DT_RETURN_ON_ERROR(Dtu3RegRead(pDvcData, DTU_USB3_DEV_GENNUM, 0x06, &Ds1));
     DT_RETURN_ON_ERROR(Dtu3RegRead(pDvcData, DTU_USB3_DEV_GENNUM, 0x22, &RasterStruc));
+    DT_RETURN_ON_ERROR(Dtu3RegRead(pDvcData, DTU_USB3_DEV_GENNUM, 0x19, &VpidA));
+    DT_RETURN_ON_ERROR(Dtu3RegRead(pDvcData, DTU_USB3_DEV_GENNUM, 0x1A, &VpidB));
+    Vpid = (VpidA<<24) | ((VpidA&0xFF00)<<8) | ((VpidB&0xFF)<<8) | (VpidB>>8);
 
     // First check if we're in lock.
     if ((RasterStruc & 0x1000) != 0)
@@ -733,11 +770,28 @@ DtStatus  DtuNonIpDetectVidStd(DtuNonIpPort* pNonIpPort, Int*  pVidStd)
             case 0x04: *pVidStd = DT_VIDSTD_720P50; break;
             case 0x06: *pVidStd = DT_VIDSTD_720P25; break;
             case 0x08: *pVidStd = IsFrac ? DT_VIDSTD_720P23_98 : DT_VIDSTD_720P24; break;
-            case 0x0A: *pVidStd = IsFrac ? DT_VIDSTD_1080I59_94 : DT_VIDSTD_1080I60;break;
+            case 0x0A:
+                *pVidStd = IsFrac ? DT_VIDSTD_1080I59_94 : DT_VIDSTD_1080I60;
+                if (!IsFrac && (Vpid&0xFFCF0000)==0x85470000)
+                    *pVidStd = DT_VIDSTD_1080PSF30;
+                else if (IsFrac && (Vpid&0xFFCF0000)==0x85460000)
+                    *pVidStd = DT_VIDSTD_1080PSF29_97;
+                break;
             case 0x0B: *pVidStd = IsFrac ? DT_VIDSTD_1080P29_97 : DT_VIDSTD_1080P30;break;
-            case 0x0C: *pVidStd = DT_VIDSTD_1080I50; break;
+            case 0x0C:
+                *pVidStd = DT_VIDSTD_1080I50;
+                if ((Vpid&0xFFCF0000) == 0x85450000)
+                    *pVidStd = DT_VIDSTD_1080PSF25;
+                break;
             case 0x0D: *pVidStd = DT_VIDSTD_1080P25; break;
             case 0x10: *pVidStd = IsFrac ? DT_VIDSTD_1080P23_98 : DT_VIDSTD_1080P24;break;
+            case 0x11:
+                *pVidStd = DT_VIDSTD_UNKNOWN;
+                if (!IsFrac && (Vpid&0xFFCF0000)==0x85430000)
+                    *pVidStd = DT_VIDSTD_1080PSF24;
+                else if (IsFrac && (Vpid&0xFFCF0000)==0x85420000)
+                    *pVidStd = DT_VIDSTD_1080PSF23_98;
+                break;
             case 0x16: *pVidStd = DT_VIDSTD_525I59_94; break;
             case 0x18: *pVidStd = DT_VIDSTD_625I50; break;
             default:   *pVidStd = DT_VIDSTD_UNKNOWN; break;

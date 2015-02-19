@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* IpTx.c *#*#*#*#*#*#*#*#*#* (C) 2011-2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* IpTx.c *#*#*#*#*#*#*#*#*#* (C) 2011-2015 DekTec
 //
 // Dta driver - IP TX functionality - Implementation of TX specific functionality for
 //                                    IP ports.
@@ -6,7 +6,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2012 DekTec Digital Video B.V.
+// Copyright (C) 2011-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -14,8 +14,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -812,7 +810,7 @@ DtStatus DtaIpTxUserChSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelI
     pIpTxChannel->m_IpParsValid = TRUE;
     pIpTxChannel->m_LastReadOffset = 0;
         
-    if (Mode == DTA_IP_TX_DBLBUF)
+    if (Mode == DTA_IP_TX_2022_7)
     {
         Bool  IpV6 = (Flags & DTA_IP_V6) != 0;
         Bool  UseVlan = (VlanId!=0 || VlanPriority!=0);
@@ -904,7 +902,8 @@ DtStatus  DtaIpTxUserChSetTxControl(
     if (TxControl == DT_TXCTRL_SEND)
     {
         DtSpinLockAcquire(&pIpUserChannels->m_IpTxChannelSpinLock);
-        if (!pIpTxChannel->m_SharedBuffer.m_Initialised)
+        if (!pIpTxChannel->m_SharedBuffer.m_Initialised || 
+                                                      pIpTxChannel->m_pTxBufferHead==NULL)
         {
             DtSpinLockRelease(&pIpUserChannels->m_IpTxChannelSpinLock);
             return DT_STATUS_FAIL;
@@ -926,7 +925,8 @@ DtStatus  DtaIpTxUserChSetTxControl(
     
     if (TxControl == DT_TXCTRL_HOLD)
     {
-        if (!pIpTxChannel->m_SharedBuffer.m_Initialised)
+        if (!pIpTxChannel->m_SharedBuffer.m_Initialised || 
+                                                      pIpTxChannel->m_pTxBufferHead==NULL)
             return DT_STATUS_FAIL;
         
         DtSpinLockAcquire(&pIpUserChannels->m_IpTxChannelSpinLock);
@@ -1241,11 +1241,12 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
     UInt64*  pRefTimestamp;
     UInt64*  pStartTimestamp;
     UInt64  CurTime;
-
+    Bool  Underflow;
+    Bool  PacketTooOld;
+    
 #ifdef  _DEBUG
-    UInt64  Delay;
-    UInt64  StartTime;
-    Bool  PacketTooOldMsg;
+    //UInt64  Delay;
+    //UInt64  StartTime;
     Bool FirstTime = TRUE;
 #endif
 
@@ -1318,7 +1319,7 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
     while (pIpTxChannel != NULL)
     {
         DblBuf = pIpTxChannel->m_IpParsValid && 
-                                             pIpTxChannel->m_IpParsMode==DTA_IP_TX_DBLBUF;
+                                             pIpTxChannel->m_IpParsMode==DTA_IP_TX_2022_7;
 
         if (pIpTxChannel->m_TxControl != DT_TXCTRL_SEND)
         {
@@ -1359,9 +1360,9 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
             pRefTimestamp = &pIpTxChannel->m_RefTimestamp2;   
             pStartTimestamp = NULL;
         }
-#ifdef _DEBUG
-        PacketTooOldMsg = FALSE;
-#endif
+
+        PacketTooOld = FALSE;
+
         ReadOffset = pIpTxChannel->m_pTxBufferHead->m_ReadOffset;
         WriteOffset = (FirstPort || !DblBuf?pIpTxChannel->m_pTxBufferHead->m_WriteOffset:
                                                           pIpTxChannel->m_LastReadOffset);
@@ -1431,27 +1432,33 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
                                                                    sizeof(DtaDmaTxHeader);
             PacketLength += (PacketLength % 4 == 0 ? 0 : 4 - (PacketLength % 4));
             
-            if (PacketTime < MinPacketTime)
+            if (PacketTime > MaxPacketTime)  // Packet not for this slice
+            {
+                //DtDbgOut(ERR, IP_TX, "Packet not for this timeslice. Packettime: %I64x"
+                //                           " MaxTime: %I64x.", PacketTime, MaxPacketTime);
+                break;
+            } else if (PacketTime < MinPacketTime)
             {
                 *pLastTimestampOffs = pDmaTxHeader->m_Timestamp;
-#ifdef _DEBUG
+
                 // For now, we skip this packet
-                if (!PacketTooOldMsg)
+                if (!PacketTooOld)
                 {
                     DtDbgOut(MAX, IP_TX, "Port %i: Packet too old, skip. Packettime:"
                                        "%llx CurTime: %llx MinTime: %llx. MaxTime: %llx.",
                                        pIpPort->m_IpPortIndex, CurTime, PacketTime, 
                                        MinPacketTime, MaxPacketTime);
-                    PacketTooOldMsg = TRUE;
+                    PacketTooOld = TRUE;
+                    // Report underflow, if not yet reported
+                    DtSpinLockAcquireAtDpc(&pIpTxChannel->m_FlagsSpinLock);
+                    if ((pIpTxChannel->m_Flags & DTA_TX_FIFO_UFL) == 0)
+                    {
+                        pIpTxChannel->m_Flags |= DTA_TX_FIFO_UFL;
+                        pIpTxChannel->m_LatchedFlags |= DTA_TX_FIFO_UFL;
+                    }
+                    DtSpinLockReleaseFromDpc(&pIpTxChannel->m_FlagsSpinLock);
                 }
-#endif
-            } else if (PacketTime > MaxPacketTime)  // Packet not for this slice
-            {
-                //DtDbgOut(ERR, IP_TX, "Packet not for this timeslice. Packettime: %I64x"
-                //                           " MaxTime: %I64x.", PacketTime, MaxPacketTime);
-                break;
-            }
-            else {
+            } else {
                 // Copy packet to destination buffer
                 if (pIpPort->m_PhyMac.m_NetworkAdminStatus == DTA_NW_ADMIN_STATUS_UP)
                 {
@@ -1548,7 +1555,6 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
     if (DtaPPBufferGetTransferSize(pPPBuffer) == 0)
     {
         DtaDmaTxHeader  TxHeader;
-
         DtMemZero(&TxHeader, sizeof(DtaDmaTxHeader));
         TxHeader.m_Length = sizeof(DtaDmaTxHeader);
         TxHeader.m_Tag = 0x445441A0;
@@ -1585,7 +1591,8 @@ void  DtaIpTxReBuildPacket(UserIpTxChannel* pIpTxChannel, UInt8* pBuffer,
     // For now, assume always 2 bytes packing
     UInt8*  pBuf = pBuffer + sizeof(DtaDmaTxHeader) + 2;
     UdpHeader*  pUdpHeader;
-    
+    RtpHeader*  pRtpHeader;
+
     // Copy ethernet header
     DtMemCopy(pBuf, (UInt8*)&pIpTxChannel->m_EthIIHeader, pIpTxChannel->m_EthHeaderSize);
     pBuf+= pIpTxChannel->m_EthHeaderSize + pIpTxChannel->m_IpAddrHeaderOffset;
@@ -1610,6 +1617,16 @@ void  DtaIpTxReBuildPacket(UserIpTxChannel* pIpTxChannel, UInt8* pBuffer,
         pUdpHeader->m_DestinationPort = 0;
     // m_SrcPort is already in BIG-endian format
     pUdpHeader->m_SourcePort = pIpTxChannel->m_SrcPort;
+    // Check if we have a SDI packet. If so, we have to set the second stream bit in the 
+    // header
+    pRtpHeader = (RtpHeader*)(pBuf + sizeof(UdpHeader));
+    if (pRtpHeader->m_PayloadType == RTP_PAYLOAD_SDI)
+    {
+        HbrMediaPlHeader*  pHbrHeader = (HbrMediaPlHeader*)
+                                             (pBuf + sizeof(UdpHeader)+sizeof(RtpHeader));
+        pHbrHeader->m_Vsid = 1;
+        
+    }
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpTxRtGetLocalAddressType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2080,7 +2097,7 @@ UserIpTxChannel*  DtaIpTxUserChCreate(
 void  DtaIpTxUserChInitRWPointers(UserIpTxChannel* pIpTxChannel)
 { 
     // Set read/write pointer to start
-    if(pIpTxChannel->m_SharedBuffer.m_Initialised && 
+    if (pIpTxChannel->m_SharedBuffer.m_Initialised && 
                                                     pIpTxChannel->m_pTxBufferHead != NULL)
     {
         pIpTxChannel->m_pTxBufferHead->m_ReadOffset = 0;

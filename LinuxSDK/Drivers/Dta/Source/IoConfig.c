@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* IoConfig.c *#*#*#*#*#*#*#*#* (C) 2010-2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* IoConfig.c *#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
 //
 // Dta driver - IO configuration - Definition of IO configuration types/functions
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -13,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -656,7 +654,7 @@ static DtStatus  DtaIoConfigUpdateValidate(
         Result = DtaIoConfigUpdateValidateGenRef(pNonIpPort, pPortUpdate, pUpdate);
         if (!DT_SUCCESS(Result))
             return Result;
-    
+        
         // Validate DT_IOCONFIG_FRACMODE
         Result = DtaIoConfigUpdateValidateFracMode(pNonIpPort, pPortUpdate, pUpdate);
         if (!DT_SUCCESS(Result))
@@ -1000,6 +998,26 @@ static DtStatus  DtaIoConfigUpdateValidateIoStd(
             if (!pNonIpPort->m_Cap1080P30)
                 return DT_STATUS_CONFIG_ERROR;
             break;
+        case DT_IOCONFIG_1080PSF23_98:
+            if (!pNonIpPort->m_Cap1080Psf23_98)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_1080PSF24:
+            if (!pNonIpPort->m_Cap1080Psf24)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_1080PSF25:
+            if (!pNonIpPort->m_Cap1080Psf25)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_1080PSF29_97:
+            if (!pNonIpPort->m_Cap1080Psf29_97)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_1080PSF30:
+            if (!pNonIpPort->m_Cap1080Psf30)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
         case DT_IOCONFIG_720P23_98:
             if (!pNonIpPort->m_Cap720P23_98)
                 return DT_STATUS_CONFIG_ERROR;
@@ -1046,6 +1064,10 @@ static DtStatus  DtaIoConfigUpdateValidateIoStd(
         break;
     case DT_IOCONFIG_MOD:
         if (!pNonIpPort->m_CapMod)
+            return DT_STATUS_CONFIG_ERROR;
+        break;
+    case DT_IOCONFIG_PHASENOISE:
+        if (!pNonIpPort->m_CapPhaseNoise)
             return DT_STATUS_CONFIG_ERROR;
         break;
     case DT_IOCONFIG_RS422:
@@ -1133,6 +1155,7 @@ static DtStatus  DtaIoConfigUpdateValidateRfClkSel(
 
     return DT_STATUS_OK;
 }
+
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigUpdateValidateSpiClkSel -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -1434,15 +1457,13 @@ static DtStatus  DtaIoConfigUpdateValidateGenRef(
     DtaIoConfigNonIpPortUpdate*  pPortUpdate,
     DtaIoConfigUpdate* pUpdate)
 {
-    Int  i, RefVidStd;
+    Int  i;
     DtaNonIpPort*  pOtherNonIpPort = NULL;
     DtaDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
 
     DtDbgOut(MAX, IOCONFIG, "Configuration GENREF Value: %d SubValue: %d",
                                   pPortUpdate->m_CfgValue[DT_IOCONFIG_GENREF].m_Value,
                                   pPortUpdate->m_CfgValue[DT_IOCONFIG_GENREF].m_SubValue);
-
-    RefVidStd = (Int)pPortUpdate->m_CfgValue[DT_IOCONFIG_GENREF].m_ParXtra[0];
     
     switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_GENREF].m_Value)
     {
@@ -1507,7 +1528,7 @@ static DtStatus  DtaIoConfigUpdateValidateGenRef(
             if (!pOtherNonIpPort->m_CapGenRef)
                 continue;   // Skip port that does not support genref
 
-            // Check genref is disabled on other port
+            // Check genref is disabled on other ports
             if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_GENREF].m_Value
                                                                       == DT_IOCONFIG_TRUE)
             {
@@ -1516,14 +1537,6 @@ static DtStatus  DtaIoConfigUpdateValidateGenRef(
             
                 return DT_STATUS_CONFIG_ERROR;
             }
-        }
-
-        // Check port supports specified reference video standard
-        if (!DtaNonIpIsVidStdSupported(pNonIpPort, RefVidStd))
-        {
-            DtDbgOut(ERR, IOCONFIG, "Video standard %i not supported for port %i",
-                                                      RefVidStd, pNonIpPort->m_PortIndex);
-            return DT_STATUS_CONFIG_ERROR;
         }
 
         break;

@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaMatrix.c *#*#*#*#*#*#*#*#*#*#*# (C) 2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaMatrix.c *#*#*#*#*#*#*#*#* (C) 2012-2015 DekTec
 //
 // Dta driver - Implements Matrix-API (i.e. HD-SDI) related functions
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2012 DekTec Digital Video B.V.
+// Copyright (C) 2012-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -13,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -34,7 +32,9 @@ void  DtaMatrixSofFrameIntDpc(DtDpcArgs* pArgs);
 DtStatus  DtaMatrixSyncInfoGet(DtaDeviceData*  pDvcData, 
                                               DtaIoctlMatrixCmdGetSyncInfoOutput*  pInfo);
 DtStatus  DtaMatrixWaitFrame(DtaDeviceData*  pDvcData, DtaNonIpPort*  pNonIpPort,
-                                          Int64  WaitFrame, Int  Timeout, Int64*  pFrame);
+                                          Int64  WaitFrame, Int  Timeout, Int64*  pFrame,
+                                          Int64*  pRefClkStart, Int64*  pRefClkEnd,
+                                          Int64*  pFrmIntCnt);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -138,7 +138,6 @@ DtStatus  DtaMatrixIoctl(
         pCmdStr = "DTA_MATRIX_CMD_WAIT_FRAME";
         InReqSize += sizeof(DtaIoctlMatrixCmdWaitFrameInput);
         OutReqSize += sizeof(DtaIoctlMatrixCmdWaitFrameOutput);
-        
         break;
 
     case DTA_MATRIX_CMD_GET_SYNC_INFO:
@@ -254,6 +253,39 @@ DtStatus  DtaMatrixIoctl(
         OutReqSize += sizeof(DtaIoctlMatrixCmdGetFrmPropsOutput);
         break;
 
+    case DTA_MATRIX_CMD_START_MAN:
+        pCmdStr = "DTA_MATRIX_CMD_START_MAN";
+        InReqSize += sizeof(DtaIoctlMatrixCmdStartInput);
+        // There is no additional out data
+        OutReqSize += 0;
+        break;
+
+    case DTA_MATRIX_CMD_SET_NEXT_FRAME:
+        pCmdStr = "DTA_MATRIX_CMD_SET_NEXT_FRAME";
+        InReqSize += sizeof(DtaIoctlMatrixCmdSetNextFrmInput);
+        // There is no additional out data
+        OutReqSize += 0;
+        break;
+
+    case DTA_MATRIX_CMD_GET_FRM_INFO2:
+        pCmdStr = "DTA_MATRIX_CMD_GET_FRM_INFO2";
+        InReqSize += sizeof(DtaIoctlMatrixCmdGetFrmInfoInput);
+        OutReqSize += sizeof(DtaIoctlMatrixCmdGetFrmInfo2Output);
+        break;
+
+    case DTA_MATRIX_CMD_WAIT_FRAME2:
+        pCmdStr = "DTA_MATRIX_CMD_WAIT_FRAME2";
+        InReqSize += sizeof(DtaIoctlMatrixCmdWaitFrameInput);
+        OutReqSize += sizeof(DtaIoctlMatrixCmdWaitFrame2Output);
+        break;
+
+    case DTA_MATRIX_CMD_START2:
+        pCmdStr = "DTA_MATRIX_CMD_START2";
+        InReqSize += sizeof(DtaIoctlMatrixCmdStart2Input);
+        // There is no additional out data
+        OutReqSize += 0;
+        break;
+
     default:
         pCmdStr = "??UNKNOWN MATRIXCMD CODE??";
         Status = DT_STATUS_NOT_SUPPORTED;
@@ -299,12 +331,15 @@ DtStatus  DtaMatrixIoctl(
         // Execute cmd
         switch (pMatrixCmdInput->m_Cmd)
         {
-        case DTA_MATRIX_CMD_WAIT_FRAME:
+        case DTA_MATRIX_CMD_WAIT_FRAME: {
+            Int64  RefClkStart, RefClkEnd;
+            Int64  FrmIntCnt;
             Status = DtaMatrixWaitFrame(pDvcData, pNonIpPort, 
-                                        pMatrixCmdInput->m_Data.m_WaitFrame.m_Frame,
-                                        pMatrixCmdInput->m_Data.m_WaitFrame.m_Timeout,
-                                           &pMatrixCmdOutput->m_Data.m_WaitFrame.m_Frame);
-            break;
+                                          pMatrixCmdInput->m_Data.m_WaitFrame.m_FrmIntCnt,
+                                          pMatrixCmdInput->m_Data.m_WaitFrame.m_Timeout,
+                                          &pMatrixCmdOutput->m_Data.m_WaitFrame.m_Frame,
+                                          &RefClkStart, &RefClkEnd, &FrmIntCnt);
+        }   break;
 
         case DTA_MATRIX_CMD_GET_SYNC_INFO:
             Status = DtaMatrixSyncInfoGet(pDvcData, &pMatrixCmdOutput->m_Data.m_SyncInfo);
@@ -317,7 +352,8 @@ DtStatus  DtaMatrixIoctl(
             
         case DTA_MATRIX_CMD_START:
             Status = DtaNonIpMatrixStart(pNonIpPort, 
-                                            pMatrixCmdInput->m_Data.m_Start.m_StartFrame);
+                                             pMatrixCmdInput->m_Data.m_Start.m_StartFrame,
+                                             TRUE, FALSE);
             break;
 
         case DTA_MATRIX_CMD_STOP:
@@ -694,7 +730,7 @@ DtStatus  DtaMatrixIoctl(
             Int  FrameIdx = DtaNonIpMatrixFrame2Index(pNonIpPort,
                                             pMatrixCmdInput->m_Data.m_GetFrmInfo.m_Frame);
             pMatrixCmdOutput->m_Data.m_GetFrmInfo.m_RfClkLatched =
-                                      pNonIpPort->m_Matrix.m_FrameInfo[FrameIdx].m_RefClk;
+                                 pNonIpPort->m_Matrix.m_FrameInfo[FrameIdx].m_RefClkStart;
             break;
         }
 
@@ -702,6 +738,48 @@ DtStatus  DtaMatrixIoctl(
         {
             Status = DtAvGetFrameProps(pMatrixCmdInput->m_Data.m_GetFrmProps.m_VidStd,
                                                  &pMatrixCmdOutput->m_Data.m_GetFrmProps);
+            break;
+        }
+
+        case DTA_MATRIX_CMD_START_MAN:
+            Status = DtaNonIpMatrixStart(pNonIpPort, 
+                                             pMatrixCmdInput->m_Data.m_Start.m_StartFrame,
+                                             FALSE, FALSE);
+            break;
+
+        case DTA_MATRIX_CMD_SET_NEXT_FRAME:
+            Status = DtaNonIpMatrixSetNextFrame(pNonIpPort, 
+                                        pMatrixCmdInput->m_Data.m_SetNextFrm.m_NextFrame);
+            break;
+
+        case DTA_MATRIX_CMD_GET_FRM_INFO2:
+        {
+            Int  FrameIdx = DtaNonIpMatrixFrame2Index(pNonIpPort,
+                                            pMatrixCmdInput->m_Data.m_GetFrmInfo.m_Frame);
+            pMatrixCmdOutput->m_Data.m_GetFrmInfo2.m_RfClkLatchedStart =
+                                 pNonIpPort->m_Matrix.m_FrameInfo[FrameIdx].m_RefClkStart;
+            pMatrixCmdOutput->m_Data.m_GetFrmInfo2.m_RfClkLatchedEnd =
+                                   pNonIpPort->m_Matrix.m_FrameInfo[FrameIdx].m_RefClkEnd;
+            break;
+        }
+
+        case DTA_MATRIX_CMD_WAIT_FRAME2:
+            Status = DtaMatrixWaitFrame(pDvcData, pNonIpPort, 
+                               pMatrixCmdInput->m_Data.m_WaitFrame.m_FrmIntCnt,
+                               pMatrixCmdInput->m_Data.m_WaitFrame.m_Timeout,
+                               &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_Frame,
+                               &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_RfClkLatchedStart,
+                               &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_RfClkLatchedEnd,
+                               &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_FrmIntCnt);
+            break;
+            
+        case DTA_MATRIX_CMD_START2: {
+            Int  Flags = pMatrixCmdInput->m_Data.m_Start2.m_StartFlags;
+            Bool  AutoMode = (Flags&DTA_MATRIX_STARTFLAGS_MANUAL)==0;
+            Bool  ForceRestart = (Flags&DTA_MATRIX_STARTFLAGS_FORCE_RESTART)!=0;
+            Status = DtaNonIpMatrixStart(pNonIpPort,
+                                             pMatrixCmdInput->m_Data.m_Start.m_StartFrame,
+                                             AutoMode, ForceRestart);
             break;
         }
 
@@ -751,14 +829,19 @@ DtStatus  DtaMatrixWaitFrame(
     DtaNonIpPort*  pNonIpPort,
     Int64  WaitFrame, 
     Int  Timeout,
-    Int64*  pFrame)
+    Int64*  pFrame,
+    Int64*  pRefClkStart,
+    Int64*  pRefClkEnd,
+    Int64*  pFrmIntCnt)
 {
     DtStatus  Status = DT_STATUS_OK;
     DtEvent* pWaitEv = NULL;
     static const Int  MAX_WAIT_TIME_MS = 100;
     volatile Int64*  pSofOrLastFrame = NULL;
+    Int  FrmBufIdx;
 
     DT_ASSERT(pDvcData != NULL);
+    DtDbgOut(ERR, DTA, "Start %d", pNonIpPort->m_PortIndex);
 
     if (pNonIpPort == NULL)
     {
@@ -774,26 +857,37 @@ DtStatus  DtaMatrixWaitFrame(
     // Clear the event in case we have a previous unhandled event
     DtEventReset(pWaitEv);
 
-    // -1 indicates we wait for the next frame
-    if (WaitFrame == -1)
-        WaitFrame = *pSofOrLastFrame + 1;  // Simply wait for next frame
-
-    while (WaitFrame>*pSofOrLastFrame && Timeout>0)
+    if (WaitFrame==-1 || pNonIpPort->m_Matrix.m_FrmIntCnt<WaitFrame)
     {
-        Status = DtEventWait(pWaitEv, MAX_WAIT_TIME_MS);
-        if (Status==DT_STATUS_TIMEOUT && Timeout<=MAX_WAIT_TIME_MS)
+        while (Timeout>0)
         {
-            *pFrame = -1;   // Set frame to -1 to signal timeout
-            return DT_STATUS_TIMEOUT;
+            Status = DtEventWait(pWaitEv, MAX_WAIT_TIME_MS);
+            if (Status==DT_STATUS_TIMEOUT && Timeout<=MAX_WAIT_TIME_MS)
+            {
+                *pFrame = -1;   // Set frame to -1 to signal timeout
+                return DT_STATUS_TIMEOUT;
+            }
+            else if (Status == DT_STATUS_TIMEOUT)
+                Timeout -= MAX_WAIT_TIME_MS;
+            else {
+                Timeout -= 40;  // subtract the typical frame rate
+                // -1 indicates we wait for the next frame
+                if (WaitFrame == -1)
+                    break;
+            }
+            if (WaitFrame!=-1 && *pSofOrLastFrame>=WaitFrame)
+                break;
         }
-        else if (Status == DT_STATUS_TIMEOUT)
-            Timeout -= MAX_WAIT_TIME_MS;
-        else
-            Timeout -= 40;  // subtract the typical frame rate
-    } 
+    }
     
     // Return the current frame
     *pFrame = *pSofOrLastFrame;
+
+    FrmBufIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, *pFrame);
+    *pRefClkStart = pNonIpPort->m_Matrix.m_FrameInfo[FrmBufIdx].m_RefClkStart;
+    *pRefClkEnd = pNonIpPort->m_Matrix.m_FrameInfo[FrmBufIdx].m_RefClkEnd;
+    *pFrmIntCnt = pNonIpPort->m_Matrix.m_FrmIntCnt;
+    DtDbgOut(ERR, DTA, "End %d", pNonIpPort->m_PortIndex);
 
     return DT_STATUS_OK;
 }

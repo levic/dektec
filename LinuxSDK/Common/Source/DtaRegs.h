@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaRegs.h *#*#*#*#*#*#*#*#*# (C) 2010-2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaRegs.h *#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
 //
 // Dta driver - Definition of register sets of DTA PCI cards as access functions.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -13,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -4181,14 +4179,14 @@ static __inline void  DtaRegHdCtrl1SetIoDir(volatile UInt8* pBase, UInt  Dir)
                                                                     DT_HD_CTRL1_IODIR_SH);
 }
 
-// HD-Channel Control register: IO enable
+// HD-Channel Control1 register: IO enable
 static __inline void  DtaRegHdCtrl1SetIoEnable(volatile UInt8* pBase, UInt  Ena)
 {
     WRITE_UINT_MASKED(Ena, pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_IOENA_MSK, 
                                                                     DT_HD_CTRL1_IOENA_SH);
 }
 
-// HD-Channel Control register: IO reset
+// HD-Channel Control1 register: IO reset
 static __inline void  DtaRegHdCtrl1SetIoReset(volatile UInt8* pBase, UInt  Rst)
 {
     WRITE_UINT_MASKED(Rst, pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_IORST_MSK, 
@@ -4216,6 +4214,13 @@ static __inline void  DtaRegHdCtrl1SetRxTxCtrl(volatile UInt8* pBase, UInt  Val)
                                                                  DT_HD_CTRL1_RXTXCTRL_SH);
 }
 
+// HD-Channel Control1 register:  VPID processing
+static __inline void  DtaRegHdCtrl1SetNoVpidProc(volatile UInt8* pBase, UInt  Val)
+{
+    WRITE_UINT_MASKED(Val, pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_TXNOVPIDREPLACE_MSK,
+                                                          DT_HD_CTRL1_TXNOVPIDREPLACE_SH);
+}
+
 // HD-Channel Control1 register:  RX sync error interrupt enable
 static __inline void  DtaRegHdCtrl1SetRxSyncErrIntEn(volatile UInt8* pBase, UInt  Ena)
 {
@@ -4237,8 +4242,19 @@ static __inline void  DtaRegHdCtrl1SetLastFrameIntEn(volatile UInt8* pBase, UInt
                                                              DT_HD_CTRL1_LASTFRMINTEN_SH);
 }
 
+
+
 //-.-.-.-.-.-.-.-.-.-.- HD-Channel Status register: Access Functions -.-.-.-.-.-.-.-.-.-.-
 
+// HD-Channel Status register: Register access 
+static __inline UInt  DtaRegHdStatusGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DT_HD_REG_STATUS);
+}
+static __inline void  DtaRegHdStatusSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DT_HD_REG_STATUS);
+}
+
+// HD-Channel Status register:  carrier-detect
 static __inline UInt32  DtaRegHdStatGetCarrierDetect(volatile UInt8* pBase)
 {
     return READ_UINT_MASKED(pBase, DT_HD_REG_STATUS, DT_HD_STATUS_CD_MSK,
@@ -4256,6 +4272,12 @@ static __inline void  DtaRegHdStatClrRxSyncErrInt(volatile UInt8* pBase)
     // Write '1' to the RX sync error interrupt status bit to clear it
     WRITE_UINT(DT_HD_STATUS_RXSYNCERRINT_MSK, pBase, DT_HD_REG_STATUS);
 }
+static __inline void  DtaRegHdStatClrTxSyncErrInt(volatile UInt8* pBase)
+{
+    // NOTE: rx-sync-error and tx-sync-error share the same same bit position in 
+    // the status register
+    DtaRegHdStatClrRxSyncErrInt(pBase);
+}
 
 // HD-Channel Status register:  RX overflow error interrupt
 static __inline UInt32  DtaRegHdStatGetRxOvfErrInt(volatile UInt8* pBase)
@@ -4268,6 +4290,12 @@ static __inline void  DtaRegHdStatClrRxOvfErrInt(volatile UInt8* pBase)
     // Write '1' to the RX overflow error interrupt status bit to clear it
     WRITE_UINT(DT_HD_STATUS_RXOVFERRINT_MSK, pBase, DT_HD_REG_STATUS);
 }
+static __inline void  DtaRegHdStatClrTxUflErrInt(volatile UInt8* pBase)
+{
+    // NOTE: rx-overflow and tx-underflow share the same same bit position in 
+    // the status register
+    DtaRegHdStatClrRxOvfErrInt(pBase);
+}
 
 // HD-Channel Status register:  Last-Frame interrupt
 static __inline UInt32  DtaRegHdStatGetLastFrameInt(volatile UInt8* pBase)
@@ -4279,6 +4307,32 @@ static __inline void  DtaRegHdStatClrLastFrameInt(volatile UInt8* pBase)
 {
     // Write '1' to the last-frame interrupt status bit to clear it
     WRITE_UINT(DT_HD_STATUS_LASTFRMINT_MSK, pBase, DT_HD_REG_STATUS);
+}
+
+//.-.-.-.-.-.-.-.-.-.- HD-Channel Control2 register: Access Functions -.-.-.-.-.-.-.-.-.-.
+
+// HD-Channel Control2 register: Fractional-clock-select
+static __inline Int  DtaRegHdCtrl2GetFracClockSel(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_HD_REG_CTRL2, DT_HD_CTRL2_FRACCLKSEL_MSK, 
+                                                               DT_HD_CTRL2_FRACCLKSEL_SH);
+}
+static __inline void  DtaRegHdCtrl2SetFracClockSel(volatile UInt8* pBase, UInt  SelFrac)
+{
+    WRITE_UINT_MASKED(SelFrac, pBase, DT_HD_REG_CTRL2, DT_HD_CTRL2_FRACCLKSEL_MSK, 
+                                                               DT_HD_CTRL2_FRACCLKSEL_SH);
+}
+
+// HD-Channel Control2 register: 3G Level B converter enable
+static __inline Int  DtaRegHdCtrl2GetLvlBConvEn(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_HD_REG_CTRL2, DT_HD_CTRL2_FRACCLKSEL_MSK, 
+                                                               DT_HD_CTRL2_FRACCLKSEL_SH);
+}
+static __inline void  DtaRegHdCtrl2SetLvlBConvEn(volatile UInt8* pBase, UInt  Enable)
+{
+    WRITE_UINT_MASKED(Enable, pBase, DT_HD_REG_CTRL2, DT_HD_CTRL2_LVLBCONVEN_MSK, 
+                                                               DT_HD_CTRL2_LVLBCONVEN_SH);
 }
 
 //-.-.-.-.-.-.-.-.- HD-Channel Current Frame register: Access Functions -.-.-.-.-.-.-.-.-.
@@ -4350,52 +4404,130 @@ static __inline Int DtaRegHdSofLineGetLine(volatile UInt8* pBase)
                                                                    DT_HD_SOFLINE_LINE_SH);
 }
 
-//-.-.-.-.-.-.-.-.-.- HD-Channel SDI format register: Access Functions -.-.-.-.-.-.-.-.-.-
+//-.-.-.-.-.-.-.-.-.-.-.-.-.- VPID register: Access functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// Global helpers for writing/reading a VPID register (Used by SdiFomat1&2 and SdiStatus)
 
-static __inline UInt32  DtaRegHdSdiFormatGet(volatile UInt8* pBase)
+// VPID type register: Video ID
+static __inline UInt32  DtaRegHdVpidGetVideoId(volatile UInt8* pBase, Int Offset)
 {
-    return READ_UINT(pBase, DT_HD_REG_SDIFORMAT);
+    return READ_UINT_MASKED(pBase, Offset, DT_HD_SDIFMT_VIDEOID_MSK, 
+                                                                 DT_HD_SDIFMT_VIDEOID_SH);
 }
-static __inline void  DtaRegHdSdiFormatSet(volatile UInt8* pBase, UInt  Val)
+static __inline void  DtaRegHdVpidSetVideoId(volatile UInt8* pBase, Int Offset,
+                                                                              UInt32  Val)
 {
-    WRITE_UINT(Val, pBase, DT_HD_REG_SDIFORMAT);
-}
-
-// HD-Channel SDI format register: Video ID
-static __inline UInt32  DtaRegHdSdiFormatGetVideoId(volatile UInt8* pBase)
-{
-    return READ_UINT_MASKED(pBase, DT_HD_REG_SDIFORMAT, DT_HD_SDIFMT_VIDEOID_MSK, 
-                                                                DT_HD_SDIFMT_VIDEOID_SH);
-}
-static __inline void  DtaRegHdSdiFormatSetVideoId(volatile UInt8* pBase, UInt32  Val)
-{
-    WRITE_UINT_MASKED(Val, pBase, DT_HD_REG_SDIFORMAT, DT_HD_SDIFMT_VIDEOID_MSK, 
+    WRITE_UINT_MASKED(Val, pBase, Offset, DT_HD_SDIFMT_VIDEOID_MSK, 
                                                                  DT_HD_SDIFMT_VIDEOID_SH);
 }
 
-// HD-Channel SDI format register: Picture Rate
-static __inline UInt32  DtaRegHdSdiFormatGetPictureRate(volatile UInt8* pBase)
+// VPID type register: Picture Rate
+static __inline UInt32  DtaRegHdVpidGetPictureRate(volatile UInt8* pBase, Int Offset)
 {
-    return READ_UINT_MASKED(pBase, DT_HD_REG_SDIFORMAT, DT_HD_SDIFMT_PICTRATE_MSK, 
-                                                               DT_HD_SDIFMT_PICTRATE_SH);
+    return READ_UINT_MASKED(pBase, Offset, DT_HD_SDIFMT_PICTRATE_MSK, 
+                                                                DT_HD_SDIFMT_PICTRATE_SH);
 }
-static __inline void  DtaRegHdSdiFormatSetPictureRate(volatile UInt8* pBase, UInt32  Val)
+static __inline void  DtaRegHdVpidSetPictureRate(volatile UInt8* pBase, Int Offset,
+                                                                              UInt32  Val)
 {
-    WRITE_UINT_MASKED(Val, pBase, DT_HD_REG_SDIFORMAT, DT_HD_SDIFMT_PICTRATE_MSK, 
-                                                                 DT_HD_SDIFMT_PICTRATE_SH);
+    WRITE_UINT_MASKED(Val, pBase, Offset, DT_HD_SDIFMT_PICTRATE_MSK, 
+                                                                DT_HD_SDIFMT_PICTRATE_SH);
 }
 
-// HD-Channel SDI format register: Progressive
-static __inline UInt32  DtaRegHdSdiFormatGetProgressive(volatile UInt8* pBase)
+// VPID type register: Progressive
+static __inline UInt32  DtaRegHdVpidGetProgressive(volatile UInt8* pBase, Int Offset)
 {
-    return READ_UINT_MASKED(pBase, DT_HD_REG_SDIFORMAT, DT_HD_SDIFMT_PROGRESSIVE_MSK, 
-                                                            DT_HD_SDIFMT_PROGRESSIVE_SH);
-}
-static __inline void  DtaRegHdSdiFormatSetProgressive(volatile UInt8* pBase, UInt32  Val)
-{
-    WRITE_UINT_MASKED(Val, pBase, DT_HD_REG_SDIFORMAT, DT_HD_SDIFMT_PROGRESSIVE_MSK, 
+    return READ_UINT_MASKED(pBase, Offset, DT_HD_SDIFMT_PROGRESSIVE_MSK, 
                                                              DT_HD_SDIFMT_PROGRESSIVE_SH);
 }
+static __inline void  DtaRegHdVpidSetProgressive(volatile UInt8* pBase, Int Offset,
+                                                                              UInt32  Val)
+{
+    WRITE_UINT_MASKED(Val, pBase, Offset, DT_HD_SDIFMT_PROGRESSIVE_MSK, 
+                                                             DT_HD_SDIFMT_PROGRESSIVE_SH);
+}
+
+//.-.-.-.-.-.-.-.-.- HD-Channel SDI format 1 register: Access Functions -.-.-.-.-.-.-.-.-.
+
+static __inline UInt32  DtaRegHdSdiFormat1Get(volatile UInt8* pBase)
+{
+    return READ_UINT(pBase, DT_HD_REG_SDIFORMAT1);
+}
+static __inline void  DtaRegHdSdiFormat1Set(volatile UInt8* pBase, UInt  Val)
+{
+    WRITE_UINT(Val, pBase, DT_HD_REG_SDIFORMAT1);
+}
+
+// HD-Channel SDI format 1 register: Video ID
+static __inline UInt32  DtaRegHdSdiFormat1GetVideoId(volatile UInt8* pBase)
+{
+    return DtaRegHdVpidGetVideoId(pBase, DT_HD_REG_SDIFORMAT1);
+}
+static __inline void  DtaRegHdSdiFormat1SetVideoId(volatile UInt8* pBase, UInt32  Val)
+{
+    DtaRegHdVpidSetVideoId(pBase, DT_HD_REG_SDIFORMAT1, Val);
+}
+
+// HD-Channel SDI format 1 register: Picture Rate
+static __inline UInt32  DtaRegHdSdiFormat1GetPictureRate(volatile UInt8* pBase)
+{
+    return DtaRegHdVpidGetPictureRate(pBase, DT_HD_REG_SDIFORMAT1);
+}
+static __inline void  DtaRegHdSdiFormat1SetPictureRate(volatile UInt8* pBase, UInt32  Val)
+{
+    DtaRegHdVpidSetPictureRate(pBase, DT_HD_REG_SDIFORMAT1, Val);
+}
+
+// HD-Channel SDI format 1 register: Progressive
+static __inline UInt32  DtaRegHdSdiFormat1GetProgressive(volatile UInt8* pBase)
+{
+    return DtaRegHdVpidGetProgressive(pBase, DT_HD_REG_SDIFORMAT1);
+}
+static __inline void  DtaRegHdSdiFormat1SetProgressive(volatile UInt8* pBase, UInt32  Val)
+{
+    DtaRegHdVpidSetProgressive(pBase, DT_HD_REG_SDIFORMAT1, Val);
+}
+
+//.-.-.-.-.-.-.-.-.- HD-Channel SDI format 2 register: Access Functions -.-.-.-.-.-.-.-.-.
+
+static __inline UInt32  DtaRegHdSdiFormat2Get(volatile UInt8* pBase)
+{
+    return READ_UINT(pBase, DT_HD_REG_SDIFORMAT2);
+}
+static __inline void  DtaRegHdSdiFormat2Set(volatile UInt8* pBase, UInt  Val)
+{
+    WRITE_UINT(Val, pBase, DT_HD_REG_SDIFORMAT2);
+}
+
+// HD-Channel SDI format 2 register: Video ID
+static __inline UInt32  DtaRegHdSdiFormat2GetVideoId(volatile UInt8* pBase)
+{
+    return DtaRegHdVpidGetVideoId(pBase, DT_HD_REG_SDIFORMAT2);
+}
+static __inline void  DtaRegHdSdiFormat2SetVideoId(volatile UInt8* pBase, UInt32  Val)
+{
+    DtaRegHdVpidSetVideoId(pBase, DT_HD_REG_SDIFORMAT2, Val);
+}
+
+// HD-Channel SDI format 2 register: Picture Rate
+static __inline UInt32  DtaRegHdSdiFormat2GetPictureRate(volatile UInt8* pBase)
+{
+    return DtaRegHdVpidGetPictureRate(pBase, DT_HD_REG_SDIFORMAT2);
+}
+static __inline void  DtaRegHdSdiFormat2SetPictureRate(volatile UInt8* pBase, UInt32  Val)
+{
+    DtaRegHdVpidSetPictureRate(pBase, DT_HD_REG_SDIFORMAT2, Val);
+}
+
+// HD-Channel SDI format 2 register: Progressive
+static __inline UInt32  DtaRegHdSdiFormat2GetProgressive(volatile UInt8* pBase)
+{
+    return DtaRegHdVpidGetProgressive(pBase, DT_HD_REG_SDIFORMAT2);
+}
+static __inline void  DtaRegHdSdiFormat2SetProgressive(volatile UInt8* pBase, UInt32  Val)
+{
+    DtaRegHdVpidSetProgressive(pBase, DT_HD_REG_SDIFORMAT2, Val);
+}
+
 
 //-.-.-.-.-.-.-.-.-.- HD-Channel SDI Status Register: Access Functions -.-.-.-.-.-.-.-.-.-
 
@@ -4717,10 +4849,47 @@ static __inline void  DtaRegHdFrameConfig5SetVid2End(volatile UInt8* pBase, UInt
                                                                DT_HD_FRMCONF5_VID2END_SH);
 }
 
-static __inline void  DtaRegHdSetAsiControl1(volatile UInt8* pBase, UInt  Val)
+//.-.-.-.-.-.-.-.-.- HD-Channel FrameConfig6 register: Access Functions -.-.-.-.-.-.-.-.-.
+
+// HD-Channel FrameConfig6 register: VPID line 1
+static __inline void  DtaRegHdFrameConfig6SetVpidLine1(volatile UInt8* pBase, UInt  Val)
 {
-    WRITE_UINT(Val, pBase, DT_HD_REG_ASI_CONTROL1);
+    WRITE_UINT_MASKED(Val, pBase, DT_HD_REG_FRMCONF6, DT_HD_FRMCONF6_VPIDLINE1_MSK,
+                                                             DT_HD_FRMCONF6_VPIDLINE1_SH);
 }
+
+// HD-Channel FrameConfig6 register: VPID line 2
+static __inline void  DtaRegHdFrameConfig6SetVpidLine2(volatile UInt8* pBase, UInt  Val)
+{
+    WRITE_UINT_MASKED(Val, pBase, DT_HD_REG_FRMCONF6, DT_HD_FRMCONF6_VPIDLINE2_MSK,
+                                                             DT_HD_FRMCONF6_VPIDLINE2_SH);
+}
+
+//.-.-.-.-.-.-.-.-.- HD-Channel FrameConfig7 register: Access Functions -.-.-.-.-.-.-.-.-.
+
+// HD-Channel FrameConfig7 register: Pixel delay 
+static __inline void  DtaRegHdFrameConfig7SetPixelDelay(volatile UInt8* pBase, UInt  Val)
+{
+    WRITE_UINT_MASKED(Val, pBase, DT_HD_REG_FRMCONF7, DT_HD_FRMCONF7_PIXELDELAY_MSK,
+                                                            DT_HD_FRMCONF7_PIXELDELAY_SH);
+}
+
+
+//-.-.-.-.- HD-channel Memory Transfer # of Bytes ASI register: Access Functions -.-.-.-.-
+
+static __inline void  DtaRegHdSetMemTrNumBAsi(volatile UInt8* pBase, UInt  Val)
+{
+    WRITE_UINT(Val, pBase, DT_HD_REG_MEMTRNUMB_ASI);
+}
+
+//-.-.-.-.-.-.-.- HD-Channel latched frame time register: Access Functions -.-.-.-.-.-.-.-
+static __inline UInt64 DtaRegHdFrmTimeGet(volatile UInt8* pBase)
+{
+    UInt64  Time = (UInt64)READ_UINT(pBase, DT_HD_REG_FRM_TIME_LSB);
+    Time |= ((UInt64)READ_UINT(pBase, DT_HD_REG_FRM_TIME_MSB))<<32;
+    return Time;
+}
+
 
 //-.-.-.-.-.-.- HD-Channel S0 Next Frame Address register: Access Functions -.-.-.-.-.-.-.
 

@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaUtility.c *#*#*#*#*#*#*#*# (C) 2010-2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaUtility.c *#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
 //
 // Dta driver - DTA utility functions.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -13,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -603,6 +601,11 @@ Int  DtaIoStd2VidStd(Int  Value, Int  SubValue)
     case DT_IOCONFIG_1080P25:       return DT_VIDSTD_1080P25;
     case DT_IOCONFIG_1080P29_97:    return DT_VIDSTD_1080P29_97;
     case DT_IOCONFIG_1080P30:       return DT_VIDSTD_1080P30;
+    case DT_IOCONFIG_1080PSF23_98:  return DT_VIDSTD_1080PSF23_98;
+    case DT_IOCONFIG_1080PSF24:     return DT_VIDSTD_1080PSF24;
+    case DT_IOCONFIG_1080PSF25:     return DT_VIDSTD_1080PSF25;
+    case DT_IOCONFIG_1080PSF29_97:  return DT_VIDSTD_1080PSF29_97;
+    case DT_IOCONFIG_1080PSF30:     return DT_VIDSTD_1080PSF30;
     case DT_IOCONFIG_720P23_98:     return DT_VIDSTD_720P23_98;
     case DT_IOCONFIG_720P24:        return DT_VIDSTD_720P24;
     case DT_IOCONFIG_720P25:        return DT_VIDSTD_720P25;
@@ -624,7 +627,7 @@ Int  DtaIoStdAndLevel2VidStd(Int  Value, Int  SubValue, Int  Level)
     // First get video standard without the 3G level
     Int  VidStd = DtaIoStd2VidStd(Value, SubValue);
     // Far a 3G SDI format: add the level
-    if (DtaVidStdIs3GSdi(VidStd))
+    if (DtaVidStdIs3gSdi(VidStd))
     {
         DT_ASSERT(Level==DT_IOCONFIG_3GLVLA || Level==DT_IOCONFIG_3GLVLB);
         VidStd |= (Level==DT_IOCONFIG_3GLVLB) ? DT_VIDSTD_3GLVLB : DT_VIDSTD_3GLVLA;
@@ -653,6 +656,8 @@ Int  DtaVidStd2Fps(Int  VidStd)
     case DT_VIDSTD_720P30:
     case DT_VIDSTD_1080P30:
     case DT_VIDSTD_1080P29_97:
+    case DT_VIDSTD_1080PSF30:
+    case DT_VIDSTD_1080PSF29_97:
     case DT_VIDSTD_1080I59_94:
     case DT_VIDSTD_1080I60: 
         return 30;
@@ -660,6 +665,7 @@ Int  DtaVidStd2Fps(Int  VidStd)
     case DT_VIDSTD_625I50:
     case DT_VIDSTD_720P25:
     case DT_VIDSTD_1080P25:
+    case DT_VIDSTD_1080PSF25:
     case DT_VIDSTD_1080I50:
         return 25;
     
@@ -667,6 +673,8 @@ Int  DtaVidStd2Fps(Int  VidStd)
     case DT_VIDSTD_720P24:
     case DT_VIDSTD_1080P24:
     case DT_VIDSTD_1080P23_98:
+    case DT_VIDSTD_1080PSF24:
+    case DT_VIDSTD_1080PSF23_98:
         return 24;
 
    default:
@@ -686,9 +694,11 @@ Bool  DtaVidStdIsFractional(Int  VidStd)
     case DT_VIDSTD_525I59_94:   
     case DT_VIDSTD_720P29_97:
     case DT_VIDSTD_1080P29_97:
+    case DT_VIDSTD_1080PSF29_97:
     case DT_VIDSTD_1080I59_94:
     case DT_VIDSTD_720P23_98:
     case DT_VIDSTD_1080P23_98:
+    case DT_VIDSTD_1080PSF23_98:
         return TRUE;
     }
     return FALSE;
@@ -706,20 +716,46 @@ Bool  DtaVidStdIsInterlaced(Int  VidStd)
     case DT_VIDSTD_1080I50:
     case DT_VIDSTD_1080I59_94:
     case DT_VIDSTD_1080I60:
+    case DT_VIDSTD_1080PSF23_98:
+    case DT_VIDSTD_1080PSF24:
+    case DT_VIDSTD_1080PSF25:
+    case DT_VIDSTD_1080PSF29_97:
+    case DT_VIDSTD_1080PSF30:
         return TRUE;
     }
     return FALSE;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStdIs3GSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStdIs3gSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-Bool  DtaVidStdIs3GSdi(Int  VidStd)
+Bool  DtaVidStdIs3gSdi(Int  VidStd)
 {
     switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
     {
     case DT_VIDSTD_1080P50:
     case DT_VIDSTD_1080P59_94:
     case DT_VIDSTD_1080P60:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStdIsHdSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtaVidStdIsHdSdi(Int  VidStd)
+{
+    // Not 3G-SDI and also not SD-SDI, than it must be HD-SDI
+    return (!DtaVidStdIs3gSdi(VidStd) && !DtaVidStdIsSdSdi(VidStd));
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStdIsSdSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtaVidStdIsSdSdi(Int  VidStd)
+{
+    switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
+    {
+    case DT_VIDSTD_525I59_94:
+    case DT_VIDSTD_625I50:
         return TRUE;
     }
     return FALSE;

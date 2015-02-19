@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Ip.h *#*#*#*#*#*#*#*#*#*# (C) 2010-2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Ip.h *#*#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
 //
 // Dta driver - IP functionality - Declaration of IP port functionality
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2012 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -13,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -294,8 +292,7 @@ typedef struct _DtaIpPortType2
     volatile UInt  m_RxRtSliceWriteIndex;
     DtEvent  m_RxRtSliceEvent;
     DtDpc  m_RxRtSliceEventSetDpc;
-    AddressMatcherLookupEntry  m_AddrMatchHead;
-                                                // Only for odd IpPort index
+    AddressMatcherLookupEntry  m_AddrMatchHead; // Only for odd IpPort index
     
     // Rt transmit
     IpHwChannel  m_TxRt;                        // DMA channel only for odd channel index
@@ -363,6 +360,7 @@ typedef struct _DtaIpDevice
                                            // reconstruction
     UserIpRxChannel*  m_pAddrMatchLUTable[DTA_MAX_ADDR_MATCHER_ENTRIES];
     UInt8  m_AddrMatchLUTableType[DTA_MAX_ADDR_MATCHER_ENTRIES];
+    UInt64  m_RefTimeStored;
 } DtaIpDevice;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -385,6 +383,8 @@ DtStatus  DtaIpReleaseResourceFromFileObject(DtaDeviceData* pDvcData,
                                                                      DtFileObject* pFile);
 UInt64  DtaIpGetNumRxFifoOverflow(DtaIpPort* pIpPort);
 DtaShBuffer*  DtaIpGetSharedBuffer(DtaIpDevice* pIpDevice, Int ChannelIndex, 
+                                                                         Int ChannelType);
+DtStatus  DtaIpSharedBufferClosing(DtaIpDevice* pIpDevice, Int ChannelIndex, 
                                                                          Int ChannelType);
 DtStatus  DtaIpSharedBufferReady(DtaIpDevice* pIpDevice, Int ChannelIndex, 
                                                                          Int ChannelType);

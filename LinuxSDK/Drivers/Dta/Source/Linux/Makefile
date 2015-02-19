@@ -98,6 +98,8 @@ SRC    = $(SRCDIR)/Linux/DtaIal.o         \
          $(SRCDIR)/Gs296x.o               \
          $(SRCDIR)/Lmh1982.o              \
          $(SRCDIR)/Lmh1983.o              \
+         $(SRCDIR)/FanControl.o           \
+         $(SRCDIR)/Max6639.o              \
          $(SRCDIR)/FpgaGenlock.o          \
          $(SRCDIR)/Rs422.o                \
          $(SRCDIR)/Linux/DtaDeviceTable.o \
@@ -141,7 +143,7 @@ INSTALLDIR = /lib/modules/$(CURRENT)/kernel/drivers/misc
 all:	PREREQ $(DTSAL) $(DTDRVCOMMON)
 	make MYPWD=$(PWD) -C $(KERNELDIR) SUBDIRS=$(PWD) modules
 
-INSTALL_CMD := "rmmod $(TARGET) 2>/dev/null || true &&          \
+INSTALL_CMD := "/sbin/rmmod $(TARGET) 2>/dev/null || true &&          \
 				install -d $(INSTALLDIR) &&     \
 	            cp -v $(TARGET).ko $(INSTALLDIR) &&         \
 			    /sbin/depmod -a &&                  \

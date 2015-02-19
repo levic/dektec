@@ -148,7 +148,7 @@ INSTALLDIR = /lib/modules/$(CURRENT)/kernel/drivers/usb/DekTec
 all: PREREQ $(DTSAL) $(DTDRVCOMMON)
 	make MYPWD=$(PWD) -C $(KERNELDIR) SUBDIRS=$(PWD) modules
 
-INSTALL_CMD := "rmmod $(TARGET) 2>/dev/null || true &&          \
+INSTALL_CMD := "/sbin/rmmod $(TARGET) 2>/dev/null || true &&          \
 				install -d $(INSTALLDIR) &&     \
 	            cp -v $(TARGET).ko $(INSTALLDIR) && \
 			    /sbin/depmod -a &&                  \

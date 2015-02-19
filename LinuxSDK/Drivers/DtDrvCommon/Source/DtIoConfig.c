@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtIoConfig.c *#*#*#*#*#*#*#*#*#*#* (C) 2014 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtIoConfig.c *#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
 //
 // Driver common - IO configuration - Definition of IO configuration types/functions
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2014 DekTec Digital Video B.V.
+// Copyright (C) 2010-2015 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -13,8 +13,6 @@
 //     of conditions and the following disclaimer.
 //  2. Redistributions in binary format must reproduce the above copyright notice, this
 //     list of conditions and the following disclaimer in the documentation.
-//  3. The source code may not be modified for the express purpose of enabling hardware
-//     features for which no genuine license has been obtained.
 //
 // THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
 // INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -32,9 +30,14 @@
 
 // Implement kstrtos64 for kernel versions which don't include it.
 #ifdef LINBUILD
+#if defined(RHEL_RELEASE_CODE)
+#if RHEL_RELEASE_CODE>=RHEL_RELEASE_VERSION(6,4)
+#define SKIP_KSTRTOS_FOR_RHEL
+#endif
+#endif
 // Split condition in two lines to make sure windows builds don't try to parse
 // the part below.
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
+#if LINUX_VERSION_CODE<KERNEL_VERSION(2,6,39) && !defined(SKIP_KSTRTOS_FOR_RHEL)
 int  kstrtos64(const char*  p, int Base, UInt64*  pRes)
 {
     *pRes = simple_strtoull(p, NULL, Base);
