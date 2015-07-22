@@ -138,12 +138,24 @@ public:
 
 protected:
 
+    enum PortType
+    {
+        PT_UNKNOWN,
+        PT_ASI,
+        PT_IP,
+        PT_MOD,
+        PT_SDI,
+    };
+
     //---- Internal operation ----
     void AttachToOutput();
     void AutoDetectSdiFormat();
     void DisplayPlayInfo();
+    bool HasOutputPort();
     void InitIsdbtPars(DtIsdbtPars& IsdbtPars);
     void InitOutput();
+    bool IsMatchingPortType(PortType  WantedPortType, DtHwFuncDesc*  pHwFunc);
+    PortType GuessPortTypeFromPars();
     void Log(const char* pMessage, bool IgnoreSilence=false);
     void Log(const wchar_t* pMessage, bool IgnoreSilence=false);
     void LogF(const char* pMessage, ... );
@@ -156,7 +168,6 @@ protected:
 
     DtDevice  m_DtDvc;              // Our device
     DtOutpChannel  m_DtOutp;        // Our output channel
-    int m_IoConfig;                 // Our Ioconfig
     bool  m_Modulator;              // Current output is a modulator
     bool  m_Ip;                     // Current output is a IP port
     FILE* m_pFile;                  // Our play file

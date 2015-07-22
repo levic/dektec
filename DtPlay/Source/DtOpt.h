@@ -1,11 +1,12 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtOpt.h *#*#*#*#*#*#*#*#*#*#*#*# (C) 2012 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtOpt.h *#*#*#*#*#*#*#*#*#* (C) 2012-2013 DekTec
 //
-// DtOpt - DekTec commandline options - header file
+// DtOpt - DekTec command-line option interpreter - Header file
 
 #ifndef __DTOPT_H
 #define __DTOPT_H
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
 #include <string>
 #include <list>
 #include <cstdarg>
@@ -14,7 +15,8 @@ using namespace std;
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-. class DtOptException -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Exception class that will be thrown if there is any error during processing the
-// commandline arguments.
+// commandline arguments
+//
 class DtOptException
 {
 public:
@@ -30,7 +32,8 @@ protected:
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- enum DtOptType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-// The type of an option.
+// The type of an option
+//
 enum DtOptType
 {
     OPT_TYPE_INT,                   // Option is an integer
@@ -43,7 +46,8 @@ enum DtOptType
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct DtEnumOptPair -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Type used to provide a string->int mapping for integer types that have to be passed
-// on the commandline as strings.
+// on the commandline as strings
+//
 struct DtEnumOptPair
 {
     wstring  m_Name;                // How is this item specified on the commandline
@@ -56,7 +60,8 @@ struct DtEnumOptPair
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtOpt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// Representation of an internal option.
+// Representation of an internal option
+//
 class DtOpt
 {
 public:
@@ -73,6 +78,7 @@ public:
     bool  ToBool() const;
     double  ToDouble() const;
     wstring  ToString() const;
+    wstring  ToLower() const;
 
     // Change this string option to an integer option.
     void MakeInt(int Value);
@@ -157,8 +163,8 @@ private:
         };
     };
 
-    const wstring m_Name;
-    const wstring m_Description;
+    const wstring  m_Name;
+    const wstring  m_Description;
     DtOpt&  m_Option;
 };
 

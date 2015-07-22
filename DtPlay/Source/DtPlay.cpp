@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.cpp *#*#*#*#*#*#*#*#* (C) 2000-2011 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.cpp *#*#*#*#*#*#*#*#* (C) 2000-2013 DekTec
 //
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -22,8 +22,8 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlay Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DTPLAY_VERSION_MAJOR        4
-#define DTPLAY_VERSION_MINOR        2
-#define DTPLAY_VERSION_BUGFIX       1
+#define DTPLAY_VERSION_MINOR        4
+#define DTPLAY_VERSION_BUGFIX       0
 
 const int c_BufSize = 1*1024*1024;      // Data transfer buffer size
 const int c_MinFifoLoad = 3*1024*1024;  // Minimum fifo load before starting DVB transmission
@@ -36,20 +36,22 @@ const char c_CleNoPlayFile[]            = "No play file specified";
 const char c_CleTxRateNotDefined[]      = "Transport-Stream rate not specified";
 
 // General errors
-const char c_ErrDtapiHwScanFailed[]     = "DtapiHwFuncScan failed (ERROR: %s)";
+const char c_ErrDtapiDvcScanFailed[]    = "DtapiDeviceScan failed (ERROR: %s)";
 const char c_ErrNoOutputFound[]         = "No output device in the system";
-const char c_ErrNoDta1xxFound[]         = "No DTA-%d found";
-const char c_ErrNoDtu2xxFound[]         = "No DTU-%d found";
-const char c_ErrCouldNotFindOutputN[]   = "Could not find output board (#%d) in the system";
-const char c_ErrCouldNotFindDta1xxN[]   = "Could not find DTA-%d (#%d) in the system";
-const char c_ErrCouldNotFindDtu2xxN[]   = "Could not find DTU-%d (#%d) in the system";
-const char c_ErrFailToAttachToDta1xx[]  = "Failed to attach to the DTA-%d on Bus: %d and Slot: %d";
-const char c_ErrFailToAttachToDtu2xx[]  = "Failed to attach to the DTU-%d";
+const char c_ErrNoSuchPort[]            = "The %s has no port %d";
+const char c_ErrHwScanFailed[]          = "HwFuncScan failed (ERROR: %s)";
+const char c_ErrNoOutputPort[]          = "The %s port %d it not an output port";
+const char c_ErrNoSuitablePort[]        = "No suitable port found on the %s";
 const char c_ErrFailToAttachToChan[]    = "Can't attach to the channel (ERROR: %s)";
+const char c_ErrFailToAttachToType[]    = "Failed to attach to the %s (ERROR: %s)";
+const char c_ErrDvcNumWithoutType[]     = "Specifying a device number without a type is not supported";
+const char c_ErrDblbufSelf[]            = "Can't enabled buffered output on the port itself";
+const char c_ErrFailGetFlags[]          = "GetFlags failed (ERROR: %s)";
 const char c_ErrFailToSetIoConfig[]     = "Failed to set IO-configuration (ERROR: %s)";
 const char c_ErrFailToGetIoConfig[]     = "Failed to get IO-configuration (ERROR: %s)";
 const char c_ErrFailToGetIoStd[]        = "DtapiVidStd2IoStd failed (ERROR: %s)";
-const char c_ErrFailToOpenFile[]        = "Can't open '%s' for reading";
+const char c_ErrFailToGetVidStdInfo[]   = "DtapiGetVidStdInfo failed (ERROR: %s)";
+const char c_ErrFailToOpenFile[]        = "Can't open '%ls' for reading";
 const char c_ErrReadFile[]              = "File read error";
 const char c_ErrFailSetTxControl[]      = "SetTxControl failed (ERROR: %s)";
 const char c_ErrFailSetTxMode[]         = "SetTxMode failed (ERROR: %s)";
@@ -65,6 +67,7 @@ const char c_ErrFailedToSetSNR[]        = "Failed to set SNR (ERROR: %s)";
 const char c_FailedToInitIdsbtPars[]    = "Failed to initialise ISDB-T parameters (ERROR: %s)";
 const char c_ErrFailGetFifoSize[]       = "Failed to get Fifo size (ERROR: %s)";
 const char c_ErrCmmbTsRateFromTs[]      = "Cannot retrieve rate from stream (ERROR: %s)";
+const char c_ErrUnderflow[]             = "Underflow detected";
 
 const char c_ErrDriverInCompPci[] =
     "The current Dta1xx driver (V%d.%d.%d %d) is not compatible with this\n" \
@@ -139,10 +142,11 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         {L"DVBS2_32APSK", DTAPI_MOD_DVBS2_32APSK,  L"32APSK modulation"},
         {L"DVBS2_8PSK",   DTAPI_MOD_DVBS2_8PSK,    L"DVB-S.2 8PSK modulation"},
         {L"DVBS2_QPSK",   DTAPI_MOD_DVBS2_QPSK,    L"DVB-S.2 QPSK modulation"},
+        {L"DVBS2_L3",     DTAPI_MOD_DVBS2_L3,      L"DVB-S.2 L3 modulation"},
         {L"DVBT",         DTAPI_MOD_DVBT,          L"DVB-T/H modulation"},
         {L"ISDBS",        DTAPI_MOD_ISDBS,         L"ISDB-S modulation"},
         {L"ISDBT",        DTAPI_MOD_ISDBT,         L"ISDB-T modulation"},
-        {L"IQ",           DTAPI_MOD_IQDIRECT,      L"T2MI modulation"},
+        {L"IQ",           DTAPI_MOD_IQDIRECT,      L"IQ direct"},
         {L"QAM4",         DTAPI_MOD_QAM4,          L"QAM-4 modulation"},
         {L"QAM16",        DTAPI_MOD_QAM16,         L"QAM-16 modulation"},
         {L"QAM32",        DTAPI_MOD_QAM32,         L"QAM-32 modulation"},
@@ -278,11 +282,11 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         DtOptItem(L"r",   m_TxRate, -1, L"Transport-Stream Rate in bps or sample rate in case of IQ-modulation mode\n"
                 L"  NOTE: set the rate to '0' to playout a file with timestamps", 0, INT_MAX),
         DtOptItem(L"t",   m_DvcType, -1, L"Device type to use (default: any output device)\n"
-                L"  100, 102, 105, 107, 110, 112, 115, 116, 117, 140, 145,\n"
-                L"  160, 205, 245, 545, 2111, 2145, 2152 or 2160", 100, 3999),
+                L"  100, 102, 105, 107, 110, 111, 112, 115, 116, 117, 140, 145, 160\n"
+                L"  205, 215, 245, 2107, 2111, 2136, 2137, 2144, 2145, 2152, 2160 or 2162", 100, 3999),
         DtOptItem(L"n",   m_DvcNum, 1, L"Device number to use (default: 1)", 1, 99),
         DtOptItem(L"i",   m_Port, -1, L"Port number of the output channel to use", 1, 4),
-        DtOptItem(L"db",  m_DblBuff, false, L"Doubly buffered output mode (if supported)"),
+        DtOptItem(L"db",  m_DblBuff, -1, L"Port to use as doubly buffered output"),
         DtOptItem(L"m",   m_TxMode, DTAPI_TXMODE_188, L"Transmit Mode (default: 188)", TransmitModes),
         DtOptItem(L"mt",  m_ModType, -1, L"Modulation type", ModTypes),
         DtOptItem(L"mf",  m_CarrierFreq, 0.0, L"Modulation carrier frequency in MHz", 20.0, 2300.0),
@@ -408,9 +412,10 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         size_t  Pos = Address.find(L":");
         if (Pos != wstring::npos)
         {
-            m_IpPars.m_Port = wtoi(Address.c_str() + Pos + 1);
-            if (m_IpPars.m_Port<0 || m_IpPars.m_Port>6535)
+            int  Port = wtoi(Address.c_str() + Pos + 1);
+            if (Port<0 || Port>0xFFFF)
                 throw Exc(c_CleInvalidArgument, "ipa");
+            m_IpPars.m_Port  = Port;
             Address.resize(Pos);
         }
         DTAPI_RESULT dr = ::DtapiInitDtTsIpParsFromIpString(m_IpPars, Address.c_str(), NULL);
@@ -765,143 +770,207 @@ Player::~Player()
         ::fclose(m_pFile);
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Player::HasOutputPort -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+bool  Player::HasOutputPort()
+{
+    DtHwFuncDesc HwFuncs[16];
+    int  NumHwFuncs;
+    DTAPI_RESULT  dr = m_DtDvc.HwFuncScan(sizeof(HwFuncs)/sizeof(HwFuncs[0]),
+                                                                     NumHwFuncs, HwFuncs);
+    if (dr != DTAPI_OK)
+        return false;
+    for (int i=0; i<NumHwFuncs; i++)
+    {
+        if ((HwFuncs[i].m_Flags&DTAPI_CAP_OUTPUT)!=0 
+                                                  || (HwFuncs[i].m_Flags&DTAPI_CAP_IP)!=0)
+            return true;
+    }
+    return false;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Type2Name -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static const char* Type2Name(int TypeNum)
+{
+    static char buf[32];
+    if (TypeNum<200 || (TypeNum>=2000&&TypeNum<3000))
+        sprintf(buf, "DTA-%d", TypeNum);
+    else if (TypeNum>=200 && TypeNum <400)
+        sprintf(buf, "DTU-%d", TypeNum);
+    else if (TypeNum>3000)
+        sprintf(buf, "DTE-%d", TypeNum);
+    else
+        sprintf(buf, "%d", TypeNum);
+    return buf;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Player::IsMatchingPortType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+bool  Player::IsMatchingPortType(PortType  WantedPortType, DtHwFuncDesc*  pHwFunc)
+{
+    switch (WantedPortType)
+    {
+    case PT_UNKNOWN:
+        return true;
+    case PT_ASI:
+        return (pHwFunc->m_Flags&DTAPI_CAP_ASI) != 0;
+    case PT_IP:
+        return (pHwFunc->m_Flags&DTAPI_CAP_IP) != 0;
+    case PT_MOD:
+        return (pHwFunc->m_Flags&DTAPI_CAP_MOD) != 0;
+    case PT_SDI:
+        return (pHwFunc->m_Flags&DTAPI_CAP_SDI) != 0;
+    }
+    return false;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Player::AttachToOutput -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void Player::AttachToOutput()
 {
     DTAPI_RESULT dr;
-    int n, NumHwFuncsFound(0);
-    DtHwFuncDesc HwFuncs[20];
-
-    // Scan for available DekTec devices
-    dr = ::DtapiHwFuncScan(sizeof(HwFuncs)/sizeof(HwFuncs[0]), NumHwFuncsFound, HwFuncs, true);
-    if ( dr != DTAPI_OK )
-        throw Exc(c_ErrDtapiHwScanFailed, ::DtapiResult2Str(dr) );
-
-    // Loop through found hardware functions
-    bool Found=false, SetIoConfig=false;
-    int DeviceNum(0);
-    DtHwFuncDesc* pHwf = &HwFuncs[0];
-    for ( n=0; n<NumHwFuncsFound; n++, pHwf++ )
+    
+    if (m_CmdLineParams.m_DvcType.IsSet())
     {
-        // Skip non-bidir capabale inputs
-        if ( (pHwf->m_ChanType & DTAPI_CHAN_OUTPUT)==0
-                                                && (pHwf->m_Flags & DTAPI_CAP_OUTPUT)==0 )
-            continue;
-
-        // Looking for a specific type??
-        if ( m_CmdLineParams.m_DvcType.IsSet() && m_CmdLineParams.m_Port.IsSet() )
+        dr = m_DtDvc.AttachToType(m_CmdLineParams.m_DvcType, m_CmdLineParams.m_DvcNum-1);
+        if (dr != DTAPI_OK)
+            throw Exc(c_ErrFailToAttachToType, Type2Name(m_CmdLineParams.m_DvcType),
+                                                                     DtapiResult2Str(dr));
+    } else {
+        if (m_CmdLineParams.m_DvcNum.IsSet())
+            throw Exc(c_ErrDvcNumWithoutType);
+        DtDeviceDesc  DvcDescs[10];
+        int  NumDvcs;
+        dr = DtapiDeviceScan(sizeof(DvcDescs)/sizeof(DvcDescs[0]), NumDvcs, DvcDescs);
+        if (dr != DTAPI_OK)
+            throw Exc(c_ErrDtapiDvcScanFailed, DtapiResult2Str(dr));
+        bool  FoundDvc = false;
+        for (int i=0; i<NumDvcs; i++)
         {
-            if (   pHwf->m_DvcDesc.m_TypeNumber==m_CmdLineParams.m_DvcType
-                && pHwf->m_Port==m_CmdLineParams.m_Port )
+            dr = m_DtDvc.AttachToSerial(DvcDescs[i].m_Serial);
+            if (dr != DTAPI_OK)
+                throw Exc(c_ErrFailToAttachToType, Type2Name(DvcDescs[i].m_TypeNumber),
+                                                                     DtapiResult2Str(dr));
+            if (!HasOutputPort())
             {
-                DeviceNum++;    // only count devices matching our search type
+                m_DtDvc.Detach();
+                continue;
             }
-        }
-        else if ( pHwf->m_DvcDesc.m_TypeNumber==m_CmdLineParams.m_DvcType )
-            DeviceNum++;    // only count devices matching our search type
-        else if ( m_CmdLineParams.m_DvcType==-1 )
-            DeviceNum++;    // count every device
-        
-        if ( DeviceNum == m_CmdLineParams.m_DvcNum ) {
-            Found = true;
-
-            // Attempt a set IO-config if the IO-port is BIDIR-capable and it
-            // is not already an output
-            if ( 0==(pHwf->m_ChanType & DTAPI_CHAN_OUTPUT) )
-                SetIoConfig = true;
+            FoundDvc = true;
             break;
         }
-    }
-    // Did we find our device?
-    if ( !Found && DeviceNum==0 )
-    {
-        // Could not find any matching output at all
-        if (   (m_CmdLineParams.m_DvcType>=100 && m_CmdLineParams.m_DvcType<200)
-            || (m_CmdLineParams.m_DvcType>=2100 && m_CmdLineParams.m_DvcType<2200) )
-            throw Exc(c_ErrNoDta1xxFound, m_CmdLineParams.m_DvcType.ToInt());
-        else if (   (m_CmdLineParams.m_DvcType>=200 && m_CmdLineParams.m_DvcType<300) )
-            throw Exc(c_ErrNoDtu2xxFound, m_CmdLineParams.m_DvcType.ToInt());
-        else
+        if (!FoundDvc)
             throw Exc(c_ErrNoOutputFound);
     }
-    else if ( !Found && m_CmdLineParams.m_DvcNum > DeviceNum )
+    // We've found a device with output-ports and are attached to it. Now check if we can
+    // find the proper port.
+    int  Port = -1;
+    
+    DtHwFuncDesc HwFuncs[16];
+    int  NumHwFuncs;
+    dr = m_DtDvc.HwFuncScan(sizeof(HwFuncs)/sizeof(HwFuncs[0]), NumHwFuncs, HwFuncs);
+    if (dr != DTAPI_OK)
+        throw Exc(c_ErrHwScanFailed, DtapiResult2Str(dr));
+    if (m_CmdLineParams.m_Port.IsSet())
     {
-        // Could no find the Nth matching output
-        if (   (m_CmdLineParams.m_DvcType>=100 && m_CmdLineParams.m_DvcType<200)
-            || (m_CmdLineParams.m_DvcType>=2100 && m_CmdLineParams.m_DvcType<2200) )
-            throw Exc(c_ErrCouldNotFindDta1xxN, m_CmdLineParams.m_DvcType.ToInt(), m_CmdLineParams.m_DvcNum.ToInt());
-        else if (   (m_CmdLineParams.m_DvcType>=200 && m_CmdLineParams.m_DvcType<300) )
-            throw Exc(c_ErrCouldNotFindDtu2xxN, m_CmdLineParams.m_DvcType.ToInt(), m_CmdLineParams.m_DvcNum.ToInt());
-        else
-            throw Exc(c_ErrCouldNotFindOutputN, m_CmdLineParams.m_DvcNum.ToInt());
-    }
-
-    // Attach to the device
-    dr = m_DtDvc.AttachToSerial(pHwf->m_DvcDesc.m_Serial);
-    if ( dr == DTAPI_E_DRIVER_INCOMP )
-    {
-        // Special case: driver version is not compatible with this version of DtPlay,
-        // get the driver version and throw an exception
-        int DriverVersionMajor(-1), DriverVersionMinor(-1), DriverVersionBugFix(-1),
-            DriverVersionBuild(-1);
-
-        // Get device driver version
-        ::DtapiGetDeviceDriverVersion(pHwf->m_DvcDesc.m_Category,
-                                      DriverVersionMajor, DriverVersionMinor,
-                                      DriverVersionBugFix, DriverVersionBuild);
-
-        // PCI or USB device??
-        if ( pHwf->m_DvcDesc.m_Category == DTAPI_CAT_PCI )
+        if (m_CmdLineParams.m_Port<1 || m_CmdLineParams.m_Port>NumHwFuncs)
         {
-            throw Exc( c_ErrDriverInCompPci, DriverVersionMajor, DriverVersionMinor,
-                       DriverVersionBugFix, DriverVersionBuild );
+            throw Exc(c_ErrNoSuchPort, Type2Name(m_DtDvc.m_DvcDesc.m_TypeNumber),
+                                                          m_CmdLineParams.m_Port.ToInt());
         }
-        else if ( pHwf->m_DvcDesc.m_Category == DTAPI_CAT_USB )
+        Port = m_CmdLineParams.m_Port;
+        if ((HwFuncs[m_CmdLineParams.m_Port-1].m_Flags&DTAPI_CAP_OUTPUT) != 0)
         {
-            throw Exc( c_ErrDriverInCompUsb, DriverVersionMajor, DriverVersionMinor,
-                       DriverVersionBugFix, DriverVersionBuild );
+            // Uses has explicitly selected a port, make sure it's configured as output.
+            dr = m_DtDvc.SetIoConfig(Port, DTAPI_IOCONFIG_IODIR, DTAPI_IOCONFIG_OUTPUT,
+                                                                   DTAPI_IOCONFIG_OUTPUT);
+            if (dr != DTAPI_OK)
+                throw Exc(c_ErrFailToSetIoConfig, DtapiResult2Str(dr));
+        } else if ((HwFuncs[m_CmdLineParams.m_Port-1].m_Flags&DTAPI_CAP_IP) == 0)
+            throw Exc(c_ErrNoOutputPort, Type2Name(m_DtDvc.m_DvcDesc.m_TypeNumber),
+                                                          m_CmdLineParams.m_Port.ToInt());
+    } else {
+        PortType  WantedPortType = GuessPortTypeFromPars();
+        for (int i=0; i<NumHwFuncs; i++)
+        {
+            if ((HwFuncs[i].m_Flags&DTAPI_CAP_OUTPUT) != 0) 
+            {
+                int  Value=-1;
+                dr = m_DtDvc.GetIoConfig(i+1, DTAPI_IOCONFIG_IODIR, Value);
+                if (dr != DTAPI_OK)
+                    throw Exc(c_ErrFailToGetIoConfig, DtapiResult2Str(dr));
+                if (Value != DTAPI_IOCONFIG_OUTPUT)
+                    continue;
+            } else if  ((HwFuncs[i].m_Flags&DTAPI_CAP_IP) == 0)
+                continue;
+            // Port is an IP or output-port, check port type
+            if (IsMatchingPortType(WantedPortType, &HwFuncs[i]))
+            {
+                Port = i+1;
+                break;
+            }
         }
+        if (Port == -1)
+            throw Exc(c_ErrNoSuitablePort, Type2Name(m_DtDvc.m_DvcDesc.m_TypeNumber));
     }
-    else if ( dr != DTAPI_OK )
-    {
-        // PCI or USB device??
-        if ( pHwf->m_DvcDesc.m_Category == DTAPI_CAT_PCI )
-            throw Exc(c_ErrFailToAttachToDta1xx, pHwf->m_DvcDesc.m_TypeNumber,
-                      pHwf->m_DvcDesc.m_PciBusNumber, pHwf->m_DvcDesc.m_SlotNumber);
-        else
-            throw Exc(c_ErrFailToAttachToDtu2xx, pHwf->m_DvcDesc.m_TypeNumber);
-    }
+    // At this point we're sure the chosen port is valid and configured as output.
 
-    // Set the IO-config to output?
-    if ( SetIoConfig )
+    if ((HwFuncs[Port].m_Flags & DTAPI_CAP_FRACMODE) != 0)
     {
-        dr = m_DtDvc.SetIoConfig(pHwf->m_Port, DTAPI_IOCONFIG_IODIR, 
-                                            DTAPI_IOCONFIG_OUTPUT, DTAPI_IOCONFIG_OUTPUT);
-        if ( dr != DTAPI_OK )
+        DtVidStdInfo  Info;
+        dr = DtapiGetVidStdInfo(m_CmdLineParams.m_SdiSubValue, Info);
+        if (dr != DTAPI_OK)
+            throw Exc(c_ErrFailToGetVidStdInfo, ::DtapiResult2Str(dr));
+        int  Value = Info.m_IsFractional ? DTAPI_IOCONFIG_TRUE : DTAPI_IOCONFIG_FALSE;
+        int  NumPorts = m_DtDvc.m_DvcDesc.m_NumPorts;
+        DtIoConfig*  pIoConfigs = new DtIoConfig[NumPorts*2];
+        int  NumIoConfig = 0;
+        for (int i=0; i<NumPorts; i++)
+        {
+            if ((m_DtDvc.m_pHwf[i].m_Flags & DTAPI_CAP_FRACMODE) != 0)
+            {
+                pIoConfigs[NumIoConfig].m_Port = i + 1;
+                pIoConfigs[NumIoConfig].m_Group = DTAPI_IOCONFIG_FRACMODE;
+                pIoConfigs[NumIoConfig].m_Value = Value;
+                pIoConfigs[NumIoConfig].m_SubValue = -1;
+                pIoConfigs[NumIoConfig].m_ParXtra[0] = -1;
+                pIoConfigs[NumIoConfig].m_ParXtra[1] = -1;
+                NumIoConfig++;
+                pIoConfigs[NumIoConfig].m_Port = i + 1;
+                pIoConfigs[NumIoConfig].m_Group = DTAPI_IOCONFIG_IOSTD;
+                pIoConfigs[NumIoConfig].m_Value = DTAPI_IOCONFIG_SDI;
+                if (Value == DTAPI_IOCONFIG_TRUE)
+                    pIoConfigs[NumIoConfig].m_SubValue = DTAPI_IOCONFIG_525I59_94;
+                else
+                    pIoConfigs[NumIoConfig].m_SubValue = DTAPI_IOCONFIG_625I50;
+                pIoConfigs[NumIoConfig].m_ParXtra[0] = -1;
+                pIoConfigs[NumIoConfig].m_ParXtra[1] = -1;
+                NumIoConfig++;
+            }
+        }
+        dr = m_DtDvc.SetIoConfig(pIoConfigs, NumIoConfig);
+        delete [] pIoConfigs;
+        if (dr != DTAPI_OK)
             throw Exc(c_ErrFailToSetIoConfig, ::DtapiResult2Str(dr));
     }
-
-    if ( m_CmdLineParams.m_DblBuff ) 
+    
+    if (m_CmdLineParams.m_DblBuff.IsSet())
     {
-        dr = m_DtDvc.SetIoConfig(pHwf->m_Port, DTAPI_IOCONFIG_IODIR, 
-                                            DTAPI_IOCONFIG_OUTPUT, DTAPI_IOCONFIG_DBLBUF);
-        if ( dr != DTAPI_OK )
-            LogF ("Configuring doubly buffered mode for port %d failed (%s)",
-                                                      pHwf->m_Port+1,DtapiResult2Str(dr));
+        if (m_CmdLineParams.m_DblBuff == Port)
+            throw Exc(c_ErrDblbufSelf);
+
+        dr = m_DtDvc.SetIoConfig(m_CmdLineParams.m_DblBuff, DTAPI_IOCONFIG_IODIR,
+                                      DTAPI_IOCONFIG_OUTPUT, DTAPI_IOCONFIG_DBLBUF, Port);
+        if (dr != DTAPI_OK)
+            LogF("Failed to set port %d in double-buffered mode (ERROR: %s)",
+                                  m_CmdLineParams.m_DblBuff.ToInt(), DtapiResult2Str(dr));
     }
 
-    
     // Attach to the output channel
-    dr = m_DtOutp.AttachToPort(&m_DtDvc, pHwf->m_Port);
-    if ( dr != DTAPI_OK )
+    dr = m_DtOutp.AttachToPort(&m_DtDvc, Port);
+    if (dr != DTAPI_OK)
         throw Exc(c_ErrFailToAttachToChan, ::DtapiResult2Str(dr));
-
-    // Retrieve and store current IOCONFIG
-    m_IoConfig = -1;
-    //dr = m_DtDvc.GetIoConfig(pHwf->m_Port, DTAPI_IOCONFIG_GENLOCKED,  m_IoConfig);
-    //if ( dr != DTAPI_OK )
-    //    throw Exc(c_ErrFailToGetIoConfig, ::DtapiResult2Str(dr));
 
     // Check for modulator card (assume no modulator)
     m_Modulator = (m_DtOutp.m_HwFuncDesc.m_Flags&DTAPI_CAP_MOD) !=0;
@@ -1249,7 +1318,7 @@ void Player::InitOutput()
             dr = m_DtOutp.SetModControl( m_CmdLineParams.m_ModType, 
                                          m_CmdLineParams.m_TxRate, 
                                          ParXtra1,
-                                         0);
+                                         -1);
         }
         else if ( m_CmdLineParams.m_ModType==DTAPI_MOD_DVBT )
         {
@@ -1300,6 +1369,15 @@ void Player::InitOutput()
                                          XtraPar1, XtraPar2);
             
         }
+        else if (m_CmdLineParams.m_ModType==DTAPI_MOD_DVBS2_L3)
+        {
+            int  XtraPar0 = m_CmdLineParams.m_TxRate;
+            int  XtraPar1 = DTAPI_MOD_ROLLOFF_35;
+            int  XtraPar2 =   m_CmdLineParams.m_DvbS2GoldSeqInit;
+
+            dr = m_DtOutp.SetModControl(m_CmdLineParams.m_ModType,
+                                                            XtraPar0, XtraPar1, XtraPar2);
+        }
         else if ( m_CmdLineParams.m_ModType==DTAPI_MOD_DMBTH )
         {
             int XtraPar0 =    m_CmdLineParams.m_Constellation
@@ -1327,6 +1405,7 @@ void Player::InitOutput()
     if (    (  !m_Modulator && 0==(m_CmdLineParams.m_TxMode&DTAPI_TXMODE_SDI) )
          || (   m_Modulator && m_CmdLineParams.m_ModType!=DTAPI_MOD_DVBT
                             && m_CmdLineParams.m_ModType!=DTAPI_MOD_CMMB
+                            && m_CmdLineParams.m_ModType!=DTAPI_MOD_DVBS2_L3
                             && m_CmdLineParams.m_ModType!=DTAPI_MOD_T2MI
                             && m_CmdLineParams.m_ModType!=DTAPI_MOD_ISDBT
                             && m_CmdLineParams.m_ModType!=DTAPI_MOD_IQDIRECT
@@ -1408,6 +1487,17 @@ void Player::InitOutput()
 
     // Set exit load. 4k for all none modulator
     m_ExitLoad = m_Modulator ? 1*1024*1024 : 4*1024;
+}
+
+Player::PortType Player::GuessPortTypeFromPars()
+{
+    if (m_CmdLineParams.m_ModType.IsSet() || m_CmdLineParams.m_CarrierFreq.IsSet())
+        return PT_MOD;
+    if (m_CmdLineParams.m_Ipa.IsSet())
+        return PT_IP;
+    if (m_CmdLineParams.m_PlayDtSdiFile)
+        return PT_SDI;
+    return PT_UNKNOWN;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Player::Log -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1520,6 +1610,16 @@ void Player::LoopFile()
             if ( dr != DTAPI_OK )
                 throw Exc(c_ErrFailWrite, ::DtapiResult2Str(dr));
         }
+        if (TxStarted)
+        {
+            int  StatusFlags, Latched;
+            dr = m_DtOutp.GetFlags(StatusFlags, Latched);
+            if (dr != DTAPI_OK)
+                throw Exc(c_ErrFailGetFlags, ::DtapiResult2Str(dr));
+            if ((Latched & (DTAPI_TX_CPU_UFL | DTAPI_TX_FIFO_UFL)) != 0)
+                throw Exc(c_ErrUnderflow);
+        }
+
 
         // We wait with starting actual transmission until we have build up a minimum FIFO
         // load. If we reach the end-of-file and only one loop left to go start immediately.
@@ -1592,7 +1692,7 @@ int Player::Play(int argc, char* argv[])
         }
         if ( m_CmdLineParams.m_ShowHelp )
         {
-            // Disable silent mode
+            // Disable silent mo de
             m_CmdLineParams.m_SilentMode = false;
             ShowHelp();
             return RetValue;
@@ -1600,8 +1700,16 @@ int Player::Play(int argc, char* argv[])
 
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Print start message -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-        LogF("DtPlay player V%d.%d.%d (c) 2000-2011 DekTec Digital Video B.V.\n",
+        LogF("DtPlay player V%d.%d.%d (c) 2000-2013 DekTec Digital Video B.V.\n",
               DTPLAY_VERSION_MAJOR, DTPLAY_VERSION_MINOR, DTPLAY_VERSION_BUGFIX);
+
+        LogF("DTAPI compile version: V%d.%d.%d.%d\n",
+              DTAPI_VERSION_MAJOR, DTAPI_VERSION_MINOR, DTAPI_VERSION_BUGFIX, DTAPI_VERSION_BUILD);
+
+        int  Maj=-1,Min=-1,BugFix=-1,Build=-1;
+        DtapiGetVersion(Maj,Min,BugFix,Build);
+        LogF("DTAPI link version: V%d.%d.%d.%d\n",
+              Maj, Min, BugFix, Build);
 
 
         //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Open the play file -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

@@ -1,11 +1,15 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtOpt.h *#*#*#*#*#*#*#*#*#*#*#*# (C) 2012 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtOpt.cpp *#*#*#*#*#*#*#*#*# (C) 2012-2013 DekTec
 //
-// DtOpt - DekTec commandline options - Implementation
+// DtOpt - DekTec command-line option interpreter - Implementation
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 #include "DtOpt.h"
+#include <algorithm>
 #include <cassert>
 #include <limits.h>
 #include <sstream>
+#include <wchar.h>
 
 #ifndef WINBUILD
 #define _vsnwprintf vswprintf
@@ -13,10 +17,14 @@
 
 static int wtoi(wstring Str)
 {
-    wistringstream Stream(Str);
-    int  Result;
-    Stream >> Result;
-    return Result;
+    long  Result;
+    if (Str.size() > 2 && Str.substr(0, 2) == L"0x")
+    {
+        Result = wcstol(Str.c_str() + 2, NULL, 16);
+    } else {
+        Result = wcstol(Str.c_str(), NULL, 10);
+    }
+    return (int)Result;
 }
 
 static double wtof(wstring Str)
@@ -47,7 +55,8 @@ DtOpt::DtOpt() :
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOpt::operator int -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// Convert DtOpt object back to an int.
+// Convert DtOpt object back to an int
+//
 DtOpt::operator int() const
 {
     assert(m_Type==OPT_TYPE_INT || m_Type==OPT_TYPE_BOOL);
@@ -56,21 +65,20 @@ DtOpt::operator int() const
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOpt::operator = -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// Assign a new value to the DtOpt object.
+// Assign a new value to the DtOpt object
+//
 DtOpt&  DtOpt::operator =(int  NewValue)
 {
     assert(m_Type == OPT_TYPE_INT);
     m_IntValue = NewValue;
     return *this;
 }
-
 DtOpt&  DtOpt::operator =(double  NewValue)
 {
     assert(m_Type == OPT_TYPE_DOUBLE);
     m_DoubleValue = NewValue;
     return *this;
 }
-
 DtOpt&  DtOpt::operator =(bool  NewValue)
 {
     assert(m_Type == OPT_TYPE_BOOL);
@@ -81,27 +89,31 @@ DtOpt&  DtOpt::operator =(bool  NewValue)
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOpt::To* -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Explicitely convert DtOpt to the underlying base type
+//
 int  DtOpt::ToInt() const
 {
     assert(m_Type == OPT_TYPE_INT);
     return m_IntValue;
 }
-
 bool  DtOpt::ToBool() const
 {
     assert(m_Type == OPT_TYPE_BOOL);
     return m_IntValue != 0;
 }
-
 double  DtOpt::ToDouble() const
 {
     assert(m_Type == OPT_TYPE_DOUBLE);
     return m_DoubleValue;
 }
-
 wstring  DtOpt::ToString() const
 {
     return m_StrValue;
+}
+wstring  DtOpt::ToLower() const
+{
+    wstring  Str = m_StrValue;
+    transform(Str.begin(), Str.end(), Str.begin(), ::tolower);
+    return Str;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOpt::MakeInt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -125,7 +137,8 @@ void  DtOpt::ParseEnum(const DtEnumOptPair* EnumPairs, wstring OptName)
         }
         EnumPairs++;
     }
-    throw DtOptException(L"Invalid argument for command line option: -%ls", OptName.c_str());
+    throw DtOptException(L"Invalid argument for command line option: -%ls",
+                                                                         OptName.c_str());
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOptItem::DtOptItem -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -234,15 +247,21 @@ void  DtOptItem::ParseOpt(DtOptItem* Options, int NumOpt, int argc, char* argv[]
             assert(false);
         }
     }
+    bool  CheckOptions = true;
     // And then parse the actual commandline arguments
     for (int i=1; i<argc; i++)
     {
 #ifdef WINBUILD
-        if (argv[i][0]=='-' || argv[i][0]=='/')
+        if (CheckOptions && (argv[i][0]=='-' || argv[i][0]=='/'))
 #else
-        if (argv[i][0]=='-')
+        if (CheckOptions && argv[i][0]=='-')
 #endif
         {
+            if (argv[i][1] == '-')
+            {
+                CheckOptions = false;
+                continue;
+            }
             string  OptName(argv[i] + 1);
             wstring  WOptName(OptName.begin(), OptName.end());
             int j;
@@ -286,14 +305,15 @@ void  DtOptItem::PrintOptionsHelp(DtOptItem* Options, int NumOpt)
 {
     for (int i=0; i<NumOpt; i++)
     {
-        wprintf(L"   -%-5ls", Options[i].m_Name.c_str());
+        wprintf(L"   -%-10ls", Options[i].m_Name.c_str());
         size_t  Pos = Options[i].m_Description.find(L'\n');
         wprintf(L"%ls\n", Options[i].m_Description.substr(0, Pos).c_str());
         while (Pos != wstring::npos)
         {
             size_t  LastPos = Pos + 1;
             Pos = Options[i].m_Description.find(L'\n', LastPos);
-            wprintf(L"         %ls\n", Options[i].m_Description.substr(LastPos, Pos - LastPos).c_str());
+            wprintf(L"         %ls\n",
+                         Options[i].m_Description.substr(LastPos, Pos - LastPos).c_str());
         }
         if (Options[i].m_Type==OPT_TYPE_INT && Options[i].m_EnumPairs!=NULL)
         {
