@@ -1,0 +1,310 @@
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtOpt.h *#*#*#*#*#*#*#*#*#*#*#*# (C) 2012 DekTec
+//
+// DtOpt - DekTec commandline options - Implementation
+
+#include "DtOpt.h"
+#include <cassert>
+#include <limits.h>
+#include <sstream>
+
+#ifndef WINBUILD
+#define _vsnwprintf vswprintf
+#endif
+
+static int wtoi(wstring Str)
+{
+    wistringstream Stream(Str);
+    int  Result;
+    Stream >> Result;
+    return Result;
+}
+
+static double wtof(wstring Str)
+{
+    wistringstream Stream(Str);
+    double  Result;
+    Stream >> Result;
+    return Result;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOptException::DtOptException -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtOptException::DtOptException(const wchar_t* pFormat, ...)
+{
+    va_list  ArgList;
+    va_start(ArgList, pFormat);
+    _vsnwprintf(m_ErrorMsg, sizeof(m_ErrorMsg)-1, pFormat, ArgList);
+    va_end(ArgList);
+};
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOpt::DtOpt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtOpt::DtOpt() :
+    m_IsSet(false),
+    m_Type(OPT_TYPE_INVALID)
+{
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOpt::operator int -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Convert DtOpt object back to an int.
+DtOpt::operator int() const
+{
+    assert(m_Type==OPT_TYPE_INT || m_Type==OPT_TYPE_BOOL);
+    return m_IntValue;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOpt::operator = -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Assign a new value to the DtOpt object.
+DtOpt&  DtOpt::operator =(int  NewValue)
+{
+    assert(m_Type == OPT_TYPE_INT);
+    m_IntValue = NewValue;
+    return *this;
+}
+
+DtOpt&  DtOpt::operator =(double  NewValue)
+{
+    assert(m_Type == OPT_TYPE_DOUBLE);
+    m_DoubleValue = NewValue;
+    return *this;
+}
+
+DtOpt&  DtOpt::operator =(bool  NewValue)
+{
+    assert(m_Type == OPT_TYPE_BOOL);
+    m_IntValue = NewValue;
+    return *this;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOpt::To* -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Explicitely convert DtOpt to the underlying base type
+int  DtOpt::ToInt() const
+{
+    assert(m_Type == OPT_TYPE_INT);
+    return m_IntValue;
+}
+
+bool  DtOpt::ToBool() const
+{
+    assert(m_Type == OPT_TYPE_BOOL);
+    return m_IntValue != 0;
+}
+
+double  DtOpt::ToDouble() const
+{
+    assert(m_Type == OPT_TYPE_DOUBLE);
+    return m_DoubleValue;
+}
+
+wstring  DtOpt::ToString() const
+{
+    return m_StrValue;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOpt::MakeInt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtOpt::MakeInt(int Value)
+{
+    m_Type = OPT_TYPE_INT;
+    m_IntValue = Value;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOpt::ParseEnum -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtOpt::ParseEnum(const DtEnumOptPair* EnumPairs, wstring OptName)
+{
+    while (EnumPairs->m_Name != L"")
+    {
+        if (EnumPairs->m_Name == m_StrValue)
+        {
+            MakeInt(EnumPairs->m_Value);
+            return;
+        }
+        EnumPairs++;
+    }
+    throw DtOptException(L"Invalid argument for command line option: -%ls", OptName.c_str());
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOptItem::DtOptItem -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtOptItem::DtOptItem(wstring Name, DtOpt& Option, int Default, wstring Desc, 
+                                                         const DtEnumOptPair* EnumPairs) :
+    m_Type(OPT_TYPE_INT),
+    m_IntValue(Default),
+    m_MinInt(INT_MIN),
+    m_MaxInt(INT_MAX),
+    m_EnumPairs(EnumPairs),
+    m_Name(Name),
+    m_Description(Desc),
+    m_Option(Option)
+{
+}
+
+DtOptItem::DtOptItem(wstring Name, DtOpt& Option, int Default, wstring Desc, 
+                                                                       int Min, int Max) :
+    m_Type(OPT_TYPE_INT),
+    m_IntValue(Default),
+    m_MinInt(Min),
+    m_MaxInt(Max),
+    m_EnumPairs(NULL),
+    m_Name(Name),
+    m_Description(Desc),
+    m_Option(Option)
+{
+}
+
+DtOptItem::DtOptItem(wstring Name, DtOpt& Option, double Default, wstring Desc, 
+                                                                 double Min, double Max) :
+    m_Type(OPT_TYPE_DOUBLE),
+    m_DoubleValue(Default),
+    m_MinDouble(Min),
+    m_MaxDouble(Max),
+    m_Name(Name),
+    m_Description(Desc),
+    m_Option(Option)
+{
+}
+
+DtOptItem::DtOptItem(wstring Name, DtOpt& Option, bool Default, wstring Desc) :
+    m_Type(OPT_TYPE_BOOL),
+    m_IntValue(Default),
+    m_Name(Name),
+    m_Description(Desc),
+    m_Option(Option)
+{
+}
+
+DtOptItem::DtOptItem(wstring Name, DtOpt& Option, wstring Desc) :
+    m_Type(OPT_TYPE_STRING),
+    m_Name(Name),
+    m_Description(Desc),
+    m_Option(Option)
+{
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOptItem::ParseDoubleOpt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtOptItem::ParseDoubleOpt()
+{
+    m_Option.m_DoubleValue = wtof(m_Option.m_StrValue.c_str());
+    if (m_Option.m_DoubleValue<m_MinDouble || m_Option.m_DoubleValue>m_MaxDouble)
+        throw DtOptException(L"Invalid argument for command line option: -%ls", 
+                                                                          m_Name.c_str());
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOptItem::ParseIntOpt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtOptItem::ParseIntOpt()
+{
+    if (m_EnumPairs != NULL)
+    {
+        m_Option.ParseEnum(m_EnumPairs, m_Name);
+    } else {
+        m_Option.m_IntValue = wtoi(m_Option.m_StrValue.c_str());
+        if (m_Option.m_IntValue<m_MinInt || m_Option.m_IntValue>m_MaxInt)
+            throw DtOptException(L"Invalid argument for command line option: -%ls", 
+                                                                          m_Name.c_str());
+    }
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOptItem::ParseOpt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtOptItem::ParseOpt(DtOptItem* Options, int NumOpt, int argc, char* argv[], 
+                                                                  list<wstring>& FreeArgs)
+{
+    // First assign default values to all options
+    for (int i=0; i<NumOpt; i++)
+    {
+        Options[i].m_Option.m_Type = Options[i].m_Type;
+        switch (Options[i].m_Type)
+        {
+        case OPT_TYPE_BOOL:
+        case OPT_TYPE_INT:
+            Options[i].m_Option.m_IntValue = Options[i].m_IntValue;
+            break;
+        case OPT_TYPE_DOUBLE:
+            Options[i].m_Option.m_DoubleValue = Options[i].m_DoubleValue;
+            break;
+        case OPT_TYPE_STRING:
+            break;
+        default:
+            assert(false);
+        }
+    }
+    // And then parse the actual commandline arguments
+    for (int i=1; i<argc; i++)
+    {
+#ifdef WINBUILD
+        if (argv[i][0]=='-' || argv[i][0]=='/')
+#else
+        if (argv[i][0]=='-')
+#endif
+        {
+            string  OptName(argv[i] + 1);
+            wstring  WOptName(OptName.begin(), OptName.end());
+            int j;
+            for (j=0; j<NumOpt; j++)
+            {
+                if (Options[j].m_Name != WOptName)
+                    continue;
+
+                Options[j].m_Option.m_IsSet = true;
+                if (Options[j].m_Type == OPT_TYPE_BOOL)
+                {
+                    Options[j].m_Option.m_IntValue = true;
+                    break;
+                }
+
+                if (i == argc - 1)
+                    throw DtOptException(L"Missing argument for command-line option: -%ls", 
+                                                                        WOptName.c_str());
+                string  OptArg(argv[++i]);
+                Options[j].m_Option.m_StrValue = wstring(OptArg.begin(), OptArg.end());
+
+                if (Options[j].m_Type == OPT_TYPE_DOUBLE)
+                    Options[j].ParseDoubleOpt();
+                else if (Options[j].m_Type == OPT_TYPE_INT)
+                    Options[j].ParseIntOpt();
+                break;
+            }
+            if (j == NumOpt)
+                throw DtOptException(L"Unknown command-line option (-%ls) encountered", 
+                                                                        WOptName.c_str());
+        } else {
+            string  Opt(argv[i]);
+            FreeArgs.push_back(wstring(Opt.begin(), Opt.end()));
+        }
+    }
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-. DtOptItem::PrintOptionsHelp -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtOptItem::PrintOptionsHelp(DtOptItem* Options, int NumOpt)
+{
+    for (int i=0; i<NumOpt; i++)
+    {
+        wprintf(L"   -%-5ls", Options[i].m_Name.c_str());
+        size_t  Pos = Options[i].m_Description.find(L'\n');
+        wprintf(L"%ls\n", Options[i].m_Description.substr(0, Pos).c_str());
+        while (Pos != wstring::npos)
+        {
+            size_t  LastPos = Pos + 1;
+            Pos = Options[i].m_Description.find(L'\n', LastPos);
+            wprintf(L"         %ls\n", Options[i].m_Description.substr(LastPos, Pos - LastPos).c_str());
+        }
+        if (Options[i].m_Type==OPT_TYPE_INT && Options[i].m_EnumPairs!=NULL)
+        {
+            const DtEnumOptPair*  OptPair = Options[i].m_EnumPairs;
+            while (OptPair->m_Name != L"")
+            {
+                wprintf(L"           %-9ls %ls\n", OptPair->m_Name.c_str(), 
+                                                          OptPair->m_Description.c_str());
+                OptPair++;
+            }
+        }
+        wprintf(L"\n");
+    }
+}
