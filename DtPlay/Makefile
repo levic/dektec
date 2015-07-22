@@ -40,8 +40,8 @@ DTAPILIB   = $(DTAPILIB32)
 endif
 
 LDLIBS += $(DTAPILIB)
-# NOTE: need to link with PTHREAD library
-LDFLAGS += -lpthread
+# NOTE: need to link with pthread and dl libraries
+LDFLAGS += -lpthread -ldl
 
 all: $(TARGET)
 $(TARGET): $(SRC:.cpp=.o)

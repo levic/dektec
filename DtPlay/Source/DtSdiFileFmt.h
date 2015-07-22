@@ -59,27 +59,32 @@ struct DtSdiFileHdrV2
 #define DTSDI_FMT_VERSION2 1
 
 // Data types
-#define DTSDI_TYPE_SDI_625          0x01    // 625 lines per SDI frame
-#define DTSDI_TYPE_SDI_525          0x02    // 525 lines per SDI frame
-#define DTSDI_TYPE_SDI_720_P23_98   0x03
-#define DTSDI_TYPE_SDI_720_P24      0x04
-#define DTSDI_TYPE_SDI_720_P25      0x05
-#define DTSDI_TYPE_SDI_720_P29_97   0x06
-#define DTSDI_TYPE_SDI_720_P30      0x07
-#define DTSDI_TYPE_SDI_720_P50      0x08
-#define DTSDI_TYPE_SDI_720_P59_94   0x09
-#define DTSDI_TYPE_SDI_720_P60      0x0A
-#define DTSDI_TYPE_SDI_1080_P23_98  0x0B
-#define DTSDI_TYPE_SDI_1080_P24     0x0C
-#define DTSDI_TYPE_SDI_1080_P25     0x0D
-#define DTSDI_TYPE_SDI_1080_P30     0x0E
-#define DTSDI_TYPE_SDI_1080_P29_97  0x0F
-#define DTSDI_TYPE_SDI_1080_I50     0x10
-#define DTSDI_TYPE_SDI_1080_I59_94  0x11
-#define DTSDI_TYPE_SDI_1080_I60     0x12
-#define DTSDI_TYPE_SDI_1080_P50     0x13
-#define DTSDI_TYPE_SDI_1080_P59_94  0x14
-#define DTSDI_TYPE_SDI_1080_P60     0x15
+#define DTSDI_TYPE_SDI_625            0x01    // 625 lines per SDI frame
+#define DTSDI_TYPE_SDI_525            0x02    // 525 lines per SDI frame
+#define DTSDI_TYPE_SDI_720_P23_98     0x03
+#define DTSDI_TYPE_SDI_720_P24        0x04
+#define DTSDI_TYPE_SDI_720_P25        0x05
+#define DTSDI_TYPE_SDI_720_P29_97     0x06
+#define DTSDI_TYPE_SDI_720_P30        0x07
+#define DTSDI_TYPE_SDI_720_P50        0x08
+#define DTSDI_TYPE_SDI_720_P59_94     0x09
+#define DTSDI_TYPE_SDI_720_P60        0x0A
+#define DTSDI_TYPE_SDI_1080_P23_98    0x0B
+#define DTSDI_TYPE_SDI_1080_P24       0x0C
+#define DTSDI_TYPE_SDI_1080_P25       0x0D
+#define DTSDI_TYPE_SDI_1080_P30       0x0E
+#define DTSDI_TYPE_SDI_1080_P29_97    0x0F
+#define DTSDI_TYPE_SDI_1080_I50       0x10
+#define DTSDI_TYPE_SDI_1080_I59_94    0x11
+#define DTSDI_TYPE_SDI_1080_I60       0x12
+#define DTSDI_TYPE_SDI_1080_P50       0x13
+#define DTSDI_TYPE_SDI_1080_P59_94    0x14
+#define DTSDI_TYPE_SDI_1080_P60       0x15
+#define DTSDI_TYPE_SDI_1080_PSF23_98  0x16
+#define DTSDI_TYPE_SDI_1080_PSF24     0x17
+#define DTSDI_TYPE_SDI_1080_PSF25     0x18
+#define DTSDI_TYPE_SDI_1080_PSF29_97  0x19
+#define DTSDI_TYPE_SDI_1080_PSF30     0x1A
 
 // Data-format flags
 #define DTSDI_SDI_FULL          0x0001      // Full SDI frame
@@ -114,6 +119,11 @@ static int VidStd2DtSdiDataType(int SdiSubValue)
     case DTAPI_VIDSTD_1080P25:          return DTSDI_TYPE_SDI_1080_P25; break;
     case DTAPI_VIDSTD_1080P29_97:       return DTSDI_TYPE_SDI_1080_P29_97; break;
     case DTAPI_VIDSTD_1080P30:          return DTSDI_TYPE_SDI_1080_P30; break;
+    case DTAPI_VIDSTD_1080PSF23_98:     return DTSDI_TYPE_SDI_1080_PSF23_98; break;
+    case DTAPI_VIDSTD_1080PSF24:        return DTSDI_TYPE_SDI_1080_PSF24; break;
+    case DTAPI_VIDSTD_1080PSF25:        return DTSDI_TYPE_SDI_1080_PSF25; break;
+    case DTAPI_VIDSTD_1080PSF29_97:     return DTSDI_TYPE_SDI_1080_PSF29_97; break;
+    case DTAPI_VIDSTD_1080PSF30:        return DTSDI_TYPE_SDI_1080_PSF30; break;
     case DTAPI_VIDSTD_720P23_98:        return DTSDI_TYPE_SDI_720_P23_98; break;
     case DTAPI_VIDSTD_720P24:           return DTSDI_TYPE_SDI_720_P24; break;
     case DTAPI_VIDSTD_720P25:           return DTSDI_TYPE_SDI_720_P25; break;
@@ -145,6 +155,11 @@ static int DtSdiDataType2VidStd(int DataType)
     case DTSDI_TYPE_SDI_1080_P25:       return DTAPI_VIDSTD_1080P25; break;
     case DTSDI_TYPE_SDI_1080_P29_97:    return DTAPI_VIDSTD_1080P29_97; break;
     case DTSDI_TYPE_SDI_1080_P30:       return DTAPI_VIDSTD_1080P30; break;
+    case DTSDI_TYPE_SDI_1080_PSF23_98:  return DTAPI_VIDSTD_1080PSF23_98; break;
+    case DTSDI_TYPE_SDI_1080_PSF24:     return DTAPI_VIDSTD_1080PSF24; break;
+    case DTSDI_TYPE_SDI_1080_PSF25:     return DTAPI_VIDSTD_1080PSF25; break;
+    case DTSDI_TYPE_SDI_1080_PSF29_97:  return DTAPI_VIDSTD_1080PSF29_97; break;
+    case DTSDI_TYPE_SDI_1080_PSF30:     return DTAPI_VIDSTD_1080PSF30; break;
     case DTSDI_TYPE_SDI_720_P23_98:     return DTAPI_VIDSTD_720P23_98; break;
     case DTSDI_TYPE_SDI_720_P24:        return DTAPI_VIDSTD_720P24; break;
     case DTSDI_TYPE_SDI_720_P25:        return DTAPI_VIDSTD_720P25; break;

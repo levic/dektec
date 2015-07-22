@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.cpp *#*#*#*#*#*#*#*#* (C) 2000-2013 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.cpp *#*#*#*#*#*#*#*#* (C) 2000-2015 DekTec
 //
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -17,13 +17,45 @@
     #include <string.h>
     #include <unistd.h>
     #include <limits.h>
+    #include <termios.h>
+#endif
+
+#ifndef WINBUILD
+void ChangeTerminalMode(int dir)
+{
+    static struct termios  OldT, NewT;
+
+    if (dir == 1)
+    {
+        tcgetattr(STDIN_FILENO, &OldT);
+        NewT = OldT;
+        NewT.c_lflag &= ~(ICANON | ECHO);
+        tcsetattr(STDIN_FILENO, TCSANOW, &NewT);
+    } else {
+        tcsetattr(STDIN_FILENO, TCSANOW, &OldT);
+    }
+}
+int  _kbhit()
+{
+    struct timeval  tv;
+    fd_set  rdfs;
+
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+
+    FD_ZERO(&rdfs);
+    FD_SET(STDIN_FILENO, &rdfs);
+
+    select(STDIN_FILENO+1, &rdfs, NULL, NULL, &tv);
+    return FD_ISSET(STDIN_FILENO, &rdfs);
+}
 #endif
 
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlay Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DTPLAY_VERSION_MAJOR        4
-#define DTPLAY_VERSION_MINOR        4
-#define DTPLAY_VERSION_BUGFIX       0
+#define DTPLAY_VERSION_MINOR        6
+#define DTPLAY_VERSION_BUGFIX       1
 
 const int c_BufSize = 1*1024*1024;      // Data transfer buffer size
 const int c_MinFifoLoad = 3*1024*1024;  // Minimum fifo load before starting DVB transmission
@@ -43,6 +75,7 @@ const char c_ErrHwScanFailed[]          = "HwFuncScan failed (ERROR: %s)";
 const char c_ErrNoOutputPort[]          = "The %s port %d it not an output port";
 const char c_ErrNoSuitablePort[]        = "No suitable port found on the %s";
 const char c_ErrFailToAttachToChan[]    = "Can't attach to the channel (ERROR: %s)";
+const char c_ErrFailsafeEnabled[]       = "DtPlay doesn't support failsafe but it is enabled. Use DtInfo to disable failsafe first.";
 const char c_ErrFailToAttachToType[]    = "Failed to attach to the %s (ERROR: %s)";
 const char c_ErrDvcNumWithoutType[]     = "Specifying a device number without a type is not supported";
 const char c_ErrDblbufSelf[]            = "Can't enabled buffered output on the port itself";
@@ -67,7 +100,9 @@ const char c_ErrFailedToSetSNR[]        = "Failed to set SNR (ERROR: %s)";
 const char c_FailedToInitIdsbtPars[]    = "Failed to initialise ISDB-T parameters (ERROR: %s)";
 const char c_ErrFailGetFifoSize[]       = "Failed to get Fifo size (ERROR: %s)";
 const char c_ErrCmmbTsRateFromTs[]      = "Cannot retrieve rate from stream (ERROR: %s)";
-const char c_ErrUnderflow[]             = "Underflow detected";
+const char c_ErrCpuUnderflow[]          = "CPU underflow detected";
+const char c_ErrDmaUnderflow[]          = "Dma underflow detected";
+const char c_ErrFifoUnderflow[]         = "Fifo underflow detected";
 
 const char c_ErrDriverInCompPci[] =
     "The current Dta1xx driver (V%d.%d.%d %d) is not compatible with this\n" \
@@ -129,6 +164,7 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         {L"SDI8B_625",  DTAPI_TXMODE_SDI_FULL, L"8-Bit/625-line SDI in file, 8-bit SDI transmitted"},
         {L"SDI8B_525",  DTAPI_TXMODE_SDI_FULL, L"8-Bit/525-line SDI in file, 8-bit SDI transmitted"},
         {L"DTSDI",      0,                     L".dtsdi file, SDI format is auto detected"},
+        {L"RAWASI",     DTAPI_TXMODE_RAWASI,   L"Play-out of RAW ASI symbols (270Mbit/s)"},
         OPT_PAIR_END,
     };
 
@@ -282,8 +318,9 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         DtOptItem(L"r",   m_TxRate, -1, L"Transport-Stream Rate in bps or sample rate in case of IQ-modulation mode\n"
                 L"  NOTE: set the rate to '0' to playout a file with timestamps", 0, INT_MAX),
         DtOptItem(L"t",   m_DvcType, -1, L"Device type to use (default: any output device)\n"
-                L"  100, 102, 105, 107, 110, 111, 112, 115, 116, 117, 140, 145, 160\n"
-                L"  205, 215, 245, 2107, 2111, 2136, 2137, 2144, 2145, 2152, 2160 or 2162", 100, 3999),
+                L"  100, 102, 105, 107, 110, 111, 112, 115, 116, 117, 140, 145, 160, 205,\n"
+                L"  215, 245, 2107, 2111, 2115, 2136, 2137, 2144, 2145, 2152, 2154, 2174,\n"
+                L"  2160 or 2162", 100, 3999),
         DtOptItem(L"n",   m_DvcNum, 1, L"Device number to use (default: 1)", 1, 99),
         DtOptItem(L"i",   m_Port, -1, L"Port number of the output channel to use", 1, 4),
         DtOptItem(L"db",  m_DblBuff, -1, L"Port to use as doubly buffered output"),
@@ -755,6 +792,9 @@ const char* CommandLineParams::IpProtocol2Str() const
 //
 Player::Player() : m_pFile(NULL), m_pBuf(NULL)
 {
+#ifndef WINBUILD
+    ChangeTerminalMode(1);
+#endif
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Player::~Player -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -768,6 +808,10 @@ Player::~Player()
     // donot forget to close our file
     if ( m_pFile != NULL )
         ::fclose(m_pFile);
+
+#ifndef WINBUILD
+    ChangeTerminalMode(0);
+#endif
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Player::HasOutputPort -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -916,7 +960,8 @@ void Player::AttachToOutput()
     }
     // At this point we're sure the chosen port is valid and configured as output.
 
-    if ((HwFuncs[Port].m_Flags & DTAPI_CAP_FRACMODE) != 0)
+    if ((HwFuncs[Port-1].m_Flags & DTAPI_CAP_FRACMODE)!=0 &&
+                                                          m_CmdLineParams.m_PlayDtSdiFile)
     {
         DtVidStdInfo  Info;
         dr = DtapiGetVidStdInfo(m_CmdLineParams.m_SdiSubValue, Info);
@@ -969,6 +1014,8 @@ void Player::AttachToOutput()
 
     // Attach to the output channel
     dr = m_DtOutp.AttachToPort(&m_DtDvc, Port);
+    if (dr == DTAPI_OK_FAILSAFE)
+        throw Exc(c_ErrFailsafeEnabled);
     if (dr != DTAPI_OK)
         throw Exc(c_ErrFailToAttachToChan, ::DtapiResult2Str(dr));
 
@@ -1168,12 +1215,10 @@ void Player::DisplayPlayInfo()
         LogF("- Protocol              : %s", m_CmdLineParams.IpProtocol2Str() );
         LogF("- Num Tp per IP         : %d", m_CmdLineParams.m_IpPars.m_NumTpPerIp );
     }
-    
-#ifdef WINBUILD
+
     Log("");
     Log("Press any key to stop playing");
     Log("");
-#endif
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Player::InitIsdbtPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1250,7 +1295,7 @@ void Player::InitOutput()
 
 // TODO
  //   // Special case: if tx-rate is set to '0' we want to transmit on timestamp
- //   TxMode |= (m_CmdLineParams.m_TxRate==0) ? DTAPI_TXMODE_TXONTIME : 0;
+    TxMode |= (m_CmdLineParams.m_TxRate==0) ? DTAPI_TXMODE_TXONTIME : 0;
     dr = m_DtOutp.SetTxMode( TxMode, m_CmdLineParams.m_Stuffing );
     if ( dr != DTAPI_OK )
       throw Exc( c_ErrFailSetTxMode, ::DtapiResult2Str(dr) );
@@ -1568,12 +1613,8 @@ void Player::LoopFile()
     // Set Minimum Fifoload for SDI playout to FifoSize *3/4 
     MinFifoLoad = (m_CmdLineParams.m_PlayDtSdiFile == false) ? c_MinFifoLoad : (FifoSize*3)/4;
 
-#ifdef WINBUILD
-    while ( !_kbhit() ) {
-#else
-    while ( 1 ) {
-#endif
-
+    while (!_kbhit())
+    {
         // Check for free space in hardware FIFO.
         dr = m_DtOutp.GetFifoLoad(FifoLoad);
         if ( (FifoLoad + c_BufSize)>=FifoSize )
@@ -1616,8 +1657,12 @@ void Player::LoopFile()
             dr = m_DtOutp.GetFlags(StatusFlags, Latched);
             if (dr != DTAPI_OK)
                 throw Exc(c_ErrFailGetFlags, ::DtapiResult2Str(dr));
-            if ((Latched & (DTAPI_TX_CPU_UFL | DTAPI_TX_FIFO_UFL)) != 0)
-                throw Exc(c_ErrUnderflow);
+            if ((Latched & DTAPI_TX_CPU_UFL) != 0)
+                throw Exc(c_ErrCpuUnderflow);
+            if ((Latched & DTAPI_TX_DMA_UFL) != 0)
+                throw Exc(c_ErrDmaUnderflow);
+            if ((Latched & DTAPI_TX_FIFO_UFL) != 0)
+                throw Exc(c_ErrFifoUnderflow);
         }
 
 
@@ -1700,7 +1745,7 @@ int Player::Play(int argc, char* argv[])
 
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Print start message -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-        LogF("DtPlay player V%d.%d.%d (c) 2000-2013 DekTec Digital Video B.V.\n",
+        LogF("DtPlay player V%d.%d.%d (c) 2000-2015 DekTec Digital Video B.V.\n",
               DTPLAY_VERSION_MAJOR, DTPLAY_VERSION_MINOR, DTPLAY_VERSION_BUGFIX);
 
         LogF("DTAPI compile version: V%d.%d.%d.%d\n",

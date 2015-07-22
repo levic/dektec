@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtOpt.cpp *#*#*#*#*#*#*#*#*# (C) 2012-2013 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtOpt.cpp *#*#*#*#*#*#*#*#*# (C) 2012-2015 DekTec
 //
 // DtOpt - DekTec command-line option interpreter - Implementation
 
@@ -85,6 +85,12 @@ DtOpt&  DtOpt::operator =(bool  NewValue)
     m_IntValue = NewValue;
     return *this;
 }
+DtOpt&  DtOpt::operator =(long long  NewValue)
+{
+    assert(m_Type == OPT_TYPE_INT64);
+    m_Int64Value = NewValue;
+    return *this;
+}
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOpt::To* -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -94,6 +100,11 @@ int  DtOpt::ToInt() const
 {
     assert(m_Type == OPT_TYPE_INT);
     return m_IntValue;
+}
+long long  DtOpt::ToInt64() const
+{
+    assert(m_Type == OPT_TYPE_INT64);
+    return m_Int64Value;
 }
 bool  DtOpt::ToBool() const
 {
@@ -114,6 +125,11 @@ wstring  DtOpt::ToLower() const
     wstring  Str = m_StrValue;
     transform(Str.begin(), Str.end(), Str.begin(), ::tolower);
     return Str;
+}
+list<wstring>  DtOpt::GetStringList() const
+{
+    assert(m_Type == OPT_TYPE_STRING_LIST);
+    return m_Strings;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOpt::MakeInt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -169,6 +185,29 @@ DtOptItem::DtOptItem(wstring Name, DtOpt& Option, int Default, wstring Desc,
 {
 }
 
+DtOptItem::DtOptItem(wstring Name, DtOpt& Option, long long  Default, wstring Desc) :
+    m_Type(OPT_TYPE_INT64),
+    m_Int64Value(Default),
+    m_MinInt64(LLONG_MIN),
+    m_MaxInt64(LLONG_MAX),
+    m_Name(Name),
+    m_Description(Desc),
+    m_Option(Option)
+{
+}
+
+DtOptItem::DtOptItem(wstring Name, DtOpt& Option, long long  Default, wstring Desc,
+                                                           long long Min, long long Max) :
+    m_Type(OPT_TYPE_INT64),
+    m_Int64Value(Default),
+    m_MinInt64(Min),
+    m_MaxInt64(Max),
+    m_Name(Name),
+    m_Description(Desc),
+    m_Option(Option)
+{
+}
+
 DtOptItem::DtOptItem(wstring Name, DtOpt& Option, double Default, wstring Desc, 
                                                                  double Min, double Max) :
     m_Type(OPT_TYPE_DOUBLE),
@@ -192,6 +231,15 @@ DtOptItem::DtOptItem(wstring Name, DtOpt& Option, bool Default, wstring Desc) :
 
 DtOptItem::DtOptItem(wstring Name, DtOpt& Option, wstring Desc) :
     m_Type(OPT_TYPE_STRING),
+    m_Name(Name),
+    m_Description(Desc),
+    m_Option(Option)
+{
+}
+
+DtOptItem::DtOptItem(wstring Name, DtOpt& Option, wstring Desc, int NumArgs) :
+    m_Type(OPT_TYPE_STRING_LIST),
+    m_IntValue(NumArgs),
     m_Name(Name),
     m_Description(Desc),
     m_Option(Option)
@@ -223,6 +271,20 @@ void  DtOptItem::ParseIntOpt()
     }
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOptItem::ParseInt64Opt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtOptItem::ParseInt64Opt()
+{
+    assert(m_EnumPairs != NULL);
+
+    if (swscanf(m_Option.m_StrValue.c_str(), L"%lld", &m_Option.m_Int64Value) != 1)
+        throw DtOptException(L"Failed to parse 64-bit integer argument: %ls",
+                                                             m_Option.m_StrValue.c_str());
+    if (m_Option.m_Int64Value<m_MinInt64 || m_Option.m_Int64Value>m_MaxInt64)
+        throw DtOptException(L"Invalid argument for command line option: -%ls", 
+                                                                          m_Name.c_str());
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtOptItem::ParseOpt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void  DtOptItem::ParseOpt(DtOptItem* Options, int NumOpt, int argc, char* argv[], 
@@ -238,10 +300,19 @@ void  DtOptItem::ParseOpt(DtOptItem* Options, int NumOpt, int argc, char* argv[]
         case OPT_TYPE_INT:
             Options[i].m_Option.m_IntValue = Options[i].m_IntValue;
             break;
+        case OPT_TYPE_INT64:
+            Options[i].m_Option.m_Int64Value = Options[i].m_Int64Value;
+            break;
         case OPT_TYPE_DOUBLE:
             Options[i].m_Option.m_DoubleValue = Options[i].m_DoubleValue;
             break;
         case OPT_TYPE_STRING:
+            break;
+        case OPT_TYPE_STRING_LIST:
+            Options[i].m_Option.m_Strings.clear();
+            Options[i].m_Option.m_IntValue = Options[i].m_IntValue;
+            for (int j=0; j<Options[i].m_Option.m_IntValue; j++)
+                Options[i].m_Option.m_Strings.push_back(wstring());
             break;
         default:
             assert(false);
@@ -277,6 +348,23 @@ void  DtOptItem::ParseOpt(DtOptItem* Options, int NumOpt, int argc, char* argv[]
                     break;
                 }
 
+                if (Options[j].m_Type == OPT_TYPE_STRING_LIST)
+                {
+                    if (i == argc - Options[j].m_IntValue)
+                        throw DtOptException(L"Not enough arguments for command-line "
+                                                            L"option: -%ls (expected %d)",
+                                                            WOptName.c_str(),
+                                                            Options[j].m_IntValue);
+                    list<wstring>::iterator  It=Options[j].m_Option.m_Strings.begin();
+                    for (int k=0; k<Options[j].m_IntValue; k++)
+                    {
+                        string  OptArg(argv[++i]);
+                        *It = wstring(OptArg.begin(), OptArg.end());
+                        It++;
+                    }
+                    break;
+                }
+
                 if (i == argc - 1)
                     throw DtOptException(L"Missing argument for command-line option: -%ls", 
                                                                         WOptName.c_str());
@@ -287,6 +375,8 @@ void  DtOptItem::ParseOpt(DtOptItem* Options, int NumOpt, int argc, char* argv[]
                     Options[j].ParseDoubleOpt();
                 else if (Options[j].m_Type == OPT_TYPE_INT)
                     Options[j].ParseIntOpt();
+                else if (Options[j].m_Type == OPT_TYPE_INT64)
+                    Options[j].ParseInt64Opt();
                 break;
             }
             if (j == NumOpt)

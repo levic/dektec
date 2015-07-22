@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtOpt.h *#*#*#*#*#*#*#*#*#* (C) 2012-2013 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtOpt.h *#*#*#*#*#*#*#*#*#* (C) 2012-2015 DekTec
 //
 // DtOpt - DekTec command-line option interpreter - Header file
 
@@ -40,6 +40,8 @@ enum DtOptType
     OPT_TYPE_DOUBLE,                // Option is a double
     OPT_TYPE_BOOL,                  // Option is a boolean
     OPT_TYPE_STRING,                // Option is a string
+    OPT_TYPE_INT64,                 // Option is a 64-bit integer
+    OPT_TYPE_STRING_LIST,           // Option accepts multiple strings
     OPT_TYPE_INVALID,               // Invalid option
 };
 
@@ -70,15 +72,18 @@ public:
 
     // Assign a new value. The new type must match the type of this option.
     DtOpt&  operator =(int NewValue);
+    DtOpt&  operator =(long long NewValue);
     DtOpt&  operator =(double NewValue);
     DtOpt&  operator =(bool NewValue);
 
     // Get the actual value out of this option.
     int  ToInt() const;
+    long long  ToInt64() const;
     bool  ToBool() const;
     double  ToDouble() const;
     wstring  ToString() const;
     wstring  ToLower() const;
+    list<wstring>  GetStringList() const;
 
     // Change this string option to an integer option.
     void MakeInt(int Value);
@@ -96,8 +101,10 @@ private:
     union {
         int  m_IntValue;            // The int or boolean value that has been assigned
         double  m_DoubleValue;      // The double value that has been assigned
+        long long  m_Int64Value;    // The Int64 value that has been assigned
     };
     wstring  m_StrValue;            // The original value as specified on the commandline
+    list<wstring>  m_Strings;
 
     // DtOptItem is allowed to modify private members
     friend class DtOptItem;
@@ -118,6 +125,12 @@ public:
     // maximum values.
     DtOptItem(wstring Name, DtOpt& Option, int Default, wstring Desc, int Min, int Max);
     
+    // Create a new DtOptItem that represens a 64-bit integer option with optionally a
+    // given minimum and maximum.
+    DtOptItem(wstring Name, DtOpt& Option, long long Default, wstring Desc);
+    DtOptItem(wstring Name, DtOpt& Option, long long Default, wstring Desc,
+                                                            long long Min, long long Max);
+    
     // Create a new DtOptItem that represens a double option with given minimum and
     // maximum values.
     DtOptItem(wstring Name, DtOpt& Option, double Default, wstring Desc, double Min,
@@ -128,6 +141,9 @@ public:
 
     // Create a new DtOptItem that represens a string option.
     DtOptItem(wstring Name, DtOpt& Option, wstring Desc);
+
+    // Create a new DtOptItem that has more than one argument (list of strings).
+    DtOptItem(wstring Name, DtOpt& Option, wstring Desc, int NumArgs);
     
     // Parse all options. Options points to an array of options, NumOpt contains the
     // total number of options. argc/argv are as in main. All arguments that are not
@@ -148,6 +164,7 @@ public:
 
 private:
     void  ParseIntOpt();
+    void  ParseInt64Opt();
     void  ParseDoubleOpt();
 
     const DtOptType  m_Type;
@@ -160,6 +177,10 @@ private:
         struct {
             double  m_DoubleValue;
             double  m_MinDouble, m_MaxDouble;
+        };
+        struct {
+            long long  m_Int64Value;
+            long long  m_MinInt64, m_MaxInt64;
         };
     };
 

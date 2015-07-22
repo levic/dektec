@@ -1,5 +1,6 @@
 To compile with Visual Studio 2010:
-- Copy DTAPI.h and DTAPI(64)MT(d).lib from the WinSDK to the DTAPI/ directory.
+- Download latest WinSDK installer: http://www.dektec.com/Products/SDK/WinSDK/Downloads/WinSDK.zip
+- Run the WinSDK installer to install latest DTAPI libraries and drivers
 - Open the solution file and compile.
 
 To compile under linux:
