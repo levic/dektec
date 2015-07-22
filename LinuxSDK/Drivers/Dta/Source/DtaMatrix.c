@@ -34,7 +34,8 @@ DtStatus  DtaMatrixSyncInfoGet(DtaDeviceData*  pDvcData,
 DtStatus  DtaMatrixWaitFrame(DtaDeviceData*  pDvcData, DtaNonIpPort*  pNonIpPort,
                                           Int64  WaitFrame, Int  Timeout, Int64*  pFrame,
                                           Int64*  pRefClkStart, Int64*  pRefClkEnd,
-                                          Int64*  pFrmIntCnt);
+                                          Int64*  pFrmIntCnt, Int*  pTopHalf);
+DtStatus  DtaMatrixGetVpid(DtaNonIpPort*  pNonIpPort, UInt* pVpid, UInt* pVpid2);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -286,6 +287,26 @@ DtStatus  DtaMatrixIoctl(
         OutReqSize += 0;
         break;
 
+    case DTA_MATRIX_CMD_START3:
+        pCmdStr = "DTA_MATRIX_CMD_START3";
+        InReqSize += sizeof(DtaIoctlMatrixCmdStart3Input);
+        // There is no additional out data
+        OutReqSize += 0;
+        break;
+
+    case DTA_MATRIX_CMD_WAIT_FRAME3:
+        pCmdStr = "DTA_MATRIX_CMD_WAIT_FRAME3";
+        InReqSize += sizeof(DtaIoctlMatrixCmdWaitFrameInput);
+        OutReqSize += sizeof(DtaIoctlMatrixCmdWaitFrame3Output);
+        break;
+
+    case DTA_MATRIX_CMD_GET_VPID:
+        pCmdStr = "DTA_MATRIX_CMD_GET_VPID";
+        OutReqSize += sizeof(DtaIoctlMatrixCmdGetVpidOutput);
+        // We expect no additional data in the input buffer
+        InReqSize += 0;
+        break;
+
     default:
         pCmdStr = "??UNKNOWN MATRIXCMD CODE??";
         Status = DT_STATUS_NOT_SUPPORTED;
@@ -338,7 +359,7 @@ DtStatus  DtaMatrixIoctl(
                                           pMatrixCmdInput->m_Data.m_WaitFrame.m_FrmIntCnt,
                                           pMatrixCmdInput->m_Data.m_WaitFrame.m_Timeout,
                                           &pMatrixCmdOutput->m_Data.m_WaitFrame.m_Frame,
-                                          &RefClkStart, &RefClkEnd, &FrmIntCnt);
+                                          &RefClkStart, &RefClkEnd, &FrmIntCnt, NULL);
         }   break;
 
         case DTA_MATRIX_CMD_GET_SYNC_INFO:
@@ -351,6 +372,8 @@ DtStatus  DtaMatrixIoctl(
             break;
             
         case DTA_MATRIX_CMD_START:
+            pNonIpPort->m_Matrix.m_Vpid1 = 0;
+            pNonIpPort->m_Matrix.m_Vpid2 = 0;
             Status = DtaNonIpMatrixStart(pNonIpPort, 
                                              pMatrixCmdInput->m_Data.m_Start.m_StartFrame,
                                              TRUE, FALSE);
@@ -616,9 +639,23 @@ DtStatus  DtaMatrixIoctl(
             }
             if (DT_SUCCESS(Status))
             {
+#ifdef LINBUILD
+                struct timespec start, end;
+                long Diff;
+                getnstimeofday(&start);
+#endif
                 Status = DtaDmaStartTransfer(pDmaCh, pPageList, DT_BUFTYPE_USER, 
                                            DT_DMA_DIRECTION_FROM_DEVICE, pBuffer, Size, 0,
                                            pLocalAddress, 0, 0, FALSE, &Size);
+#ifdef LINBUILD
+                getnstimeofday(&end);
+                Diff = (end.tv_nsec - start.tv_nsec) / 1000;
+                Diff += (end.tv_sec - start.tv_sec) * 1000000L;
+                if (Diff > 9000)
+                {
+                    DtDbgOut(ERR, DTA, "DMA took too long: %ld", Diff);
+                }
+#endif
             }
 #ifdef WINBUILD
             // Mark the IO request pending, we complete the request in the DMA 
@@ -742,6 +779,8 @@ DtStatus  DtaMatrixIoctl(
         }
 
         case DTA_MATRIX_CMD_START_MAN:
+            pNonIpPort->m_Matrix.m_Vpid1 = 0;
+            pNonIpPort->m_Matrix.m_Vpid2 = 0;
             Status = DtaNonIpMatrixStart(pNonIpPort, 
                                              pMatrixCmdInput->m_Data.m_Start.m_StartFrame,
                                              FALSE, FALSE);
@@ -770,16 +809,49 @@ DtStatus  DtaMatrixIoctl(
                                &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_Frame,
                                &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_RfClkLatchedStart,
                                &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_RfClkLatchedEnd,
-                               &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_FrmIntCnt);
+                               &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_FrmIntCnt, NULL);
             break;
             
         case DTA_MATRIX_CMD_START2: {
             Int  Flags = pMatrixCmdInput->m_Data.m_Start2.m_StartFlags;
             Bool  AutoMode = (Flags&DTA_MATRIX_STARTFLAGS_MANUAL)==0;
             Bool  ForceRestart = (Flags&DTA_MATRIX_STARTFLAGS_FORCE_RESTART)!=0;
+            pNonIpPort->m_Matrix.m_Vpid1 = pMatrixCmdInput->m_Data.m_Start2.m_Vpid;
+            pNonIpPort->m_Matrix.m_Vpid2 = 0;
             Status = DtaNonIpMatrixStart(pNonIpPort,
-                                             pMatrixCmdInput->m_Data.m_Start.m_StartFrame,
-                                             AutoMode, ForceRestart);
+                                            pMatrixCmdInput->m_Data.m_Start2.m_StartFrame,
+                                            AutoMode, ForceRestart);
+            break;
+        }
+            
+        case DTA_MATRIX_CMD_START3: {
+            Int  Flags = pMatrixCmdInput->m_Data.m_Start3.m_StartFlags;
+            Bool  AutoMode = (Flags&DTA_MATRIX_STARTFLAGS_MANUAL)==0;
+            Bool  ForceRestart = (Flags&DTA_MATRIX_STARTFLAGS_FORCE_RESTART)!=0;
+            pNonIpPort->m_Matrix.m_Vpid1 = pMatrixCmdInput->m_Data.m_Start3.m_Vpid;
+            pNonIpPort->m_Matrix.m_Vpid2 = pMatrixCmdInput->m_Data.m_Start3.m_Vpid2;
+            pNonIpPort->m_Matrix.m_ExtraPixelDelay = 
+                                       pMatrixCmdInput->m_Data.m_Start3.m_ExtraPixelDelay;
+            Status = DtaNonIpMatrixStart(pNonIpPort,
+                                            pMatrixCmdInput->m_Data.m_Start3.m_StartFrame,
+                                            AutoMode, ForceRestart);
+            break;
+
+        case DTA_MATRIX_CMD_WAIT_FRAME3:
+            Status = DtaMatrixWaitFrame(pDvcData, pNonIpPort, 
+                               pMatrixCmdInput->m_Data.m_WaitFrame.m_FrmIntCnt,
+                               pMatrixCmdInput->m_Data.m_WaitFrame.m_Timeout,
+                               &pMatrixCmdOutput->m_Data.m_WaitFrame3.m_Frame,
+                               &pMatrixCmdOutput->m_Data.m_WaitFrame3.m_RfClkLatchedStart,
+                               &pMatrixCmdOutput->m_Data.m_WaitFrame3.m_RfClkLatchedEnd,
+                               &pMatrixCmdOutput->m_Data.m_WaitFrame3.m_FrmIntCnt,
+                               &pMatrixCmdOutput->m_Data.m_WaitFrame3.m_TopHalf);
+            break;
+
+        case DTA_MATRIX_CMD_GET_VPID:
+            Status = DtaMatrixGetVpid(pNonIpPort,
+                                             &pMatrixCmdOutput->m_Data.m_GetVpid.m_Vpid,
+                                             &pMatrixCmdOutput->m_Data.m_GetVpid.m_Vpid2);
             break;
         }
 
@@ -832,7 +904,8 @@ DtStatus  DtaMatrixWaitFrame(
     Int64*  pFrame,
     Int64*  pRefClkStart,
     Int64*  pRefClkEnd,
-    Int64*  pFrmIntCnt)
+    Int64*  pFrmIntCnt,
+    Int*  pTopHalf)
 {
     DtStatus  Status = DT_STATUS_OK;
     DtEvent* pWaitEv = NULL;
@@ -841,7 +914,6 @@ DtStatus  DtaMatrixWaitFrame(
     Int  FrmBufIdx;
 
     DT_ASSERT(pDvcData != NULL);
-    DtDbgOut(ERR, DTA, "Start %d", pNonIpPort->m_PortIndex);
 
     if (pNonIpPort == NULL)
     {
@@ -887,8 +959,24 @@ DtStatus  DtaMatrixWaitFrame(
     *pRefClkStart = pNonIpPort->m_Matrix.m_FrameInfo[FrmBufIdx].m_RefClkStart;
     *pRefClkEnd = pNonIpPort->m_Matrix.m_FrameInfo[FrmBufIdx].m_RefClkEnd;
     *pFrmIntCnt = pNonIpPort->m_Matrix.m_FrmIntCnt;
-    DtDbgOut(ERR, DTA, "End %d", pNonIpPort->m_PortIndex);
+    if (pTopHalf != NULL)
+        *pTopHalf = pNonIpPort->m_Matrix.m_FrameInfo[FrmBufIdx].m_TopHalf;
 
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaMatrixGetVpid -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaMatrixGetVpid(DtaNonIpPort*  pNonIpPort, UInt* pVpid, UInt* pVpid2)
+{
+    if (!pNonIpPort->m_CapMatrix2)
+    {
+        *pVpid = 0;
+        *pVpid2 = 0;
+    } else {
+        *pVpid = DtaRegHdSdiFormat1Get(pNonIpPort->m_pRxRegs);
+        *pVpid2 = DtaRegHdSdiFormat2Get(pNonIpPort->m_pRxRegs);
+    }
     return DT_STATUS_OK;
 }
 

@@ -32,11 +32,13 @@
 // IPRX Tag
 #define  IPRX_TAG         0x78527049  // 'xRpI'
 
+// This value must be larger then the max network delay in SMPTE-2022-7 mode
+#define  DTA_IPRX_RTP_MAXINBUFTIME      (54000000/2)    // 500ms max time in buffer
+
 #define  DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE  2621440 
                                         // The expected bitrate is 1GBit/s in a 
                                         // period of 20 ms.
                                         // calculation: 1GB/8 * 20mS = 2.5 Mbyte
-
 #if defined(WINBUILD)
 #define  DTA_IPRX_RT_BUF_SIZE           (DTA_IPRX_RT_DMA_MAX_TRANSFER_SIZE)       // Type2
 #define  DTA_IPRX_DMA_BUF_SIZE          (1024*1024)         // Type1
@@ -122,11 +124,12 @@ Bool  DtaIpRxHandleLoopback(DtaIpUserChannels* pIpUserChannels, UInt8* pData, UI
 void  DtaIpRxProcessIpRawPayLoad(UserIpRxChannel* pIpRxChannel, UInt8* pPayLoad, 
                                           Int PayLoadSize, UInt64 TimeStamp, Bool Header);
 void  DtaIpRxRtpListsReset(UserIpRxChannel* pIpRxChannel);
+void  DtaIpRxRtpListsResetUnsafe(UserIpRxChannel* pIpRxChannel);
 void  DtaIpRxRtpListsCleanup( UserIpRxChannel* pIpRxChannel);
 void  DtaIpRxSetBrmSkipUpdate(DtaIpUserChannels* pIpRxUserChannels, Bool State);
 void  DtaIpRxUpdateBrmDpc(DtDpcArgs* pArgs);
 void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel, 
-                                                        RtpListEntry** ppReconstructList);
+                                RtpListEntry** ppReconstructList, UInt64* pRefTimeStored);
 void  DtaIpRxRtSliceEventSetDpc(DtDpcArgs* pArgs);
 Int  DtaIpRxCalculateNumIpRxListenersType1(DtaIpPort* pIpPort, Bool IpV6Packet, 
                                            Int VlanId, UInt8* pSrcIp, 
@@ -1882,12 +1885,14 @@ void  DtaIpRxUserChReset(UserIpRxChannel* pIpRxChannel, Bool ClearInputStatus)
     pIpRxChannel->m_LatchedFlags = 0;
     pIpRxChannel->m_TrpModePckSeqCount = 0;    // Start with sequence number zero
 
+    // SDI handling
+    pIpRxChannel->m_SdiNumBytesCopied = -1;
+
     // Should we reset the detected input status information?
     if (ClearInputStatus)
     {        
         ClearBrmValues(pIpRxChannel);
         pIpRxChannel->m_PckSizeSrc = DT_PCKSIZE_INV;
-        pIpRxChannel->m_SdiNumBytesCopied = -1;
         
         // Detection status bytes
         pIpRxChannel->m_DetFecNumRows = 0;
@@ -3242,12 +3247,15 @@ void  DtaIpRxProcessSdiPayLoad(
         {
             pIpRxChannel->m_SdiFrameSize = 900900*10/8;
             pIpRxChannel->m_SdiFrameSize += 3; // Padding bytes
+            pIpRxChannel->m_DetNumTpPerIp = 900900*10/8/SMPTE_2022_6_PAYLOAD_SIZE;
         } else if (pIpRxChannel->m_DetVidStd == DT_VIDSTD_625I50)
         {
             pIpRxChannel->m_SdiFrameSize = 1080000*10/8;
+            pIpRxChannel->m_DetNumTpPerIp = 1080000*10/8/SMPTE_2022_6_PAYLOAD_SIZE;
         } else 
         {
             DtDbgOut(ERR, IP_RX, "Video standard not detected");
+            pIpRxChannel->m_DetNumTpPerIp = 0;
             return;
         }
         
@@ -3259,6 +3267,9 @@ void  DtaIpRxProcessSdiPayLoad(
         
         if ((pIpRxChannel->m_RxMode & DT_RX_TIMESTAMP) != 0) 
             ExtraSize += 4;
+
+        if ((pIpRxChannel->m_RxMode & DT_RXMODE_SDI_STAT) != 0) 
+            ExtraSize += sizeof(SdiRxFrameStat);
 
         // Check for overflow
         // +5 for 10->8 bit overhead during copy
@@ -3282,8 +3293,23 @@ void  DtaIpRxProcessSdiPayLoad(
             *(UInt32*)pIpRxChannel->m_pSdiInternalWritePointer = (UInt32)TimeStamp;
             pIpRxChannel->m_pSdiInternalWritePointer += 4;
         }
+        // Add stat header, if specified to do so
+        if ((pIpRxChannel->m_RxMode & DT_RXMODE_SDI_STAT) != 0) 
+        {
+            pIpRxChannel->m_pSdiRxFrameStat = 
+                                (SdiRxFrameStat*)pIpRxChannel->m_pSdiInternalWritePointer;
+            pIpRxChannel->m_pSdiInternalWritePointer += sizeof(SdiRxFrameStat);
+            pIpRxChannel->m_pSdiRxFrameStat->m_FrameCount = (UInt32)pHbrHeader->m_FRCount;
+            pIpRxChannel->m_pSdiRxFrameStat->m_Timestamp = 
+                                                DtUInt32ByteSwap(pRtpHeader->m_TimeStamp);
+            pIpRxChannel->m_pSdiRxFrameStat->m_MaxIpat = 0;
+            pIpRxChannel->m_pSdiRxFrameStat->m_MinIpat = 0xffffffff;
+            pIpRxChannel->m_pSdiRxFrameStat->m_Spare1 = 0;
+            pIpRxChannel->m_pSdiRxFrameStat->m_Spare2 = 0;
+            pIpRxChannel->m_SdiFrameLastTimestamp = TimeStamp;
+        }
     }
-    
+
     DtDbgOut(MAX, IP_RX, "Channel %d: NumFree=%d pRead=0x%p pWrite=0x%p", 
                        pIpRxChannel->m_ChannelIndex, NumFree, pRead, pWrite);
 
@@ -3339,7 +3365,7 @@ void  DtaIpRxProcessSdiPayLoad(
     }
 
     // Update Synchronisation-Error flag
-    if (SyncErr != 0) 
+    if (SyncErr != 0)
     {
         // Sync error!
         // No need for spinlock: m_Flags is only written from Worker thread
@@ -3362,11 +3388,41 @@ void  DtaIpRxProcessSdiPayLoad(
             *(UInt32*)pIpRxChannel->m_pSdiInternalWritePointer = (UInt32)TimeStamp;
             pIpRxChannel->m_pSdiInternalWritePointer += 4;
         }
-    } else {
+        // Add stat header, if specified to do so
+        if ((pIpRxChannel->m_RxMode & DT_RXMODE_SDI_STAT) != 0)
+        {
+            pIpRxChannel->m_pSdiRxFrameStat = 
+                                (SdiRxFrameStat*)pIpRxChannel->m_pSdiInternalWritePointer;
+            pIpRxChannel->m_pSdiInternalWritePointer += sizeof(SdiRxFrameStat);
+            pIpRxChannel->m_pSdiRxFrameStat->m_FrameCount = (UInt32)pHbrHeader->m_FRCount;
+            pIpRxChannel->m_pSdiRxFrameStat->m_Timestamp = 
+                                                DtUInt32ByteSwap(pRtpHeader->m_TimeStamp);
+            pIpRxChannel->m_pSdiRxFrameStat->m_MaxIpat = 0;
+            pIpRxChannel->m_pSdiRxFrameStat->m_MinIpat = 0xffffffff;
+            pIpRxChannel->m_pSdiRxFrameStat->m_Spare1 = 0;
+            pIpRxChannel->m_pSdiRxFrameStat->m_Spare2 = 0;
+            pIpRxChannel->m_SdiFrameLastTimestamp = TimeStamp;
+        }
+    } else
         pIpRxChannel->m_Flags &= ~DTA_RX_SYNC_ERR;
-    }
+
     if (SkipData)
         return;
+
+    if ((pIpRxChannel->m_RxMode & DT_RXMODE_SDI_STAT)!=0 &&
+                                                     pIpRxChannel->m_SdiNumBytesCopied!=0)
+    {
+        // Calculate IPAT for this frame
+        if ((TimeStamp - pIpRxChannel->m_SdiFrameLastTimestamp) < 
+                                               pIpRxChannel->m_pSdiRxFrameStat->m_MinIpat)
+            pIpRxChannel->m_pSdiRxFrameStat->m_MinIpat = (UInt32)
+                                      (TimeStamp - pIpRxChannel->m_SdiFrameLastTimestamp);
+        if ((TimeStamp - pIpRxChannel->m_SdiFrameLastTimestamp) > 
+                                               pIpRxChannel->m_pSdiRxFrameStat->m_MaxIpat)
+            pIpRxChannel->m_pSdiRxFrameStat->m_MaxIpat = (UInt32)
+                                      (TimeStamp - pIpRxChannel->m_SdiFrameLastTimestamp);
+        pIpRxChannel->m_SdiFrameLastTimestamp = TimeStamp;
+    }
 
     pWrite = pIpRxChannel->m_pSdiInternalWritePointer;
     if (pIpRxChannel->m_SdiNumLeftOverBytes != 0)
@@ -3565,9 +3621,19 @@ void  DtaIpRxProcessIpRawPayLoad(
 //
 void  DtaIpRxRtpListsReset(UserIpRxChannel* pIpRxChannel)
 {
-    DtListEntry*  pListEntry;
-
     DtSpinLockAcquire(&pIpRxChannel->m_RtpListSpinLock);
+    DtaIpRxRtpListsResetUnsafe(pIpRxChannel);
+    DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpListsReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Move all RTP packets from m_RtpDvbList, m_RtpFecColumnList and m_RtpFecRowList
+// to the m_RtpEmptyList list.
+//
+void  DtaIpRxRtpListsResetUnsafe(UserIpRxChannel* pIpRxChannel)
+{
+    DtListEntry*  pListEntry;
 
     while (!DtIsListEmpty(&pIpRxChannel->m_RtpDvbList)) 
     {
@@ -3591,8 +3657,7 @@ void  DtaIpRxRtpListsReset(UserIpRxChannel* pIpRxChannel)
         DtMemZero(pIpRxChannel->m_pRtpAvailLookup1, DTA_IPRX_RTP_LOOKUPTABLE_SIZE*4);
     if (pIpRxChannel->m_pRtpAvailLookup2 != NULL)
         DtMemZero(pIpRxChannel->m_pRtpAvailLookup2, DTA_IPRX_RTP_LOOKUPTABLE_SIZE*4);
-
-    DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
+    pIpRxChannel->m_RtpFirstPacket = TRUE;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtpListsInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -3890,8 +3955,9 @@ Bool  DtaIpRxRtpListAddEntry(UserIpRxChannel* pIpRxChannel, DtListEntry* pRtpLis
     Bool  Added;
 
     DtSpinLockAcquire(&pIpRxChannel->m_RtpListSpinLock);
+    
     // Check if entry is too late and user buffer is already further in time.
-    if (pRtpList==&pIpRxChannel->m_RtpDvbList &&
+    if (pRtpList==&pIpRxChannel->m_RtpDvbList && 
         ((pRtpEntry->m_RtpSequenceNumber==pIpRxChannel->m_RtpLastSeqNum&&
         pRtpEntry->m_RtpTimestamp==pIpRxChannel->m_RtpLastTimestamp) ||
         (DtaIpRxRtpIsSeqNumLess2(pRtpEntry->m_RtpSequenceNumber, pRtpEntry->m_RtpTimestamp,
@@ -4345,7 +4411,10 @@ void  DtaIpRxDoIpStatistics(
 
 
             // We don't want to devide here, so we calculate in units of 54us
-            ExpectedTime = (ExpectedTime * 600);        // in 54 us units
+            if (pIpRxChannel->m_DetVidStd == DT_VIDSTD_TS)
+                ExpectedTime = (ExpectedTime * 600);        // in 54 us units
+            else
+                ExpectedTime = (ExpectedTime * 2);          // in 54 us units
             ActualTime = pIpat->m_LastSampleTime - pIpat->m_FirstSampleTime; // in 54us units
             NewDelayF = (Int)(ActualTime - ExpectedTime);
             if (!pIpat->m_MinMaxDelayValid || NewDelayF<pIpat->m_MinDelayF)
@@ -4783,6 +4852,16 @@ Bool  DtaIpRxParsePayLoadFec(UserIpRxChannel* pIpRxChannel, DtaDmaRxHeader* pDma
         SnBase = pFecHeader->m_SnBase;
     }
 
+    if (Na==0 || Offset==0)
+    {
+        // Illegal FEC packet
+        DtDbgOut(ERR, IP_RX,"Channel %d: Invalid FEC packet. SnBase:%i Offset:%i Na:%i",
+                   pIpRxChannel->m_ChannelIndex, SnBase, Offset, Na);
+        DT_ASSERT(FALSE);
+        // Don't release channel. It will be done autom.
+        return FALSE;
+    }
+
     if (pIpRxChannel->m_RxControl == DT_RXCTRL_IDLE) 
     {
         // We only update status in IDLE state
@@ -4813,7 +4892,6 @@ Bool  DtaIpRxParsePayLoadFec(UserIpRxChannel* pIpRxChannel, DtaDmaRxHeader* pDma
         return TRUE;
     }*/
 #endif
-
     pRtpListEntry = DtaIpRxRtpGetFreeEntry(pIpRxChannel);
     if (pRtpListEntry != NULL) 
     {
@@ -5463,7 +5541,7 @@ void  DtaIpRxParsePacket(DtaIpPort* pIpPort, UInt8* pData, UInt Size, Bool NrtRx
         if (pRtpHeader->m_PayloadType==RTP_PAYLOAD_MPEGII ||
                                              pRtpHeader->m_PayloadType == RTP_PAYLOAD_SDI)
         {
-            DtDbgOut(ERR, IP_RX, "[%i]     PACKET SN:%d Time:%x\tLast:%d Time:%x", 
+            DtDbgOut(MAX, IP_RX, "[%i]     PACKET SN:%d Time:%x\tLast:%d Time:%x", 
                  pIpPort->m_IpPortIndex, DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber),
                  DtUInt32ByteSwap(pRtpHeader->m_TimeStamp), pIpRxChannel->m_RtpLastSeqNum,
                  pIpRxChannel->m_RtpLastTimestamp);
@@ -5501,6 +5579,7 @@ void  DtaIpRxParsePacket(DtaIpPort* pIpPort, UInt8* pData, UInt Size, Bool NrtRx
             }*/
 
 #endif
+            DT_ASSERT(pDmaRxHeader->m_Timestamp != 0);
             DtaIpRxParsePayLoadRtp(pIpRxChannel, pDmaRxHeader,
                                            DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber), 
                                            DtUInt32ByteSwap(pRtpHeader->m_TimeStamp),
@@ -5867,7 +5946,7 @@ void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext)
 
 //.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxRtCheckHeaderAndParseDataType2 -.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void DtaIpRxRtCheckHeaderAndParseDataType2(DtaIpPort* pIpPort, UInt8* pRxData, 
+void  DtaIpRxRtCheckHeaderAndParseDataType2(DtaIpPort* pIpPort, UInt8* pRxData, 
                                                                           UInt RxDataSize)
 {
     DtaIpUserChannels*  pIpUserChannels = NULL;
@@ -6241,7 +6320,7 @@ UInt16  DtaIpRxGetMaxOutOfSync(UserIpRxChannel* pIpRxChannel)
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxProcessRtpDvbPacket -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeqNum, 
-                                                                   UInt32* pLastTimestamp)
+                                           UInt32* pLastTimestamp, UInt64* pRefTimeStored)
 {
     DtaDmaRxHeader*  pDmaRxHeader;
     UInt  MaxOutOfSync;
@@ -6252,6 +6331,7 @@ void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeq
     UInt  NumPackets = 1;
     UInt16  LastSeqNum;
     UInt32  LastTimestamp;
+    Bool  PacketTooLongInBuf;
 
     if (pIpRxChannel->m_MinPacketDelay==0 && pIpRxChannel->m_MaxPacketOutOfSync==0)
     {
@@ -6299,7 +6379,8 @@ void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeq
             // It's possible that in the mean time new packets are inserted before the
             // handled entry. We need to remove all these packets, because these packets
             // are too late.
-            while (pRtpListEntry != pRtpListEntryTmp)
+            while (pRtpListEntry!=pRtpListEntryTmp && 
+                                              !DtIsListEmpty(&pIpRxChannel->m_RtpDvbList))
             {
                 DtHeadListRemove(&pIpRxChannel->m_RtpDvbList);
                 DtDbgOut(ERR, IP_RX, "Remove before: Sn: %u pEntry:%p pRtpList:%p", 
@@ -6316,38 +6397,61 @@ void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeq
                                                        ==pRtpListEntryTmp->m_RtpTimestamp)
                     pIpRxChannel->m_pRtpAvailLookup2
                                               [pRtpListEntryTmp->m_RtpSequenceNumber] = 0;
-                else
+                else if (pIpRxChannel->m_pRtpAvailLookup1!=NULL && 
+                                                   pIpRxChannel->m_pRtpAvailLookup2!=NULL)
                     DT_ASSERT(FALSE);
                 DtaIpRxRtpMoveEntryToEmptyListUnsafe(pIpRxChannel, pRtpListEntryTmp);
                 pRtpListEntryTmp = DtContainingRecord(
                    DtListNextGet(&pIpRxChannel->m_RtpDvbList), RtpListEntry, m_ListEntry);
             }
-            DtHeadListRemove(&pIpRxChannel->m_RtpDvbList);
-            if (pIpRxChannel->m_pRtpAvailLookup1!=NULL && 
+            DT_ASSERT(!DtIsListEmpty(&pIpRxChannel->m_RtpDvbList));
+
+            // Just to be sure...should not happen.
+            if (!DtIsListEmpty(&pIpRxChannel->m_RtpDvbList))
+            {
+                // Entry still in list. Remove.
+                DtHeadListRemove(&pIpRxChannel->m_RtpDvbList);
+                if (pIpRxChannel->m_pRtpAvailLookup1!=NULL && 
                       pIpRxChannel->m_pRtpAvailLookup1[pRtpListEntry->m_RtpSequenceNumber]
                                                           ==pRtpListEntry->m_RtpTimestamp)
-                pIpRxChannel->m_pRtpAvailLookup1[pRtpListEntry->m_RtpSequenceNumber] = 0;
-            else if (pIpRxChannel->m_pRtpAvailLookup2!=NULL && 
+                    pIpRxChannel->m_pRtpAvailLookup1[pRtpListEntry->m_RtpSequenceNumber] 
+                                                                                      = 0;
+                else if (pIpRxChannel->m_pRtpAvailLookup2!=NULL && 
                       pIpRxChannel->m_pRtpAvailLookup2[pRtpListEntry->m_RtpSequenceNumber]
                                                           ==pRtpListEntry->m_RtpTimestamp)
-                pIpRxChannel->m_pRtpAvailLookup2[pRtpListEntry->m_RtpSequenceNumber] = 0;
-            else {
-                DT_ASSERT(FALSE);
-                DtDbgOut(ERR, IP_RX, "Seq not in lookup. : Seq.Nr.:%i Timestamp:%x L1:%x"
-                    " L2:%x", pRtpListEntry->m_RtpSequenceNumber, 
-                    pRtpListEntry->m_RtpTimestamp, 
-                    pIpRxChannel->m_pRtpAvailLookup1[pRtpListEntry->m_RtpSequenceNumber], 
-                    pIpRxChannel->m_pRtpAvailLookup2[pRtpListEntry->m_RtpSequenceNumber]);
+                    pIpRxChannel->m_pRtpAvailLookup2[pRtpListEntry->m_RtpSequenceNumber] 
+                                                                                      = 0;
+                else if (pIpRxChannel->m_pRtpAvailLookup1!=NULL && 
+                                                   pIpRxChannel->m_pRtpAvailLookup2!=NULL)
+                {
+                    DT_ASSERT(FALSE);
+                    DtDbgOut(ERR, IP_RX, "Seq not in lookup. : Seq.Nr.:%i Timestamp:%x" 
+                     " L1:%x L2:%x", pRtpListEntry->m_RtpSequenceNumber, 
+                     pRtpListEntry->m_RtpTimestamp, 
+                     pIpRxChannel->m_pRtpAvailLookup1[pRtpListEntry->m_RtpSequenceNumber], 
+                     pIpRxChannel->m_pRtpAvailLookup2[pRtpListEntry->m_RtpSequenceNumber]
+                                                                                        );
+                }
+                DtaIpRxRtpMoveEntryToEmptyListUnsafe(pIpRxChannel, pRtpListEntry);
             }
-            DtaIpRxRtpMoveEntryToEmptyListUnsafe(pIpRxChannel, pRtpListEntry);
         }
 
-        if(!DtIsListEmpty(&pIpRxChannel->m_RtpDvbList))
+        if (!DtIsListEmpty(&pIpRxChannel->m_RtpDvbList))
         {
             // Let the entry stay in the list, but get the record
             pRtpListEntry = DtContainingRecord(DtListNextGet(&pIpRxChannel->m_RtpDvbList),
                                                                RtpListEntry, m_ListEntry);
         } else {
+            
+            // List is empty, reset state
+            if (!pIpRxChannel->m_RtpFirstPacket)
+            {
+                pIpRxChannel->m_ResetPacketsPending = FALSE;
+                pIpRxChannel->m_SdiNumBytesCopied = -1; // Let SDI format be redetected
+                DtaIpRxRtpListsResetUnsafe(pIpRxChannel);
+                DtDbgOut(ERR, IP_RX, "Channel %d: Buffer underflow."
+                                      " Reset RTP buffers", pIpRxChannel->m_ChannelIndex);
+            }
             DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
             break;
         }
@@ -6376,7 +6480,27 @@ void  DtaIpRxProcessRtpDvbPacket(UserIpRxChannel* pIpRxChannel, UInt16* pLastSeq
                      pIpRxChannel->m_DetVidStd==DT_VIDSTD_TS, pIpRxChannel->m_MaxBitrate);
 
         // Minimal MinPacketsInBuffer packets in buffer for reconstruction
-        if ((Gap>MaxOutOfSync) || 
+        PacketTooLongInBuf = FALSE;
+        DT_ASSERT(((DtaDmaRxHeader*)(pIpRxChannel->m_pRtpBuffer + 
+                                (pRtpListEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH)))->m_Timestamp != 0);
+        if (/*!pIpRxChannel->m_RtpFirstPacket && */pRtpListEntry->m_InUse==0)
+        {
+            pDmaRxHeader = (DtaDmaRxHeader*)(pIpRxChannel->m_pRtpBuffer + 
+                                (pRtpListEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
+            if (*pRefTimeStored>pDmaRxHeader->m_Timestamp && 
+                (*pRefTimeStored - pDmaRxHeader->m_Timestamp) > DTA_IPRX_RTP_MAXINBUFTIME)
+            {
+                // Packet already more then x seconds in buffer. 
+                // We have to send it to the user.
+                PacketTooLongInBuf = TRUE;
+                DtDbgOut(ERR, IP_RX,
+                    "Channel %d: Packet too long in buffer. Send to user. SN:%i"
+                            " RxTime: %I64x CurTime: %I64x", pIpRxChannel->m_ChannelIndex,
+                            pRtpListEntry->m_RtpSequenceNumber,
+                            pDmaRxHeader->m_Timestamp, *pRefTimeStored);
+            }
+        }
+        if (PacketTooLongInBuf || Gap>MaxOutOfSync || 
                   (DtaIpRxIsNextPacketAvail(pIpRxChannel->m_RtpLastSeqNum, 
                    pRtpLastListEntry->m_RtpTimestamp, pRtpListEntry->m_RtpSequenceNumber,
                    pRtpListEntry->m_RtpTimestamp, pIpRxChannel->m_DetVidStd==DT_VIDSTD_TS)
@@ -6470,7 +6594,8 @@ void  DtaIpRxReconstructThread(DtThread* pThread, void* pContext)
     Int  ChannelIndex;
     RtpListEntry**  ppReconstructList = (RtpListEntry**)DtMemAllocPool(DtPoolNonPaged, 
                            sizeof(RtpListEntry*)*MAX_FEC_RECONSTR_ELEMENTS_SDI, IPRX_TAG);
-    
+    volatile UInt64*  pRefTimeStored = 
+                                 &pIpUserChannels->m_pDvcData->m_IpDevice.m_RefTimeStored;
     DtDbgOut(MAX, IP_RX, "Start");
     
     if (ppReconstructList == NULL)
@@ -6486,6 +6611,8 @@ void  DtaIpRxReconstructThread(DtThread* pThread, void* pContext)
             StopThread = TRUE;
             continue;
         }
+        pIpUserChannels->m_pDvcData->m_IpDevice.m_LastTimeRxTriggered = *pRefTimeStored;
+        
         DtFastMutexAcquire(&pIpUserChannels->m_IpRxChThreadMutex);
         
         pIpRxChannel = pIpUserChannels->m_pIpRxChannel;
@@ -6496,22 +6623,39 @@ void  DtaIpRxReconstructThread(DtThread* pThread, void* pContext)
                 pIpRxChannel = pIpRxChannel->m_pNext;
                 continue;
             }
-            if (!pIpRxChannel->m_RxIncomingPackets)
+            if (!pIpRxChannel->m_RxIncomingPackets && 
+                                     (*pRefTimeStored-pIpRxChannel->m_RtpLastCheckedTime<=
+                                     DTA_IPRX_RTP_MAXINBUFTIME))
             {
                 pIpRxChannel = pIpRxChannel->m_pNext;
                 continue;
             }
             pIpRxChannel->m_RxIncomingPackets = FALSE;
-
+            
             DtaIpRxUserChRefAdd(pIpRxChannel);
             ChannelIndex = pIpRxChannel->m_ChannelIndex;
             DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
 
-            if (pIpRxChannel->m_FecMode==DTA_FEC_DISABLE || ppReconstructList==NULL)
-                DtaIpRxProcessRtpDvbPacket(pIpRxChannel, NULL, NULL);
-            else
-                DtaIpRxProcessDvbWithFec(pIpRxChannel, ppReconstructList);
+            if (pIpRxChannel->m_ResetPacketsPending)
+            {
+                pIpRxChannel->m_ResetPacketsPending = FALSE;
+                DtDbgOut(ERR, IP_RX, "RTP Buffer reset due to reset pending");
+                // The following must be done because a new stream could be started
+                // and new RTP timestamps and sequence numbers may be received that will
+                // skip a lot of packets received at the start of the new stream. Also
+                // FEC packets needs to be removed, because of other stream.
+                // RtpFirstPacket will be reset in the DtaIpRxRtpListReset function
+                // Remove all FEC packets.
+                DtaIpRxRtpListsReset(pIpRxChannel);
+            }
 
+            if (pIpRxChannel->m_FecMode==DTA_FEC_DISABLE || ppReconstructList==NULL)
+                DtaIpRxProcessRtpDvbPacket(pIpRxChannel, NULL, NULL, 
+                                                                 (UInt64*)pRefTimeStored);
+            else
+                DtaIpRxProcessDvbWithFec(pIpRxChannel, ppReconstructList, 
+                                                                 (UInt64*)pRefTimeStored);
+            pIpRxChannel->m_RtpLastCheckedTime = *pRefTimeStored;
             DtaIpRxUserChRefDecr(pIpRxChannel);
 
             // If a channel is deleted, restart.
@@ -6625,13 +6769,17 @@ void  DtaIpRxUpdateBrmDpc(DtDpcArgs* pArgs)
     MinPeriod = (pDvcData->m_DevInfo.m_RefClk / 1000) * 200;
     CurrentTime = DtaRegRefClkCntGet64(pDvcData->m_pGenRegs);
     pIpDevice->m_RefTimeStored = CurrentTime;
-
+    
     DtSpinLockAcquireAtDpc(&pIpUserChannels->m_IpRxBrmSpinLock);
     if (pIpUserChannels->m_IpRxBrmSkipUpdate)
     {
         DtSpinLockReleaseFromDpc(&pIpUserChannels->m_IpRxBrmSpinLock);
         return;
     }
+
+    // Check last time triggered. If not triggered for x seconds, retrigger
+    if (CurrentTime-pIpDevice->m_LastTimeRxTriggered > DTA_IPRX_RTP_MAXINBUFTIME)
+        DtEventSet(&pIpUserChannels->m_IpRxRtpPacketAvailEvent);
 
     pIpRxChannel = pIpUserChannels->m_pIpRxChannel;
 
@@ -6693,7 +6841,7 @@ void  DtaIpRxUpdateBrmDpc(DtDpcArgs* pArgs)
 //
 RtpListEntry*  DtaIpRxGetFecReconstructionList(UserIpRxChannel* pIpRxChannel,
                            DtListEntry* pFecList, UInt16 SequenceNumber, UInt32 Timestamp,
-                           RtpListEntry* pReconstructList[MAX_FEC_RECONSTR_ELEMENTS_SDI])
+                           RtpListEntry** ppReconstructList)
 {
     DtListEntry*  pListEntry;
     DtListEntry*  pDvbListEntry = NULL;
@@ -6766,7 +6914,7 @@ RtpListEntry*  DtaIpRxGetFecReconstructionList(UserIpRxChannel* pIpRxChannel,
 
                         if (pRtpDvbEntry != NULL)
                         {
-                            pReconstructList[Index++] = pRtpDvbEntry;
+                            ppReconstructList[Index++] = pRtpDvbEntry;
 
                             // Next time start searching from the following point
                             pDvbListEntry = &pRtpDvbEntry->m_ListEntry;
@@ -6788,8 +6936,8 @@ RtpListEntry*  DtaIpRxGetFecReconstructionList(UserIpRxChannel* pIpRxChannel,
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxCalcNewRxTimestamp -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 UInt64  DtaIpRxCalcNewRxTimestamp(UserIpRxChannel* pIpRxChannel, 
-                            RtpListEntry* pRtpDestEntry, RtpListEntry* pRtpFecEntry, 
-                            RtpListEntry* pReconstructList[MAX_FEC_RECONSTR_ELEMENTS_SDI])
+                                  RtpListEntry* pRtpDestEntry, RtpListEntry* pRtpFecEntry,
+                                  RtpListEntry** ppReconstructList)
 {
     DtaDmaRxHeader*  pDmaRxHeaderSrc1;
     DtaDmaRxHeader*  pDmaRxHeaderSrc2;
@@ -6804,15 +6952,15 @@ UInt64  DtaIpRxCalcNewRxTimestamp(UserIpRxChannel* pIpRxChannel,
         return 0;
     
     pDmaRxHeaderSrc1 = (DtaDmaRxHeader*)(pIpRxChannel->m_pRtpBuffer +
-                          (pReconstructList[0]->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
+                         (ppReconstructList[0]->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
         
     pDmaRxHeaderSrc2 = (DtaDmaRxHeader*)(pIpRxChannel->m_pRtpBuffer +
-                          (pReconstructList[1]->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
+                         (ppReconstructList[1]->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
 
     pRtpHeaderSrc1 = (RtpHeader*)((UInt8*)pDmaRxHeaderSrc1 + sizeof(DtaDmaRxHeader) + 
-                                                        pReconstructList[0]->m_RtpOffset);
+                                                       ppReconstructList[0]->m_RtpOffset);
     pRtpHeaderSrc2 = (RtpHeader*)((UInt8*)pDmaRxHeaderSrc2 + sizeof(DtaDmaRxHeader) + 
-                                                        pReconstructList[1]->m_RtpOffset);
+                                                       ppReconstructList[1]->m_RtpOffset);
     RtpSeqSrc1 = DtUInt16ByteSwap(pRtpHeaderSrc1->m_SequenceNumber);
     RtpSeqSrc2 = DtUInt16ByteSwap(pRtpHeaderSrc2->m_SequenceNumber);
 
@@ -6855,10 +7003,10 @@ UInt64  DtaIpRxCalcNewRxTimestamp(UserIpRxChannel* pIpRxChannel,
         while (Index < pRtpFecEntry->m_FecNA-1)
         {
             pDmaRxHeaderSrc1 = (DtaDmaRxHeader*)(pIpRxChannel->m_pRtpBuffer +
-                      (pReconstructList[Index]->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
+                     (ppReconstructList[Index]->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
     
             pRtpHeaderSrc1 = (RtpHeader*)((UInt8*)pDmaRxHeaderSrc1 + 
-                           sizeof(DtaDmaRxHeader) + pReconstructList[Index]->m_RtpOffset);
+                          sizeof(DtaDmaRxHeader) + ppReconstructList[Index]->m_RtpOffset);
             RtpSeqSrc1 = DtUInt16ByteSwap(pRtpHeaderSrc1->m_SequenceNumber);
 
             // Packet must be insterted after found packet?
@@ -6897,12 +7045,8 @@ UInt64  DtaIpRxCalcNewRxTimestamp(UserIpRxChannel* pIpRxChannel,
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxReconstructPacket -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// Remark: If a RTP header extension is available, skip the reconstruction because the
-// IP packet lengths can have different sizes
-//
 Bool  DtaIpRxReconstructPacket(UserIpRxChannel* pIpRxChannel, RtpListEntry* pRtpDestEntry,
-                            RtpListEntry* pRtpFecEntry, 
-                            RtpListEntry* pReconstructList[MAX_FEC_RECONSTR_ELEMENTS_SDI])
+                             RtpListEntry* pRtpFecEntry, RtpListEntry** ppReconstructList)
 {
     FecHeader*  pFecHeader;
     FecHeader2022_5*  pFecHeader2022_5;
@@ -6987,7 +7131,7 @@ Bool  DtaIpRxReconstructPacket(UserIpRxChannel* pIpRxChannel, RtpListEntry* pRtp
     // Copy start of packet into destination. Only needed for RAW ip mode and debugging
     if (pRtpFecEntry->m_FecNA > 1) 
     {
-        pRtpCurEntry = pReconstructList[Index];
+        pRtpCurEntry = ppReconstructList[Index];
         pSrcData = (pIpRxChannel->m_pRtpBuffer + 
                                  (pRtpCurEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
 
@@ -7003,7 +7147,7 @@ Bool  DtaIpRxReconstructPacket(UserIpRxChannel* pIpRxChannel, RtpListEntry* pRtp
     
     pDmaRxHeader = (DtaDmaRxHeader*)pDstData;
     pDmaRxHeader->m_Timestamp = DtaIpRxCalcNewRxTimestamp(pIpRxChannel, pRtpDestEntry,
-                                                          pRtpFecEntry, pReconstructList);
+                                                         pRtpFecEntry, ppReconstructList);
     pRtpDestEntry->m_RtpOffset = RtpOffset;
     
     // Sequence number already filled by main thread, so skip here
@@ -7022,7 +7166,7 @@ Bool  DtaIpRxReconstructPacket(UserIpRxChannel* pIpRxChannel, RtpListEntry* pRtp
 
     while (Index < pRtpFecEntry->m_FecNA-1) 
     {
-        pRtpCurEntry = pReconstructList[Index++];
+        pRtpCurEntry = ppReconstructList[Index++];
         pSrcData = (pIpRxChannel->m_pRtpBuffer + sizeof(DtaDmaRxHeader) +
                                  (pRtpCurEntry->m_BufIndex * DTA_IPRX_MAX_PACKET_LENGTH));
         pRtpHeader = (RtpHeader*)(pSrcData + pRtpCurEntry->m_RtpOffset);
@@ -7207,7 +7351,7 @@ void  DtaIpRxRemoveOldFecPackets(UserIpRxChannel* pIpRxChannel, DtListEntry* pFe
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxProcessDvbWithFec -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel, 
-                                                         RtpListEntry** ppReconstructList)
+                                 RtpListEntry** ppReconstructList, UInt64* pRefTimeStored)
 {
     Bool  PacketReconstructed = FALSE;
     Bool  Stop;
@@ -7470,7 +7614,8 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel,
     DtSpinLockRelease(&pIpRxChannel->m_RtpListSpinLock);
 
     // Send all packets in sequence to user buffer
-    DtaIpRxProcessRtpDvbPacket(pIpRxChannel, pLastSeqNumToTx, pLastTimestampToTx);
+    DtaIpRxProcessRtpDvbPacket(pIpRxChannel, pLastSeqNumToTx, pLastTimestampToTx,
+                                                                          pRefTimeStored);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxCalculateNumIpRxListenersType1 -.-.-.-.-.-.-.-.-.-.-.-.-

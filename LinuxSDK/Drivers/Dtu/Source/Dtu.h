@@ -184,10 +184,6 @@ struct _DtuDeviceData
     DtPropertyData  m_PropData;
 
     Int  m_StateFlags;
-    
-    DtuAltSetting  m_AltSetting[MAX_ISO_ALTSETTINGS];
-    Int  m_NumAltSettings;
-    Int  m_CurAltSetting;
 
     Int  m_BootState;
 };

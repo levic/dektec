@@ -118,10 +118,10 @@
 
 // SAL related logging
 #define LOG_LEVEL_SAL         LOG_OFF
-#define LOG_LEVEL_SAL_DMA     LOG_MAX
-#define LOG_LEVEL_SAL_DPC     LOG_MAX
-#define LOG_LEVEL_SAL_THREAD  LOG_MAX
-#define LOG_LEVEL_SAL_USB     LOG_MAX
+#define LOG_LEVEL_SAL_DMA     LOG_AVG
+#define LOG_LEVEL_SAL_DPC     LOG_AVG
+#define LOG_LEVEL_SAL_THREAD  LOG_AVG
+#define LOG_LEVEL_SAL_USB     LOG_AVG
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Generic type definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+

@@ -78,18 +78,22 @@ DtStatus  DtaGenlockInit(DtaDeviceData* pDvcData)
     else
         pDvcData->m_Genlock.m_IntGenrefPortIndex = -1;  // No internal genref port
 
+    // Get the port group mask
+    pDvcData->m_Genlock.m_PortGroup = DtPropertiesGetUInt32(pPropData, 
+                                                                "GENLOCK_PORT_GROUP", -1);
 
     // Init to 'safe' default values
     pDvcData->m_Genlock.m_FracMode = DTA_GENLOCK_FRACMODE_NA;
     pDvcData->m_Genlock.m_RefPortIndex = pDvcData->m_Genlock.m_IntGenrefPortIndex;
     pDvcData->m_Genlock.m_RefVidStd = DT_VIDSTD_625I50;
     pDvcData->m_Genlock.m_OutVidStd = pDvcData->m_Genlock.m_RefVidStd;
-    pDvcData->m_Genlock.m_RefLineDurationNs = 1; // 1ns
+    pDvcData->m_Genlock.m_RefLineDurationNs = pDvcData->m_Genlock.m_OutLineDurationNs = 1; 
     pDvcData->m_Genlock.m_InDelayNs = 0;
     pDvcData->m_Genlock.m_LineOffset = 0;
+    pDvcData->m_Genlock.m_TofAlignOffsetNs = 0;
 
-    if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2152 || 
-                                  pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2154)
+    if (pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2152 || 
+                                  pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2154)
     {
         UInt16  Offset = -1;
         Offset = DtPropertiesGetUInt16(&pDvcData->m_PropData, "REGISTERS_GENL", -1);
@@ -103,13 +107,13 @@ DtStatus  DtaGenlockInit(DtaDeviceData* pDvcData)
     else
         pDvcData->m_Genlock.m_pGenlRegs = NULL;
         
-    if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2152)
+    if (pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2152)
     {
-        Status = DtaLmh1982Init(pDvcData, &pDvcData->m_Genlock.m_Lmh1982);
+       Status = DtaLmh1982Init(pDvcData, &pDvcData->m_Genlock.m_Lmh1982);
         if (!DT_SUCCESS(Status))
             DtDbgOut(ERR, GENL, "Failed to init LMH-1982 module");
     }
-    else if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2154)
+    else if (pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2154)
     {
         // Must have an operational mode
         Int  OpMode = DtPropertiesGetInt(pPropData, "GENLOCK_OPMODE_INTSRC", -1);
@@ -123,15 +127,14 @@ DtStatus  DtaGenlockInit(DtaDeviceData* pDvcData)
         pDvcData->m_Genlock.m_VcxoValue = -1;
         pDvcData->m_Genlock.m_pVcxoOwner = NULL;
 
-        
         Status = DtaLmh1983Init(pDvcData, &pDvcData->m_Genlock.m_Lmh1983);
         if (!DT_SUCCESS(Status))
             DtDbgOut(ERR, GENL, "Failed to init LMH-1983 module");
     }
 
     // 145/2145/2144 architecture
-    if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2144 || 
-                                   pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_145)
+    if (pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_2144 || 
+                                         pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_145)
         Status = DtaFpgaGenlockInit(pDvcData, &pDvcData->m_Genlock.m_FpgaGenlock);
     
     return Status;
@@ -147,7 +150,7 @@ DtStatus  DtaGenlockInitPowerup(DtaDeviceData* pDvcData)
     if (!pDvcData->m_Genlock.m_IsSupported)
         return DT_STATUS_OK;
 
-    if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2152)
+    if (pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2152)
         Status = DtaLmh1982InitPowerup(&pDvcData->m_Genlock.m_Lmh1982);
 
     return Status;
@@ -160,7 +163,7 @@ void  DtaGenlockPowerDown(DtaDeviceData* pDvcData)
     if (!pDvcData->m_Genlock.m_IsSupported)
         return;     // Nothing to do
 
-    if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2152)
+    if (pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2152)
         DtaLmh1982Powerdown(&pDvcData->m_Genlock.m_Lmh1982);
 }
 
@@ -173,9 +176,9 @@ DtStatus  DtaGenlockPowerDownPre(DtaDeviceData* pDvcData)
     if (!pDvcData->m_Genlock.m_IsSupported)
         return DT_STATUS_OK;
 
-    if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2152)
+    if (pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2152)
         Status = DtaLmh1982PowerdownPre(&pDvcData->m_Genlock.m_Lmh1982);
-    else if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2154)
+    else if (pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2154)
         Status = DtaLmh1983PowerdownPre(&pDvcData->m_Genlock.m_Lmh1983);
     return Status;
 }
@@ -211,7 +214,7 @@ void  DtaGenlockResetVcxo(DtaDeviceData* pDvcData)
 //
 void  DtaGenlockClose(DtaDeviceData* pDvcData, DtFileObject* pFile)
 {
-    if (pDvcData->m_Genlock.m_GenlArch != DTA_GENLOCK_ARCH_2154)
+    if (pDvcData->m_Genlock.m_GenlArch != GENLOCK_ARCH_2154)
         return;
     if (pDvcData->m_Genlock.m_pVcxoOwner != DtFileGetHandle(pFile))
         return;
@@ -223,7 +226,7 @@ void  DtaGenlockClose(DtaDeviceData* pDvcData, DtFileObject* pFile)
 DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
 {
     DtStatus  Status = DT_STATUS_OK;
-    DtAvFrameProps  RefAvProps;
+    DtAvFrameProps  RefAvProps, OutAvProps;
     Int  i, RefPortIndex, RefVidStd, OutVidStd, Fps;
     DtaNonIpPort*  pNonIpPort = NULL;
     DtaGenlock*  pGenlData = &pDvcData->m_Genlock;
@@ -243,7 +246,7 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
     }
     
     // Scan all ports to see if there is one that is enabled as genlock reference
-    RefPortIndex = pGenlData->m_IntGenrefPortIndex; // Assume internal genref is used
+    RefPortIndex = -1;
     OutVidStd = RefVidStd = DT_VIDSTD_625I50;
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {
@@ -257,62 +260,50 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
         RefPortIndex = pNonIpPort->m_PortIndex;
         break;
     }
-    
-    // Did we find a genref port
-    if (RefPortIndex != -1)
-    {
-        DT_ASSERT(RefPortIndex>=0 && RefPortIndex<pDvcData->m_NumNonIpPorts);
-        DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_GENREF].m_Value == DT_IOCONFIG_TRUE);
+    if (RefPortIndex == -1)
+        return DT_STATUS_OK;    // No GENREF selected => we are done
+
+   DT_ASSERT(RefPortIndex>=0 && RefPortIndex<pDvcData->m_NumNonIpPorts);
+   DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_GENREF].m_Value == DT_IOCONFIG_TRUE);
         
-        // Reference standard is IO-STD to which this port is configured
-        RefVidStd = DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
-                                       pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
-        // Check the standard is supported
-        switch (RefVidStd)
-        {
-        case DT_VIDSTD_1080P50:     DT_ASSERT(pNonIpPort->m_Cap1080P50); break;
-        case DT_VIDSTD_1080P59_94:  DT_ASSERT(pNonIpPort->m_Cap1080P59_94); break;
-        case DT_VIDSTD_1080P60:     DT_ASSERT(pNonIpPort->m_Cap1080P60); break;
-        case DT_VIDSTD_1080I50:     DT_ASSERT(pNonIpPort->m_Cap1080I50); break;
-        case DT_VIDSTD_1080I59_94:  DT_ASSERT(pNonIpPort->m_Cap1080I59_94); break;
-        case DT_VIDSTD_1080I60:     DT_ASSERT(pNonIpPort->m_Cap1080I60); break;
-        case DT_VIDSTD_1080P23_98:  DT_ASSERT(pNonIpPort->m_Cap1080P23_98); break;
-        case DT_VIDSTD_1080P24:     DT_ASSERT(pNonIpPort->m_Cap1080P24); break;
-        case DT_VIDSTD_1080P25:     DT_ASSERT(pNonIpPort->m_Cap1080P25); break;
-        case DT_VIDSTD_1080P29_97:  DT_ASSERT(pNonIpPort->m_Cap1080P29_97); break;
-        case DT_VIDSTD_1080P30:     DT_ASSERT(pNonIpPort->m_Cap1080P30); break;
-        case DT_VIDSTD_720P23_98:   DT_ASSERT(pNonIpPort->m_Cap720P23_98); break;
-        case DT_VIDSTD_720P24:      DT_ASSERT(pNonIpPort->m_Cap720P24); break;
-        case DT_VIDSTD_720P25:      DT_ASSERT(pNonIpPort->m_Cap720P25); break;
-        case DT_VIDSTD_720P29_97:   DT_ASSERT(pNonIpPort->m_Cap720P29_97); break;
-        case DT_VIDSTD_720P30:      DT_ASSERT(pNonIpPort->m_Cap720P30); break;
-        case DT_VIDSTD_720P50:      DT_ASSERT(pNonIpPort->m_Cap720P50); break;
-        case DT_VIDSTD_720P59_94:   DT_ASSERT(pNonIpPort->m_Cap720P59_94); break;
-        case DT_VIDSTD_720P60:      DT_ASSERT(pNonIpPort->m_Cap720P60); break;
-        case DT_VIDSTD_525I59_94:   DT_ASSERT(pNonIpPort->m_Cap525I59_94); break;
-        case DT_VIDSTD_625I50:      DT_ASSERT(pNonIpPort->m_Cap625I50); break;
-        default:
-            DtDbgOut(ERR, NONIP, "Unknown video standard: %d", RefVidStd);
-            return DT_STATUS_NOT_SUPPORTED;
-        }
-        // FOR NOW: we do not support crosslocking, hence output stndard is input standard
-        OutVidStd = RefVidStd;  // No cross-lock => out std is ref std
-        if (RefPortIndex != pGenlData->m_IntGenrefPortIndex)
-            EnableGenRef = TRUE;
-    }
-
-    for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
+    // Reference standard is IO-STD to which this port is configured
+    RefVidStd = DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
+                                    pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
+    // Check the standard is supported
+    switch (RefVidStd)
     {
-        pNonIpPort = &pDvcData->m_pNonIpPorts[i];
-        if (!pNonIpPort->m_CapGenRef)
-            continue;   // skip if port cannot act as genlock reference
-        if (pNonIpPort->m_IoCfg[DT_IOCONFIG_GENREF].m_Value == DT_IOCONFIG_FALSE)
-            continue;   // keep looking for a port with genref enabled
-
-        // Copy settings from port io-config
-        RefPortIndex = pNonIpPort->m_PortIndex;
-        break;
+    case DT_VIDSTD_1080P50:     DT_ASSERT(pNonIpPort->m_Cap1080P50); break;
+    case DT_VIDSTD_1080P50B:    DT_ASSERT(pNonIpPort->m_Cap1080P50B); break;
+    case DT_VIDSTD_1080P59_94:  DT_ASSERT(pNonIpPort->m_Cap1080P59_94); break;
+    case DT_VIDSTD_1080P59_94B: DT_ASSERT(pNonIpPort->m_Cap1080P59_94B); break;
+    case DT_VIDSTD_1080P60:     DT_ASSERT(pNonIpPort->m_Cap1080P60); break;
+    case DT_VIDSTD_1080P60B:    DT_ASSERT(pNonIpPort->m_Cap1080P60B); break;
+    case DT_VIDSTD_1080I50:     DT_ASSERT(pNonIpPort->m_Cap1080I50); break;
+    case DT_VIDSTD_1080I59_94:  DT_ASSERT(pNonIpPort->m_Cap1080I59_94); break;
+    case DT_VIDSTD_1080I60:     DT_ASSERT(pNonIpPort->m_Cap1080I60); break;
+    case DT_VIDSTD_1080P23_98:  DT_ASSERT(pNonIpPort->m_Cap1080P23_98); break;
+    case DT_VIDSTD_1080P24:     DT_ASSERT(pNonIpPort->m_Cap1080P24); break;
+    case DT_VIDSTD_1080P25:     DT_ASSERT(pNonIpPort->m_Cap1080P25); break;
+    case DT_VIDSTD_1080P29_97:  DT_ASSERT(pNonIpPort->m_Cap1080P29_97); break;
+    case DT_VIDSTD_1080P30:     DT_ASSERT(pNonIpPort->m_Cap1080P30); break;
+    case DT_VIDSTD_720P23_98:   DT_ASSERT(pNonIpPort->m_Cap720P23_98); break;
+    case DT_VIDSTD_720P24:      DT_ASSERT(pNonIpPort->m_Cap720P24); break;
+    case DT_VIDSTD_720P25:      DT_ASSERT(pNonIpPort->m_Cap720P25); break;
+    case DT_VIDSTD_720P29_97:   DT_ASSERT(pNonIpPort->m_Cap720P29_97); break;
+    case DT_VIDSTD_720P30:      DT_ASSERT(pNonIpPort->m_Cap720P30); break;
+    case DT_VIDSTD_720P50:      DT_ASSERT(pNonIpPort->m_Cap720P50); break;
+    case DT_VIDSTD_720P59_94:   DT_ASSERT(pNonIpPort->m_Cap720P59_94); break;
+    case DT_VIDSTD_720P60:      DT_ASSERT(pNonIpPort->m_Cap720P60); break;
+    case DT_VIDSTD_525I59_94:   DT_ASSERT(pNonIpPort->m_Cap525I59_94); break;
+    case DT_VIDSTD_625I50:      DT_ASSERT(pNonIpPort->m_Cap625I50); break;
+    default:
+        DtDbgOut(ERR, NONIP, "Unknown video standard: %d", RefVidStd);
+        return DT_STATUS_NOT_SUPPORTED;
     }
+    // FOR NOW: we do not support crosslocking, hence output stndard is input standard
+    OutVidStd = RefVidStd;  // No cross-lock => out std is ref std
+    if (RefPortIndex != pGenlData->m_IntGenrefPortIndex)
+        EnableGenRef = TRUE;
 
     // Are we using the internal reference?
     if (RefPortIndex == pGenlData->m_IntGenrefPortIndex)
@@ -330,12 +321,11 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
             OutVidStd = DT_VIDSTD_525I59_94;   // Set a fractional video standard
         else if (pDvcData->m_Genlock.m_FracMode == DTA_GENLOCK_FRACMODE_OFF)
             OutVidStd = DT_VIDSTD_625I50;   // Set a non-fractional video standard
-        // else, i.e hardware has no fractional-mode capability (limitation): the output 
-        // video standard is selected by the IO-standard for the GENREF port 
-        // (see code above)
+        else
+            OutVidStd = RefVidStd;
     }
     DtDbgOut(MIN, NONIP, "[Port=%d] Ref-video-standard=%d, out-video-standard=%d", 
-                                                    RefVidStd, OutVidStd, RefPortIndex+1);
+                                                    RefPortIndex+1, RefVidStd, OutVidStd);
   
     // Cache settings
     pGenlData->m_RefPortIndex = RefPortIndex;
@@ -348,6 +338,10 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
     Status = DtAvGetFrameProps(RefVidStd, &RefAvProps);
     if (!DT_SUCCESS(Status))
         return Status;
+    // Get frame properties for output signal
+    Status = DtAvGetFrameProps(OutVidStd, &OutAvProps);
+    if (!DT_SUCCESS(Status))
+        return Status;
     
     // Compute duration of a single line
     Fps = DtaVidStd2Fps(RefVidStd);
@@ -356,8 +350,15 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
     if (RefAvProps.m_IsFractional)
         pGenlData->m_RefLineDurationNs = (pGenlData->m_RefLineDurationNs*1001) / 1000;
 
+    Fps = DtaVidStd2Fps(OutVidStd);
+    DT_ASSERT(Fps > 0);
+    pGenlData->m_OutLineDurationNs = (1000000000 / Fps) / OutAvProps.m_NumLines;
+    if (OutAvProps.m_IsFractional)
+        pGenlData->m_OutLineDurationNs = (pGenlData->m_OutLineDurationNs*1001) / 1000;
+
+    
     // Check architecture type
-    if (pGenlData->m_GenlArch == DTA_GENLOCK_ARCH_2152)
+    if (pGenlData->m_GenlArch == GENLOCK_ARCH_2152)
     {
         // Input delay depends on which genlock reference is used on reference video 
         // standard
@@ -366,7 +367,6 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
             // Using the internally generate reference:
             //
             // The internal reference does not introduce any input delay
-
             pGenlData->m_InDelayNs = 0;
         }
         else if (pGenlData->m_RefPortIndex == pGenlData->m_AsyncPortIndex)
@@ -376,7 +376,6 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
             // This means the ref signal goes through the LMH-1981 (sync seperator), 
             // which introduces 0.5 line delay for interlaced and a full line delay 
             // for progressive signals
-
             if (RefAvProps.m_IsInterlaced)
                 pGenlData->m_InDelayNs = pGenlData->m_RefLineDurationNs / 2;
             else
@@ -388,28 +387,76 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
             //
             // This means the signal has to pass through the Gennum/Semtech deserialiser
             // which introduces a delay of xxxx
-
             pGenlData->m_InDelayNs = 0;
 
         }
-        
+        // Special case for interlaced references 
+        if (RefAvProps.m_IsInterlaced)
+        {
+            // Account for half an extra line of delay (subtract from input delay)
+            if ((RefAvProps.m_NumLines%2) != 0)
+                pGenlData->m_InDelayNs -= pGenlData->m_RefLineDurationNs / 2;
+        }
+
+        // Make the LMH1982 generate the TOF pulse 3 lines early
+        pGenlData->m_LineOffset = 3;
+        // Compute TOF aligment offset. TOF arrive N lines to early, but is delayed as 
+        // result input delay
+        // NOTE: for the LMH1982 the line offset is set relative to the reference standard
+        pGenlData->m_TofAlignOffsetNs = (pGenlData->m_LineOffset * 
+                                 pGenlData->m_RefLineDurationNs) - pGenlData->m_InDelayNs;
+              
         // A change to genref state requires a reset of the LMH1982 state machine (chip 
         // must be re-initialised)
         Status = DtaLmh1982ResetStateMachine(&pGenlData->m_Lmh1982);
         if (!DT_SUCCESS(Status))
             return Status;
     }
-    else if (pGenlData->m_GenlArch == DTA_GENLOCK_ARCH_2154)
+    else if (pGenlData->m_GenlArch == GENLOCK_ARCH_2154)
     {
+        // Input delay depends on which genlock reference is used on reference video 
+        // standard
+        if (pGenlData->m_RefPortIndex == pGenlData->m_IntGenrefPortIndex)
+        {
+            // Using the internally generate reference:
+            //
+            // The internal reference does not introduce any input delay
+            pGenlData->m_InDelayNs = 0;
+        }
+        else if (pGenlData->m_RefPortIndex == pGenlData->m_AsyncPortIndex)
+        {
+            // Using the analog input.
+            // 
+            // The combination of the LMH1981 + LMH1983 does not introduce an extra delay 
+            // we need to account for 
+            pGenlData->m_InDelayNs = 0;
+        }
+        else
+        {
+            // Using one of the SDI ports as reference:
+            //
+            // This means the signal has to pass through the FPGA deserialiser
+            // which introduces a delay of xxxx
+            pGenlData->m_InDelayNs = 0;
+        }
+
+        // Make the LMH-1983 generate the TOF pulse 3 lines early
+        pGenlData->m_LineOffset = 3;
+        // Compute TOF aligment offset. TOF arrive N lines to early, but is delayed as 
+        // result input delay
+        // NOTE: for the LMH1983 the line offset is set relative to the output standard
+        pGenlData->m_TofAlignOffsetNs = (pGenlData->m_LineOffset * 
+                                 pGenlData->m_OutLineDurationNs) - pGenlData->m_InDelayNs;
+
         // A change to genref state requires a reset of the LMH1983 state machine (chip 
         // must be re-initialised)
         Status = DtaLmh1983ResetStateMachine(&pGenlData->m_Lmh1983);
         if (!DT_SUCCESS(Status))
             return Status;
     }
-
-    if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2144 || 
-                                   pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_145)
+        
+    if (pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_2144 || 
+                                     pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_145)
     {
       // always disable
       Status = DtaFpgaGenlockDisable(pDvcData, &pGenlData->m_FpgaGenlock);
@@ -424,7 +471,6 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
               return Status;
       }      
     }
-
     return DT_STATUS_OK;
 }
 
@@ -483,8 +529,8 @@ DtStatus  DtaGenlockGetRefState(DtaDeviceData* pDvcData,
 #endif
     Bool  InLock = FALSE;
     Bool  Enabled = FALSE;
-    if(pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2144 ||
-                                   pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_145)
+    if(pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2144 ||
+                                   pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_145)
     {
         Status = DtaFpgaGenlockGetRefState(pDvcData, PortIndex, &Enabled, &InLock);
         *pEnabled = Enabled == TRUE ? 1 : 0;
@@ -493,7 +539,7 @@ DtStatus  DtaGenlockGetRefState(DtaDeviceData* pDvcData,
     }
 
     // TODO: Should we also implement this for HDSDI?
-    //if(pDvcData->m_Genlock.m_GenlArch != DTA_GENLOCK_ARCH_2152)
+    //if(pDvcData->m_Genlock.m_GenlArch != GENLOCK_ARCH_2152)
     //  return DtaLmh1982GenlockGetRefState(pDvcData, pInLock);
 
     DtDbgOut(ERR, GENL, "[%d] GENREF NOT SUPPORTED", GenRefPortIndex);

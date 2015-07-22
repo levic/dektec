@@ -44,5 +44,6 @@ DtStatus  DtEventInit(DtEvent* pDtEvent, Bool AutoReset);
 DtStatus  DtEventSet(DtEvent* pDtEvent);
 DtStatus  DtEventReset(DtEvent* pDtEvent);
 DtStatus  DtEventWait(DtEvent* pDtEvent, Int TimeoutMS);
+DtStatus  DtEventWaitUnInt(DtEvent* pDtEvent, Int TimeoutMS);
 
 #endif // __DT_EVENT_H

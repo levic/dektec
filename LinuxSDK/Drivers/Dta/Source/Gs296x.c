@@ -209,20 +209,18 @@ DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort)
     DtSleep(5);
 
     // Set IO-processing:
-    // Enable:   
+    // Enable:   SMPTE_352M_INS, CRC_INS, LNUM_INS, TRS_INS
     // Disable:  ANC_INS
     //
     // Other bits are set to their default value (see GS2962 datasheet)
     IoProc = 0x0A00;
-    if (DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort))
-        IoProc |= 0x0040; // Disable VPID insertion
-    else 
+    if (!DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort))
     {
-        // Disable: ILEGAL_WORD_REMAP, ANC_CSUM_INS, CRC_INS, LNUM_INS, TRS_INS
-        IoProc |= 0x002F;
-        // Set VPID insertion bytes
-        DtaGs2962SetVpid(pNonIpPort, DtaRegHdSdiFormat1Get(pNonIpPort->m_pTxRegs));
+        // Disable: ILLEGAL_WORD_REMAP, ANC_CSUM_INS,
+        IoProc |= 0x0028;
     }
+    // Set VPID insertion bytes
+    DtaGs2962SetVpid(pNonIpPort, DtaRegHdSdiFormat1Get(pNonIpPort->m_pTxRegs));
     return DtaGs296xWriteRegister(pNonIpPort, GS2962_REG_IOPROC, IoProc);
 }
 

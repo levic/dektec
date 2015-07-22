@@ -99,11 +99,11 @@ DtStatus  DtaPropertiesReportDriverErrors(DtaDeviceData* pDvcData);
 
 // Video-standard helepers
 Int  DtaIoStd2VidStd(Int  Value, Int  SubValue);
-Int  DtaIoStdAndLevel2VidStd(Int  Value, Int  SubValue, Int  Level);
 Int  DtaVidStd2Fps(Int  VidStd);
 Bool  DtaVidStdIsFractional(Int  VidStd);
 Bool  DtaVidStdIsInterlaced(Int  VidStd);
 Bool  DtaVidStdIs3gSdi(Int  VidStd);
+Bool  DtaVidStdIs3glvlBSdi(Int  VidStd);
 Bool  DtaVidStdIsHdSdi(Int  VidStd);
 Bool  DtaVidStdIsSdSdi(Int  VidStd);
 

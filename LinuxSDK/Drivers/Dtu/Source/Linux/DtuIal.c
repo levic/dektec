@@ -835,6 +835,14 @@ static Int  DtuProbe(struct usb_interface* pUsbItf, const struct usb_device_id* 
             AttrCreated = true;
 
     }
+        
+    // Only proceed if no errors
+    if (Result >= 0)
+    {
+       Result = usb_set_interface(pDvcData->m_Device.m_pUsbDev, 0, 0);
+       if (Result < 0)
+            DtDbgOut(ERR, IAL, "usb_set_interface failed. Error: %i", Result);
+    }
     
     // Only proceed if no errors
     if (Result >= 0)

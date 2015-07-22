@@ -143,6 +143,7 @@ ASSERT_SIZE(DtIoConfigValue, 136)
 typedef struct _DtAvFrameProps
 {
     Int  m_VidStd;              // Video standard (DT_VIDSTD_XXX)
+    Int  m_Fps;                 // Frames per second. NOTE: div by 1.001 for fractional
     Bool  m_IsHd;               // Is an HD format
     Bool  m_IsInterlaced;       // Is an interlaced format
     Bool  m_IsFractional;       // Is a fraction format
@@ -167,7 +168,7 @@ typedef struct _DtAvFrameProps
 
     Int  m_SwitchingLines[2];   // Switching lines for field 1 & 2
 } DtAvFrameProps;
-ASSERT_SIZE(DtAvFrameProps, 76)
+ASSERT_SIZE(DtAvFrameProps, 80)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -238,6 +239,13 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define ASI_SDI_SER_ITF_FPGA_LMH0387 5           // FPGA serialiser + LMH0387 line driver
 #define ASI_SDI_SER_ITF_FPGA_GS3490 6            // FPGA serialiser + GS3490 line driver
 
+// Genlock: architecture
+#define GENLOCK_ARCH_NONE           0            // No genlock logic present
+#define GENLOCK_ARCH_145            1            // FPGA based arch, like a DTA-145
+#define GENLOCK_ARCH_2144           2            // FPGA based arch, like a DTA-2144
+#define GENLOCK_ARCH_2152           3            // LMH1982 based arch, like a DTA-2152
+#define GENLOCK_ARCH_2154           4            // LMH1983 based arch, like a DTA-2154
+
 // Genlock: operation mode for internal clock source
 #define GENLOCK_OPMODE_INTSRC_UNDEF     0        // Undefined operation mode
 #define GENLOCK_OPMODE_INTSRC_FREE_RUN  1        // Operate in free runnig mode
@@ -245,6 +253,9 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 
 // Fan controller types
 #define FAN_TYPE_MAX6639             0           // Maxim 6639 controller
+
+// Temperature sensor types
+#define TEMP_SENS_TYPE_MAX6639       0           // Maxim 6639 controller
 
 // PCIe bridges
 #define PCIE_BRIDGE_TYPE_PEX87XX     0           // PLX PEX 87XX chip

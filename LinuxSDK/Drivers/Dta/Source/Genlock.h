@@ -33,12 +33,6 @@
 #include "FpgaGenlock.h"
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants / Defines -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-#define DTA_GENLOCK_ARCH_NONE   0
-#define DTA_GENLOCK_ARCH_145    145
-#define DTA_GENLOCK_ARCH_2144   2144
-#define DTA_GENLOCK_ARCH_2152   2152
-#define DTA_GENLOCK_ARCH_2154   2154
-
 #define DTA_GENLOCK_FRACMODE_NA     -1      // Fractional mode is not applicable
 #define DTA_GENLOCK_FRACMODE_OFF    0       // Fractional mode is disabled
 #define DTA_GENLOCK_FRACMODE_ON     1       // Fractional mode is enabled
@@ -50,6 +44,8 @@ typedef struct _DtaGenlock
 {
     Bool  m_IsSupported;        // Genlocking is supported
     Int  m_GenlArch;            // Genlock architecture
+    UInt32  m_PortGroup;        // Mask indicating which ports are under the control of 
+                                // GENREF controller
     Int  m_OpModeIntSrc;        // Operational mode when locking to an internal source
     Int  m_VcxoValue;           // Manual VCXO control (-1 = no manual control)
     void*  m_pVcxoOwner;        // Handle of app controlling VCXO
@@ -63,9 +59,11 @@ typedef struct _DtaGenlock
 
     // Genlock pipeline delay parameters
     Int  m_RefLineDurationNs;   // Duration (in ns) of one line for the reference signal
+    Int  m_OutLineDurationNs;   // Duration (in ns) of one line for the output signal
     Int  m_InDelayNs;           // Delay upto the LMH198X video clk generator (in ns)
     Int  m_LineOffset;          // Offset used for TOF (Top-of-Frame) pulse compenstating
                                 // for delays introduced by "genlock pipeline"
+    Int  m_TofAlignOffsetNs;    // Offset (ns) with which the TOF arrive at the serialiser
 
     volatile UInt8*  m_pGenlRegs; // Pointer to base of genlock registers
     

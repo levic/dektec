@@ -152,8 +152,8 @@ INSTALL_CMD := "/sbin/rmmod $(TARGET) 2>/dev/null || true &&          \
 				install -d $(INSTALLDIR) &&     \
 	            cp -v $(TARGET).ko $(INSTALLDIR) && \
 			    /sbin/depmod -a &&                  \
-			    /sbin/modprobe $(TARGET) &&         \
-			   install -o root -g root -m 644 $(UDEV_FILE) /etc/udev/rules.d/51-dtu.rules"
+			   install -o root -g root -m 644 $(UDEV_FILE) /etc/udev/rules.d/51-dtu.rules" && \
+			    /sbin/modprobe $(TARGET)
 
 install:
 	su -c $(INSTALL_CMD)

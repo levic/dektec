@@ -102,6 +102,7 @@ SRC    = $(SRCDIR)/Linux/DtaIal.o         \
          $(SRCDIR)/Max6639.o              \
          $(SRCDIR)/FpgaGenlock.o          \
          $(SRCDIR)/Rs422.o                \
+         $(SRCDIR)/Ad9129.o               \
          $(SRCDIR)/Linux/DtaDeviceTable.o \
          Messages.o
 
@@ -147,8 +148,8 @@ INSTALL_CMD := "/sbin/rmmod $(TARGET) 2>/dev/null || true &&          \
 				install -d $(INSTALLDIR) &&     \
 	            cp -v $(TARGET).ko $(INSTALLDIR) &&         \
 			    /sbin/depmod -a &&                  \
-			    /sbin/modprobe $(TARGET) &&         \
-			    install -o root -g root -m 644 51-dta.rules /etc/udev/rules.d/"
+			    install -o root -g root -m 644 51-dta.rules /etc/udev/rules.d/" && \
+			    /sbin/modprobe $(TARGET)
 
 install:
 	su -c $(INSTALL_CMD)

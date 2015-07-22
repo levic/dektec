@@ -27,8 +27,6 @@
 #ifndef _NON_IP_H
 #define _NON_IP_H
 
-#define  MAX_ISO_ALTSETTINGS  8
-
 // 16 LSB are not used for port flags to prevent any possible confusion with
 // the device-level flags
 #define DTU_PORT_FLAG_INSUFF_USB_BW  0x010000
@@ -197,9 +195,8 @@ DtStatus  DtuNonIpRxReset( DtuDeviceData*  pDvcData, DtuNonIpPort*  pNonIpPort,
                                                                            Int ResetMode);
 DtStatus  DtuNonIpTxReset( DtuDeviceData*  pDvcData, DtuNonIpPort*  pNonIpPort, 
                                                                            Int ResetMode);
-DtStatus  DtuNonIpSetIsoBw(DtuNonIpPort*  pNonIpPort, Int64*  pBw);
 DtStatus  DtuGetuFrameSize(DtuNonIpPort*  pNonIpPort, Int*  pUFrameSize);
-DtStatus  Dtu236DemodModeSet(DtuDeviceData*  pDvcData, Bool DemodMode);
+DtStatus  DtuDemodModeSet(DtuDeviceData*  pDvcData, Bool DemodMode);
 
 
 //DtStatus  DtuNonIpPowerdownPre(DtuNonIpPort* pNonIpPort);

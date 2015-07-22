@@ -1899,9 +1899,9 @@ static const DtTableLink  DtTableLink2139_0[] =
 static const DtTableEntry  DtTable2154_0_000[] =
 {
     {  4,  40 }, {  3, 204 }, { 10,  85 }, { 11,  85 }, { 16,  94 }, { 17,   3 },
-    { 18,  47 }, { 19,  32 }, { 34,  60 }, { 36, 104 }, { 40,  55 }, { 38,   0 },
-    { 20, 128 }, { 21,   3 }, { 22,  47 }, { 23,  32 }, { 35,  60 }, { 37, 104 },
-    { 41,  55 }, { 39,   0 }
+    { 18,  47 }, { 19,  32 }, { 34,  53 }, { 36, 104 }, { 40,  60 }, { 38,   0 },
+    { 20, 128 }, { 21,   3 }, { 22,  47 }, { 23,  32 }, { 35,  53 }, { 37, 104 },
+    { 41,  60 }, { 39,   0 }
 };
 static const DtTableEntry  DtTable2154_0_001[] =
 {
@@ -1950,7 +1950,79 @@ static const DtTableLink  DtTableLink2174_1[] =
     { "SUBDVC_PORT_MAP", -1, 0, 0, 3, DtTable2174_1_001 }
 };
 
-const Int  DtTableStoreCount = 15;
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2179; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static const DtTableEntry  DtTable2179_0_000[] =
+{
+    { 1, 1 }, { 2, 2 }, { 13, 3 }, { 14, 4 }
+};
+
+static const DtTableLink  DtTableLink2179_0[] = 
+{
+    { "SUBDVC_PORT_MAP", -1, 0, 0, 4, DtTable2179_0_000 }
+};
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2179; Sub-device=1 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static const DtTableEntry  DtTable2179_1_001[] =
+{
+    { 3, 1 }, { 4, 2 }
+};
+
+static const DtTableLink  DtTableLink2179_1[] = 
+{
+    { "SUBDVC_PORT_MAP", -1, 0, 0, 2, DtTable2179_1_001 }
+};
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2179; Sub-device=2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static const DtTableEntry  DtTable2179_2_002[] =
+{
+    { 5, 1 }, { 6, 2 }
+};
+
+static const DtTableLink  DtTableLink2179_2[] = 
+{
+    { "SUBDVC_PORT_MAP", -1, 0, 0, 2, DtTable2179_2_002 }
+};
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2179; Sub-device=3 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static const DtTableEntry  DtTable2179_3_003[] =
+{
+    { 7, 1 }, { 8, 2 }
+};
+
+static const DtTableLink  DtTableLink2179_3[] = 
+{
+    { "SUBDVC_PORT_MAP", -1, 0, 0, 2, DtTable2179_3_003 }
+};
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2179; Sub-device=4 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static const DtTableEntry  DtTable2179_4_004[] =
+{
+    { 9, 1 }, { 10, 2 }
+};
+
+static const DtTableLink  DtTableLink2179_4[] = 
+{
+    { "SUBDVC_PORT_MAP", -1, 0, 0, 2, DtTable2179_4_004 }
+};
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2179; Sub-device=5 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static const DtTableEntry  DtTable2179_5_005[] =
+{
+    { 11, 1 }, { 12, 2 }
+};
+
+static const DtTableLink  DtTableLink2179_5[] = 
+{
+    { "SUBDVC_PORT_MAP", -1, 0, 0, 2, DtTable2179_5_005 }
+};
+
+const Int  DtTableStoreCount = 21;
 const DtTableStore  DtTableStores[] = 
 {
     { 107, 0, 1, DtTableLink107_0 },
@@ -1967,5 +2039,11 @@ const DtTableStore  DtTableStores[] =
     { 2154, 0, 2, DtTableLink2154_0 },
     { 2154, 1, 1, DtTableLink2154_1 },
     { 2174, 0, 1, DtTableLink2174_0 },
-    { 2174, 1, 1, DtTableLink2174_1 }
+    { 2174, 1, 1, DtTableLink2174_1 },
+    { 2179, 0, 1, DtTableLink2179_0 },
+    { 2179, 1, 1, DtTableLink2179_1 },
+    { 2179, 2, 1, DtTableLink2179_2 },
+    { 2179, 3, 1, DtTableLink2179_3 },
+    { 2179, 4, 1, DtTableLink2179_4 },
+    { 2179, 5, 1, DtTableLink2179_5 }
 };

@@ -37,10 +37,11 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
 {
     DT_ASSERT(pProps != NULL);
 
-    switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
+    switch (VidStd)
     {
     case DT_VIDSTD_525I59_94:
         pProps->m_NumLines = 525;
+        pProps->m_Fps = 30;
         pProps->m_IsFractional = TRUE;
         pProps->m_IsInterlaced = TRUE;
         pProps->m_IsHd = FALSE;
@@ -68,6 +69,7 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
 
     case DT_VIDSTD_625I50:
         pProps->m_NumLines = 625;
+        pProps->m_Fps = 25;
         pProps->m_IsFractional = FALSE;
         pProps->m_IsInterlaced = TRUE;
         pProps->m_IsHd = FALSE;
@@ -93,10 +95,20 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
         break;
 
     case DT_VIDSTD_1080P60:
+    case DT_VIDSTD_1080P60B:
     case DT_VIDSTD_1080P59_94:
+    case DT_VIDSTD_1080P59_94B:
     case DT_VIDSTD_1080P50:
+    case DT_VIDSTD_1080P50B:
         pProps->m_NumLines = 1125;
-        pProps->m_IsFractional = (VidStd == DT_VIDSTD_1080P59_94);
+
+        if (VidStd==DT_VIDSTD_1080P50 || VidStd==DT_VIDSTD_1080P50B)
+            pProps->m_Fps = 50;
+        else
+            pProps->m_Fps = 60;
+
+        pProps->m_IsFractional = (VidStd==DT_VIDSTD_1080P59_94 ||
+                                                           VidStd==DT_VIDSTD_1080P59_94B);
         pProps->m_IsInterlaced = FALSE;
         pProps->m_IsHd = TRUE;
 
@@ -116,14 +128,14 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
         pProps->m_Field2ActVidEnd  = 0;
         
         pProps->m_VancNumS = pProps->m_ActVidNumS = 1920*2;
-        if ((VidStd&~DT_VIDSTD_3GLVL_MASK)==DT_VIDSTD_1080P60 ||
-                                     (VidStd&~DT_VIDSTD_3GLVL_MASK)==DT_VIDSTD_1080P59_94)
+        if (VidStd==DT_VIDSTD_1080P60 || VidStd==DT_VIDSTD_1080P60B ||
+                            VidStd==DT_VIDSTD_1080P59_94 || VidStd==DT_VIDSTD_1080P59_94B)
         {
             pProps->m_HancNumS = 268*2;
             // Set Sync point
             pProps->m_SyncPointPixelOff = 88;   // Sync point @pixel 88
         }
-        else if ((VidStd&~DT_VIDSTD_3GLVL_MASK) == DT_VIDSTD_1080P50)
+        else if (VidStd==DT_VIDSTD_1080P50 || VidStd==DT_VIDSTD_1080P50B)
         {
             pProps->m_HancNumS = 708*2;
             pProps->m_SyncPointPixelOff = 528;   // Sync point @pixel 528
@@ -141,6 +153,16 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
     case DT_VIDSTD_1080P24:
     case DT_VIDSTD_1080P23_98:
         pProps->m_NumLines = 1125;
+
+        if (VidStd==DT_VIDSTD_1080P30 || VidStd==DT_VIDSTD_1080P29_97)
+            pProps->m_Fps = 30;
+        else if (VidStd==DT_VIDSTD_1080P25)
+            pProps->m_Fps = 25;
+        else if (VidStd==DT_VIDSTD_1080P24 || VidStd==DT_VIDSTD_1080P23_98)
+            pProps->m_Fps = 24;
+        else
+            DT_ASSERT(1==0);
+
         pProps->m_IsFractional = (VidStd==DT_VIDSTD_1080P29_97 
                                                          || VidStd==DT_VIDSTD_1080P23_98);
         pProps->m_IsInterlaced = FALSE;
@@ -192,6 +214,17 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
     case DT_VIDSTD_1080PSF24:
     case DT_VIDSTD_1080PSF23_98:
         pProps->m_NumLines = 1125;
+
+        if (VidStd==DT_VIDSTD_1080I60 || VidStd==DT_VIDSTD_1080I59_94 
+                         || VidStd==DT_VIDSTD_1080PSF30 || VidStd==DT_VIDSTD_1080PSF29_97)
+            pProps->m_Fps = 30;
+        else if (VidStd==DT_VIDSTD_1080I50 || VidStd==DT_VIDSTD_1080PSF25)
+            pProps->m_Fps = 25;
+        else if (VidStd==DT_VIDSTD_1080PSF24 || VidStd==DT_VIDSTD_1080PSF23_98)
+            pProps->m_Fps = 24;
+        else
+            DT_ASSERT(1==0);
+
         pProps->m_IsFractional = (VidStd==DT_VIDSTD_1080I59_94 ||
                                   VidStd==DT_VIDSTD_1080PSF29_97 ||
                                   VidStd==DT_VIDSTD_1080PSF23_98);
@@ -243,6 +276,20 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
     case DT_VIDSTD_720P24:
     case DT_VIDSTD_720P23_98:
         pProps->m_NumLines = 750;
+
+        if (VidStd==DT_VIDSTD_720P60 || VidStd==DT_VIDSTD_720P59_94)
+            pProps->m_Fps = 60;
+        else if (VidStd==DT_VIDSTD_720P50)
+            pProps->m_Fps = 50;
+        else if (VidStd==DT_VIDSTD_720P30 || VidStd==DT_VIDSTD_720P29_97)
+            pProps->m_Fps = 30;
+        else if (VidStd==DT_VIDSTD_720P25)
+            pProps->m_Fps = 25;
+        else if (VidStd==DT_VIDSTD_720P24 || VidStd==DT_VIDSTD_720P23_98)
+            pProps->m_Fps = 24;
+        else
+            DT_ASSERT(1==0);
+
         pProps->m_IsFractional = (VidStd==DT_VIDSTD_720P59_94 
                                                           || VidStd==DT_VIDSTD_720P29_97 
                                                           || VidStd==DT_VIDSTD_720P23_98);

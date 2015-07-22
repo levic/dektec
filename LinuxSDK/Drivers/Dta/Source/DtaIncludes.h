@@ -68,6 +68,7 @@ typedef struct _DmaChannel DmaChannel;      // Needed for DtaUtility and Dma.h
 #include <Gs296x.h>
 #include <Rs422.h>
 #include <FanControl.h>
+#include <Ad9129.h>
 
 // Dta.h
 #include <Dta.h>

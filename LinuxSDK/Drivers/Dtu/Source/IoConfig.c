@@ -545,9 +545,10 @@ static DtStatus  DtuIoConfigUpdateValidate(
             switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].m_SubValue)
             {
             case DT_IOCONFIG_INPUT:
-                if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 236)
+                if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 236 ||
+                    pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 238)
                 {
-                    // Only one of the two DTU-236 ports can be enabled at any time
+                    // Only one of the two DTU-236/238 ports can be enabled at any time
                     DtuIoConfigNonIpPortUpdate*  pPortUpdateBuddy =
                                              &pUpdate->m_pNonIpPortUpdate[NonIpIndex ^ 1];
                     if (pPortUpdateBuddy->m_CfgValue[DT_IOCONFIG_IODIR].m_Value !=
@@ -832,31 +833,10 @@ static DtStatus  DtuIoConfigUpdateValidate(
             return DT_STATUS_CONFIG_ERROR;
         }
 
-        // Validate DT_IOCONFIG_BW
-        DtDbgOut(MAX, IOCONFIG, "Configuration BW Value: %d ParXtra0: %d",
+        // Ignore DT_IOCONFIG_BW
+        DtDbgOut(MAX, IOCONFIG, "Configuration BW Value: %d ParXtra0: %lld",
                                     pPortUpdate->m_CfgValue[DT_IOCONFIG_BW].m_Value,
                                     pPortUpdate->m_CfgValue[DT_IOCONFIG_BW].m_ParXtra[0]);
-
-        switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_BW].m_Value)
-        {
-        case DT_IOCONFIG_NONE:
-            // Not applicable should only be set when for devices that don't support
-            // usb3 isochronous mode
-            DT_ASSERT(!pNonIpPort->m_CapIsoBw);
-            break;
-        case DT_IOCONFIG_FALSE:
-            // Never valid
-            return DT_STATUS_CONFIG_ERROR;
-            break;
-        case DT_IOCONFIG_TRUE:
-            if (!pNonIpPort->m_CapIsoBw)
-                return DT_STATUS_CONFIG_ERROR;
-            if (pPortUpdate->m_CfgValue[DT_IOCONFIG_BW].m_ParXtra[0] < 0)
-                return DT_STATUS_CONFIG_ERROR;
-            break;
-        default:
-            return DT_STATUS_CONFIG_ERROR;
-        }
 
         // Validate DT_IOCONFIG_RFCLKSEL
         DtDbgOut(MAX, IOCONFIG, "Configuration RFCLKSEL Value: %d SubValue: %d",

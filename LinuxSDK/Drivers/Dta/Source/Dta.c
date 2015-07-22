@@ -149,6 +149,8 @@ DtStatus  DtaDeviceInit(DtaDeviceData* pDvcData)
     
     // Initialize Exclusive access fast mutex
     DtFastMutexInit(&pDvcData->m_ExclAccessMutex);
+    pDvcData->m_RegistryWriteBusy = FALSE;
+    DtEventInit(&pDvcData->m_RegWriteDoneEvt, TRUE);
 
     // Initialize events
     DtaEventsInit(pDvcData);
@@ -194,13 +196,13 @@ DtStatus  DtaDeviceInit(DtaDeviceData* pDvcData)
         if (!DT_SUCCESS(Status))
             return Status;
 
-        // Initialise the number and type of ports the card supports. 
-        Status = DtaCalculateAndCreatePortsStruct(pDvcData);
+        // Initialise the table store
+        Status = DtTablesInit(&pDvcData->m_PropData);
         if (!DT_SUCCESS(Status))
             return Status;
 
-        // Initialise the table store
-        Status = DtTablesInit(&pDvcData->m_PropData);
+        // Initialise the number and type of ports the card supports. 
+        Status = DtaCalculateAndCreatePortsStruct(pDvcData);
         if (!DT_SUCCESS(Status))
             return Status;
 
@@ -580,15 +582,8 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
         if (!DT_SUCCESS(Status))
             return Status;
         
-        if (pDvcData->m_DevInfo.m_SubDvc > 0)
-        {
-            // NOTE: we need a unique SN for persistence of IO-configs => since slaves do 
-            // not have a VPD with SN we use the board-ID as alternative
-            pDvcData->m_DevInfo.m_Serial = DtaRegBoardId(pDvcData->m_pGenRegs);
-            // Set MSB bit to make sure board ID does not conflict with a normal SN
-            pDvcData->m_DevInfo.m_Serial |= 0x8000000000000000LL;
-        } 
-        else 
+        if (pDvcData->m_DevInfo.m_SubDvc==0 ||
+                                    pDvcData->m_Vpd.m_EepromIoItf!=VPD_EEPROM_IO_NOT_SUPP)
         {
             // Get serial number
             pDvcData->m_DevInfo.m_Serial = -1;
@@ -601,8 +596,23 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
                 DtEvtLogReport(&pDvcData->m_Device.m_EvtObject,
                                                  DTA_LOG_SERIAL_FAILED, NULL, NULL, NULL);
             }
+            // For now; use the serial as the boards unqiue ID
+            pDvcData->m_DevInfo.m_UniqueId = pDvcData->m_DevInfo.m_Serial;
         }
-                
+
+        // For sub-devices other than the master read a unique ID from the board itself
+        if (pDvcData->m_DevInfo.m_SubDvc > 0)
+        {
+            // NOTE: we need a unique SN for persistence of IO-configs => since slaves do 
+            // not have a VPD with SN we use the board-ID as alternative
+            pDvcData->m_DevInfo.m_UniqueId = DtaRegBoardId(pDvcData->m_pGenRegs);
+
+            // Encode sub-device No in MSB bits to make sure board ID does not conflict 
+            // with other sub-devices
+            pDvcData->m_DevInfo.m_UniqueId |= 
+                    ((((UInt64)pDvcData->m_DevInfo.m_SubDvc)<<60) & 0xF000000000000000LL);
+        }
+                        
         // Get hardware revision from VPD "EC" resource
         // Initialize hardware revision to -1, indicating that it is not defined yet
         pDvcData->m_DevInfo.m_HardwareRevision = -1;
@@ -743,6 +753,11 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
     if (!DT_SUCCESS(Status))
         return Status;
 
+    // Initialise modulator's RF-DAC
+    Status = DtaRfDacInitPowerup(pDvcData);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
     // First powerup is done
     pDvcData->m_InitialPowerup = FALSE;
 
@@ -820,8 +835,8 @@ DtStatus  DtaDeviceInterruptEnable(DtaDeviceData* pDvcData)
 
     // SOF-frame interrupts
     if (pDvcData->m_Genlock.m_IsSupported &&
-                                 (pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2152 ||
-                                  pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2154))
+                                  (   pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_2152
+                                   || pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_2154))
         DtaRegHdGenlCtrlSetSofIntEna(pDvcData->m_Genlock.m_pGenlRegs, 1);
 
     //-.-.-.-.-.-.-.-.-.-.-.- Step 2: Enable port-level interrupts -.-.-.-.-.-.-.-.-.-.-.-
@@ -895,7 +910,7 @@ DtStatus  DtaDevicePowerUpPost(DtaDeviceData* pDvcData)
         }
     }
 
-    if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2154)
+    if (pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2154)
     {
         Status = DtaLmh1983InitPowerup(&pDvcData->m_Genlock.m_Lmh1983);
         if (!DT_SUCCESS(Status))
@@ -985,8 +1000,8 @@ DtStatus  DtaDeviceInterruptDisable(DtaDeviceData* pDvcData)
 
     // Matrix interrupts
     if (pDvcData->m_Genlock.m_IsSupported &&
-                                 (pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2152 ||
-                                  pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2154))
+                                 (pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_2152 ||
+                                  pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_2154))
         DtaRegHdGenlCtrlSetSofIntEna(pDvcData->m_Genlock.m_pGenlRegs, 0); // Disable SOF interrupt
 
     //.-.-.-.-.-.-.-.-.-.-.- Step 2: disable port-level interrupts -.-.-.-.-.-.-.-.-.-.-.-
@@ -2414,6 +2429,20 @@ DtStatus  DtaDeviceIoctlChild(DtaChildDeviceData* pDvcData,
     return Status;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDeviceAcquireExclAccess -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaDeviceAcquireExclAccess(DtaDeviceData*  pDvcData)
+{
+    DtStatus  Result = DtFastMutexAcquire(&pDvcData->m_ExclAccessMutex);
+    while (Result==DT_STATUS_OK && pDvcData->m_RegistryWriteBusy)
+    {
+        DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
+        DtEventWait(&pDvcData->m_RegWriteDoneEvt, -1);
+        Result = DtFastMutexAcquire(&pDvcData->m_ExclAccessMutex);
+    }
+    return Result;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDeviceInterrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
@@ -2464,8 +2493,8 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
         //  genlocking architecture
 
         if (pDvcData->m_Genlock.m_IsSupported && 
-                                (pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_145 
-                                || pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2144))
+                                   (   pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_145 
+                                    || pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_2144))
         {
             // Check for reference channels
             FoundGenlockRef = FALSE;
@@ -2611,8 +2640,8 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
     if (pDvcData->m_Matrix.m_IsSupported)
     {
         // Check for SOF (start-of-frame) interrupt
-        if ((pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2152 ||
-                          pDvcData->m_Genlock.m_GenlArch==DTA_GENLOCK_ARCH_2154) &&
+        if ((pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_2152 ||
+                          pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_2154) &&
                           DtaRegHdGenlStatGetSofInt(pDvcData->m_Genlock.m_pGenlRegs) != 0)
         {
             // Call handler. NOTE: the handler will clear the interrupt flag
@@ -2883,9 +2912,11 @@ DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
     DtDpcArgs  DpcArgs;
     Int  CurFrmIdx=0, NextFrmIdx=0, LastFrmIdx = 0;
     Bool  IsRunning = TRUE;
+    const DtAvFrameProps*  pFrameProps = NULL;
     DtaFrameBufSectionConfig*  pSections = pNonIpPort->m_Matrix.m_BufConfig.m_Sections;
 
     DT_ASSERT(pNonIpPort->m_CapMatrix);
+    pFrameProps = &pNonIpPort->m_Matrix.m_FrameProps;
 
     // If the port is configured for ASI => "ignore" this interrupt
     if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI)
@@ -2932,6 +2963,13 @@ DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
         ChangeToHold = NewState==MATRIX_PORT_HOLD && 
                                 (pNonIpPort->m_Matrix.m_LastStateAtInt!=MATRIX_PORT_HOLD);
 
+        if (DtAtomicCompareExchange(&pNonIpPort->m_Matrix.m_ForceRestart, 1, 0)==1 &&
+                                                         (NewState>=MATRIX_PORT_RUN_AUTO))
+        {
+            IsRunning = FALSE;
+            ChangeToRun = TRUE;
+        }
+
         if (ChangeToRun)
         {
             NextFrame = pNonIpPort->m_Matrix.m_NextFrame;
@@ -2975,8 +3013,78 @@ DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
             if (pNonIpPort->m_CapMatrix2)
             {
                 RefClk = DtaRegHdFrmTimeGet(pNonIpPort->m_pRxRegs);
+                //.-.-.-.-.-.-.-.-.-.-.-.- Workaround for TT#2182 -.-.-.-.-.-.-.-.-.-.-.-.
+                // Firmware latches start of frame timestamp instead of end of frame
+                // timestamp. Compute expected time of one frame and add that to the
+                // read value.
+                if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2154 &&
+                                   pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion<=5)
+                {
+                    UInt  FrameTime = pNonIpPort->m_pDvcData->m_DevInfo.m_RefClk / 
+                                                                       pFrameProps->m_Fps;
+                    if (pFrameProps->m_IsFractional)
+                    {
+                            FrameTime = FrameTime * 1000 / 1001;
+                    }
+                    RefClk += FrameTime;
+                }
+                //.-.-.-.-.-.-.-.-.-.-.- End of TT#2182 workaround -.-.-.-.-.-.-.-.-.-.-.-
             } else {
                 RefClk = DtaRegRefClkCntGet64(pNonIpPort->m_pDvcData->m_pGenRegs);
+            }
+
+            if (DtaVidStdIs3glvlBSdi(pFrameProps->m_VidStd) &&
+                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_INPUT)
+            {
+                // For 3G level B input the interrupts are 1126 and 1124 lines apart. To
+                // correct for this we adjust time we read from the firmware by one
+                // line every odd frame.
+                UInt  ExpectedFrameTime = 0, LineTime;
+                Int64  RealFrameTime;
+                switch (pFrameProps->m_VidStd)
+                {
+                default:
+                    DT_ASSERT(FALSE);
+                case DT_VIDSTD_1080P50B:
+                    ExpectedFrameTime = pNonIpPort->m_pDvcData->m_DevInfo.m_RefClk/50;
+                    break;
+                case DT_VIDSTD_1080P59_94B:
+                    ExpectedFrameTime = pNonIpPort->m_pDvcData->m_DevInfo.m_RefClk/60;
+                    ExpectedFrameTime = ExpectedFrameTime * 1001 / 1000;
+                    break;
+                case DT_VIDSTD_1080P60B:
+                    ExpectedFrameTime = pNonIpPort->m_pDvcData->m_DevInfo.m_RefClk/60;
+                    break;
+                }
+                LineTime = ExpectedFrameTime / 1125;
+                RealFrameTime = RefClk -
+                               pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkStart;
+                pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_UNKNOWN;
+                if (RealFrameTime > ExpectedFrameTime+LineTime/2 &&
+                                             RealFrameTime < ExpectedFrameTime+LineTime*2)
+                {
+                    // Frame time is beteen +0.5 line and +2 lines of expected time
+                    RefClk -= LineTime;
+                    pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf=DTA_3GB_BOTTOM;
+                }
+                else if (RealFrameTime > ExpectedFrameTime-LineTime/2 && 
+                                             RealFrameTime < ExpectedFrameTime+LineTime/2)
+                {
+                    // Frame time is beteen -0.5 line and +0.5 lines of expected time
+                    pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_TOP;
+                }
+            }
+            else if (DtaVidStdIs3glvlBSdi(pFrameProps->m_VidStd) &&
+                       pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_OUTPUT)
+            {
+                if (DtaRegHdStatGetCurLvlAToBFrame(pNonIpPort->m_pRxRegs) == 0)
+                {
+                    pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_TOP;
+                } else {
+                    pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf=DTA_3GB_BOTTOM;
+                }
+            } else {
+                pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_UNKNOWN;
             }
 
             // For the start time of the current frame there are two options, namely:
@@ -3418,11 +3526,12 @@ void  DtaCleanupPortStructs(DtaDeviceData* pDvcData)
 DtStatus  DtaDeviceGenlockIoctl(DtaDeviceData* pDvcData, Int* pState, Int* pRefVidStd)
 {
     // Check architecture type
-    if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2152)
+    if (pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2152)
     {
         // Get and convert genlock state
         DtFastMutexAcquire(&pDvcData->m_Genlock.m_Lmh1982.m_StateMutex);
-        DtDbgOut(AVG, DTA, "DtaDeviceGenlockIoctl: Lmh1982 state is %d", pDvcData->m_Genlock.m_Lmh1982.m_State);
+        DtDbgOut(AVG, DTA, "DtaDeviceGenlockIoctl: Lmh1982 state is %d",
+                                                   pDvcData->m_Genlock.m_Lmh1982.m_State);
         switch (pDvcData->m_Genlock.m_Lmh1982.m_State)
         {
         case DTA_LMH1982_STATE_PLL_LOCKED:
@@ -3450,7 +3559,7 @@ DtStatus  DtaDeviceGenlockIoctl(DtaDeviceData* pDvcData, Int* pState, Int* pRefV
 
         return DT_STATUS_OK;
     }
-    else if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2154)
+    else if (pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2154)
     {
         // Get and convert genlock state
         DtFastMutexAcquire(&pDvcData->m_Genlock.m_Lmh1983.m_StateMutex);

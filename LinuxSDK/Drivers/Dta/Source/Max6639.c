@@ -59,6 +59,13 @@ DtStatus  DtaMax6639Init(DtaDeviceData* pDvcData)
     if (OldPropertyNotFoundCounter != pDvcData->m_PropData.m_PropertyNotFoundCounter)  
         return DT_STATUS_NOT_FOUND;    
 
+    // Fan control doesn't need to be initialized for the DTA-2154 starting with fw v5.
+    // We currently have no way to give the table a max fw version so instead we
+    // hardcode this here.
+    if (pDvcData->m_PropData.m_TypeNumber==2154 &&
+                                                pDvcData->m_PropData.m_FirmwareVersion>=5)
+        return DT_STATUS_OK;
+
     // Get the register values 
     // BUG ALERT: we address port 1 (index 0), since currently the tables/capparser
     // cannot cope with device specific tables, see also TT#2093.

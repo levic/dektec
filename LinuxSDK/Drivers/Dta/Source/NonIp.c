@@ -33,8 +33,6 @@ DtStatus  DtaNonIpDetermineDmaRegsOffset(DtaDeviceData* pDvcData, Int PortIndex,
 Int  DtaNonIpGetMaxDmaBurstSize(DtaNonIpPort* pNonIpPort);
 Int  DtaNonIpGetMaxFifoSize(DtaNonIpPort* pNonIpPort);
 void  DtaNonIpRfPwrMeasLock(DtaNonIpPort* pNonIpPort, Int Lock);
-static DtStatus  DtaNonIpIoConfigSet3GLvl(DtaNonIpPort* pNonIpPort,  Int Group,
-                                                               DtaIoConfigValue CfgValue);
 static DtStatus  DtaNonIpIoConfigSetIoDir(DtaNonIpPort* pNonIpPort,  Int Group,
                                                                DtaIoConfigValue CfgValue);
 static DtStatus  DtaNonIpIoConfigSetIoStd(DtaNonIpPort* pNonIpPort,  Int Group,
@@ -143,7 +141,7 @@ DtStatus  DtaNonIpInit(
     DtaNonIpPort*  pNonIpPort)
 {
     DtStatus  Status = DT_STATUS_OK;
-    Int  IoConfig, ParXtra, DefIoStd=-1, Def3GLvl=-1, OldPropertyNotFoundCounter=0;
+    Int  IoConfig, ParXtra, DefIoStd=-1, OldPropertyNotFoundCounter=0;
     UInt  DmaRegsOffset;
     Bool  HasIc2RfPwrMeas;
     
@@ -154,11 +152,6 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_PortIndex = PortIndex;
 
     // Capabilities
-    // 3GLVL (3G-SDI level) - Capabilities
-    pNonIpPort->m_Cap3GLvlA = DtPropertiesGetBool(pPropData, "CAP_3GLVLA",
-                                                                 pNonIpPort->m_PortIndex);
-    pNonIpPort->m_Cap3GLvlB = DtPropertiesGetBool(pPropData, "CAP_3GLVLB",
-                                                                 pNonIpPort->m_PortIndex);
     // IODIR (I/O direction) - Capabilities
     pNonIpPort->m_CapDisabled = DtPropertiesGetBool(pPropData, "CAP_DISABLED",
                                                                  pNonIpPort->m_PortIndex);
@@ -264,9 +257,15 @@ DtStatus  DtaNonIpInit(
     // IOSTD - SDI (3G-SDI) - Sub capabilities
     pNonIpPort->m_Cap1080P50 = DtPropertiesGetBool(pPropData, "CAP_1080P50",
                                                                  pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080P50B = DtPropertiesGetBool(pPropData, "CAP_1080P50B",
+                                                                 pNonIpPort->m_PortIndex);
     pNonIpPort->m_Cap1080P59_94 = DtPropertiesGetBool(pPropData, "CAP_1080P59_94",
                                                                  pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080P59_94B = DtPropertiesGetBool(pPropData, "CAP_1080P59_94B",
+                                                                 pNonIpPort->m_PortIndex);
     pNonIpPort->m_Cap1080P60 = DtPropertiesGetBool(pPropData, "CAP_1080P60",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap1080P60B = DtPropertiesGetBool(pPropData, "CAP_1080P60B",
                                                                  pNonIpPort->m_PortIndex);
     // RFCLKSEL (RF clock source selection) - Capabilities
     pNonIpPort->m_CapRfClkExt = DtPropertiesGetBool(pPropData, "CAP_RFCLKEXT",
@@ -333,6 +332,32 @@ DtStatus  DtaNonIpInit(
     {
         pNonIpPort->m_AsiSdiSerItfType = DtPropertiesGetInt(pPropData, 
                                            "ASI_SDI_HW_SER_ITF", pNonIpPort->m_PortIndex);
+    }
+    // Get pipeline delays for relevant interfaces
+    pNonIpPort->m_AsiSdiSerDelayNsSd = pNonIpPort->m_AsiSdiSerDelayNsHd = 
+                                                     pNonIpPort->m_AsiSdiSerDelayNs3g = 0;
+    if (pNonIpPort->m_AsiSdiSerItfType==ASI_SDI_SER_ITF_FPGA_GS3490
+                          || pNonIpPort->m_AsiSdiSerItfType==ASI_SDI_SER_ITF_GS2962
+                          || pNonIpPort->m_AsiSdiSerItfType==ASI_SDI_SER_ITF_FPGA_LMH0387)
+    {
+        if (pNonIpPort->m_CapSdi)
+        {
+            pNonIpPort->m_AsiSdiSerDelayNsSd = DtPropertiesGetInt(pPropData, 
+                                  "ASI_SDI_HW_SER_ITF_DELAY_SD", pNonIpPort->m_PortIndex);
+            DT_ASSERT(pNonIpPort->m_AsiSdiSerDelayNsSd >= 0);
+        }
+        if (pNonIpPort->m_CapHdSdi)
+        {
+            pNonIpPort->m_AsiSdiSerDelayNsHd = DtPropertiesGetInt(pPropData, 
+                                  "ASI_SDI_HW_SER_ITF_DELAY_HD", pNonIpPort->m_PortIndex);
+            DT_ASSERT(pNonIpPort->m_AsiSdiSerDelayNsHd >= 0);
+        }
+        if (pNonIpPort->m_Cap3GSdi)
+        {
+            pNonIpPort->m_AsiSdiSerDelayNs3g = DtPropertiesGetInt(pPropData, 
+                                  "ASI_SDI_HW_SER_ITF_DELAY_3G", pNonIpPort->m_PortIndex);
+            DT_ASSERT(pNonIpPort->m_AsiSdiSerDelayNs3g >= 0);
+        }
     }
 
     // A non-functional port has no input and output capability
@@ -460,24 +485,6 @@ DtStatus  DtaNonIpInit(
         // IODIR must have a value
         DT_ASSERT(FALSE);
     }
-  
-    // DT_IOCONFIG_3GLVL; first check if a default has been defined
-    // NOTE: this default property is not required, so do not incr the not found counter
-    OldPropertyNotFoundCounter = pPropData->m_PropertyNotFoundCounter;
-    Def3GLvl = DtPropertiesGetInt(pPropData, "DEFAULT_3GLVL", pNonIpPort->m_PortIndex);
-    pPropData->m_PropertyNotFoundCounter = OldPropertyNotFoundCounter;
-    if (Def3GLvl != -1)
-    {
-        DT_ASSERT(pNonIpPort->m_Cap3GLvlA || pNonIpPort->m_Cap3GLvlB);
-        DT_ASSERT(Def3GLvl==DT_IOCONFIG_3GLVLA || Def3GLvl==DT_IOCONFIG_3GLVLB);
-        pNonIpPort->m_IoCfg[DT_IOCONFIG_3GLVL].m_Value = Def3GLvl;
-    }
-    else if (pNonIpPort->m_Cap3GLvlA)
-        pNonIpPort->m_IoCfg[DT_IOCONFIG_3GLVL].m_Value = DT_IOCONFIG_3GLVLA;
-    else  if (pNonIpPort->m_Cap3GLvlB)
-        pNonIpPort->m_IoCfg[DT_IOCONFIG_3GLVL].m_Value = DT_IOCONFIG_3GLVLB;
-    else
-        pNonIpPort->m_IoCfg[DT_IOCONFIG_3GLVL].m_Value = -1;
     
     // DT_IOCONFIG_IOSTD; first check if a default has been defined
     // NOTE: this default property is not required, so do not incr the not found counter
@@ -538,6 +545,13 @@ DtStatus  DtaNonIpInit(
             else if (pNonIpPort->m_Cap1080P59_94)
                 pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue =
                                                                    DT_IOCONFIG_1080P59_94;
+            else if (pNonIpPort->m_Cap1080P60B)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P60B;
+            else if (pNonIpPort->m_Cap1080P50B)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P50B;
+            else if (pNonIpPort->m_Cap1080P59_94B)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue =
+                                                                  DT_IOCONFIG_1080P59_94B;
             else
                 DT_ASSERT(1==0);
             break;
@@ -546,15 +560,30 @@ DtStatus  DtaNonIpInit(
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_3GSDI;
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P50;
             break;
+        case DT_IOCONFIG_1080P50B:
+            DT_ASSERT(pNonIpPort->m_Cap1080P50B);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_3GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P50B;
+            break;
         case DT_IOCONFIG_1080P59_94:
             DT_ASSERT(pNonIpPort->m_Cap1080P59_94);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_3GSDI;
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P59_94;
             break;
+        case DT_IOCONFIG_1080P59_94B:
+            DT_ASSERT(pNonIpPort->m_Cap1080P59_94B);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_3GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P59_94B;
+            break;
         case DT_IOCONFIG_1080P60:
             DT_ASSERT(pNonIpPort->m_Cap1080P60);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_3GSDI;
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P60;
+            break;
+        case DT_IOCONFIG_1080P60B:
+            DT_ASSERT(pNonIpPort->m_Cap1080P60B);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_3GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P60B;
             break;
 
         case DT_IOCONFIG_HDSDI:
@@ -866,6 +895,9 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_TrgIdDet.m_StableCount = 0;
     pNonIpPort->m_TrgIdDet.m_TargetError = FALSE;
 
+    // Init TOF alignment offset
+    pNonIpPort->m_TofAlignOffsetNs = 0;     // Assume a zero offset
+       
     // Initialise bitrate measurement
     pNonIpPort->m_BitrateMeasure.m_NumValidSamps = 0;       // No valid samples yet
     pNonIpPort->m_BitrateMeasure.m_ValidCount256 = 0;       // Initial bitrate is 0
@@ -1125,12 +1157,20 @@ DtStatus  DtaNonIpClose(
     if (pNonIpPort->m_I2c.m_IsSupported)
         DtaI2cUnlock(pNonIpPort->m_pDvcData, pNonIpPort->m_PortIndex, pFile, TRUE);
 
-    DtFastMutexAcquire(&pNonIpPort->m_pDvcData->m_ExclAccessMutex);
+    DtaDeviceAcquireExclAccess(pNonIpPort->m_pDvcData);
     HasAccess = DtaNonIpHasAccess(pNonIpPort, pFile);
     DtFastMutexRelease(&pNonIpPort->m_pDvcData->m_ExclAccessMutex);
 
     if (DT_SUCCESS(HasAccess))
     {
+#ifndef WINBUILD
+        // Under windows the DMA is aborted by cancelling the outstanding IoCtl
+        if (!pNonIpPort->m_IsNonFuntional)
+        {
+            if (DtaDmaAbortDma(&pNonIpPort->m_DmaChannel) != DT_STATUS_NOT_STARTED)
+                DtEventWait(&pNonIpPort->m_DmaChannel.m_DmaDoneEvent, -1);
+        }
+#endif
         DtaDmaClearAbortFlag(&pNonIpPort->m_DmaChannel);
 
         // Call matrix specific close
@@ -1212,6 +1252,7 @@ DtStatus  DtaNonIpIoctl(
     UInt  InReqSize = 0;        // Required length of input buffer
     UInt  OutReqSize = 0;       // Required length of output buffer
     Int  NonIpPortIndex;        // Index in the nonip port struct
+    DtaNonIpPort*  pNonIpPort=NULL;
     DtaIoctlNonIpCmdInput* pNonIpCmdInput = 
                                            (DtaIoctlNonIpCmdInput*)pIoctl->m_pInputBuffer;
     DtaIoctlNonIpCmdOutput* pNonIpCmdOutput =
@@ -1229,6 +1270,9 @@ DtStatus  DtaNonIpIoctl(
     if (!DT_SUCCESS(DtaGetNonIpPortIndex(pDvcData, pNonIpCmdInput->m_PortIndex,
                                                                         &NonIpPortIndex)))
         return DT_STATUS_INVALID_PARAMETER;
+    
+    // Get the NonIpPort
+    pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
 
     // Determine final required output/input sizes
     switch (pNonIpCmdInput->m_Cmd)
@@ -1249,8 +1293,22 @@ DtStatus  DtaNonIpIoctl(
     case DTA_NONIP_CMD_DETECT_VIDSTD:
         pCmdStr = "DTA_NONIP_CMD_DETECT_VIDSTD";
         OutReqSize += sizeof(DtaIoctlNonIpCmdDetectVidStdOutput);
-        // We expect no input additional input data
+        // We expect no additional input data
         InReqSize += 0;
+        break;
+
+     case DTA_NONIP_CMD_GET_GENREF_PROPS:
+        pCmdStr = "DTA_NONIP_CMD_GET_GENREF_PROPS";
+        OutReqSize += sizeof(DtaIoctlNonIpGetGenRefPropsOutput);
+        // We expect no additional input data
+        InReqSize += 0;
+        break;
+
+    case DTA_NONIP_CMD_NOTIFY_GENREF_PROPS:
+        pCmdStr = "DTA_NONIP_CMD_NOTIFY_GENREF_PROPS";
+        InReqSize += sizeof(DtaIoctlNonIpNotifyGenRefPropsInput);
+        // We expect no additional output data
+        OutReqSize += 0;
         break;
 
     default:
@@ -1287,21 +1345,29 @@ DtStatus  DtaNonIpIoctl(
         switch (pNonIpCmdInput->m_Cmd)
         {
         case DTA_NONIP_CMD_EXCLUSIVE_ACCESS:
-            Status = DtaNonIpExclusiveAccess(
-                                   &pDvcData->m_pNonIpPorts[NonIpPortIndex],
-                                   pFile, pNonIpCmdInput->m_Data.m_ExclusiveAccess.m_Cmd);
+            Status = DtaNonIpExclusiveAccess(pNonIpPort, pFile, 
+                                          pNonIpCmdInput->m_Data.m_ExclusiveAccess.m_Cmd);
             break;
 
         case DTA_NONIP_CMD_GET_TARGET_ID:
-            Status = DtaNonIpTargetIdGetId(
-                                         &pDvcData->m_pNonIpPorts[NonIpPortIndex],
+            Status = DtaNonIpTargetIdGetId(pNonIpPort,
                                          &pNonIpCmdOutput->m_Data.m_GetTargetId.m_Present,
                                          &pNonIpCmdOutput->m_Data.m_GetTargetId.m_Id);
             break;
 
         case DTA_NONIP_CMD_DETECT_VIDSTD:
-            Status = DtaNonIpDetectVidStd(&pDvcData->m_pNonIpPorts[NonIpPortIndex],
+            Status = DtaNonIpDetectVidStd(pNonIpPort,
                                            &pNonIpCmdOutput->m_Data.m_DetVidStd.m_VidStd);
+            break;
+
+         case DTA_NONIP_CMD_GET_GENREF_PROPS:
+             Status = DtaNonIpGetGenRefProps(pNonIpPort, 
+                                               &pNonIpCmdOutput->m_Data.m_GetGenRefProps);
+            break;
+
+        case DTA_NONIP_CMD_NOTIFY_GENREF_PROPS:
+            Status = DtaNonIpNotifyGenRefProp(pNonIpPort,
+                                             &pNonIpCmdInput->m_Data.m_NotifyGenRefProps);
             break;
 
         default:
@@ -1350,7 +1416,7 @@ DtStatus  DtaNonIpExclusiveAccess(
 {
     DtStatus  Result = DT_STATUS_OK;
 
-    DtFastMutexAcquire(&pNonIpPort->m_pDvcData->m_ExclAccessMutex);
+    DtaDeviceAcquireExclAccess(pNonIpPort->m_pDvcData);
 
     if (Cmd == DTA_EXCLUSIVE_ACCESS_CMD_ACQUIRE)
     {
@@ -1725,6 +1791,85 @@ DtStatus  DtaNonIpDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
     }
 }
 
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ GENREF properties +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpGetGenRefProps -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaNonIpGetGenRefProps(DtaNonIpPort* pNonIpPort, 
+                                                        DtaIoctlNonIpGenRefProps*  pProps)
+{
+    DtaGenlock*  pGenlock=NULL;
+
+    DT_ASSERT(pNonIpPort != NULL);
+    DT_ASSERT(pProps != NULL);
+
+    // Port must be GENREF capable
+    if (!pNonIpPort->m_CapGenRef)
+    {
+        DtDbgOut(ERR, NONIP, "Port %d is not GENREF capable", pNonIpPort->m_PortIndex+1);
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+    // Port must be configured as GENREF
+    if (pNonIpPort->m_IoCfg[DT_IOCONFIG_GENREF].m_Value != DT_IOCONFIG_TRUE)
+    {
+        DtDbgOut(ERR, NONIP, "Port %d is not configured as GENREF", 
+                                                               pNonIpPort->m_PortIndex+1);
+        return DT_STATUS_CONFIG_ERROR;
+    }
+    pGenlock = &pNonIpPort->m_pDvcData->m_Genlock;
+    DT_ASSERT(pGenlock!=NULL && pGenlock->m_IsSupported);
+    
+    // Set the port index of the GENREF port (is the port itself)
+    pProps->m_RefPortIndex = pNonIpPort->m_PortIndex;
+    // Set type
+    if (pNonIpPort->m_PortIndex == pGenlock->m_AsyncPortIndex)
+        pProps->m_RefPortType = DTA_GENREF_PORTTYPE_ANALOG;
+    else if (pNonIpPort->m_PortIndex == pGenlock->m_IntGenrefPortIndex)
+        pProps->m_RefPortType = DTA_GENREF_PORTTYPE_INTERNAL;
+    else
+        pProps->m_RefPortType = DTA_GENREF_PORTTYPE_DIGITAL;
+
+    // Get the group of port under control of this controller
+    pProps->m_Group = pGenlock->m_PortGroup;
+
+    // Ref- and out-video-standard
+    pProps->m_RefVidStd = pGenlock->m_RefVidStd;
+    pProps->m_OutVidStd = pGenlock->m_OutVidStd;
+    //TOF alignment offset
+    pProps->m_TofAlignOffsetNs = pGenlock->m_TofAlignOffsetNs;
+                
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpNotifyGenRefProp -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaNonIpNotifyGenRefProp(DtaNonIpPort* pNonIpPort, 
+                                                        DtaIoctlNonIpGenRefProps*  pProps)
+{
+    DtStatus  Status;
+    DtaDeviceData*  pDvcData = NULL;
+
+    DT_ASSERT(pNonIpPort != NULL);
+    DT_ASSERT(pProps != NULL);
+
+    pDvcData = pNonIpPort->m_pDvcData;
+    DT_ASSERT(pDvcData != NULL);
+    
+    // Must be a genlock and output capable port
+    if (!pNonIpPort->m_CapGenLocked || !pNonIpPort->m_CapOutput)
+    {
+        DtDbgOut(ERR, NONIP, "Not supported for this port %d", pNonIpPort->m_PortIndex+1);
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
+    // Update the TOF alignment offset 
+    pNonIpPort->m_TofAlignOffsetNs = pProps->m_TofAlignOffsetNs;
+
+    //if (pNonIpPort->m_CapMatrix || pNonIpPort->m_CapMatrix2)
+    //{
+    //}
+    return DT_STATUS_OK;
+}
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ IO configuration +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -1790,11 +1935,6 @@ DtStatus  DtaNonIpIoConfigSet(
     
     switch (Group)
     {
-        // #G-SDI level
-    case DT_IOCONFIG_3GLVL:
-        Status = DtaNonIpIoConfigSet3GLvl(pNonIpPort, Group, CfgValue);
-        break;
-        
         // IO-direction
     case DT_IOCONFIG_IODIR:
         Status = DtaNonIpIoConfigSetIoDir(pNonIpPort, Group, CfgValue);
@@ -1859,51 +1999,6 @@ DtStatus  DtaNonIpIoConfigSet(
         DtDbgOut(ERR, NONIP, "Invalid Config. Group: %d, Value: %d, SubValue: %d",
                                             Group, CfgValue.m_Value, CfgValue.m_SubValue);
         Status = DT_STATUS_NOT_SUPPORTED;
-    }
-    return Status;
-}
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpIoConfigSet3GLvl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-static DtStatus  DtaNonIpIoConfigSet3GLvl(
-    DtaNonIpPort* pNonIpPort,
-    Int Group,
-    DtaIoConfigValue CfgValue)
-{
-    DtStatus  Status = DT_STATUS_OK;
-    Bool  ForceConfig = FALSE;
-    DtaIoConfigValue  OldCfgValue = pNonIpPort->m_IoCfg[Group];
-    Bool  Is3GSdi = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_3GSDI);
-
-    switch (CfgValue.m_Value)
-    {
-    case DT_IOCONFIG_3GLVLA:
-        DT_ASSERT(pNonIpPort->m_Cap3GLvlA);
-        // NOTHING TODO HERE; CONFIG IS APPLIED BELOW
-        break;
-    case DT_IOCONFIG_3GLVLB:
-        DT_ASSERT(pNonIpPort->m_Cap3GLvlB);
-        // NOTHING TODO HERE; CONFIG IS APPLIED BELOW
-        break;
-
-    default:
-        DtDbgOut(ERR, NONIP, "Invalid Config. Group: %d, Value: %d, SubValue: %d",
-                                            Group, CfgValue.m_Value, CfgValue.m_SubValue);
-        return DT_STATUS_NOT_SUPPORTED;
-    }
-
-    // Backup current io-config
-    OldCfgValue = pNonIpPort->m_IoCfg[Group];
-    pNonIpPort->m_IoCfg[Group] = CfgValue;  // Save new config to the cache
-
-    // Check for matrix capable port, which is configured for 3G-SDI operation
-    if (pNonIpPort->m_CapMatrix && Is3GSdi)
-    {
-        // Re-configure port (force a re-config when the level has changed)
-        ForceConfig = (OldCfgValue.m_Value != CfgValue.m_Value);
-        Status = DtaNonIpMatrixConfigure(pNonIpPort, ForceConfig);
-        if (!DT_SUCCESS(Status))
-            pNonIpPort->m_IoCfg[Group] = OldCfgValue;  // Restore old config
     }
     return Status;
 }
@@ -2711,7 +2806,7 @@ DtStatus  DtaNonIpReleaseResourceFromFileObject(
         // Release exclusive access
         if (pDvcData->m_pNonIpPorts[i].m_ExclAccess)
         {
-            DtFastMutexAcquire(&pDvcData->m_ExclAccessMutex);
+            DtaDeviceAcquireExclAccess(pDvcData);
             if (DtFileCompare(&pDvcData->m_pNonIpPorts[i].m_ExclAccessOwner, pFile) && 
                                                   pDvcData->m_pNonIpPorts[i].m_ExclAccess)
             {
@@ -2882,9 +2977,12 @@ Bool  DtaNonIpIsVidStdSupported(DtaNonIpPort* pNonIpPort, Int  VidStd)
     case DT_VIDSTD_1080PSF25:    return pNonIpPort->m_Cap1080Psf25;
     case DT_VIDSTD_1080PSF29_97: return pNonIpPort->m_Cap1080Psf29_97;
     case DT_VIDSTD_1080PSF30:    return pNonIpPort->m_Cap1080Psf30;
-    case DT_VIDSTD_1080P50:    return pNonIpPort->m_Cap1080P50;
-    case DT_VIDSTD_1080P59_94: return pNonIpPort->m_Cap1080P59_94;
+    case DT_VIDSTD_1080P50:      return pNonIpPort->m_Cap1080P50;
+    case DT_VIDSTD_1080P50B:     return pNonIpPort->m_Cap1080P50B;
+    case DT_VIDSTD_1080P59_94:   return pNonIpPort->m_Cap1080P59_94;
+    case DT_VIDSTD_1080P59_94B:  return pNonIpPort->m_Cap1080P59_94B;
     case DT_VIDSTD_1080P60:    return pNonIpPort->m_Cap1080P60;
+    case DT_VIDSTD_1080P60B:   return pNonIpPort->m_Cap1080P60B;
     case DT_VIDSTD_1080I50:    return pNonIpPort->m_Cap1080I50;
     case DT_VIDSTD_1080I59_94: return pNonIpPort->m_Cap1080I59_94;
     case DT_VIDSTD_1080I60:    return pNonIpPort->m_Cap1080I60;

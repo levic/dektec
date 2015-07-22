@@ -130,7 +130,6 @@ enum {
     FUNC_DTA_RS422_CMD,
     FUNC_DTA_GET_DEV_INFO3,
     FUNC_DTA_SET_VCXO
-
 };
 
 // Ioctl input data type
@@ -915,6 +914,9 @@ ASSERT_SIZE(DtaIoctlSetIoConfigInput, 8)
 #define DTA_NONIP_CMD_GET_TARGET_ID     2
 #define DTA_NONIP_CMD_DETECT_VIDSTD     3   // DO NOT USE; REPLACED BY MATRIX COMMAND
                                             // DTA_MATRIX_CMD_DETECT_VIDSTD
+#define DTA_NONIP_CMD_GET_GENREF_PROPS  4   // Get the properties for a GENREF port
+#define DTA_NONIP_CMD_NOTIFY_GENREF_PROPS  5  // Notification message with update of 
+                                              // GENREF properties
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_NONIP_CMD_EXCLUSIVE_ACCESS -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
@@ -951,24 +953,61 @@ typedef struct _DtaIoctlNonIpCmdDetectVidStdOutput {
 } DtaIoctlNonIpCmdDetectVidStdOutput;
 ASSERT_SIZE(DtaIoctlNonIpCmdDetectVidStdOutput, 4)
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_NONIP_CMD_GET_GENREF_PROPS -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// Get the properties for a GENREF port
+
+// GENREF port types
+#define DTA_GENREF_PORTTYPE_INTERNAL    0
+#define DTA_GENREF_PORTTYPE_ANALOG      1
+#define DTA_GENREF_PORTTYPE_DIGITAL     2
+
+// NOTE: DtaIoctlGetGenrefProps is used by DTA_IOCTL_GET_GENREF_PROPS and 
+// DTA_IOCTL_NOTIFY_GENREF_PROPS
+typedef struct _DtaIoctlNonIpGenRefProps {
+    // GENREF port
+    Int  m_RefPortIndex;        // Port index of the GENREF port
+    Int  m_RefPortType;         // Type of GENREF port (Internal, analog or Digital)
+    // GENREF settings
+    Int  m_RefVidStd;           // Reference signal applied to GENREF input
+    Int  m_OutVidStd;           // Output video standard the GENREF logic generates
+    Int  m_TofAlignOffsetNs;    // Alignment offset, in ns, TOF signal 
+    // Group of genlock ports, under control of this GENREF port. 
+    // NOTE: Bit0=Port1, Bit1=Port2, ... , Bit31=Port32
+    UInt32  m_Group;            
+} DtaIoctlNonIpGenRefProps;
+ASSERT_SIZE(DtaIoctlNonIpGenRefProps, 24)
+
+typedef DtaIoctlNonIpGenRefProps DtaIoctlNonIpGetGenRefPropsOutput;
+ASSERT_SIZE(DtaIoctlNonIpGetGenRefPropsOutput, 24)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_NONIP_CMD_NOTIFY_GENREF_PROPS -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// Notification message with update of GENREF properties
+
+typedef DtaIoctlNonIpGenRefProps DtaIoctlNonIpNotifyGenRefPropsInput;
+ASSERT_SIZE(DtaIoctlNonIpNotifyGenRefPropsInput, 24)
+
+
+
 // Ioctl input data type
 typedef struct _DtaIoctlNonIpCmdInput {
     Int  m_Cmd;
     Int  m_PortIndex;
     union {
         DtaIoctlNonIpCmdExclusiveAccessInput  m_ExclusiveAccess;
+        DtaIoctlNonIpNotifyGenRefPropsInput  m_NotifyGenRefProps;
     } m_Data;
 } DtaIoctlNonIpCmdInput;
-ASSERT_SIZE(DtaIoctlNonIpCmdInput, 12)
+ASSERT_SIZE(DtaIoctlNonIpCmdInput, 32)
 
 // Ioctl Output data type
 typedef struct _DtaIoctlNonIpCmdOutput {
     union {
         DtaIoctlNonIpCmdGetTargetIdOutput  m_GetTargetId;
         DtaIoctlNonIpCmdDetectVidStdOutput  m_DetVidStd;
+        DtaIoctlNonIpGetGenRefPropsOutput  m_GetGenRefProps;
     } m_Data;
 } DtaIoctlNonIpCmdOutput;
-ASSERT_SIZE(DtaIoctlNonIpCmdOutput, 8)
+ASSERT_SIZE(DtaIoctlNonIpCmdOutput, 24)
 
 #ifdef WINBUILD
     #define DTA_IOCTL_NONIP_CMD  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_NONIP_CMD, \
@@ -982,7 +1021,6 @@ ASSERT_SIZE(DtaIoctlNonIpCmdOutput, 8)
     #define DTA_IOCTL_NONIP_CMD  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_NONIP_CMD, \
                                                                          DtaIoctlNonIpCmd)
 #endif
-
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_NONIP_TX_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //
@@ -2159,6 +2197,10 @@ ASSERT_SIZE(DtaIoctlGetStrPropertyOutput, 100)
 #define  DTA_MATRIX_CMD_WAIT_FRAME2       22    // Waits for a specific or simple the
                                                 // next frame to be received/transmitted
 #define  DTA_MATRIX_CMD_START2            23    // Start reception/transmission
+#define  DTA_MATRIX_CMD_START3            24    // Start reception/transmission
+#define  DTA_MATRIX_CMD_WAIT_FRAME3       25    // Waits for a specific or simple the
+                                                // next frame to be received/transmitted
+#define  DTA_MATRIX_CMD_GET_VPID          26    // Get detected VPID
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_WAIT_FRAME -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -2365,7 +2407,7 @@ typedef struct _DtaIoctlMatrixCmdGetFrmPropsInput {
 ASSERT_SIZE(DtaIoctlMatrixCmdGetFrmPropsInput, 4)
 
 typedef DtAvFrameProps DtaIoctlMatrixCmdGetFrmPropsOutput;
-ASSERT_SIZE(DtaIoctlMatrixCmdGetFrmPropsOutput, 76)
+ASSERT_SIZE(DtaIoctlMatrixCmdGetFrmPropsOutput, 80)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_SET_NEXT_FRAME -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -2404,6 +2446,39 @@ typedef struct _DtaIoctlMatrixCmdStart2Input {
 } DtaIoctlMatrixCmdStart2Input;
 ASSERT_SIZE(DtaIoctlMatrixCmdStart2Input, 16)
 
+typedef struct _DtaIoctlMatrixCmdStart3Input {
+    Int64A  m_StartFrame;       // First frame to transmit/receive
+    Int  m_StartFlags;          // DTA_MATRIX_STARTFLAGS_*
+    UInt32  m_Vpid;             // Vpid to insert in 2nd link (3G lvlB), 0=driver default
+    UInt32  m_Vpid2;            // Vpid to insert, 0=driver default
+    Int  m_ExtraPixelDelay;     // Extra delay for output, in #pixels, relative to 
+                                // the GENREF TOF. NOTE: must be between -32000..32000
+} DtaIoctlMatrixCmdStart3Input;
+ASSERT_SIZE(DtaIoctlMatrixCmdStart3Input, 24)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_WAIT_FRAME3 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctlMatrixCmdWaitFrame3Output {
+    Int64A  m_Frame;             // The actual frame received/transmitted
+    Int64A  m_RfClkLatchedStart; // Latched version of ref clock at start of frame
+    Int64A  m_RfClkLatchedEnd;   // Latched version of ref clock at end of frame
+    Int64A  m_FrmIntCnt;         // Number of frame interrupts since driver start
+    Int  m_TopHalf;              // 1 for first part of 3g level B frame, 0 otherwise
+} DtaIoctlMatrixCmdWaitFrame3Output;
+ASSERT_SIZE(DtaIoctlMatrixCmdWaitFrame3Output, 40)
+
+#define DTA_3GB_BOTTOM  0        // Bottom half of 3G level B frame
+#define DTA_3GB_TOP     1        // Top half of 3G level B frame
+#define DTA_3GB_UNKNOWN 2        // Either top or bottom part of 3G level B frame
+
+    
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_GET_VPID -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctlMatrixCmdGetVpidOutput {
+    UInt  m_Vpid;               // Detected VPID
+    UInt  m_Vpid2;              // VPID in link 2 for 3g level b signals
+} DtaIoctlMatrixCmdGetVpidOutput;
+ASSERT_SIZE(DtaIoctlMatrixCmdGetVpidOutput, 8)
 
 // Ioctl input data type
 typedef struct _DtaIoctlMatrixCmdInput {
@@ -2422,6 +2497,7 @@ typedef struct _DtaIoctlMatrixCmdInput {
         DtaIoctlMatrixCmdGetFrmPropsInput  m_GetFrmProps;
         DtaIoctlMatrixCmdSetNextFrmInput  m_SetNextFrm;
         DtaIoctlMatrixCmdStart2Input  m_Start2;
+        DtaIoctlMatrixCmdStart3Input  m_Start3;
     } m_Data;
 } DtaIoctlMatrixCmdInput;
 #ifdef LINBUILD
@@ -2450,6 +2526,8 @@ typedef struct _DtaIoctlMatrixCmdOutput {
         DtaIoctlMatrixCmdGetFrmPropsOutput  m_GetFrmProps;
         DtaIoctlMatrixCmdGetFrmInfo2Output  m_GetFrmInfo2;
         DtaIoctlMatrixCmdWaitFrame2Output  m_WaitFrame2;
+        DtaIoctlMatrixCmdWaitFrame3Output  m_WaitFrame3;
+        DtaIoctlMatrixCmdGetVpidOutput  m_GetVpid;
     } m_Data;
 } DtaIoctlMatrixCmdOutput;
 ASSERT_SIZE(DtaIoctlMatrixCmdOutput, 408)

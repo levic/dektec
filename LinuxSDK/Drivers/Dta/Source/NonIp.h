@@ -143,6 +143,7 @@ typedef struct _DtaMatrixFrameInfo
 {
     Int64  m_RefClkStart;       // Latched version of reference clock at new frame int
     Int64  m_RefClkEnd;         // Latched version of reference clock at end of frame
+    Int  m_TopHalf;             // True for first part of 3g level B frame
 } DtaMatrixFrameInfo;
 
 // DtaMatrixPort
@@ -167,6 +168,13 @@ typedef struct _DtaMatrixPort
     volatile Int64  m_SofFrame; // Frame transmitted/received @SOF-interrupt-event
     volatile Int  m_SofLine;    // Line transmitted/received @SOF-interrupt-event
     volatile Int64  m_FrmIntCnt; // Frame interrupt counter
+    Int  m_ForceRestart;        // Force restart in interrupt routine
+
+    UInt32  m_Vpid1;            // VPID forced by API
+    UInt32  m_Vpid2;            // VPID forced by API (for 3G lvl B 2nd link)
+
+    Int  m_ExtraPixelDelay;     // Additional delay (in #pixels) to apply to the output.
+                                // NOTE: the dleay is relative to the GENREF TOF
 
     DtaMatrixFrameInfo  m_FrameInfo[DTA_FRMBUF_MAX_FRAMES];
 
@@ -198,9 +206,6 @@ typedef struct _DtaNonIpPort
     DtaDeviceData*  m_pDvcData;
 
     // Capabilities
-    // 3GLVL (3G-SDI level) - Capabilities
-    Bool  m_Cap3GLvlA;
-    Bool  m_Cap3GLvlB;
     // IODIR (I/O direction) - Capabilities
     Bool  m_CapDisabled;
     Bool  m_CapInput;
@@ -257,8 +262,11 @@ typedef struct _DtaNonIpPort
     Bool  m_Cap720P60;
     // IOSTD - SDI (3G-SDI) - Sub capabilities
     Bool  m_Cap1080P50;
+    Bool  m_Cap1080P50B;
     Bool  m_Cap1080P59_94;
+    Bool  m_Cap1080P59_94B;
     Bool  m_Cap1080P60;
+    Bool  m_Cap1080P60B;
     // RFCLKSEL (RF clock source selection) - Capabilities
     Bool  m_CapRfClkExt;
     Bool  m_CapRfClkInt;
@@ -294,6 +302,12 @@ typedef struct _DtaNonIpPort
     // ASI/SDI interface
     Int  m_AsiSdiDeserItfType;
     Int  m_AsiSdiSerItfType;
+    Int  m_AsiSdiSerDelayNsSd, m_AsiSdiSerDelayNsHd, m_AsiSdiSerDelayNs3g;
+                                // Specifies the pipeline delay (in ns) of the serial 
+                                // interface for SDI signals. This delay must be 
+                                // compensated for by the genlock logic to properly align
+                                // to the genlock reference signal.
+
     
     // Current IO configuration
     DtaIoConfigValue  m_IoCfg[DT_IOCONFIG_COUNT];
@@ -347,6 +361,9 @@ typedef struct _DtaNonIpPort
     // RS-422 API
     DtaRs422Port  m_Rs422;
 
+    // Genlocking
+    Int  m_TofAlignOffsetNs;    // Offset in ns with which the TOF arrive at serialiser
+
 } DtaNonIpPort;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -372,12 +389,15 @@ DtStatus  DtaNonIpIoConfigSet(DtaNonIpPort* pNonIpPort, Int Code,
                                                                DtaIoConfigValue CfgValue);
 DtStatus  DtaNonIpReleaseResourceFromFileObject(DtaDeviceData* pDvcData, 
                                                                      DtFileObject* pFile);
+DtStatus  DtaNonIpGetGenRefProps(DtaNonIpPort* pNonIpPort, 
+                                                       DtaIoctlNonIpGenRefProps*  pProps);
+DtStatus  DtaNonIpNotifyGenRefProp(DtaNonIpPort* pNonIpPort, 
+                                                       DtaIoctlNonIpGenRefProps*  pProps);
 void  DtaNonIpPowerdown(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpPowerdownPre(DtaNonIpPort* pNonIpPort);
 void  DtaNonIpEstimateRate(DtaNonIpPort* pNonIpPort);
 Int  DtaNonIpGetEstimatedRate(DtaNonIpPort* pNonIpPort);
 Bool  DtaNonIpIsVidStdSupported(DtaNonIpPort* pNonIpPort, Int  VidStd);
-
 
 DtStatus  DtaNonIpMatrixClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile);
 DtStatus  DtaNonIpMatrixConfigure(DtaNonIpPort* pNonIpPort, Bool  ForceConfig);

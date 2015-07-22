@@ -148,8 +148,7 @@ struct _UserIpRxChannel
                                         // purging left-over channel objects in Close
 
     DtaShBuffer  m_SharedBuffer;        // Shared User-buffer descriptor
-    //UInt  m_SharedBufferSize;           // Buffer size
-
+    
     // Receive FIFO buffer and buffer state
     // Buffer consists of "fifo" buffer + 256 auxialiary bytes for easy buffer-wrapping
     // + RTP packets (FEC row/column + RTP DVB)
@@ -182,6 +181,7 @@ struct _UserIpRxChannel
     // Handshaking
     Int  m_RefCount;                    // Number of thread using this struct
     volatile Bool  m_RxIncomingPackets; // True if new RTP packets are available
+    volatile Bool  m_ResetPacketsPending;   // True if packets must be flushed
 
     // Fragmented packets
     UInt16  m_FragmentId;
@@ -286,9 +286,12 @@ struct _UserIpRxChannel
     UInt  m_TotNumPackets;              // Main stream
     UInt  m_NumIpPacketsReceived[2];    // SMPTE-7 mode
     UInt  m_NumIpPacketsLost[2];        // SMPTE-7 mode
+    UInt64  m_RtpLastCheckedTime;       // Time of last packet given to user
 
     // SDI
     UInt8*  m_pSdiInternalWritePointer; // Update main pointer only at frame base
+    SdiRxFrameStat*  m_pSdiRxFrameStat; // Pointer to current frame statistics
+    UInt64  m_SdiFrameLastTimestamp;    // Rx Timestamp of last IP packet parsed for frame
     UInt8  m_SdiCurFrameNumber;         // Current SDI frame number
     Int  m_SdiNumBytesCopied;           // Number of bytes copied for current frame
     Int  m_SdiFrameSize;                // Total number of bytes 1 frame

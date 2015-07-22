@@ -360,7 +360,8 @@ typedef struct _DtaIpDevice
                                            // reconstruction
     UserIpRxChannel*  m_pAddrMatchLUTable[DTA_MAX_ADDR_MATCHER_ENTRIES];
     UInt8  m_AddrMatchLUTableType[DTA_MAX_ADDR_MATCHER_ENTRIES];
-    UInt64  m_RefTimeStored;
+    volatile UInt64  m_RefTimeStored;
+    volatile UInt64  m_LastTimeRxTriggered;
 } DtaIpDevice;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

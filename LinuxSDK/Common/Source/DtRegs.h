@@ -169,7 +169,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.- General Control0 Register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-
 #define DT_GEN_CONTROL0_DBLBUF_MSK     0x00000001
 #define DT_GEN_CONTROL0_DBLBUF_SH      0
-#define DT_GEN_CONTROL0_DEMOD_MSK      0x00000001     // DTU-236 DEMOD/ASI mode
+#define DT_GEN_CONTROL0_DEMOD_MSK      0x00000001     // DTU-236/238 DEMOD/ASI mode
 #define DT_GEN_CONTROL0_DEMOD_SH       0
 #define DT_GEN_CONTROL0_VCOEN_MSK      0x00000002
 #define DT_GEN_CONTROL0_VCOEN_SH       1
@@ -996,9 +996,15 @@ typedef union _DT_RFDAC_CONTROL
 #define DT_RX_TIMESTAMP                8
 #define DT_RX_TIMESTAMP32              8
 #define DT_RX_TIMESTAMP64              16
+
+
 // SDI
 #define DT_RXMODE_SDI_FULL             0
 #define DT_RXMODE_SDI_ACTVID           1
+
+// SDI FLAGS
+#define DT_RXMODE_SDI_STAT             0x1000
+
 
 // Rx Control: AsiInv values
 #define DT_POLARITY_AUTO               0
@@ -1240,6 +1246,8 @@ typedef union _DT_RFDAC_CONTROL
 #define  DT_HD_STATUS_RXLOCK_SH         9
 #define  DT_HD_STATUS_CD_MSK            0x00000400
 #define  DT_HD_STATUS_CD_SH             10
+#define  DT_HD_STATUS_CUR_LVLABFRM_MSK  0x00000800
+#define  DT_HD_STATUS_CUR_LVLABFRM_SH   11
 #define  DT_HD_STATUS_ASI_PCKSZ_MSK     0x06000000
 #define  DT_HD_STATUS_ASI_PCKSZ_SH      25
 #define  DT_HD_STATUS_ASIINV_MSK        0x08000000
@@ -1283,13 +1291,10 @@ typedef union _DT_RFDAC_CONTROL
 #define  DT_VIDSTD_1080P50              0x010C
 #define  DT_VIDSTD_1080P59_94           0x018A
 #define  DT_VIDSTD_1080P60              0x010A
+#define  DT_VIDSTD_1080P50B             0x030C
+#define  DT_VIDSTD_1080P59_94B          0x038A
+#define  DT_VIDSTD_1080P60B             0x030A
 
-#define  DT_VIDSTD_3GLVL_MASK           0xC000  // Mask for 3G-SDI level bits
-#define  DT_VIDSTD_3GLVLA               0x0000  // Level A
-                                        // NOTE: use 0 for backwards compatibility
-                                        // (i.e. DT_VIDSTD_1080P60|DT_VIDSTD_3GLVLA 
-                                        //                           == DT_VIDSTD_1080P60)
-#define  DT_VIDSTD_3GLVLB               0x4000  // Level B 
 #define  DT_VIDSTD_TS                   -1      // Special case
 
 
@@ -1648,10 +1653,16 @@ typedef union _DT_RFDAC_CONTROL
 #define DT_REG_FAST_FLASH_PROG_CTRL_BUSY_SH             0
 #define DT_REG_FAST_FLASH_PROG_CTRL_DATA_VALID_MSK      0x00000002
 #define DT_REG_FAST_FLASH_PROG_CTRL_DATA_VALID_SH       1
+
+// THESE FIELDS ARE DEPRECATED AND REPLACED BY SINGLE 3-BIT COMMAND FIELD
 #define DT_REG_FAST_FLASH_PROG_CTRL_READ_STATUS_CMD_MSK 0x00000004
 #define DT_REG_FAST_FLASH_PROG_CTRL_READ_STATUS_CMD_SH  2
 #define DT_REG_FAST_FLASH_PROG_CTRL_READ_DATA_CMD_MSK   0x00000008
 #define DT_REG_FAST_FLASH_PROG_CTRL_READ_DATA_CMD_SH    3
+// THESE FIELDS ARE DEPRECATED AND REPLACED BY SINGLE 3-BIT COMMAND FIELD
+
+#define DT_REG_FAST_FLASH_PROG_CTRL_COMMAND_MSK         0x0000001C
+#define DT_REG_FAST_FLASH_PROG_CTRL_COMMAND_SH          2
 
 //.-.-.-.-.-.- Fast-flash programming interface address register: Bit fields -.-.-.-.-.-.-
 

@@ -555,9 +555,7 @@ static DtStatus  DtaDmaInitTransfer(
                 Status = DtaDmaAbortDma(pDmaCh);
                 if (DT_SUCCESS(Status))
                 {
-                    DtDbgOut(ERR, DMA, "DtaDmaAbortDma succeeded");
-                    Status = DtEventWait(&pDmaCh->m_DmaDoneEvent, 10);
-                    DtDbgOut(ERR, DMA, "DtEventWait Status after abort: %d", Status);
+                    Status = DtEventWaitUnInt(&pDmaCh->m_DmaDoneEvent, -1);
                 }
             }
         }

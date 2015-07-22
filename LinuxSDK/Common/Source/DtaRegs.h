@@ -4261,6 +4261,13 @@ static __inline UInt32  DtaRegHdStatGetCarrierDetect(volatile UInt8* pBase)
                                                                       DT_HD_STATUS_CD_SH);
 }
 
+// HD-Channel Status register:  Current level A to B frame
+static __inline UInt32  DtaRegHdStatGetCurLvlAToBFrame(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_HD_REG_STATUS, DT_HD_STATUS_CUR_LVLABFRM_MSK,
+                                                            DT_HD_STATUS_CUR_LVLABFRM_SH);
+}
+
 // HD-Channel Status register:  RX sync error interrupt
 static __inline UInt32  DtaRegHdStatGetRxSyncErrInt(volatile UInt8* pBase)
 {

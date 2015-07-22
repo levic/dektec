@@ -114,7 +114,7 @@ DtStatus  DtaFpgaGenlockInit(DtaDeviceData* pDvcData, DtaFpgaGenlock* pFpgaGenlo
     // Initialize members
     pFpgaGenlockData->m_pDvcData = pDvcData;
 
-    if (pDvcData->m_Genlock.m_GenlArch == DTA_GENLOCK_ARCH_2144)    
+    if (pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2144)    
        DtDbgOut(AVG, GENL, "Using I2c VCXO speed setting");    
     
     // Initialise Genlock RX logic
@@ -151,9 +151,9 @@ DtStatus DtaFpgaGenLockSetVcxoSpeed(DtaFpgaGenlock* pFpgaGenlockData)
   pI2cRegs = (volatile UInt8*)pFpgaGenlockData->m_pDvcData->m_I2c.m_pI2cRegs;
   Speed = 0;
 
-  DT_ASSERT(GenlArch == DTA_GENLOCK_ARCH_2144 || GenlArch == DTA_GENLOCK_ARCH_145);
+  DT_ASSERT(GenlArch == GENLOCK_ARCH_2144 || GenlArch == GENLOCK_ARCH_145);
 
-  if (GenlArch != DTA_GENLOCK_ARCH_2144)
+  if (GenlArch != GENLOCK_ARCH_2144)
   {
      // convert range to 0 .. 1000, 512 is center
     Speed = pFpgaGenlockData->m_VcxoCtrl / 1000;

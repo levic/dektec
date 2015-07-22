@@ -1731,6 +1731,291 @@ static const DtPropertyHashSet  DtPropertyHashSets236_0[] =
     { DtProperties236_0_63, 3 }
 };
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-238; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// DVB-C2/T2 receiver measurement receiver + ASI input
+// 
+static const DtProperty  DtProperties238_0_01[] =
+{
+    { "CAP_DEMOD", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_RX_QAMA", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_04[] =
+{
+    { "HARDWARE_HAS_EXT_CLK_FREQ", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_06[] =
+{
+    { "REGISTERS_RX", 0x100, NULL, PROPERTY_VALUE_TYPE_UINT16, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 0x100, NULL, PROPERTY_VALUE_TYPE_UINT16, 1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_08[] =
+{
+    { "CAP_INPUT", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "HARDWARE_SUPPORTS_TXNULL", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "REF_CLK_FREQ", 54000000, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_09[] =
+{
+    { "USB_END_POINT_READ", 6, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_10[] =
+{
+    { "USB_DEVICE_ID", 0x226, NULL, PROPERTY_VALUE_TYPE_UINT16, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "USB_END_POINT_FIRMWARE", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_16[] =
+{
+    { "CAP_DISABLED", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "PCB_MANUF", MANUF_PLANT_SENCORE, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_17[] =
+{
+    { "CAP_RX_DVBT", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_19[] =
+{
+    { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_20[] =
+{
+    { "SUBDVC_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_21[] =
+{
+    { "CAP_ASI", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_23[] =
+{
+    { "CAP_RX_ISDBT", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_25[] =
+{
+    { "PCB_LAST_REV", 200, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_26[] =
+{
+    { "REF_CLK_WIDTH", 32, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_29[] =
+{
+    { "HARDWARE_I2C_FREQ", -1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_32[] =
+{
+    { "DEFAULT_IODIR", DT_IOCONFIG_INPUT, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_IOCONFIG_DISABLED, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_35[] =
+{
+    { "CAP_RX_DVBT2", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "EEPROM_PAGE_SIZE", 16, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_36[] =
+{
+    { "PROGRAMMING_SEC_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
+                                                      -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_39[] =
+{
+    { "EEPROM_SIZE", 512, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_40[] =
+{
+    { "HARDWARE_HAS_SEC", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "USB_VENDOR_ID", 0x1297, NULL, PROPERTY_VALUE_TYPE_UINT16, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "VPD_IO_ITF", VPD_EEPROM_IO_EZUSB, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_41[] =
+{
+    { "VPD_SIZE", 512, NULL, PROPERTY_VALUE_TYPE_UINT, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_42[] =
+{
+    { "PROGRAMMING_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_43[] =
+{
+    { "HARDWARE_HAS_I2C", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "MOD_FREQ_ABSMIN", 42, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_45[] =
+{
+    { "MOD_FREQ_ABSMAX", 1002, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_46[] =
+{
+    { "HARDWARE_HAS_PQNCO", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_50[] =
+{
+    { "CAP_RX_DVBC2", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "PORT_COUNT", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_51[] =
+{
+    { "ASI_SDI_HW_DESER_ITF", ASI_SDI_DESER_ITF_FPGA_BASED, NULL,
+                   PROPERTY_VALUE_TYPE_INT, 1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_53[] =
+{
+    { "MOD_FREQ_MIN", 42, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_55[] =
+{
+    { "MOD_FREQ_MAX", 1002, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_56[] =
+{
+    { "USB_END_POINT_WRITE", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_59[] =
+{
+    { "CAP_UHF", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { "TESTING_LOOP_BACK_32B_RX", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0,
+                                                                                      0 },
+    { "VPD_ID", -1, "DVB-C2/T2 receiver measurement receiver + ASI input",
+                PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_60[] =
+{
+    { "CAP_VHF", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 } 
+};
+static const DtProperty  DtProperties238_0_63[] =
+{
+    { "CAP_TS", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N0_0", -1, "First firmware version released to the field",
+                PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtPropertyHashSet  DtPropertyHashSets238_0[] =
+{
+    { NULL, 0 },
+    { DtProperties238_0_01, 3 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { DtProperties238_0_04, 1 },
+    { NULL, 0 },
+    { DtProperties238_0_06, 2 },
+    { NULL, 0 },
+    { DtProperties238_0_08, 5 },
+    { DtProperties238_0_09, 1 },
+    { DtProperties238_0_10, 2 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { DtProperties238_0_16, 3 },
+    { DtProperties238_0_17, 1 },
+    { NULL, 0 },
+    { DtProperties238_0_19, 2 },
+    { DtProperties238_0_20, 1 },
+    { DtProperties238_0_21, 1 },
+    { NULL, 0 },
+    { DtProperties238_0_23, 1 },
+    { NULL, 0 },
+    { DtProperties238_0_25, 1 },
+    { DtProperties238_0_26, 1 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { DtProperties238_0_29, 1 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { DtProperties238_0_32, 2 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { DtProperties238_0_35, 2 },
+    { DtProperties238_0_36, 1 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { DtProperties238_0_39, 1 },
+    { DtProperties238_0_40, 3 },
+    { DtProperties238_0_41, 1 },
+    { DtProperties238_0_42, 1 },
+    { DtProperties238_0_43, 2 },
+    { NULL, 0 },
+    { DtProperties238_0_45, 1 },
+    { DtProperties238_0_46, 3 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { DtProperties238_0_50, 2 },
+    { DtProperties238_0_51, 1 },
+    { NULL, 0 },
+    { DtProperties238_0_53, 1 },
+    { NULL, 0 },
+    { DtProperties238_0_55, 1 },
+    { DtProperties238_0_56, 1 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { DtProperties238_0_59, 4 },
+    { DtProperties238_0_60, 1 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { DtProperties238_0_63, 3 }
+};
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-245; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // ASI/SDI input+output
@@ -3013,13 +3298,14 @@ const DtPropertyStore  DtPropertyStores[] =
     { 234, 0, DtPropertyHashSets234_0, 64 },
     { 235, 0, DtPropertyHashSets235_0, 64 },
     { 236, 0, DtPropertyHashSets236_0, 64 },
+    { 238, 0, DtPropertyHashSets238_0, 64 },
     { 245, 0, DtPropertyHashSets245_0, 64 },
     { 255, 0, DtPropertyHashSets255_0, 64 },
     { 299, 0, DtPropertyHashSets299_0, 64 },
     { 351, 0, DtPropertyHashSets351_0, 64 },
     { 399, 0, DtPropertyHashSets399_0, 64 }
 };
-const Int  DtPropertyStoreCount = 11;
+const Int  DtPropertyStoreCount = 12;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IoConfigCodeStrings[] -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -3027,48 +3313,48 @@ const Int  DtPropertyStoreCount = 11;
 //
 const char*  IoConfigCodeStrings[] =
 {
-/*  0 */ "3GLVL",
-/*  1 */ "IODIR",
-/*  2 */ "IOSTD",
-/*  3 */ "RFCLKSEL",
-/*  4 */ "SPICLKSEL",
-/*  5 */ "SPIMODE",
-/*  6 */ "SPISTD",
-/*  7 */ "TSRATESEL",
-/*  8 */ "BW",
-/*  9 */ "FAILSAFE",
-/* 10 */ "FRACMODE",
-/* 11 */ "GENLOCKED",
-/* 12 */ "GENREF",
-/* 13 */ "SWS2APSK",
-/* 14 */ "3GLVLA",
-/* 15 */ "3GLVLB",
-/* 16 */ "TRUE",
-/* 17 */ "FALSE",
-/* 18 */ "DISABLED",
-/* 19 */ "INPUT",
-/* 20 */ "OUTPUT",
-/* 21 */ "SHAREDANT",
-/* 22 */ "DBLBUF",
-/* 23 */ "LOOPS2L3",
-/* 24 */ "LOOPS2TS",
-/* 25 */ "LOOPTHR",
-/* 26 */ "3GSDI",
-/* 27 */ "ASI",
-/* 28 */ "DEMOD",
-/* 29 */ "GPSTIME",
-/* 30 */ "HDSDI",
-/* 31 */ "IFADC",
-/* 32 */ "IP",
-/* 33 */ "MOD",
-/* 34 */ "PHASENOISE",
-/* 35 */ "RS422",
-/* 36 */ "SDI",
-/* 37 */ "SPI",
-/* 38 */ "SPISDI",
-/* 39 */ "1080P50",
-/* 40 */ "1080P59_94",
-/* 41 */ "1080P60",
+/*  0 */ "IODIR",
+/*  1 */ "IOSTD",
+/*  2 */ "RFCLKSEL",
+/*  3 */ "SPICLKSEL",
+/*  4 */ "SPIMODE",
+/*  5 */ "SPISTD",
+/*  6 */ "TSRATESEL",
+/*  7 */ "BW",
+/*  8 */ "FAILSAFE",
+/*  9 */ "FRACMODE",
+/* 10 */ "GENLOCKED",
+/* 11 */ "GENREF",
+/* 12 */ "SWS2APSK",
+/* 13 */ "TRUE",
+/* 14 */ "FALSE",
+/* 15 */ "DISABLED",
+/* 16 */ "INPUT",
+/* 17 */ "OUTPUT",
+/* 18 */ "SHAREDANT",
+/* 19 */ "DBLBUF",
+/* 20 */ "LOOPS2L3",
+/* 21 */ "LOOPS2TS",
+/* 22 */ "LOOPTHR",
+/* 23 */ "3GSDI",
+/* 24 */ "ASI",
+/* 25 */ "DEMOD",
+/* 26 */ "GPSTIME",
+/* 27 */ "HDSDI",
+/* 28 */ "IFADC",
+/* 29 */ "IP",
+/* 30 */ "MOD",
+/* 31 */ "PHASENOISE",
+/* 32 */ "RS422",
+/* 33 */ "SDI",
+/* 34 */ "SPI",
+/* 35 */ "SPISDI",
+/* 36 */ "1080P50",
+/* 37 */ "1080P50B",
+/* 38 */ "1080P59_94",
+/* 39 */ "1080P59_94B",
+/* 40 */ "1080P60",
+/* 41 */ "1080P60B",
 /* 42 */ "1080I50",
 /* 43 */ "1080I59_94",
 /* 44 */ "1080I60",
@@ -3119,7 +3405,7 @@ const Int  IoConfigCodeStringCount = 82;
 //
 static const IoConfigCode  IoConfigCodes_0[] =
 {
-    { "FAILSAFE", 9 }
+    { "FAILSAFE", 8 }
 };
 static const IoConfigCode  IoConfigCodes_1[] =
 {
@@ -3127,21 +3413,21 @@ static const IoConfigCode  IoConfigCodes_1[] =
 };
 static const IoConfigCode  IoConfigCodes_2[] =
 {
-    { "RS422", 35 }
+    { "RS422", 32 }
 };
 static const IoConfigCode  IoConfigCodes_3[] =
 {
-    { "LOOPS2L3", 23 },
-    { "1080P50", 39 },
+    { "LOOPS2L3", 20 },
+    { "1080P50", 36 },
     { "720P23_98", 55 }
 };
 static const IoConfigCode  IoConfigCodes_5[] =
 {
-    { "SDI", 36 }
+    { "SDI", 33 }
 };
 static const IoConfigCode  IoConfigCodes_6[] =
 {
-    { "FRACMODE", 10 }
+    { "FRACMODE", 9 }
 };
 static const IoConfigCode  IoConfigCodes_7[] =
 {
@@ -3149,7 +3435,7 @@ static const IoConfigCode  IoConfigCodes_7[] =
 };
 static const IoConfigCode  IoConfigCodes_8[] =
 {
-    { "IOSTD", 2 },
+    { "IOSTD", 1 },
     { "720P29_97", 58 },
     { "720P59_94", 61 }
 };
@@ -3159,24 +3445,19 @@ static const IoConfigCode  IoConfigCodes_12[] =
 };
 static const IoConfigCode  IoConfigCodes_14[] =
 {
-    { "3GLVLA", 14 },
-    { "DEMOD", 28 }
-};
-static const IoConfigCode  IoConfigCodes_15[] =
-{
-    { "3GLVLB", 15 }
+    { "DEMOD", 25 }
 };
 static const IoConfigCode  IoConfigCodes_16[] =
 {
-    { "FALSE", 17 },
+    { "FALSE", 14 },
     { "625I50", 64 }
 };
 static const IoConfigCode  IoConfigCodes_17[] =
 {
-    { "GENLOCKED", 11 },
-    { "HDSDI", 30 },
-    { "SPI", 37 },
-    { "SPISDI", 38 },
+    { "GENLOCKED", 10 },
+    { "HDSDI", 27 },
+    { "SPI", 34 },
+    { "SPISDI", 35 },
     { "1080I59_94", 43 },
     { "1080PSF29_97", 53 },
     { "720P30", 59 }
@@ -3191,16 +3472,16 @@ static const IoConfigCode  IoConfigCodes_19[] =
 };
 static const IoConfigCode  IoConfigCodes_20[] =
 {
-    { "DBLBUF", 22 }
+    { "DBLBUF", 19 }
 };
 static const IoConfigCode  IoConfigCodes_21[] =
 {
-    { "INPUT", 19 },
+    { "INPUT", 16 },
     { "EXTRATIO", 79 }
 };
 static const IoConfigCode  IoConfigCodes_22[] =
 {
-    { "SPIMODE", 5 },
+    { "SPIMODE", 4 },
     { "SPICLKINT", 70 }
 };
 static const IoConfigCode  IoConfigCodes_27[] =
@@ -3209,9 +3490,9 @@ static const IoConfigCode  IoConfigCodes_27[] =
 };
 static const IoConfigCode  IoConfigCodes_28[] =
 {
-    { "IODIR", 1 },
-    { "SPISTD", 6 },
-    { "TSRATESEL", 7 },
+    { "IODIR", 0 },
+    { "SPISTD", 5 },
+    { "TSRATESEL", 6 },
     { "SPI625I50", 66 },
     { "SPICLKEXT", 69 }
 };
@@ -3222,35 +3503,40 @@ static const IoConfigCode  IoConfigCodes_29[] =
 };
 static const IoConfigCode  IoConfigCodes_30[] =
 {
-    { "BW", 8 },
-    { "GPSTIME", 29 },
+    { "BW", 7 },
+    { "GPSTIME", 26 },
     { "1080PSF25", 52 }
 };
 static const IoConfigCode  IoConfigCodes_31[] =
 {
-    { "3GSDI", 26 }
+    { "3GSDI", 23 }
 };
 static const IoConfigCode  IoConfigCodes_34[] =
 {
-    { "ASI", 27 },
+    { "ASI", 24 },
     { "RFCLKINT", 68 }
 };
 static const IoConfigCode  IoConfigCodes_35[] =
 {
-    { "SWS2APSK", 13 },
+    { "SWS2APSK", 12 },
     { "INTTSRATE", 80 }
 };
 static const IoConfigCode  IoConfigCodes_36[] =
 {
-    { "1080P60", 41 },
+    { "1080P60", 40 },
     { "1080P24", 46 },
     { "525I59_94", 63 }
 };
 static const IoConfigCode  IoConfigCodes_37[] =
 {
-    { "TRUE", 16 },
-    { "MOD", 33 },
+    { "TRUE", 13 },
+    { "MOD", 30 },
+    { "1080P50B", 37 },
     { "1080P25", 47 }
+};
+static const IoConfigCode  IoConfigCodes_38[] =
+{
+    { "1080P60B", 41 }
 };
 static const IoConfigCode  IoConfigCodes_39[] =
 {
@@ -3266,16 +3552,15 @@ static const IoConfigCode  IoConfigCodes_41[] =
 };
 static const IoConfigCode  IoConfigCodes_43[] =
 {
-    { "LOOPS2TS", 24 }
+    { "LOOPS2TS", 21 }
 };
 static const IoConfigCode  IoConfigCodes_45[] =
 {
-    { "3GLVL", 0 },
-    { "LOOPTHR", 25 }
+    { "LOOPTHR", 22 }
 };
 static const IoConfigCode  IoConfigCodes_47[] =
 {
-    { "SPICLKSEL", 4 }
+    { "SPICLKSEL", 3 }
 };
 static const IoConfigCode  IoConfigCodes_48[] =
 {
@@ -3287,7 +3572,7 @@ static const IoConfigCode  IoConfigCodes_51[] =
 };
 static const IoConfigCode  IoConfigCodes_52[] =
 {
-    { "PHASENOISE", 34 },
+    { "PHASENOISE", 31 },
     { "720P24", 56 },
     { "720P60", 62 }
 };
@@ -3298,41 +3583,42 @@ static const IoConfigCode  IoConfigCodes_53[] =
 };
 static const IoConfigCode  IoConfigCodes_54[] =
 {
-    { "OUTPUT", 20 }
+    { "OUTPUT", 17 }
 };
 static const IoConfigCode  IoConfigCodes_56[] =
 {
-    { "1080P59_94", 40 },
+    { "1080P59_94", 38 },
     { "1080P29_97", 48 }
 };
 static const IoConfigCode  IoConfigCodes_58[] =
 {
+    { "1080P59_94B", 39 },
     { "1080PSF30", 54 }
 };
 static const IoConfigCode  IoConfigCodes_59[] =
 {
-    { "RFCLKSEL", 3 },
+    { "RFCLKSEL", 2 },
     { "SPILVDS1", 75 }
 };
 static const IoConfigCode  IoConfigCodes_60[] =
 {
-    { "GENREF", 12 },
-    { "IFADC", 31 },
+    { "GENREF", 11 },
+    { "IFADC", 28 },
     { "1080I50", 42 },
     { "SPILVDS2", 76 }
 };
 static const IoConfigCode  IoConfigCodes_61[] =
 {
-    { "DISABLED", 18 }
+    { "DISABLED", 15 }
 };
 static const IoConfigCode  IoConfigCodes_62[] =
 {
-    { "IP", 32 },
+    { "IP", 29 },
     { "SPISER10B", 74 }
 };
 static const IoConfigCode  IoConfigCodes_63[] =
 {
-    { "SHAREDANT", 21 }
+    { "SHAREDANT", 18 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IoConfigCodeHashSets[] -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -3355,8 +3641,8 @@ const IoConfigCodeHashSet  IoConfigCodeHashSets[] =
     { NULL, 0 },
     { IoConfigCodes_12, 1 },
     { NULL, 0 },
-    { IoConfigCodes_14, 2 },
-    { IoConfigCodes_15, 1 },
+    { IoConfigCodes_14, 1 },
+    { NULL, 0 },
     { IoConfigCodes_16, 2 },
     { IoConfigCodes_17, 7 },
     { IoConfigCodes_18, 1 },
@@ -3378,15 +3664,15 @@ const IoConfigCodeHashSet  IoConfigCodeHashSets[] =
     { IoConfigCodes_34, 2 },
     { IoConfigCodes_35, 2 },
     { IoConfigCodes_36, 3 },
-    { IoConfigCodes_37, 3 },
-    { NULL, 0 },
+    { IoConfigCodes_37, 4 },
+    { IoConfigCodes_38, 1 },
     { IoConfigCodes_39, 1 },
     { IoConfigCodes_40, 1 },
     { IoConfigCodes_41, 1 },
     { NULL, 0 },
     { IoConfigCodes_43, 1 },
     { NULL, 0 },
-    { IoConfigCodes_45, 2 },
+    { IoConfigCodes_45, 1 },
     { NULL, 0 },
     { IoConfigCodes_47, 1 },
     { IoConfigCodes_48, 1 },
@@ -3399,7 +3685,7 @@ const IoConfigCodeHashSet  IoConfigCodeHashSets[] =
     { NULL, 0 },
     { IoConfigCodes_56, 2 },
     { NULL, 0 },
-    { IoConfigCodes_58, 1 },
+    { IoConfigCodes_58, 2 },
     { IoConfigCodes_59, 2 },
     { IoConfigCodes_60, 4 },
     { IoConfigCodes_61, 1 },

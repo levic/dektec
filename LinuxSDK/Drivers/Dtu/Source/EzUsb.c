@@ -106,7 +106,7 @@ DtStatus  EzUsbInit(DtuDeviceData* pDvcData, Bool* pReEnumerate)
                                                   pDvcData->m_DevInfo.m_HardwareRevision);
             if (pEzUsbFirmware == NULL)
             {
-                DtDbgOut(ERR, DTU, "No EzUsb firmware avialable for DTU-%d", 
+                DtDbgOut(ERR, DTU, "No EzUsb firmware available for DTU-%d", 
                                                             pDvcData->m_DevInfo.m_TypeNumber);
                 return DT_STATUS_FAIL;
             }

@@ -878,9 +878,12 @@ DtStatus  DtuNonIpIoConfigSet(
             {
             case DT_IOCONFIG_INPUT:
                DT_ASSERT(pNonIpPort->m_CapInput);
-                // For DTU-236 set DEMOD/ASI input mode
-                if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==236)
-                    Dtu236DemodModeSet(pNonIpPort->m_pDvcData, pNonIpPort->m_CapDemod);
+                // For DTU-236/238 set DEMOD/ASI input mode
+                if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==236 || 
+                                      pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==238)
+                {
+                    DtuDemodModeSet(pNonIpPort->m_pDvcData, pNonIpPort->m_CapDemod);
+                }
                 break;
             case DT_IOCONFIG_SHAREDANT:
             default:
@@ -1051,17 +1054,7 @@ DtStatus  DtuNonIpIoConfigSet(
         break;
 
     case DT_IOCONFIG_BW:
-        if (CfgValue.m_Value != DT_IOCONFIG_TRUE)
-        {
-            // No actions required
-            break;
-        } else {
-            // Only try to select an alternative setting if we're connected to a USB3 bus
-            if ((pNonIpPort->m_pDvcData->m_StateFlags&DTU_DEV_FLAG_NO_USB3) == 0)
-            {
-                DT_RETURN_ON_ERROR(DtuNonIpSetIsoBw(pNonIpPort, &CfgValue.m_ParXtra[0]));
-            }
-        }
+        // Ignore this IO-Config. It only exists to keep existing applications working
         break;
 
         // Fail-over relais available
@@ -1444,7 +1437,7 @@ DtStatus  DtuNonIpReleaseResourceFromFileObject(
             {
                 pDvcData->m_pNonIpPorts[i].m_NextRxState = DTU_RX_CHECK_LOCK;
                 DtEventSet(&pDvcData->m_pNonIpPorts[i].m_RxStateChanged);
-                DtEventWait(&pDvcData->m_pNonIpPorts[i].m_RxStateChangeCmpl, -1);
+                DtEventWaitUnInt(&pDvcData->m_pNonIpPorts[i].m_RxStateChangeCmpl, -1);
             }
             DtuShBufferClose(&pDvcData->m_pNonIpPorts[i].m_SharedBuffer);
         }
@@ -1549,85 +1542,15 @@ DtStatus  DtuGetuFrameSize(DtuNonIpPort*  pNonIpPort, Int*  pUFrameSize)
     return DT_STATUS_OK;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuNonIpSetIsoBw -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuDemodModeSet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtuNonIpSetIsoBw(DtuNonIpPort*  pNonIpPort, Int64*  pBw)
-{
-#ifdef WINBUILD
-    NTSTATUS  NtStatus;
-    Int  AltSetting = -1;
-    WDFUSBINTERFACE  UsbInterface = pNonIpPort->m_pDvcData->m_Device.m_UsbInterface;
-    WDF_USB_INTERFACE_SELECT_SETTING_PARAMS  Params;
-    UCHAR  i;
-    DtuDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
-    
-    for (i=1; i<pDvcData->m_NumAltSettings; i++)
-    {
-        if (pDvcData->m_AltSetting[i].m_Bitrate >= *pBw && (AltSetting==-1 ||
-                                   pDvcData->m_AltSetting[i].m_Bitrate < 
-                                            pDvcData->m_AltSetting[AltSetting].m_Bitrate))
-        {
-            AltSetting = i;
-        }
-    }
-    if (AltSetting == -1)
-    {
-        DtDbgOut(ERR, IOCONFIG, "Tried to select more bandwidth than available"
-                                                           " in any isochronous setting");
-        pNonIpPort->m_StateFlags |= DTU_PORT_FLAG_INSUFF_USB_BW;
-        return DT_STATUS_OK;
-    }
-    *pBw = pDvcData->m_AltSetting[AltSetting].m_Bitrate;
-
-    // Don't do anything if the correct alternative setting is already selected
-    if (AltSetting==pDvcData->m_CurAltSetting &&
-                                (pNonIpPort->m_StateFlags&DTU_PORT_FLAG_INSUFF_USB_BW)==0)
-    {
-        return DT_STATUS_OK;
-    }
-    return DT_STATUS_OK;
-
-    WDF_USB_INTERFACE_SELECT_SETTING_PARAMS_INIT_SETTING(&Params, (UCHAR)AltSetting);
-    NtStatus = WdfUsbInterfaceSelectSetting(UsbInterface, WDF_NO_OBJECT_ATTRIBUTES,
-                                                                                 &Params);
-    if (!NT_SUCCESS(NtStatus))
-    {
-        pNonIpPort->m_StateFlags |= DTU_PORT_FLAG_INSUFF_USB_BW;
-        DtDbgOut(MIN, IOCONFIG, "Failed to select alternative setting. Not enough USB"
-                                                   " bandwidth available? NtStatus: 0x%X",
-                                                                                NtStatus);
-        
-        // Try to select alternative setting 0 to free any previously selected bw, but
-        // don't check if this succeeds or not.
-        WDF_USB_INTERFACE_SELECT_SETTING_PARAMS_INIT_SETTING(&Params, 0);
-        WdfUsbInterfaceSelectSetting(UsbInterface, WDF_NO_OBJECT_ATTRIBUTES, &Params);
-
-        pDvcData->m_CurAltSetting = 0;
-
-        return DT_STATUS_OK;
-    }
-    // Reset not-enough-bw flag and store the actual amount of reserved bandwidth
-    pNonIpPort->m_StateFlags &= ~DTU_PORT_FLAG_INSUFF_USB_BW;
-    pDvcData->m_CurAltSetting = AltSetting;
-
-    DtDbgOut(MIN, NONIP, "Selected alternative setting %d, bw: %lld", AltSetting, *pBw);
-#else
-    // Always set the INSUFF_USB_BW flag under linux. We don't actually support getting
-    // any data yet and this is an easy way to prevent the framebuffer from being started.
-    pNonIpPort->m_StateFlags |= DTU_PORT_FLAG_INSUFF_USB_BW;
-#endif
-    return DT_STATUS_OK;
-}
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu236DemodModeSet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-DtStatus  Dtu236DemodModeSet(DtuDeviceData*  pDvcData, Bool DemodMode)
+DtStatus  DtuDemodModeSet(DtuDeviceData*  pDvcData, Bool DemodMode)
 {
     DtStatus  Status = DT_STATUS_OK;
     UInt32  RegValue=0;
 
-    DtDbgOut(MAX, NONIP, "New DTU-236, Mode: %d", DemodMode);
-
+    DtDbgOut(MAX, NONIP, "New DTU-236/238, Mode: %d", DemodMode);
+    
     // Get current general control register value
     Status = DtuRegRead(pDvcData, DT_GEN_REG_CONTROL0, &RegValue);
     if (!DT_SUCCESS(Status))
@@ -1635,15 +1558,17 @@ DtStatus  Dtu236DemodModeSet(DtuDeviceData*  pDvcData, Bool DemodMode)
 
     if (DemodMode)
     {
-       // Enable DEMOD mode and disable ASI power
-       RegValue |=  DT_GEN_CONTROL0_DEMOD_MSK;
-       RegValue &= ~DT_GEN_CONTROL0_VCOEN_MSK;          
+        // Enable DEMOD mode and disable ASI power
+        RegValue |=  DT_GEN_CONTROL0_DEMOD_MSK;
+        if (pDvcData->m_DevInfo.m_TypeNumber==236)
+            RegValue &= ~DT_GEN_CONTROL0_VCOEN_MSK;
     }
     else
     {
        // Disable DEMOD mode off and enable ASI power
-       RegValue &= ~DT_GEN_CONTROL0_DEMOD_MSK;
-       RegValue |=  DT_GEN_CONTROL0_VCOEN_MSK;          
+        RegValue &= ~DT_GEN_CONTROL0_DEMOD_MSK;
+        if (pDvcData->m_DevInfo.m_TypeNumber==236)
+            RegValue |=  DT_GEN_CONTROL0_VCOEN_MSK;      
     }
 
     // Write new general control register value

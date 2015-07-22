@@ -57,8 +57,6 @@ static DtStatus  DtaIoConfigUpdateLoadNonVolatileStorage(DtaDeviceData* pDvcData
                                                              DtaIoConfigUpdate*  pUpdate);
 static DtStatus  DtaIoConfigUpdateValidate(DtaDeviceData* pDvcData,
                                                              DtaIoConfigUpdate*  pUpdate);
-static DtStatus  DtaIoConfigUpdateValidate3GLvl(DtaNonIpPort* pNonIpPort, 
-                                         DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
 static DtStatus  DtaIoConfigUpdateValidateIoDir(DtaNonIpPort* pNonIpPort, 
                                          DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
 static DtStatus  DtaIoConfigUpdateValidateIoStd(DtaNonIpPort* pNonIpPort, 
@@ -158,7 +156,7 @@ DtStatus  DtaIoConfigInit(DtaDeviceData* pDvcData)
 
             // Delete the registry settings for this device.
             if (!DT_SUCCESS(DtNonVolatileSettingsDelete(&pDvcData->m_Driver, 
-                                                           pDvcData->m_DevInfo.m_Serial,
+                                                           pDvcData->m_DevInfo.m_UniqueId,
                                                            pDvcData->m_NumNonIpPorts+
                                                            pDvcData->m_NumIpPorts)))
                 DtDbgOut(ERR, IOCONFIG, "Error deleting registry key");
@@ -279,12 +277,7 @@ DtStatus  DtaIoConfigSet(
 
     // Get exclusive access lock to prevent ports from being opened/closed and other
     // IO configs from being applied
-    Result = DtFastMutexAcquire(&pDvcData->m_ExclAccessMutex);
-    if (pDvcData->m_RegistryWriteBusy)
-    {
-        DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
-        return DT_STATUS_BUSY;
-    }
+    Result = DtaDeviceAcquireExclAccess(pDvcData);
     
     // First do IoConfigSet for IP ports. We assume here that IoConfigs for IP and
     // non-IP ports are completely unrelated. To do this properly we should validate
@@ -484,6 +477,7 @@ static DtStatus  DtaIoConfigUpdateApply(
                 if (!DT_SUCCESS(Result))
                 {
                     pDvcData->m_RegistryWriteBusy = FALSE;
+                    DtEventSet(&pDvcData->m_RegWriteDoneEvt);
                     return Result;
                 }
 
@@ -495,6 +489,7 @@ static DtStatus  DtaIoConfigUpdateApply(
         }
     }
     pDvcData->m_RegistryWriteBusy = FALSE;
+    DtEventSet(&pDvcData->m_RegWriteDoneEvt);
     return DT_STATUS_OK;
 }
 
@@ -552,7 +547,7 @@ static DtStatus  DtaIoConfigUpdateLoadNonVolatileStorage(
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
             Result = DtIoConfigReadFromNonVolatileStorage(&pDvcData->m_Driver,
-                                                      pDvcData->m_DevInfo.m_Serial,
+                                                      pDvcData->m_DevInfo.m_UniqueId,
                                                       pNonIpPort->m_PortIndex, IoConfig,
                                                       &pPortUpdate->m_CfgValue[IoConfig]);
             if (!DT_SUCCESS(Result) && Result!=DT_STATUS_NOT_FOUND)
@@ -599,11 +594,6 @@ static DtStatus  DtaIoConfigUpdateValidate(
     {
         pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
         pPortUpdate = &pUpdate->m_pNonIpPortUpdate[NonIpPortIndex];
-
-        // Validate DT_IOCONFIG_3GLVL
-        Result = DtaIoConfigUpdateValidate3GLvl(pNonIpPort, pPortUpdate, pUpdate);
-        if (!DT_SUCCESS(Result))
-            return Result;
                 
         // Validate DT_IOCONFIG_IODIR
         Result = DtaIoConfigUpdateValidateIoDir(pNonIpPort, pPortUpdate, pUpdate);
@@ -666,41 +656,6 @@ static DtStatus  DtaIoConfigUpdateValidate(
             return Result;
     }
     return Result;
-}
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigUpdateValidate3GLvl -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-static DtStatus  DtaIoConfigUpdateValidate3GLvl(
-    DtaNonIpPort* pNonIpPort, 
-    DtaIoConfigNonIpPortUpdate*  pPortUpdate,
-    DtaIoConfigUpdate* pUpdate)
-{
-    DtDbgOut(MAX, IOCONFIG, "Configuration 3GLVL Value: %d SubValue: %d",
-                                   pPortUpdate->m_CfgValue[DT_IOCONFIG_3GLVL].m_Value,
-                                   pPortUpdate->m_CfgValue[DT_IOCONFIG_3GLVL].m_SubValue);
-
-    switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_3GLVL].m_Value)
-    {
-    case DT_IOCONFIG_NONE:
-        // Not applicable should only be set when we do not support level A/LevelB
-        DT_ASSERT(!pNonIpPort->m_Cap3GLvlA && !pNonIpPort->m_Cap3GLvlB);
-        break;
-    case DT_IOCONFIG_3GLVLA:
-        // Must a have 3G-SDI level A capability
-        if (!pNonIpPort->m_Cap3GLvlA)
-            return DT_STATUS_CONFIG_ERROR;
-        break;
-
-    case DT_IOCONFIG_3GLVLB:
-        // Must a have 3G-SDI level B capability
-        if (!pNonIpPort->m_Cap3GLvlB)
-            return DT_STATUS_CONFIG_ERROR;
-        break;
-
-    default:
-        return DT_STATUS_CONFIG_ERROR;
-    }
-    return DT_STATUS_OK;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigUpdateValidateIoDir -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -939,12 +894,24 @@ static DtStatus  DtaIoConfigUpdateValidateIoStd(
             if (!pNonIpPort->m_Cap1080P50)
                 return DT_STATUS_CONFIG_ERROR;
             break;
+        case DT_IOCONFIG_1080P50B:
+            if (!pNonIpPort->m_Cap1080P50B)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
         case DT_IOCONFIG_1080P59_94:
             if (!pNonIpPort->m_Cap1080P59_94)
                 return DT_STATUS_CONFIG_ERROR;
             break;
+        case DT_IOCONFIG_1080P59_94B:
+            if (!pNonIpPort->m_Cap1080P59_94B)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
         case DT_IOCONFIG_1080P60:
             if (!pNonIpPort->m_Cap1080P60)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_1080P60B:
+            if (!pNonIpPort->m_Cap1080P60B)
                 return DT_STATUS_CONFIG_ERROR;
             break;
         default:
@@ -1626,7 +1593,7 @@ static DtStatus  DtaIoConfigWriteToNonVolatileStorage(
         return Result;
 
     Result = DtNonVolatileSettingsStringWrite(&pDvcData->m_Driver, 
-                                    pDvcData->m_DevInfo.m_Serial, pNonIpPort->m_PortIndex,
+                                  pDvcData->m_DevInfo.m_UniqueId, pNonIpPort->m_PortIndex,
                                                       GroupName, "ConfigValue", StrValue);
     if (!DT_SUCCESS(Result))
         return Result;
@@ -1637,7 +1604,7 @@ static DtStatus  DtaIoConfigWriteToNonVolatileStorage(
         return Result;
 
     Result = DtNonVolatileSettingsStringWrite(&pDvcData->m_Driver, 
-                                    pDvcData->m_DevInfo.m_Serial, pNonIpPort->m_PortIndex,
+                                  pDvcData->m_DevInfo.m_UniqueId, pNonIpPort->m_PortIndex,
                                                    GroupName, "ConfigSubValue", StrValue);
     if (!DT_SUCCESS(Result))
         return Result;
@@ -1646,7 +1613,7 @@ static DtStatus  DtaIoConfigWriteToNonVolatileStorage(
     for (ParXtraIdx=0; ParXtraIdx<DT_MAX_PARXTRA_COUNT; ParXtraIdx++)
     {
         Result = DtNonVolatileSettingsValueWrite(&pDvcData->m_Driver,
-                                    pDvcData->m_DevInfo.m_Serial, pNonIpPort->m_PortIndex,
+                                  pDvcData->m_DevInfo.m_UniqueId, pNonIpPort->m_PortIndex,
                                              GroupName, (Char*)IoParXtraNames[ParXtraIdx], 
                                                           CfgValue.m_ParXtra[ParXtraIdx]);
         if (!DT_SUCCESS(Result))

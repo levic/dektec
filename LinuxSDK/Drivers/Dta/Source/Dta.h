@@ -70,7 +70,8 @@
 #define  LOG_LEVEL_GENL          LOG_AVG
 // Fan
 #define  LOG_LEVEL_FAN           LOG_AVG
-
+// Dac AD9129
+#define  LOG_LEVEL_DAC           LOG_AVG
 
 #define  USES_GENREGS(pDvcData)  (pDvcData->m_DevInfo.m_TypeNumber!=100                  \
                                       && pDvcData->m_DevInfo.m_TypeNumber!=102           \
@@ -111,6 +112,7 @@ typedef struct _DtaDeviceInfo
     Int  m_FirmwareVariant;     // Firmware Variant, e.g. to distinguish between
                                 // firmware with different #inputs/#outputs
     UInt64  m_Serial;           // Serial number
+    UInt64  m_UniqueId;         // Unique board ID (can be same as serial)
     Int  m_SubType;             // Device subtype (0=none, 1=A, ...)
     UInt32  m_RefClk;           // Reference clock
     UInt8  m_PerIntClkBit;      // Bit of the reference clock used for periodic interrupt
@@ -207,6 +209,7 @@ struct _DtaDeviceData
 
     // Registry
     Bool   m_RegistryWriteBusy;
+    DtEvent  m_RegWriteDoneEvt;
                    
     // VPD
     DtVpd  m_Vpd;
@@ -235,8 +238,8 @@ struct _DtaDeviceData
 
     // Non IP ports
     DtaNonIpPort*  m_pNonIpPorts;
-    DtFastMutex  m_ExclAccessMutex;
     Int  m_NumNonIpPorts;
+    DtFastMutex  m_ExclAccessMutex;
 
     // IP ports
     DtaIpDevice  m_IpDevice;
@@ -272,6 +275,8 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
                                                                    DtIoctlObject* pIoctl);
 DtStatus  DtaDeviceIoctlChild(DtaChildDeviceData* pDvcData, DtFileObject* pFile,
                                                                    DtIoctlObject* pIoctl);
+
+DtStatus  DtaDeviceAcquireExclAccess(DtaDeviceData*  pDvcData);
 
 Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData);
 

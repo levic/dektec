@@ -591,8 +591,11 @@ Int  DtaIoStd2VidStd(Int  Value, Int  SubValue)
     switch (SubValue)
     {
     case DT_IOCONFIG_1080P50:       return DT_VIDSTD_1080P50;
+    case DT_IOCONFIG_1080P50B:      return DT_VIDSTD_1080P50B;
     case DT_IOCONFIG_1080P59_94:    return DT_VIDSTD_1080P59_94;
+    case DT_IOCONFIG_1080P59_94B:   return DT_VIDSTD_1080P59_94B;
     case DT_IOCONFIG_1080P60:       return DT_VIDSTD_1080P60;
+    case DT_IOCONFIG_1080P60B:      return DT_VIDSTD_1080P60B;
     case DT_IOCONFIG_1080I50:       return DT_VIDSTD_1080I50;
     case DT_IOCONFIG_1080I59_94:    return DT_VIDSTD_1080I59_94;
     case DT_IOCONFIG_1080I60:       return DT_VIDSTD_1080I60;
@@ -620,38 +623,26 @@ Int  DtaIoStd2VidStd(Int  Value, Int  SubValue)
     return DT_VIDSTD_UNKNOWN;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoStdAndLevel2VidStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-Int  DtaIoStdAndLevel2VidStd(Int  Value, Int  SubValue, Int  Level)
-{
-    // First get video standard without the 3G level
-    Int  VidStd = DtaIoStd2VidStd(Value, SubValue);
-    // Far a 3G SDI format: add the level
-    if (DtaVidStdIs3gSdi(VidStd))
-    {
-        DT_ASSERT(Level==DT_IOCONFIG_3GLVLA || Level==DT_IOCONFIG_3GLVLB);
-        VidStd |= (Level==DT_IOCONFIG_3GLVLB) ? DT_VIDSTD_3GLVLB : DT_VIDSTD_3GLVLA;
-    }
-    return VidStd;
-}
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStd2Fps -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 Int  DtaVidStd2Fps(Int  VidStd)
 {
-    switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
+    switch (VidStd)
     {
     case DT_VIDSTD_720P59_94:
     case DT_VIDSTD_720P60:
     case DT_VIDSTD_1080P59_94:
+    case DT_VIDSTD_1080P59_94B:
     case DT_VIDSTD_1080P60:
+    case DT_VIDSTD_1080P60B:
         return 60;
 
     case DT_VIDSTD_720P50:
     case DT_VIDSTD_1080P50:
+    case DT_VIDSTD_1080P50B:
         return 50;
 
-    case DT_VIDSTD_525I59_94:   
+    case DT_VIDSTD_525I59_94:
     case DT_VIDSTD_720P29_97:
     case DT_VIDSTD_720P30:
     case DT_VIDSTD_1080P30:
@@ -687,11 +678,12 @@ Int  DtaVidStd2Fps(Int  VidStd)
 //
 Bool  DtaVidStdIsFractional(Int  VidStd)
 {
-    switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
+    switch (VidStd)
     {
     case DT_VIDSTD_720P59_94:
     case DT_VIDSTD_1080P59_94:
-    case DT_VIDSTD_525I59_94:   
+    case DT_VIDSTD_1080P59_94B:
+    case DT_VIDSTD_525I59_94:
     case DT_VIDSTD_720P29_97:
     case DT_VIDSTD_1080P29_97:
     case DT_VIDSTD_1080PSF29_97:
@@ -709,7 +701,7 @@ Bool  DtaVidStdIsFractional(Int  VidStd)
 //
 Bool  DtaVidStdIsInterlaced(Int  VidStd)
 {
-    switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
+    switch (VidStd)
     {
     case DT_VIDSTD_525I59_94:
     case DT_VIDSTD_625I50:
@@ -730,11 +722,28 @@ Bool  DtaVidStdIsInterlaced(Int  VidStd)
 //
 Bool  DtaVidStdIs3gSdi(Int  VidStd)
 {
-    switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
+    switch (VidStd)
     {
     case DT_VIDSTD_1080P50:
+    case DT_VIDSTD_1080P50B:
     case DT_VIDSTD_1080P59_94:
+    case DT_VIDSTD_1080P59_94B:
     case DT_VIDSTD_1080P60:
+    case DT_VIDSTD_1080P60B:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStdIs3glvlBSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtaVidStdIs3glvlBSdi(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_1080P50B:
+    case DT_VIDSTD_1080P59_94B:
+    case DT_VIDSTD_1080P60B:
         return TRUE;
     }
     return FALSE;
@@ -752,7 +761,7 @@ Bool  DtaVidStdIsHdSdi(Int  VidStd)
 //
 Bool  DtaVidStdIsSdSdi(Int  VidStd)
 {
-    switch (VidStd & ~DT_VIDSTD_3GLVL_MASK)
+    switch (VidStd)
     {
     case DT_VIDSTD_525I59_94:
     case DT_VIDSTD_625I50:

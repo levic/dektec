@@ -391,6 +391,21 @@ typedef struct _HbrMediaPlHeader
 // If m_Ext==1: UInt32 HeaderExtension == 0: No extension
 // == 1..111: Payload header is extended by this number * 4 bytes
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SdiRxFrameStat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// If DTAPI_RXMODE_SDI_STAT is enabled, 16 extra bytes are added to the start of the frame
+// to indicate some statistics.
+//
+typedef struct _SdiRxFrameStat
+{
+    UInt32  m_FrameCount;       // SDI Framecount SMPTE-2022
+    UInt32  m_Timestamp;        // RTP Timestamp first IP packet of frame
+    UInt32  m_MinIpat;          // Units of 54MHz
+    UInt32  m_MaxIpat;          // Units of 54MHz
+    UInt64  m_Spare1;
+    UInt64  m_Spare2;
+} SdiRxFrameStat;
+
 #pragma pack (pop)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DmaTxHeader definition -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

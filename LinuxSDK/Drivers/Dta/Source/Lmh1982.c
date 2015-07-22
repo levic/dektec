@@ -524,19 +524,22 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 750;
         break;
 
-    case DT_VIDSTD_1080P60:     
+    case DT_VIDSTD_1080P60:
+    case DT_VIDSTD_1080P60B:
         pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
         pRegs->m_Reg04_05.Fields.m_FbDiv = 400;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125;
         break;
 
-    case DT_VIDSTD_1080P59_94:  
+    case DT_VIDSTD_1080P59_94:
+    case DT_VIDSTD_1080P59_94B:
         pRegs->m_Reg03.Fields.m_RefDivSel = 2;     // PLL 1 divider = 5
         pRegs->m_Reg04_05.Fields.m_FbDiv = 2002;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125;
         break;
  
-    case DT_VIDSTD_1080P50:     
+    case DT_VIDSTD_1080P50:
+    case DT_VIDSTD_1080P50B:
         pRegs->m_Reg03.Fields.m_RefDivSel = 1;     // PLL 1 divider = 1
         pRegs->m_Reg04_05.Fields.m_FbDiv = 480;
         pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1125;
@@ -692,19 +695,22 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
         break;
 
 
-    case DT_VIDSTD_1080P60:     
+    case DT_VIDSTD_1080P60:
+    case DT_VIDSTD_1080P60B:
         pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
         pRegs->m_Reg0B_0C.Fields.m_TofPpl = 400;		
         pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 1125;
         break;
 
-    case DT_VIDSTD_1080P59_94:  
+    case DT_VIDSTD_1080P59_94:
+    case DT_VIDSTD_1080P59_94B:
         pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
         pRegs->m_Reg0B_0C.Fields.m_TofPpl = 2002;		
         pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 225;
         break;
  
-    case DT_VIDSTD_1080P50:     
+    case DT_VIDSTD_1080P50:
+    case DT_VIDSTD_1080P50B:
         pRegs->m_Reg0B_0C.Fields.m_TofClk = 0;			// 27.0MHz
         pRegs->m_Reg0B_0C.Fields.m_TofPpl = 480;		
         pRegs->m_Reg0D_0E.Fields.m_TofLpfm = 1125;
@@ -752,13 +758,10 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Step 4.1: set TOF offset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
     //
-    // We set a line offset 3 lines, asumming the sum of the input delay and output delay 
-    // is always smaller than 3 lines
-        
-    pGenlock->m_LineOffset = 3;
-    DT_ASSERT(pGenlock->m_RefLineDurationNs*pGenlock->m_LineOffset>
-                                                                 2*pGenlock->m_InDelayNs);
+    // We let the LMH genereate the TOF m_LineOffset #lines to early to account for all 
+    // delays in the "genlock pipeline"
     
+        
     // Get frame properties for reference signal
     Status = DtAvGetFrameProps(RefVidStd, &RefAvProps);
     if (!DT_SUCCESS(Status))
@@ -772,10 +775,6 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
     {
         // For interlaced the TOF is generates half-way through the frame
         TofOffset = (UInt16)((RefAvProps.m_NumLines / 2) - pGenlock->m_LineOffset);
-        
-        // Account for half an extra line of delay (subtract from input delay)
-        if ((RefAvProps.m_NumLines%2) != 0)
-            pGenlock->m_InDelayNs -= pGenlock->m_RefLineDurationNs / 2;
     }
     else
         TofOffset = (UInt16)(RefAvProps.m_NumLines - pGenlock->m_LineOffset);
