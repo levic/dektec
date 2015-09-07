@@ -94,7 +94,7 @@ DtStatus  DtuPropertiesInit(DtuDeviceData* pDvcData)
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuPropertiesReportDriverErrors -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtuPropertiesReportDriverErrors(DtuDeviceData* pDvcData)
- {
+{
     DtPropertyData*  pPropData = &pDvcData->m_PropData;
     DtEvtLog*  pEvtObject = &pDvcData->m_Device.m_EvtObject;
 
@@ -107,72 +107,7 @@ DtStatus  DtuPropertiesReportDriverErrors(DtuDeviceData* pDvcData)
                                         &pPropData->m_PropertyNotFoundString, NULL, NULL);
     }
     return Status;
- }
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuIoCtlReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-// Io-control handler for reset device command
-//
-DtStatus  DtuIoCtlReset(DtuDeviceData* pDvcData)
-{
-    DtStatus  Status = DT_STATUS_OK;
-    Int  Dummy;
-    Int  i=0;
-
-    // Reset temporariy for all channels
-    for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
-    {
-        DtuNonIpPort* pNonIpPort = &(pDvcData->m_pNonIpPorts[i]);
-
-        // Clear temporariy buffer
-        pNonIpPort->m_TempBufWrIndex = 0;
-        pNonIpPort->m_TempBufRdIndex = 0;
-    }
-
-    // Simply send the vendor command to the device
-    Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB_RESET_DEVICE, 
-                                                     0, 0, DT_USB_HOST_TO_DEVICE, NULL, 0,
-                                                     &Dummy, MAX_USB_REQ_TIMEOUT);
-
-    DtDbgOut(AVG, DTU, "DTU-%d reset", pDvcData->m_DevInfo.m_TypeNumber);
-
-    return Status;
 }
-
-////.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuGetFirmwareVersion -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-////
-//DtStatus  DtuGetFirmwareVersion(
-//    DtuDeviceData*  pDvcData,
-//    Int*  pFwVers)      // The USB bus speed
-//{
-//    DtStatus  Status;
-//    Int  BytesTransf = 0;
-//    UInt8*  pTempBuf = NULL;
-//
-//    // Init to -1
-//    *pFwVers = -1;
-//
-//    // Cannot use value from stack as buffer, in vendor request => allocate temp buffer
-//    // for reading register value from device
-//    pTempBuf = (UInt8*)DtMemAllocPool(DtPoolNonPaged, sizeof(UInt8)*3, DTU_TAG);
-//    if (pTempBuf == NULL)
-//        return DT_STATUS_OUT_OF_MEMORY;
-//
-//    // Get USB infi from DTU
-//    Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB_GET_DEVICE_INF0, 
-//                                0, 0, DT_USB_DEVICE_TO_HOST, 
-//                                pTempBuf, sizeof(UInt8)*3, &BytesTransf);
-//
-//	if ( BytesTransf >= 2 )
-//    {
-//		*pFwVers = (Int)pTempBuf[0];
-//	}
-//
-//    // Free buffer
-//    DtMemFreePool(pTempBuf, DTU_TAG);
-//
-//    return Status;
-//}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuGetUsbAddress -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -230,35 +165,37 @@ DtStatus  DtuGetUsbSpeed(
     // Init to zero
     *pUsbSpeed = 0;
 
-    // Cannot use value from stack as buffer, in vendor request => allocate temp buffer
-    // for reading register value from device
-    pTempBuf = (UInt8*)DtMemAllocPool(DtPoolNonPaged, sizeof(UInt8)*4, DTU_TAG);
-    if (pTempBuf == NULL)
-        return DT_STATUS_OUT_OF_MEMORY;
-
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    if (pDvcData->m_DevInfo.m_TypeNumber == 351)
     {
         // Read FX3 register 0x00: UsbSpeed
-        Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_READ_VALUE,
-                                          0, DTU_USB3_DEV_FX3, DT_USB_DEVICE_TO_HOST,
-                                          pTempBuf, 2, &BytesTransf, MAX_USB_REQ_TIMEOUT);
+        UInt16  UsbSpeed;
+        Status = Dtu35xRegRead(pDvcData, DTU_USB3_DEV_FX3, 0x00, &UsbSpeed);
+        *pUsbSpeed = UsbSpeed;
+    }
+    else if (pDvcData->m_DevInfo.m_TypeNumber>=300 &&pDvcData->m_DevInfo.m_TypeNumber<400)
+    {
+        // Read FX3 register 0x00: UsbSpeed
+        Status = Dtu3RegRead(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.UsbSpeed, 
+                                                                               pUsbSpeed);
     } else {
+        // Cannot use value from stack as buffer, in vendor request => allocate temp
+        // buffer for reading register value from device
+        pTempBuf = (UInt8*)DtMemAllocPool(DtPoolNonPaged, sizeof(UInt8)*4, DTU_TAG);
+        if (pTempBuf == NULL)
+            return DT_STATUS_OUT_OF_MEMORY;
         // Get USB speed from DTU
         Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB_GET_USB_SPEED, 
                                    0, 0, DT_USB_DEVICE_TO_HOST, pTempBuf, sizeof(UInt8)*4,
                                    &BytesTransf, MAX_USB_REQ_TIMEOUT);
+        if (BytesTransf >= 2)
+        {
+            *pUsbSpeed = pTempBuf[0];
+            *pUsbSpeed |= (pTempBuf[1]<<8);
+        }
+
+        // Free buffer
+        DtMemFreePool(pTempBuf, DTU_TAG);
     }
-
-
-
-    if ( BytesTransf >= 2 )
-    {
-        *pUsbSpeed = pTempBuf[0];
-        *pUsbSpeed |= (pTempBuf[1]<<8);
-    }
-
-    // Free buffer
-    DtMemFreePool(pTempBuf, DTU_TAG);
 
     return Status;
 }

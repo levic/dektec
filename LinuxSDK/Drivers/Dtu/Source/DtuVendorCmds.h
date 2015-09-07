@@ -49,30 +49,46 @@
 #define DTU_USB3_PNP_CMD            0xD1
 #define DTU_USB3_READ_VALUE         0xD2
 #define DTU_USB3_WRITE_VALUE        0xD3
+#define DTU_USB3_WRITE_BULK         0xD4
 
 // Values for DTU_USB3_PNP_CMD
 #define DTU_PNP_CMD_RESET           0x01
 #define DTU_PNP_CMD_DVC_POWER       0x02
 #define DTU_PNP_CMD_FPGA_UPL_CMD    0x03
+#define DTU_PNP_CMD_SUSPEND_MODE    0x04
 
 // Sub-values for DTU_PNP_CMD_RESET
 #define DTU_RESET_BOOTLOADER        0x01
 #define DTU_RESET_DVC_STATE         0x02
+#define DTU_RESET_VBUS_STATE        0x03
+#define DTU_RESET_DMA_IN            0x04
+#define DTU_RESET_DMA_OUT           0x05
 
 // Sub-values for DTU_PNP_CMD_DVC_POWER
 #define DTU_DVC_POWER_ON            0x01
 #define DTU_DVC_POWER_OFF           0x02
+#define DTU_DVC_FPGA_POWER_ON       0x03
+#define DTU_DVC_FPGA_POWER_OFF      0x04
+#define DTU_DVC_FRONTEND_POWER_ON   0x05
+#define DTU_DVC_FRONTEND_POWER_OFF  0x06
 
 // Sub-values for DTU_PNP_CMD_FPGA_UPL_CMD
 #define DTU_FPGA_UPL_START          0x01
 #define DTU_FPGA_UPL_FINISH         0x02
 
+// Sub-values for DTU_PNP_CMD_FAN_CTRL
+#define DTU_FAN_CTRL_ON             0x01
+#define DTU_FAN_CTRL_OFF            0x02
+
+// Sub-values for DTU_PNP_CMD_LED_CTRL
+#define DTU_LED_CTRL_ON             0x01
+#define DTU_LED_CTRL_FADE           0x02
+#define DTU_LED_CTRL_OFF            0x03
+
 // Device IDs for DTU_USB3_READ_VALUE / DTU_USB3_WRITE_VALUE
 #define DTU_USB3_DEV_FX3            0x01
 #define DTU_USB3_DEV_FPGA           0x02
-#define DTU_USB3_DEV_GENNUM         0x03
-
-
+#define DTU_USB3_DEV_GS1661         0x03
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- TX channel commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define	DTU_USB_RX_RESET            0x40

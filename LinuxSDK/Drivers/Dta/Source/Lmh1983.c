@@ -534,9 +534,10 @@ DtStatus  DtaLmh1983SetupRefSource(
         *pRefVidStd = pGenlock->m_RefVidStd;
         *pOutVidStd = pGenlock->m_OutVidStd;
     }
-    else if (pGenlock->m_RefPortIndex == pGenlock->m_AsyncPortIndex)
+    else if (pGenlock->m_RefPortIndex==pGenlock->m_AsyncPortIndex || 
+                               pGenlock->m_RefPortIndex==pGenlock->m_SlaveGenrefPortIndex)
     {
-        ClkSrc = 15;    // analog clock
+        ClkSrc = 15;    // analog or master clock
         *pRefVidStd = pGenlock->m_RefVidStd;
         *pOutVidStd = pGenlock->m_OutVidStd;
     }
@@ -634,10 +635,9 @@ DtStatus  DtaLmh1983InitChip(DtaLmh1983* pLmh1983Data)
     DtStatus  Status = DT_STATUS_OK;
     DtAvFrameProps  RefAvProps, OutAvProps;
     Int  RefVidStd,  OutVidStd;
-    UInt8  FormatCode1=0, FormatCode2=0, FormatCode3=0, DvcCtrl=0, MaskCtrl=0;
+    UInt8  FormatCode1=0, FormatCode2=0, FormatCode3=0, MaskCtrl=0;
     UInt16 Tof1Offset=0;
     Int  RefPortIdx = pLmh1983Data->m_pDvcData->m_Genlock.m_RefPortIndex;
-    Int  OpModeInSrc = pLmh1983Data->m_pDvcData->m_Genlock.m_OpModeIntSrc;
     DtaGenlock*  pGenlock = &pLmh1983Data->m_pDvcData->m_Genlock;
     
     DT_ASSERT(pGenlock != NULL);
@@ -733,7 +733,8 @@ DtStatus  DtaLmh1983InitChip(DtaLmh1983* pLmh1983Data)
     // account for the in and out delays
 
     Tof1Offset = 0;
-    if (RefPortIdx==pLmh1983Data->m_pDvcData->m_Genlock.m_AsyncPortIndex)
+    if (RefPortIdx==pLmh1983Data->m_pDvcData->m_Genlock.m_AsyncPortIndex
+                || RefPortIdx==pLmh1983Data->m_pDvcData->m_Genlock.m_SlaveGenrefPortIndex)
     {
         Tof1Offset = (UInt16)(RefAvProps.m_NumLines - pGenlock->m_LineOffset);
     }

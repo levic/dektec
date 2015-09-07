@@ -2564,8 +2564,8 @@ UInt DtaIpRxIsPacketForDVB(
 // This functions will increment the channel's use count returned in pIpRxA
 // Pre: m_IpRxListenersMutex mutex must be acquired
 //
-UInt  DtaIpRxGetChannelsForDVB(DtaIpPort* pIpPort, UInt32 IdTag, UInt8* pIpSrc,
-                                            UserIpRxChannel** pIpRxA, Int MaxNumListeners)
+UInt  DtaIpRxGetChannelsForDVB(DtaIpPort* pIpPort, UInt32 IdTag, UInt8* pIpSrc, 
+                            UInt16 SrcPort, UserIpRxChannel** pIpRxA, Int MaxNumListeners)
 {
     Bool  SSMIpV6 = FALSE;
     DtaIpUserChannels*  pIpUserChannels = 
@@ -2615,6 +2615,17 @@ UInt  DtaIpRxGetChannelsForDVB(DtaIpPort* pIpPort, UInt32 IdTag, UInt8* pIpSrc,
                 if (pIpAddr[i] != pIpSrc[i])
                     StreamForThisChannel = FALSE;
             }
+        }
+        if (StreamForThisChannel)
+        {
+            // DTA 2162 does not have source port filtering in hardware
+            UInt16*  pSrcPort = NULL;
+            if (((pIpPort->m_IpPortIndex&1)==0) && pIpRxChannel->m_SrcPort != 0)
+                pSrcPort = &pIpRxChannel->m_SrcPort;
+            else if (((pIpPort->m_IpPortIndex&1)==1) && pIpRxChannel->m_SrcPort2 != 0)
+                pSrcPort = &pIpRxChannel->m_SrcPort2;
+            if (pSrcPort!=NULL && *pSrcPort!=SrcPort)
+                StreamForThisChannel = FALSE;
         }
 
         if (StreamForThisChannel)
@@ -2739,7 +2750,8 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(DtaIpUserChannels* pIpUserChannels
     Int  IpPacketDataSize;
     UdpHeader*  pUdpHeader;
 
-    UInt16  DestPort;
+    UInt16  DstPort;
+    UInt16  SrcPort;
     UInt  NumChannels;
     UserIpRxChannel*  pIpRxChannel;
     UserIpRxChannel*  pIpRxFragment = NULL;
@@ -2776,25 +2788,25 @@ UserIpRxChannel*  DtaIpRxParseFragmentedFrame(DtaIpUserChannels* pIpUserChannels
 
         // Check if it is for one of our channels
         pUdpHeader = (UdpHeader*)((UInt8*)pIpHeader + (pIpHeader->m_HeaderLength * 4));
-        DestPort = DtUInt16ByteSwap(pUdpHeader->m_DestinationPort);
+        SrcPort = DtUInt16ByteSwap(pUdpHeader->m_SourcePort);
+        DstPort = DtUInt16ByteSwap(pUdpHeader->m_DestinationPort);
         DtMutexAcquire(&pIpPort->m_IpRxListenersMutex, -1);
         // For Type2, we already know it's for one or more of the RT Ip channels
         if (Type2)
             NumChannels = DtaIpRxGetChannelsForDVB(pIpPort, 
-                                    pDmaRxHeader->m_RxHeaderV3.m_AddrMatching.m_AddrIdTag,
-                                    pIpHeader->m_SrcAddress, pIpPort->m_pIpRxListeners,
-                                    pIpPort->m_MaxNumListeners);
+                                   pDmaRxHeader->m_RxHeaderV3.m_AddrMatching.m_AddrIdTag,
+                                   pIpHeader->m_SrcAddress, SrcPort,
+                                   pIpPort->m_pIpRxListeners, pIpPort->m_MaxNumListeners);
         else {
              // Check if it is for one of our channels
             pUdpHeader = (UdpHeader*)((UInt8*)pIpHeader +
                                                          (pIpHeader->m_HeaderLength * 4));
-            DestPort = DtUInt16ByteSwap(pUdpHeader->m_DestinationPort);
+            DstPort = DtUInt16ByteSwap(pUdpHeader->m_DestinationPort);
             NumChannels = DtaIpRxIsPacketForDVB(pIpUserChannels, NULL,
-                                        pIpHeader->m_SrcAddress, pIpHeader->m_DstAddress,
-                                        DtUInt16ByteSwap(pUdpHeader->m_SourcePort),
-                                        DestPort, MulticastPacket, FALSE, VlanId,
-                                        pIpPort->m_pIpRxListeners,
-                                        pIpPort->m_MaxNumListeners);
+                                         pIpHeader->m_SrcAddress, pIpHeader->m_DstAddress,
+                                         SrcPort, DstPort, MulticastPacket, FALSE, VlanId,
+                                         pIpPort->m_pIpRxListeners,
+                                         pIpPort->m_MaxNumListeners);
         }
         if (NumChannels == 0)
         {
@@ -3210,7 +3222,6 @@ void  DtaIpRxProcessSdiPayLoad(
 {
     UInt  NumFree;                  // Number of free bytes in buffer
     Int  SyncErr;                   // Synchronisation Error
-    Int  FrameSize;
     UInt8*  pRead;                  // Read pointer
     UInt8*  pWrite;                 // Write pointer
     UInt8*  pWrapArea;              // Start of the wrap area
@@ -5004,7 +5015,8 @@ void  DtaIpRxParsePacket(DtaIpPort* pIpPort, UInt8* pData, UInt Size, Bool NrtRx
     // Protocol parsing
     UInt  NumChannels;
     UserIpRxChannel*  pIpRxChannel;
-    UInt16  DestPort;
+    UInt16  SrcPort;
+    UInt16  DstPort;
     RtpHeader*  pRtpHeader = NULL;
     RtpExtension*  pRtpHeaderExtension = NULL;
     UInt  ProtocolType;
@@ -5290,7 +5302,8 @@ void  DtaIpRxParsePacket(DtaIpPort* pIpPort, UInt8* pData, UInt Size, Bool NrtRx
         }
     }
 
-    DestPort = DtUInt16ByteSwap(pUdpHeader->m_DestinationPort);
+    SrcPort = DtUInt16ByteSwap(pUdpHeader->m_SourcePort);
+    DstPort = DtUInt16ByteSwap(pUdpHeader->m_DestinationPort);
 
     // Get the RTP header
     pRtpHeader = (RtpHeader*)((UInt8*)pUdpHeader + sizeof(UdpHeader));
@@ -5305,7 +5318,7 @@ void  DtaIpRxParsePacket(DtaIpPort* pIpPort, UInt8* pData, UInt Size, Bool NrtRx
                                                                pIpHeaderV6->m_SrcAddress);
         NumChannels = DtaIpRxGetChannelsForDVB(pIpPort, 
                                     pDmaRxHeader->m_RxHeaderV3.m_AddrMatching.m_AddrIdTag,
-                                    pSrcAddress, pIpPort->m_pIpRxListeners,
+                                    pSrcAddress, SrcPort, pIpPort->m_pIpRxListeners,
                                     pIpPort->m_MaxNumListeners);
     } else {
         UInt8*  pSrcAddress = (pIpHeaderV4!=NULL ? pIpHeaderV4->m_SrcAddress : 
@@ -5313,9 +5326,9 @@ void  DtaIpRxParsePacket(DtaIpPort* pIpPort, UInt8* pData, UInt Size, Bool NrtRx
         UInt8*  pDstAddress = (pIpHeaderV4!=NULL ? pIpHeaderV4->m_DstAddress : 
                                                                pIpHeaderV6->m_DstAddress);
         NumChannels = DtaIpRxIsPacketForDVB(pIpUserChannels, pRtpHeader, pSrcAddress, 
-                                  pDstAddress, DtUInt16ByteSwap(pUdpHeader->m_SourcePort),
-                                  DestPort, MulticastPacket, pIpHeaderV4==NULL, VlanId,
-                                  pIpPort->m_pIpRxListeners, pIpPort->m_MaxNumListeners);
+                                   pDstAddress, SrcPort, DstPort, 
+                                   MulticastPacket, pIpHeaderV4==NULL, VlanId,
+                                   pIpPort->m_pIpRxListeners, pIpPort->m_MaxNumListeners);
         
     }
     if (NumChannels == 0)
@@ -5620,7 +5633,7 @@ void  DtaIpRxParsePacket(DtaIpPort* pIpPort, UInt8* pData, UInt Size, Bool NrtRx
                                           DtUInt16ByteSwap(pRtpHeader->m_SequenceNumber),
                                           DtUInt32ByteSwap(pRtpHeader->m_TimeStamp),
                                           Size, DvbOffset, RtpOffset, PacketSize,
-                                          pIpPort, DestPort, 
+                                          pIpPort, DstPort, 
                                           pRtpHeader->m_PayloadType==RTP_PAYLOAD_FEC_SDI))
             {
                 DtaIpRxUserChRefDecrAll(pIpPort->m_pIpRxListeners, NumChannels);
@@ -7368,7 +7381,6 @@ void  DtaIpRxProcessDvbWithFec(UserIpRxChannel* pIpRxChannel,
     UInt32  LastTimestamp;
     UInt32  RtpLastTimestamp;
     UInt16  CurSeqNum;
-    UInt32  Timestamp;
     UInt16  MissingSeqNumber = 0;
     UInt16*  pLastSeqNumToTx = NULL;
     UInt32*  pLastTimestampToTx = NULL;

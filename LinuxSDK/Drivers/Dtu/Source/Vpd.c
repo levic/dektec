@@ -74,18 +74,6 @@ typedef struct
 #define  VPD_END_TAG                0x78
 #define  VPD_INTSTART_TAG           0x76
 
-// VPD section layout
-#define  VPD_SIZE_DTU2               512
-#define  VPD_END_DTU2                (VPD_SIZE_DTU2 - 1)
-#define  VPD_RW_START_DTU2           0x100
-#define  VPD_RW_LENGTH_DTU2          (VPD_END_DTU2 - VPD_RW_START_DTU2)
-
-#define  VPD_SIZE_DTU3               4096
-#define  VPD_END_DTU3                (VPD_SIZE_DTU3 - 1)
-#define  VPD_RW_START_DTU3           0x200
-#define  VPD_RW_LENGTH_DTU3          (VPD_END_DTU3 - VPD_RW_START_DTU3)
-
-// Start and end of VPD sections
 // Read-only section directly follows VPD-ID
 #define  VPD_ID_START_DTU2            0x58
 #define  VPD_ID_START_DTU3            0x20
@@ -119,6 +107,8 @@ static void  DtuVpdInitIdOffset(DtuDeviceData* pDvcData);
 static DtStatus  DtuVpdUpdateCache(DtuDeviceData* pDvcData);
 static DtStatus DtuVpdUpdateEepromFromCache(DtuDeviceData* pDvcData, UInt StartAddr,
                                                                              UInt Length);
+static DtStatus  DtuVpdReadRaw(DtuDeviceData* pDvcData, UInt8* pBuf,
+                                                             UInt StartAddr, UInt Length);
 static DtStatus  DtuVpdReadFromCache(DtuDeviceData* pDvcData, UInt8* pBuf,
                                                              UInt StartAddr, UInt Length);
 static DtStatus  DtuVpdFindEndOfRoSection(DtuDeviceData* pDvcData, UInt8** pItem);
@@ -133,6 +123,8 @@ static DtStatus  DtuVpdWriteItemRo(DtuDeviceData* pDvcData, UInt KeywordLen,
 static DtStatus  DtuVpdWriteItemRw(DtuDeviceData* pDvcData, UInt KeywordLen, 
                                    const char* pKeyword, char* pVpdItem, UInt ItemLength);
 static DtStatus  DtuVpdWrite(DtuDeviceData* pDvcData, UInt8* pBuf, UInt StartAddr,
+                                                                             UInt Length);
+static DtStatus  DtuVpdWriteRaw(DtuDeviceData* pDvcData, UInt8* pBuf, UInt StartAddr,
                                                                              UInt Length);
 static DtStatus  DtuVpdReadItem(DtuDeviceData* pDvcData, Int SectionType, 
                        UInt KeywordLen, const char* pKeyWord, UInt8* pBuf, UInt* pBufLen);
@@ -156,12 +148,9 @@ DtStatus  DtuVpdInit(DtuDeviceData* pDvcData)
     pVpd->m_EepromVpdSize = DtPropertiesGetUInt(pPropData, "VPD_SIZE", -1);
     pVpd->m_EepromPageSize = DtPropertiesGetUInt(pPropData, "EEPROM_PAGE_SIZE", -1);
     pVpd->m_EepromSize = DtPropertiesGetUInt(pPropData, "EEPROM_SIZE", -1);
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-    {
-        pVpd->m_VpdEnd = VPD_END_DTU3;
-    } else {
-        pVpd->m_VpdEnd = VPD_END_DTU2;
-    }
+    pVpd->m_RwOffset = DtPropertiesGetUInt(pPropData, "VPD_RO_SIZE", -1);
+    pVpd->m_RwLength = DtPropertiesGetUInt(pPropData, "VPD_RW_SIZE", -1);
+    pVpd->m_VpdEnd = pVpd->m_RwOffset + pVpd->m_RwLength;
 
     // Check if no property error occurred
     Status = DtuPropertiesReportDriverErrors(pDvcData); 
@@ -250,26 +239,20 @@ DtStatus  DtuVpdReadItemRo(
     UInt8*  pVpd;               // Byte pointer in VPD data
     UInt8*  pVpdRoEnd;          // Pointer one after RO section
     UInt8*  pResource;          // Resource to be read
-    Int  VpdRwStart;
     DtVpd*  pVpdData = &pDvcData->m_Vpd;
 
     // Parameter check
     if (*pLength == 0)
         DtDbgOut(ERR, VPD, "Invalid length: 0");
-    
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-        VpdRwStart = VPD_RW_START_DTU3;
-    else
-        VpdRwStart = VPD_RW_START_DTU2;
 
     // Compute a number of helper variables
-    pVpdRoEnd = &pVpdData->m_pCache[VpdRwStart];
+    pVpdRoEnd = &pVpdData->m_pCache[pVpdData->m_RwOffset];
 
     // Initialisation
     pTo = pVpdItem;             // For later copying to VPD item
     DtMemZero(pVpdItem, *pLength);
 
-    Status = DtVpdFindStartOfRoSection(pVpdData, &pVpd, VpdRwStart);
+    Status = DtVpdFindStartOfRoSection(pVpdData, &pVpd, pVpdData->m_RwOffset);
     if (!DT_SUCCESS(Status))
         return Status;
     
@@ -321,8 +304,6 @@ DtStatus  DtuVpdReadItemRw(
     char*  pTo;                 // Helper character pointer
     UInt8*  pVpd;               // Byte pointer in VPD data
     UInt8*  pResource;          // Resource to be read
-    Int  VpdRwStart;
-    Int  VpdRwLength;
     DtVpd*  pVpdData = &pDvcData->m_Vpd;
 
     // Add parameter checks here
@@ -332,18 +313,9 @@ DtStatus  DtuVpdReadItemRw(
     // Initialisation
     pTo = pVpdItem;             // For later copying to VPD item
     DtMemZero(pVpdItem, *pLength);
-    
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-    {
-        VpdRwStart = VPD_RW_START_DTU3;
-        VpdRwLength = VPD_RW_LENGTH_DTU3;
-    } else {
-        VpdRwStart = VPD_RW_START_DTU2;
-        VpdRwLength = VPD_RW_LENGTH_DTU2;
-    }
 
     // Check whether we can find resource in RW section
-    pVpd = &pVpdData->m_pCache[VpdRwStart];
+    pVpd = &pVpdData->m_pCache[pVpdData->m_RwOffset];
 
     if (pVpd[0] != VPD_W_TAG)
     {
@@ -352,7 +324,7 @@ DtStatus  DtuVpdReadItemRw(
         return DT_STATUS_FAIL;
     }
 
-    if (DtVpdFindResource(KeywordLen, pKeyword, pVpd, VpdRwLength, &pResource))
+    if (DtVpdFindResource(KeywordLen, pKeyword, pVpd, pVpdData->m_RwLength, &pResource))
     {
         pFrom = pResource + 3;
         Length = pResource[2];
@@ -506,7 +478,7 @@ DtStatus  DtuVpdIoctl(DtuDeviceData* pDvcData, DtIoctlObject* pIoctl)
         break;
 
     case DTU_VPD_CMD_RAW_READ:
-        Status = DtuVpdReadFromCache(pDvcData, pVpdCmdOutput->m_Data.m_ReadRaw.m_Buf,
+        Status = DtuVpdReadRaw(pDvcData, pVpdCmdOutput->m_Data.m_ReadRaw.m_Buf,
                                              pVpdCmdInput->m_Data.m_ReadRaw.m_StartOffset,
                                              pVpdCmdInput->m_Data.m_ReadRaw.m_OutBufLen);
         if (DT_SUCCESS(Status))
@@ -517,7 +489,7 @@ DtStatus  DtuVpdIoctl(DtuDeviceData* pDvcData, DtIoctlObject* pIoctl)
         break;
 
     case DTU_VPD_CMD_RAW_WRITE:
-        Status = DtuVpdWrite(pDvcData, pVpdCmdInput->m_Data.m_WriteRaw.m_Buf,
+        Status = DtuVpdWriteRaw(pDvcData, pVpdCmdInput->m_Data.m_WriteRaw.m_Buf,
                                             pVpdCmdInput->m_Data.m_WriteRaw.m_StartOffset,
                                             pVpdCmdInput->m_Data.m_WriteRaw.m_BufLen);
         break;
@@ -1115,26 +1087,18 @@ static void  DtuVpdInitIdOffset(DtuDeviceData* pDvcData)
     // Default offsets
     pVpd->m_IdOffset = 0;
     pVpd->m_RoOffset = 0;
+    pVpd->m_IntRoOffset = pVpd->m_VpdEnd + 8;
+    pVpd->m_IntRwOffset = pVpd->m_VpdEnd + 8;
     if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
     {
-        pVpd->m_RwOffset = VPD_RW_START_DTU3;
-        pVpd->m_IntRoOffset = VPD_END_DTU3 + 8;
-        pVpd->m_IntRwOffset = VPD_END_DTU3 + 8;
         VpdIdStart = VPD_ID_START_DTU3;
     } else {
-        pVpd->m_RwOffset = VPD_RW_START_DTU2;
-        pVpd->m_IntRoOffset = VPD_END_DTU2 + 8;
-        pVpd->m_IntRwOffset = VPD_END_DTU2 + 8;
         VpdIdStart = VPD_ID_START_DTU2;
     }
 
     // Default lengths
     pVpd->m_IdLength = 0;
     pVpd->m_RoLength = 0;
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-        pVpd->m_RwLength = VPD_RW_LENGTH_DTU3;
-    else
-        pVpd->m_RwLength = VPD_RW_LENGTH_DTU2;
     pVpd->m_IntRoLength = 0;
     pVpd->m_IntRwLength = 0;
 
@@ -1255,6 +1219,109 @@ static DtStatus  DtuVpdUpdateCache(DtuDeviceData* pDvcData)
     return Status;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuVpdReadDirect -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static DtStatus  DtuVpdReadDirect(DtuDeviceData* pDvcData, UInt8* pData, Int Offset, 
+                                                                       Int NumBytesToRead)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    switch (pDvcData->m_Vpd.m_EepromIoItf)
+    {
+        // Read entire content of VPD EEPROM (EzUsb) into cache buffer
+        Status = DtuEepromEzUsbRead(pDvcData, Offset, pData, NumBytesToRead);
+        break;
+
+    default:
+        Status = DT_STATUS_NOT_SUPPORTED;
+        break;
+    }
+    return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuVpdWriteDirect -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static DtStatus  DtuVpdWriteDirect(DtuDeviceData* pDvcData, UInt8* pData, Int Offset, 
+                                                                      Int NumBytesToWrite)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    if (Offset%2 !=0)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Load VPD cache
+    switch (pDvcData->m_Vpd.m_EepromIoItf)
+    {
+    case VPD_EEPROM_IO_EZUSB:
+        // Write only changed data.
+        Status = DtuEepromEzUsbWrite(pDvcData, Offset, pData, NumBytesToWrite);
+        break;   
+
+    default:
+        Status = DT_STATUS_NOT_SUPPORTED;
+        break;
+    }
+
+    return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuVpdReadRaw -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Read an raw byte array from the VPD EEMPROM
+//
+// NOTE: uses "normal" DtuVpdReadFromCache for data located within VPD cache and 
+// DtuVpdReadDirect for data located out-side of VPD cache, but within EEPROM
+//
+static DtStatus  DtuVpdReadRaw(
+    DtuDeviceData*  pDvcData,   // Device extension
+    UInt8*  pBuf,               // Buffer for data read from serial EEPROM
+    UInt  StartAddr,            // Start address (BYTE address)
+    UInt  Length)               // Number of BYTES to read
+{
+    DtStatus  Status = DT_STATUS_OK;
+    UInt8 *pCacheBuf=NULL, *pDirectBuf=NULL;
+    UInt  CacheStartAddr=0, DirectStartAddr=0;
+    UInt  CacheLength=0, DirectLength=0;
+
+    DT_ASSERT((StartAddr+Length)<=pDvcData->m_Vpd.m_EepromSize);
+
+    // Compute how much and which part of data to read from cache or direct
+    if (StartAddr < pDvcData->m_Vpd.m_EepromVpdSize)
+    {
+        pCacheBuf = pBuf;
+        CacheStartAddr = StartAddr;
+        CacheLength = ((StartAddr + Length) <= pDvcData->m_Vpd.m_EepromVpdSize) ?
+                                     Length : pDvcData->m_Vpd.m_EepromVpdSize - StartAddr;
+        
+    }
+    // Any data left for direct read?
+    if ((Length - CacheLength) > 0)
+    {
+        pDirectBuf = pBuf + CacheLength;
+        DirectStartAddr = (CacheLength>0) ? pDvcData->m_Vpd.m_EepromVpdSize : StartAddr;
+        DirectLength = Length - CacheLength;
+    }
+
+    // Anything to write via the cache?
+    if (CacheLength>0)
+    {
+        Status = DtuVpdReadFromCache(pDvcData, pCacheBuf, CacheStartAddr, CacheLength);
+        if (DT_SUCCESS(Status))
+            return Status;
+    }
+    
+    // Anything to read directly from the EEPROM?
+    if (DirectLength>0)
+    {
+        Status = DtuVpdReadDirect(pDvcData, pDirectBuf, DirectStartAddr, DirectLength);
+
+        if (DT_SUCCESS(Status))
+            return Status;
+    }
+    
+    return DT_STATUS_OK;
+}
+
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuVpdUpdateEepromFromCache -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -1330,19 +1397,13 @@ static DtStatus  DtuVpdFindEndOfRoSection(
     DtuDeviceData*  pDvcData,   // Device extension
     UInt8**  pItem)
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt8*  pEndOfRo;
     DtStatus  Status = DT_STATUS_OK;
-    Int  VpdRwStart;
-    DtVpd*  pVpd = &pDvcData->m_Vpd;
     
     *pItem = NULL;
     
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-        VpdRwStart = VPD_RW_START_DTU3;
-    else
-        VpdRwStart = VPD_RW_START_DTU2;
-    
-    Status = DtVpdFindStartOfRoSection(pVpd, &pEndOfRo, VpdRwStart);
+    Status = DtVpdFindStartOfRoSection(pVpdData, &pEndOfRo, pVpdData->m_RwOffset);
     if (Status != DT_STATUS_OK)
         return Status;
 
@@ -1350,11 +1411,11 @@ static DtStatus  DtuVpdFindEndOfRoSection(
     // byte of the section header is not necessarily 0.
     pEndOfRo += 3;
 
-    while ((pEndOfRo < pVpd->m_pCache+VpdRwStart-3)
+    while ((pEndOfRo < pVpdData->m_pCache+pVpdData->m_RwOffset-3)
            && pEndOfRo[0]!='\0' && !(pEndOfRo[0]=='R' && pEndOfRo[1]=='V'))
         pEndOfRo = pEndOfRo + 3 + pEndOfRo[2];
 
-    if (pEndOfRo > pVpd->m_pCache+VpdRwStart-4)
+    if (pEndOfRo > pVpdData->m_pCache+pVpdData->m_RwOffset-4)
         return DT_STATUS_FAIL;
     
     *pItem = pEndOfRo;
@@ -1367,28 +1428,24 @@ static DtStatus  DtuVpdFindEndOfRoSection(
 //
 static DtStatus  DtuVpdCreateRV(DtuDeviceData*  pDvcData)
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt  CheckSum = 0;
     UInt8*  pVpd;               // Byte pointer in VPD data
     UInt8*  pRv;
     DtStatus  Status;
-    Int  VpdRwStart;
     
     Status = DtuVpdFindEndOfRoSection(pDvcData, &pRv);
     if (!DT_SUCCESS(Status))
         return Status;
-    
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-        VpdRwStart = VPD_RW_START_DTU3;
-    else
-        VpdRwStart = VPD_RW_START_DTU2;
 
     // Create "RV" item
     pRv[0] = 'R';
     pRv[1] = 'V';
-    pRv[2] = (UInt8)DtPtrToUInt((void*)(&pDvcData->m_Vpd.m_pCache[VpdRwStart] - &pRv[3]));
+    pRv[2] = (UInt8)DtPtrToUInt((void*)(&pVpdData->m_pCache[pVpdData->m_RwOffset] -
+                                                                                &pRv[3]));
 
     // Compute checksum
-    for (pVpd=pDvcData->m_Vpd.m_pCache+pDvcData->m_Vpd.m_IdOffset; pVpd<=pRv+2; pVpd++)
+    for (pVpd=pVpdData->m_pCache+pVpdData->m_IdOffset; pVpd<=pRv+2; pVpd++)
         CheckSum += *pVpd;
     pRv[3] = (~CheckSum + 1) & 0xFF;
 
@@ -1406,22 +1463,17 @@ static DtStatus  DtuVpdDeleteItemRo(
     UInt KeywordLen,            // Length of Keyword
     const char*  pKeyword)      // Name of VPD item to be deleted
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt  RoLength;
     UInt8*  pVpd;               // Byte pointer in VPD data
     UInt8*  pVpdRoEnd;          // Pointer one after RO section
     DtStatus  Status;
-    Int  VpdRwStart;
-    
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-        VpdRwStart = VPD_RW_START_DTU3;
-    else
-        VpdRwStart = VPD_RW_START_DTU2;
     
     // Compute a number of helper variables
-    pVpdRoEnd = &pDvcData->m_Vpd.m_pCache[VpdRwStart];
+    pVpdRoEnd = &pDvcData->m_Vpd.m_pCache[pVpdData->m_RwOffset];
 
     // Start at beginning of VPD-ID + read-only section
-    Status = DtVpdFindStartOfRoSection(&pDvcData->m_Vpd, &pVpd, VpdRwStart);
+    Status = DtVpdFindStartOfRoSection(pVpdData, &pVpd, pVpdData->m_RwOffset);
     if (!DT_SUCCESS(Status))
         return Status;
     
@@ -1442,22 +1494,12 @@ static DtStatus  DtuVpdDeleteItemRw(
     UInt KeywordLen,            // Length of Keyword
     const char*  pKeyword)      // Name of VPD item to be deleted
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt8*  pVpd;               // Byte pointer in VPD data
-    Int  VpdRwStart;
-    Int  VpdRwLength;
-    
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-    {
-        VpdRwStart = VPD_RW_START_DTU3;
-        VpdRwLength = VPD_RW_LENGTH_DTU3;
-    } else {
-        VpdRwStart = VPD_RW_START_DTU2;
-        VpdRwLength = VPD_RW_LENGTH_DTU2;
-    }
 
     // Check whether we can find resource in RW section
-    pVpd = &pDvcData->m_Vpd.m_pCache[VpdRwStart];
-    return DtVpdDeleteResource(KeywordLen, pKeyword, pVpd, VpdRwLength);
+    pVpd = &pVpdData->m_pCache[pVpdData->m_RwOffset];
+    return DtVpdDeleteResource(KeywordLen, pKeyword, pVpd, pVpdData->m_RwLength);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuVpdWriteId -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1472,22 +1514,17 @@ static DtStatus  DtuVpdWriteId(
     char*  pVpdId,              // String buffer with VPD Id
     UInt  IdLength)
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt  Length, SizeAvail;
     UInt8*  pVpd;               // Byte pointer in VPD data
     UInt8*  pEndOfRo;
-    Int  VpdRwStart;
-    
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-        VpdRwStart = VPD_RW_START_DTU3;
-    else
-        VpdRwStart = VPD_RW_START_DTU2;
     
     // Initialisation
-    SizeAvail = VpdRwStart - pDvcData->m_Vpd.m_IdOffset - 3;
+    SizeAvail = pVpdData->m_RwOffset - pVpdData->m_IdOffset - 3;
     Length = 0;
 
     // Start at beginning of VPD-ID + read-only section
-    pVpd = &pDvcData->m_Vpd.m_pCache[pDvcData->m_Vpd.m_IdOffset];
+    pVpd = &pVpdData->m_pCache[pVpdData->m_IdOffset];
     if (pVpd[0] == VPD_IDSTRING_TAG)
     {
         // VPDID already exists. Check if enough space is available.
@@ -1501,8 +1538,8 @@ static DtStatus  DtuVpdWriteId(
             Int Size;
             UInt8* pSize;
             if (DT_SUCCESS(DtuVpdFindEndOfRoSection(pDvcData, &pEndOfRo)))
-                SizeAvail = VpdRwStart - DtPtrToUInt(
-                                        (void*)(pEndOfRo - pDvcData->m_Vpd.m_pCache)) - 4;
+                SizeAvail = pVpdData->m_RwOffset - DtPtrToUInt(
+                                              (void*)(pEndOfRo - pVpdData->m_pCache)) - 4;
             else
                 SizeAvail = 0;
             
@@ -1513,7 +1550,7 @@ static DtStatus  DtuVpdWriteId(
 
             // Move existing RO section
             DtMemMove(pVpd + 3 + IdLength, pVpd + 3 + Length, 
-                        VpdRwStart - pDvcData->m_Vpd.m_IdOffset - SizeAvail - 3 - Length);
+                    pVpdData->m_RwOffset - pVpdData->m_IdOffset - SizeAvail - 3 - Length);
 
             // Update size of RO section.
             pSize = pVpd + 3 + IdLength;
@@ -1526,8 +1563,8 @@ static DtStatus  DtuVpdWriteId(
             if (Length > IdLength)
                 DtMemZero(pEndOfRo + 4 - (Length - IdLength), Length - IdLength);
         } else
-            SizeAvail = VpdRwStart -
-                              DtPtrToUInt((void*)(pEndOfRo-pDvcData->m_Vpd.m_pCache)) - 3;
+            SizeAvail = pVpdData->m_RwOffset -
+                                    DtPtrToUInt((void*)(pEndOfRo-pVpdData->m_pCache)) - 3;
     }
 
     // Write VPDID
@@ -1558,15 +1595,10 @@ static DtStatus  DtuVpdWriteItemRo(
     char*  pVpdItem,            // String buffer with VPD Item
     UInt  ItemLength)           // Length of pVpdItem
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt  SizeAvail;
     UInt8*  pEndOfRo;
     DtStatus  Status;
-    Int  VpdRwStart;
-    
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-        VpdRwStart = VPD_RW_START_DTU3;
-    else
-        VpdRwStart = VPD_RW_START_DTU2;
 
     DT_ASSERT(KeywordLen==2);
 
@@ -1576,7 +1608,7 @@ static DtStatus  DtuVpdWriteItemRo(
     if (!DT_SUCCESS(Status))
         return Status;
 
-    SizeAvail = VpdRwStart - DtPtrToUInt((void*)(pEndOfRo-pDvcData->m_Vpd.m_pCache));
+    SizeAvail = pVpdData->m_RwOffset - DtPtrToUInt((void*)(pEndOfRo-pVpdData->m_pCache));
     if (pKeyword[0]!='R' || pKeyword[1]!='V')
         SizeAvail -= 4;
             
@@ -1609,39 +1641,32 @@ static DtStatus  DtuVpdWriteItemRw(
     char*  pVpdItem,            // String buffer with VPD Item
     UInt  ItemLength)           // Length of pVpdItem
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt  BytesUsed, SizeAvail;
     UInt8*  pVpdRw;             // Byte pointer in VPD data
-    Int  VpdRwStart;
-    Int  VpdRwLength;
-    
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-    {
-        VpdRwStart = VPD_RW_START_DTU3;
-        VpdRwLength = VPD_RW_LENGTH_DTU3;
-    } else {
-        VpdRwStart = VPD_RW_START_DTU2;
-        VpdRwLength = VPD_RW_LENGTH_DTU2;
-    }
-    pVpdRw = &pDvcData->m_Vpd.m_pCache[VpdRwStart];
+    UInt  SectDataSize = pVpdData->m_RwLength - 3; // tag, 2 byte size
+    pVpdRw = &pVpdData->m_pCache[pVpdData->m_RwOffset];
 
     DT_ASSERT(KeywordLen==2);
 
     // Check structure in serial EEPROM
-    if (pVpdRw[0]!=VPD_W_TAG || pVpdRw[1]!=0xFC || pVpdRw[2]!=0x00 || 
-                                                                pVpdRw[0xFF]!=VPD_END_TAG)
+    if (pVpdRw[0]!=VPD_W_TAG || pVpdRw[1]!=(SectDataSize&0xFF) ||
+                                                pVpdRw[2]!=(SectDataSize>>8)|| 
+                                                pVpdRw[pVpdData->m_RwLength]!=VPD_END_TAG)
     {
         // Basic VPD Read/Write Resources data structure not present. Create it.
-        DtMemZero(pVpdRw, VpdRwLength);
+        DtMemZero(pVpdRw, pVpdData->m_RwLength);
         pVpdRw[0] = VPD_W_TAG;
-        pVpdRw[1] = 0xFC;
-        pVpdRw[0xFF] = VPD_END_TAG;
+        pVpdRw[1] = SectDataSize&0xFF;
+        pVpdRw[2] = SectDataSize>>8;
+        pVpdRw[pVpdData->m_RwLength] = VPD_END_TAG;
     }
     
     DtuVpdDeleteItemRw(pDvcData, KeywordLen, pKeyword);
 
     // Calculate available bytes
-    BytesUsed = DtVpdGetSectionLength(pVpdRw, VpdRwLength);
-    SizeAvail = VpdRwLength - BytesUsed;
+    BytesUsed = DtVpdGetSectionLength(pVpdRw, pVpdData->m_RwLength);
+    SizeAvail = pVpdData->m_RwLength - BytesUsed;
                 
     if (SizeAvail < ItemLength+3)
     {
@@ -1656,6 +1681,63 @@ static DtStatus  DtuVpdWriteItemRw(
 
     DtMemCopy(pVpdRw + 3, pVpdItem, ItemLength);
 
+    return DT_STATUS_OK;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuVpdWriteRaw -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Write an raw byte array to the VPD EEMPROM
+//
+// NOTE: uses "normal" DtuVpdWrite for data located within VPD cache and 
+// DtuVpdWriteDirect for data located out-side of VPD cache, but within EEPROM
+//
+DtStatus  DtuVpdWriteRaw(
+    DtuDeviceData*  pDvcData,   // Device extension
+    UInt8*  pBuf,               // Buffer with data to write to serial EEPROM
+    UInt  StartAddr,            // Start address (BYTE address)
+    UInt  Length)               // Number of BYTES to write
+{
+    DtStatus  Status = DT_STATUS_OK;
+    UInt8 *pCacheBuf=NULL, *pDirectBuf=NULL;
+    UInt  CacheStartAddr=0, DirectStartAddr=0;
+    UInt  CacheLength=0, DirectLength=0;
+
+    DT_ASSERT((StartAddr+Length)<=pDvcData->m_Vpd.m_EepromSize);
+
+    // Compute how much and which part of data to write to cache or direct
+    if (StartAddr < pDvcData->m_Vpd.m_EepromVpdSize)
+    {
+        pCacheBuf = pBuf;
+        CacheStartAddr = StartAddr;
+        CacheLength = ((StartAddr + Length) <= pDvcData->m_Vpd.m_EepromVpdSize) ?
+                                     Length : pDvcData->m_Vpd.m_EepromVpdSize - StartAddr;
+        
+    }
+    // Any data left for direct write?
+    if ((Length - CacheLength) > 0)
+    {
+        pDirectBuf = pBuf + CacheLength;
+        DirectStartAddr = (CacheLength>0) ? pDvcData->m_Vpd.m_EepromVpdSize : StartAddr;
+        DirectLength = Length - CacheLength;
+    }
+
+    // Anything to write via the cache?
+    if (CacheLength>0)
+    {
+        Status = DtuVpdWrite(pDvcData, pCacheBuf, CacheStartAddr, CacheLength);
+        if (DT_SUCCESS(Status))
+            return Status;
+    }
+    
+    // Anything to write via the directly?
+    if (DirectLength>0)
+    {
+        Status = DtuVpdWriteDirect(pDvcData, pDirectBuf, DirectStartAddr, DirectLength);
+
+        if (DT_SUCCESS(Status))
+            return Status;
+    }
+    
     return DT_STATUS_OK;
 }
 
@@ -1750,14 +1832,10 @@ static DtStatus  DtuVpdDeleteItem(
     UInt KeywordLen,            // Length of Keyword
     const char*  pKeyword)      // Name of VPD item to be deleted
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     DtStatus  Status = DT_STATUS_OK;
-    UInt  StartAddr;
+    UInt  StartAddr = pVpdData->m_RwOffset;
     UInt  Length = 0;
-    
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-        StartAddr = VPD_RW_START_DTU3;
-    else
-        StartAddr = VPD_RW_START_DTU2;
 
     if ((SectionType&DTU_VPD_SECT_RO) != 0)
     {      

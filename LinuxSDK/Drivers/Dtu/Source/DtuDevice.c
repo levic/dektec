@@ -38,6 +38,12 @@ DtStatus  DtuDvcReset(DtuDeviceData* pDvcData)
     Int  Dummy;
     Int  i=0;
 
+    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    {
+        DtDbgOut(ERR, DTU, "Attempt to reset USB3 device with USB2 command");
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
     // Reset temporariy for all channels
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {
@@ -62,7 +68,7 @@ DtStatus  DtuDvcReset(DtuDeviceData* pDvcData)
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuDvcPowerSupplyInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Initializes the Altera power supply
-//
+// 
 DtStatus  DtuDvcPowerSupplyInit(DtuDeviceData* pDvcData)
 {
     DtStatus  Status = DT_STATUS_OK;
@@ -82,9 +88,10 @@ DtStatus  DtuDvcPowerSupplyInit(DtuDeviceData* pDvcData)
         if (DT_SUCCESS(Status))
             DtDbgOut(AVG, DTU, "DTU-%d power supply started", TypeNumber);
         else
-            DtDbgOut(ERR, DTU, "DTU-%d power supply start ERROR. Error: %xh", TypeNumber, Status);
+            DtDbgOut(ERR, DTU, "DTU-%d power supply start ERROR. Error: %xh", TypeNumber, 
+                                                                                  Status);
     }
-    else if (TypeNumber==351 && pDvcData->m_DevInfo.m_UsbSpeed==2)
+    else if ((TypeNumber==350 || TypeNumber==351) && pDvcData->m_DevInfo.m_UsbSpeed==2)
     {
         Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
                            DTU_PNP_CMD_DVC_POWER, DTU_DVC_POWER_ON, DT_USB_HOST_TO_DEVICE,
@@ -92,6 +99,11 @@ DtStatus  DtuDvcPowerSupplyInit(DtuDeviceData* pDvcData)
         if (DT_SUCCESS(Status))
             DtSleep(100);
     }
-
+    else if (TypeNumber==315 && pDvcData->m_DevInfo.m_UsbSpeed==2)
+    {
+        // DTU-315 specific: Enable LED (fade PWM mode)
+        Dtu3RegWrite(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.LedCtrl, 1);
+    }
+    
     return Status;
 }

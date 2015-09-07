@@ -176,6 +176,8 @@ DtStatus  DtaNonIpInit(
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapMatrix2 = DtPropertiesGetBool(pPropData, "CAP_MATRIX2",
                                                                  pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapVirtual = DtPropertiesGetBool(pPropData, "CAP_VIRTUAL",
+                                                                 pNonIpPort->m_PortIndex);
     // IOSTD (I/O standard) - Capabilities
     pNonIpPort->m_Cap3GSdi = DtPropertiesGetBool(pPropData, "CAP_3GSDI",
                                                                  pNonIpPort->m_PortIndex);
@@ -310,6 +312,8 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_CapGenLocked = DtPropertiesGetBool(pPropData, "CAP_GENLOCKED",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapGenRef = DtPropertiesGetBool(pPropData, "CAP_GENREF",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapGenRefSlave = DtPropertiesGetBool(pPropData, "CAP_GENREFSLAVE",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapSwS2Apsk = DtPropertiesGetBool(pPropData, "CAP_SWS2APSK",
                                                                  pNonIpPort->m_PortIndex);
@@ -1846,7 +1850,6 @@ DtStatus  DtaNonIpGetGenRefProps(DtaNonIpPort* pNonIpPort,
 DtStatus  DtaNonIpNotifyGenRefProp(DtaNonIpPort* pNonIpPort, 
                                                         DtaIoctlNonIpGenRefProps*  pProps)
 {
-    DtStatus  Status;
     DtaDeviceData*  pDvcData = NULL;
 
     DT_ASSERT(pNonIpPort != NULL);
@@ -1865,9 +1868,6 @@ DtStatus  DtaNonIpNotifyGenRefProp(DtaNonIpPort* pNonIpPort,
     // Update the TOF alignment offset 
     pNonIpPort->m_TofAlignOffsetNs = pProps->m_TofAlignOffsetNs;
 
-    //if (pNonIpPort->m_CapMatrix || pNonIpPort->m_CapMatrix2)
-    //{
-    //}
     return DT_STATUS_OK;
 }
 

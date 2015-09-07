@@ -28,6 +28,12 @@
 #ifndef __DT_SAL_H
 #define __DT_SAL_H
 
+#ifdef WINBUILD
+// When building under linux we get warnings for unused variables. Enable this specific
+// warning as well when building for linux so it gets spotted earlier.
+#pragma warning(3 : 4101)
+#endif
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- OS specific includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

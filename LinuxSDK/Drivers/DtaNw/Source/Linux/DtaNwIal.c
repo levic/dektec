@@ -900,7 +900,11 @@ Int  DtaNwEvtProbe(DtaDeviceItf* pDevItf, Int Id)
         pNwDev->set_mac_address = &DtaNwEvtSetMacAddr;
 #endif
 
+#ifdef SET_ETHTOOL_OPS
         SET_ETHTOOL_OPS(pNwDev, &EthToolOps);
+#else
+        ( (pNwDev)->ethtool_ops = (&EthToolOps) );
+#endif
 
         Result = register_netdev(pNwDev);
         if (Result != 0) 

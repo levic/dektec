@@ -78,6 +78,14 @@ DtStatus  DtaGenlockInit(DtaDeviceData* pDvcData)
     else
         pDvcData->m_Genlock.m_IntGenrefPortIndex = -1;  // No internal genref port
 
+    // Get slave genref port
+    pDvcData->m_Genlock.m_SlaveGenrefPortIndex = DtPropertiesGetInt(pPropData, 
+                                                         "GENLOCK_SLAVE_GENREF_PORT", -1);
+    if (pDvcData->m_Genlock.m_SlaveGenrefPortIndex > 0)
+        pDvcData->m_Genlock.m_SlaveGenrefPortIndex--;     // Convert to port-index
+    else
+        pDvcData->m_Genlock.m_SlaveGenrefPortIndex = -1;  // No slave genref port
+
     // Get the port group mask
     pDvcData->m_Genlock.m_PortGroup = DtPropertiesGetUInt32(pPropData, 
                                                                 "GENLOCK_PORT_GROUP", -1);
@@ -300,7 +308,7 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
         DtDbgOut(ERR, NONIP, "Unknown video standard: %d", RefVidStd);
         return DT_STATUS_NOT_SUPPORTED;
     }
-    // FOR NOW: we do not support crosslocking, hence output stndard is input standard
+    // FOR NOW: we do not support crosslocking, hence output standard is input standard
     OutVidStd = RefVidStd;  // No cross-lock => out std is ref std
     if (RefPortIndex != pGenlData->m_IntGenrefPortIndex)
         EnableGenRef = TRUE;
@@ -381,6 +389,12 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
             else
                 pGenlData->m_InDelayNs = pGenlData->m_RefLineDurationNs;
         }
+         else if (pGenlData->m_RefPortIndex == pGenlData->m_SlaveGenrefPortIndex)
+        {
+            // Using the slave genref input is not supported with te LMH1982
+            DT_ASSERT(1 == 0);
+            return DT_STATUS_CONFIG_ERROR;
+        }
         else
         {
             // Using one of the SDI ports as reference:
@@ -429,6 +443,14 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
             // 
             // The combination of the LMH1981 + LMH1983 does not introduce an extra delay 
             // we need to account for 
+            pGenlData->m_InDelayNs = 0;
+        }
+        else if (pGenlData->m_RefPortIndex == pGenlData->m_SlaveGenrefPortIndex)
+        {
+            // Using the slave genref input.
+            // 
+            // The combination of the slave input + LMH1983 does not introduce an extra 
+            // delay we need to account for 
             pGenlData->m_InDelayNs = 0;
         }
         else

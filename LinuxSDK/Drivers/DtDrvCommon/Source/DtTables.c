@@ -74,8 +74,10 @@ DtStatus  DtTableGet(
     DtStatus  Status = DT_STATUS_OK;
     const DtTableStore*  pStore = (DtTableStore*)pPropData->m_pTableStore;
     Int  HwRevision = pPropData->m_HardwareRevision;
-    
+    Int  FwVariant = pPropData->m_FirmwareVariant;
+
     Bool  TableNameFound = FALSE;
+    Int  FindCount = 0;
     UInt  Index;
     DtTableLink*  pTableLinkFound = NULL;
 
@@ -92,42 +94,53 @@ DtStatus  DtTableGet(
         return DT_STATUS_NOT_FOUND;
     }
 
-     // Search all tables
-    for (Index=0; Index<pStore->m_TableLinkCount; Index++)
+    // If the property is not found for a specific fw-variant try a second time
+    // without specifying a specific fw-variant
+    for (FindCount=0; FindCount<2 && pTableLinkFound==NULL; FindCount++)
     {
-        const DtTableLink*  pTableLink = &pStore->m_pTableLink[Index];
+        if (FindCount == 1)
+            FwVariant = -1;
 
-        // Check if the table name was already found. If so, we stop if
-        // name <> NULL.
-        if (TableNameFound)
-        {
-            // When the table name was found earlier, only accept entries without
-            // a name. We just stop when (another) named entry is found.
-            if (pTableLink->m_pName != NULL)
-                break;
-        } else {
-            // Compare name to check if we found the first occurrence
-            if (DtAnsiCharArrayIsEqual(pTableName, pTableLink->m_pName))
-                TableNameFound = TRUE;
-        }
+        TableNameFound = FALSE;
 
-        if (TableNameFound)
+        // Search all tables
+        for (Index=0; Index<pStore->m_TableLinkCount; Index++)
         {
-            // Check port number
-            if (PortIndex == pTableLink->m_PortIndex)
+            const DtTableLink*  pTableLink = &pStore->m_pTableLink[Index];
+
+            // Check if the table name was already found. If so, we stop if
+            // name <> NULL.
+            if (TableNameFound)
             {
-                // Check minimal firmware version
-                if (pPropData->m_FirmwareVersion >= pTableLink->m_MinFw)
-                {
-                    // Check minimal hardware version
-                    if (HwRevision >= pTableLink->m_MinHw)
-                    {
-                        pTableLinkFound = (DtTableLink*)pTableLink;
+                // When the table name was found earlier, only accept entries without
+                // a name. We just stop when (another) named entry is found.
+                if (pTableLink->m_pName != NULL)
+                    break;
+            } else {
+                // Compare name to check if we found the first occurrence
+                if (DtAnsiCharArrayIsEqual(pTableName, pTableLink->m_pName))
+                    TableNameFound = TRUE;
+            }
 
-                        // We can stop here since the parser has ordened each
-                        // property by minimal firmware version/hardware version.
-                        // This means the first hit is the best one
-                        break;
+            if (TableNameFound)
+            {
+                // Check port number and firmware variant
+                if (PortIndex==pTableLink->m_PortIndex
+                                                    && FwVariant==pTableLink->m_FwVariant)
+                {
+                    // Check minimal firmware version
+                    if (pPropData->m_FirmwareVersion >= pTableLink->m_MinFw)
+                    {
+                        // Check minimal hardware version
+                        if (HwRevision >= pTableLink->m_MinHw)
+                        {
+                            pTableLinkFound = (DtTableLink*)pTableLink;
+
+                            // We can stop here since the parser has ordened each
+                            // property by minimal firmware version/hardware version.
+                            // This means the first hit is the best one
+                            break;
+                        }
                     }
                 }
             }
@@ -193,6 +206,7 @@ DtStatus  DtTableGetForType(
     Int  SubDvc,
     Int  HwRev,
     Int  FwVer,
+    Int  FwVariant,
     const char*  pTableName, 
     Int  PortIndex, 
     UInt  MaxNumEntries,
@@ -206,6 +220,7 @@ DtStatus  DtTableGetForType(
     // Init property data structure
     PropData.m_TypeNumber = TypeNumber;
     PropData.m_SubDvc = SubDvc;
+    PropData.m_FirmwareVariant = FwVariant;
     PropData.m_FirmwareVersion = FwVer;
     PropData.m_HardwareRevision = HwRev;
     PropData.m_TypeName = (char*)pTypeName;

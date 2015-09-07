@@ -67,7 +67,7 @@ static const char*  DtaNonIpMatrixState2Str(DtaMatrixPortState State);
 
 // Configuration modes
 #define  DTA_MATRIX_CMODE_FULL        0         // Full re-configuration
-#define  DTA_MATRIX_CMODE_RESTART     1         // Re-start only
+#define  DTA_MATRIX_CMODE_RESTART     1         // Re-start only (skip black-frame step)
 #define  DTA_MATRIX_CMODE_FORCE       0x8000    // OR with flags above to force re-config
 
 // Table used to convert between video standard and video format
@@ -900,8 +900,7 @@ DtStatus  DtaNonIpMatrixStart(
     }
     else if (IsOutput && IsGenlocked)
     {
-        DtDbgOut(MIN, NONIP, "Genref enabled + genlockable output => "
-                                                          "force a re-start of channel");
+        DtDbgOut(MIN, NONIP, "Genlockable output => force a re-start of channel");
         NeedReConfig = TRUE;
         ConfigMode = DTA_MATRIX_CMODE_RESTART;
     }
@@ -1552,34 +1551,6 @@ void  DtaNonIpMatrixLastFrameIntDpc(DtDpcArgs* pArgs)
     DtEventSet(&pNonIpPort->m_Matrix.m_LastFrameIntEvent);
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixProcessRxFlags -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-// PRE: pNonIpPort->m_FlagsSpinLock has been acquired
-static void  DtaNonIpMatrixProcessRxFlags(DtaNonIpPort* pNonIpPort)
-{
-    Int  Status = 0;
-    
-    if (DtaRegHdStatGetRxSyncErrInt(pNonIpPort->m_pRxRegs) != 0)
-    {
-        Status |= DTA_RX_SYNC_ERR;
-        DtaRegHdStatClrRxSyncErrInt(pNonIpPort->m_pRxRegs);
-    }
-    if (DtaRegHdStatGetRxOvfErrInt(pNonIpPort->m_pRxRegs) != 0)
-    {
-        // This interrupt works both as RX overflow and as TX underflow depending on
-        // the current configuration.
-        if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_INPUT)
-            Status |= DTA_RX_FIFO_OVF;
-        else {
-            Status |= DTA_TX_FIFO_UFL;
-        }
-        DtaRegHdStatClrRxOvfErrInt(pNonIpPort->m_pRxRegs);
-    }
-
-    pNonIpPort->m_FlagsLatched |= Status;
-    pNonIpPort->m_Flags = Status;
-}
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixConfigureForAsi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 static DtStatus  DtaNonIpMatrixConfigureForAsi(
@@ -1817,132 +1788,124 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
         return DT_STATUS_OK;
     }
     
+    // Enter configuring state
     DtaNonIpMatrixSetState(pNonIpPort, MATRIX_PORT_CONFIGURING);
 
-    // Perform a 'simple' restart or a full config?
-    if (ConfigMode == DTA_MATRIX_CMODE_RESTART)
+    // Disable channel before configuring 
+    DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_DISABLE);
+    DtaRegHdCtrl1SetRxTxCtrl(pHdRegs, DT_HD_RXTXCTRL_IDLE);
+    
+    // NOTE: must wait 50us after going to IDLE to allow HW to abort any 
+    // processing it was doing
+    DtWaitBlock(50);
+
+    //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Configure IO-direction -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+    IsInput = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_INPUT);
+    IsOutput = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_OUTPUT);
+    if (IsInput)
+        DtaRegHdCtrl1SetIoDir(pHdRegs, DT_HD_IODIR_INPUT);
+    else if (IsOutput)
+        DtaRegHdCtrl1SetIoDir(pHdRegs, DT_HD_IODIR_OUTPUT);
+    else
+        DT_ASSERT(1 == 0);
+
+    //.-.-.-.-.-.-.-.-.-.-.-.-.- Apply frame configuration -.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+    Status = DtaNonIpMatrixApplyConfig(pNonIpPort);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    // Apply buffer configuration
+    Status = DtaNonIpMatrixApplyBufferConfig(pNonIpPort);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.- Set VPID processing bit -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+    // Disabled for inputs, enabled for outputs. 3G-level B inputs are a special
+    // case, we enable the processing for those.
+    EnableVpidProc = IsOutput;
+    if (IsInput && DtaVidStdIs3glvlBSdi(NewVidStd))
     {
-        // Just a re-start => go to IDLE and back to RUN (see below in the code)
-         DtaRegHdCtrl1SetRxTxCtrl(pHdRegs, DT_HD_RXTXCTRL_IDLE);
-        // NOTE: must wait 50us after going to IDLE to allow HW to abort any 
-        // processing it was doing
-        DtWaitBlock(50);
-        
-        DtaNonIpMatrixSetVpidRegs(pNonIpPort);
+        EnableVpidProc = TRUE;
     }
-    else    // Full config
+    DtaRegHdCtrl1SetNoVpidProc(pHdRegs, EnableVpidProc ? 0 : 1);
+
+    //.-.-.-.-.-.-.-.-.-.-.-.-.- Enable relevant interrupts -.-.-.-.-.-.-.-.-.-.-.-.-.
+
+    Status = DtaNonIpMatrixInterruptEnable(pNonIpPort);
+    if (!DT_SUCCESS(Status))
     {
-        // Disable channel before configuring 
-        DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_DISABLE);
-        DtaRegHdCtrl1SetRxTxCtrl(pHdRegs, DT_HD_RXTXCTRL_IDLE);
+        DtDbgOut(ERR, NONIP, "Failed to enable relevant interrupts");
+        return Status;
+    }
     
-        // NOTE: must wait 50us after going to IDLE to allow HW to abort any 
-        // processing it was doing
-        DtWaitBlock(50);
+    //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Set operation mode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-        //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Configure IO-direction -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-
-        IsInput = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_INPUT);
-        IsOutput = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_OUTPUT);
-        if (IsInput)
-            DtaRegHdCtrl1SetIoDir(pHdRegs, DT_HD_IODIR_INPUT);
-        else if (IsOutput)
-            DtaRegHdCtrl1SetIoDir(pHdRegs, DT_HD_IODIR_OUTPUT);
-        else
-            DT_ASSERT(1 == 0);
-
-        //.-.-.-.-.-.-.-.-.-.-.-.-.- Apply frame configuration -.-.-.-.-.-.-.-.-.-.-.-.-.-
-
-        Status = DtaNonIpMatrixApplyConfig(pNonIpPort);
-        if (!DT_SUCCESS(Status))
-            return Status;
-
-        // Apply buffer configuration
-        Status = DtaNonIpMatrixApplyBufferConfig(pNonIpPort);
-        if (!DT_SUCCESS(Status))
-            return Status;
-
-        //-.-.-.-.-.-.-.-.-.-.-.-.-.- Set VPID processing bit -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-        // Disabled for inputs, enabled for outputs. 3G-level B inputs are a special
-        // case, we enable the processing for those.
-        EnableVpidProc = IsOutput;
-        if (IsInput && DtaVidStdIs3glvlBSdi(NewVidStd))
-        {
-            EnableVpidProc = TRUE;
-        }
-        DtaRegHdCtrl1SetNoVpidProc(pHdRegs, EnableVpidProc ? 0 : 1);
-
-        //.-.-.-.-.-.-.-.-.-.-.-.-.- Enable relevant interrupts -.-.-.-.-.-.-.-.-.-.-.-.-.
-
-        Status = DtaNonIpMatrixInterruptEnable(pNonIpPort);
-        if (!DT_SUCCESS(Status))
-        {
-            DtDbgOut(ERR, NONIP, "Failed to enable relevant interrupts");
-            return Status;
-        }
-    
-        //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Set operation mode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-
-        if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_SDI)
-            DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_SD);
-        else if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_HDSDI)
-            DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_HD);
-        else if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_3GSDI)
-            DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_3G);
-        else
-            DT_ASSERT(1 == 0);
+    if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_SDI)
+        DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_SD);
+    else if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_HDSDI)
+        DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_HD);
+    else if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_3GSDI)
+        DtaRegHdCtrl1SetOpMode(pHdRegs, DT_HD_OPMODE_3G);
+    else
+        DT_ASSERT(1 == 0);
         
-        //-.-.-.-.-.-.-.-.-.-.-.-.-.- Finally: init IO-interface  -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.- Finally: init IO-interface  -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-        DtaRegHdCtrl1SetIoEnable(pHdRegs, 1);
+    DtaRegHdCtrl1SetIoEnable(pHdRegs, 1);
 
-        // Issue a IO reset. NOTE: reset before enabling serialiser/de-serialisers
-        DtaRegHdCtrl1SetIoReset(pHdRegs, 1);
-        DtSleep(5);
-        DtaRegHdCtrl1SetIoReset(pHdRegs, 0);
+    // Issue a IO reset. NOTE: reset before enabling serialiser/de-serialisers
+    DtaRegHdCtrl1SetIoReset(pHdRegs, 1);
+    DtSleep(5);
+    DtaRegHdCtrl1SetIoReset(pHdRegs, 0);
 
-        if (IsInput)
+    if (IsInput)
+    {
+        // Check for GS2961 deserialiser
+        if (pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_GS2961)
         {
-            // Check for GS2961 deserialiser
-            if (pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_GS2961)
+            Status = DtaGs2961Enable(pNonIpPort, FALSE/* SDI MODE*/, IsLegacy);
+            if (!DT_SUCCESS(Status))
             {
-                Status = DtaGs2961Enable(pNonIpPort, FALSE/* SDI MODE*/, IsLegacy);
-                if (!DT_SUCCESS(Status))
-                {
-                    DtDbgOut(ERR, NONIP, "Failed to enabled GS2961 for SDI");
-                    return Status;
-                }
-            }
-            // Check for FPGA based deser +  LMH0387
-            else if (pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_FPGA_LMH0387)
-            {
-                // Must set the lanch amplitude to recommended default value (30h). 
-                // See LMH0387 datasheet, LAUNCH AMPLITUDE OPTIMIZATION (REGISTER 02h)
-                Status = DtaLmh0387WriteRegister(pNonIpPort, 0x02, 0x30);
-                if (!DT_SUCCESS(Status))
-                {
-                    DtDbgOut(ERR, NONIP, "Failed set LMH0387 launch amplitude");
-                    return Status;
-                }
+                DtDbgOut(ERR, NONIP, "Failed to enabled GS2961 for SDI");
+                return Status;
             }
         }
-        else if (IsOutput)
+        // Check for FPGA based deser +  LMH0387
+        else if (pNonIpPort->m_AsiSdiDeserItfType == ASI_SDI_DESER_ITF_FPGA_LMH0387)
         {
-            // Check for GS2962 serialiser
-            if (pNonIpPort->m_AsiSdiSerItfType == ASI_SDI_SER_ITF_GS2962)
+            // Must set the lanch amplitude to recommended default value (30h). 
+            // See LMH0387 datasheet, LAUNCH AMPLITUDE OPTIMIZATION (REGISTER 02h)
+            Status = DtaLmh0387WriteRegister(pNonIpPort, 0x02, 0x30);
+            if (!DT_SUCCESS(Status))
             {
-                Status = DtaGs2962Enable(pNonIpPort);
-                if (!DT_SUCCESS(Status))
-                {
-                    DtDbgOut(ERR, NONIP, "Failed to enabled GS2962 for SDI");
-                    return Status;
-                }
+                DtDbgOut(ERR, NONIP, "Failed set LMH0387 launch amplitude");
+                return Status;
             }
         }
+    }
+    else if (IsOutput)
+    {
+        // Check for GS2962 serialiser
+        if (pNonIpPort->m_AsiSdiSerItfType == ASI_SDI_SER_ITF_GS2962)
+        {
+            Status = DtaGs2962Enable(pNonIpPort);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOut(ERR, NONIP, "Failed to enabled GS2962 for SDI");
+                return Status;
+            }
+        }
+    }
 
-        // For outputs: write black-frame
-        // NOTE: we need the interrupts (i.e. DMA done) to be enabled
-        if (pNonIpPort->m_pDvcData->m_IntEnableState==INT_ENABLED && IsOutput)
+    // For a full config of outputs: write a black-frame
+    // NOTE1: we need the interrupts (i.e. DMA done) to be enabled
+    // NOTE2: for a quick restart we skip this step as the black-frame has already been 
+    //        written to the card and DMA-ing a black-frame is time consuming task
+    if (IsOutput && ConfigMode==DTA_MATRIX_CMODE_FULL)
+    {
+        if (pNonIpPort->m_pDvcData->m_IntEnableState == INT_ENABLED)
         {
             // NOTE: for legacy HD-channels only write black frame if the desired
             // start-frame is the black frame
@@ -1958,7 +1921,7 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
             }
         }
     }
-      
+          
     pNonIpPort->m_Matrix.m_CurFrame = StartFrame;
     n = DtaNonIpMatrixFrame2Index(pNonIpPort, StartFrame);
     
@@ -2235,9 +2198,10 @@ DtStatus  DtaNonIpMatrixSetVpidRegs(DtaNonIpPort* pNonIpPort)
     if (DtaVidStdIs3glvlBSdi(VidStd) &&
                         pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_INPUT)
     {
-        // 3G lvl B input is an exception: firmware expects lvl A line numbers
-        Line1 = 20;
-        Line2 = 21;
+        // Firmware ignores line numbers and simply extracts any valid VPID from the
+        // correct link.
+        Line1 = 0xFFFF;
+        Line2 = 0xFFFF;
     }
         
     DtaRegHdSdiFormat1Set(pHdRegs, Vpid1);
@@ -2454,7 +2418,7 @@ Int  DtaNonIpMatrixGetDmaSize(
     } else {
         Int  NumSymbols = LineNumS * NumLines;
 
-        if (AncFlt == DT_MEMTR_ANCFLTMODE_HANCALL)
+        if (AncFlt==DT_MEMTR_ANCFLTMODE_HANCALL || AncFlt==DT_MEMTR_ANCFLTMODE_VANCALL)
             NumSymbols += 8;
 
         if (DataFormat == DT_MEMTR_DATAFMT_16B)

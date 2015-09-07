@@ -19,7 +19,7 @@ static const DtTableEntry  DtTable107_0_000[] =
 
 static const DtTableLink  DtTableLink107_0[] = 
 {
-    { "MOD_FREQ_COMP", 0, 0, 0, 2, DtTable107_0_000 }
+    { "MOD_FREQ_COMP", 0, -1, 0, 0, 2, DtTable107_0_000 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-110; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -31,7 +31,7 @@ static const DtTableEntry  DtTable110_0_000[] =
 
 static const DtTableLink  DtTableLink110_0[] = 
 {
-    { "MOD_FREQ_COMP", 0, 0, 0, 2, DtTable110_0_000 }
+    { "MOD_FREQ_COMP", 0, -1, 0, 0, 2, DtTable110_0_000 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-111; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -59,7 +59,7 @@ static const DtTableEntry  DtTable111_0_000[] =
 
 static const DtTableLink  DtTableLink111_0[] = 
 {
-    { "MOD_FREQ_COMP", 0, 0, 0, 81, DtTable111_0_000 }
+    { "MOD_FREQ_COMP", 0, -1, 0, 0, 81, DtTable111_0_000 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-112; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -87,7 +87,7 @@ static const DtTableEntry  DtTable112_0_000[] =
 
 static const DtTableLink  DtTableLink112_0[] = 
 {
-    { "MOD_FREQ_COMP", 1, 0, 0, 81, DtTable112_0_000 }
+    { "MOD_FREQ_COMP", 1, -1, 0, 0, 81, DtTable112_0_000 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-115; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -115,7 +115,7 @@ static const DtTableEntry  DtTable115_0_000[] =
 
 static const DtTableLink  DtTableLink115_0[] = 
 {
-    { "MOD_FREQ_COMP", 1, 0, 0, 81, DtTable115_0_000 }
+    { "MOD_FREQ_COMP", 1, -1, 0, 0, 81, DtTable115_0_000 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2107; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -276,19 +276,19 @@ static const DtTableEntry  DtTable2107_0_009[] =
 
 static const DtTableLink  DtTableLink2107_0[] = 
 {
-    { "MOD_FREQ_COMP00", 0, 0, 0, 121, DtTable2107_0_001 },
-    { "MOD_FREQ_COMP01", 0, 0, 0, 121, DtTable2107_0_002 },
-    { "MOD_FREQ_COMP_TABLES", 0, 0, 0, 2, DtTable2107_0_000 },
-    { "MOD_INTPOL_FILTER1", 0, 0, 0, 22, DtTable2107_0_003 },
-    { "MOD_INTPOL_FILTER2", 0, 0, 0, 10, DtTable2107_0_004 },
-    { "MOD_INTPOL_FILTER3", 0, 0, 0, 6, DtTable2107_0_005 },
-    { "MOD_INTPOL_FILTER4", 0, 0, 0, 4, DtTable2107_0_006 },
-    { "MOD_INTPOL_FILTER5", 0, 0, 0, 4, DtTable2107_0_007 },
-    { "MOD_INTPOL_FILTER6", 0, 0, 0, 4, DtTable2107_0_008 },
-    { "MOD_ROLLOFF_20PCT", 0, 0, 0, 64, DtTable2107_0_010 },
-    { "MOD_ROLLOFF_25PCT", 0, 0, 0, 64, DtTable2107_0_011 },
-    { "MOD_ROLLOFF_35PCT", 0, 0, 0, 64, DtTable2107_0_012 },
-    { "MOD_ROLLOFF_NONE", 0, 0, 0, 64, DtTable2107_0_009 }
+    { "MOD_FREQ_COMP00", 0, -1, 0, 0, 121, DtTable2107_0_001 },
+    { "MOD_FREQ_COMP01", 0, -1, 0, 0, 121, DtTable2107_0_002 },
+    { "MOD_FREQ_COMP_TABLES", 0, -1, 0, 0, 2, DtTable2107_0_000 },
+    { "MOD_INTPOL_FILTER1", 0, -1, 0, 0, 22, DtTable2107_0_003 },
+    { "MOD_INTPOL_FILTER2", 0, -1, 0, 0, 10, DtTable2107_0_004 },
+    { "MOD_INTPOL_FILTER3", 0, -1, 0, 0, 6, DtTable2107_0_005 },
+    { "MOD_INTPOL_FILTER4", 0, -1, 0, 0, 4, DtTable2107_0_006 },
+    { "MOD_INTPOL_FILTER5", 0, -1, 0, 0, 4, DtTable2107_0_007 },
+    { "MOD_INTPOL_FILTER6", 0, -1, 0, 0, 4, DtTable2107_0_008 },
+    { "MOD_ROLLOFF_20PCT", 0, -1, 0, 0, 64, DtTable2107_0_010 },
+    { "MOD_ROLLOFF_25PCT", 0, -1, 0, 0, 64, DtTable2107_0_011 },
+    { "MOD_ROLLOFF_35PCT", 0, -1, 0, 0, 64, DtTable2107_0_012 },
+    { "MOD_ROLLOFF_NONE", 0, -1, 0, 0, 64, DtTable2107_0_009 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2111; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -369,10 +369,10 @@ static const DtTableEntry  DtTable2111_0_000[] =
 
 static const DtTableLink  DtTableLink2111_0[] = 
 {
-    { "MOD_FREQ_COMP00", 0, 0, 0, 96, DtTable2111_0_001 },
-    { "MOD_FREQ_COMP01", 0, 0, 0, 96, DtTable2111_0_002 },
-    { "MOD_FREQ_COMP02", 0, 0, 0, 96, DtTable2111_0_003 },
-    { "MOD_FREQ_COMP_TABLES", 0, 0, 0, 3, DtTable2111_0_000 }
+    { "MOD_FREQ_COMP00", 0, -1, 0, 0, 96, DtTable2111_0_001 },
+    { "MOD_FREQ_COMP01", 0, -1, 0, 0, 96, DtTable2111_0_002 },
+    { "MOD_FREQ_COMP02", 0, -1, 0, 0, 96, DtTable2111_0_003 },
+    { "MOD_FREQ_COMP_TABLES", 0, -1, 0, 0, 3, DtTable2111_0_000 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2115; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1325,25 +1325,25 @@ static const DtTableEntry  DtTable2115_0_003[] =
 
 static const DtTableLink  DtTableLink2115_0[] = 
 {
-    { "MOD_FREQ_COMP_MAIN", 0, 0, 0, 9, DtTable2115_0_001 },
-    { "MOD_FREQ_COMP_MONITOR", 0, 0, 0, 9, DtTable2115_0_000 },
-    { "MOD_LOWPASS_0_614", 0, 0, 0, 256, DtTable2115_0_014 },
-    { "MOD_LOWPASS_0_686", 0, 0, 0, 256, DtTable2115_0_015 },
-    { "MOD_LOWPASS_0_754", 0, 0, 0, 256, DtTable2115_0_016 },
-    { "MOD_LOWPASS_0_833", 0, 0, 0, 256, DtTable2115_0_017 },
-    { "MOD_LOWPASS_0_850", 0, 0, 0, 256, DtTable2115_0_018 },
-    { "MOD_ROLLOFF_10PCT", 0, 0, 0, 256, DtTable2115_0_005 },
-    { "MOD_ROLLOFF_11_5PCT", 0, 0, 0, 256, DtTable2115_0_006 },
-    { "MOD_ROLLOFF_12PCT", 0, 0, 0, 256, DtTable2115_0_007 },
-    { "MOD_ROLLOFF_13PCT", 0, 0, 0, 256, DtTable2115_0_008 },
-    { "MOD_ROLLOFF_15PCT", 0, 0, 0, 256, DtTable2115_0_009 },
-    { "MOD_ROLLOFF_18PCT", 0, 0, 0, 256, DtTable2115_0_010 },
-    { "MOD_ROLLOFF_20PCT", 0, 0, 0, 256, DtTable2115_0_011 },
-    { "MOD_ROLLOFF_25PCT", 0, 0, 0, 256, DtTable2115_0_012 },
-    { "MOD_ROLLOFF_2PCT", 0, 0, 0, 256, DtTable2115_0_002 },
-    { "MOD_ROLLOFF_35PCT", 0, 0, 0, 256, DtTable2115_0_013 },
-    { "MOD_ROLLOFF_5PCT", 0, 0, 0, 256, DtTable2115_0_004 },
-    { "MOD_ROLLOFF_NONE", 0, 0, 0, 256, DtTable2115_0_003 }
+    { "MOD_FREQ_COMP_MAIN", 0, -1, 0, 0, 9, DtTable2115_0_001 },
+    { "MOD_FREQ_COMP_MONITOR", 0, -1, 0, 0, 9, DtTable2115_0_000 },
+    { "MOD_LOWPASS_0_614", 0, -1, 0, 0, 256, DtTable2115_0_014 },
+    { "MOD_LOWPASS_0_686", 0, -1, 0, 0, 256, DtTable2115_0_015 },
+    { "MOD_LOWPASS_0_754", 0, -1, 0, 0, 256, DtTable2115_0_016 },
+    { "MOD_LOWPASS_0_833", 0, -1, 0, 0, 256, DtTable2115_0_017 },
+    { "MOD_LOWPASS_0_850", 0, -1, 0, 0, 256, DtTable2115_0_018 },
+    { "MOD_ROLLOFF_10PCT", 0, -1, 0, 0, 256, DtTable2115_0_005 },
+    { "MOD_ROLLOFF_11_5PCT", 0, -1, 0, 0, 256, DtTable2115_0_006 },
+    { "MOD_ROLLOFF_12PCT", 0, -1, 0, 0, 256, DtTable2115_0_007 },
+    { "MOD_ROLLOFF_13PCT", 0, -1, 0, 0, 256, DtTable2115_0_008 },
+    { "MOD_ROLLOFF_15PCT", 0, -1, 0, 0, 256, DtTable2115_0_009 },
+    { "MOD_ROLLOFF_18PCT", 0, -1, 0, 0, 256, DtTable2115_0_010 },
+    { "MOD_ROLLOFF_20PCT", 0, -1, 0, 0, 256, DtTable2115_0_011 },
+    { "MOD_ROLLOFF_25PCT", 0, -1, 0, 0, 256, DtTable2115_0_012 },
+    { "MOD_ROLLOFF_2PCT", 0, -1, 0, 0, 256, DtTable2115_0_002 },
+    { "MOD_ROLLOFF_35PCT", 0, -1, 0, 0, 256, DtTable2115_0_013 },
+    { "MOD_ROLLOFF_5PCT", 0, -1, 0, 0, 256, DtTable2115_0_004 },
+    { "MOD_ROLLOFF_NONE", 0, -1, 0, 0, 256, DtTable2115_0_003 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2131; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1530,13 +1530,13 @@ static const DtTableEntry  DtTable2131_0_000[] =
 
 static const DtTableLink  DtTableLink2131_0[] = 
 {
-    { "DEMOD_LPF_10000000HZ", 0, 0, 0, 128, DtTable2131_0_001 },
-    { "DEMOD_LPF_1700000HZ", 0, 0, 0, 128, DtTable2131_0_006 },
-    { "DEMOD_LPF_5000000HZ", 0, 0, 0, 128, DtTable2131_0_005 },
-    { "DEMOD_LPF_6000000HZ", 0, 0, 0, 128, DtTable2131_0_004 },
-    { "DEMOD_LPF_7000000HZ", 0, 0, 0, 128, DtTable2131_0_003 },
-    { "DEMOD_LPF_8000000HZ", 0, 0, 0, 128, DtTable2131_0_002 },
-    { "DEMOD_LPF_SCALEFACTOR", 0, 0, 0, 6, DtTable2131_0_000 }
+    { "DEMOD_LPF_10000000HZ", 0, -1, 0, 0, 128, DtTable2131_0_001 },
+    { "DEMOD_LPF_1700000HZ", 0, -1, 0, 0, 128, DtTable2131_0_006 },
+    { "DEMOD_LPF_5000000HZ", 0, -1, 0, 0, 128, DtTable2131_0_005 },
+    { "DEMOD_LPF_6000000HZ", 0, -1, 0, 0, 128, DtTable2131_0_004 },
+    { "DEMOD_LPF_7000000HZ", 0, -1, 0, 0, 128, DtTable2131_0_003 },
+    { "DEMOD_LPF_8000000HZ", 0, -1, 0, 0, 128, DtTable2131_0_002 },
+    { "DEMOD_LPF_SCALEFACTOR", 0, -1, 0, 0, 6, DtTable2131_0_000 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2138; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1688,19 +1688,19 @@ static const DtTableEntry  DtTable2138_0_000[] =
 
 static const DtTableLink  DtTableLink2138_0[] = 
 {
-    { "DEMOD_FREQ_COMP00", 0, 0, 200, 48, DtTable2138_0_007 },
-    { NULL, 0, 0, 0, 42, DtTable2138_0_002 },
-    { "DEMOD_FREQ_COMP01", 0, 0, 200, 48, DtTable2138_0_008 },
-    { NULL, 0, 0, 0, 42, DtTable2138_0_003 },
-    { "DEMOD_FREQ_COMP02", 0, 0, 200, 48, DtTable2138_0_009 },
-    { NULL, 0, 0, 0, 42, DtTable2138_0_004 },
-    { "DEMOD_FREQ_COMP03", 0, 0, 200, 48, DtTable2138_0_010 },
-    { NULL, 0, 0, 0, 42, DtTable2138_0_005 },
-    { "DEMOD_FREQ_COMP04", 0, 0, 200, 48, DtTable2138_0_011 },
-    { NULL, 0, 0, 0, 42, DtTable2138_0_006 },
-    { "DEMOD_FREQ_COMP05", 0, 0, 200, 48, DtTable2138_0_012 },
-    { "DEMOD_FREQ_COMP_TABLES", 0, 0, 200, 6, DtTable2138_0_001 },
-    { NULL, 0, 0, 0, 5, DtTable2138_0_000 }
+    { "DEMOD_FREQ_COMP00", 0, -1, 0, 200, 48, DtTable2138_0_007 },
+    { NULL, 0, -1, 0, 0, 42, DtTable2138_0_002 },
+    { "DEMOD_FREQ_COMP01", 0, -1, 0, 200, 48, DtTable2138_0_008 },
+    { NULL, 0, -1, 0, 0, 42, DtTable2138_0_003 },
+    { "DEMOD_FREQ_COMP02", 0, -1, 0, 200, 48, DtTable2138_0_009 },
+    { NULL, 0, -1, 0, 0, 42, DtTable2138_0_004 },
+    { "DEMOD_FREQ_COMP03", 0, -1, 0, 200, 48, DtTable2138_0_010 },
+    { NULL, 0, -1, 0, 0, 42, DtTable2138_0_005 },
+    { "DEMOD_FREQ_COMP04", 0, -1, 0, 200, 48, DtTable2138_0_011 },
+    { NULL, 0, -1, 0, 0, 42, DtTable2138_0_006 },
+    { "DEMOD_FREQ_COMP05", 0, -1, 0, 200, 48, DtTable2138_0_012 },
+    { "DEMOD_FREQ_COMP_TABLES", 0, -1, 0, 200, 6, DtTable2138_0_001 },
+    { NULL, 0, -1, 0, 0, 5, DtTable2138_0_000 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2139; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1868,30 +1868,30 @@ static const DtTableEntry  DtTable2139_0_000[] =
 
 static const DtTableLink  DtTableLink2139_0[] = 
 {
-    { "DEMOD_FREQ_COMP00", 0, 0, 0, 48, DtTable2139_0_001 },
-    { NULL, 1, 0, 0, 48, DtTable2139_0_002 },
-    { NULL, 2, 0, 0, 48, DtTable2139_0_003 },
-    { NULL, 3, 0, 0, 48, DtTable2139_0_004 },
-    { NULL, 4, 0, 0, 48, DtTable2139_0_005 },
-    { NULL, 5, 0, 0, 48, DtTable2139_0_006 },
-    { NULL, 6, 0, 0, 48, DtTable2139_0_007 },
-    { NULL, 7, 0, 0, 48, DtTable2139_0_008 },
-    { NULL, 8, 0, 0, 48, DtTable2139_0_009 },
-    { NULL, 9, 0, 0, 48, DtTable2139_0_010 },
-    { NULL, 10, 0, 0, 48, DtTable2139_0_011 },
-    { NULL, 11, 0, 0, 48, DtTable2139_0_012 },
-    { "DEMOD_FREQ_COMP_TABLES", 0, 0, 0, 1, DtTable2139_0_000 },
-    { NULL, 1, 0, 0, 1, DtTable2139_0_000 },
-    { NULL, 2, 0, 0, 1, DtTable2139_0_000 },
-    { NULL, 3, 0, 0, 1, DtTable2139_0_000 },
-    { NULL, 4, 0, 0, 1, DtTable2139_0_000 },
-    { NULL, 5, 0, 0, 1, DtTable2139_0_000 },
-    { NULL, 6, 0, 0, 1, DtTable2139_0_000 },
-    { NULL, 7, 0, 0, 1, DtTable2139_0_000 },
-    { NULL, 8, 0, 0, 1, DtTable2139_0_000 },
-    { NULL, 9, 0, 0, 1, DtTable2139_0_000 },
-    { NULL, 10, 0, 0, 1, DtTable2139_0_000 },
-    { NULL, 11, 0, 0, 1, DtTable2139_0_000 }
+    { "DEMOD_FREQ_COMP00", 0, -1, 0, 0, 48, DtTable2139_0_001 },
+    { NULL, 1, -1, 0, 0, 48, DtTable2139_0_002 },
+    { NULL, 2, -1, 0, 0, 48, DtTable2139_0_003 },
+    { NULL, 3, -1, 0, 0, 48, DtTable2139_0_004 },
+    { NULL, 4, -1, 0, 0, 48, DtTable2139_0_005 },
+    { NULL, 5, -1, 0, 0, 48, DtTable2139_0_006 },
+    { NULL, 6, -1, 0, 0, 48, DtTable2139_0_007 },
+    { NULL, 7, -1, 0, 0, 48, DtTable2139_0_008 },
+    { NULL, 8, -1, 0, 0, 48, DtTable2139_0_009 },
+    { NULL, 9, -1, 0, 0, 48, DtTable2139_0_010 },
+    { NULL, 10, -1, 0, 0, 48, DtTable2139_0_011 },
+    { NULL, 11, -1, 0, 0, 48, DtTable2139_0_012 },
+    { "DEMOD_FREQ_COMP_TABLES", 0, -1, 0, 0, 1, DtTable2139_0_000 },
+    { NULL, 1, -1, 0, 0, 1, DtTable2139_0_000 },
+    { NULL, 2, -1, 0, 0, 1, DtTable2139_0_000 },
+    { NULL, 3, -1, 0, 0, 1, DtTable2139_0_000 },
+    { NULL, 4, -1, 0, 0, 1, DtTable2139_0_000 },
+    { NULL, 5, -1, 0, 0, 1, DtTable2139_0_000 },
+    { NULL, 6, -1, 0, 0, 1, DtTable2139_0_000 },
+    { NULL, 7, -1, 0, 0, 1, DtTable2139_0_000 },
+    { NULL, 8, -1, 0, 0, 1, DtTable2139_0_000 },
+    { NULL, 9, -1, 0, 0, 1, DtTable2139_0_000 },
+    { NULL, 10, -1, 0, 0, 1, DtTable2139_0_000 },
+    { NULL, 11, -1, 0, 0, 1, DtTable2139_0_000 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2154; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1910,8 +1910,8 @@ static const DtTableEntry  DtTable2154_0_001[] =
 
 static const DtTableLink  DtTableLink2154_0[] = 
 {
-    { "FAN_CONTROL_MAX6639", 0, 0, 400, 20, DtTable2154_0_000 },
-    { "SUBDVC_PORT_MAP", -1, 0, 0, 5, DtTable2154_0_001 }
+    { "FAN_CONTROL_MAX6639", 0, -1, 0, 400, 20, DtTable2154_0_000 },
+    { "SUBDVC_PORT_MAP", -1, -1, 0, 0, 5, DtTable2154_0_001 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2154; Sub-device=1 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1923,7 +1923,7 @@ static const DtTableEntry  DtTable2154_1_002[] =
 
 static const DtTableLink  DtTableLink2154_1[] = 
 {
-    { "SUBDVC_PORT_MAP", -1, 0, 0, 3, DtTable2154_1_002 }
+    { "SUBDVC_PORT_MAP", -1, -1, 0, 0, 3, DtTable2154_1_002 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2174; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1935,7 +1935,7 @@ static const DtTableEntry  DtTable2174_0_000[] =
 
 static const DtTableLink  DtTableLink2174_0[] = 
 {
-    { "SUBDVC_PORT_MAP", -1, 0, 0, 5, DtTable2174_0_000 }
+    { "SUBDVC_PORT_MAP", -1, -1, 0, 0, 5, DtTable2174_0_000 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2174; Sub-device=1 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1947,7 +1947,7 @@ static const DtTableEntry  DtTable2174_1_001[] =
 
 static const DtTableLink  DtTableLink2174_1[] = 
 {
-    { "SUBDVC_PORT_MAP", -1, 0, 0, 3, DtTable2174_1_001 }
+    { "SUBDVC_PORT_MAP", -1, -1, 0, 0, 3, DtTable2174_1_001 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2179; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1959,7 +1959,7 @@ static const DtTableEntry  DtTable2179_0_000[] =
 
 static const DtTableLink  DtTableLink2179_0[] = 
 {
-    { "SUBDVC_PORT_MAP", -1, 0, 0, 4, DtTable2179_0_000 }
+    { "SUBDVC_PORT_MAP", -1, -1, 0, 0, 4, DtTable2179_0_000 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2179; Sub-device=1 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1971,19 +1971,19 @@ static const DtTableEntry  DtTable2179_1_001[] =
 
 static const DtTableLink  DtTableLink2179_1[] = 
 {
-    { "SUBDVC_PORT_MAP", -1, 0, 0, 2, DtTable2179_1_001 }
+    { "SUBDVC_PORT_MAP", -1, -1, 0, 0, 2, DtTable2179_1_001 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2179; Sub-device=2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 static const DtTableEntry  DtTable2179_2_002[] =
 {
-    { 5, 1 }, { 6, 2 }
+    { 5, 1 }, { 6, 2 }, { 15, 3 }
 };
 
 static const DtTableLink  DtTableLink2179_2[] = 
 {
-    { "SUBDVC_PORT_MAP", -1, 0, 0, 2, DtTable2179_2_002 }
+    { "SUBDVC_PORT_MAP", -1, -1, 0, 0, 3, DtTable2179_2_002 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2179; Sub-device=3 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1995,19 +1995,19 @@ static const DtTableEntry  DtTable2179_3_003[] =
 
 static const DtTableLink  DtTableLink2179_3[] = 
 {
-    { "SUBDVC_PORT_MAP", -1, 0, 0, 2, DtTable2179_3_003 }
+    { "SUBDVC_PORT_MAP", -1, -1, 0, 0, 2, DtTable2179_3_003 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2179; Sub-device=4 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 static const DtTableEntry  DtTable2179_4_004[] =
 {
-    { 9, 1 }, { 10, 2 }
+    { 9, 1 }, { 10, 2 }, { 16, 3 }
 };
 
 static const DtTableLink  DtTableLink2179_4[] = 
 {
-    { "SUBDVC_PORT_MAP", -1, 0, 0, 2, DtTable2179_4_004 }
+    { "SUBDVC_PORT_MAP", -1, -1, 0, 0, 3, DtTable2179_4_004 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2179; Sub-device=5 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -2019,7 +2019,7 @@ static const DtTableEntry  DtTable2179_5_005[] =
 
 static const DtTableLink  DtTableLink2179_5[] = 
 {
-    { "SUBDVC_PORT_MAP", -1, 0, 0, 2, DtTable2179_5_005 }
+    { "SUBDVC_PORT_MAP", -1, -1, 0, 0, 2, DtTable2179_5_005 }
 };
 
 const Int  DtTableStoreCount = 21;

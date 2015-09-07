@@ -220,6 +220,8 @@ typedef struct _DtaNonIpPort
     // IOPROPS (I/O properties) - Capabilities
     Bool  m_CapMatrix;
     Bool  m_CapMatrix2;
+    Bool  m_CapVirtual;
+    Bool  m_CapGenRefSlave;
     // IOSTD (I/O standard) - Capabilities
     Bool  m_Cap3GSdi;
     Bool  m_CapAsi;

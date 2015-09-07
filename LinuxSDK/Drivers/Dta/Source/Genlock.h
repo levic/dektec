@@ -51,6 +51,7 @@ typedef struct _DtaGenlock
     void*  m_pVcxoOwner;        // Handle of app controlling VCXO
     Int  m_AsyncPortIndex;      // Port-index of analog sync input (-1 = no aync port)
     Int  m_IntGenrefPortIndex;  // Port-index of internal genref port (-1 = no int port)
+    Int  m_SlaveGenrefPortIndex;  // Port-index of slave genref port (-1 = no slave port)
 
     Int  m_FracMode;            // Status fractional mode
     Int  m_RefPortIndex;        // Port to be used as reference input (-1=INTERNAL)

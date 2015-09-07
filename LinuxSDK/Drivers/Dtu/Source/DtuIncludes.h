@@ -25,6 +25,12 @@
 #ifndef __DTU_INLCUDES_H
 #define __DTU_INLCUDES_H
 
+#ifdef WINBUILD
+// When building under linux we get warnings for unused variables. Enable this specific
+// warning as well when building for linux so it gets spotted earlier.
+#pragma warning(3 : 4101)
+#endif
+
 // OS wrapper
 #include <DtSal.h>
 #include <DtuIal.h>
@@ -45,6 +51,7 @@ typedef struct _DtuShBuffer DtuShBuffer;
 
 // Dtu sub-module headers
 #include <DtuDevice.h>
+#include <DtFwbRegs.h>
 #include <DtRegs.h>
 #include <DtuRegs.h>
 #include <DtuVendorCmds.h>

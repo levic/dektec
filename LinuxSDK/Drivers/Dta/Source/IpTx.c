@@ -1241,7 +1241,6 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
     UInt64*  pRefTimestamp;
     UInt64*  pStartTimestamp;
     UInt64  CurTime;
-    Bool  Underflow;
     Bool  PacketTooOld;
     
 #ifdef  _DEBUG

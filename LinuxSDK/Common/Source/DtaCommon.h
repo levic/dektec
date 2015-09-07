@@ -1020,6 +1020,33 @@ ASSERT_SIZE(DtaIoctlNonIpCmdOutput, 24)
 
     #define DTA_IOCTL_NONIP_CMD  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_NONIP_CMD, \
                                                                          DtaIoctlNonIpCmd)
+
+    // Ioctl input data type
+    typedef struct _DtaIoctlNonIpCmdInputLegacy {
+        Int  m_Cmd;
+        Int  m_PortIndex;
+        union {
+            DtaIoctlNonIpCmdExclusiveAccessInput  m_ExclusiveAccess;
+        } m_Data;
+    } DtaIoctlNonIpCmdInputLegacy;
+    ASSERT_SIZE(DtaIoctlNonIpCmdInputLegacy, 12)
+
+    // Ioctl Output data type
+    typedef struct _DtaIoctlNonIpCmdOutputLegacy {
+        union {
+            DtaIoctlNonIpCmdGetTargetIdOutput  m_GetTargetId;
+            DtaIoctlNonIpCmdDetectVidStdOutput  m_DetVidStd;
+        } m_Data;
+    } DtaIoctlNonIpCmdOutputLegacy;
+    ASSERT_SIZE(DtaIoctlNonIpCmdOutputLegacy, 8)
+
+    typedef union _DtaIoctlNonIpCmdLegacy {
+        DtaIoctlNonIpCmdInputLegacy  m_Input;
+        DtaIoctlNonIpCmdOutputLegacy  m_Output;
+    } DtaIoctlNonIpCmdLegacy;
+
+    #define DTA_IOCTL_NONIP_CMD_LEGACY  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_NONIP_CMD, \
+                                                                   DtaIoctlNonIpCmdLegacy)
 #endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_NONIP_TX_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

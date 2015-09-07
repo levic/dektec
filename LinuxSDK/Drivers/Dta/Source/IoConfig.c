@@ -83,6 +83,7 @@ static DtStatus  DtaIoConfigUpdateValidateFracMode(DtaNonIpPort* pNonIpPort,
                                          DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
 static DtStatus  DtaIoConfigWriteToNonVolatileStorage(DtaNonIpPort*  pNonIpPort,
                                                 Int  IoGroup, DtaIoConfigValue  CfgValue);
+static DtStatus  DtaIoConfigUpdateValidateGenRefBoard(DtaDeviceData*, DtaIoConfigUpdate*);
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Global data -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -655,6 +656,9 @@ static DtStatus  DtaIoConfigUpdateValidate(
         if (!DT_SUCCESS(Result))
             return Result;
     }
+    // Validate if genref/genlock configs are consistent at board-level
+    Result = DtaIoConfigUpdateValidateGenRefBoard(pDvcData, pUpdate);
+
     return Result;
 }
 
@@ -1363,11 +1367,6 @@ static DtStatus  DtaIoConfigUpdateValidateGenLocked(
     DtaIoConfigNonIpPortUpdate*  pPortUpdate,
     DtaIoConfigUpdate* pUpdate)
 {
-    DtaDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
-    Bool  GenRefEnabled = FALSE;
-    Int  i = 0;
-    DtaNonIpPort*  pOtherNonIpPort = NULL;
-    
     DtDbgOut(MAX, IOCONFIG, "Configuration GENLOCKED Value: %d SubValue: %d",
                                pPortUpdate->m_CfgValue[DT_IOCONFIG_GENLOCKED].m_Value,
                                pPortUpdate->m_CfgValue[DT_IOCONFIG_GENLOCKED].m_SubValue);
@@ -1383,32 +1382,6 @@ static DtStatus  DtaIoConfigUpdateValidateGenLocked(
     case DT_IOCONFIG_TRUE:
         if (!pNonIpPort->m_CapGenLocked)
             return DT_STATUS_CONFIG_ERROR;
-
-        // Check if a genref port has been set
-        for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
-        {
-            pOtherNonIpPort = &pDvcData->m_pNonIpPorts[i];
-            if (pOtherNonIpPort->m_PortIndex == pNonIpPort->m_PortIndex)
-                continue;   // Skip ourselves
-            if (!pOtherNonIpPort->m_CapGenRef)
-                continue;   // Skip port that does not support genref
-
-            // Check genref is enabled on other port
-            if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_GENREF].m_Value
-                                                                      == DT_IOCONFIG_TRUE)
-            {
-                GenRefEnabled = TRUE;
-            }
-        }
-        // Special case for slave FPGAs: GenRef ports not controlled by this driver,
-        // so just assume that one is set. Check should be done in DTAPI.
-        if (pDvcData->m_DevInfo.m_SubDvc > 0)
-            GenRefEnabled = TRUE;
-        if (!GenRefEnabled)
-        {
-            DtDbgOut(ERR, IOCONFIG, "No genref port has been set");
-            return DT_STATUS_CONFIG_ERROR;
-        }
         break;
     default:
         return DT_STATUS_CONFIG_ERROR;
@@ -1424,10 +1397,7 @@ static DtStatus  DtaIoConfigUpdateValidateGenRef(
     DtaIoConfigNonIpPortUpdate*  pPortUpdate,
     DtaIoConfigUpdate* pUpdate)
 {
-    Int  i;
-    DtaNonIpPort*  pOtherNonIpPort = NULL;
-    DtaDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
-
+    Int  IoStdVal;
     DtDbgOut(MAX, IOCONFIG, "Configuration GENREF Value: %d SubValue: %d",
                                   pPortUpdate->m_CfgValue[DT_IOCONFIG_GENREF].m_Value,
                                   pPortUpdate->m_CfgValue[DT_IOCONFIG_GENREF].m_SubValue);
@@ -1443,30 +1413,6 @@ static DtStatus  DtaIoConfigUpdateValidateGenRef(
             DtDbgOut(ERR, IOCONFIG, "Genref not supported for port %i",
                                                                  pNonIpPort->m_PortIndex);
             return DT_STATUS_CONFIG_ERROR;
-        }
-        // Only check for genlocked port if this port was the genlock reference.
-        if (pDvcData->m_Genlock.m_RefPortIndex != pNonIpPort->m_PortIndex)
-            break;
-
-        // You cannot disable Genref if an output port has Genlocked enabled
-        for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
-        {
-            pOtherNonIpPort = &pDvcData->m_pNonIpPorts[i];
-            if (pOtherNonIpPort->m_PortIndex == pNonIpPort->m_PortIndex)
-                continue;   // Skip ourselves
-            if (!pOtherNonIpPort->m_CapGenLocked)
-                continue;   // Skip port that does not support genlock
-
-            // Check genlocked is enabled on other ports
-            if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_GENLOCKED].m_Value
-                                                                      == DT_IOCONFIG_TRUE)
-            {
-                DtDbgOut(ERR, IOCONFIG, "Port %i has genlock enabled. Genref of Port %i"
-                                   " can not be disabled.", 
-                                   pOtherNonIpPort->m_PortIndex, pNonIpPort->m_PortIndex);
-            
-                return DT_STATUS_CONFIG_ERROR;
-            }
         }
         break;
 
@@ -1485,27 +1431,14 @@ static DtStatus  DtaIoConfigUpdateValidateGenRef(
             DtDbgOut(ERR, IOCONFIG, "Port %i is not an input", pNonIpPort->m_PortIndex);
             return DT_STATUS_CONFIG_ERROR;
         }
-
-        // Only one port may be enabled as genlock reference
-        for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
+        // Port must be configured for SDI
+        IoStdVal = pPortUpdate->m_CfgValue[DT_IOCONFIG_IOSTD].m_Value;
+        if (IoStdVal!=DT_IOCONFIG_SDI && IoStdVal!=DT_IOCONFIG_HDSDI &&
+                                                              IoStdVal!=DT_IOCONFIG_3GSDI)
         {
-            pOtherNonIpPort = &pDvcData->m_pNonIpPorts[i];
-            if (pOtherNonIpPort->m_PortIndex == pNonIpPort->m_PortIndex)
-                continue;   // Skip ourselves
-            if (!pOtherNonIpPort->m_CapGenRef)
-                continue;   // Skip port that does not support genref
-
-            // Check genref is disabled on other ports
-            if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_GENREF].m_Value
-                                                                      == DT_IOCONFIG_TRUE)
-            {
-                DtDbgOut(ERR, IOCONFIG, "Port %i already enabled genref. Port %i can not"
-                   " be enabled.", pOtherNonIpPort->m_PortIndex, pNonIpPort->m_PortIndex);
-            
-                return DT_STATUS_CONFIG_ERROR;
-            }
+            DtDbgOut(ERR, IOCONFIG, "Port %i is not an input", pNonIpPort->m_PortIndex);
+            return DT_STATUS_CONFIG_ERROR;
         }
-
         break;
 
     default:
@@ -1565,6 +1498,49 @@ static DtStatus  DtaIoConfigUpdateValidateFracMode(
         return DT_STATUS_CONFIG_ERROR;
     }
 
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigUpdateValidateGenRefBoard -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static DtStatus  DtaIoConfigUpdateValidateGenRefBoard(
+    DtaDeviceData*  pDvcData,
+    DtaIoConfigUpdate* pUpdate)
+{
+    Int  i, NumGenlock=0, NumGenRef=0;
+    Bool  HasVirtualGenref = FALSE;
+
+    // You cannot disable Genref if an output port has Genlocked enabled
+    for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
+    {
+        DtaNonIpPort*  pNonIpPort = &pDvcData->m_pNonIpPorts[i];
+        if (pNonIpPort->m_CapGenRef)
+        {
+            if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_GENREF].m_Value
+                                                                      == DT_IOCONFIG_TRUE)
+                NumGenRef++;
+            if (pNonIpPort->m_CapVirtual)
+                HasVirtualGenref = TRUE;
+        }
+        if (pNonIpPort->m_CapGenLocked)
+        {
+            if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_GENLOCKED].m_Value
+                                                                      == DT_IOCONFIG_TRUE)
+                NumGenlock++;
+        }
+    }
+
+    // More than one genref port is not supported
+    if (NumGenRef > 1)
+        return DT_STATUS_CONFIG_ERROR;
+    // Devices with a virtual genref port must always have exactly one port configured
+    // as genref port
+    if (NumGenRef==0 && HasVirtualGenref)
+        return DT_STATUS_CONFIG_ERROR;
+    // If any port is configured as genlock port we must have a genref port as well.
+    // Ignore this for sub-devices.
+    if (NumGenlock>0 && NumGenRef==0 && pDvcData->m_DevInfo.m_SubDvc==0)
+        return DT_STATUS_CONFIG_ERROR;
     return DT_STATUS_OK;
 }
 

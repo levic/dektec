@@ -41,6 +41,7 @@ static DtStatus  DtuCalculateAndCreatePortsStruct(DtuDeviceData* pDvcData);
 static void  DtuCleanupPortStructs(DtuDeviceData* pDvcData);
 static DtStatus  DtuPortsInit(DtuDeviceData* pDvcData);
 static void  DtuPortsCleanUp(DtuDeviceData* pDvcData);
+static Bool DtuDeviceIsInuse(DtuDeviceData* pDvcData);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Dtu Common Interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -186,9 +187,9 @@ DtStatus  DtuDeviceOpen(DtuDeviceData* pDvcData, DtFileObject* pFile)
     return DT_STATUS_OK;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct AsyncRequest -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct  AsyncRequestDtu351 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-typedef struct  AsyncRequest_
+typedef struct  _AsyncRequestDtu351
 {
 #ifdef WINBUILD
     PURB  m_pUrb;
@@ -202,9 +203,10 @@ typedef struct  AsyncRequest_
     Bool  m_IsValid;
     Dtu351DataHdr*  m_DataHeaders;
     Int  m_FirstIdx;
-} AsyncRequest;
+} AsyncRequestDtu351;
 
 #ifdef WINBUILD
+EVT_WDF_REQUEST_COMPLETION_ROUTINE  Dtu351EvtComplete;
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351EvtComplete -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void  Dtu351EvtComplete(
@@ -214,7 +216,7 @@ void  Dtu351EvtComplete(
     void*  pContext
     )
 {
-    AsyncRequest*  Req = (AsyncRequest*)pContext;
+    AsyncRequestDtu351*  Req = (AsyncRequestDtu351*)pContext;
     Int  NumPackets = 1;
 
     if (Params->IoStatus.Status != STATUS_SUCCESS)
@@ -240,7 +242,7 @@ void  Dtu351EvtComplete(
 //
 void  Dtu351EvtComplete(struct urb*  pUrb)
 {
-    AsyncRequest*  Req = (AsyncRequest*)pUrb->context;
+    AsyncRequestDtu351*  Req = (AsyncRequestDtu351*)pUrb->context;
     
     if (pUrb->status != 0)
     {
@@ -255,12 +257,78 @@ void  Dtu351EvtComplete(struct urb*  pUrb)
 }
 #endif
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct  AsyncRequestDtu315 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef struct  _AsyncRequestDtu315
+{
+#ifdef WINBUILD
+    PURB  m_pUrb;
+    WDFMEMORY  m_UrbMemory;
+    WDFREQUEST  m_WdfRequest;
+#else
+    struct urb*  m_pUrb;
+    void*  m_pBuf;
+#endif
+    DtEvent  m_EvtRequestDone;
+    Bool  m_IsValid;
+    DtStatus  m_Result;
+    UInt  m_OffsetStart;
+    UInt  m_Size;
+} AsyncRequestDtu315;
+
+#ifdef WINBUILD
+EVT_WDF_REQUEST_COMPLETION_ROUTINE  Dtu315EvtComplete;
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu315EvtComplete -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  Dtu315EvtComplete(
+    WDFREQUEST  Request,
+    WDFIOTARGET  Target,
+    PWDF_REQUEST_COMPLETION_PARAMS  Params,
+    void*  pContext
+    )
+{
+    AsyncRequestDtu315*  Req = (AsyncRequestDtu315*)pContext;
+
+    if (Params->IoStatus.Status != STATUS_SUCCESS)
+    {
+        DtDbgOut(ERR, DTU, "IoStatus: 0x%X", Params->IoStatus.Status);
+        if (Params->IoStatus.Status == STATUS_IO_TIMEOUT)
+            Req->m_Result = DT_STATUS_TIMEOUT;
+        else
+            Req->m_Result = DT_STATUS_FAIL;
+    }
+    else if (Req->m_pUrb->UrbHeader.Status != USBD_STATUS_SUCCESS)
+    {
+        DtDbgOut(ERR, DTU, "UrbHeader.Status: 0x%X", Req->m_pUrb->UrbHeader.Status);
+        Req->m_Result = DT_STATUS_FAIL;
+    } else {
+        Req->m_Result = DT_STATUS_OK;
+    }
+    
+    DtEventSet(&Req->m_EvtRequestDone);
+}
+#else
+void  Dtu315EvtComplete(struct urb*  pUrb)
+{
+    AsyncRequestDtu315*  Req = (AsyncRequestDtu315*)pUrb->context;
+    
+    if (pUrb->status != 0)
+    {
+        DtDbgOut(ERR, DTU, "pUrb->status: 0x%X", pUrb->status);
+    }
+    //TODOTM: linux implementation DTU-315
+
+    DtEventSet(&Req->m_EvtRequestDone);
+}
+#endif
+
 void  Dtu351WorkerThreadCheckLock(DtuDeviceData*, DtuNonIpPort*);
 void  Dtu351WorkerThreadReadData(DtuDeviceData*, DtuNonIpPort*);
+void  Dtu315WorkerThreadWriteData(DtuDeviceData*, DtuNonIpPort*);
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351WorkerThread -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu3WorkerThread -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  Dtu351WorkerThread(DtThread* pThread, void* pContext)
+void  Dtu3WorkerThread(DtThread* pThread, void* pContext)
 {
     DtuNonIpPort*  pPort = (DtuNonIpPort*)pContext;
     DtuDeviceData*  pDvcData = pPort->m_pDvcData;
@@ -268,19 +336,27 @@ void  Dtu351WorkerThread(DtThread* pThread, void* pContext)
 
     while (!StopThread)
     {
-        DtDbgOut(AVG, DTU, "RX worker thread state: %d", pPort->m_RxState);
-        switch (pPort->m_RxState)
+        DtDbgOut(AVG, DTU, "USB3 worker thread state: %d", pPort->m_State);
+        switch (pPort->m_State)
         {
-        case DTU_RX_CHECK_LOCK:
+        case DTU3_STATE_IDLE:
+            // Nothing to do
+            break;
+
+        case DTU3_STATE_EXIT:
+            StopThread = TRUE;
+            break;
+
+        case DTU3_STATE_DET_VIDSTD:
             Dtu351WorkerThreadCheckLock(pDvcData, pPort);
             break;
 
-        case DTU_RX_READ:
+        case DTU3_STATE_READ351:
             Dtu351WorkerThreadReadData(pDvcData, pPort);
             break;
 
-        case DTU_RX_EXIT:
-            StopThread = TRUE;
+        case DTU3_STATE_WRITE315:
+            Dtu315WorkerThreadWriteData(pDvcData, pPort);
             break;
 
         default:
@@ -288,11 +364,11 @@ void  Dtu351WorkerThread(DtThread* pThread, void* pContext)
         }
         if (!StopThread)
         {
-            DtEventWait(&pPort->m_RxStateChanged, -1);
-            pPort->m_RxState = pPort->m_NextRxState;
-            DtEventReset(&pPort->m_RxStateChanged);
+            DtEventWait(&pPort->m_StateChanged, -1);
+            pPort->m_State = pPort->m_NextState;
+            DtEventReset(&pPort->m_StateChanged);
         }
-        DtEventSet(&pPort->m_RxStateChangeCmpl);
+        DtEventSet(&pPort->m_StateChangeCmpl);
     }
 
     DtThreadWaitForStop(pThread);
@@ -388,13 +464,13 @@ void  Dtu351WorkerThreadCheckLock(
             else
                 pPort->m_StateFlags |= DTU_PORT_FLAG_SDI_INVALID;
         }
-    } while (DtEventWait(&pPort->m_RxStateChanged, 500) == DT_STATUS_TIMEOUT);
+    } while (DtEventWait(&pPort->m_StateChanged, 500) == DT_STATUS_TIMEOUT);
 }
 
 #ifdef WINBUILD
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351InitAsyncRequest -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-Bool  Dtu351InitAsyncRequest(AsyncRequest  *Req, void* pBuf, Int  BufLen,
+Bool  Dtu351InitAsyncRequest(AsyncRequestDtu351  *Req, void* pBuf, Int  BufLen,
     USBD_PIPE_HANDLE wdmhUSBPipe,
     WDFUSBPIPE  Pipe,
     Int  UrbSize,
@@ -453,7 +529,7 @@ Bool  Dtu351InitAsyncRequest(AsyncRequest  *Req, void* pBuf, Int  BufLen,
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351ReInitAsyncRequest -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-Bool  Dtu351ReInitAsyncRequest(AsyncRequest  *Req, void* pBuf, Int  BufLen,
+Bool  Dtu351ReInitAsyncRequest(AsyncRequestDtu351  *Req, void* pBuf, Int  BufLen,
     USBD_PIPE_HANDLE wdmhUSBPipe,
     WDFUSBPIPE  Pipe,
     Int  UrbSize,
@@ -482,7 +558,7 @@ Bool  Dtu351ReInitAsyncRequest(AsyncRequest  *Req, void* pBuf, Int  BufLen,
 #else
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351InitAsyncRequest -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-Bool  Dtu351InitAsyncRequest(AsyncRequest  *Req, void* pBuf, Int  BufLen,
+Bool  Dtu351InitAsyncRequest(AsyncRequestDtu351  *Req, void* pBuf, Int  BufLen,
     DtuDeviceData*  pDvcData,
     UInt  Pipe)
 {
@@ -517,7 +593,7 @@ Bool  Dtu351InitAsyncRequest(AsyncRequest  *Req, void* pBuf, Int  BufLen,
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351ReInitAsyncRequest -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-Bool  Dtu351ReInitAsyncRequest(AsyncRequest  *Req, void* pBuf, Int  BufLen,
+Bool  Dtu351ReInitAsyncRequest(AsyncRequestDtu351  *Req, void* pBuf, Int  BufLen,
     DtuDeviceData*  pDvcData,
     UInt  Pipe)
 {
@@ -547,7 +623,7 @@ void  Dtu351WorkerThreadReadData(
     Dtu351BufHdr*  BufHeader;
     UInt8*  Buf;
     Int  i;
-    AsyncRequest*  Requests;
+    AsyncRequestDtu351*  Requests;
     Bool  FatalError = FALSE;
     Int  NumAsyncRequests;
     Dtu351DataHdr*  DataBufHeaders;
@@ -580,7 +656,7 @@ void  Dtu351WorkerThreadReadData(
                               BufHeader->m_NumBuffers*sizeof(Dtu351DataHdr) + DataBufSize)
     {
         DtDbgOut(ERR, DTU, "Total buffer size is inconsistent");
-        DtEventWait(&pPort->m_RxStateChanged, -1);
+        DtEventWait(&pPort->m_StateChanged, -1);
         return;
     }
     
@@ -589,7 +665,7 @@ void  Dtu351WorkerThreadReadData(
     if (NumAsyncRequests >= (Int)BufHeader->m_NumBuffers)
     {
         DtDbgOut(ERR, DTU, "Not enough data buffers");
-        DtEventWait(&pPort->m_RxStateChanged, -1);
+        DtEventWait(&pPort->m_StateChanged, -1);
         return;
     }
     
@@ -632,7 +708,7 @@ void  Dtu351WorkerThreadReadData(
         }
     }
     
-    Requests = DtMemAllocPool(DtPoolNonPaged, sizeof(AsyncRequest) * NumAsyncRequests,
+    Requests = DtMemAllocPool(DtPoolNonPaged, sizeof(AsyncRequestDtu351)*NumAsyncRequests,
                                                                                  DTU_TAG);
     
 #ifdef WINBUILD
@@ -647,17 +723,17 @@ void  Dtu351WorkerThreadReadData(
 #endif
 
     // Set gennum rate selection to manual and hd/sd
-    Status = Dtu3RegWrite(pDvcData, DTU_USB3_DEV_GENNUM, 0x24, IsHd ? 0 : 1);
+    Status = Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_GS1661, 0x24, IsHd ? 0 : 1);
     DT_ASSERT(DT_SUCCESS(Status));
     
     // Set FPGA register SdiDefinition
-    Status = Dtu3RegWrite(pDvcData, DTU_USB3_DEV_FPGA, 0x04, IsHd ? 1 : 0);
+    Status = Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_FPGA, 0x04, IsHd ? 1 : 0);
     DT_ASSERT(DT_SUCCESS(Status));
 
     // Default-initialize all request, so we can clean up properly later.
     for (i=0; i<NumAsyncRequests; i++)
     {
-        AsyncRequest  *Req = &Requests[i];
+        AsyncRequestDtu351  *Req = &Requests[i];
         Req->m_pUrb = NULL;
         Req->m_IsValid = FALSE;
     }
@@ -666,7 +742,7 @@ void  Dtu351WorkerThreadReadData(
     for (i=0; i<NumAsyncRequests && !FatalError; i++)
     {
         Bool  InitOk = FALSE;
-        AsyncRequest  *Req = &Requests[i];
+        AsyncRequestDtu351  *Req = &Requests[i];
 #ifdef WINBUILD
         InitOk = Dtu351InitAsyncRequest(Req, Buf + NextBufIdx*SingleDataBufSize,
                                                     SingleDataBufSize,
@@ -690,7 +766,7 @@ void  Dtu351WorkerThreadReadData(
         // Now start all requests for the first time
         for (i=0; i<NumAsyncRequests && !FatalError; i++)
         {
-            AsyncRequest  *Req = &Requests[i];
+            AsyncRequestDtu351  *Req = &Requests[i];
 #ifdef WINBUILD
             if (WdfRequestSend(Req->m_WdfRequest, IoTarget, &SendOptions) == FALSE)
             {
@@ -729,7 +805,8 @@ void  Dtu351WorkerThreadReadData(
     if (!FatalError)
     {
         // Set FPGA register RxMode
-        Status = Dtu3RegWrite(pDvcData, DTU_USB3_DEV_FPGA, 0x06, (UInt16)pPort->m_InitRxMode);
+        Status = Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_FPGA, 0x06, 
+                                                             (UInt32)pPort->m_InitRxMode);
         DT_ASSERT(DT_SUCCESS(Status));
     }
     // We're fully initialized. Allow changes to the RxMode register from other threads.
@@ -737,16 +814,18 @@ void  Dtu351WorkerThreadReadData(
     
     BufHeader->m_FirstBuf = 0;
     
-    while (DtEventWait(&pPort->m_RxStateChanged, 0)==DT_STATUS_TIMEOUT && !FatalError)
+    while (DtEventWait(&pPort->m_StateChanged, 0)==DT_STATUS_TIMEOUT && !FatalError)
     {
 #ifdef WINBUILD
         WDF_REQUEST_REUSE_PARAMS  ReusePars;
-        WDF_REQUEST_REUSE_PARAMS_INIT(&ReusePars, WDF_REQUEST_REUSE_NO_FLAGS, STATUS_SUCCESS);
+        WDF_REQUEST_REUSE_PARAMS_INIT(&ReusePars, WDF_REQUEST_REUSE_NO_FLAGS, 
+                                                                          STATUS_SUCCESS);
 #endif
         LoopCtr++;
-        for (i=0; i<NumAsyncRequests && DtEventWait(&pPort->m_RxStateChanged, 0)==DT_STATUS_TIMEOUT; i++)
+        for (i=0; i<NumAsyncRequests 
+                        && DtEventWait(&pPort->m_StateChanged, 0)==DT_STATUS_TIMEOUT; i++)
         {
-            AsyncRequest  *Req = &Requests[i];
+            AsyncRequestDtu351  *Req = &Requests[i];
             Bool  ReinitOk;
             while (TRUE)
             {
@@ -826,7 +905,7 @@ void  Dtu351WorkerThreadReadData(
     // Try to make sure all events are handled.
     for (i=0; i<NumAsyncRequests; i++)
     {
-        AsyncRequest  *Req = &Requests[i];
+        AsyncRequestDtu351  *Req = &Requests[i];
         if (!Req->m_IsValid)
             continue;
 #ifdef WINBUILD
@@ -849,8 +928,8 @@ void  Dtu351WorkerThreadReadData(
 
     {
         UInt16  Regs[2];
-        Status = Dtu3RegRead(pDvcData, DTU_USB3_DEV_FX3, 0x04, &Regs[0]);
-        Status = Dtu3RegRead(pDvcData, DTU_USB3_DEV_FX3, 0x06, &Regs[1]);
+        Status = Dtu35xRegRead(pDvcData, DTU_USB3_DEV_FX3, 0x08, &Regs[0]);
+        Status = Dtu35xRegRead(pDvcData, DTU_USB3_DEV_FX3, 0x0C, &Regs[1]);
         if (Regs[0]!=0 || Regs[1]!=0)
             DtDbgOut(ERR, DTU, "PhyErrors: %d, LinkErrors: %d", Regs[0], Regs[1]);
     }
@@ -863,11 +942,274 @@ void  Dtu351WorkerThreadReadData(
                             NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
 
     // Set gennum register RATE_SEL to auto
-    Dtu3RegWrite(pDvcData, DTU_USB3_DEV_GENNUM, 0x24, 0x04);
+    Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_GS1661, 0x24, 0x04);
 
     DtMemFreePool(Requests, DTU_TAG);
 
     DtDbgOut(MAX, DTU, "Exit");
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu315WorkerThreadWriteData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  Dtu315WorkerThreadWriteData(
+    DtuDeviceData*  pDvcData,
+    DtuNonIpPort*  pPort)
+{
+#ifdef WINBUILD // TODOTM: DTU-315 linux implementation
+    NTSTATUS  NtStatus = STATUS_SUCCESS;
+    DtStatus  Status = DT_STATUS_OK;
+    Int  i;
+    Dtu315BufHdr*  pBufHdr;
+    WDF_REQUEST_SEND_OPTIONS  SendOptions;
+    UInt8*  pBuf;
+    Int  NumAsyncRequests;
+    AsyncRequestDtu315*  Requests;
+    USBD_PIPE_HANDLE wdmhUSBPipe;
+    WDFUSBPIPE  Pipe=NULL;
+    WDFIOTARGET  IoTarget;
+    Int  UrbSize = -1;
+    Bool  FatalError = FALSE;
+    Int  SingleDataBufSize;
+    Int  NextReq = 0;
+    UInt  ReadPtr = 0;                      // Offset of byte to transfer next
+    Bool  Started = FALSE;
+
+    DtDbgOut(AVG, DTU, "Start");
+
+    DT_ASSERT(pPort->m_SharedBuffer.m_Initialised);
+
+    pBufHdr = (Dtu315BufHdr*)pPort->m_SharedBuffer.m_pBuffer;
+    pBuf = pPort->m_SharedBuffer.m_pBuffer + pBufHdr->m_DataOffset;
+    NumAsyncRequests = pBufHdr->m_MaxSimTransfers;
+    SingleDataBufSize = pBufHdr->m_SingleTransferSize;
+
+    if ((UInt32)(NumAsyncRequests*SingleDataBufSize) > pBufHdr->m_FifoSize)
+    {
+        DtDbgOut(ERR, DTU, "NumAsyncRequests*SingleDataBufSize > FifoSize");
+        return;
+    }
+
+    // Initialize send options used for URB timeouts
+    WDF_REQUEST_SEND_OPTIONS_INIT(&SendOptions, WDF_REQUEST_SEND_OPTION_TIMEOUT);
+    // 500ms Timeout in 100ns units
+    WDF_REQUEST_SEND_OPTIONS_SET_TIMEOUT(&SendOptions, -10*1000*500);
+    
+    Requests = DtMemAllocPool(DtPoolNonPaged, sizeof(AsyncRequestDtu315)*NumAsyncRequests,
+                                                                                 DTU_TAG);
+
+    if (Requests == NULL)
+    {
+        DtDbgOut(ERR, DTU, "Failed to allocate internal buffer");
+        return;
+    }
+
+    Pipe = WdfUsbInterfaceGetConfiguredPipe(pDvcData->m_Device.m_UsbInterface, 0, NULL);
+    wdmhUSBPipe = WdfUsbTargetPipeWdmGetPipeHandle(Pipe);
+    IoTarget = WdfUsbTargetDeviceGetIoTarget(pDvcData->m_Device.m_UsbDevice);
+
+    UrbSize = sizeof(struct _URB_BULK_OR_INTERRUPT_TRANSFER);
+
+    // Default-initialize all request, so we can clean up properly later.
+    for (i=0; i<NumAsyncRequests; i++)
+    {
+        AsyncRequestDtu315  *Req = &Requests[i];
+        Req->m_pUrb = NULL;
+        Req->m_IsValid = FALSE;
+    }
+
+    // First initialize all requests
+    for (i=0; i<NumAsyncRequests && !FatalError; i++)
+    {
+        AsyncRequestDtu315  *Req = &Requests[i];
+
+        NtStatus = WdfMemoryCreate(WDF_NO_OBJECT_ATTRIBUTES, NonPagedPool, DTU_TAG,
+                                        UrbSize, &Req->m_UrbMemory, (void**)&Req->m_pUrb);
+        if (!NT_SUCCESS(NtStatus))
+        {
+            DtDbgOut(ERR, DTU, "WdfMemoryCreate failed");
+            Req->m_pUrb = NULL;
+            break;
+        }
+
+        NtStatus = WdfRequestCreate(WDF_NO_OBJECT_ATTRIBUTES, IoTarget, &Req->m_WdfRequest);
+        if (!NT_SUCCESS(NtStatus))
+        {
+            DtDbgOut(ERR, DTU, "WdfRequestCreate failed");
+            WdfObjectDelete(Req->m_UrbMemory);
+            Req->m_pUrb = NULL;
+            break;
+        }
+
+        DtMemZero(Req->m_pUrb, UrbSize);
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Length = (USHORT)UrbSize;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Function = URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferFlags = USBD_TRANSFER_DIRECTION_OUT;
+
+        Req->m_Result = DT_STATUS_OK;
+        Req->m_OffsetStart = 0;
+        Req->m_Size = 0;
+        
+        NtStatus = WdfUsbTargetPipeFormatRequestForUrb(Pipe, Req->m_WdfRequest,
+                                                                  Req->m_UrbMemory, NULL);
+        if (!NT_SUCCESS(NtStatus))
+        {
+            DtDbgOut(ERR, DTU, "WdfUsbTargetPipeFormatRequestForUrb failed");
+            WdfObjectDelete(Req->m_WdfRequest);
+            WdfObjectDelete(Req->m_UrbMemory);
+            Req->m_pUrb = NULL;
+            NtStatus = STATUS_UNSUCCESSFUL;
+            break;
+        }
+        if (!DT_SUCCESS(DtEventInit(&Requests[i].m_EvtRequestDone, TRUE)))
+        {
+            DtDbgOut(ERR, DTU, "DtEventInit failed");
+            WdfObjectDelete(Req->m_WdfRequest);
+            WdfObjectDelete(Req->m_UrbMemory);
+            Req->m_pUrb = NULL;
+            NtStatus = STATUS_UNSUCCESSFUL;
+            break;
+        }
+        WdfRequestSetCompletionRoutine(Req->m_WdfRequest, Dtu315EvtComplete, Req);
+        Req->m_Result = DT_STATUS_OK;
+        DtEventSet(&Req->m_EvtRequestDone);
+        Req->m_IsValid = TRUE;
+    }
+    // At this point all m_EvtRequestDone events are in the signalled state
+    if (!NT_SUCCESS(NtStatus))
+    {
+        DtDbgOut(ERR, DTU, "NtStatus not OK");
+        FatalError = TRUE;
+    } else {
+        // Initialization done, set hardware TX mode to SEND
+        //TODO: replace 0x80 by offset of FifoMemoryLessUsbDvc block, should come from XML
+        Dtu3RegWrite(pDvcData, DTU315_FIFO_BLOCK_OFFSET, 
+                        &FwbFifoMemoryLessUsbDvc.Control_TxCtrl, DTFWB_MLFIFOTXCTRL_HOLD);
+        // Set led control to on (2)
+        Dtu3RegWrite(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.LedCtrl, 2);
+    }
+    DtDbgOut(AVG, DTU, "Init done");
+    while (DtEventWait(&pPort->m_StateChanged, 0)==DT_STATUS_TIMEOUT && !FatalError)
+    {
+        Bool  ShouldStop = FALSE;
+        AsyncRequestDtu315  *Req = &Requests[NextReq];
+        WDF_REQUEST_REUSE_PARAMS  ReusePars;
+        WDF_REQUEST_REUSE_PARAMS_INIT(&ReusePars, WDF_REQUEST_REUSE_NO_FLAGS, STATUS_SUCCESS);
+        
+        do {
+            Status = DtEventWait(&Req->m_EvtRequestDone, 50);
+            ShouldStop = DT_SUCCESS(DtEventWait(&pPort->m_StateChanged, 0));
+        } while (!DT_SUCCESS(Status) && !ShouldStop);
+        if (ShouldStop)
+        {
+            // m_EvtRequestDone has been reset by the wait above but code belows
+            // expects it to be set.
+            if (DT_SUCCESS(Status))
+                DtEventSet(&Req->m_EvtRequestDone);
+            break;
+        }
+
+        if (!DT_SUCCESS(Req->m_Result))
+        {
+            DtDbgOut(ERR, DTU, "Write request failed, DtStatus=0x%08X", Req->m_Result);
+            DtEventSet(&Req->m_EvtRequestDone);
+            break;
+        }
+        if (Req->m_OffsetStart + Req->m_Size == pBufHdr->m_FifoSize)
+            pBufHdr->m_ReadPtr = 0;
+        else
+            pBufHdr->m_ReadPtr = Req->m_OffsetStart + Req->m_Size;
+        
+        // Wait for enough data to be available in the shared buffer
+        do {
+            // Create local copy to prevent inconsistent reads
+            UInt32  WritePtr = pBufHdr->m_WritePtr;
+            UInt32  LoadAvail = (WritePtr >= ReadPtr) ? (WritePtr - ReadPtr) : 
+                                               (pBufHdr->m_FifoSize - ReadPtr + WritePtr);
+            // Wait until either we can transfer the max size or we can transfer
+            // everything until the end of the buffer
+            if (LoadAvail>=pBufHdr->m_SingleTransferSize ||
+                                                   LoadAvail>=pBufHdr->m_FifoSize-ReadPtr)
+                break;
+        } while (DtEventWait(&pPort->m_StateChanged, 5)==DT_STATUS_TIMEOUT);
+        if (DT_SUCCESS(DtEventWait(&pPort->m_StateChanged, 0)))
+        {
+            DtEventSet(&Req->m_EvtRequestDone);
+            break;
+        }
+        Req->m_OffsetStart = ReadPtr;
+        Req->m_Size = pBufHdr->m_SingleTransferSize;
+        if (Req->m_OffsetStart + Req->m_Size > pBufHdr->m_FifoSize)
+            Req->m_Size = pBufHdr->m_FifoSize - Req->m_OffsetStart;
+        ReadPtr += Req->m_Size;
+        if (ReadPtr == pBufHdr->m_FifoSize)
+            ReadPtr = 0;
+
+        NtStatus = WdfRequestReuse(Req->m_WdfRequest, &ReusePars);
+        if (!NT_SUCCESS(NtStatus))
+        {
+            DtDbgOut(ERR, DTU, "WdfRequestReuse failed");
+            FatalError = TRUE;
+            break;
+        }
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Length = (USHORT)UrbSize;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Function = URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferFlags = USBD_TRANSFER_DIRECTION_OUT;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBuffer = pBuf+Req->m_OffsetStart;
+        Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBufferLength = Req->m_Size;
+
+        NtStatus = WdfUsbTargetPipeFormatRequestForUrb(Pipe, Req->m_WdfRequest,
+                                                                Req->m_UrbMemory, NULL);
+        if (!NT_SUCCESS(NtStatus))
+        {
+            DtDbgOut(ERR, DTU, "WdfUsbTargetPipeFormatRequestForUrb failed");
+            FatalError = TRUE;
+            break;
+        }
+        WdfRequestSetCompletionRoutine(Req->m_WdfRequest, Dtu315EvtComplete, Req);
+        if (WdfRequestSend(Req->m_WdfRequest, IoTarget, &SendOptions) == FALSE)
+        {
+            DtDbgOut(ERR, DTU, "WdfRequestSend failed");
+            FatalError = TRUE;
+            break;
+        }
+        NextReq++;
+        if (NextReq == (Int)pBufHdr->m_MaxSimTransfers)
+            NextReq = 0;
+        if (!Started)
+        {
+            Dtu3RegWrite(pDvcData, DTU315_FIFO_BLOCK_OFFSET, 
+                        &FwbFifoMemoryLessUsbDvc.Control_TxCtrl, DTFWB_MLFIFOTXCTRL_SEND);
+            Started = TRUE;
+        }
+    }
+    // All m_EvtRequestDone events should still be in the signalled state here
+
+    DtDbgOut(AVG, DTU, "Cleaning up DTU-315 driver thread");
+
+    //TODO: replace 0x80 by offset of FifoMemoryLessUsbDvc block, should come from XML
+    Dtu3RegWrite(pDvcData, DTU315_FIFO_BLOCK_OFFSET, 
+                        &FwbFifoMemoryLessUsbDvc.Control_TxCtrl, DTFWB_MLFIFOTXCTRL_IDLE);
+    // Set led control to fade (1)
+    Dtu3RegWrite(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.LedCtrl, 1);
+
+    // Try to make sure all callbacks are finished
+    for (i=0; i<NumAsyncRequests && !FatalError; i++)
+    {
+        AsyncRequestDtu315  *Req = &Requests[i];
+        if (!Req->m_IsValid)
+            continue;
+        // Wait until request is completed.
+        DtEventWait(&Req->m_EvtRequestDone, -1);
+        WdfObjectDelete(Req->m_WdfRequest);
+        WdfObjectDelete(Req->m_UrbMemory);
+    }
+
+    DtMemFreePool(Requests, DTU_TAG);
+    
+    DtDbgOut(AVG, DTU, "Exit");
+#endif
 }
 
 
@@ -914,6 +1256,7 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
         pPropData->m_TypeNumber = pDvcData->m_DevInfo.m_TypeNumber;
         pPropData->m_SubDvc = 0; // no USB devs with sub-devices yet
         pPropData->m_FirmwareVersion = 0;
+        pPropData->m_FirmwareVariant = 0;
         pPropData->m_HardwareRevision = 0;
 
         // (Re-)initialise the property store
@@ -953,10 +1296,27 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
      }
 
     // Check watchdog flag
-    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    if (pDvcData->m_DevInfo.m_TypeNumber == 351)
     {
         UInt16  Watchdog;
-        Status = Dtu3RegRead(pDvcData, DTU_USB3_DEV_FX3, 0x02, &Watchdog);
+        Status = Dtu35xRegRead(pDvcData, DTU_USB3_DEV_FX3, 0x02, &Watchdog);
+        if (DT_SUCCESS(Status))
+        {
+            if (Watchdog == 1)
+            {
+                DtEvtLogReport(&pDvcData->m_Device.m_EvtObject, 
+                                      DTU_LOG_WATCHDOG_TRIGGERED_RESET, NULL, NULL, NULL);
+                DtDbgOut(ERR, DTU, "Reboot was triggered by watchdog timer");
+                // Reset watchdog register
+                Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_FX3, 0x02, 1);
+            }
+        } else
+            DtDbgOut(ERR, DTU, "Failed to read watchdog register");
+    }
+    else if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    {
+        UInt32  Watchdog;
+        Status = Dtu3RegRead(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.WatchDog, &Watchdog);
         if (DT_SUCCESS(Status))
         {
             if (Watchdog == 1)
@@ -965,7 +1325,7 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
                                     DTU_LOG_WATCHDOG_TRIGGERED_RESET, NULL, NULL, NULL);
                 DtDbgOut(ERR, DTU, "Reboot was triggered by watchdog timer");
                 // Reset watchdog register
-                Dtu3RegWrite(pDvcData, DTU_USB3_DEV_FX3, 0x02, 1);
+                Dtu3RegClear(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.WatchDog);
             }
         } else
             DtDbgOut(ERR, DTU, "Failed to read watchdog register");
@@ -974,9 +1334,9 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
     if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
     {
         Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD, 
-                                                    DTU_PNP_CMD_RESET, DTU_RESET_DVC_STATE,
-                                                    DT_USB_HOST_TO_DEVICE, NULL, 0, NULL,
-                                                    MAX_USB_REQ_TIMEOUT);
+                                                   DTU_PNP_CMD_RESET, DTU_RESET_DVC_STATE,
+                                                   DT_USB_HOST_TO_DEVICE, NULL, 0, NULL,
+                                                   MAX_USB_REQ_TIMEOUT);
         if (!DT_SUCCESS(Status))
             return Status;
     }
@@ -999,8 +1359,16 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
 
     if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
     {
-        UInt16  PnpCmdStat = 0;
-        Status = Dtu3RegRead(pDvcData, DTU_USB3_DEV_FX3, 0x08, &PnpCmdStat);
+        UInt32  PnpCmdStat = 0;
+        if (pDvcData->m_DevInfo.m_TypeNumber == 351)
+        {
+            UInt16  Value = 0;
+            Status = Dtu35xRegRead(pDvcData, DTU_USB3_DEV_FX3, 0x08, &Value);
+            PnpCmdStat = Value;
+        }
+        else
+            Status = Dtu3RegRead(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.PnpCmdStat,
+                                                                             &PnpCmdStat);
         if (!DT_SUCCESS(Status))
             return Status;
         if (PnpCmdStat != 0)
@@ -1020,7 +1388,11 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
         if ((PnpCmdStat&2) != 0)
             DtDbgOut(MIN, DTU, "Last reset caused by driver (vbus toggle)");
         // Reset the 2 reset bits
-        Dtu3RegWrite(pDvcData, DTU_USB3_DEV_FX3, 0x08, PnpCmdStat&3);
+        if (pDvcData->m_DevInfo.m_TypeNumber == 351)
+            Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_FX3, 0x08, PnpCmdStat&3);
+        else
+            Dtu3RegWrite(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.PnpCmdStat, 
+                                                                            PnpCmdStat&3);
         if (PnpCmdStat==0 && pDvcData->m_DevInfo.m_UsbSpeed!=2)
         {
             DtDbgOut(MIN, DTU, "USB3 device currently not in USB3 mode. re-enumerating");
@@ -1051,16 +1423,16 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
         UInt16  RegRateSel = 0;
 
         // Set RxMode register to IDLE
-        Status = Dtu3RegWrite(pDvcData, DTU_USB3_DEV_FPGA, 0x06, 0);
+        Status = Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_FPGA, 0x06, 0);
         if (!DT_SUCCESS(Status))
             return Status;
         
         // Turn on automatic rate detection in gennum
-        Status = Dtu3RegRead(pDvcData, DTU_USB3_DEV_GENNUM, 0x24, &RegRateSel);
+        Status = Dtu35xRegRead(pDvcData, DTU_USB3_DEV_GS1661, 0x24, &RegRateSel);
         if (!DT_SUCCESS(Status))
             return Status;
         RegRateSel |= 0x04;
-        Status = Dtu3RegWrite(pDvcData, DTU_USB3_DEV_GENNUM, 0x24, RegRateSel);
+        Status = Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_GS1661, 0x24, RegRateSel);
         if (!DT_SUCCESS(Status))
             return Status;
     }
@@ -1078,18 +1450,25 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
             return Status;
         pDvcData->m_DevInfo.m_UsbAddress = (Int)Value;
 
-        // Get Firmware version       
-        if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+        // Get Firmware version
+        if (pDvcData->m_DevInfo.m_TypeNumber>=300 &&
+                                                     pDvcData->m_DevInfo.m_TypeNumber<400)
         {
-            if (pDvcData->m_DevInfo.m_UsbSpeed == 2)
+            // For DTU-3 devices, the current firmware version is equivalent to the
+            // property FIRMWARE_LAST_VER. This removes the need for versioning in the
+            // FX3 or FPGA (the FPGA may not be loaded at this point, e.g. for DTU-315)
+            UInt  NotFoundCounter = pPropData->m_PropertyNotFoundCounter;
+            Int  FwVer = DtPropertiesGetInt(pPropData, "FIRMWARE_LAST_VER", -1);
+            if (NotFoundCounter == pPropData->m_PropertyNotFoundCounter)
             {
-                UInt16  FwVer = 0;
-                Status = Dtu3RegRead(pDvcData, DTU_USB3_DEV_FPGA, 2, &FwVer);
-                if (!DT_SUCCESS(Status))
-                    return Status;
                 pDvcData->m_DevInfo.m_FirmwareVersion = FwVer;
-            } else 
-                pDvcData->m_DevInfo.m_FirmwareVersion = 0;
+            } else {
+                // Couldn't find property FIRMWARE_LAST_VER. Set firmware version to -1.
+                DtDbgOut(ERR, DTU, "No property FIRMWARE_LAST_VER found for DTU-%d. "\
+                                   "Firmware version set to -1",
+                                                        pDvcData->m_DevInfo.m_TypeNumber);
+                pDvcData->m_DevInfo.m_FirmwareVersion = -1;
+            }
         } else {
             Status = DtuRegRead(pDvcData, DT_GEN_REG_GENCTRL, &Value);
             if (!DT_SUCCESS(Status))
@@ -1199,16 +1578,6 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
         Status = DtuPortsInit(pDvcData);
         if (!DT_SUCCESS(Status))
             return Status;
-
-        if (pDvcData->m_DevInfo.m_TypeNumber == 351)
-        {
-            DtEventInit(&pDvcData->m_pNonIpPorts[0].m_RxStateChanged, FALSE);
-            DtEventInit(&pDvcData->m_pNonIpPorts[0].m_RxStateChangeCmpl, TRUE);
-            Status = DtThreadInit(&pDvcData->m_pNonIpPorts[0].m_RxThread, 
-                                        Dtu351WorkerThread, &pDvcData->m_pNonIpPorts[0]);
-            if (!DT_SUCCESS(Status))
-                return Status;
-        }
     }
 
     // Initialise demodulator
@@ -1219,23 +1588,47 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
     Status = DtuIoConfigInit(pDvcData);
     if (!DT_SUCCESS(Status))
         return Status;
-
-    if (pDvcData->m_DevInfo.m_TypeNumber == 351)
+    // TODO remove typenumber check
+    if (pDvcData->m_DevInfo.m_TypeNumber == 315)
     {
-        if (pDvcData->m_pNonIpPorts != NULL)
+        // Set default firmware variant
+        Int FwVariant = 0;
+        DtuIoConfigValue  CfgValue;
+        DtuNonIpIoConfigGet(&pDvcData->m_pNonIpPorts[0], DT_IOCONFIG_PWRMODE, &CfgValue);
+        if (CfgValue.m_Value == DT_IOCONFIG_MODHQ)
+            FwVariant = 2;
+        pDvcData->m_PropData.m_FirmwareVariant = FwVariant;
+        pDvcData->m_DevInfo.m_FirmwareVariant = FwVariant;
+    }
+
+    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    {
+        Int  i;
+        Int  PortIndex;
+        for (i=0; i<pDvcData->m_NumNonIpPorts && DT_SUCCESS(Status); i++)
         {
-            pDvcData->m_pNonIpPorts[0].m_DetVidStd = DT_VIDSTD_UNKNOWN;
-            pDvcData->m_pNonIpPorts[0].m_RxState = DTU_RX_CHECK_LOCK;
-            pDvcData->m_pNonIpPorts[0].m_InitRxMode = 0;
-            pDvcData->m_pNonIpPorts[0].m_AllowRxModeChanges = FALSE;
-            DtEventReset(&pDvcData->m_pNonIpPorts[0].m_RxStateChanged);
-            DtEventReset(&pDvcData->m_pNonIpPorts[0].m_RxStateChangeCmpl);
-            if (pDvcData->m_DevInfo.m_UsbSpeed == 2)
-                Status = DtThreadStart(&pDvcData->m_pNonIpPorts[0].m_RxThread);
-            if (!DT_SUCCESS(Status))
-                return Status;
+            if (DT_SUCCESS(DtuGetPortIndexNonIp(pDvcData, i, &PortIndex)))
+            {
+                DtuNonIpPort*  pNonIpPort = &pDvcData->m_pNonIpPorts[i];
+                pNonIpPort->m_State = DTU3_STATE_IDLE;
+                DtEventReset(&pNonIpPort->m_StateChanged);
+                DtEventReset(&pNonIpPort->m_StateChangeCmpl);
+
+                if (pDvcData->m_DevInfo.m_TypeNumber == 351)
+                {
+                    pNonIpPort->m_State = DTU3_STATE_DET_VIDSTD;
+                    pNonIpPort->m_DetVidStd = DT_VIDSTD_UNKNOWN;
+                    pNonIpPort->m_InitRxMode = 0;
+                    pNonIpPort->m_AllowRxModeChanges = FALSE;
+                }
+
+                if (pDvcData->m_DevInfo.m_UsbSpeed == 2)
+                    Status = DtThreadStart(&pNonIpPort->m_DataThread);
+            }
         }
     }
+    if (!DT_SUCCESS(Status))
+        return Status;
 
     // First powerup is done
     pDvcData->m_InitialPowerup = FALSE;
@@ -1266,6 +1659,10 @@ void  Dtu3Shutdown(DtuDeviceData* pDvcData)
     DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
                           DTU_PNP_CMD_DVC_POWER, DTU_DVC_POWER_OFF, DT_USB_HOST_TO_DEVICE,
                           NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
+
+    if (pDvcData->m_DevInfo.m_TypeNumber == 315)
+        // DTU-315 specific: Disable LED
+        Dtu3RegWrite(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.LedCtrl, 0);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuDevicePowerDown -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1291,17 +1688,18 @@ DtStatus  DtuDevicePowerDown(DtuDeviceData* pDvcData, Int TargetState)
     // Set power down event
     DtuEventsSet(pDvcData, NULL, DTU_EVENT_TYPE_POWER, DTU_EVENT_VALUE1_POWER_DOWN, 0);
 
-    if (pDvcData->m_DevInfo.m_TypeNumber==351 && pDvcData->m_pNonIpPorts!=NULL &&
-                                          pDvcData->m_pNonIpPorts[0].m_RxThread.m_Started)
-    {
-        pDvcData->m_pNonIpPorts[0].m_NextRxState = DTU_RX_EXIT;
-        DtEventSet(&pDvcData->m_pNonIpPorts[0].m_RxStateChanged);
-        DtEventWait(&pDvcData->m_pNonIpPorts[0].m_RxStateChangeCmpl, 100);
-        DtThreadStop(&pDvcData->m_pNonIpPorts[0].m_RxThread);
-    }
-
     if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
     {
+        for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
+        {
+            if (!pDvcData->m_pNonIpPorts[i].m_DataThread.m_Started)
+                continue;
+            pDvcData->m_pNonIpPorts[i].m_NextState = DTU3_STATE_EXIT;
+            DtEventSet(&pDvcData->m_pNonIpPorts[i].m_StateChanged);
+            DtEventWaitUnInt(&pDvcData->m_pNonIpPorts[i].m_StateChangeCmpl, -1);
+            DtThreadStop(&pDvcData->m_pNonIpPorts[i].m_DataThread);
+        }
+
         if (TargetState == DT_STATE_D1)
         {
             // Go to sleep
@@ -1309,6 +1707,10 @@ DtStatus  DtuDevicePowerDown(DtuDeviceData* pDvcData, Int TargetState)
             DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
                           DTU_PNP_CMD_DVC_POWER, DTU_DVC_POWER_OFF, DT_USB_HOST_TO_DEVICE,
                           NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
+
+            if (pDvcData->m_DevInfo.m_TypeNumber == 315)
+                // DTU-315 specific: Disable LED
+                Dtu3RegWrite(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.LedCtrl, 0);
         }
         else if (TargetState == DT_STATE_D3)
         {
@@ -1370,7 +1772,7 @@ DtStatus  DtuDeviceClose(DtuDeviceData* pDvcData, DtFileObject* pFile)
     // Remove file handle from the filehandle info array
     DtFastMutexAcquire(&pDvcData->m_FileHandleInfoMutex);
     for (i=0; i<MAX_NUM_FILE_HANDLES; i++)
-{
+    {
         if (pDvcData->m_FileHandleInfo[i].m_pHandle == DtFileGetHandle(pFile))
         {
             pDvcData->m_FileHandleInfo[i].m_pHandle = NULL;
@@ -1378,6 +1780,20 @@ DtStatus  DtuDeviceClose(DtuDeviceData* pDvcData, DtFileObject* pFile)
         }
     }
     DtFastMutexRelease(&pDvcData->m_FileHandleInfoMutex);
+
+    // TODOTD: Replace TypeNumber==315 with property
+    // Switch off power when not in use
+    if (pDvcData->m_DevInfo.m_TypeNumber == 315)
+    {
+        DtFastMutexAcquire(&pDvcData->m_ExclAccessMutex);
+        if (!DtuDeviceIsInuse(pDvcData))
+        {
+            DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
+                          DTU_PNP_CMD_DVC_POWER, DTU_DVC_POWER_OFF, DT_USB_HOST_TO_DEVICE,
+                          NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
+        }
+        DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
+    }
 
     // Unregister events
     DtuEventsUnregister(pDvcData, pFile); 
@@ -1527,6 +1943,11 @@ DtStatus  DtuDeviceIoctl(
         InReqSize = sizeof(DtuIoctlGetTableInput);
         OutReqSize = sizeof(DtuIoctlGetTableOutput);
         break;
+    case DTU_IOCTL_GET_TABLE2:
+        pIoctlStr = "DTU_IOCTL_GET_TABLE2";
+        InReqSize = sizeof(DtuIoctlGetTable2Input);
+        OutReqSize = sizeof(DtuIoctlGetTableOutput);
+        break;
     case DTU_IOCTL_GET_STR_PROPERTY:
         pIoctlStr = "DTU_IOCTL_GET_STR_PROPERTY";
         InReqSize = sizeof(DtuIoctlGetStrPropertyInput);
@@ -1576,6 +1997,26 @@ DtStatus  DtuDeviceIoctl(
         pIoctlStr = "DTU_IOCTL_GET_DATA_BUF_SIZE";
         InReqSize = sizeof(DtuIoctlGetDataBufSizeInput);
         OutReqSize = sizeof(DtuIoctlGetDataBufSizeOutput);
+        break;
+    case DTU_IOCTL_SET_TX_CTRL:
+        pIoctlStr = "DTU_IOCTL_SET_TX_CTRL";
+        InReqSize = sizeof(DtuIoctlSetTxCtrlInput);
+        OutReqSize = 0;
+        break;
+    case DTU_IOCTL_UPLOAD_FPGA_FW_VARIANT:
+        pIoctlStr = "DTU_IOCTL_UPLOAD_FPGA_FW_VARIANT";
+        InReqSize = sizeof(DtuIoctlUploadFpgaFwVariantInput);
+        OutReqSize = 0;
+        break;
+    case DTU_IOCTL_POWER_CTRL:
+        pIoctlStr = "DTU_IOCTL_POWER_CTRL";
+        InReqSize = sizeof(DtuIoctlPowerCtrlInput);
+        OutReqSize = 0;
+        break;
+    case DTU_IOCTL_REG_WRITE_BULK:
+        pIoctlStr = "DTU_IOCTL_REG_WRITE_BULK";
+        InReqSize = sizeof(DtuIoctlRegWriteBulkInput);
+        OutReqSize = 0;
         break;
     default:
         Status = DT_STATUS_NOT_SUPPORTED;
@@ -1661,6 +2102,7 @@ DtStatus  DtuDeviceIoctl(
                                                  0, // no USB devs with sub-devices yet
                                                  pInBuf->m_GetProperty.m_HardwareRevision, 
                                                  pInBuf->m_GetProperty.m_FirmwareVersion,
+                                                 -1,
                                                  pInBuf->m_GetProperty.m_Name,
                                                  pInBuf->m_GetProperty.m_PortIndex,
                                                  &Value, &Type, &Scope,
@@ -1703,13 +2145,25 @@ DtStatus  DtuDeviceIoctl(
             Status = DtuI2cIoctl(pDvcData, pFile, pIoctl);
             break;
         case DTU_IOCTL_REG_READ:
-            Status = DtuRegRead(pDvcData, pInBuf->m_RegRead.m_RegAddr, 
+            if (pDvcData->m_DevInfo.m_TypeNumber == 315)
+                // Only supported for DTU-315 for now
+                Status = Dtu3RegReadRaw(pDvcData, pInBuf->m_RegRead.m_RegAddr, 
+                                                             &pOutBuf->m_RegRead.m_Value);
+            else
+                Status = DtuRegRead(pDvcData, pInBuf->m_RegRead.m_RegAddr, 
                                                              &pOutBuf->m_RegRead.m_Value);
             break;
         case DTU_IOCTL_REG_WRITE_MASKED:
-            Status = DtuRegWriteMasked(pDvcData, pInBuf->m_RegWriteMasked.m_RegAddr, 
-                                                     pInBuf->m_RegWriteMasked.m_FieldMask, 
-                                                    pInBuf->m_RegWriteMasked.m_FieldShift, 
+            if (pDvcData->m_DevInfo.m_TypeNumber >= 315)
+                // Only supported for DTU-315 for now
+                Status = Dtu3RegWriteMaskedRaw(pDvcData, pInBuf->m_RegWriteMasked.m_RegAddr,
+                                                     pInBuf->m_RegWriteMasked.m_FieldMask,
+                                                    pInBuf->m_RegWriteMasked.m_FieldShift,
+                                                   pInBuf->m_RegWriteMasked.m_FieldValue);
+            else
+                Status = DtuRegWriteMasked(pDvcData, pInBuf->m_RegWriteMasked.m_RegAddr,
+                                                     pInBuf->m_RegWriteMasked.m_FieldMask,
+                                                    pInBuf->m_RegWriteMasked.m_FieldShift,
                                                    pInBuf->m_RegWriteMasked.m_FieldValue);
             break;
         case DTU_IOCTL_GET_EVENT:
@@ -1883,6 +2337,63 @@ DtStatus  DtuDeviceIoctl(
                                   pOutBuf->m_GetTable.m_NumEntries * sizeof(DtTableEntry);
             }
             break;
+        case DTU_IOCTL_GET_TABLE2:
+            if (pInBuf->m_GetTable2.m_TypeNumber==-1 && 
+                                                pInBuf->m_GetTable2.m_FirmwareVariant==-1)
+            {
+                Status = DtTableGet(
+                            &pDvcData->m_PropData,
+                            pInBuf->m_GetTable2.m_Name,
+                            pInBuf->m_GetTable2.m_PortIndex,
+                            pInBuf->m_GetTable2.m_MaxNumEntries,
+                            &pOutBuf->m_GetTable.m_NumEntries,
+                            pOutBuf->m_GetTable.m_TableEntry,
+                            pIoctl->m_OutputBufferSize-OFFSETOF(DtuIoctlGetTableOutput, 
+                                                                           m_TableEntry));
+            }
+            else  if (pInBuf->m_GetTable2.m_TypeNumber==-1)
+            {
+                // Get table for a specific firmware variant
+                Status = DtTableGetForType(
+                            "DTU",
+                            pDvcData->m_PropData.m_TypeNumber,
+                            0,  // No USB devs with sub-devices yet
+                            pDvcData->m_PropData.m_HardwareRevision,
+                            pDvcData->m_PropData.m_FirmwareVersion,
+                            pInBuf->m_GetTable2.m_FirmwareVariant,
+                            pInBuf->m_GetTable2.m_Name,
+                            pInBuf->m_GetTable2.m_PortIndex,
+                            pInBuf->m_GetTable2.m_MaxNumEntries,
+                            &pOutBuf->m_GetTable.m_NumEntries,
+                            pOutBuf->m_GetTable.m_TableEntry,
+                            pIoctl->m_OutputBufferSize-OFFSETOF(DtuIoctlGetTableOutput, 
+                                                                           m_TableEntry));
+            }
+            else
+            {
+                // Get table for a specific device
+                Status = DtTableGetForType(
+                            "DTU",
+                            pInBuf->m_GetTable2.m_TypeNumber,
+                            0,  // No USB devs with sub-devices yet
+                            pInBuf->m_GetTable2.m_HardwareRevision,
+                            pInBuf->m_GetTable2.m_FirmwareVersion,
+                            pInBuf->m_GetTable2.m_FirmwareVariant,
+                            pInBuf->m_GetTable2.m_Name,
+                            pInBuf->m_GetTable2.m_PortIndex,
+                            pInBuf->m_GetTable2.m_MaxNumEntries,
+                            &pOutBuf->m_GetTable.m_NumEntries,
+                            pOutBuf->m_GetTable.m_TableEntry,
+                            pIoctl->m_OutputBufferSize-OFFSETOF(DtuIoctlGetTableOutput, 
+                                                                           m_TableEntry));
+            }
+            if (DT_SUCCESS(Status)) 
+            {
+                if (pInBuf->m_GetTable2.m_MaxNumEntries>=pOutBuf->m_GetTable.m_NumEntries)
+                    pIoctl->m_OutputBufferBytesWritten += 
+                                  pOutBuf->m_GetTable.m_NumEntries * sizeof(DtTableEntry);
+            }
+            break;
         case DTU_IOCTL_GET_STR_PROPERTY:
             // Get for specific type or for the attached devices
             if (pInBuf->m_GetProperty.m_TypeNumber == -1)
@@ -1902,6 +2413,7 @@ DtStatus  DtuDeviceIoctl(
                                               0, // no USB devs with sub-devices yet
                                               pInBuf->m_GetStrProperty.m_HardwareRevision, 
                                               pInBuf->m_GetStrProperty.m_FirmwareVersion,
+                                              -1,
                                               pInBuf->m_GetStrProperty.m_Name,
                                               pInBuf->m_GetStrProperty.m_PortIndex,
                                               pOutBuf->m_GetStrProperty.m_Str,
@@ -1951,6 +2463,7 @@ DtStatus  DtuDeviceIoctl(
                                                 0, // no USB devs with sub-devices yet
                                                 pInBuf->m_GetProperty2.m_HardwareRevision, 
                                                 pInBuf->m_GetProperty2.m_FirmwareVersion,
+                                                -1,
                                                 pInBuf->m_GetProperty2.m_Name,
                                                 pInBuf->m_GetProperty2.m_PortIndex,
                                                 &Value, &Type, &Scope,
@@ -2030,12 +2543,26 @@ DtStatus  DtuDeviceIoctl(
             }
             break;
         case DTU_IOCTL_TRIGGER_WATCHDOG:
-            Status = Dtu3RegWrite(pDvcData, DTU_USB3_DEV_FX3, 0x02, 2);
+            if (pDvcData->m_DevInfo.m_TypeNumber == 351)
+                Status = Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_FX3, 0x02, 2);
+            else if (pDvcData->m_DevInfo.m_TypeNumber>=300 
+                                                   &&pDvcData->m_DevInfo.m_TypeNumber<400)
+                Status = Dtu3RegWrite(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.WatchDog, 
+                                                                                       2);
+            else
+                Status = DT_STATUS_NOT_SUPPORTED;
             break;
         case DTU_IOCTL_SET_RX_MODE:
         {
             Int  NonIpPortIndex;        // Index in the nonip port struct
             DtuNonIpPort*  pPort;
+            
+            // This command is specific for the DTU-351 for now
+            if (pDvcData->m_DevInfo.m_TypeNumber != 351)
+            {
+                Status = DT_STATUS_NOT_SUPPORTED;
+                break;
+            }
 
             if (pDvcData->m_DevInfo.m_UsbSpeed != 2)
             {
@@ -2050,33 +2577,33 @@ DtStatus  DtuDeviceIoctl(
                 break;
             pPort = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
             if (pInBuf->m_RxMode.m_RxMode == 0)
-                pPort->m_NextRxState = DTU_RX_CHECK_LOCK;
+                pPort->m_NextState = DTU3_STATE_DET_VIDSTD;
             else {
                 pPort->m_InitRxMode = pInBuf->m_RxMode.m_RxMode;
-                pPort->m_NextRxState = DTU_RX_READ;
+                pPort->m_NextState = DTU3_STATE_READ351;
             }
 
-            if (pPort->m_NextRxState != pPort->m_RxState)
+            if (pPort->m_NextState != pPort->m_State)
             {
-                DtDbgOut(ERR, DTU, "New RX state");
-                DtEventSet(&pPort->m_RxStateChanged);
-                Status = DtEventWait(&pPort->m_RxStateChangeCmpl, 500);
+                DtDbgOut(AVG, DTU, "New RX state");
+                DtEventSet(&pPort->m_StateChanged);
+                Status = DtEventWait(&pPort->m_StateChangeCmpl, -1);
                 if (!DT_SUCCESS(Status))
-                    DtDbgOut(ERR, DTU, "DtEventWait(m_RxStateChangeCmpl) failed");
+                    DtDbgOut(ERR, DTU, "DtEventWait(m_StateChangeCmpl) failed");
             } else if (pPort->m_AllowRxModeChanges) {
-                DtDbgOut(ERR, DTU, "Live RX mode change");
+                DtDbgOut(AVG, DTU, "Live RX mode change");
                 // Only write the register if we're already reading data
                 // If the RX thread is still initializing setting the m_InitRxMode
                 // variable is enough and that's already done above.
-                Status = Dtu3RegWrite(pDvcData, DTU_USB3_DEV_FPGA, 0x06,
+                Status = Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_FPGA, 0x06,
                                                        (UInt16)pInBuf->m_RxMode.m_RxMode);
                 if (!DT_SUCCESS(Status))
-                    DtDbgOut(ERR, DTU, "Dtu3RegWrite setting rxmode failed");
+                    DtDbgOut(ERR, DTU, "Dtu35xRegWrite setting rxmode failed");
             }
             if (DT_SUCCESS(Status))
             {
                 UInt16  RegVal;
-                Status = Dtu3RegRead(pDvcData, DTU_USB3_DEV_FPGA, 0x0A, &RegVal);
+                Status = Dtu35xRegRead(pDvcData, DTU_USB3_DEV_FPGA, 0x0A, &RegVal);
                 if (DT_SUCCESS(Status))
                     pOutBuf->m_RxMode.m_FrameIdNewRxMode = RegVal;
             }
@@ -2142,6 +2669,164 @@ DtStatus  DtuDeviceIoctl(
             pPort = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
             Status = DtuGetuFrameSize(pPort, &pOutBuf->m_DataBufSize.m_BufSize);
         }
+            break;
+        case DTU_IOCTL_SET_TX_CTRL:
+        {
+            Int  NonIpPortIndex;        // Index in the nonip port struct
+            DtuNonIpPort*  pPort;
+            
+            // This command is specific for the DTU-315 for now
+            if (pDvcData->m_DevInfo.m_TypeNumber!=315 &&
+                                                    pDvcData->m_DevInfo.m_TypeNumber!=350)
+            {
+                Status = DT_STATUS_NOT_SUPPORTED;
+                break;
+            }
+
+            if (pDvcData->m_DevInfo.m_UsbSpeed != 2)
+            {
+                Status = DT_STATUS_FAIL;
+                break;
+            }
+
+            // Validate port index
+            Status = DtuGetNonIpPortIndex(pDvcData, pInBuf->m_SetTxCtrl.m_PortIndex,
+                                                                         &NonIpPortIndex);
+            if (!DT_SUCCESS(Status))
+                break;
+
+            pPort = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
+            Status = Dtu315SetTxCtrl(pPort, pInBuf->m_SetTxCtrl.m_TxCtrl);
+        }
+            break;
+        case DTU_IOCTL_UPLOAD_FPGA_FW_VARIANT:
+            {
+                Int  PldFwSize = 0;
+                const UInt8*  pPldFirmware = NULL;
+                Int  FirmwareVariant = pInBuf->m_UploadFpgaFwVariant.m_FirmwareVariant;
+                // Clear current loaded FW variant
+                pDvcData->m_DevInfo.m_FirmwareVariant = -1;
+                // Find firmware variant in the firmware store
+                pPldFirmware = DtuGetPldFirmware(pDvcData->m_DevInfo.m_ProductId, 
+                     FirmwareVariant, pDvcData->m_DevInfo.m_HardwareRevision, &PldFwSize);
+                if (pPldFirmware == NULL)
+                {
+                    DtDbgOut(ERR, DTU, "No PLD firmware variant #%s found for DTU-%d", 
+                                       FirmwareVariant, pDvcData->m_DevInfo.m_TypeNumber);
+                    Status = DT_STATUS_FAIL;
+                    break;
+                }
+                // Upload PLD firmware to device
+                if (pDvcData->m_DevInfo.m_TypeNumber>=300 
+                                                  && pDvcData->m_DevInfo.m_TypeNumber<400)
+                    Status = DtuFx3LoadPldFirmware(pDvcData, pPldFirmware, PldFwSize);
+                else
+                    Status = DtuLoadPldFirmware(pDvcData, pPldFirmware, PldFwSize);
+                if (!DT_SUCCESS(Status))
+                {
+                    DtDbgOut(ERR, DTU, "Failed to upload PLD firmware (Status=0x%08X)", 
+                                                                                  Status);
+                    Status = DT_STATUS_FAIL;
+                    break;
+                }
+                // Remember current loaded FW variant
+                pDvcData->m_PropData.m_FirmwareVariant = FirmwareVariant;
+                pDvcData->m_DevInfo.m_FirmwareVariant = FirmwareVariant;
+            }
+            break;
+        case DTU_IOCTL_POWER_CTRL:
+            {
+                UInt16  SubValue = 0;      // Computed below
+
+                // Compute power control value
+                Status = DT_STATUS_OK;
+                switch (pInBuf->m_PowerCtrl.m_Segment)
+                {
+                case DTU_POWER_CTRL_SEGMENT_ALL:
+                    SubValue = (pInBuf->m_PowerCtrl.m_State) ? DTU_DVC_POWER_ON 
+                                                             : DTU_DVC_POWER_OFF;
+                    break;
+
+                case DTU_POWER_CTRL_SEGMENT_FPGA:
+                    SubValue = (pInBuf->m_PowerCtrl.m_State) ? DTU_DVC_FPGA_POWER_ON 
+                                                             : DTU_DVC_FPGA_POWER_OFF;
+                    break;
+
+                case DTU_POWER_CTRL_SEGMENT_FRONTEND:
+                    SubValue = (pInBuf->m_PowerCtrl.m_State) ? DTU_DVC_FRONTEND_POWER_ON 
+                                                             : DTU_DVC_FRONTEND_POWER_OFF;
+                    break;
+
+                default:
+                    Status = DT_STATUS_INVALID_PARAMETER;
+                    break;
+                }
+
+                if (DT_SUCCESS(Status))
+                    Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, 
+                               DTU_USB3_PNP_CMD, DTU_PNP_CMD_DVC_POWER, SubValue, 
+                               DT_USB_HOST_TO_DEVICE, NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);  
+            }
+            break;
+        case DTU_IOCTL_REG_WRITE_BULK:
+            {
+                UInt8*  pBuffer = NULL;
+                Int  Size = 0;
+#if defined(WINBUILD)
+                PMDL  pMdl;
+                NTSTATUS  NtStatus;
+                // Retrieve MDL and buffer from request object
+                NtStatus = WdfRequestRetrieveOutputWdmMdl(pIoctl->m_WdfRequest, &pMdl);
+                if (NtStatus != STATUS_SUCCESS)
+                {
+                    DtDbgOut(ERR, DTU, "WdfRequestRetrieveOutputWdmMdl error: %08x", 
+                                                                                NtStatus);
+                    Status = DT_STATUS_OUT_OF_RESOURCES;
+                }
+                if (DT_SUCCESS(Status))
+                {
+                    pBuffer = MmGetSystemAddressForMdlSafe(pMdl, NormalPagePriority);
+                    if (pBuffer == NULL)
+                        Status = DT_STATUS_OUT_OF_MEMORY;
+                    else
+                        Size = MmGetMdlByteCount(pMdl);
+                }
+#else // LINBUILD
+                Size = pInBuf->m_WriteData.m_NumBytesToWrite;
+#if defined(LIN32)
+                pBuffer = (char*)(UInt32)pInBuf->m_WriteData.m_BufferAddr;
+#else
+                pBuffer = (char*)(UInt64)pInBuf->m_WriteData.m_BufferAddr;
+#endif
+#endif
+                if (DT_SUCCESS(Status))
+                    // Clear endpoint buffers
+                    Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, 
+                               DTU_USB3_PNP_CMD, DTU_PNP_CMD_RESET, DTU_RESET_DMA_OUT, 
+                               DT_USB_HOST_TO_DEVICE, NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
+                if (DT_SUCCESS(Status))
+                {
+                    // Transmit bulk write vendor request
+                    Int  MaxChunkSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
+                                                          pDvcData->m_DevInfo.m_UsbSpeed);
+                    Int  SizeRemain = Size;
+                    
+                    while (SizeRemain > 0)
+                    {
+                        Int  Len = (SizeRemain<MaxChunkSize) ? SizeRemain : MaxChunkSize;
+                        Int  Dummy;
+
+                        Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, 
+                                         DTU_USB3_WRITE_BULK, 0, 0, DT_USB_HOST_TO_DEVICE, 
+                                         pBuffer, Len, &Dummy, MAX_USB_REQ_TIMEOUT);
+                        if (!DT_SUCCESS(Status))
+                            break;
+
+                        pBuffer += Len;
+                        SizeRemain -= Len;
+                    }
+                }
+            }
             break;
         default:
             Status = DT_STATUS_NOT_SUPPORTED;
@@ -2377,4 +3062,22 @@ DtStatus  DtuPortsInit(DtuDeviceData* pDvcData)
     return Status;
 }
 
-
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuDeviceIsInuse -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Checks whether the device is in use; one of the ports has exclusive access set 
+// PRE: m_ExclAccessMutex is acquired
+//
+Bool  DtuDeviceIsInuse(DtuDeviceData* pDvcData)
+{
+    Int i;
+    Bool  Inuse = FALSE;
+    for (i = 0; i<pDvcData->m_NumNonIpPorts; i++) 
+    {
+        if (pDvcData->m_pNonIpPorts[i].m_ExclAccess)
+        {
+            Inuse = TRUE;
+            break;
+        }
+    }
+    return Inuse;
+}

@@ -33,9 +33,13 @@
 #define DTU_PORT_FLAG_SDI_NO_LOCK    0x020000
 #define DTU_PORT_FLAG_SDI_INVALID    0x040000
 
-#define DTU_RX_CHECK_LOCK            0        // Check lock/VidStd every 0.5s
-#define DTU_RX_READ                  1        // Busy with reading data
-#define DTU_RX_EXIT                  2        // Rx thread should shutdown
+// State for the data-copy thread for USB3 devices. Not all states are valid
+// for all devices.
+#define DTU3_STATE_IDLE              0        // Do nothing
+#define DTU3_STATE_EXIT              1        // Temporary state to signal thread to exit
+#define DTU3_STATE_DET_VIDSTD        2        // Mostly idle, check for signal every 0.5s
+#define DTU3_STATE_READ351           3        // Read-loop specific for DTU-351
+#define DTU3_STATE_WRITE315          4        // Write-loop specific for DTU-315
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuNonIpPort -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -125,6 +129,9 @@ typedef struct _DtuNonIpPort
     Bool  m_CapGenRef;
     Bool  m_CapSwS2Apsk;
     Bool  m_CapIsoBw;
+    // PWRMODE (Power mode) - Capabilities
+    Bool  m_CapModHq;
+    Bool  m_CapLowPwr;
 
     // Properties
     Bool  m_IsBidir;
@@ -147,21 +154,24 @@ typedef struct _DtuNonIpPort
     
     // Shared buffer with DTAPI
     DtuShBuffer  m_SharedBuffer;
+
+    // DTU-3xx variables
+    volatile Int  m_State;          // Current state of m_DataThread. Should only be changed
+                                    // inside the thread itself.
+    volatile Int  m_NextState;      // The next state of the Rx thread.
+    DtEvent  m_StateChanged;        // Fire after changing m_NextState to signify the
+                                    // change to the worker thread.
+    DtEvent  m_StateChangeCmpl;     // Thread state change completed
+    DtThread  m_DataThread;
     
+    // DTU-351 variables
     Int  m_InitRxMode;              // Initial RX mode
     Bool  m_AllowRxModeChanges;
-    volatile Int  m_RxState;        // Current state of RxThread. Should only be changed
-                                    // inside the thread itself.
-    volatile Int  m_NextRxState;    // The next state of the Rx thread.
-    DtEvent  m_RxStateChanged;      // Fire after changing m_NextRxState to signify the
-                                    // change to the worker thread.
-    DtEvent  m_RxStateChangeCmpl;   // Rx thread state change completed
-    DtThread  m_RxThread;
-
     Int  m_DetVidStd;
-
-    Int  m_StateFlags;
     
+    // Port-level flags on USB3 devices
+    Int  m_StateFlags;
+
     //DtSpinLock  m_FlagsSpinLock;
 
 } DtuNonIpPort;
@@ -197,6 +207,9 @@ DtStatus  DtuNonIpTxReset( DtuDeviceData*  pDvcData, DtuNonIpPort*  pNonIpPort,
                                                                            Int ResetMode);
 DtStatus  DtuGetuFrameSize(DtuNonIpPort*  pNonIpPort, Int*  pUFrameSize);
 DtStatus  DtuDemodModeSet(DtuDeviceData*  pDvcData, Bool DemodMode);
+
+void  Dtu3WorkerThread(DtThread* pThread, void* pContext);
+DtStatus  Dtu315SetTxCtrl(DtuNonIpPort*  pNonIpPort, Int  TxCtrl);
 
 
 //DtStatus  DtuNonIpPowerdownPre(DtuNonIpPort* pNonIpPort);

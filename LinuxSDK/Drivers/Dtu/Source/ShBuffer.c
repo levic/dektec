@@ -169,11 +169,18 @@ DtStatus  DtuShBufferIoctl(
             break;
         case DTU_SH_BUF_CMD_CLOSE:
             if (pDvcData->m_pNonIpPorts!=NULL && 
-                                        pDvcData->m_pNonIpPorts[0].m_RxState==DTU_RX_READ)
+                                   pDvcData->m_pNonIpPorts[0].m_State==DTU3_STATE_READ351)
             {
-                pDvcData->m_pNonIpPorts[0].m_NextRxState = DTU_RX_CHECK_LOCK;
-                DtEventSet(&pDvcData->m_pNonIpPorts[0].m_RxStateChanged);
-                DtEventWait(&pDvcData->m_pNonIpPorts[0].m_RxStateChangeCmpl, -1);
+                pDvcData->m_pNonIpPorts[0].m_NextState = DTU3_STATE_DET_VIDSTD;
+                DtEventSet(&pDvcData->m_pNonIpPorts[0].m_StateChanged);
+                DtEventWait(&pDvcData->m_pNonIpPorts[0].m_StateChangeCmpl, -1);
+            }
+            else  if (pDvcData->m_pNonIpPorts!=NULL && 
+                                  pDvcData->m_pNonIpPorts[0].m_State==DTU3_STATE_WRITE315)
+            {
+                pDvcData->m_pNonIpPorts[0].m_NextState = DTU3_STATE_IDLE;
+                DtEventSet(&pDvcData->m_pNonIpPorts[0].m_StateChanged);
+                DtEventWait(&pDvcData->m_pNonIpPorts[0].m_StateChangeCmpl, -1);
             }
             Status = DtuShBufferClose(pShBuffer);
             break;

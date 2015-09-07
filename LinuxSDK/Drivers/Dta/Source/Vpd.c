@@ -75,10 +75,10 @@ typedef struct
 #define  VPD_INTSTART_TAG           0x76
 
 // VPD section layout
-#define  VPD_SIZE                   512
-#define  VPD_END                    (VPD_SIZE - 1)
-#define  VPD_RW_START               0x100
-#define  VPD_RW_LENGTH              (VPD_END - VPD_RW_START)
+//#define  VPD_SIZE                   512
+//#define  VPD_END                    (VPD_SIZE - 1)
+//#define  VPD_RW_START               0x100
+//#define  VPD_RW_LENGTH              (VPD_END - VPD_RW_START)
 
 // Start and end of DekTec VPD sections for PLX devices
 #define  VPD_PLX_ID_START           0x58  // Read-only section directly follows VPD-ID
@@ -155,7 +155,9 @@ DtStatus  DtaVpdInit(DtaDeviceData* pDvcData)
     pVpd->m_EepromVpdSize = DtPropertiesGetUInt(pPropData, "VPD_SIZE", -1);
     pVpd->m_EepromPageSize = DtPropertiesGetUInt(pPropData, "EEPROM_PAGE_SIZE", -1);
     pVpd->m_EepromSize = DtPropertiesGetUInt(pPropData, "EEPROM_SIZE", -1);
-    pVpd->m_VpdEnd = VPD_END;
+    pVpd->m_RwOffset = DtPropertiesGetUInt(pPropData, "VPD_RO_SIZE", -1);
+    pVpd->m_RwLength = DtPropertiesGetUInt(pPropData, "VPD_RW_SIZE", -1);
+    pVpd->m_VpdEnd = pVpd->m_RwOffset + pVpd->m_RwLength;
 
     // Check if no property error occurred
     Status = DtaPropertiesReportDriverErrors(pDvcData);
@@ -251,13 +253,13 @@ DtStatus  DtaVpdReadItemRo(
         DtDbgOut(ERR, VPD, "Invalid length: 0");
 
     // Compute a number of helper variables
-    pVpdRoEnd = &pVpdData->m_pCache[VPD_RW_START];
+    pVpdRoEnd = &pVpdData->m_pCache[pVpdData->m_RwOffset];
 
     // Initialisation
     pTo = pVpdItem;             // For later copying to VPD item
     DtMemZero(pVpdItem, *pLength);
 
-    Status = DtVpdFindStartOfRoSection(pVpdData, &pVpd, VPD_RW_START);
+    Status = DtVpdFindStartOfRoSection(pVpdData, &pVpd, pVpdData->m_RwOffset);
     if (!DT_SUCCESS(Status))
         return Status;
     
@@ -309,8 +311,6 @@ DtStatus  DtaVpdReadItemRw(
     char*  pTo;                 // Helper character pointer
     UInt8*  pVpd;               // Byte pointer in VPD data
     UInt8*  pResource;          // Resource to be read
-    Int  VpdRwStart = VPD_RW_START;
-    Int  VpdRwLength = VPD_RW_LENGTH;
     DtVpd*  pVpdData = &pDvcData->m_Vpd;
 
     // Add parameter checks here
@@ -322,7 +322,7 @@ DtStatus  DtaVpdReadItemRw(
     DtMemZero(pVpdItem, *pLength);
 
     // Check whether we can find resource in RW section
-    pVpd = &pVpdData->m_pCache[VpdRwStart];
+    pVpd = &pVpdData->m_pCache[pVpdData->m_RwOffset];
 
     if (pVpd[0] != VPD_W_TAG)
     {
@@ -331,7 +331,7 @@ DtStatus  DtaVpdReadItemRw(
         return DT_STATUS_FAIL;
     }
 
-    if (DtVpdFindResource(KeywordLen, pKeyword, pVpd, VpdRwLength, &pResource))
+    if (DtVpdFindResource(KeywordLen, pKeyword, pVpd, pVpdData->m_RwLength, &pResource))
     {
         pFrom = pResource + 3;
         Length = pResource[2];
@@ -1093,14 +1093,12 @@ static void  DtaVpdInitIdOffset(DtaDeviceData* pDvcData)
     // Default offsets
     pVpd->m_IdOffset = 0;
     pVpd->m_RoOffset = 0;
-    pVpd->m_RwOffset = VPD_RW_START;
-    pVpd->m_IntRoOffset = VPD_END + 8;
-    pVpd->m_IntRwOffset = VPD_END + 8;
+    pVpd->m_IntRoOffset = pVpd->m_VpdEnd + 8;
+    pVpd->m_IntRwOffset = pVpd->m_VpdEnd + 8;
 
     // Default lengths
     pVpd->m_IdLength = 0;
     pVpd->m_RoLength = 0;
-    pVpd->m_RwLength = VPD_RW_LENGTH;
     pVpd->m_IntRoLength = 0;
     pVpd->m_IntRwLength = 0;
 
@@ -1119,7 +1117,7 @@ static void  DtaVpdInitIdOffset(DtaDeviceData* pDvcData)
     if (*p == VPD_IDSTRING_TAG)
     {
         Int  IdLength = 3 + p[1] + (p[2]<<8);
-        if (pVpd->m_IdOffset + IdLength < VPD_END)
+        if (pVpd->m_IdOffset + IdLength < pVpd->m_VpdEnd)
         {
             pVpd->m_IdLength = IdLength;
             pVpd->m_RoOffset = pVpd->m_IdOffset + pVpd->m_IdLength;
@@ -1129,7 +1127,7 @@ static void  DtaVpdInitIdOffset(DtaDeviceData* pDvcData)
         }
     }
 
-    i = VPD_END+1;
+    i = pVpd->m_VpdEnd+1;
     p = pVpd->m_pCache;
     if (i+8<pVpd->m_EepromVpdSize && *(p+i)==VPD_INTSTART_TAG 
                                                             && !strncmp(p+i+1,"DekTec",6))
@@ -1423,20 +1421,21 @@ static DtStatus  DtaVpdFindEndOfRoSection(
     DtaDeviceData*  pDvcData,   // Device extension
     UInt8**  pItem)
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt8*  pEndOfRo;
     DtStatus  Status = DT_STATUS_OK;
     
     *pItem = NULL;
     
-    Status = DtVpdFindStartOfRoSection(&pDvcData->m_Vpd, &pEndOfRo, VPD_RW_START);
+    Status = DtVpdFindStartOfRoSection(&pDvcData->m_Vpd, &pEndOfRo, pVpdData->m_RwOffset);
     if (Status != DT_STATUS_OK)
         return Status;
 
-    while ((pEndOfRo < pDvcData->m_Vpd.m_pCache+VPD_RW_START-3)
+    while ((pEndOfRo < pVpdData->m_pCache+pVpdData->m_RwOffset-3)
            && pEndOfRo[0]!='\0' && !(pEndOfRo[0]=='R' && pEndOfRo[1]=='V'))
         pEndOfRo = pEndOfRo + 3 + pEndOfRo[2];
 
-    if (pEndOfRo > pDvcData->m_Vpd.m_pCache+VPD_RW_START-4)
+    if (pEndOfRo > pVpdData->m_pCache+pVpdData->m_RwOffset-4)
         return DT_STATUS_FAIL;
     
     *pItem = pEndOfRo;
@@ -1449,6 +1448,7 @@ static DtStatus  DtaVpdFindEndOfRoSection(
 //
 static DtStatus  DtaVpdCreateRV(DtaDeviceData*  pDvcData)
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt  CheckSum = 0;
     UInt8*  pVpd;               // Byte pointer in VPD data
     UInt8*  pRv;
@@ -1461,11 +1461,11 @@ static DtStatus  DtaVpdCreateRV(DtaDeviceData*  pDvcData)
     // Create "RV" item
     pRv[0] = 'R';
     pRv[1] = 'V';
-    pRv[2] = (UInt8)DtPtrToUInt((void*)(&pDvcData->m_Vpd.m_pCache[VPD_RW_START] -
+    pRv[2] = (UInt8)DtPtrToUInt((void*)(&pVpdData->m_pCache[pVpdData->m_RwOffset] -
                                                                                 &pRv[3]));
 
     // Compute checksum
-    for (pVpd=pDvcData->m_Vpd.m_pCache+pDvcData->m_Vpd.m_IdOffset; pVpd<=pRv+2; pVpd++)
+    for (pVpd=pVpdData->m_pCache+pVpdData->m_IdOffset; pVpd<=pRv+2; pVpd++)
         CheckSum += *pVpd;
     pRv[3] = (~CheckSum + 1) & 0xFF;
 
@@ -1483,16 +1483,17 @@ static DtStatus  DtaVpdDeleteItemRo(
     UInt KeywordLen,            // Length of Keyword
     const char*  pKeyword)      // Name of VPD item to be deleted
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt  RoLength;
     UInt8*  pVpd;               // Byte pointer in VPD data
     UInt8*  pVpdRoEnd;          // Pointer one after RO section
     DtStatus  Status;
     
     // Compute a number of helper variables
-    pVpdRoEnd = &pDvcData->m_Vpd.m_pCache[VPD_RW_START];
+    pVpdRoEnd = &pDvcData->m_Vpd.m_pCache[pVpdData->m_RwOffset];
 
     // Start at beginning of VPD-ID + read-only section
-    Status = DtVpdFindStartOfRoSection(&pDvcData->m_Vpd, &pVpd, VPD_RW_START);
+    Status = DtVpdFindStartOfRoSection(pVpdData, &pVpd, pVpdData->m_RwOffset);
     if (!DT_SUCCESS(Status))
         return Status;
     
@@ -1513,11 +1514,12 @@ static DtStatus  DtaVpdDeleteItemRw(
     UInt KeywordLen,            // Length of Keyword
     const char*  pKeyword)      // Name of VPD item to be deleted
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt8*  pVpd;               // Byte pointer in VPD data
 
     // Check whether we can find resource in RW section
-    pVpd = &pDvcData->m_Vpd.m_pCache[VPD_RW_START];
-    return DtVpdDeleteResource(KeywordLen, pKeyword, pVpd, VPD_RW_LENGTH);
+    pVpd = &pVpdData->m_pCache[pVpdData->m_RwOffset];
+    return DtVpdDeleteResource(KeywordLen, pKeyword, pVpd, pVpdData->m_RwLength);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVpdWriteId -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1532,12 +1534,13 @@ static DtStatus  DtaVpdWriteId(
     char*  pVpdId,              // String buffer with VPD Id
     UInt  IdLength)
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt  Length, SizeAvail;
     UInt8*  pVpd;               // Byte pointer in VPD data
     UInt8*  pEndOfRo;
     
     // Initialisation
-    SizeAvail = VPD_RW_START - pDvcData->m_Vpd.m_IdOffset - 3;
+    SizeAvail = pVpdData->m_RwOffset - pDvcData->m_Vpd.m_IdOffset - 3;
     Length = 0;
 
     // Start at beginning of VPD-ID + read-only section
@@ -1555,8 +1558,8 @@ static DtStatus  DtaVpdWriteId(
             Int Size;
             UInt8* pSize;
             if (DT_SUCCESS(DtaVpdFindEndOfRoSection(pDvcData, &pEndOfRo)))
-                SizeAvail = VPD_RW_START - DtPtrToUInt(
-                                         (void*)(pEndOfRo - pDvcData->m_Vpd.m_pCache)) - 4;
+                SizeAvail = pVpdData->m_RwOffset - DtPtrToUInt(
+                                              (void*)(pEndOfRo - pVpdData->m_pCache)) - 4;
             else
                 SizeAvail = 0;
             
@@ -1567,7 +1570,7 @@ static DtStatus  DtaVpdWriteId(
 
             // Move existing RO section
             DtMemMove(pVpd + 3 + IdLength, pVpd + 3 + Length, 
-                      VPD_RW_START - pDvcData->m_Vpd.m_IdOffset - SizeAvail - 3 - Length);
+                    pVpdData->m_RwOffset - pVpdData->m_IdOffset - SizeAvail - 3 - Length);
 
             // Update size of RO section.
             pSize = pVpd + 3 + IdLength;
@@ -1580,8 +1583,8 @@ static DtStatus  DtaVpdWriteId(
             if (Length > IdLength)
                 DtMemZero(pEndOfRo + 4 - (Length - IdLength), Length - IdLength);
         } else
-            SizeAvail = VPD_RW_START -
-                              DtPtrToUInt((void*)(pEndOfRo-pDvcData->m_Vpd.m_pCache)) - 3;
+            SizeAvail = pVpdData->m_RwOffset -
+                                    DtPtrToUInt((void*)(pEndOfRo-pVpdData->m_pCache)) - 3;
     }
 
     // Write VPDID
@@ -1615,6 +1618,7 @@ static DtStatus  DtaVpdWriteItemRo(
     char*  pVpdItem,            // String buffer with VPD Item
     UInt  ItemLength)           // Length of pVpdItem
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt  SizeAvail;
     UInt8*  pEndOfRo;
     DtStatus  Status;
@@ -1626,8 +1630,8 @@ static DtStatus  DtaVpdWriteItemRo(
     Status = DtaVpdFindEndOfRoSection(pDvcData, &pEndOfRo);
     if (!DT_SUCCESS(Status))
         return Status;
-
-    SizeAvail = VPD_RW_START - DtPtrToUInt((void*)(pEndOfRo-pDvcData->m_Vpd.m_pCache));
+    
+    SizeAvail = pVpdData->m_RwOffset - DtPtrToUInt((void*)(pEndOfRo-pVpdData->m_pCache));
     if (pKeyword[0]!='R' || pKeyword[1]!='V')
         SizeAvail -= 4;
             
@@ -1660,28 +1664,32 @@ static DtStatus  DtaVpdWriteItemRw(
     char*  pVpdItem,            // String buffer with VPD Item
     UInt  ItemLength)           // Length of pVpdItem
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     UInt  BytesUsed, SizeAvail;
     UInt8*  pVpdRw;             // Byte pointer in VPD data
-    pVpdRw = &pDvcData->m_Vpd.m_pCache[VPD_RW_START];
+    UInt  SectDataSize = pVpdData->m_RwLength - 3; // tag, 2 byte size
+    pVpdRw = &pVpdData->m_pCache[pVpdData->m_RwOffset];
 
     DT_ASSERT(KeywordLen==2);
 
     // Check structure in serial EEPROM
-    if (pVpdRw[0]!=VPD_W_TAG || pVpdRw[1]!=0xFC || pVpdRw[2]!=0x00 || 
-                                                                pVpdRw[0xFF]!=VPD_END_TAG)
+    if (pVpdRw[0]!=VPD_W_TAG || pVpdRw[1]!=(SectDataSize&0xFF) ||
+                                                pVpdRw[2]!=(SectDataSize>>8)|| 
+                                                pVpdRw[pVpdData->m_RwLength]!=VPD_END_TAG)
     {
         // Basic VPD Read/Write Resources data structure not present. Create it.
-        DtMemZero(pVpdRw, VPD_RW_LENGTH);
+        DtMemZero(pVpdRw, pVpdData->m_RwLength);
         pVpdRw[0] = VPD_W_TAG;
-        pVpdRw[1] = 0xFC;
-        pVpdRw[0xFF] = VPD_END_TAG;
+        pVpdRw[1] = SectDataSize&0xFF;
+        pVpdRw[2] = SectDataSize>>8;
+        pVpdRw[pVpdData->m_RwLength] = VPD_END_TAG;
     }
     
     DtaVpdDeleteItemRw(pDvcData, KeywordLen, pKeyword);
 
     // Calculate available bytes
-    BytesUsed = DtVpdGetSectionLength(pVpdRw, VPD_RW_LENGTH);
-    SizeAvail = VPD_RW_LENGTH - BytesUsed;
+    BytesUsed = DtVpdGetSectionLength(pVpdRw, pVpdData->m_RwLength);
+    SizeAvail = pVpdData->m_RwLength - BytesUsed;
                 
     if (SizeAvail < ItemLength+3)
     {
@@ -1847,8 +1855,9 @@ static DtStatus  DtaVpdDeleteItem(
     UInt KeywordLen,            // Length of Keyword
     const char*  pKeyword)      // Name of VPD item to be deleted
 {
+    DtVpd*  pVpdData = &pDvcData->m_Vpd;
     DtStatus  Status = DT_STATUS_OK;
-    UInt  StartAddr = VPD_RW_START;
+    UInt  StartAddr = pVpdData->m_RwOffset;
     UInt  Length = 0;
 
     if ((SectionType&DTA_VPD_SECT_RO) != 0)

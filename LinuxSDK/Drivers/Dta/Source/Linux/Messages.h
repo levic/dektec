@@ -24,7 +24,8 @@ typedef struct _TMessage
 #define DTA_LOG_ADMIN_STATUS_DOWN	7
 #define DTA_LOG_ADMIN_STATUS_UP	8
 #define DTA_LOG_NWVERSION_MISMATCH	9
-#define DTA_MSG_COUNT	10
+#define DTA_LOG_UNSUPP_FWVARIANT	10
+#define DTA_MSG_COUNT	11
 
 Bool EventGetMessage(Int MsgId, const char** pLevel, const char** pMsg);
 

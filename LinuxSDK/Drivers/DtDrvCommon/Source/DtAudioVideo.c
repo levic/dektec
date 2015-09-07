@@ -50,13 +50,13 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
         pProps->m_Field1End = 262;
         pProps->m_Field1ActVidStart = 17;
         pProps->m_Field1ActVidEnd = 260;
-        pProps->m_SwitchingLines[0] = 10;
+        pProps->m_SwitchingLines[0] = 7;
 
-        pProps->m_Field2Start = 263; 
+        pProps->m_Field2Start = 263;
         pProps->m_Field2End = 525;
-        pProps->m_Field2ActVidStart = 280;  
+        pProps->m_Field2ActVidStart = 280;
         pProps->m_Field2ActVidEnd = 522;
-        pProps->m_SwitchingLines[1] = 273;
+        pProps->m_SwitchingLines[1] = 270;
 
         pProps->m_VancNumS = pProps->m_ActVidNumS = 720*2;
         pProps->m_HancNumS = 268;

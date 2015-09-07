@@ -118,6 +118,11 @@ enum {
     FUNC_DTU_SET_RX_MODE,
     FUNC_DTU_UPLOAD_FPGA_FW,
     FUNC_DTU_GET_DATA_BUF_SIZE,
+    FUNC_DTU_SET_TX_CTRL,
+    FUNC_DTU_UPLOAD_FPGA_FW_VARIANT,
+    FUNC_DTU_GET_TABLE2,
+    FUNC_DTU_POWER_CTRL,
+    FUNC_DTU_REG_WRITE_BULK
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_GET_PROPERTY -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -883,6 +888,21 @@ typedef struct _DtuIoctlGetTableInput {
 } DtuIoctlGetTableInput;
 ASSERT_SIZE(DtuIoctlGetTableInput, 60)
 
+    // Ioctl input data type
+typedef struct _DtuIoctlGetTable2Input {
+    Int  m_TypeNumber;                      // Type number (-1 = get for current device)
+    Int  m_HardwareRevision;                // Hardware revision
+    Int  m_FirmwareVersion;                 // Firmware version
+    Int  m_FirmwareVariant;                 // Firmware variant (-1 =  get for current)
+    Int  m_PortIndex;                       // Port index
+    char  m_Name[DTU_TABLE_NAME_MAX_SIZE];  // Name of table
+    UInt  m_MaxNumEntries;                  // Max. number of entry's to store
+    Int  m_DtapiMaj;                        // DTAPI major version
+    Int  m_DtapiMin;                        // DTAPI minor version
+    Int  m_DtapiBugfix;                     // DTAPI bug fix version
+} DtuIoctlGetTable2Input;
+ASSERT_SIZE(DtuIoctlGetTable2Input, 88)
+
 // Ioctl output data type
 typedef struct _DtuIoctlGetTableOutput {
     UInt  m_NumEntries;
@@ -901,6 +921,19 @@ ASSERT_SIZE(DtuIoctlGetTableOutput, 8)
 
     #define DTU_IOCTL_GET_TABLE  _IOWR(DTU_IOCTL_MAGIC_SIZE, FUNC_DTU_GET_TABLE, \
                                                                          DtuIoctlGetTable)
+#endif
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_GET_TABLE2  CTL_CODE(DTU_DEVICE_TYPE, FUNC_DTU_GET_TABLE2, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtuIoctlGetTable2 {
+        DtuIoctlGetTable2Input  m_Input;
+        DtuIoctlGetTableOutput  m_Output;
+    } DtuIoctlGetTable2;
+
+    #define DTU_IOCTL_GET_TABLE2  _IOWR(DTU_IOCTL_MAGIC_SIZE, FUNC_DTU_GET_TABLE2, \
+                                                                        DtuIoctlGetTable2)
 #endif
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_GET_STR_PROPERTY -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1128,6 +1161,101 @@ ASSERT_SIZE(DtuIoctlGetDataBufSizeOutput, 4)
                                        FUNC_DTU_GET_DATA_BUF_SIZE, DtuIoctlGetDataBufSize)
 #endif 
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_SET_TX_CTRL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+
+typedef struct _DtuIoctlSetTxCtrlInput {
+    Int  m_PortIndex;
+    Int  m_TxCtrl;
+} DtuIoctlSetTxCtrlInput;
+ASSERT_SIZE(DtuIoctlSetTxCtrlInput, 8)
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_SET_TX_CTRL  CTL_CODE(DTU_DEVICE_TYPE, \
+                                  FUNC_DTU_SET_TX_CTRL, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtuIoctlSetTxCtrl {
+        DtuIoctlSetTxCtrlInput  m_Input;
+    } DtuIoctlSetTxCtrl;
+
+    #define DTU_IOCTL_SET_TX_CTRL  _IOWR(DTU_IOCTL_MAGIC, \
+                                                  FUNC_DTU_SET_TX_CTRL, DtuIoctlSetTxCtrl)
+#endif 
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_UPLOAD_FPGA_FW_VARIANT -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+
+typedef struct _DtuIoctlUploadFpgaFwVariantInput {
+    Int  m_FirmwareVariant;
+} DtuIoctlUploadFpgaFwVariantInput;
+ASSERT_SIZE(DtuIoctlUploadFpgaFwVariantInput, 4)
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_UPLOAD_FPGA_FW_VARIANT  CTL_CODE(DTU_DEVICE_TYPE, \
+                       FUNC_DTU_UPLOAD_FPGA_FW_VARIANT, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtuIoctlUploadFpgaFwVariant {
+        DtuIoctlUploadFpgaFwVariantInput  m_Input;
+    } DtuIoctlUploadFpgaFwVariant;
+
+    #define DTU_IOCTL_UPLOAD_FPGA_FW_VARIANT  _IOW(DTU_IOCTL_MAGIC,  \
+                             FUNC_DTU_UPLOAD_FPGA_FW_VARIANT, DtuIoctlUploadFpgaFwVariant)
+#endif 
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_POWER_CTRL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+
+typedef struct _DtuIoctlPowerCtrlInput {
+    Int  m_State;
+    Int  m_Segment;
+} DtuIoctlPowerCtrlInput;
+ASSERT_SIZE(DtuIoctlPowerCtrlInput, 8)
+    
+#define DTU_POWER_CTRL_SEGMENT_ALL          0
+#define DTU_POWER_CTRL_SEGMENT_FPGA         1
+#define DTU_POWER_CTRL_SEGMENT_FRONTEND     2
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_POWER_CTRL  CTL_CODE(DTU_DEVICE_TYPE, \
+                                   FUNC_DTU_POWER_CTRL, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtuIoctlPowerCtrl {
+        DtuIoctlPowerCtrlInput  m_Input;
+    } DtuIoctlPowerCtrl;
+
+    #define DTU_IOCTL_POWER_CTRL  _IOW(DTU_IOCTL_MAGIC,  \
+                                                   FUNC_DTU_POWER_CTRL, DtuIoctlPowerCtrl)
+#endif 
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU_IOCTL_REG_WRITE_BULK -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+
+typedef struct _DtuIoctlRegWriteBulkInput {
+#ifdef LINBUILD
+    UInt64A  m_BufferAddr;
+    Int  m_NumBytesToWrite;
+#else
+    Int  m_Dummy;
+#endif
+} DtuIoctlRegWriteBulkInput;
+#ifdef LINBUILD
+ASSERT_SIZE(DtuIoctlRegWriteBulkInput, 16)
+#else
+ASSERT_SIZE(DtuIoctlRegWriteBulkInput, 4)
+#endif
+
+#ifdef WINBUILD
+    #define DTU_IOCTL_REG_WRITE_BULK  CTL_CODE(DTU_DEVICE_TYPE, \
+                               FUNC_DTU_REG_WRITE_BULK, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtuIoctlRegWriteBulk {
+        DtuIoctlRegWriteBulkInput  m_Input;
+    } DtuIoctlRegWriteBulk;
+
+    #define DTU_IOCTL_REG_WRITE_BULK  _IOW(DTU_IOCTL_MAGIC, FUNC_DTU_REG_WRITE_BULK, \
+                                                                     DtuIoctlRegWriteBulk)
+#endif 
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef union _DtuIoctlInputData {
@@ -1143,12 +1271,17 @@ typedef union _DtuIoctlInputData {
     DtuIoctlGetIoConfigInput  m_GetIoConfig;
     DtuIoctlSetIoConfigInput  m_SetIoConfig;
     DtuIoctlGetTableInput  m_GetTable;
+    DtuIoctlGetTable2Input  m_GetTable2;
     DtuIoctlGetStrPropertyInput  m_GetStrProperty;
     DtuIoctlVendorRequestInput  m_VendorRequest;
     DtuIoctlGetStateFlagsInput  m_GetStateFlags;
     DtuIoctlSetRxModeInput  m_RxMode;
     DtuIoctlUploadFpgaFwInput  m_UploadFpgaFw;
     DtuIoctlGetDataBufSizeInput  m_DataBufSize;
+    DtuIoctlSetTxCtrlInput  m_SetTxCtrl;
+    DtuIoctlUploadFpgaFwVariantInput  m_UploadFpgaFwVariant;
+    DtuIoctlPowerCtrlInput  m_PowerCtrl;
+    DtuIoctlRegWriteBulkInput  m_RegWriteBulk;
 } DtuIoctlInputData;
 ASSERT_SIZE(DtuIoctlInputData, 528)
 
@@ -1198,6 +1331,20 @@ typedef struct  _Dtu351BufHdr
     volatile UInt32  m_NumBuffers;          // Number of data buffers
     volatile UInt32  m_FirstBuf;
 } Dtu351BufHdr;
+
+//+=+=+=+=+=+=+=+=+=+=+=+ DTU-315 shared buffer header definitions +=+=+=+=+=+=+=+=+=+=+=+
+
+typedef struct _Dtu315BufHdr
+{
+    volatile UInt32  m_ReadPtr;
+    volatile UInt32  m_WritePtr;
+    UInt32  m_DataOffset;                   // Offset of data after start of buffer
+    UInt32  m_FifoSize;                     // Size of data buffer, not including header
+    UInt32  m_MaxSimTransfers;              // Maximum number of simultanious transfers
+    UInt32  m_SingleTransferSize;           // Size of each individual write over usb
+} Dtu315BufHdr;
+ASSERT_SIZE(Dtu315BufHdr, 24)
+
 
 #pragma pack (pop)
 

@@ -845,7 +845,7 @@ DtStatus  DtaLmh1982SetupRefSource(
     Int*  pRefVidStd,
     Int*  pOutVidStd)
 {
-    Int  i, ClkSrc = 0;
+    Int  ClkSrc = 0;
     DtaGenlock*  pGenlock = &pLmh1982Data->m_pDvcData->m_Genlock;
     volatile UInt8*  pGenlRegs = pGenlock->m_pGenlRegs;
 

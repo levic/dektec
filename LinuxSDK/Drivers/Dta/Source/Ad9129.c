@@ -256,7 +256,6 @@ DtStatus  DtaAd9129ResetDac(UInt8*  pRfRegs)
 //
 DtStatus DtaAd9129Write(UInt8*  pRfRegs, UInt RegAddr, UInt8 Data)
 {
-    UInt Data32 = Data;
     // Wait until previous SPI transfer to AD9192 is completed
     DT_RETURN_ON_ERROR(DtaAd9129SpiWait(pRfRegs));
 

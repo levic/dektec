@@ -40,10 +40,17 @@ DtStatus  DtuPldInit(DtuDeviceData* pDvcData)
                                                                                  " USB2");
         return DT_STATUS_OK;
     }
+
+    // TODOTD: Replace with TypeNumber==315 with DelayedFwLoad property
+    if (pDvcData->m_DevInfo.m_TypeNumber == 315)
+    {
+        DtDbgOut(MIN, DTU, "Skipping PLD firmware upload for DTU-315 (loaded by DTAPI)");
+        return DT_STATUS_OK;
+    }
     
-    // Load firmware for PLD
+    // Load firmware for PLD (assuming no firmware variants apply for this device)
     DtDbgOut(MIN, DTU, "Uploading PLD firmware");
-    pPldFirmware = DtuGetPldFirmware(pDvcData->m_DevInfo.m_ProductId,
+    pPldFirmware = DtuGetPldFirmware(pDvcData->m_DevInfo.m_ProductId, -1,
                                       pDvcData->m_DevInfo.m_HardwareRevision, &PldFwSize);
     if (pPldFirmware == NULL)
     {
@@ -74,7 +81,7 @@ DtStatus  DtuFx3LoadPldFirmware(
     DtStatus  Status;
     Int  Len;
     Int  Dummy;
-    UInt16  TypeNumber;
+    UInt32  TypeNumber;
     Int  MaxChunkSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
                                                           pDvcData->m_DevInfo.m_UsbSpeed);
 
@@ -87,19 +94,85 @@ DtStatus  DtuFx3LoadPldFirmware(
 
     Len = MaxChunkSize;
 
-    while (Size > 0)
+    if (pDvcData->m_DevInfo.m_TypeNumber == 351)
     {
-        Len = Size < MaxChunkSize ? Size : MaxChunkSize;
-        if (Len > MaxChunkSize)
-            Len = MaxChunkSize;
-        Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_FPGA_UPLOAD, 
-                                             0, 0, DT_USB_HOST_TO_DEVICE,
-                                     (UInt8*)pFirmware, Len, &Dummy, MAX_USB_REQ_TIMEOUT);
+        // DTU-351: Expect PLD firmware data through vendor command
+        while (Size > 0)
+        {
+            Len = Size < MaxChunkSize ? Size : MaxChunkSize;
+            if (Len > MaxChunkSize)
+                Len = MaxChunkSize;
+            Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_FPGA_UPLOAD, 
+                                        0, 0, DT_USB_HOST_TO_DEVICE, (UInt8*)pFirmware, 
+                                        Len, &Dummy, MAX_USB_REQ_TIMEOUT);
+            if (!DT_SUCCESS(Status))
+                return Status;
+            pFirmware += Len;
+            Size -= Len;
+        }
+    } else {
+        // Other device: Expect PLD firmware data through bulk data endpoint
+        Int  Pipe = pDvcData->m_EzUsb.m_WritePipe;
+        UInt8*  pBuffer = (UInt8*) DtMemAllocPool(DtPoolNonPaged, DTU_BULK_PACKETSIZE, 
+                                                                                 DTU_TAG);
+        Int  i;
+        Int Temp = 0;
+
+        // Clear endpoint buffers
+        Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
+                             DTU_PNP_CMD_RESET, DTU_RESET_DMA_OUT, DT_USB_HOST_TO_DEVICE,
+                             NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
         if (!DT_SUCCESS(Status))
             return Status;
-        pFirmware += Len;
-        Size -= Len;
+
+        // Write data to bulk data endpoint
+        while (Size > 0)
+        {
+            // Copy PLD firmware bit by bit to 32-bit GPIF data word
+            // 32-bit GPIF bus connection: DQ[0] = DATA0, DQ[1] = DCLK
+            Int  BitCount = 0;
+            UInt32*  pWord = (UInt32*)pBuffer;
+            Len = DTU_BULK_PACKETSIZE;
+            if (Len > Size*8*8)
+                Len = Size*8*8;
+            
+            for (i=0; i<Len/4; i+=2)
+            {
+                // Satisfy hold time by setting data bit early with respect to the clock
+                // Toggle the clock from low to high, in order to end with a high state, 
+                // otherwise the FX3 will pull-up the IO lines to '1' when it is not 
+                // transmitting data (between EndpointSize transfers), which looks like 
+                // an extra clock cycle
+
+                // Big endian busses
+                pWord[i] = ((*pFirmware>>BitCount)&0x01);
+                pWord[i+1] = (1<<1) | ((*pFirmware>>BitCount)&0x01);
+
+                // Little endian busses
+                pWord[i] |= ((*pFirmware>>BitCount)&0x01)<<24;
+                pWord[i+1] |= ((1<<1) | ((*pFirmware>>BitCount)&0x01))<<24;
+
+                BitCount++;
+                if (BitCount > 7)
+                {
+                    pFirmware++;
+                    Size--;
+                    BitCount = 0;
+                }
+            }
+
+            Status = DtUsbPipeWrite(&pDvcData->m_Device, NULL, Pipe, pBuffer, Len, 
+                                                                      MAX_USB_RW_TIMEOUT);
+            if (!DT_SUCCESS(Status))
+            {
+                DtMemFreePool(pBuffer, DTU_TAG);
+                return Status;
+            }
+        }
+
+        DtMemFreePool(pBuffer, DTU_TAG);
     }
+
     Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
                                             DTU_PNP_CMD_FPGA_UPL_CMD, DTU_FPGA_UPL_FINISH,
                                             DT_USB_HOST_TO_DEVICE,
@@ -108,13 +181,24 @@ DtStatus  DtuFx3LoadPldFirmware(
         return Status;
 
     DtSleep(100);
-
-    Status = Dtu3RegRead(pDvcData, DTU_USB3_DEV_FPGA, 0, &TypeNumber);
-    if (!DT_SUCCESS(Status))
-        return Status;
+    
+    // Verify firmware upload
+    if (pDvcData->m_DevInfo.m_TypeNumber == 351)
+    {
+        UInt16  TypeNumber16;
+        Status = Dtu35xRegRead(pDvcData, DTU_USB3_DEV_FPGA, 0x00, &TypeNumber16);
+        if (!DT_SUCCESS(Status))
+            return Status;
+        TypeNumber = TypeNumber16;
+    } else {
+        // TODO: replace 0 by gen reg offset
+        Status = Dtu3RegRead(pDvcData, 0, &FwbUsb3GenReg.TypeNum_TypeNum, &TypeNumber);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
     if (TypeNumber != pDvcData->m_DevInfo.m_TypeNumber)
     {
-        DtDbgOut(ERR, DTU, "Incorrect typenumber read from FPGA");
+        DtDbgOut(ERR, DTU, "Incorrect typenumber read from FPGA (%d)", TypeNumber);
         return DT_STATUS_FAIL;
     }
 

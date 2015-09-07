@@ -52,19 +52,38 @@
 #define DTU215_IIC_PWR_1V8_CTRL        0x8F    // 1V8 power supply control data
 #define DTU215_IIC_PWR_3V3_CTRL        0x8F    // 3V3 power supply control data
 
+
+// DTU-3xx Firmware blocks offsets
+#define DTU3_FX3_BLOCK_OFFSET           ((1<<24) + 0x0000)
+#define DTU315_FIFO_BLOCK_OFFSET        0x200
+
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+ Declarations below are driver ONLY +=+=+=+=+=+=+=+=+=+=+=+=+=
 
 #ifdef USB_DRIVER
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public interface -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// USB2 adapters
 DtStatus  DtuRegRead(DtuDeviceData*  pDvcData, Int  RegAddr, UInt32*  pValue);
 DtStatus  DtuRegWrite(DtuDeviceData*  pDvcData, Int  RegAddr, UInt32  Value);
 DtStatus  DtuRegWriteMasked(DtuDeviceData*  pDvcData, Int  RegAddr, UInt32  Mask, 
                                                             UInt32  Shift, UInt32  Value);
-DtStatus  Dtu3RegRead(DtuDeviceData*  pDvcData, UInt16  Dvc, UInt16  RegAddr,
-                                                                         UInt16*  pValue);
-DtStatus  Dtu3RegWrite(DtuDeviceData*  pDvcData, UInt16  Dvc, UInt16  RegAddr,
-                                                                           UInt16  Value);
+DtStatus  Dtu3RegReadRaw(DtuDeviceData*  pDvcData, Int  RegAddr, UInt32*  pValue);
+DtStatus  Dtu3RegWriteRaw(DtuDeviceData*  pDvcData, Int  RegAddr, UInt32  Value);
+DtStatus  Dtu3RegWriteMaskedRaw(DtuDeviceData*  pDvcData, Int  RegAddr,
+                                              UInt32  Mask, UInt32  Shift, UInt32  Value);
+// DTU-351 specific functions
+DtStatus  Dtu35xRegRead(DtuDeviceData* pDvcData, UInt16 Dvc, UInt16 RegAddr,
+                                                                          UInt16* pValue);
+DtStatus  Dtu35xRegWrite(DtuDeviceData* pDvcData, UInt16 Dvc, UInt16 RegAddr,
+                                                                            UInt16 Value);
+
+// USB-3xxx specific functions for reading firmware block register.
+DtStatus  Dtu3RegRead(DtuDeviceData*  pDvcData, Int  BlockOffset, const DtFwField*,
+                                                                         UInt32*  pValue);
+DtStatus  Dtu3RegClear(DtuDeviceData*  pDvcData, Int  BlockOffset, const DtFwField*);
+DtStatus  Dtu3RegWrite(DtuDeviceData*  pDvcData, Int  BlockOffset, const DtFwField*,
+                                                                           UInt32  Value);
 #endif // #ifdef USB_DRIVER
 
 #endif // #ifndef __DTUREGS_H

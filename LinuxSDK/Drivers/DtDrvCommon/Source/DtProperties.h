@@ -38,6 +38,7 @@ typedef struct _DtProperty
     const char*  m_pStr;            // String property value
     DtPropertyValueType m_Type;
     Int  m_PortIndex;
+    Int  m_FwVariant;
     Int  m_MinFw;
     Int  m_MinHw;
     Int  m_MaxHw;
@@ -70,6 +71,7 @@ typedef struct _DtPropertyData
     Int  m_TypeNumber;
     Int  m_SubDvc;
     Int  m_HardwareRevision;    // Hardware revision (e.g. 302 = 3.2)
+    Int  m_FirmwareVariant;
     Int  m_FirmwareVersion;     // Firmware Version (= Altera revision), e.g. 3 for
                                 // "Firmware Version 3"
     // Property store
@@ -97,13 +99,13 @@ DtStatus  DtPropertiesStrGet(DtPropertyData* pPropData, const char* pName, Int P
                                              char* pStr, DtPropertyScope* pScope,
                                              Int DtapiMaj, Int DtapiMin, Int DtapiBugfix);
 DtStatus  DtPropertiesGetForType(const char*  pTypeName, Int  TypeNumber, Int  SubDvc,
-                                      Int  HwRev, Int  FwVer,
+                                      Int  HwRev, Int  FwVer, Int FwVariant,
                                       const char* pName, Int PortIndex,
                                       DtPropertyValue* pValue, DtPropertyValueType* pType,
                                       DtPropertyScope* pScope,
                                       Int DtapiMaj, Int DtapiMin, Int DtapiBugfix);
 DtStatus  DtPropertiesStrGetForType(const char*  pTypeName, Int  TypeNumber, Int  SubDvc,
-                                             Int  HwRev, Int  FwVer,
+                                             Int  HwRev, Int  FwVer, Int FwVariant,
                                              const char* pName, Int PortIndex,
                                              char* pStr, DtPropertyScope* pScope,
                                              Int DtapiMaj, Int DtapiMin, Int DtapiBugfix);

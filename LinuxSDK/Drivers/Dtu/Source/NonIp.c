@@ -35,7 +35,7 @@ DtStatus  DtuNonIpInit(
     DtuNonIpPort*  pNonIpPort)
 {
     DtStatus  Status = DT_STATUS_OK;
-    Int  IoConfig, ParXtra, DefIoStd=-1, OldPropertyNotFoundCounter=0;
+    Int  IoConfig, ParXtra, DefIoStd=-1, DefPwrMode=-1, OldPropertyNotFoundCounter=0;
     DtPropertyData*  pPropData = &pDvcData->m_PropData;
         
     // Initialize common members
@@ -189,7 +189,11 @@ DtStatus  DtuNonIpInit(
                                                                  pNonIpPort->m_PortIndex); 
     pNonIpPort->m_CapIsoBw = DtPropertiesGetBool(pPropData, "CAP_BW",
                                                                  pNonIpPort->m_PortIndex);
-
+    // PWRMODE (Power mode) - Capabilities
+    pNonIpPort->m_CapModHq = DtPropertiesGetBool(pPropData, "CAP_MODHQ",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapLowPwr = DtPropertiesGetBool(pPropData, "CAP_LOWPWR",
+                                                                 pNonIpPort->m_PortIndex);
     // Is it a bidir port?
     pNonIpPort->m_IsBidir = (pNonIpPort->m_CapInput && pNonIpPort->m_CapOutput);
 
@@ -607,6 +611,37 @@ DtStatus  DtuNonIpInit(
         pNonIpPort->m_IoCfg[DT_IOCONFIG_BW].m_ParXtra[0] = 196608000*8;
     }
 
+    //  DT_IOCONFIG_PWRMODE
+    OldPropertyNotFoundCounter = pPropData->m_PropertyNotFoundCounter;
+    DefPwrMode = DtPropertiesGetInt(pPropData, "DEFAULT_PWRMODE", pNonIpPort->m_PortIndex);
+    pPropData->m_PropertyNotFoundCounter = OldPropertyNotFoundCounter;
+    if (DefPwrMode != -1)
+    {
+        DtDbgOut(MIN, NONIP, "[%d:%d] default PWR-MODE = %d", 
+                                           pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber, 
+                                                     pNonIpPort->m_PortIndex, DefPwrMode);
+        switch (DefPwrMode)
+        {
+        case DT_IOCONFIG_LOWPWR:
+            DT_ASSERT(pNonIpPort->m_CapLowPwr);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_PWRMODE].m_Value = DT_IOCONFIG_LOWPWR;
+            break;
+        case DT_IOCONFIG_MODHQ:
+            DT_ASSERT(pNonIpPort->m_CapModHq);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_PWRMODE].m_Value = DT_IOCONFIG_MODHQ;
+            break;
+        default:
+            DtDbgOut(ERR, NONIP, "Unsupported DEFAULT_PWRMODE for board type: %d port: %d",
+                                      pPropData->m_TypeNumber, pNonIpPort->m_PortIndex+1);
+            DT_ASSERT(1==0);
+            break;
+        }
+    }
+    else if (pNonIpPort->m_CapLowPwr)
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_PWRMODE].m_Value = DT_IOCONFIG_LOWPWR;
+    else if (pNonIpPort->m_CapModHq)
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_PWRMODE].m_Value = DT_IOCONFIG_MODHQ;
+
     // DT_IOCONFIG_RFCLKSEL
     if (pNonIpPort->m_CapRfClkInt) 
         pNonIpPort->m_IoCfg[DT_IOCONFIG_RFCLKSEL].m_Value = DT_IOCONFIG_RFCLKINT;
@@ -683,6 +718,16 @@ DtStatus  DtuNonIpInit(
         // Check if no property error occurred
         Status = DtuPropertiesReportDriverErrors(pNonIpPort->m_pDvcData);
 
+    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    {
+        if (DT_SUCCESS(Status))
+            Status = DtEventInit(&pNonIpPort->m_StateChanged, FALSE);
+        if (DT_SUCCESS(Status))
+            Status = DtEventInit(&pNonIpPort->m_StateChangeCmpl, TRUE);
+        if (DT_SUCCESS(Status))
+            Status = DtThreadInit(&pNonIpPort->m_DataThread, Dtu3WorkerThread,pNonIpPort);
+    }
+
     return Status;
 }
 
@@ -739,21 +784,22 @@ DtStatus  DtuNonIpDetectVidStd(DtuNonIpPort* pNonIpPort, Int*  pVidStd)
     }
     
     // Make sure automatic rate detection is turned on
-    DT_RETURN_ON_ERROR(Dtu3RegRead(pDvcData, DTU_USB3_DEV_GENNUM, 0x24, &RegRateSel));
+    DT_RETURN_ON_ERROR(Dtu35xRegRead(pDvcData, DTU_USB3_DEV_GS1661, 0x24, &RegRateSel));
     if ((RegRateSel&0x04) == 0)
     {
         DtDbgOut(ERR, NONIP, "Port %d is not in automatic rate detection mode",
                                                                pNonIpPort->m_PortIndex+1);
         RegRateSel |= 0x04;
-        Status = Dtu3RegWrite(pNonIpPort->m_pDvcData, DTU_USB3_DEV_GENNUM, 0x24, RegRateSel);
+        Status = Dtu35xRegWrite(pNonIpPort->m_pDvcData, DTU_USB3_DEV_GS1661, 0x24, 
+                                                                              RegRateSel);
         if (!DT_SUCCESS(Status))
             return Status;
     }
     
-    DT_RETURN_ON_ERROR(Dtu3RegRead(pDvcData, DTU_USB3_DEV_GENNUM, 0x06, &Ds1));
-    DT_RETURN_ON_ERROR(Dtu3RegRead(pDvcData, DTU_USB3_DEV_GENNUM, 0x22, &RasterStruc));
-    DT_RETURN_ON_ERROR(Dtu3RegRead(pDvcData, DTU_USB3_DEV_GENNUM, 0x19, &VpidA));
-    DT_RETURN_ON_ERROR(Dtu3RegRead(pDvcData, DTU_USB3_DEV_GENNUM, 0x1A, &VpidB));
+    DT_RETURN_ON_ERROR(Dtu35xRegRead(pDvcData, DTU_USB3_DEV_GS1661, 0x06, &Ds1));
+    DT_RETURN_ON_ERROR(Dtu35xRegRead(pDvcData, DTU_USB3_DEV_GS1661, 0x22, &RasterStruc));
+    DT_RETURN_ON_ERROR(Dtu35xRegRead(pDvcData, DTU_USB3_DEV_GS1661, 0x19, &VpidA));
+    DT_RETURN_ON_ERROR(Dtu35xRegRead(pDvcData, DTU_USB3_DEV_GS1661, 0x1A, &VpidB));
     Vpid = (VpidA<<24) | ((VpidA&0xFF00)<<8) | ((VpidB&0xFF)<<8) | (VpidB>>8);
 
     // First check if we're in lock.
@@ -1002,6 +1048,38 @@ DtStatus  DtuNonIpIoConfigSet(
         case DT_IOCONFIG_MOD:
         case DT_IOCONFIG_DEMOD:
             // No action required
+            break;
+        default:
+            DtDbgOut(ERR, NONIP, "Invalid Config. Group: %d, Value: %d, SubValue: %d",
+                                            Group, CfgValue.m_Value, CfgValue.m_SubValue);
+            return DT_STATUS_NOT_SUPPORTED;
+        }
+        break;
+
+
+        // Modulator operatoin mode
+    case DT_IOCONFIG_PWRMODE:
+        switch (CfgValue.m_Value)
+        {
+        case DT_IOCONFIG_LOWPWR:
+            DT_ASSERT(pNonIpPort->m_CapLowPwr);
+            // For DTU-315 set firmware variant to the corresponding power mode
+            if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 315)
+            {
+                pNonIpPort->m_pDvcData->m_PropData.m_FirmwareVariant = 0;
+                pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVariant = 0;
+            }
+            // No further actions required
+            break;
+        case DT_IOCONFIG_MODHQ:
+            DT_ASSERT(pNonIpPort->m_CapModHq);
+            // For DTU-315 set firmware variant to the corresponding power mode
+            if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 315)
+            {
+                pNonIpPort->m_pDvcData->m_PropData.m_FirmwareVariant = 2;
+                pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVariant = 2;
+            }
+            // No further actions required
             break;
         default:
             DtDbgOut(ERR, NONIP, "Invalid Config. Group: %d, Value: %d, SubValue: %d",
@@ -1431,13 +1509,19 @@ DtStatus  DtuNonIpReleaseResourceFromFileObject(
         if (DtFileCompare(&pDvcData->m_pNonIpPorts[i].m_SharedBuffer.m_Owner, pFile) &&
                                   pDvcData->m_pNonIpPorts[i].m_SharedBuffer.m_Initialised)
         {
-            // The DTU-351 control thread is controlled by the owner of the shared buffer.
+            // The DTU-3xx control thread is controlled by the owner of the shared buffer.
             // If it's running it has to be stopped before we can release the buffer.
-            if (pDvcData->m_pNonIpPorts[i].m_RxState == DTU_RX_READ)
+            if (pDvcData->m_pNonIpPorts[i].m_State == DTU3_STATE_READ351)
             {
-                pDvcData->m_pNonIpPorts[i].m_NextRxState = DTU_RX_CHECK_LOCK;
-                DtEventSet(&pDvcData->m_pNonIpPorts[i].m_RxStateChanged);
-                DtEventWaitUnInt(&pDvcData->m_pNonIpPorts[i].m_RxStateChangeCmpl, -1);
+                pDvcData->m_pNonIpPorts[i].m_NextState = DTU3_STATE_DET_VIDSTD;
+                DtEventSet(&pDvcData->m_pNonIpPorts[i].m_StateChanged);
+                DtEventWaitUnInt(&pDvcData->m_pNonIpPorts[i].m_StateChangeCmpl, -1);
+            }
+            else if (pDvcData->m_pNonIpPorts[i].m_State == DTU3_STATE_WRITE315)
+            {
+                pDvcData->m_pNonIpPorts[i].m_NextState = DTU3_STATE_IDLE;
+                DtEventSet(&pDvcData->m_pNonIpPorts[i].m_StateChanged);
+                DtEventWaitUnInt(&pDvcData->m_pNonIpPorts[i].m_StateChangeCmpl, -1);
             }
             DtuShBufferClose(&pDvcData->m_pNonIpPorts[i].m_SharedBuffer);
         }
@@ -1476,7 +1560,7 @@ DtStatus  DtuNonIpRxReset( DtuDeviceData*  pDvcData, DtuNonIpPort*  pNonIpPort,
 
     // Ignore the RESET cmd for USB3 devices for now.
     if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
-        return  DT_STATUS_OK;
+        return DT_STATUS_OK;
 
     // Check for valid value
     if ( ResetMode!=DTU_RST_CHANNEL && ResetMode!=DTU_RST_CLEARFIFO )
@@ -1509,6 +1593,18 @@ DtStatus  DtuNonIpTxReset(DtuDeviceData*  pDvcData, DtuNonIpPort*  pNonIpPort,
     DtStatus  Result = DT_STATUS_OK;
     UInt8 VendCmd;
     Int Dummy;
+
+    // Ignore the RESET cmd for USB3 devices for now.
+    if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
+    {
+        // Check for valid value
+        if (ResetMode != DTU_RST_CLEARFIFO)
+            return DT_STATUS_INVALID_PARAMETER;
+
+        //TODO: replace 0x80 by offset of DtFifoMemoryLessUsbDvc block, should come from XML
+        return Dtu3RegWrite(pDvcData, DTU315_FIFO_BLOCK_OFFSET, 
+                                              &FwbFifoMemoryLessUsbDvc.Control_Clear, 1);
+    }
 
     // Check for valid value
     if ( ResetMode!=DTU_RST_CHANNEL && ResetMode!=DTU_RST_CLEARFIFO )
@@ -1573,4 +1669,19 @@ DtStatus  DtuDemodModeSet(DtuDeviceData*  pDvcData, Bool DemodMode)
 
     // Write new general control register value
     return DtuRegWrite(pDvcData, DT_GEN_REG_CONTROL0, RegValue);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu315SetTxCtrl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  Dtu315SetTxCtrl(DtuNonIpPort*  pNonIpPort, Int  TxCtrl)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    Int  NewState = (TxCtrl==DT_TXCTRL_SEND) ? DTU3_STATE_WRITE315 : DTU3_STATE_IDLE;
+    if (pNonIpPort->m_NextState != NewState)
+    {
+        pNonIpPort->m_NextState = NewState;
+        DtEventSet(&pNonIpPort->m_StateChanged);
+        Status = DtEventWait(&pNonIpPort->m_StateChangeCmpl, -1);
+    }
+    return Status;
 }

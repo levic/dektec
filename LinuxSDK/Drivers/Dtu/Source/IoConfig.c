@@ -838,6 +838,29 @@ static DtStatus  DtuIoConfigUpdateValidate(
                                     pPortUpdate->m_CfgValue[DT_IOCONFIG_BW].m_Value,
                                     pPortUpdate->m_CfgValue[DT_IOCONFIG_BW].m_ParXtra[0]);
 
+        // Validate DT_IOCONFIG_PWRMODE
+        DtDbgOut(MAX, IOCONFIG, "Configuration PWRMODE Value: %d SubValue: %d",
+            pPortUpdate->m_CfgValue[DT_IOCONFIG_PWRMODE].m_Value,
+            pPortUpdate->m_CfgValue[DT_IOCONFIG_PWRMODE].m_SubValue);
+
+        switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_PWRMODE].m_Value)
+        {
+        case DT_IOCONFIG_NONE:
+            // Not applicable should only be set when we do not support PWRMODE
+            DT_ASSERT(!pNonIpPort->m_CapLowPwr && !pNonIpPort->m_CapModHq);
+            break;
+        case DT_IOCONFIG_LOWPWR:
+            if (!pNonIpPort->m_CapLowPwr)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_MODHQ:
+            if (!pNonIpPort->m_CapModHq)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        default:
+            return DT_STATUS_CONFIG_ERROR;
+        }
+
         // Validate DT_IOCONFIG_RFCLKSEL
         DtDbgOut(MAX, IOCONFIG, "Configuration RFCLKSEL Value: %d SubValue: %d",
             pPortUpdate->m_CfgValue[DT_IOCONFIG_RFCLKSEL].m_Value,

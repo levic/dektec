@@ -1144,8 +1144,10 @@ DtStatus  DtWriteConfigSpace(
 #ifndef USB_DRIVER
 
 #ifdef WINBUILD
+#ifdef USES_KMDF
     NTSTATUS  NtStatus;
     BUS_INTERFACE_STANDARD  BusInterfaceStandard;
+#endif
 #else
     Int i=0;
     Int Result = 0;
@@ -1219,8 +1221,6 @@ void  DtCopyMulticastListItem(
     DtMulticastList*  pMulticastList, 
     UInt8*  pDst)
 {
-    Int  i;
-    
 #ifdef WINBUILD
     UInt8*  pData = pMulticastList->m_pData;
 
@@ -1229,6 +1229,7 @@ void  DtCopyMulticastListItem(
 #else
     Int  CurItem;
     DtLinMcAddr*  pMCAddr;
+    Int  i;
     
     DT_ASSERT(ItemNum > 0);
     CurItem = 0;

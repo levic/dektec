@@ -92,7 +92,11 @@ DtStatus  DtPropertiesInit(DtPropertyData* pPropData)
 
     // Check if we found a property store for our device
     if (pPropData->m_pPropertyStore == NULL)
-        return DT_STATUS_NOT_FOUND;
+    {
+          DtDbgOut(ERR, PROP, "PropertyStore not found DTA %d, SubDvc %d", pPropData->m_TypeNumber, 
+                                                                    pPropData->m_SubDvc);
+          return DT_STATUS_NOT_FOUND;
+    }
 
     pPropData->m_PropertyNotFoundCounter = 0;
     return DtStringAlloc(&pPropData->m_PropertyNotFoundString, 50);
@@ -116,9 +120,12 @@ DtStatus  DtPropertiesFind(DtPropertyData* pPropData, const char* pName, Int Por
     UInt  HashSetCount = pStore->m_PropertyHashSetCount;
     Int  FwVersion = pPropData->m_FirmwareVersion;
     Int  HwRevision = pPropData->m_HardwareRevision;
-    
+    Int  FwVariant = pPropData->m_FirmwareVariant;
+
+
     UInt  Hash = 0;
     Int  Index;
+    Int  FindCount = 0;
     Bool  PropertyNameFound = FALSE;
     const DtPropertyHashSet*  pHashSet = NULL;
     Int  PropertyCount = 0;
@@ -143,59 +150,69 @@ DtStatus  DtPropertiesFind(DtPropertyData* pPropData, const char* pName, Int Por
             Status = DT_STATUS_NOT_FOUND;
     }
 
-    // Get correct property entry within hash set
     if (DT_SUCCESS(Status))
     {
-        // Search all properties
-        for (Index=0; Index<PropertyCount; Index++)
+
+        // If the property is not found for a specific fw-variant try a second time
+        // without specifying a specific fw-variant
+        for (FindCount=0; FindCount<2 && *ppProperty==NULL; FindCount++)
         {
-            const DtProperty*  pProp = &pHashSet->m_pProperties[Index];
-
-            // Check the property name was already found
-            if (PropertyNameFound)
+            if (FindCount == 1)
+                FwVariant = -1;
+            
+            // Get correct property entry within hash set
+            PropertyNameFound = FALSE;
+            
+            // Search all properties
+            for (Index=0; Index<PropertyCount; Index++)
             {
-                // When the property name was found earlier, only accept entries without
-                // a name. We just stop when (another) named entry is found.
-                if (pProp->m_pName != NULL)
-                    break;
-            } else {
-                // Compare name to check if we found the first occurrence
-                if (DtAnsiCharArrayIsEqual(pName, pProp->m_pName))
-                    PropertyNameFound = TRUE;
-            }
+                const DtProperty*  pProp = &pHashSet->m_pProperties[Index];
 
-            if (PropertyNameFound)
-            {
-                // Check port number
-                if (PortIndex == pProp->m_PortIndex)
+                // Check the property name was already found
+                if (PropertyNameFound)
                 {
-                    // Check minimal firmware version and hardware version
-                    if (FwVersion>=pProp->m_MinFw && HwRevision>=pProp->m_MinHw &&
-                                        (pProp->m_MaxHw==-1 || HwRevision<pProp->m_MaxHw))
-                    {
-                        Bool  DtapiVerOk = FALSE;
-                        // -1 means the request came from the driver
-                        if (DtapiMaj==-1 && DtapiMin==-1 && DtapiBugfix==-1)
-                            DtapiVerOk = TRUE;
-                        else if (DtapiMaj > pProp->m_MinDtapiMaj)
-                            DtapiVerOk = TRUE;
-                        else if (DtapiMaj==pProp->m_MinDtapiMaj)
-                        {
-                            if (DtapiMin > pProp->m_MinDtapiMin)
-                                DtapiVerOk = TRUE;
-                            else if (DtapiMin==pProp->m_MinDtapiMin
-                                                 && DtapiBugfix>= pProp->m_MinDtapiBugfix)
-                                DtapiVerOk = TRUE;
-                        }
-                        // Check minimal DTAPI version
-                        if (DtapiVerOk)
-                        {
-                            *ppProperty = pProp;
+                    // When the property name was found earlier, only accept entries 
+                    // without a name. We just stop when (another) named entry is found.
+                    if (pProp->m_pName != NULL)
+                          break;
+                } else {
+                    // Compare name to check if we found the first occurrence
+                    if (DtAnsiCharArrayIsEqual(pName, pProp->m_pName))
+                        PropertyNameFound = TRUE;
+                }
 
-                            // We can stop here since the parser has ordered each
-                            // property by minimal firmware version/hardware version.
-                            // This means the first hit is the best one...
-                            break;
+                if (PropertyNameFound)
+                {
+                    // Check port number and firmware variant
+                    if (PortIndex==pProp->m_PortIndex && FwVariant==pProp->m_FwVariant)
+                    {
+                        // Check minimal firmware version and hardware version
+                        if (FwVersion>=pProp->m_MinFw && HwRevision>=pProp->m_MinHw &&
+                                        (pProp->m_MaxHw==-1 || HwRevision<pProp->m_MaxHw))
+                        {
+                            Bool  DtapiVerOk = FALSE;
+                            // -1 means the request came from the driver
+                            if (DtapiMaj==-1 && DtapiMin==-1 && DtapiBugfix==-1)
+                                DtapiVerOk = TRUE;
+                            else if (DtapiMaj > pProp->m_MinDtapiMaj)
+                                DtapiVerOk = TRUE;
+                            else if (DtapiMaj==pProp->m_MinDtapiMaj)
+                            {
+                                if (DtapiMin > pProp->m_MinDtapiMin)
+                                    DtapiVerOk = TRUE;
+                                else if (DtapiMin==pProp->m_MinDtapiMin
+                                                  && DtapiBugfix>= pProp->m_MinDtapiBugfix)
+                                    DtapiVerOk = TRUE;
+                            }
+                            // Check minimal DTAPI version
+                            if (DtapiVerOk)
+                            {
+                                *ppProperty = pProp;
+                                // We can stop here since the parser has ordered each
+                                // property by minimal firmware version/hardware version.
+                                // This means the first hit is the best one...
+                                break;
+                            }
                         }
                     }
                 }
@@ -216,9 +233,10 @@ DtStatus  DtPropertiesFind(DtPropertyData* pPropData, const char* pName, Int Por
         if (*ppProperty == NULL)
         {
             Status = DT_STATUS_NOT_FOUND;
-            DtDbgOut(AVG, PROP, "Failed to find property %s for %s-%d, FW %d, HW %d", 
-                             pName, pPropData->m_TypeName, pPropData->m_TypeNumber,
-                             pPropData->m_FirmwareVersion, pPropData->m_HardwareRevision);
+            DtDbgOut(AVG, PROP, "Failed to find property %s for %s-%d, FW %d, HW %d"
+                     "VAR %d", pName, pPropData->m_TypeName, pPropData->m_TypeNumber,
+                             pPropData->m_FirmwareVersion, pPropData->m_HardwareRevision,
+                             pPropData->m_FirmwareVariant);
         }
     }
 
@@ -374,8 +392,9 @@ DtStatus  DtPropertiesGetForType(
     Int  SubDvc,
     Int  HwRev,
     Int  FwVer,
+    Int  FwVariant,
     const char* pName,
-    Int PortIndex,
+    Int  PortIndex,
     DtPropertyValue* pValue,
     DtPropertyValueType* pType,
     DtPropertyScope* pScope,
@@ -389,6 +408,7 @@ DtStatus  DtPropertiesGetForType(
     // Init property data structure
     PropData.m_TypeNumber = TypeNumber;
     PropData.m_SubDvc = SubDvc;
+    PropData.m_FirmwareVariant = FwVariant;
     PropData.m_FirmwareVersion = FwVer;
     PropData.m_HardwareRevision = HwRev;
     PropData.m_TypeName = (char*)pTypeName;
@@ -415,8 +435,9 @@ DtStatus  DtPropertiesStrGetForType(
     Int  SubDvc,
     Int  HwRev,
     Int  FwVer,
+    Int  FwVariant,
     const char* pName,
-    Int PortIndex,
+    Int  PortIndex,
     char* pStr,
     DtPropertyScope* pScope,
     Int DtapiMaj,
@@ -429,6 +450,7 @@ DtStatus  DtPropertiesStrGetForType(
     // Init property data structure
     PropData.m_TypeNumber = TypeNumber;
     PropData.m_SubDvc = SubDvc;
+    PropData.m_FirmwareVariant = FwVariant;
     PropData.m_FirmwareVersion = FwVer;
     PropData.m_HardwareRevision = HwRev;
     PropData.m_TypeName = (char*)pTypeName;

@@ -32,6 +32,7 @@ typedef struct _DtTableLink
 {
     char*  m_pName;
     Int  m_PortIndex;
+    Int  m_FwVariant;
     Int  m_MinFw;
     Int  m_MinHw;
     UInt  m_TableEntryCount;
@@ -52,7 +53,8 @@ DtStatus  DtTableGet(DtPropertyData* pPropData,
                      const char*  pTableName, Int  PortIndex, UInt  MaxNumEntries,
                      UInt* pNumEntries, DtTableEntry* pTableEntry2, UInt OutBufSize);
 DtStatus  DtTableGetForType(const char*  pTypeName, Int  TypeNumber, Int  SubDvc, 
-                          Int  HwRev, Int  FwVer, const char*  pTableName, Int  PortIndex, 
-                          UInt  MaxNumEntries, UInt* pNumEntries, 
+                                             Int  HwRev, Int  FwVer, Int FwVariant,
+                                             const char*  pTableName, Int  PortIndex, 
+                                             UInt  MaxNumEntries, UInt* pNumEntries, 
                                              DtTableEntry* pTableEntry2, UInt OutBufSize);
 #endif // __DT_TABLES_H

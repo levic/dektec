@@ -73,6 +73,7 @@ DtStatus  EzUsbInit(DtuDeviceData* pDvcData, Bool* pReEnumerate)
             // Lookup firmware
             const DtuFx3HexRecord*  pFx3Firmware = Dtu3GetFx3Firmware(
                                                 pDvcData->m_DevInfo.m_TypeNumber,
+                                                -1,
                                                 pDvcData->m_DevInfo.m_HardwareRevision);
             if (pFx3Firmware == NULL)
                 DtDbgOut(ERR, DTU, "FX3 firmware not found for Typenumber: %d,"
@@ -103,6 +104,7 @@ DtStatus  EzUsbInit(DtuDeviceData* pDvcData, Bool* pReEnumerate)
         } else {
             // Lookup firmware
             pEzUsbFirmware = DtuGetEzUsbFirmware(pDvcData->m_DevInfo.m_ProductId,
+                                                  -1,
                                                   pDvcData->m_DevInfo.m_HardwareRevision);
             if (pEzUsbFirmware == NULL)
             {

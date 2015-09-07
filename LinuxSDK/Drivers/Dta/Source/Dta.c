@@ -42,6 +42,7 @@ static DtStatus  DtaReleaseAddressRegs(DtaDeviceData* pDvcData, DtFileObject* pF
                                 Int PortIndex, Int RegsType, void** ppPaMmap, Int* pSize);
 
 DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData);
+DtStatus  DtaCheckFwVariantSupport(DtaDeviceData* pDvcData);
 void  DtaCleanupPortStructs(DtaDeviceData* pDvcData);
 DtStatus  DtaDeviceGenlockIoctl(DtaDeviceData* pDvcData, Int* pState, Int* pRefVidStd);
 DtStatus  DtaGetAddressRegsForUserspace(DtaDeviceData* pDvcData, DtFileObject* pFile,
@@ -179,7 +180,10 @@ DtStatus  DtaDeviceInit(DtaDeviceData* pDvcData)
         pDvcData->m_DevInfo.m_SubDvc = DtaDeviceId2SubDvcNumber(
                                                          pDvcData->m_DevInfo.m_TypeNumber,
                                                           pDvcData->m_DevInfo.m_DeviceId);
-
+    }
+    if (pDvcData->m_DevInfo.m_UsesPlxChip && !pDvcData->m_DevInfo.m_HasUninitializedPlx)
+    {
+        pDvcData->m_DevInfo.m_FirmwareVariant = 0;
         // Initialize property data object
         pDvcData->m_PropData.m_pPropertyStore = NULL;
         pDvcData->m_PropData.m_PropertyNotFoundCounter = 0;
@@ -188,32 +192,15 @@ DtStatus  DtaDeviceInit(DtaDeviceData* pDvcData)
         pDvcData->m_PropData.m_TypeName = "DTA";
         pDvcData->m_PropData.m_TypeNumber = pDvcData->m_DevInfo.m_TypeNumber;
         pDvcData->m_PropData.m_SubDvc = pDvcData->m_DevInfo.m_SubDvc;
+        pDvcData->m_PropData.m_FirmwareVariant = pDvcData->m_DevInfo.m_FirmwareVariant;
         pDvcData->m_PropData.m_FirmwareVersion = pDvcData->m_DevInfo.m_FirmwareVersion;
         pDvcData->m_PropData.m_HardwareRevision = pDvcData->m_DevInfo.m_HardwareRevision;
-
         // Initialise the property store
         Status = DtaPropertiesInit(pDvcData);
         if (!DT_SUCCESS(Status))
             return Status;
-
-        // Initialise the table store
-        Status = DtTablesInit(&pDvcData->m_PropData);
-        if (!DT_SUCCESS(Status))
-            return Status;
-
-        // Initialise the number and type of ports the card supports. 
-        Status = DtaCalculateAndCreatePortsStruct(pDvcData);
-        if (!DT_SUCCESS(Status))
-            return Status;
-
-        if (pDvcData->m_NumIpPorts != 0) 
-        {
-            // Create the network devices
-            Status = DtaInitChildDevices(pDvcData);
-            if (!DT_SUCCESS(Status))
-                return Status;
-        }
     }
+
 
     DtDbgOut(MAX, DTA, "Exit (device: DTA-%d)", pDvcData->m_DevInfo.m_TypeNumber);
 
@@ -469,11 +456,14 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
         // And finally initialize the property storage
         if (pDvcData->m_DevInfo.m_HasUninitializedPlx)
         {
+            Int TypeNumber, TypeNumberExt;
             // Make sure FPGA is alive
             DtSleep(1000);
             // Fix typenumber
-            pDvcData->m_DevInfo.m_TypeNumber = DtaRegGenCtrlGetTypeNumber(
-                                                                    pDvcData->m_pGenRegs);
+            TypeNumber = DtaRegGenCtrlGetTypeNumber(pDvcData->m_pGenRegs);
+            TypeNumberExt = DtaRegGenStatGetTypeNumExt(pDvcData->m_pGenRegs);
+            TypeNumber += TypeNumberExt==1 ? 2100 : (TypeNumberExt==2 ? 500 : 0);
+            pDvcData->m_DevInfo.m_TypeNumber = TypeNumber;
             
             // Initialize property data object
             pDvcData->m_PropData.m_pPropertyStore = NULL;
@@ -482,6 +472,8 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
             pDvcData->m_PropData.m_pTableStore = NULL;
             pDvcData->m_PropData.m_TypeName = "DTA";
             pDvcData->m_PropData.m_TypeNumber = pDvcData->m_DevInfo.m_TypeNumber;
+            pDvcData->m_PropData.m_SubDvc = pDvcData->m_DevInfo.m_SubDvc;
+            pDvcData->m_PropData.m_FirmwareVariant = pDvcData->m_DevInfo.m_FirmwareVariant;
             pDvcData->m_PropData.m_FirmwareVersion = pDvcData->m_DevInfo.m_FirmwareVersion;
             pDvcData->m_PropData.m_HardwareRevision = pDvcData->m_DevInfo.m_HardwareRevision;
 
@@ -489,26 +481,10 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
             Status = DtaPropertiesInit(pDvcData);
             if (!DT_SUCCESS(Status))
                 return Status;
-            
-            // Initialise the number and type of ports the card supports. 
-            Status = DtaCalculateAndCreatePortsStruct(pDvcData);
-            if (!DT_SUCCESS(Status))
-                return Status;
 
-            // Initialise the table store
-            Status = DtTablesInit(&pDvcData->m_PropData);
-            if (!DT_SUCCESS(Status))
-                return Status;
-
-            if (pDvcData->m_NumIpPorts != 0) 
-            {
-                // Create the network devices
-                Status = DtaInitChildDevices(pDvcData);
-                if (!DT_SUCCESS(Status))
-                    return Status;
-            }
         }
     }
+
                 
     // Wait until FPGA is ready
     if (pDvcData->m_DevInfo.m_UsesPlxChip)
@@ -520,7 +496,7 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
     
     if (pDvcData->m_InitialPowerup)
     {
-        // Get hardware revision
+        // Hardware revision is determined later
         pDvcData->m_DevInfo.m_HardwareRevision = 0;
         
         // Get firmware version
@@ -529,9 +505,51 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
         // Get firmware variant
         pDvcData->m_DevInfo.m_FirmwareVariant = 
                                           DtaRegGenStatGetFwVariant(pDvcData->m_pGenRegs);
-        // Update propery data fields
+        // Update property store data, this is required even for PLX devices
+        pDvcData->m_PropData.m_FirmwareVariant = pDvcData->m_DevInfo.m_FirmwareVariant;
         pDvcData->m_PropData.m_FirmwareVersion = pDvcData->m_DevInfo.m_FirmwareVersion;
-        pDvcData->m_PropData.m_HardwareRevision = pDvcData->m_DevInfo.m_HardwareRevision;
+
+        if (!pDvcData->m_DevInfo.m_UsesPlxChip)
+        {
+            // Initialize property data object
+            pDvcData->m_PropData.m_pPropertyStore = NULL;
+            pDvcData->m_PropData.m_PropertyNotFoundCounter = 0;
+            //pDvcData->m_PropData.m_PropertyNotFoundString = ?;
+            pDvcData->m_PropData.m_pTableStore = NULL;
+            pDvcData->m_PropData.m_TypeName = "DTA";
+            pDvcData->m_PropData.m_TypeNumber = pDvcData->m_DevInfo.m_TypeNumber;
+            pDvcData->m_PropData.m_SubDvc = pDvcData->m_DevInfo.m_SubDvc;
+            pDvcData->m_PropData.m_HardwareRevision = pDvcData->m_DevInfo.m_HardwareRevision;
+            // Initialise the property store
+            Status = DtaPropertiesInit(pDvcData);
+            if (!DT_SUCCESS(Status))
+                return Status;
+        }
+        // Initialise the table store
+        Status = DtTablesInit(&pDvcData->m_PropData);
+        if (!DT_SUCCESS(Status))
+            return Status;
+        // Initialise the number and type of ports the card supports. 
+        Status = DtaCalculateAndCreatePortsStruct(pDvcData);
+        if (!DT_SUCCESS(Status))
+            return Status;
+        if (pDvcData->m_NumIpPorts != 0) 
+        {
+            // Create the network devices
+            Status = DtaInitChildDevices(pDvcData);
+            if (!DT_SUCCESS(Status))
+                return Status;
+        } 
+        // Check whether firmware variant is supported by this driver 
+        Status = DtaCheckFwVariantSupport(pDvcData);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOut(ERR, DTA, "Unsupported firmware variant (%d)",
+                                                   pDvcData->m_DevInfo.m_FirmwareVariant);
+            DtEvtLogReport(&pDvcData->m_Device.m_EvtObject,
+                                              DTA_LOG_UNSUPP_FWVARIANT, NULL, NULL, NULL);
+            return Status;
+        }
 
         // Fix subvendor/subdevice in case of uninitialised PLX EEPROM
         // This can only be done after the properties are initialized
@@ -1343,6 +1361,13 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
         InReqSize = 0; // Checked later
         OutReqSize = 0; // Checked later
         break;
+#ifdef LINUX
+    case DTA_IOCTL_NONIP_CMD_LEGACY:
+        pIoctlStr = "DTA_IOCTL_NONIP_CMD_LEGACY";
+        InReqSize = 0; // Checked later
+        OutReqSize = 0; // Checked later
+        break;
+#endif
     case DTA_IOCTL_NONIP_TX_CMD:
         pIoctlStr = "DTA_IOCTL_NONIP_TX_CMD";
         InReqSize = 0; // Checked later
@@ -1446,6 +1471,9 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
             case DTA_IOCTL_DMA_READ:
             case DTA_IOCTL_DMA_WRITE:
             case DTA_IOCTL_NONIP_CMD:
+#ifdef LINUX
+            case DTA_IOCTL_NONIP_CMD_LEGACY:
+#endif
             case DTA_IOCTL_NONIP_TX_CMD:
             case DTA_IOCTL_NONIP_RX_CMD:
             case DTA_IOCTL_IP_CMD:
@@ -1520,6 +1548,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                                                  pDvcData->m_PropData.m_SubDvc,
                                                  pInBuf->m_GetProperty.m_HardwareRevision,
                                                  pInBuf->m_GetProperty.m_FirmwareVersion,
+                                                 -1,
                                                  pInBuf->m_GetProperty.m_Name,
                                                  pInBuf->m_GetProperty.m_PortIndex,
                                                  &Value, &Type, &Scope,
@@ -1928,6 +1957,9 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                                                    pInBuf->m_SetIoConfig.m_IoConfigCount);
             break;
         case DTA_IOCTL_NONIP_CMD:
+#ifdef LINUX
+        case DTA_IOCTL_NONIP_CMD_LEGACY:
+#endif
             Status = DtaNonIpIoctl(pDvcData, pFile, pIoctl);
             break;
         case DTA_IOCTL_NONIP_TX_CMD:
@@ -1979,6 +2011,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                             pInBuf->m_GetTable2.m_SubDvc,
                             pInBuf->m_GetTable2.m_HardwareRevision,
                             pInBuf->m_GetTable2.m_FirmwareVersion,
+                            -1,
                             pInBuf->m_GetTable2.m_Name,
                             pInBuf->m_GetTable2.m_PortIndex,
                             pInBuf->m_GetTable2.m_MaxNumEntries,
@@ -2020,6 +2053,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                                               pDvcData->m_PropData.m_SubDvc, 
                                               pInBuf->m_GetStrProperty.m_HardwareRevision, 
                                               pInBuf->m_GetStrProperty.m_FirmwareVersion,
+                                              -1,
                                               pInBuf->m_GetStrProperty.m_Name,
                                               pInBuf->m_GetStrProperty.m_PortIndex,
                                               pOutBuf->m_GetStrProperty.m_Str,
@@ -2055,6 +2089,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                                               pInBuf->m_GetStrProperty2.m_SubDvc, 
                                               pInBuf->m_GetStrProperty2.m_HardwareRevision, 
                                               pInBuf->m_GetStrProperty2.m_FirmwareVersion,
+                                              -1,
                                               pInBuf->m_GetStrProperty2.m_Name,
                                               pInBuf->m_GetStrProperty2.m_PortIndex,
                                               pOutBuf->m_GetStrProperty.m_Str,
@@ -2109,6 +2144,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                                                 pDvcData->m_PropData.m_SubDvc,
                                                 pInBuf->m_GetProperty2.m_HardwareRevision,
                                                 pInBuf->m_GetProperty2.m_FirmwareVersion,
+                                                -1,
                                                 pInBuf->m_GetProperty2.m_Name,
                                                 pInBuf->m_GetProperty2.m_PortIndex,
                                                 &Value, &Type, &Scope,
@@ -2171,6 +2207,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                                                 pInBuf->m_GetProperty3.m_SubDvc,
                                                 pInBuf->m_GetProperty3.m_HardwareRevision,
                                                 pInBuf->m_GetProperty3.m_FirmwareVersion,
+                                                -1,
                                                 pInBuf->m_GetProperty3.m_Name,
                                                 pInBuf->m_GetProperty3.m_PortIndex,
                                                 &Value, &Type, &Scope,
@@ -2733,12 +2770,19 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
                 if ((CmdStat & DTA_DMA_CMDSTAT_INTACT) != 0)
                 {
                     // Clear DMA Channel interrupt (disables the channel too)
+                    UInt  Size;
                     WRITE_UINT32(pDmaChannel->m_pRegCmdStat, 0, DTA_DMA_CMDSTAT_INTACT);
                     
                     DpcArgs.m_pContext = pDmaChannel;
                     if ((pDmaChannel->m_DmaMode & DTA_DMA_MODE_TIMEOUT_ENABLE) != 0)
-                        pDmaChannel->m_NumBytesRead = pDmaChannel->m_TransferSize - 
-                                             ((CmdStat & DTA_DMA_CMDSTAT_SIZE_MASK) >> 8);
+                    {
+                        Size =  ((CmdStat & DTA_DMA_CMDSTAT_SIZE_MASK) >> 8);
+                        if (Size > pDmaChannel->m_TransferSize)
+                            pDmaChannel->m_NumBytesRead = 0;
+                        else
+                            pDmaChannel->m_NumBytesRead = 
+                                                       pDmaChannel->m_TransferSize - Size;
+                    }
                     DtDpcSchedule(&pDmaChannel->m_DmaCompletedDpc, &DpcArgs);
 
                     // Interrupt was ours
@@ -2747,13 +2791,21 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
                           DtaDmaIsAbortActive(pDmaChannel) && !DtaDmaIsReady(pDmaChannel))
                 {
                     // No DMA interrupt active, but DMA is ready and still pending in driver.
+                    UInt  Size;
                     DpcArgs.m_pContext = pDmaChannel;
                     if ((pDmaChannel->m_DmaMode & DTA_DMA_MODE_TIMEOUT_ENABLE) != 0)
-                        pDmaChannel->m_NumBytesRead = pDmaChannel->m_TransferSize - 
-                                             ((CmdStat & DTA_DMA_CMDSTAT_SIZE_MASK) >> 8);
+                    {
+                        Size =  ((CmdStat & DTA_DMA_CMDSTAT_SIZE_MASK) >> 8);
+                        if (Size > pDmaChannel->m_TransferSize)
+                            pDmaChannel->m_NumBytesRead = 0;
+                        else
+                            pDmaChannel->m_NumBytesRead = 
+                                                       pDmaChannel->m_TransferSize - Size;
+                    }
                     DtDpcSchedule(&pDmaChannel->m_DmaCompletedDpc, &DpcArgs);
                 }
             }
+
         }
     } else {
         DmaChannel*  pDmaChannel = NULL;
@@ -3495,6 +3547,36 @@ DtStatus  DtaCalculateAndCreatePortsStruct(DtaDeviceData* pDvcData)
     }
 
     return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaCheckFwVariantSupport -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// This function checks whether the current active firmware variant is
+// supported by this driver.
+//
+DtStatus  DtaCheckFwVariantSupport(DtaDeviceData* pDvcData)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtPropertyData*  pPropData = &pDvcData->m_PropData;
+    DtTableEntry  FwVariants[16];
+    UInt  NumFwVariants = 0;
+    UInt  i;
+    // Firmware variant 0 is always supported
+    if (pDvcData->m_DevInfo.m_FirmwareVariant == 0)
+        return DT_STATUS_OK;
+    // Get the supported firmware variant for this device
+    Status = DtTableGet(pPropData, "DVC_FW_VARIANTS", -1,
+                                          sizeof(FwVariants)/sizeof(FwVariants[0]),
+                                          &NumFwVariants, FwVariants, sizeof(FwVariants));
+    if (!DT_SUCCESS(Status))
+        return DT_STATUS_NOT_SUPPORTED;
+    for (i=0; i<NumFwVariants; i++)
+    {
+        // Firmware variant in the list? OK
+        if (FwVariants[i].m_Y == pDvcData->m_DevInfo.m_FirmwareVariant)
+            return DT_STATUS_OK;
+    }
+    return DT_STATUS_NOT_SUPPORTED;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaCleanupPortStructs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

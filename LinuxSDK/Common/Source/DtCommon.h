@@ -256,6 +256,7 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 
 // Temperature sensor types
 #define TEMP_SENS_TYPE_MAX6639       0           // Maxim 6639 controller
+#define TEMP_SENS_TYPE_FX3           1           // FX3 controller
 
 // PCIe bridges
 #define PCIE_BRIDGE_TYPE_PEX87XX     0           // PLX PEX 87XX chip
