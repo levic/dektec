@@ -2864,6 +2864,8 @@ static const DtPropertyHashSet  DtPropertyHashSets299_0[] =
 // 
 static const DtProperty  DtProperties315_0_01[] =
 {
+    { "CAP_TX_ATSC3", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MOD_LEVEL_NUM_ATTN", 1, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
@@ -3334,7 +3336,7 @@ static const DtProperty  DtProperties315_0_63[] =
 static const DtPropertyHashSet  DtPropertyHashSets315_0[] =
 {
     { NULL, 0 },
-    { DtProperties315_0_01, 2 },
+    { DtProperties315_0_01, 3 },
     { DtProperties315_0_02, 5 },
     { DtProperties315_0_03, 6 },
     { DtProperties315_0_04, 7 },

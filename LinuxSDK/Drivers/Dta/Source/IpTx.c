@@ -343,7 +343,7 @@ DtStatus  DtaIpTxInitType2(DtaIpPort* pIpPort)
                                           "NW_REGISTERS_RT_TX_DMA", pIpPort->m_PortIndex);
 
     pIpPortType2->m_MemoryControllerOffset = DtPropertiesGetUInt16(pPropData,
-                                             "NW_REGISTERS_MEMCTRL", pIpPort->m_PortIndex);
+                                            "NW_REGISTERS_MEMCTRL", pIpPort->m_PortIndex);
 
     // Report configuration errors
     // Check if no property error occurred
@@ -469,10 +469,8 @@ void  DtaIpTxCleanupType2(DtaIpPort* pIpPort)
 //
 // User channel IOCTL's
 //
-DtStatus  DtaIpTxIoctl(
-    DtaDeviceData*  pDvcData,
-    DtFileObject*  pFile,
-    DtIoctlObject*  pIoctl)
+DtStatus  DtaIpTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
+                                                                    DtIoctlObject* pIoctl)
 {
     DtStatus  Status = DT_STATUS_OK;
     char*  pCmdStr;             // Mnemonic string for Command
@@ -659,21 +657,17 @@ DtStatus  DtaIpTxIoctl(
 // Precondition: PortIndex is the 0 based index to the Port set by the user
 //               IpPortIndex is the 0-based index to an IpPort
 //
-DtStatus  DtaIpTxUserChAttach(
-    DtaIpUserChannels*  pIpUserChannels,
-    Int  PortIndex,
-    Int  IpPortIndex, 
-    DtFileObject*  pFile,
-    Int*  pChannelIndex)
-{   
+DtStatus  DtaIpTxUserChAttach(DtaIpUserChannels* pIpUserChannels,
+                  Int PortIndex, Int IpPortIndex, DtFileObject* pFile, Int* pChannelIndex)
+{
     UserIpTxChannel*  pIpTxChannel;
     Int  ChannelIndex = 0;
-    
+
     DtFastMutexAcquire(&pIpUserChannels->m_IpTxChannelMutex);
-    
+
     pIpTxChannel = pIpUserChannels->m_pIpTxChannel;
 
-    // find a free index     
+    // find a free index
     while (pIpTxChannel != NULL)
     {
         // reuse a previously detached channel index if available
@@ -712,16 +706,16 @@ DtStatus  DtaIpTxUserChAttach(
 // Removes a IP TX channel from its internal list, and frees the used resources.
 //
 DtStatus  DtaIpTxUserChDetach(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex)
-{    
+{
     UserIpTxChannel*  pIpTxChannel;
 
     pIpTxChannel = DtaIpTxUserChGet(pIpUserChannels, ChannelIndex);
     if (pIpTxChannel == NULL)
         return DT_STATUS_INVALID_PARAMETER;
-    
+
     // Set tx to IDLE state before detaching
     DtaIpTxUserChSetTxControlIdle(pIpUserChannels, pIpTxChannel);
-    
+
     // Destroy the channel completely
     DtaIpTxUserChDestroy(pIpUserChannels, pIpTxChannel);
 
@@ -732,10 +726,8 @@ DtStatus  DtaIpTxUserChDetach(DtaIpUserChannels* pIpUserChannels, Int ChannelInd
 //
 // Clears the latched flags used in IP Tx. 
 //
-DtStatus  DtaIpTxUserChClearFlags(
-    DtaIpUserChannels*  pIpUserChannels,
-    Int  ChannelIndex,
-    Int  Flags)
+DtStatus  DtaIpTxUserChClearFlags(DtaIpUserChannels* pIpUserChannels,
+                                                              Int ChannelIndex, Int Flags)
 {
     UserIpTxChannel*  pIpTxChannel;
 
@@ -765,12 +757,12 @@ DtStatus  DtaIpTxUserChGetFlags(
     pIpTxChannel = DtaIpTxUserChGet(pIpUserChannels, ChannelIndex);
     if (pIpTxChannel == NULL)
         return DT_STATUS_INVALID_PARAMETER;
-    
+
     DtSpinLockAcquire(&pIpTxChannel->m_FlagsSpinLock);
     *pFlags = pIpTxChannel->m_Flags;
     *pLatchedFlags = pIpTxChannel->m_LatchedFlags;
     DtSpinLockRelease(&pIpTxChannel->m_FlagsSpinLock);
-        
+
     return DT_STATUS_OK;
 }
 
@@ -805,11 +797,11 @@ DtStatus DtaIpTxUserChSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelI
         DtDbgOut(ERR, IP_TX, "Setting IP pars not allowed if channel is NOT IDLE");
         return DT_STATUS_FAIL;
     }
-    
+
     pIpTxChannel->m_IpParsMode = Mode;
     pIpTxChannel->m_IpParsValid = TRUE;
     pIpTxChannel->m_LastReadOffset = 0;
-        
+
     if (Mode == DTA_IP_TX_2022_7)
     {
         Bool  IpV6 = (Flags & DTA_IP_V6) != 0;
@@ -818,7 +810,7 @@ DtStatus DtaIpTxUserChSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelI
         pIpTxChannel->m_FecMode = FecMode;
         pIpTxChannel->m_IpParsMode = Mode;
         pIpTxChannel->m_IpParsFlags = Flags;
-        
+
         // Set port number to big-endian for easy compare and set with original packet
         pIpTxChannel->m_SrcPort = DtUInt16ByteSwap(SrcPort);
         pIpTxChannel->m_DstPort = DstPort;
@@ -826,7 +818,7 @@ DtStatus DtaIpTxUserChSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelI
         pIpTxChannel->m_DstPortMainRow = DtUInt16ByteSwap(DstPort2 + FEC_INC_ROW_PORT);
         pIpTxChannel->m_DstPortMainColumn = DtUInt16ByteSwap(DstPort2 +
                                                                      FEC_INC_COLUMN_PORT);
-        
+
         // Build ethernet header
         if (UseVlan)
         {
@@ -852,7 +844,6 @@ DtStatus DtaIpTxUserChSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelI
             {
                 pEthIIHeader->m_SrcMac[i] = pSrcMac[i];
                 pEthIIHeader->m_DstMac[i] = pDstMac[i];
-                
             }
         }
 
@@ -885,15 +876,13 @@ DtStatus DtaIpTxUserChSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelI
 //
 // Puts the IP Tx in SEND/HOLD or IDLE state
 //
-DtStatus  DtaIpTxUserChSetTxControl(
-    DtaIpUserChannels*  pIpUserChannels,
-    Int  ChannelIndex, 
-    Int  TxControl)
+DtStatus  DtaIpTxUserChSetTxControl(DtaIpUserChannels* pIpUserChannels,
+                                                          Int ChannelIndex, Int TxControl)
 {
     UserIpTxChannel*  pIpTxChannel = NULL;
     DtaDeviceData*  pDvcData = pIpUserChannels->m_pDvcData;
     UInt64  ReferenceDelay = 0;
-    UInt32  PeriodicIntMs = DtaGetPerIntItvUS(pDvcData)/1000;
+    UInt32  PeriodicIntMs = DtaGetPerIntItvUS(pDvcData) / 1000;
     
     pIpTxChannel = DtaIpTxUserChGet(pIpUserChannels, ChannelIndex);
     if (pIpTxChannel == NULL)
@@ -971,13 +960,22 @@ UserIpTxChannel*  DtaIpTxUserChGet(DtaIpUserChannels* pIpUserChannels, Int Chann
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpTxUserChDestroy -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtaIpTxUserChDestroy(
-    DtaIpUserChannels*  pIpUserChannels,
-    UserIpTxChannel*  pIpTxChannel)
+void  DtaIpTxUserChDestroy(DtaIpUserChannels* pIpUserChannels,
+                                                            UserIpTxChannel* pIpTxChannel)
 {
-    // gain access to the channel list
+    // Gain access to the channel list
     DtFastMutexAcquire(&pIpUserChannels->m_IpTxChannelMutex);
+    DtaIpTxUserChDestroyUnsafe(pIpUserChannels, pIpTxChannel);
+    DtFastMutexRelease(&pIpUserChannels->m_IpTxChannelMutex);
+}
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpTxUserChDestroyUnsafe -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Pre: The pIpUserChannels->m_IpTxChannelMutex must be acquired
+//
+void  DtaIpTxUserChDestroyUnsafe(DtaIpUserChannels* pIpUserChannels,
+                                                            UserIpTxChannel* pIpTxChannel)
+{
     // Note: We cannot free the shared buffer when we hold a spinlock
     //       This is a linux issue where holding a spinlock is considered as 
     //       being in an interrupt. This normally would trigger an exception in 'vunmap'.
@@ -991,26 +989,24 @@ void  DtaIpTxUserChDestroy(
     DtaShBufferClose(&pIpTxChannel->m_SharedBuffer);
     DtMemFreePool(pIpTxChannel, IPTX_TAG);
     pIpTxChannel = NULL;
-    
-    DtFastMutexRelease(&pIpUserChannels->m_IpTxChannelMutex);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpTxRtReportOverFlow -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtaIpTxRtReportOverFlow(DtStatus Status, UserIpTxChannel* pIpTxChannel)
-{    
+{
     if (Status != DT_STATUS_BUFFER_OVERFLOW)
     {
         // reset overflow flag
-        // No need to acquire spinlock    
+        // No need to acquire spinlock
         pIpTxChannel->m_Flags &= ~DTA_TX_FIFO_OVF;
         return;
-    }    
+    }
 
     DtSpinLockAcquireAtDpc(&pIpTxChannel->m_FlagsSpinLock);
     pIpTxChannel->m_Flags |= DTA_TX_FIFO_OVF;
     pIpTxChannel->m_LatchedFlags |= DTA_TX_FIFO_OVF;
-    DtSpinLockReleaseFromDpc(&pIpTxChannel->m_FlagsSpinLock);    
+    DtSpinLockReleaseFromDpc(&pIpTxChannel->m_FlagsSpinLock);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpTxRtProcessPacketsType1Dpc -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1158,7 +1154,7 @@ void  DtaIpTxRtProcessPacketsType1Dpc(DtDpcArgs* pArgs)
             // to send the remaining packets.
             if (pIpTxChannel->m_ReportOverFlow)
                 DtaIpTxRtReportOverFlow(PortStatus[CurrentPort], pIpTxChannel);
-            else                
+            else
                 continue; // Do not increase the read pointer
         }
 
@@ -1183,18 +1179,18 @@ void  DtaIpTxRtProcessPacketsType1Dpc(DtDpcArgs* pArgs)
         pPPBuffer = &pIpPort->m_IpPortType1.m_TxRtPPBuffer;
         if (DtaPPBufferGetTransferSize(pPPBuffer) == 0)
             continue;
-        
+
         // Set the buffer to ready state
         DtaPPBufferWriteDataFinish(pPPBuffer);
-        
+
         // Start transfer
         Status = DtaPPBufferTransferData(pPPBuffer);
-    }    
+    }
 
     DtSpinLockReleaseFromDpc(&pIpUserChannels->m_IpTxChannelSpinLock);
 
 #ifdef  _DEBUG
-    CurTime = DtaRegRefClkCntGet64(pDvcData->m_pGenRegs);    
+    CurTime = DtaRegRefClkCntGet64(pDvcData->m_pGenRegs);
     CurTime = CurTime - StartTime;
     Delay = DtDivide64((CurTime * 10000), (pDvcData->m_DevInfo.m_RefClk/1000), NULL);
     Delay = DtDivide64(Delay, 10000, NULL);
@@ -1211,8 +1207,12 @@ void  DtaIpTxRtProcessPacketsType1Dpc(DtDpcArgs* pArgs)
 // Process all channels; Read a packet from the shared buffer, and put them in the output-
 // (DMA) buffer for the current port.
 //
+#ifdef  _DEBUG
+UInt64  LastMinPktTime[2] = {0,0};
+UInt64  LastCurTime[2] = {0,0};
+#endif
 void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
-{    
+{
     DtStatus  Status = DT_STATUS_OK;
     UserIpTxChannel*  pIpTxChannel = NULL;
     DtaDmaTxHeader*  pDmaTxHeader = NULL;
@@ -1254,7 +1254,7 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
     pIpPort = (DtaIpPort*)pArgs->m_pContext;
     pDvcData = pIpPort->m_pDvcData;
     FirstPort = (pIpPort->m_IpPortIndex%2) == 0;
-    
+
     pIpPortFirst = &pDvcData->m_IpDevice.m_pIpPorts[pIpPort->m_IpPortIndex&0xfffffffe];
     pIpPortTransfer = &pDvcData->m_IpDevice.m_pIpPorts[(FirstPort?
                                       pIpPort->m_IpPortIndex+1:pIpPort->m_IpPortIndex-1)];
@@ -1281,7 +1281,7 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
         return;
 #ifdef  _DEBUG
    // StartTime = DtaRegRefClkCntGet64(pDvcData->m_pGenRegs);
-#endif    
+#endif
 
     // Protect channels for access during processing
     DtSpinLockAcquireAtDpc(&pIpUserChannels->m_IpTxChannelSpinLock);
@@ -1308,13 +1308,28 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
     // Determine the maximum packet time reference for 19,4 ms
     MinPacketTime = (CurTime+0x7ffff) &~0xfffff;
     MaxPacketTime = MinPacketTime + 0xfffff;
-
+#ifdef  _DEBUG
+    if ((pIpPort->m_IpPortIndex==1 && (CurTime - MinPacketTime > 0xffff)) || (pIpPort->m_IpPortIndex==0 && (CurTime+0x7ffff - MinPacketTime > 0xffff)))
+    {
+        DtDbgOut(ERR, IP_TX, "Port %i: CurTime:%I64x MinTime:%I64x. "
+                        "MaxTime:%I64x. Late in processing!",
+                        pIpPort->m_IpPortIndex, CurTime, MinPacketTime, MaxPacketTime);
+    }
+    if (LastMinPktTime[pIpPort->m_IpPortIndex] +0x100000 != MinPacketTime && (LastMinPktTime[pIpPort->m_IpPortIndex]!=0))
+    {
+        DtDbgOut(ERR, IP_TX, "Port %i: CurTime:%I64x LastCurTime:%I64x MinPkttime:%I64x LastMinPktTime: %I64x ERROR IN PROCESSING!!",
+                        pIpPort->m_IpPortIndex, CurTime, LastCurTime[pIpPort->m_IpPortIndex], MinPacketTime, LastMinPktTime[pIpPort->m_IpPortIndex]);
+    }
+    LastCurTime[pIpPort->m_IpPortIndex] = CurTime;
+    LastMinPktTime[pIpPort->m_IpPortIndex] = MinPacketTime;
+    
+#endif
     PortStatus = DT_STATUS_NOT_STARTED;
     DtaPPBufferWriteDataClearBuf(pPPBuffer);
 
     // Fill the PPBuffer
     pIpTxChannel = pIpUserChannels->m_pIpTxChannel;
-    
+
     while (pIpTxChannel != NULL)
     {
         DblBuf = pIpTxChannel->m_IpParsValid && 
@@ -1367,16 +1382,17 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
                                                           pIpTxChannel->m_LastReadOffset);
 
 #ifdef  _DEBUG
-        if (FirstTime)
+        /*if (FirstTime)
         {
-            //DtDbgOut(MAX, IP_TX, "Port %i: CurTime:%I64x MinTime:%I64x. "
-            //              "MaxTime:%I64x. RO:%i WO:%i RO2:%i WO2:%i",
-            //              pIpPort->m_IpPortIndex, CurTime, MinPacketTime, MaxPacketTime,
-            //              pIpTxChannel->m_pTxBufferHead->m_ReadOffset, 
-            //              pIpTxChannel->m_pTxBufferHead->m_WriteOffset, 
-            //              ReadOffset, WriteOffset);
+            DtDbgOut(MAX, IP_TX, "Port %i: CurTime:%I64x MinTime:%I64x. "
+                          "MaxTime:%I64x. RO:%i WO:%i RO2:%i WO2:%i",
+                          pIpPort->m_IpPortIndex, CurTime, MinPacketTime, MaxPacketTime,
+                          pIpTxChannel->m_pTxBufferHead->m_ReadOffset, 
+                          pIpTxChannel->m_pTxBufferHead->m_WriteOffset, 
+                          ReadOffset, WriteOffset);
             FirstTime = FALSE;
-        }
+        }*/
+
 #endif
         // Check if packets are available for this channel
         // and handle underflow situation
@@ -1443,8 +1459,8 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
                 // For now, we skip this packet
                 if (!PacketTooOld)
                 {
-                    DtDbgOut(MAX, IP_TX, "Port %i: Packet too old, skip. Packettime:"
-                                       "%llx CurTime: %llx MinTime: %llx. MaxTime: %llx.",
+                    DtDbgOut(MAX, IP_TX, "Port %i: Packet too old, skip. CurTime:"
+                                       "%llx Packettime:%llx MinTime:%llx. MaxTime:%llx.",
                                        pIpPort->m_IpPortIndex, CurTime, PacketTime, 
                                        MinPacketTime, MaxPacketTime);
                     PacketTooOld = TRUE;
@@ -1496,11 +1512,10 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
                                               ReadOffset,
                                               pPPBuffer, PacketLength);
                         }
-                        
-                        
+
                         DT_ASSERT(Status==DT_STATUS_OK || 
                                                        Status==DT_STATUS_BUFFER_OVERFLOW);
-                
+
                         // Restore the timestamps for future processing
                         pDmaTxHeader->m_Timestamp = *pLastTimestampOffs;
                             
@@ -1517,7 +1532,7 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
                         }
                     }
                 }
-       
+
                 if (PortStatus == DT_STATUS_BUFFER_OVERFLOW)
                 {
                     // Report an overflow if needed, and skip processing the rest of the
@@ -1526,11 +1541,10 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
                     // is made to send the remaining packets.
                     if (pIpTxChannel->m_ReportOverFlow)
                         DtaIpTxRtReportOverFlow(PortStatus, pIpTxChannel);
-                    else                
+                    else
                         break; // Do not increase the read pointer
                 }
             }
-        
 
             // Update the read pointer of the source
             if (ReadOffset+PacketLength > 
@@ -1549,7 +1563,7 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
         pIpTxChannel->m_LastReadOffset = ReadOffset;
         pIpTxChannel = pIpTxChannel->m_pNext;
     }
-
+    
     // Check if length == 0, if so, we have to insert a dummy packet
     if (DtaPPBufferGetTransferSize(pPPBuffer) == 0)
     {
@@ -1624,18 +1638,13 @@ void  DtaIpTxReBuildPacket(UserIpTxChannel* pIpTxChannel, UInt8* pBuffer,
         HbrMediaPlHeader*  pHbrHeader = (HbrMediaPlHeader*)
                                              (pBuf + sizeof(UdpHeader)+sizeof(RtpHeader));
         pHbrHeader->m_Vsid = 1;
-        
     }
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpTxRtGetLocalAddressType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtaIpTxRtGetLocalAddress(
-    void*  pContext,
-    UInt8**  pLocalAddress,
-    UInt*  pStart,
-    UInt*  pStop,
-    UInt*  pTransferSize)
+void  DtaIpTxRtGetLocalAddress(void* pContext, UInt8** pLocalAddress, UInt* pStart,
+                                                         UInt* pStop, UInt* pTransferSize)
 {
     DtaIpPort*  pIpPort = (DtaIpPort*)pContext;
 
@@ -1655,11 +1664,9 @@ void  DtaIpTxRtGetLocalAddress(
 // It should should be preceeded by disabling the networkdriver or by putting the admin 
 // status to down.
 // Expected is that the DMA header is already added.
-DtStatus  DtaIpTxWriteNDisPacket(
-    DtaIpPort*  pIpPort,
-    UInt8*  pBuf, 
-    UInt  BufLen)
-{    
+//
+DtStatus  DtaIpTxWriteNDisPacket(DtaIpPort* pIpPort, UInt8* pBuf, UInt BufLen)
+{
     UInt8*  pDst;
     UInt  FreeSpaceUntilEnd;
     UInt  FreeSpaceFromBegin;
@@ -1731,9 +1738,7 @@ DtStatus  DtaIpTxWriteNDisPacket(
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpTxNrtCleanupBuffer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaIpTxNrtCleanupBuffer(
-    DmaChannel*  pDmaChannel, 
-    DtaIpNrtChannels*  pNrtChannels)
+DtStatus  DtaIpTxNrtCleanupBuffer(DmaChannel* pDmaChannel, DtaIpNrtChannels* pNrtChannels)
 {
     DtStatus  Status = DT_STATUS_OK;
 
@@ -1749,13 +1754,11 @@ DtStatus  DtaIpTxNrtCleanupBuffer(
 // buffer between network driver and this driver
 // Note: The SGL buffer in common memory is already created in DtaDmaInitCh()
 //
-DtStatus  DtaIpTxNrtCreateBuffer(
-    DmaChannel*  pDmaChannel,
-    DtaIpNrtChannels*  pNrtChannels)
+DtStatus  DtaIpTxNrtCreateBuffer(DmaChannel* pDmaChannel, DtaIpNrtChannels* pNrtChannels)
 {
     DtStatus  Status = DT_STATUS_OK;
     UInt  BufSize;
-    
+
     DT_ASSERT(DTA_IPTX_NRT_DMA_BUF_SIZE == DTA_IPTX_NRT_SHARED_BUF_SIZE);
 
     // NRT buffer contains:
@@ -1988,10 +1991,9 @@ void  DtaIpTxNrtWorkerThread(DtThread* pThread, void* pContext)
 //
 // Pre: Mutex and spinlock to protect list must be aquired.
 //
-void  DtaIpTxUserChAddToList(
-    DtaIpUserChannels*  pIpUserChannels, 
-    UserIpTxChannel*  pIpTxNew)
-{   
+void  DtaIpTxUserChAddToList(DtaIpUserChannels* pIpUserChannels, 
+                                                                UserIpTxChannel* pIpTxNew)
+{
     UserIpTxChannel*  pIpTxChannel = NULL;
     UserIpTxChannel*  pLastIpTx = NULL;
     Int  ChannelIndex = 0;
@@ -2001,17 +2003,17 @@ void  DtaIpTxUserChAddToList(
     // Just to be sure.
     pIpTxNew->m_pNext = NULL;
     pIpTxNew->m_pPrev = NULL;
-        
+
     if (pIpUserChannels->m_pIpTxChannel == NULL)
     {   
         // No elements in list, add to first one
         pIpUserChannels->m_pIpTxChannel = pIpTxNew;
         return;
     }
-    
+
     pIpTxChannel = pIpUserChannels->m_pIpTxChannel;
     pLastIpTx = pIpUserChannels->m_pIpTxChannel;
-        
+
     // Insert the new channel into our list. The list is sorted.
     while (pIpTxChannel != NULL)
     {        
@@ -2031,7 +2033,7 @@ void  DtaIpTxUserChAddToList(
             // pIpTxChannel comes after the new channel
             pIpTxChannel->m_pPrev = pIpTxNew; 
             return;
-        }         
+        }
         ChannelIndex++;
         pLastIpTx = pIpTxChannel;
         pIpTxChannel = pIpTxChannel->m_pNext;
@@ -2046,11 +2048,8 @@ void  DtaIpTxUserChAddToList(
 //
 // Create and returns an empty channel object. Only its identifiers are set.
 //
-UserIpTxChannel*  DtaIpTxUserChCreate(
-    Int  ChannelIndex,
-    Int  PortIndex,
-    Int  IpPortIndex,
-    DtFileObject*  pFile)
+UserIpTxChannel*  DtaIpTxUserChCreate(Int ChannelIndex, Int PortIndex, Int IpPortIndex,
+                                                                      DtFileObject* pFile)
 {
     // create a channel
     UserIpTxChannel*  pIpTxChannel = DtMemAllocPool(DtPoolNonPaged, 
@@ -2065,11 +2064,11 @@ UserIpTxChannel*  DtaIpTxUserChCreate(
     pIpTxChannel->m_ChannelIndex = ChannelIndex;
     pIpTxChannel->m_PortIndex = PortIndex;
     pIpTxChannel->m_IpPortIndex = IpPortIndex;
-    
+
     // identifies channels to clean for channels that where never detached 
     pIpTxChannel->m_FileObject = *pFile;
 
-    // Init shared buffer    
+    // Init shared buffer
     pIpTxChannel->m_SharedBuffer.m_pBuffer = NULL;
     pIpTxChannel->m_SharedBuffer.m_pDmaCh = NULL;
     pIpTxChannel->m_SharedBuffer.m_Initialised = FALSE;
@@ -2109,9 +2108,8 @@ void  DtaIpTxUserChInitRWPointers(UserIpTxChannel* pIpTxChannel)
 //
 // Remove a channel from the list, and link the previous and next item in the list
 //
-void  DtaIpTxUserChRemoveFromList(
-    DtaIpUserChannels*  pIpUserChannels, 
-    UserIpTxChannel*  pIpTxChannel)
+void  DtaIpTxUserChRemoveFromList(DtaIpUserChannels* pIpUserChannels,
+                                                            UserIpTxChannel* pIpTxChannel)
 {
     if (pIpTxChannel->m_pPrev == NULL) 
     {
@@ -2121,7 +2119,7 @@ void  DtaIpTxUserChRemoveFromList(
             pIpTxChannel->m_pNext->m_pPrev = NULL;
         return;
     }
-    
+
     pIpTxChannel->m_pPrev->m_pNext = pIpTxChannel->m_pNext;
     if (pIpTxChannel->m_pNext)
         pIpTxChannel->m_pNext->m_pPrev = pIpTxChannel->m_pPrev;
@@ -2133,9 +2131,8 @@ void  DtaIpTxUserChRemoveFromList(
 // remark: To avoid acces from DPC, we have to acquire a spinlock first.
 //         After setting to idle, the shared buffer (DTAPI) pointers are initialised.
 //
-void  DtaIpTxUserChSetTxControlIdle(
-    DtaIpUserChannels*  pIpUserChannels,
-    UserIpTxChannel*  pIpTxChannel)
+void  DtaIpTxUserChSetTxControlIdle(DtaIpUserChannels* pIpUserChannels,
+                                                            UserIpTxChannel* pIpTxChannel)
 {
     if (pIpTxChannel->m_TxControl == DT_TXCTRL_IDLE)
         return;
@@ -2149,13 +2146,9 @@ void  DtaIpTxUserChSetTxControlIdle(
 
 //.-.-.-.-.-.-.-.-.-.-.-.- DtaIpTxUserChUpdateReferenceTimeStamps -.-.-.-.-.-.-.-.-.-.-.-.
 //
-void  DtaIpTxUserChUpdateReferenceTimeStamps(
-    DtaDmaTxHeader*  pDmaTxHeader, 
-    UInt64*  pStartTimestamp, 
-    UInt64*  pRefTimestamp,
-    UInt32*  pLastTimestampOffs,
-    DtaDeviceData*  pDeviceData,
-    Bool  FifoUnderflow)
+void  DtaIpTxUserChUpdateReferenceTimeStamps(DtaDmaTxHeader* pDmaTxHeader, 
+               UInt64* pStartTimestamp, UInt64* pRefTimestamp, UInt32* pLastTimestampOffs,
+               DtaDeviceData* pDeviceData, Bool FifoUnderflow)
 {
     UInt64  ReferenceDelay;
     UInt32  PeriodicIntMs = DtaGetPerIntItvUS(pDeviceData)/1000;
@@ -2197,10 +2190,8 @@ void  DtaIpTxUserChUpdateReferenceTimeStamps(
 // Note: For efficiency sake this function also handles underflows and Timestamp 
 // reference updates.
 // 
-UserIpTxChannel*  DtaIpTxUserChFindNewPacket(
-    DtStatus* pPortStatus,
-    DtaIpUserChannels*  pIpUserChannels,
-    UInt64  MaxPacketTime)
+UserIpTxChannel*  DtaIpTxUserChFindNewPacket(DtStatus* pPortStatus,
+                                 DtaIpUserChannels* pIpUserChannels, UInt64 MaxPacketTime)
 {
     UserIpTxChannel*  pIpTxChannel = NULL;
     UserIpTxChannel*  pIpTxNewestChannel = NULL;

@@ -329,8 +329,8 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
             OutVidStd = DT_VIDSTD_525I59_94;   // Set a fractional video standard
         else if (pDvcData->m_Genlock.m_FracMode == DTA_GENLOCK_FRACMODE_OFF)
             OutVidStd = DT_VIDSTD_625I50;   // Set a non-fractional video standard
-        else
-            OutVidStd = RefVidStd;
+        // For other cards, we leave the OutVidStd as the original RefVidStd which means
+        // we do cross-locking in this case.
     }
     DtDbgOut(MIN, NONIP, "[Port=%d] Ref-video-standard=%d, out-video-standard=%d", 
                                                     RefPortIndex+1, RefVidStd, OutVidStd);

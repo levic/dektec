@@ -1100,16 +1100,19 @@ DtStatus  DtaIpUserChReleaseResourceFromFileObject(
     DtaIpUserChannels*  pIpUserChannels,
     DtFileObject*  pFile)
 {
-    UserIpTxChannel*  pUserIpTxChannel = pIpUserChannels->m_pIpTxChannel;
+    UserIpTxChannel*  pUserIpTxChannel;
     UserIpTxChannel*  pUserIpTxToDelete  = NULL;
-    UserIpRxChannel*  pUserIpRxChannel = pIpUserChannels->m_pIpRxChannel;
+    UserIpRxChannel*  pUserIpRxChannel;
     UserIpRxChannel*  pUserIpRxToDelete  = NULL;
     
-    // Cleanup shared TX IP channel buffers    
-    while(pUserIpTxChannel != NULL)
+    // Cleanup shared TX IP channel buffers
+    // Protect loop for channel destroys from other processes
+    DtFastMutexAcquire(&pIpUserChannels->m_IpTxChannelMutex);
+    pUserIpTxChannel = pIpUserChannels->m_pIpTxChannel;
+    while (pUserIpTxChannel != NULL)
     {
-        // Rescue the ipTx pointer to the next item BEFORE we delete the current pointer
-        pUserIpTxToDelete = pUserIpTxChannel;        
+        // Rescue the IpTx pointer to the next item BEFORE we delete the current pointer
+        pUserIpTxToDelete = pUserIpTxChannel;
         pUserIpTxChannel = pUserIpTxChannel->m_pNext;
 
         if (DtFileCompare(&pUserIpTxToDelete->m_SharedBuffer.m_Owner, pFile))
@@ -1117,14 +1120,18 @@ DtStatus  DtaIpUserChReleaseResourceFromFileObject(
             DtDbgOut(AVG, IP, 
                      "Cleanup shared buffer resource for TX IP channel %i using Port %i",
                      pUserIpTxToDelete->m_ChannelIndex, pUserIpTxToDelete->m_IpPortIndex);
-            DtaIpTxUserChDestroy(pIpUserChannels, pUserIpTxToDelete);
+            DtaIpTxUserChDestroyUnsafe(pIpUserChannels, pUserIpTxToDelete);
         }
     }
+    DtFastMutexRelease(&pIpUserChannels->m_IpTxChannelMutex);
     
     // Cleanup shared RX IP channel buffers
-    while(pUserIpRxChannel != NULL)
+    // Protect loop for channel destroys from other processes
+    DtFastMutexAcquire(&pIpUserChannels->m_IpRxChAccesMutex);
+    pUserIpRxChannel = pIpUserChannels->m_pIpRxChannel;
+    while (pUserIpRxChannel != NULL)
     {
-        // Rescue the ipRx pointer to the next item BEFORE we delete the current pointer
+        // Rescue the IpRx pointer to the next item BEFORE we delete the current pointer
         pUserIpRxToDelete = pUserIpRxChannel;
         pUserIpRxChannel = pUserIpRxChannel->m_pNext;
 
@@ -1133,10 +1140,11 @@ DtStatus  DtaIpUserChReleaseResourceFromFileObject(
             DtDbgOut(AVG, IP, 
                      "Cleanup shared buffer resource for RX IP channel %i using Port %i",
                      pUserIpRxToDelete->m_ChannelIndex, pUserIpRxToDelete->m_IpPortIndex);
-            DtaIpRxUserChDestroy(pIpUserChannels, pUserIpRxToDelete);
+            DtaIpRxUserChDestroyUnsafe(pIpUserChannels, pUserIpRxToDelete);
         }
     }
-
+    DtFastMutexRelease(&pIpUserChannels->m_IpRxChAccesMutex);
+    
     return DT_STATUS_OK; 
 }
 
@@ -1146,6 +1154,8 @@ DtStatus  DtaIpReleaseResourceFromFileObject(
     DtaDeviceData*  pDvcData,
     DtFileObject*  pFile)
 {
+    if (pDvcData->m_NumIpPorts == 0)
+        return DT_STATUS_OK;
     return DtaIpUserChReleaseResourceFromFileObject(
                                                    &pDvcData->m_IpDevice.m_IpUserChannels,
                                                    pFile);
@@ -2403,7 +2413,7 @@ void  DtaIpAddrMatcherUpdateTable(
 
     DtMutexRelease (&pFirstPort->m_IpPortType2.m_AddrMatcherMutex);
 #ifdef  _DEBUG
-    DtaIpDumpAddrMatcherTable(pIpPort, pHead);
+    //DtaIpDumpAddrMatcherTable(pIpPort, pHead);
 #endif
 }
 

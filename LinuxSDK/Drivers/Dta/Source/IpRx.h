@@ -343,6 +343,8 @@ DtStatus  DtaIpRxDevicePowerdownPre(DtaIpDevice* pIpDevice);
 UserIpRxChannel*  DtaIpRxUserChGet(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex);
 void  DtaIpRxUserChDestroy(DtaIpUserChannels* pIpUserChannels, 
                                                            UserIpRxChannel* pIpRxChannel);
+void  DtaIpRxUserChDestroyUnsafe(DtaIpUserChannels* pIpUserChannels,
+                                                           UserIpRxChannel* pIpRxChannel);
 void  DtaIpRxRtUpdateSlicePointer(DtaIpPort* pIpPort, Bool SliceOverflow);
 UInt8*  DtaIpRxRtpListsInit(UserIpRxChannel* pIpRxChannel, UInt RtpBufSize);
 

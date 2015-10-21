@@ -45,9 +45,9 @@
 // TARGET DETECTION
 #define  LOG_LEVEL_TRGDET        LOG_MAX
 // Shared Buffer
-#define  LOG_LEVEL_SHBUF         LOG_MAX
+#define  LOG_LEVEL_SHBUF         LOG_AVG
 // Phy Mac
-#define  LOG_LEVEL_PHYMAC        LOG_AVG
+#define  LOG_LEVEL_PHYMAC        LOG_MIN
 // NONIP
 #define  LOG_LEVEL_NONIP         LOG_AVG
 // MATRIX
@@ -55,15 +55,15 @@
 // RS-422
 #define  LOG_LEVEL_RS422         LOG_AVG
 // IP
-#define  LOG_LEVEL_IP            LOG_MAX
+#define  LOG_LEVEL_IP            LOG_AVG
 // IP Rx
 #define  LOG_LEVEL_IP_RX         LOG_AVG
 // IP Rx FEC Reconstructor
 #define  LOG_LEVEL_IP_RX_REC     LOG_MIN
 // IP Tx
-#define  LOG_LEVEL_IP_TX         LOG_MAX
+#define  LOG_LEVEL_IP_TX         LOG_AVG
 // IP Address Matcher
-#define  LOG_LEVEL_IPADDRM       LOG_MAX
+#define  LOG_LEVEL_IPADDRM       LOG_AVG
 // Ping-pong buffer
 #define  LOG_LEVEL_PP            LOG_MIN
 // Genlock

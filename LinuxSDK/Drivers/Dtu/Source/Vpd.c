@@ -1228,6 +1228,7 @@ static DtStatus  DtuVpdReadDirect(DtuDeviceData* pDvcData, UInt8* pData, Int Off
 
     switch (pDvcData->m_Vpd.m_EepromIoItf)
     {
+    case VPD_EEPROM_IO_EZUSB:
         // Read entire content of VPD EEPROM (EzUsb) into cache buffer
         Status = DtuEepromEzUsbRead(pDvcData, Offset, pData, NumBytesToRead);
         break;
@@ -1306,7 +1307,7 @@ static DtStatus  DtuVpdReadRaw(
     if (CacheLength>0)
     {
         Status = DtuVpdReadFromCache(pDvcData, pCacheBuf, CacheStartAddr, CacheLength);
-        if (DT_SUCCESS(Status))
+        if (!DT_SUCCESS(Status))
             return Status;
     }
     
@@ -1315,7 +1316,7 @@ static DtStatus  DtuVpdReadRaw(
     {
         Status = DtuVpdReadDirect(pDvcData, pDirectBuf, DirectStartAddr, DirectLength);
 
-        if (DT_SUCCESS(Status))
+        if (!DT_SUCCESS(Status))
             return Status;
     }
     
@@ -1933,7 +1934,7 @@ static DtStatus DtuVpdWriteItem(
         {
             Status = DtuVpdWriteItemRw(pDvcData, KeywordLen, pKeyword, pBuf, BufLen);
             Start = pDvcData->m_Vpd.m_RwOffset;
-            Length = pDvcData->m_Vpd.m_RwLength;
+            Length = pDvcData->m_Vpd.m_RwLength + 1;
         }  else if (KeywordLen > 2) {
             Status = DtuVpdIntItemWrite(pDvcData, DTU_VPD_SECT_RW, KeywordLen, pKeyword, 
                                                                             pBuf, BufLen);

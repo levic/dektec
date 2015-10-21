@@ -1364,7 +1364,7 @@ static DtStatus  DtaVpdReadRaw(
     if (CacheLength>0)
     {
         Status = DtaVpdReadFromCache(pDvcData, pCacheBuf, CacheStartAddr, CacheLength);
-        if (DT_SUCCESS(Status))
+        if (!DT_SUCCESS(Status))
             return Status;
     }
     
@@ -1373,7 +1373,7 @@ static DtStatus  DtaVpdReadRaw(
     {
         Status = DtaVpdReadDirect(pDvcData, pDirectBuf, DirectStartAddr, DirectLength);
 
-        if (DT_SUCCESS(Status))
+        if (!DT_SUCCESS(Status))
             return Status;
     }
     
@@ -1956,7 +1956,7 @@ static DtStatus DtaVpdWriteItem(
         {
             Status = DtaVpdWriteItemRw(pDvcData, KeywordLen, pKeyword, pBuf, BufLen);
             Start = pDvcData->m_Vpd.m_RwOffset;
-            Length = pDvcData->m_Vpd.m_RwLength;
+            Length = pDvcData->m_Vpd.m_RwLength + 1;
         }  else if (KeywordLen > 2) {
             Status = DtaVpdIntItemWrite(pDvcData, DTA_VPD_SECT_RW, KeywordLen, pKeyword, 
                                                                             pBuf, BufLen);

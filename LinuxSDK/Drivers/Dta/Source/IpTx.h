@@ -102,6 +102,8 @@ UserIpTxChannel*  DtaIpTxUserChGet(DtaIpUserChannels* pIpUserChannels, Int Chann
 DtStatus  DtaIpTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, 
                                                                    DtIoctlObject* pIoctl);
 void  DtaIpTxUserChDestroy(DtaIpUserChannels* pIpDevice, UserIpTxChannel* pIpTxChannel);
+void  DtaIpTxUserChDestroyUnsafe(DtaIpUserChannels* pIpUserChannels,
+                                                           UserIpTxChannel* pIpTxChannel);
 void  DtaIpTxRtProcessPacketsType1Dpc(DtDpcArgs* pArgs);
 void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs);
 DtStatus  DtaIpTxNrtCreateBuffer(DmaChannel* pDmaChannel, DtaIpNrtChannels* pNrtChannels);

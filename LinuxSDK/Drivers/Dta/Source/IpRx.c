@@ -1326,7 +1326,7 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
     // Reset channel after including input streams status information
     DtaIpRxUserChReset(pIpRxChannel, TRUE);
     if ((Flags & DTA_IP_V6) != 0)
-        DtDbgOut(MIN, IP_RX, "Channel %d: New IP pars: SrcPort=%d; DstPort=%d "
+        DtDbgOut(AVG, IP_RX, "Channel %d: New IP pars: SrcPort=%d; DstPort=%d "
                           "DstIP: %d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d",
                           pIpRxChannel->m_ChannelIndex, 
                           pIpRxChannel->m_SrcPort, pIpRxChannel->m_DstPort,
@@ -1339,7 +1339,7 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
                        pIpRxChannel->m_DstIPAddress[12],pIpRxChannel->m_DstIPAddress[13],
                        pIpRxChannel->m_DstIPAddress[14],pIpRxChannel->m_DstIPAddress[15]);
     else
-        DtDbgOut(MIN, IP_RX, "Channel %d: New IP pars: SrcPort=%d; DstPort=%d "
+        DtDbgOut(AVG, IP_RX, "Channel %d: New IP pars: SrcPort=%d; DstPort=%d "
                          "SrcIP: %d.%d.%d.%d DstIP: %d.%d.%d.%d",
                          pIpRxChannel->m_ChannelIndex, 
                          pIpRxChannel->m_SrcPort, pIpRxChannel->m_DstPort,
@@ -1731,11 +1731,23 @@ UserIpRxChannel*  DtaIpRxUserChGet(DtaIpUserChannels* pIpUserChannels, Int Chann
 void  DtaIpRxUserChDestroy(DtaIpUserChannels* pIpUserChannels,
                                                             UserIpRxChannel* pIpRxChannel)
 {
-    DtaIpDevice*  pIpDevice = &pIpUserChannels->m_pDvcData->m_IpDevice;
-    Int  i;
-    
     // Gain access to the channel list
     DtFastMutexAcquire(&pIpUserChannels->m_IpRxChAccesMutex);
+    DtaIpRxUserChDestroyUnsafe(pIpUserChannels, pIpRxChannel);
+    DtFastMutexRelease(&pIpUserChannels->m_IpRxChAccesMutex);
+
+    DtDbgOut(AVG, IP_RX, "Channel is destroyed");
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpRxUserChDestroyUnsafe -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Pre: The pIpUserChannels->m_IpTxChannelMutex must be acquired
+//
+void  DtaIpRxUserChDestroyUnsafe(DtaIpUserChannels* pIpUserChannels,
+                                                            UserIpRxChannel* pIpRxChannel)
+{
+    DtaIpDevice*  pIpDevice = &pIpUserChannels->m_pDvcData->m_IpDevice;
+    Int  i;
     
     // Remove the channel from the list, make shure the workerthreads do not try to access
     // the about to destroy channel. 
@@ -1782,9 +1794,9 @@ void  DtaIpRxUserChDestroy(DtaIpUserChannels* pIpUserChannels,
             DtaIpReAllocIpRxNumListeners(pIpPort, -1);
         }
     }
-
+    // Allow Brm updates and release mutexes
     DtFastMutexRelease(&pIpUserChannels->m_IpRxChThreadMutex);
-    
+
     // Free internal resources
     //DtaIpRxRtpListsCleanup(pIpRxChannel);
     DtaShBufferClose(&pIpRxChannel->m_SharedBuffer);
@@ -1796,10 +1808,7 @@ void  DtaIpRxUserChDestroy(DtaIpUserChannels* pIpUserChannels,
     DtMemFreePool(pIpRxChannel, IPRX_TAG);
     pIpRxChannel = NULL;
 
-    // Allow Brm updates and release mutexes
     DtaIpRxSetBrmSkipUpdate(pIpUserChannels, FALSE);
-
-    DtFastMutexRelease(&pIpUserChannels->m_IpRxChAccesMutex);
 
     DtDbgOut(AVG, IP_RX, "Channel is destroyed");
 }
