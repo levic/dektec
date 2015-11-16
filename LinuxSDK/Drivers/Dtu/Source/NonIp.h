@@ -168,6 +168,7 @@ typedef struct _DtuNonIpPort
     Int  m_InitRxMode;              // Initial RX mode
     Bool  m_AllowRxModeChanges;
     Int  m_DetVidStd;
+    Bool  m_DataLoss;
     
     // Port-level flags on USB3 devices
     Int  m_StateFlags;

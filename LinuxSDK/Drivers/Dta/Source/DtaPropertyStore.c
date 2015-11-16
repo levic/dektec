@@ -13705,7 +13705,7 @@ static const DtProperty  DtProperties2160_0_00[] =
 };
 static const DtProperty  DtProperties2160_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 4, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N1_1", -1,
       "Fixes issue; where certain PCs would detect the card as a graphics card",
@@ -13725,6 +13725,9 @@ static const DtProperty  DtProperties2160_0_02[] =
 static const DtProperty  DtProperties2160_0_03[] =
 {
     { "FIRMWARE_R_N3_1", -1, "Bug fix: Possible hang on full bandwidth(960Mbps)",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N4_0", -1,
+      "Bug fix; Possible sync failure on transparent mode or 204 bytes packets",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2160_0_04[] =
@@ -13732,16 +13735,23 @@ static const DtProperty  DtProperties2160_0_04[] =
     { "FIRMWARE_R_N3_2", -1,
       "Bug fix: Possible old NDIS data transfered on 4K data transfer",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N4_1", -1, "Bug fix: Possible temporary fifo underflow on playout",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_EXT_CLK_FREQ", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2160_0_05[] =
 {
     { "FIRMWARE_R_N3_3", -1, "Several other minor bug fixes", PROPERTY_VALUE_TYPE_STRING,
-                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N4_2", -1,
+      "Bug fix: Possible DMA stop after frequent Fifo Reset calls",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2160_0_06[] =
 {
+    { "FIRMWARE_R_N4_3", -1, "Bug fix: DTAPI_TXMODE_MIN16 (204-16) ASI output failure",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REGISTERS_RX", 0x100, NULL, PROPERTY_VALUE_TYPE_UINT16, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0x300, NULL, PROPERTY_VALUE_TYPE_UINT16, 1, -1, 0, 0, -1,
@@ -14114,10 +14124,10 @@ static const DtPropertyHashSet  DtPropertyHashSets2160_0[] =
     { DtProperties2160_0_00, 5 },
     { DtProperties2160_0_01, 3 },
     { DtProperties2160_0_02, 3 },
-    { DtProperties2160_0_03, 1 },
-    { DtProperties2160_0_04, 2 },
-    { DtProperties2160_0_05, 1 },
-    { DtProperties2160_0_06, 3 },
+    { DtProperties2160_0_03, 2 },
+    { DtProperties2160_0_04, 3 },
+    { DtProperties2160_0_05, 2 },
+    { DtProperties2160_0_06, 4 },
     { DtProperties2160_0_07, 3 },
     { DtProperties2160_0_08, 14 },
     { DtProperties2160_0_09, 4 },

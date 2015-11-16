@@ -300,6 +300,8 @@ typedef struct _DtaIpPortType2
                                                 // ports. Only for odd channel index
     DtDpc*  m_pIpRtTxDpc;                       // Pointing to odd channel DPC
     PPBuffer  m_TxRtPPBuffer;
+    UInt64  m_IpTxLastMinPktTime;              // Last DPC schedule time min pkt
+    
 } DtaIpPortType2;
 
 // Ip port containing all members for one physical port
@@ -310,7 +312,7 @@ struct _DtaIpPort
     UInt  m_PortType;                           // Type of port DTA_IPPORT_TYPEx
     DtaDeviceData*  m_pDvcData;
     DtaChildDeviceData*  m_pChildDvcData;
-
+    
     // Capabilities
     Bool  m_CapIp;
 

@@ -1782,6 +1782,10 @@ static const DtProperty  DtProperties238_0_01[] =
 };
 static const DtProperty  DtProperties238_0_04[] =
 {
+    { "DEMOD_HW_XTAL", 24000000, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 100, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 41000000, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_EXT_CLK_FREQ", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -1859,7 +1863,7 @@ static const DtProperty  DtProperties238_0_23[] =
 };
 static const DtProperty  DtProperties238_0_25[] =
 {
-    { "PCB_LAST_REV", 200, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "PCB_LAST_REV", 100, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties238_0_26[] =
@@ -1994,7 +1998,7 @@ static const DtPropertyHashSet  DtPropertyHashSets238_0[] =
     { DtProperties238_0_01, 3 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties238_0_04, 1 },
+    { DtProperties238_0_04, 3 },
     { NULL, 0 },
     { DtProperties238_0_06, 2 },
     { NULL, 0 },

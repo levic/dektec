@@ -323,6 +323,9 @@ void  DtaNonIpTxProcessFlags(DtaNonIpPort* pNonIpPort)
 //
 DtStatus  DtaNonIpTxSetFailsafeCfg(DtaNonIpPort* pNonIpPort, Int Enable, Int Timeout)
 {
+    if (pNonIpPort->m_IoCfg[DT_IOCONFIG_FAILSAFE].m_Value != DT_IOCONFIG_TRUE)
+        return DT_STATUS_CONFIG_ERROR;
+
     // Enable / disable failsafe
     pNonIpPort->m_FailsafeEnable = (Enable != 0) ? TRUE : FALSE;
 
@@ -331,7 +334,7 @@ DtStatus  DtaNonIpTxSetFailsafeCfg(DtaNonIpPort* pNonIpPort, Int Enable, Int Tim
     {
         pNonIpPort->m_FailsafeTimeout = Timeout;
         pNonIpPort->m_FailsafeTimeoutCnt = (UInt32)DtDivide64((UInt64)Timeout*1000,
-                                   pNonIpPort->m_pDvcData->m_DevInfo.m_PerIntItvUS, NULL); 
+                                   pNonIpPort->m_pDvcData->m_DevInfo.m_PerIntItvUS, NULL);
     }
 
     return DT_STATUS_OK;
@@ -341,6 +344,9 @@ DtStatus  DtaNonIpTxSetFailsafeCfg(DtaNonIpPort* pNonIpPort, Int Enable, Int Tim
 //
 DtStatus  DtaNonIpTxSetFailsafeAlive(DtaNonIpPort* pNonIpPort)
 {
+    if (pNonIpPort->m_IoCfg[DT_IOCONFIG_FAILSAFE].m_Value != DT_IOCONFIG_TRUE)
+        return DT_STATUS_CONFIG_ERROR;
+    
     // Reset failsafe counter
     DtAtomicSet(&pNonIpPort->m_FailsafeCnt, 0);
 
@@ -355,6 +361,9 @@ DtStatus  DtaNonIpTxGetFailsafeInfo(
     Int*  pTimeout,
     Int*  pAlive)
 {
+    if (pNonIpPort->m_IoCfg[DT_IOCONFIG_FAILSAFE].m_Value != DT_IOCONFIG_TRUE)
+        return DT_STATUS_CONFIG_ERROR;
+    
     // Get failsafe enabled / disabled state
     *pEnable = pNonIpPort->m_FailsafeEnable ? 1 : 0;
 

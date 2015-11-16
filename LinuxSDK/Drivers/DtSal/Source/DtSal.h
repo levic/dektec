@@ -75,6 +75,7 @@
 #include <linux/delay.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
+#include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 #include <asm/segment.h>
 #include <asm/uaccess.h>

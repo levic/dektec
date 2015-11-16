@@ -1208,7 +1208,6 @@ void  DtaIpTxRtProcessPacketsType1Dpc(DtDpcArgs* pArgs)
 // (DMA) buffer for the current port.
 //
 #ifdef  _DEBUG
-UInt64  LastMinPktTime[2] = {0,0};
 UInt64  LastCurTime[2] = {0,0};
 #endif
 void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
@@ -1242,6 +1241,7 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
     UInt64*  pStartTimestamp;
     UInt64  CurTime;
     Bool  PacketTooOld;
+    Bool  DpcTooLate = FALSE;
     
 #ifdef  _DEBUG
     //UInt64  Delay;
@@ -1308,22 +1308,27 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
     // Determine the maximum packet time reference for 19,4 ms
     MinPacketTime = (CurTime+0x7ffff) &~0xfffff;
     MaxPacketTime = MinPacketTime + 0xfffff;
+    
 #ifdef  _DEBUG
-    if ((pIpPort->m_IpPortIndex==1 && (CurTime - MinPacketTime > 0xffff)) || (pIpPort->m_IpPortIndex==0 && (CurTime+0x7ffff - MinPacketTime > 0xffff)))
+    if ((pIpPort->m_IpPortIndex==1 && (CurTime - MinPacketTime > 0xffff)) || 
+                (pIpPort->m_IpPortIndex==0 && (CurTime+0x7ffff - MinPacketTime > 0xffff)))
     {
         DtDbgOut(ERR, IP_TX, "Port %i: CurTime:%I64x MinTime:%I64x. "
-                        "MaxTime:%I64x. Late in processing!",
-                        pIpPort->m_IpPortIndex, CurTime, MinPacketTime, MaxPacketTime);
-    }
-    if (LastMinPktTime[pIpPort->m_IpPortIndex] +0x100000 != MinPacketTime && (LastMinPktTime[pIpPort->m_IpPortIndex]!=0))
-    {
-        DtDbgOut(ERR, IP_TX, "Port %i: CurTime:%I64x LastCurTime:%I64x MinPkttime:%I64x LastMinPktTime: %I64x ERROR IN PROCESSING!!",
-                        pIpPort->m_IpPortIndex, CurTime, LastCurTime[pIpPort->m_IpPortIndex], MinPacketTime, LastMinPktTime[pIpPort->m_IpPortIndex]);
+                           "MaxTime:%I64x. Late in processing!",
+                           pIpPort->m_IpPortIndex, CurTime, MinPacketTime, MaxPacketTime);
     }
     LastCurTime[pIpPort->m_IpPortIndex] = CurTime;
-    LastMinPktTime[pIpPort->m_IpPortIndex] = MinPacketTime;
-    
 #endif
+    if (pIpPort->m_IpPortType2.m_IpTxLastMinPktTime+0x100000!=MinPacketTime && 
+                                           pIpPort->m_IpPortType2.m_IpTxLastMinPktTime!=0)
+    {
+        DtDbgOut(ERR, IP_TX, "Port %i: CurTime:%I64x LastCurTime:%I64x MinPkttime:%I64x"
+                     " LastMinPktTime: %I64x ERROR IN PROCESSING!!",
+                     pIpPort->m_IpPortIndex, CurTime, LastCurTime[pIpPort->m_IpPortIndex], 
+                     MinPacketTime, pIpPort->m_IpPortType2.m_IpTxLastMinPktTime);
+        DpcTooLate = TRUE;
+    }
+    pIpPort->m_IpPortType2.m_IpTxLastMinPktTime = MinPacketTime;
     PortStatus = DT_STATUS_NOT_STARTED;
     DtaPPBufferWriteDataClearBuf(pPPBuffer);
 
@@ -1466,10 +1471,20 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
                     PacketTooOld = TRUE;
                     // Report underflow, if not yet reported
                     DtSpinLockAcquireAtDpc(&pIpTxChannel->m_FlagsSpinLock);
-                    if ((pIpTxChannel->m_Flags & DTA_TX_FIFO_UFL) == 0)
+                    if (DpcTooLate)
                     {
-                        pIpTxChannel->m_Flags |= DTA_TX_FIFO_UFL;
-                        pIpTxChannel->m_LatchedFlags |= DTA_TX_FIFO_UFL;
+                        if ((pIpTxChannel->m_Flags & DTA_TX_FIFO_OVF) == 0)
+                        {
+                            pIpTxChannel->m_Flags |= DTA_TX_FIFO_OVF;
+                            pIpTxChannel->m_LatchedFlags |= DTA_TX_FIFO_OVF;
+                        }
+                    } else 
+                    {
+                        if ((pIpTxChannel->m_Flags & DTA_TX_FIFO_UFL) == 0)
+                        {
+                            pIpTxChannel->m_Flags |= DTA_TX_FIFO_UFL;
+                            pIpTxChannel->m_LatchedFlags |= DTA_TX_FIFO_UFL;
+                        }
                     }
                     DtSpinLockReleaseFromDpc(&pIpTxChannel->m_FlagsSpinLock);
                 }

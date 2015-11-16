@@ -1234,8 +1234,14 @@ DtStatus  DtuNonIpIoctl(
             break;
 
         case DTU_NONIP_CMD_DETECT_VIDSTD:
-            pNonIpCmdOutput->m_Data.m_DetVidStd.m_VidStd =
+            if (pDvcData->m_pNonIpPorts[NonIpPortIndex].m_DataLoss)
+            {
+                DtuNonIpDetectVidStd(&pDvcData->m_pNonIpPorts[NonIpPortIndex],
+                                           &pNonIpCmdOutput->m_Data.m_DetVidStd.m_VidStd);
+            } else {
+                pNonIpCmdOutput->m_Data.m_DetVidStd.m_VidStd =
                                        pDvcData->m_pNonIpPorts[NonIpPortIndex].m_DetVidStd;
+            }
             break;
 
         default:

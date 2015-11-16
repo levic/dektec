@@ -438,32 +438,38 @@ DtStatus  GetConfiguredVidStd(DtuNonIpPort*  pPort, Int*  pVidStd, Bool*  pIsHd)
     return DT_STATUS_OK;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351DoVidStdDetect -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  Dtu351DoVidStdDetect(DtuNonIpPort*  pPort)
+{
+    Int  VidStd, CfgVidStd;
+    DtStatus  Status = DtuNonIpDetectVidStd(pPort, &VidStd);
+    if (!DT_SUCCESS(Status) || VidStd==DT_VIDSTD_UNKNOWN)
+    {
+        pPort->m_DetVidStd = DT_VIDSTD_UNKNOWN;
+        pPort->m_StateFlags |= DTU_PORT_FLAG_SDI_NO_LOCK | DTU_PORT_FLAG_SDI_INVALID;
+    } else {
+        pPort->m_DetVidStd = VidStd;
+        // Clear the no-lock flag
+        pPort->m_StateFlags &= ~DTU_PORT_FLAG_SDI_NO_LOCK;
+        // If the detected video standard is the same as the configured one, clear
+        // the SDI-invalid flag as well.
+        Status = GetConfiguredVidStd(pPort, &CfgVidStd, NULL);
+        if (DT_SUCCESS(Status) && VidStd==CfgVidStd)
+            pPort->m_StateFlags &= ~DTU_PORT_FLAG_SDI_INVALID;
+        else
+            pPort->m_StateFlags |= DTU_PORT_FLAG_SDI_INVALID;
+    }
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351WorkerThreadCheckLock -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  Dtu351WorkerThreadCheckLock(
     DtuDeviceData*  pDvcData,
     DtuNonIpPort*  pPort)
 {
-    DtStatus  Status;
     do {
-        Int  VidStd, CfgVidStd;
-        Status = DtuNonIpDetectVidStd(pPort, &VidStd);
-        if (!DT_SUCCESS(Status) || VidStd==DT_VIDSTD_UNKNOWN)
-        {
-            pPort->m_DetVidStd = DT_VIDSTD_UNKNOWN;
-            pPort->m_StateFlags |= DTU_PORT_FLAG_SDI_NO_LOCK | DTU_PORT_FLAG_SDI_INVALID;
-        } else {
-            pPort->m_DetVidStd = VidStd;
-            // Clear the no-lock flag
-            pPort->m_StateFlags &= ~DTU_PORT_FLAG_SDI_NO_LOCK;
-            // If the detected video standard is the same as the configured one, clear
-            // the SDI-invalid flag as well.
-            Status = GetConfiguredVidStd(pPort, &CfgVidStd, NULL);
-            if (DT_SUCCESS(Status) && VidStd==CfgVidStd)
-                pPort->m_StateFlags &= ~DTU_PORT_FLAG_SDI_INVALID;
-            else
-                pPort->m_StateFlags |= DTU_PORT_FLAG_SDI_INVALID;
-        }
+        Dtu351DoVidStdDetect(pPort);
     } while (DtEventWait(&pPort->m_StateChanged, 500) == DT_STATUS_TIMEOUT);
 }
 
@@ -829,11 +835,13 @@ void  Dtu351WorkerThreadReadData(
             Bool  ReinitOk;
             while (TRUE)
             {
-                Status = DtEventWait(&Req->m_EvtRequestDone, 1000);
+                Status = DtEventWait(&Req->m_EvtRequestDone, 100);
                 if (!DT_SUCCESS(Status))
                 {
                     DtDbgOut(ERR, DTU, "DtEventWait failed: %x", Status);
+                    pPort->m_DataLoss = TRUE;
                 } else {
+                    pPort->m_DataLoss = FALSE;
                     break;
                 }
             }
@@ -891,11 +899,8 @@ void  Dtu351WorkerThreadReadData(
 #endif
         }
     }
-    // Set the SDI invalid flag. We don't want the DTAPI restarting this thread because
-    // it thinks the signal is valid. It might still be valid, but we'll detect that
-    // soon enough after exiting this thread.
-    pPort->m_StateFlags |= DTU_PORT_FLAG_SDI_NO_LOCK | DTU_PORT_FLAG_SDI_INVALID;
-    pPort->m_DetVidStd = DT_VIDSTD_UNKNOWN;
+    pPort->m_DataLoss = FALSE;
+    Dtu351DoVidStdDetect(pPort);
 
     // While in the process of shutting down don't allow access to the RxMode register
     // on the FPGA.
@@ -1620,6 +1625,7 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
                     pNonIpPort->m_DetVidStd = DT_VIDSTD_UNKNOWN;
                     pNonIpPort->m_InitRxMode = 0;
                     pNonIpPort->m_AllowRxModeChanges = FALSE;
+                    pNonIpPort->m_DataLoss = FALSE;
                 }
 
                 if (pDvcData->m_DevInfo.m_UsbSpeed == 2)

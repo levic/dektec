@@ -9,8 +9,8 @@
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
 #define DTAPI_VERSION_MINOR        16
-#define DTAPI_VERSION_BUGFIX       1
-#define DTAPI_VERSION_BUILD        68
+#define DTAPI_VERSION_BUGFIX       2
+#define DTAPI_VERSION_BUILD        71
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -1852,6 +1852,7 @@ struct DtDemodParsDab
 struct DtDemodParsDvbC2
 {
     int  m_Bandwidth;               // Bandwidth
+    bool m_ScanL1Part2Data;         // Scan on each tune for full L1Part2Data
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDemodParsDvbS -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -2320,19 +2321,24 @@ public:                             // TODOSD should be protected
 #define DTAPI_SCANORDER_SN          1    // Devices are sorted by serial number
 
 // String conversion - Device type number (e.g. "DTA-100", "DTA-102")
-#define DTAPI_DVC2STR_TYPE_NMB      0
+#define DTAPI_DVC2STR_TYPE_NMB        0
 // String conversion - Device type number + location (e.g. "DTA-100 in slot 5");
-#define DTAPI_DVC2STR_TYPE_AND_LOC  1
+#define DTAPI_DVC2STR_TYPE_AND_LOC    1
 // String conversion - Device type number (e.g. "DTA-100", "DTA-102")
-#define DTAPI_HWF2STR_TYPE_NMB      0
-// String conversion - Device type number + port (e.g. "DTA-124 port 1")
-#define DTAPI_HWF2STR_TYPE_AND_PORT 1
+#define DTAPI_HWF2STR_TYPE_NMB        0
+// String conversion - Device type number + optional port (e.g. "DTA-124 port 1"). Port
+// no is only added for bidirectional ports and/or when there is more than one port
+// configured with the same direction.
+#define DTAPI_HWF2STR_TYPE_AND_PORT   1
 // String conversion - Device type number + location (e.g. "DTA-100 in slot 5");
-#define DTAPI_HWF2STR_TYPE_AND_LOC  2
+#define DTAPI_HWF2STR_TYPE_AND_LOC    2
 // String conversion - Interface type (e.g. "DVB-ASI" or "DVB-C")
-#define DTAPI_HWF2STR_ITF_TYPE      3
+#define DTAPI_HWF2STR_ITF_TYPE        3
 // String conversion - Short version of interface type (e.g. "ASI" instead "DVB-ASI")
-#define DTAPI_HWF2STR_ITF_TYPE_SHORT 4
+#define DTAPI_HWF2STR_ITF_TYPE_SHORT  4
+// String conversion - Device type number + port (e.g. "DTA-124 port 1"). Port no is
+// always added
+#define DTAPI_HWF2STR_TYPE_AND_PORT2  5
 
 // Current genlock state
 #define DTAPI_GENL_NO_REF           1
@@ -4239,6 +4245,7 @@ const char*  DtapiLinkStd2Str(int LinkStd);
 #define DTAPI_E_NUM_CHAN            (DTAPI_E + 212)
 #define DTAPI_E_INVALID_TIME        (DTAPI_E + 213)
 #define DTAPI_E_INVALID_LINK        (DTAPI_E + 214)
+#define DTAPI_E_TUNING              (DTAPI_E + 215)
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -6445,13 +6452,12 @@ enum DtMxPixelFormat
     DT_PXFMT_YUV420P2_8B,       // Planar YUV, 2 planes, Y plane + Cb+Cr plane with
                                 // 2x2 sub-sampling. 8BPS. Also called NV12
     DT_PXFMT_BGR_8B,            // Packed RGB data. First B, then G, then R. 8 bits per ch
+    DT_PXFMT_BGRX_8B,           // Packed RGB data with a 4th dummy byte per pixel. Not
+                                // yet supported.
     DT_PXFMT_V210,              // Packed CbYCrY, 3 10-bit symbols per 32-bit
     // Likely future extensions:
     //DT_PXFMT_YUV420P,           // Planar YUV, 3 planes, 1 Cb & 1 Cr sample per 2x2 Y.This
                                 // is often used as decoder input/output.
-    //DT_PXFMT_RGBX,              // Packed RGB data with a 4th dummy symbol per pixel. With
-                                // 8-byte data this means 32-bit per pixel which is easy
-                                // to process.
     //DT_PXFMT_RGB_P,             // Planar RGB data
 
     DT_PXFMT_INVALID = -1,
@@ -7140,9 +7146,11 @@ enum DtMxFrameStatus
     DT_FRMSTATUS_DISABLED,         // Row has been disabled, buffers not available.
     DT_FRMSTATUS_DUPLICATE,        // Frame data is duplicated from previous frame
                                    // because the input was too slow.
-    DT_FRMSTATUS_DROPPED,          // Frame data was dropped because the input thread
-                                   // in the API was too slow. Data is not available. This
-                                   // should never happen under normal circumstances.
+    DT_FRMSTATUS_LATE,             // Frame data was dropped because the input data
+                                   // arrived too late. Data is not available. Later
+                                   // frames will report NO_SIGNAL is the input signal
+                                   // is lost or will return to OK if the frame was
+                                   // dropped due to too high CPU load.
     DT_FRMSTATUS_NO_SIGNAL,        // No signal at input port. Frame data not available.
     DT_FRMSTATUS_WRONG_VIDSTD,     // Unconfigured video signal at input. Frame data
                                    // not available.
@@ -7150,6 +7158,8 @@ enum DtMxFrameStatus
                                    // not available.
     DT_FRMSTATUS_ERROR_INTERNAL,   // Internal error. Frame data is not available.
 };
+static const DtMxFrameStatus  DTAPI_DEPRECATED(DT_FRMSTATUS_DROPPED,
+      "Deprecated (will be removed!): Use DT_FRMSTATUS_LATE instead") = DT_FRMSTATUS_LATE;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxFrame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
