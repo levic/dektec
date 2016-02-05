@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dta.h *#*#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dta.h *#*#*#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
 //
 // Dta driver - Interface for the Dta common driver, used by the IAL.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -72,6 +72,14 @@
 #define  LOG_LEVEL_FAN           LOG_AVG
 // Dac AD9129
 #define  LOG_LEVEL_DAC           LOG_AVG
+// SDI-AV-RX
+#define  LOG_LEVEL_SDIAVRX       LOG_AVG
+// HDMI
+#define  LOG_LEVEL_HDMI          LOG_AVG
+// D7Pro Encoder
+#define  LOG_LEVEL_D7PRO         LOG_AVG
+// SPI master flash
+#define  LOG_LEVEL_SPIMF         LOG_AVG
 
 #define  USES_GENREGS(pDvcData)  (pDvcData->m_DevInfo.m_TypeNumber!=100                  \
                                       && pDvcData->m_DevInfo.m_TypeNumber!=102           \
@@ -225,6 +233,9 @@ struct _DtaDeviceData
 
     // FanControl
     DtaFanControl  m_FanControl;
+
+    // SPI master flash controller
+    DtaSpiMf  m_SpiMf;
 
     // Saved power measurement lock data
     UInt m_RfPwrPreLockData;

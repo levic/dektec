@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* FpgaGenlock.c *#*#*#*#*#*#*#*# (C) 2012-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* FpgaGenlock.c *#*#*#*#*#*#*#*# (C) 2012-2016 DekTec
 //
 // Dta driver - FPGA genlock controller
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2012-2015 DekTec Digital Video B.V.
+// Copyright (C) 2012-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:

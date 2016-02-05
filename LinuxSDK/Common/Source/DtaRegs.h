@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaRegs.h *#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaRegs.h *#*#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
 //
 // Dta driver - Definition of register sets of DTA PCI cards as access functions.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -28,6 +28,7 @@
 #define __DTA_REGS_H
 
 #include "DtRegs.h"
+#include "DtFwbRegs.h"
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ General Access Functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -5046,5 +5047,95 @@ static __inline UInt8  DtaRegRs422RxDataGet(volatile UInt8* pBase) {
     return (UInt8)READ_UINT_MASKED(pBase, DT_RS422_REG_RX_DATA, DT_RS422_RXDATA_MSK,
                                                                       DT_RS422_RXDATA_SH);
 }
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaFwbcRegRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static __inline UInt32  DtaFwcbRegRead(
+    volatile UInt8* pBase,
+    Int  BlockOffset,
+    const DtFwField*  pField)
+{
+    UInt32 Value;
+    DT_ASSERT((pField->Operation&FWFIELDOP_R) == FWFIELDOP_R);
+    Value = READ_UINT(pBase, BlockOffset+pField->Offset);
+    if (pField->NumBits < 32)
+        Value = (Value >> pField->StartBit) & ((1<<pField->NumBits)-1);
+    return Value;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaFwbRegRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+static __inline UInt32  DtaFwbRegRead(
+    volatile UInt8* pBase,
+    const DtFwField*  pField)
+{
+    return DtaFwcbRegRead(pBase, 0 , pField);  
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaFwcbRegClear -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static __inline void  DtaFwcbRegClear(
+    volatile UInt8* pBase,
+    Int  BlockOffset,
+    const DtFwField*  pField)
+{
+    UInt32 Value = ~0;
+    DT_ASSERT((pField->Operation&FWFIELDOP_C) == FWFIELDOP_C);
+
+    if (pField->NumBits < 32)
+        Value = ((1<<pField->NumBits)-1) << pField->StartBit;
+    WRITE_UINT(Value, pBase, BlockOffset+pField->Offset);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaFwbRegClear -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static __inline void  DtaFwbRegClear(
+    volatile UInt8* pBase,
+    const DtFwField*  pField)
+{
+    DtaFwcbRegClear(pBase, 0, pField);
+}
+
+    
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaFwcbRegWrite -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static __inline void   DtaFwcbRegWrite(
+    volatile UInt8* pBase,
+    Int  BlockOffset,
+    const DtFwField*  pField,
+    UInt32  Value)
+{
+    UInt32 Mask = ~0;
+    DT_ASSERT((pField->Operation&FWFIELDOP_W) == FWFIELDOP_W);
+
+    if (pField->NumBits == 32)
+    {
+        WRITE_UINT(Value, pBase, BlockOffset+pField->Offset);
+        return;
+    }
+
+    Mask = ((1<<pField->NumBits)-1);
+    DT_ASSERT((Value & ~Mask) == 0);
+    Mask <<= pField->StartBit;
+
+    if (!pField->Exclusive)
+    {
+        WRITE_UINT_MASKED(Value, pBase, BlockOffset+pField->Offset, Mask, 
+                                                                        pField->StartBit);
+    } else {
+        Value = ((Value & ((1<<pField->NumBits)-1)) << pField->StartBit);
+        WRITE_UINT(Value, pBase, BlockOffset+pField->Offset);
+    }
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaFwbRegWrite -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static __inline void   DtaFwbRegWrite(
+    volatile UInt8* pBase,
+    const DtFwField*  pField,
+    UInt32  Value)
+{
+    DtaFwcbRegWrite(pBase, 0, pField, Value);
+}
+
 
 #endif // __DTA_REGS_H

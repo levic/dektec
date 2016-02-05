@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtAudioVideo.c *#*#*#*#*#*#*#* (C) 2014-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtAudioVideo.c *#*#*#*#*#*#*#* (C) 2014-2016 DekTec
 //
 // Driver common - Audio Video - Definition of audio/video types/functions
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2014-2015 DekTec Digital Video B.V.
+// Copyright (C) 2014-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -28,6 +28,57 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <DtDrvCommon.h>
 #include <DtRegs.h>         // For DT_VIDSTD_XXX defines
+
+static const Int  g_VidStds[] = {
+    DT_VIDSTD_525I59_94,
+    DT_VIDSTD_625I50,
+    DT_VIDSTD_720P23_98,
+    DT_VIDSTD_720P24,
+    DT_VIDSTD_720P25,
+    DT_VIDSTD_720P29_97,
+    DT_VIDSTD_720P30,
+    DT_VIDSTD_720P50,
+    DT_VIDSTD_720P59_94,
+    DT_VIDSTD_720P60,
+    DT_VIDSTD_1080P23_98,
+    DT_VIDSTD_1080P24,
+    DT_VIDSTD_1080P25,
+    DT_VIDSTD_1080P29_97,
+    DT_VIDSTD_1080P30,
+    DT_VIDSTD_1080PSF23_98,
+    DT_VIDSTD_1080PSF24,
+    DT_VIDSTD_1080PSF25,
+    DT_VIDSTD_1080PSF29_97,
+    DT_VIDSTD_1080PSF30,
+    DT_VIDSTD_1080I50,
+    DT_VIDSTD_1080I59_94,
+    DT_VIDSTD_1080I60,
+    DT_VIDSTD_1080P50,
+    DT_VIDSTD_1080P59_94,
+    DT_VIDSTD_1080P60,
+    DT_VIDSTD_1080P50B,
+    DT_VIDSTD_1080P59_94B,
+    DT_VIDSTD_1080P60B,
+    DT_VIDSTD_480P59_94,
+    DT_VIDSTD_525P59_94,
+    DT_VIDSTD_625P50,
+};
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvGetNumVidStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtAvGetNumVidStd()
+{
+    return sizeof(g_VidStds)/sizeof(g_VidStds[0]);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvGetFramePropsFromIdx -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtAvGetFramePropsFromIdx(Int Idx, DtAvFrameProps*  pProps)
+{
+    if (Idx<0 || Idx>=DtAvGetNumVidStd())
+        return DT_STATUS_INVALID_PARAMETER;
+    return DtAvGetFrameProps(g_VidStds[Idx], pProps);
+}
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvGetFrameProps -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -67,6 +118,38 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
         
         break;
 
+    case DT_VIDSTD_525P59_94:
+    case DT_VIDSTD_480P59_94:
+        pProps->m_NumLines = 525;
+        pProps->m_Fps = 60;
+        pProps->m_IsFractional = TRUE;
+        pProps->m_IsInterlaced = FALSE;
+        pProps->m_IsHd = FALSE;
+
+        pProps->m_Field1Start = 1;
+        pProps->m_Field1End = 525;
+        pProps->m_Field1ActVidStart = 17;
+        pProps->m_Field1ActVidEnd = 496;
+
+        pProps->m_SwitchingLines[0] = 7;
+        pProps->m_SwitchingLines[1] = -1;
+
+        pProps->m_Field2Start = 0;
+        pProps->m_Field2End = 0;
+        pProps->m_Field2ActVidStart = 0;
+        pProps->m_Field2ActVidEnd  = 0;
+
+        if (VidStd == DT_VIDSTD_480P59_94)
+            pProps->m_VancNumS = pProps->m_ActVidNumS = 640*2;
+        else
+            pProps->m_VancNumS = pProps->m_ActVidNumS = 720*2;
+        pProps->m_HancNumS = 268;
+        pProps->m_SavNumS = 4;
+        pProps->m_EavNumS = 4;
+
+        pProps->m_SyncPointPixelOff = 0;
+        break;
+
     case DT_VIDSTD_625I50:
         pProps->m_NumLines = 625;
         pProps->m_Fps = 25;
@@ -92,6 +175,34 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
         pProps->m_EavNumS = 4;
 
         pProps->m_SyncPointPixelOff = 12;   // Sync point @pixel 12
+        break;
+
+    case DT_VIDSTD_625P50:
+        pProps->m_NumLines = 625;
+        pProps->m_Fps = 50;
+        pProps->m_IsFractional = FALSE;
+        pProps->m_IsInterlaced = FALSE;
+        pProps->m_IsHd = FALSE;
+
+        pProps->m_Field1Start = 1;
+        pProps->m_Field1End = 625;
+        pProps->m_Field1ActVidStart = 23;
+        pProps->m_Field1ActVidEnd = 598;
+
+        pProps->m_SwitchingLines[0] = 6;
+        pProps->m_SwitchingLines[1] = -1;
+
+        pProps->m_Field2Start = 0;
+        pProps->m_Field2End = 0;
+        pProps->m_Field2ActVidStart = 0;
+        pProps->m_Field2ActVidEnd  = 0;
+
+        pProps->m_VancNumS = pProps->m_ActVidNumS = 720*2;
+        pProps->m_HancNumS = 280;
+        pProps->m_SavNumS = 4;
+        pProps->m_EavNumS = 4;
+
+        pProps->m_SyncPointPixelOff = 0;
         break;
 
     case DT_VIDSTD_1080P60:

@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Vpd.c *#*#*#*#*#*#*#*#*#*# (C) 2011-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Vpd.c *#*#*#*#*#*#*#*#*#*# (C) 2011-2016 DekTec
 //
 // Dtu driver - Vital Product Data (VPD) read/write routines.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2015 DekTec Digital Video B.V.
+// Copyright (C) 2011-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -1315,7 +1315,6 @@ static DtStatus  DtuVpdReadRaw(
     if (DirectLength>0)
     {
         Status = DtuVpdReadDirect(pDvcData, pDirectBuf, DirectStartAddr, DirectLength);
-
         if (!DT_SUCCESS(Status))
             return Status;
     }
@@ -1726,7 +1725,7 @@ DtStatus  DtuVpdWriteRaw(
     if (CacheLength>0)
     {
         Status = DtuVpdWrite(pDvcData, pCacheBuf, CacheStartAddr, CacheLength);
-        if (DT_SUCCESS(Status))
+        if (!DT_SUCCESS(Status))
             return Status;
     }
     
@@ -1734,8 +1733,7 @@ DtStatus  DtuVpdWriteRaw(
     if (DirectLength>0)
     {
         Status = DtuVpdWriteDirect(pDvcData, pDirectBuf, DirectStartAddr, DirectLength);
-
-        if (DT_SUCCESS(Status))
+        if (!DT_SUCCESS(Status))
             return Status;
     }
     

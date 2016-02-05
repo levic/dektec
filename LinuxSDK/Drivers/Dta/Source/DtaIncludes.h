@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaIncludes.h *#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaIncludes.h *#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
 //
 // Dta driver - Header file containing all standard driver includes.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -46,9 +46,11 @@ typedef struct _DtaChildDeviceData  DtaChildDeviceData;
 typedef struct _DtaShBuffer DtaShBuffer;    // Needed for Dma.h
 typedef struct _DtaIpPort DtaIpPort;        // Needed for NwPhyMac.h
 typedef struct _DmaChannel DmaChannel;      // Needed for DtaUtility and Dma.h
+typedef struct _DtaNonIpPort DtaNonIpPort;  
 
 // Dta headers
 #include <DtaUtility.h>
+#include <DtFwbRegs.h>
 #include <I2c.h>
 #include <Eeprom.h>
 #include <Vpd.h>
@@ -57,10 +59,16 @@ typedef struct _DmaChannel DmaChannel;      // Needed for DtaUtility and Dma.h
 #include <DtRegs.h>
 #include <DtaRegs.h>
 #include <Pci905X.h>
+#include <SpiMf.h>
+#include <Uart.h>
+#include <EnDec.h>
+#include <SdiAvRx.h>
+#include <EncD7Pro.h>
 #include <Dma.h>
 #include <Messages.h>
 #include <IoConfig.h>
 #include <ShBuffer.h>
+#include <Hdmi.h>
 #include <NonIp.h>
 #include <NonIpRx.h>
 #include <NonIpTx.h>
@@ -75,6 +83,8 @@ typedef struct _DmaChannel DmaChannel;      // Needed for DtaUtility and Dma.h
 #include <Rs422.h>
 #include <FanControl.h>
 #include <Ad9129.h>
+
+
 
 // Dta.h
 #include <Dta.h>

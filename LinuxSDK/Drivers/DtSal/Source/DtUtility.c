@@ -1,9 +1,9 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtUtility.c *#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtUtility.c *#*#*#*#*#*#*#*#* (C) 2010-2016 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -350,7 +350,7 @@ void  DtMemZero(void* pPtr, UInt Size)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtMemCopy -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtMemCopy(void* pDest, void* pSrc, UInt Size)
+void  DtMemCopy(void* pDest, const void* pSrc, UInt Size)
 {
 #ifdef WINBUILD
     RtlCopyMemory(pDest, pSrc, Size);
@@ -572,6 +572,28 @@ UInt64  DtGetTickCount()
     getnstimeofday(&TickCount);
     return (UInt64)DtDivide64(((TickCount.tv_sec)*1000000000LL + (TickCount.tv_nsec)),
                                                                            1000000, NULL);
+#endif
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtGetTickCountUSec -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Return the the number of Us elapsed since the system start 
+//
+UInt64  DtGetTickCountUSec()
+{
+#ifdef WINBUILD
+    LARGE_INTEGER  Freq;
+    LARGE_INTEGER  Counter = KeQueryPerformanceCounter(&Freq);
+    return (UInt64)DtDivide64(Counter.QuadPart * 1000000, Freq.QuadPart, NULL);
+    //LARGE_INTEGER TickCount;
+    //KeQueryTickCount(&TickCount);
+    //// Convert to us (NOTE: KeQueryTimeIncrement return number of 100ns in one tick)
+    //return (UInt64)((TickCount.QuadPart * KeQueryTimeIncrement()) / 10LL);
+#else
+    struct timespec  TickCount;
+    getnstimeofday(&TickCount);
+    return (UInt64)DtDivide64(((TickCount.tv_sec)*1000000000LL + (TickCount.tv_nsec)),
+                                                                              1000, NULL);
 #endif
 }
 

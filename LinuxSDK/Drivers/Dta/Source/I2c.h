@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* I2c.h *#*#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* I2c.h *#*#*#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
 //
 // Dta driver - Dta I2C read/write routines.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -76,5 +76,36 @@ DtStatus  DtaI2cWrite(DtaDeviceData* pDvcData, Int PortIndex, DtFileObject* pFil
 DtStatus  DtaI2cWriteRead(DtaDeviceData* pDvcData, Int PortIndex, DtFileObject* pFile,
                   UInt DvcWriteAddr, UInt WriteLength, UInt8* pWriteBuf, UInt DvcReadAddr, 
                   UInt ReadLength, UInt8* pReadBuf);
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- I2CM firmware block type definitions -.-.-.-.-.-.-.-.-.-.-.-.-
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cm -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtaI2cm
+{
+    const DtFwbI2cMaster*  m_pFwbI2cm;
+    volatile UInt8*  m_pFwbRegs;
+
+    DtEvent  m_DoneEvent;
+    DtDpc  m_CompletedDpc;
+
+    // For now we assume that access control on this block is not required. When it
+    // becomes necessary we'll need to add it here analogous to the DtaI2c implementation.
+} DtaI2cm;
+
+DtStatus  DtaI2cmInit(DtaI2cm* pI2cm, const DtFwbI2cMaster* pFwbI2cm);
+DtStatus  DtaI2cmInitPowerup(DtaI2cm* pI2cm, volatile UInt8* pFwbRegs);
+DtStatus  DtaI2cmInterruptEnable(DtaI2cm* pNonIpPort);
+DtStatus  DtaI2cmInterruptDisable(DtaI2cm* pNonIpPort);
+Bool  DtaI2cmInterrupt(DtaI2cm*  pNonIpPort);
+DtStatus  DtaI2cmRead(DtaI2cm* pI2cm, UInt DvcAddr, UInt Length, UInt8* pBuf);
+DtStatus  DtaI2cmWrite(DtaI2cm* pI2cm, UInt DvcAddr, UInt Length, const UInt8* pBuf);
+DtStatus  DtaI2cmWriteRead(DtaI2cm* pI2cm, UInt DvcAddr,
+                                                 UInt WriteLength, const UInt8* pWriteBuf,
+                                                 UInt ReadLength, UInt8* pReadBuf);
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- I2CM firmware block functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 #endif // __I2C_H

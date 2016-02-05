@@ -1,9 +1,9 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dma.c *#*#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dma.c *#*#*#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -541,6 +541,7 @@ static DtStatus  DtaDmaInitTransfer(
         DtDmaFlushCacheSglPreDma(&pDmaCh->m_pDvcData->m_Device, 
                                       &pDmaCh->m_Data.m_OsSgList, pDmaCh->m_DmaDirection);
     
+    pDmaCh->m_StartTime = DtGetTickCountUSec();
     Status = DtaDmaProgramTransfer(pDmaCh);
     
     if ((pDmaCh->m_DmaFlags&DTA_DMA_FLAGS_BLOCKING) != 0)
@@ -1097,6 +1098,8 @@ void DtaDmaCompletedDpc(DtDpcArgs* pArgs)
         }
     }
     
+    pDmaCh->m_EndTime = DtGetTickCountUSec();
+    
     // Reset the flags but leave the abort flag
     DtAtomicSet((Int*)&pDmaCh->m_State, pDmaCh->m_State & DTA_DMA_STATE_ABORT);
     
@@ -1254,19 +1257,22 @@ DtStatus  DtaDmaAbortDma(
     DmaChannel*  pDmaCh)
 {
     DtStatus  Status = DT_STATUS_OK;
-    volatile Int  OldState = pDmaCh->m_State;
+    Int  OldState = pDmaCh->m_State;
     Bool  UsesDmaInFpga = pDmaCh->m_pDvcData->m_DmaOptions.m_UseDmaInFpga;
         
 
     DtDbgOut(MAX, DMA, "Init");
-
-    while ((pDmaCh->m_State & DTA_DMA_STATE_ABORT) == 0)
+    
+    while (OldState != DtAtomicCompareExchange((Int*)&pDmaCh->m_State, OldState,
+                                                          OldState | DTA_DMA_STATE_ABORT))
     {
-        OldState = DtAtomicCompareExchange((Int*)&pDmaCh->m_State, OldState, 
-                                                    OldState | DTA_DMA_STATE_ABORT);
+        OldState = pDmaCh->m_State;
     }
-    if (pDmaCh->m_State == DTA_DMA_STATE_ABORT)
+    if (OldState == 0)
         return DT_STATUS_NOT_STARTED;
+    if ((OldState & DTA_DMA_STATE_ABORT) != 0)
+        return DT_STATUS_OK;
+
 
     // Prevent race condition writing to the CMD/STAT registers during abort
     if (OldState == DTA_DMA_STATE_STARTED) 
@@ -1287,7 +1293,7 @@ DtStatus  DtaDmaAbortDma(
         DT_ASSERT(TimeoutCount < 10);
     }
     
-    if ((pDmaCh->m_State & DTA_DMA_STATE_STARTED) != 0)
+    if ((OldState & DTA_DMA_STATE_STARTED) != 0)
     {
         Int  NonIpPortIndex = -1;
         DtaNonIpPort*  pNonIpPort = NULL;

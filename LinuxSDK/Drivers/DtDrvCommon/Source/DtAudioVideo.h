@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtAudioVideo.h *#*#*#*#*#*#*#* (C) 2014-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtAudioVideo.h *#*#*#*#*#*#*#* (C) 2014-2016 DekTec
 //
 // Driver common - Audio Video - audio/video types/functions
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2014-2015 DekTec Digital Video B.V.
+// Copyright (C) 2014-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -30,5 +30,7 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps);
 Int  DtAvGetNumPixelsPerLine(Int VidStd);
+Int  DtAvGetNumVidStd(void);
+DtStatus  DtAvGetFramePropsFromIdx(Int Idx, DtAvFrameProps*  pProps);
 
 #endif // __DT_AUDIO_VIDEO_H

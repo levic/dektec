@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Gs296x.h *#*#*#*#*#*#*#*#*# (C) 2012-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Gs296x.h *#*#*#*#*#*#*#*#*# (C) 2012-2016 DekTec
 //
 // Dta driver - Gennum GS296x - Declaration of GS296x interface functions
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2012-2015 DekTec Digital Video B.V.
+// Copyright (C) 2012-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:

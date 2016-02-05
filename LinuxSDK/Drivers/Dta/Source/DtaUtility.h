@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaUtility.h *#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaUtility.h *#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
 //
 // Dta driver - DTA utility functions.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -102,6 +102,7 @@ Int  DtaIoStd2VidStd(Int  Value, Int  SubValue);
 Int  DtaVidStd2Fps(Int  VidStd);
 Bool  DtaVidStdIsFractional(Int  VidStd);
 Bool  DtaVidStdIsInterlaced(Int  VidStd);
+Bool  DtaVidStdIsPsf(Int  VidStd);
 Bool  DtaVidStdIs3gSdi(Int  VidStd);
 Bool  DtaVidStdIs3glvlBSdi(Int  VidStd);
 Bool  DtaVidStdIsHdSdi(Int  VidStd);

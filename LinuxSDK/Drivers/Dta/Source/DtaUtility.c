@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaUtility.c *#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaUtility.c *#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
 //
 // Dta driver - DTA utility functions.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -635,11 +635,14 @@ Int  DtaVidStd2Fps(Int  VidStd)
     case DT_VIDSTD_1080P59_94B:
     case DT_VIDSTD_1080P60:
     case DT_VIDSTD_1080P60B:
+    case DT_VIDSTD_480P59_94:
+    case DT_VIDSTD_525P59_94:
         return 60;
 
     case DT_VIDSTD_720P50:
     case DT_VIDSTD_1080P50:
     case DT_VIDSTD_1080P50B:
+    case DT_VIDSTD_625P50:
         return 50;
 
     case DT_VIDSTD_525I59_94:
@@ -691,6 +694,8 @@ Bool  DtaVidStdIsFractional(Int  VidStd)
     case DT_VIDSTD_720P23_98:
     case DT_VIDSTD_1080P23_98:
     case DT_VIDSTD_1080PSF23_98:
+    case DT_VIDSTD_480P59_94:
+    case DT_VIDSTD_525P59_94:
         return TRUE;
     }
     return FALSE;
@@ -713,6 +718,22 @@ Bool  DtaVidStdIsInterlaced(Int  VidStd)
     case DT_VIDSTD_1080PSF25:
     case DT_VIDSTD_1080PSF29_97:
     case DT_VIDSTD_1080PSF30:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStdIsPsf -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtaVidStdIsPsf(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_1080PSF30:
+    case DT_VIDSTD_1080PSF29_97:
+    case DT_VIDSTD_1080PSF25:
+    case DT_VIDSTD_1080PSF24:
+    case DT_VIDSTD_1080PSF23_98:
         return TRUE;
     }
     return FALSE;

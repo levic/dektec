@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIpRx.c *#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIpRx.c *#*#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
 //
 // Dta driver - Non IP RX functionality - Implementation of RX specific functionality for
 //                                        non IP ports.
@@ -6,7 +6,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -216,6 +216,11 @@ DtStatus  DtaNonIpRxClearFlags(DtaNonIpPort* pNonIpPort, Int FlagsToClear)
             DtaRegHdStatClrRxOvfErrInt(pNonIpPort->m_pRxRegs);
         if ((FlagsToClear&DTA_RX_SYNC_ERR) == DTA_RX_SYNC_ERR)
             DtaRegHdStatClrRxSyncErrInt(pNonIpPort->m_pRxRegs);
+    }
+    else if (pNonIpPort->m_CapAvEnc)
+    {
+        if ((FlagsToClear&DTA_RX_RATE_OVF) == DTA_RX_RATE_OVF)
+            DtaFwbRegClear(pNonIpPort->m_pRxRegs, &FwbTsRxMemless.Status_RateOverflow);
     } else {
         if ((FlagsToClear&DTA_RX_FIFO_OVF) == DTA_RX_FIFO_OVF)
             DtaRegRxStatClrOvfInt(pNonIpPort->m_pRxRegs);
@@ -274,6 +279,14 @@ void  DtaNonIpRxProcessFlags(DtaNonIpPort* pNonIpPort)
         {
             Status |= DTA_RX_SYNC_ERR;
             DtaRegHdStatClrRxSyncErrInt(pNonIpPort->m_pRxRegs);
+        }
+    }
+    else if (pNonIpPort->m_CapAvEnc)
+    {
+        if (DtaFwbRegRead(pNonIpPort->m_pRxRegs, &FwbTsRxMemless.Status_RateOverflow)!=0)
+        {
+            Status |= DTA_RX_RATE_OVF;
+            DtaFwbRegClear(pNonIpPort->m_pRxRegs, &FwbTsRxMemless.Status_RateOverflow);
         }
     }
     else

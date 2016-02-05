@@ -1,10 +1,10 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaMatrix.h *#*#*#*#*#*#*#*#* (C) 2012-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaMatrix.h *#*#*#*#*#*#*#*#* (C) 2012-2016 DekTec
 //
 // Dta driver - Declares Matrix-API (i.e. HD-SDI) related functions
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2012-2015 DekTec Digital Video B.V.
+// Copyright (C) 2012-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -57,5 +57,6 @@ DtStatus  DtaMatrixInit(DtaDeviceData*  pDvcData);
 DtStatus  DtaMatrixIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
                                            DtIoctlObject* pIoctl, Bool  PowerDownPending);
 DtStatus  DtaMatrixAsiRxGetFifoLoad(DtaNonIpPort*  pNonIpPort, Int*  pFifoLoad);
+DtStatus  DtaMatrixGetVpid(DtaNonIpPort*  pNonIpPort, UInt* pVpid, UInt* pVpid2);
 
 #endif // __DTA_MATRIX_H

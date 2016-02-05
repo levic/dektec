@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2016 DekTec
 //
 // SDK - Common definitions and types between for DTAPI/DTA/DTU drivers
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -221,6 +221,7 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define PROG_ITF_SPI_EPCS16         0x0040       // SPI with EPCS16 device
 #define PROG_ITF_SPI_EPCS64         0x0080       // SPI with EPCS64 device
 #define PROG_ITF_CFI_FAST           0x0100       // CFI with EPCSx-like interface device
+#define PROG_ITF_SPI_MF             0x0200       // SPI master controller
 
 #define ASI_SDI_DESER_ITF_NONE       0           // No ASI/SDI deserialiser used
 #define ASI_SDI_DESER_ITF_HOTLINK    1           // Use Cypress hotlink
@@ -253,6 +254,7 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 
 // Fan controller types
 #define FAN_TYPE_MAX6639             0           // Maxim 6639 controller
+#define FAN_TYPE_FANM                1           // FANM firmware block
 
 // Temperature sensor types
 #define TEMP_SENS_TYPE_MAX6639       0           // Maxim 6639 controller

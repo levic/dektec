@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* IoConfig.c *#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* IoConfig.c *#*#*#*#*#*#*#*#* (C) 2010-2016 DekTec
 //
 // Dta driver - IO configuration - Definition of IO configuration types/functions
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -688,6 +688,23 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
         if (!pNonIpPort->m_CapDisabled)
             return DT_STATUS_CONFIG_ERROR;
         break;
+    case DT_IOCONFIG_INTINPUT:
+        if (!pNonIpPort->m_CapIntInput)
+            return DT_STATUS_CONFIG_ERROR;
+        if (pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].m_SubValue != DT_IOCONFIG_INTINPUT)
+            return DT_STATUS_CONFIG_ERROR;
+        break;
+    case DT_IOCONFIG_MONITOR:
+        if (!pNonIpPort->m_CapMonitor)
+            return DT_STATUS_CONFIG_ERROR;
+        if (pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].m_SubValue != DT_IOCONFIG_MONITOR)
+            return DT_STATUS_CONFIG_ERROR;
+        Buddy = (Int)pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].m_ParXtra[0];
+        // No property to check which buddy port is valid. Hardcode based on typenumber
+        // for now.
+        if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2180 && Buddy!=3)
+            return DT_STATUS_CONFIG_ERROR;
+        break;
     case DT_IOCONFIG_INPUT:
         if (!pNonIpPort->m_CapInput)
             return DT_STATUS_CONFIG_ERROR;
@@ -926,8 +943,16 @@ static DtStatus  DtaIoConfigUpdateValidateIoStd(
         if (!pNonIpPort->m_CapAsi)
             return DT_STATUS_CONFIG_ERROR;
         break;
+    case DT_IOCONFIG_AVENC:
+        if (!pNonIpPort->m_CapAvEnc)
+            return DT_STATUS_CONFIG_ERROR;
+        break;
     case DT_IOCONFIG_DEMOD:
         if (!pNonIpPort->m_CapDemod)
+            return DT_STATUS_CONFIG_ERROR;
+        break;
+    case DT_IOCONFIG_HDMI:
+        if (!pNonIpPort->m_CapHdmi)
             return DT_STATUS_CONFIG_ERROR;
         break;
     case DT_IOCONFIG_HDSDI:
@@ -1063,6 +1088,10 @@ static DtStatus  DtaIoConfigUpdateValidateIoStd(
         default:
             return DT_STATUS_CONFIG_ERROR;
         }
+        break;
+    case DT_IOCONFIG_SDIRX:
+        if (!pNonIpPort->m_CapSdiRx)
+            return DT_STATUS_CONFIG_ERROR;
         break;
     case DT_IOCONFIG_SPI:
         if (!pNonIpPort->m_CapSpi)

@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaMatrix.c *#*#*#*#*#*#*#*#* (C) 2012-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaMatrix.c *#*#*#*#*#*#*#*#* (C) 2012-2016 DekTec
 //
 // Dta driver - Implements Matrix-API (i.e. HD-SDI) related functions
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2012-2015 DekTec Digital Video B.V.
+// Copyright (C) 2012-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -35,7 +35,6 @@ DtStatus  DtaMatrixWaitFrame(DtaDeviceData*  pDvcData, DtaNonIpPort*  pNonIpPort
                                           Int64  WaitFrame, Int  Timeout, Int64*  pFrame,
                                           Int64*  pRefClkStart, Int64*  pRefClkEnd,
                                           Int64*  pFrmIntCnt, Int*  pTopHalf);
-DtStatus  DtaMatrixGetVpid(DtaNonIpPort*  pNonIpPort, UInt* pVpid, UInt* pVpid2);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -639,23 +638,9 @@ DtStatus  DtaMatrixIoctl(
             }
             if (DT_SUCCESS(Status))
             {
-#ifdef LINBUILD
-                struct timespec start, end;
-                long Diff;
-                getnstimeofday(&start);
-#endif
                 Status = DtaDmaStartTransfer(pDmaCh, pPageList, DT_BUFTYPE_USER, 
                                            DT_DMA_DIRECTION_FROM_DEVICE, pBuffer, Size, 0,
                                            pLocalAddress, 0, 0, FALSE, &Size);
-#ifdef LINBUILD
-                getnstimeofday(&end);
-                Diff = (end.tv_nsec - start.tv_nsec) / 1000;
-                Diff += (end.tv_sec - start.tv_sec) * 1000000L;
-                if (Diff > 9000)
-                {
-                    DtDbgOut(ERR, DTA, "DMA took too long: %ld", Diff);
-                }
-#endif
             }
 #ifdef WINBUILD
             // Mark the IO request pending, we complete the request in the DMA 

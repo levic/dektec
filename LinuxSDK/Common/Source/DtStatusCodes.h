@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtStatusCodes.h *#*#*#*#*#*#*#* (C) 2010-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtStatusCodes.h *#*#*#*#*#*#*#* (C) 2010-2016 DekTec
 //
 // DTAPI - OS Support Abstraction Layer - Driver status codes
 //
@@ -8,7 +8,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -98,5 +98,10 @@ typedef UInt32  DtStatus;
 #define DT_STATUS_BUF_TOO_SMALL        DT_STATUS_ERROR(20)
 #define DT_STATUS_BUF_TOO_LARGE        DT_STATUS_ERROR(21)
 #define DT_STATUS_IO_PENDING           DT_STATUS_ERROR(22)  // Don't use as generic error!
+#define DT_STATUS_NO_POWER             DT_STATUS_ERROR(23)
+#define DT_STATUS_EXCL_ACCESS_REQD     DT_STATUS_ERROR(24)
+#define DT_STATUS_LOCKED               DT_STATUS_ERROR(25)
+
+
 
 #endif // __DT_STATUS_CODES_H

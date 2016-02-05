@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIp.h *#*#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIp.h *#*#*#*#*#*#*#*#*#* (C) 2010-2016 DekTec
 //
 // Dta driver - Non IP functionality - Declaration of generic non IP port functionality
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -200,7 +200,7 @@ typedef struct _DtaRs422Port
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpPort -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-typedef struct _DtaNonIpPort
+struct _DtaNonIpPort
 {
     Int  m_PortIndex;                   // Physical port index
     DtaDeviceData*  m_pDvcData;
@@ -209,6 +209,8 @@ typedef struct _DtaNonIpPort
     // IODIR (I/O direction) - Capabilities
     Bool  m_CapDisabled;
     Bool  m_CapInput;
+    Bool  m_CapIntInput;
+    Bool  m_CapMonitor;
     Bool  m_CapOutput;
     // IODIR - INPUT (Uni-directional input) - Sub capabilities
     Bool  m_CapSharedAnt;
@@ -225,13 +227,16 @@ typedef struct _DtaNonIpPort
     // IOSTD (I/O standard) - Capabilities
     Bool  m_Cap3GSdi;
     Bool  m_CapAsi;
+    Bool  m_CapAvEnc;
     Bool  m_CapDemod;
+    Bool  m_CapHdmi;
     Bool  m_CapHdSdi;
     Bool  m_CapIfAdc;
     Bool  m_CapIp;
     Bool  m_CapMod;
     Bool  m_CapPhaseNoise;
     Bool  m_CapSdi;
+    Bool  m_CapSdiRx;
     Bool  m_CapSpi;
     Bool  m_CapSpiSdi;
     // IOSTD - SDI (SD-SDI) - Sub capabilities
@@ -329,12 +334,14 @@ typedef struct _DtaNonIpPort
     UInt16  m_TxRegsOffset;
     UInt16  m_SpiRegsOffset;
     UInt16  m_Rs422RegsOffset;
+    UInt16  m_FwbRegsOffset;
     UInt16  m_FifoOffset;
     volatile UInt8*  m_pRfRegs;
     volatile UInt8*  m_pRxRegs;
     volatile UInt8*  m_pTxRegs;
     volatile UInt8*  m_pSpiRegs;
     volatile UInt8*  m_pRs422Regs;
+    volatile UInt8*  m_pFwbRegs;
 
     // DMA Channel
     DmaChannel  m_DmaChannel;
@@ -363,10 +370,25 @@ typedef struct _DtaNonIpPort
     // RS-422 API
     DtaRs422Port  m_Rs422;
 
+    // SDI-AV-RX API 
+    DtaSdiAvRxPort  m_SdiAvRx;
+
+    // HDMI port
+    DtaHdmi  m_Hdmi;
+
+    // D7Pro encoder port
+    DtaEncD7ProPort  m_EncD7Pro;
+    
+    // Common encoder/decoder fields
+    DtaEnDecPort  m_EnDec;
+
+    // SPI master flash controller
+    DtaSpiMf  m_SpiMf;
+
     // Genlocking
     Int  m_TofAlignOffsetNs;    // Offset in ns with which the TOF arrive at serialiser
 
-} DtaNonIpPort;
+};
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void  DtaNonIpCleanup(DtaDeviceData* pDvcData, Int PortIndex, DtaNonIpPort* pNonIpPort);
@@ -376,9 +398,11 @@ DtStatus  DtaNonIpClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile);
 DtStatus  DtaNonIpInit(DtaDeviceData* pDvcData, Int PortIndex, DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpInterruptEnable(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpInterruptDisable(DtaNonIpPort* pNonIpPort);
+Bool  DtaNonIpInterrupt(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpPowerup(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpPowerUpPost(DtaNonIpPort* pNonIpPort);
-DtStatus  DtaNonIpDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd);
+DtStatus  DtaNonIpDetectVidStd(DtaNonIpPort* pNonIpPort, Int* pVidStd,
+                                            UInt* pVpid, UInt* pVpid2, Int* pAspectRatio);
 DtStatus  DtaNonIpIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
                                                                    DtIoctlObject* pIoctl);
 DtStatus  DtaNonIpHasAccess(DtaNonIpPort* pNonIpPort, DtFileObject* pFile);
@@ -432,6 +456,8 @@ void  DtaNonIpMatrixPeriodicInt(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpRs422Init(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpRs422InterruptEnable(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpRs422InterruptDisable(DtaNonIpPort* pNonIpPort);
+
+
 
 #ifdef WINBUILD
 void  DtaNonIpDmaCompletedWindows(DmaChannel* pDmaChannel, void* pContext);

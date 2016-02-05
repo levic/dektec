@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* IoConfigCodes.h *#*#*#*#*#*#*#* (C) 2011-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* IoConfigCodes.h *#*#*#*#*#*#*#* (C) 2011-2016 DekTec
 //
 // Common driver - IO config codes get functions.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2015 DekTec Digital Video B.V.
+// Copyright (C) 2011-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:

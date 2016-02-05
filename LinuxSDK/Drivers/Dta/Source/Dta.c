@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dta.c *#*#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dta.c *#*#*#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
 //
 // Dta driver - Interface for the Dta common driver, used by the IAL.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -26,6 +26,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
+#define  DEFINE_FWFIELDS 1
 #include <DtaIncludes.h>            // Standard driver includes
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -702,6 +703,11 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
         if (!DT_SUCCESS(Status))
             return Status;
 
+        // Initialize device-wide encoder settings
+        Status = DtaEncoderInit(pDvcData);
+        if (!DT_SUCCESS(Status))
+            return Status;
+
         // Initialize matrix API
         Status = DtaMatrixInit(pDvcData);
         if (!DT_SUCCESS(Status))
@@ -714,6 +720,11 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
 
         // Initialize fan control (software)
         Status = DtaFanControlInit(pDvcData);
+        if (!DT_SUCCESS(Status))
+            return Status;
+
+        // SPI master flash controller initialisation (software)
+        Status = DtaSpiMfDvcInit(pDvcData);
         if (!DT_SUCCESS(Status))
             return Status;
     }
@@ -833,8 +844,7 @@ DtStatus  DtaDeviceInterruptEnable(DtaDeviceData* pDvcData)
             if (pDvcData->m_DmaOptions.m_PlxDmaChannelPort[1] != -1)
                 // Enable DMA channel 1 interrupt enable
                 IntCsr |= PCI905X_INTCSR_DMA1_INTEN;
-        }
-               
+        }              
         
         WRITE_UINT32(p905XRegs, PCI905X_INT_CTRL_STAT, IntCsr);
     }
@@ -941,6 +951,15 @@ DtStatus  DtaDevicePowerUpPost(DtaDeviceData* pDvcData)
     {
         
         Status = DtaMax6639InitPowerUp(&pDvcData->m_FanControl.m_Max6639);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+
+
+    // SPI master flash controller post power-up initialisation
+    if (pDvcData->m_SpiMf.m_IsSupported)
+    {
+        Status = DtaSpiMfDvcInitPowerup(pDvcData);
         if (!DT_SUCCESS(Status))
             return Status;
     }
@@ -1179,6 +1198,10 @@ DtStatus  DtaDeviceClose(DtaDeviceData* pDvcData, DtFileObject* pFile)
     if (pDvcData->m_I2c.m_IsSupported)
         DtaI2cUnlock(pDvcData, -1, pFile, TRUE);
 
+    // Call SPI master flash specific close
+    if (pDvcData->m_SpiMf.m_IsSupported)
+        DtaSpiMfClose(&pDvcData->m_SpiMf, NULL, pFile);
+
     // Release NonIp specific resources
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {
@@ -1361,9 +1384,14 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
         InReqSize = 0; // Checked later
         OutReqSize = 0; // Checked later
         break;
-#ifdef LINUX
+#ifdef LINBUILD
     case DTA_IOCTL_NONIP_CMD_LEGACY:
         pIoctlStr = "DTA_IOCTL_NONIP_CMD_LEGACY";
+        InReqSize = 0; // Checked later
+        OutReqSize = 0; // Checked later
+        break;
+    case DTA_IOCTL_NONIP_CMD_LEGACY2:
+        pIoctlStr = "DTA_IOCTL_NONIP_CMD_LEGACY2";
         InReqSize = 0; // Checked later
         OutReqSize = 0; // Checked later
         break;
@@ -1458,6 +1486,26 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
         InReqSize = sizeof(DtaIoctlSetVcxoInput);
         OutReqSize = 0;
         break;
+    case DTA_IOCTL_SDIAVRX_CMD:
+        pIoctlStr = "DTA_IOCTL_SDIAVRX_CMD";
+        InReqSize = 0; // Checked later
+        OutReqSize = 0; // Checked later
+        break;
+    case DTA_IOCTL_ENDEC_CMD:
+        pIoctlStr = "DTA_IOCTL_ENDEC_CMD";
+        InReqSize = 0; // Checked later
+        OutReqSize = 0; // Checked later
+        break;
+    case DTA_IOCTL_D7PRO_CMD:
+        pIoctlStr = "DTA_IOCTL_D7PRO_CMD";
+        InReqSize = 0; // Checked later
+        OutReqSize = 0; // Checked later
+        break;
+    case DTA_IOCTL_SPIMF_CMD:
+        pIoctlStr = "DTA_IOCTL_SPIMF_CMD";
+        InReqSize = 0; // Checked later
+        OutReqSize = 0; // Checked later
+        break;
     default:
         Status = DT_STATUS_NOT_SUPPORTED;
         break;
@@ -1471,8 +1519,9 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
             case DTA_IOCTL_DMA_READ:
             case DTA_IOCTL_DMA_WRITE:
             case DTA_IOCTL_NONIP_CMD:
-#ifdef LINUX
+#ifdef LINBUILD
             case DTA_IOCTL_NONIP_CMD_LEGACY:
+            case DTA_IOCTL_NONIP_CMD_LEGACY2:
 #endif
             case DTA_IOCTL_NONIP_TX_CMD:
             case DTA_IOCTL_NONIP_RX_CMD:
@@ -1482,6 +1531,9 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
             case DTA_IOCTL_SH_BUF_CMD:
             case DTA_IOCTL_MATRIX_CMD:
             case DTA_IOCTL_RS422_CMD:
+            case DTA_IOCTL_SDIAVRX_CMD:
+            case DTA_IOCTL_ENDEC_CMD:
+            case DTA_IOCTL_D7PRO_CMD:
                 DtDbgOut(ERR, DTA, "%s: Skipping IOCTL because powerdown  occured!",
                                                                                pIoctlStr);
                 return DT_STATUS_POWERDOWN;
@@ -1957,8 +2009,9 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                                                    pInBuf->m_SetIoConfig.m_IoConfigCount);
             break;
         case DTA_IOCTL_NONIP_CMD:
-#ifdef LINUX
+#ifdef LINBUILD
         case DTA_IOCTL_NONIP_CMD_LEGACY:
+        case DTA_IOCTL_NONIP_CMD_LEGACY2:
 #endif
             Status = DtaNonIpIoctl(pDvcData, pFile, pIoctl);
             break;
@@ -2239,6 +2292,22 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                 DtaGenlockResetVcxo(pDvcData);
             if (DT_SUCCESS(Status) && pInBuf->m_SetVcxo.m_VcxoVal>=0)
                 DtaGenlockSetVcxo(pDvcData, pFile, pInBuf->m_SetVcxo.m_VcxoVal);
+            break;
+            
+        case DTA_IOCTL_SDIAVRX_CMD:
+            Status = DtaSdiAvRxIoctl(pDvcData, pFile, pIoctl, PowerDownPending);
+            break;
+
+        case DTA_IOCTL_ENDEC_CMD:
+            Status = DtaEnDecIoctl(pDvcData, pFile, pIoctl, PowerDownPending);
+            break;
+
+        case DTA_IOCTL_D7PRO_CMD:
+            Status = DtaEncD7ProIoctl(pDvcData, pFile, pIoctl, PowerDownPending);
+            break;
+
+        case DTA_IOCTL_SPIMF_CMD:
+            Status = DtaSpiMfIoctl(pDvcData, pFile, pIoctl, PowerDownPending);
             break;
 
         default:
@@ -2609,8 +2678,15 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
                                                                        DT_IOCONFIG_INPUT)
             {
                 // Read valid counter register. Value is processed in DPC
-                pDvcData->m_pNonIpPorts[i].m_BitrateMeasure.m_ValidCountSample =
+                if (pDvcData->m_pNonIpPorts[i].m_CapAvEnc)
+                {
+                    pDvcData->m_pNonIpPorts[i].m_BitrateMeasure.m_ValidCountSample =
+                                       DtaFwbRegRead(pDvcData->m_pNonIpPorts[i].m_pRxRegs,
+                                                              &FwbTsRxMemless.ValidCount);
+                } else {
+                    pDvcData->m_pNonIpPorts[i].m_BitrateMeasure.m_ValidCountSample =
                               DtaRegRxValidCountGet(pDvcData->m_pNonIpPorts[i].m_pRxRegs);
+                }
             }
         }
 
@@ -2723,6 +2799,33 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
         }
     }
 
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SPIMF interrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+    // Check for device level SpiMf interrupts
+    if (pDvcData->m_SpiMf.m_IsSupported)
+    {
+        if (DtaSpiMfInterrupt(&pDvcData->m_SpiMf))
+            IrqHandled = TRUE;
+    }
+
+    // Check for port level SpiMf interrupts 
+    for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
+    {
+        // Check for SPIMF channels
+        if (!pDvcData->m_pNonIpPorts[i].m_SpiMf.m_IsSupported)
+            continue;
+
+        if (DtaSpiMfInterrupt(&pDvcData->m_pNonIpPorts[i].m_SpiMf))
+            IrqHandled = TRUE;
+    }
+
+
+    //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Port-level interrupts -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+    //
+    for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
+    {
+        IrqHandled |= DtaNonIpInterrupt(&pDvcData->m_pNonIpPorts[i]);
+    }
+
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DMA interrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
     //
     if (pDvcData->m_DmaOptions.m_UseDmaInFpga) 
@@ -2749,12 +2852,6 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
 
                 // Interrupt was ours
                 IrqHandled = TRUE;
-            } else if ((CmdStat & DTA_DMA_CMDSTAT_DONE)!=0 && 
-                          DtaDmaIsAbortActive(pDmaChannel) && !DtaDmaIsReady(pDmaChannel))
-            {
-                // No DMA interrupt active, but DMA is ready and still pending in driver.
-                DpcArgs.m_pContext = pDmaChannel;
-                DtDpcSchedule(&pDmaChannel->m_DmaCompletedDpc, &DpcArgs);
             }
         }
 
@@ -2787,22 +2884,6 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
 
                     // Interrupt was ours
                     IrqHandled = TRUE;
-                } else if ((CmdStat & DTA_DMA_CMDSTAT_DONE)!=0 && 
-                          DtaDmaIsAbortActive(pDmaChannel) && !DtaDmaIsReady(pDmaChannel))
-                {
-                    // No DMA interrupt active, but DMA is ready and still pending in driver.
-                    UInt  Size;
-                    DpcArgs.m_pContext = pDmaChannel;
-                    if ((pDmaChannel->m_DmaMode & DTA_DMA_MODE_TIMEOUT_ENABLE) != 0)
-                    {
-                        Size =  ((CmdStat & DTA_DMA_CMDSTAT_SIZE_MASK) >> 8);
-                        if (Size > pDmaChannel->m_TransferSize)
-                            pDmaChannel->m_NumBytesRead = 0;
-                        else
-                            pDmaChannel->m_NumBytesRead = 
-                                                       pDmaChannel->m_TransferSize - Size;
-                    }
-                    DtDpcSchedule(&pDmaChannel->m_DmaCompletedDpc, &DpcArgs);
                 }
             }
 
@@ -3303,6 +3384,12 @@ static void  DtaGeneralPeriodicIntDpc(DtDpcArgs* pArgs)
         if (pDvcData->m_pNonIpPorts[i].m_CapMatrix)
         {
             DtaNonIpMatrixPeriodicInt(&pDvcData->m_pNonIpPorts[i]);
+            continue;
+        }
+
+        if (pDvcData->m_pNonIpPorts[i].m_CapSdiRx)
+        {
+            DtaNonIpSdiAvRxPeriodicInt(&pDvcData->m_pNonIpPorts[i]);
             continue;
         }
 

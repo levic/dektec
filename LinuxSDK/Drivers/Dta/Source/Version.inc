@@ -1,8 +1,8 @@
-#//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Version.inc *#*#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
+#//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Version.inc *#*#*#*#*#*#*#*#*#* (C) 2010-2016 DekTec
 #//
 
 DTA_VERSION_MAJOR = 4
-DTA_VERSION_MINOR = 14
-DTA_VERSION_MICRO = 7 
-DTA_VERSION_BUILD = 207
+DTA_VERSION_MINOR = 15
+DTA_VERSION_MICRO = 0
+DTA_VERSION_BUILD = 212
 DTA_VERSION = $(DTA_VERSION_MAJOR).$(DTA_VERSION_MINOR).$(DTA_VERSION_MICRO).$(DTA_VERSION_BUILD)

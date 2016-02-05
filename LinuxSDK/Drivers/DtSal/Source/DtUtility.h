@@ -1,9 +1,9 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtUtility.h *#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtUtility.h *#*#*#*#*#*#*#*#* (C) 2010-2016 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -132,7 +132,7 @@ void  DtMemFreePoolLarge(void* pPtr, UInt32 Tag, DtPageList* pPageList);
 void*  DtMemAllocPool(DtPoolType Type, UInt Size, UInt32 Tag);
 void  DtMemFreePool(void* pPtr, UInt32 Tag);
 void  DtMemZero(void* pPtr, UInt Size);
-void  DtMemCopy(void* pDest, void* pSrc, UInt Size);
+void  DtMemCopy(void* pDest, const void* pSrc, UInt Size);
 void  DtMemCopyFromUserBuf(void* pDest, void* pSrc, UInt Size);
 void  DtMemCopyToUserBuf(void* pDest, void* pSrc, UInt Size);
 void  DtMemMove(void* pDest, void* pSrc, UInt Size);
@@ -186,6 +186,7 @@ Bool  DtAnsiCharArrayStartsWith(const char* pStr, const char* pStart);
 void  DtSleep(Int MSec);
 void  DtWaitBlock(Int USec);
 UInt64  DtGetTickCount(void);
+UInt64  DtGetTickCountUSec(void);
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Memory (Page) functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

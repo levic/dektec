@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIpMatrix.c *#*#*#*#*#*#*#*# (C) 2013-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIpMatrix.c *#*#*#*#*#*#*#*# (C) 2013-2016 DekTec
 //
 // Dta driver - Non IP Matrix channel functionality - Implements matrix-API specific code
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2013-2015 DekTec Digital Video B.V.
+// Copyright (C) 2013-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:

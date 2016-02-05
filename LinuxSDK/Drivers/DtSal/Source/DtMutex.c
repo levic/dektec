@@ -1,9 +1,9 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtMutex.c *#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtMutex.c *#*#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -51,8 +51,7 @@ DtStatus  DtFastMutexAcquire(DtFastMutex* pDtFastMutex)
     ExAcquireFastMutex(&pDtFastMutex->m_FastMutex);
     return DT_STATUS_OK;
 #else
-    if (down_interruptible(&pDtFastMutex->m_Semaphore) != 0)
-        return DT_STATUS_FAIL;
+    down(&pDtFastMutex->m_Semaphore);
     return DT_STATUS_OK;
 #endif
 }

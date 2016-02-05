@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIp.c *#*#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* NonIp.c *#*#*#*#*#*#*#*#*#* (C) 2010-2016 DekTec
 //
 // Dta driver - Non IP functionality - Implementation of generic non IP port functionality
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -32,7 +32,8 @@ DtStatus  DtaNonIpDetermineDmaRegsOffset(DtaDeviceData* pDvcData, Int PortIndex,
                                                                    UInt*  pDmaRegsOffset);
 Int  DtaNonIpGetMaxDmaBurstSize(DtaNonIpPort* pNonIpPort);
 Int  DtaNonIpGetMaxFifoSize(DtaNonIpPort* pNonIpPort);
-void  DtaNonIpRfPwrMeasLock(DtaNonIpPort* pNonIpPort, Int Lock);
+static DtStatus  DtaNonIpGetAudioStatus(DtaNonIpPort* pNonIpPort,
+                                              DtaIoctlNonIpCmdGetAudioStatusOutput* pOut);
 static DtStatus  DtaNonIpIoConfigSetIoDir(DtaNonIpPort* pNonIpPort,  Int Group,
                                                                DtaIoConfigValue CfgValue);
 static DtStatus  DtaNonIpIoConfigSetIoStd(DtaNonIpPort* pNonIpPort,  Int Group,
@@ -157,6 +158,10 @@ DtStatus  DtaNonIpInit(
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapInput = DtPropertiesGetBool(pPropData, "CAP_INPUT",
                                                                  pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapIntInput = DtPropertiesGetBool(pPropData, "CAP_INTINPUT",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapMonitor = DtPropertiesGetBool(pPropData, "CAP_MONITOR",
+                                                                 pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapOutput = DtPropertiesGetBool(pPropData, "CAP_OUTPUT",
                                                                  pNonIpPort->m_PortIndex);
     // IODIR - INPUT (Uni-directional input) - Sub capabilities
@@ -183,7 +188,11 @@ DtStatus  DtaNonIpInit(
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapAsi = DtPropertiesGetBool(pPropData, "CAP_ASI",
                                                                  pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapAvEnc = DtPropertiesGetBool(pPropData, "CAP_AVENC",
+                                                                 pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapDemod = DtPropertiesGetBool(pPropData, "CAP_DEMOD",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapHdmi = DtPropertiesGetBool(pPropData, "CAP_HDMI",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapHdSdi = DtPropertiesGetBool(pPropData, "CAP_HDSDI",
                                                                  pNonIpPort->m_PortIndex);
@@ -198,6 +207,8 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_CapRs422 = DtPropertiesGetBool(pPropData, "CAP_RS422",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapSdi = DtPropertiesGetBool(pPropData, "CAP_SDI",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapSdiRx = DtPropertiesGetBool(pPropData, "CAP_SDIRX",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapSpi = DtPropertiesGetBool(pPropData, "CAP_SPI",
                                                                  pNonIpPort->m_PortIndex);
@@ -408,6 +419,20 @@ DtStatus  DtaNonIpInit(
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INPUT;
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_INPUT;
             break;
+        case DT_IOCONFIG_INTINPUT:
+            DT_ASSERT(pNonIpPort->m_CapInput);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INTINPUT;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_INTINPUT;
+            break;
+        case DT_IOCONFIG_MONITOR:
+            DT_ASSERT(pNonIpPort->m_CapInput);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_MONITOR;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_MONITOR;
+            ParXtra = DtPropertiesGetInt(pPropData, "DEFAULT_PARXTRA0", 
+                                                                 pNonIpPort->m_PortIndex);
+            DT_ASSERT(ParXtra!=-1);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_ParXtra[0] = ParXtra;
+            break;
         case DT_IOCONFIG_SHAREDANT:
             DT_ASSERT(pNonIpPort->m_CapSharedAnt);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INPUT;
@@ -484,6 +509,20 @@ DtStatus  DtaNonIpInit(
     {
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_DISABLED;
     }
+    else if (pNonIpPort->m_CapIntInput)
+    {
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INTINPUT;
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_INTINPUT;
+    }
+    else if (pNonIpPort->m_CapMonitor)
+    {
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_MONITOR;
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_MONITOR;
+        ParXtra = DtPropertiesGetInt(pPropData, "DEFAULT_PARXTRA0", 
+                                                                 pNonIpPort->m_PortIndex);
+        DT_ASSERT(ParXtra!=-1);
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_ParXtra[0] = ParXtra;
+    }
     else if (!pNonIpPort->m_IsNonFuntional)
     {
         // IODIR must have a value
@@ -506,10 +545,20 @@ DtStatus  DtaNonIpInit(
             DT_ASSERT(pNonIpPort->m_CapAsi);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_ASI;
             break;
+        
+        case DT_IOCONFIG_AVENC:
+            DT_ASSERT(pNonIpPort->m_CapAvEnc);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_AVENC;
+            break;
 
         case DT_IOCONFIG_DEMOD:
             DT_ASSERT(pNonIpPort->m_CapDemod);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_DEMOD;
+            break;
+
+        case DT_IOCONFIG_HDMI:
+            DT_ASSERT(pNonIpPort->m_CapHdmi);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDMI;
             break;
 
         case DT_IOCONFIG_IFADC:
@@ -530,6 +579,11 @@ DtStatus  DtaNonIpInit(
         case DT_IOCONFIG_PHASENOISE:
             DT_ASSERT(pNonIpPort->m_CapPhaseNoise);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_PHASENOISE;
+            break;
+
+        case DT_IOCONFIG_SDIRX:
+            DT_ASSERT(pNonIpPort->m_CapSdiRx);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_SDIRX;
             break;
 
         case DT_IOCONFIG_SPI:
@@ -772,6 +826,8 @@ DtStatus  DtaNonIpInit(
     }
     else if (pNonIpPort->m_CapAsi)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_ASI;
+    else if (pNonIpPort->m_CapAvEnc)
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_AVENC;
     else if (pNonIpPort->m_Cap3GSdi && pNonIpPort->m_Cap1080P50)
     {
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_3GSDI;
@@ -782,26 +838,10 @@ DtStatus  DtaNonIpInit(
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDSDI;
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080I50;
     }
-    else if (pNonIpPort->m_CapSdi)
-    {
-        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_SDI;
-        if (!pNonIpPort->m_Cap625I50 && pNonIpPort->m_Cap525I59_94)
-            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_525I59_94;
-        else
-            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_625I50;
-    }
-    else if (pNonIpPort->m_CapSpi)
-        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_SPI;
-    else if (pNonIpPort->m_CapSpiSdi)
-    {
-        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_SPISDI;
-        if (!pNonIpPort->m_CapSpi625I50 && pNonIpPort->m_CapSpi525I59_94)
-            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_SPI525I59_94;
-        else
-            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_SPI625I50;
-    }
     else if (pNonIpPort->m_CapDemod)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_DEMOD;
+    else if (pNonIpPort->m_CapHdmi)
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDMI;
     else if (pNonIpPort->m_CapIfAdc)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_IFADC;
     else if (pNonIpPort->m_CapIp)
@@ -812,6 +852,26 @@ DtStatus  DtaNonIpInit(
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_PHASENOISE;
     else if (pNonIpPort->m_CapRs422)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_RS422;
+    else if (pNonIpPort->m_CapSdi)
+    {
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_SDI;
+        if (!pNonIpPort->m_Cap625I50 && pNonIpPort->m_Cap525I59_94)
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_525I59_94;
+        else
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_625I50;
+    }
+    else if (pNonIpPort->m_CapSdiRx)
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_SDIRX;
+    else if (pNonIpPort->m_CapSpi)
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_SPI;
+    else if (pNonIpPort->m_CapSpiSdi)
+    {
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_SPISDI;
+        if (!pNonIpPort->m_CapSpi625I50 && pNonIpPort->m_CapSpi525I59_94)
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_SPI525I59_94;
+        else
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_SPI625I50;
+    }
     else  if (!pNonIpPort->m_IsNonFuntional)
     {
         // IOSTD must have a value
@@ -905,6 +965,9 @@ DtStatus  DtaNonIpInit(
     // Initialise bitrate measurement
     pNonIpPort->m_BitrateMeasure.m_NumValidSamps = 0;       // No valid samples yet
     pNonIpPort->m_BitrateMeasure.m_ValidCount256 = 0;       // Initial bitrate is 0
+
+    // Initialise SPI-Masterflash support
+    pNonIpPort->m_SpiMf.m_IsSupported = FALSE;
     
     // Initialize register mappings
     pNonIpPort->m_pRfRegs = NULL;
@@ -952,6 +1015,14 @@ DtStatus  DtaNonIpInit(
     } else
         pNonIpPort->m_Rs422RegsOffset = (UInt16)-1;
     
+    if (pNonIpPort->m_CapSdiRx || pNonIpPort->m_CapHdmi || pNonIpPort->m_CapAvEnc)
+    {
+        pNonIpPort->m_FwbRegsOffset = DtPropertiesGetUInt16(pPropData,
+                                              "REGISTERS_FWB", pNonIpPort->m_PortIndex);
+    } else
+        pNonIpPort->m_FwbRegsOffset = (UInt16)-1;
+
+
     // Report configuration errors
     if (DT_SUCCESS(Status))
         // Check if no property error occurred
@@ -965,7 +1036,7 @@ DtStatus  DtaNonIpInit(
             Status = DtaNonIpDetermineDmaRegsOffset(pDvcData, pNonIpPort->m_PortIndex, 
                                                                           &DmaRegsOffset);
 
-        if (DT_SUCCESS(Status))
+        if (DT_SUCCESS(Status) && !pNonIpPort->m_CapAvEnc)
             Status = DtaDmaInitCh(pDvcData, PortIndex, 
                                                    DtaNonIpGetMaxDmaBurstSize(pNonIpPort),
                                                    DTA_DMA_MODE_DEFAULT, DmaRegsOffset, 
@@ -978,6 +1049,14 @@ DtStatus  DtaNonIpInit(
 #endif
                                                    &pNonIpPort->m_DmaChannel,
                                                    TRUE);
+        if (DT_SUCCESS(Status) && pNonIpPort->m_CapAvEnc)
+            Status = DtaDmaInitCh(pDvcData, PortIndex, 
+                                                  DtaNonIpGetMaxDmaBurstSize(pNonIpPort),
+                                                  DTA_DMA_MODE_RING_BUFFER, DmaRegsOffset,
+                                                  DTA_DMA_FLAGS_DATA_BUF_NO_COPY, -1,
+                                                  NULL, NULL,
+                                                  &pNonIpPort->m_DmaChannel,
+                                                  TRUE);
         if (!DT_SUCCESS(Status))
             return Status;
     }
@@ -1013,6 +1092,30 @@ DtStatus  DtaNonIpInit(
             return Status;
     }
 
+    // SDI AV RX ports initialization
+    if (pNonIpPort->m_CapSdiRx)
+    {
+        Status = DtaNonIpSdiAvRxInit(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+
+    // HDMI port initialization
+    if (pNonIpPort->m_CapHdmi)
+    {
+        Status = DtaNonIpHdmiInit(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+
+     // Audio video encoder port initialization
+    if (pNonIpPort->m_CapAvEnc)
+    {
+        Status = DtaEnDecInit(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+ 
     return Status;
 }
 
@@ -1053,6 +1156,14 @@ DtStatus  DtaNonIpInterruptEnable(DtaNonIpPort* pNonIpPort)
     if (pNonIpPort->m_CapRs422)
         DT_RETURN_ON_ERROR(DtaNonIpRs422InterruptEnable(pNonIpPort));
 
+    // Enable SDI-AV specific interrupts
+    if (pNonIpPort->m_CapSdiRx)
+        DT_RETURN_ON_ERROR(DtaNonIpSdiAvRxInterruptEnable(pNonIpPort));
+
+    // Enable HDMI specific interrupts
+    if (pNonIpPort->m_CapHdmi)
+        DT_RETURN_ON_ERROR(DtaNonIpHdmiInterruptEnable(pNonIpPort));
+
     return DT_STATUS_OK;
 }
 
@@ -1080,7 +1191,33 @@ DtStatus  DtaNonIpInterruptDisable(DtaNonIpPort* pNonIpPort)
     if (pNonIpPort->m_CapRs422)
         DT_RETURN_ON_ERROR(DtaNonIpRs422InterruptDisable(pNonIpPort));
 
+    // Disable SDI-AV RX specific interrupts
+    if (pNonIpPort->m_CapSdiRx)
+        DT_RETURN_ON_ERROR(DtaNonIpSdiAvRxInterruptDisable(pNonIpPort));
+
+    // Disable HDMI specific interrupts
+    if (pNonIpPort->m_CapHdmi)
+        DT_RETURN_ON_ERROR(DtaNonIpHdmiInterruptDisable(pNonIpPort));
+
     return DT_STATUS_OK;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpInterrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtaNonIpInterrupt(DtaNonIpPort* pNonIpPort)
+{
+    Bool  IrqHandled = FALSE;
+
+    if (pNonIpPort->m_CapSdiRx)
+        IrqHandled |= DtaSdiAvRxInterrupt(pNonIpPort);
+    
+    if (pNonIpPort->m_CapHdmi)
+        IrqHandled |= DtaNonIpHdmiInterrupt(pNonIpPort);
+
+    if (pNonIpPort->m_CapAvEnc)
+        IrqHandled |= DtaEncD7proInterrupt(pNonIpPort);
+
+    return IrqHandled;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpDetermineDmaRegsOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1182,6 +1319,14 @@ DtStatus  DtaNonIpClose(
             DtaNonIpMatrixClose(pNonIpPort, pFile);
     }
 
+    // Call encoder specific close
+    if (pNonIpPort->m_CapAvEnc)
+        DtaEnDecClose(pNonIpPort, pFile);
+
+    // Call SPI master flash specific close
+    if (pNonIpPort->m_SpiMf.m_IsSupported)
+        DtaSpiMfClose(&pNonIpPort->m_SpiMf, pNonIpPort, pFile);
+
     return DT_STATUS_OK;
 }
 
@@ -1209,11 +1354,46 @@ DtStatus  DtaNonIpPowerup(DtaNonIpPort* pNonIpPort)
     if (pNonIpPort->m_Rs422RegsOffset != (UInt16)-1)
         pNonIpPort->m_pRs422Regs = pNonIpPort->m_pDvcData->m_pGenRegs +
                                                             pNonIpPort->m_Rs422RegsOffset;
+    if (pNonIpPort->m_FwbRegsOffset != (UInt16)-1)
+        pNonIpPort->m_pFwbRegs = pNonIpPort->m_pDvcData->m_pGenRegs +
+                                                            pNonIpPort->m_FwbRegsOffset;
 
     // Skip init of DMA resources for a non-functional port
     if (!pNonIpPort->m_IsNonFuntional)
     {
         Status = DtaDmaInitChPowerup(&pNonIpPort->m_DmaChannel);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+
+    // SDI AV RX power-up initialisation
+    if (pNonIpPort->m_CapSdiRx)
+    {
+        Status = DtaSdiAvRxInitPowerup(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+
+    // HDMI power-up initialisation
+    if (pNonIpPort->m_CapHdmi)
+    {
+        Status = DtaNonIpHdmiInitPowerup(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+    
+    // Encoder/decoder power-up
+    if (pNonIpPort->m_CapAvEnc)
+    {
+        Status = DtaEnDecInitPowerup(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+
+    // SPI master flash controller post power-up initialisation
+    if (pNonIpPort->m_SpiMf.m_IsSupported)
+    {
+        Status = DtaSpiMfInitPowerup(pNonIpPort);
         if (!DT_SUCCESS(Status))
             return Status;
     }
@@ -1240,6 +1420,9 @@ DtStatus  DtaNonIpPowerUpPost(DtaNonIpPort* pNonIpPort)
 
     if (pNonIpPort->m_CapMatrix)
         Status = DtaNonIpMatrixPowerUpPost(pNonIpPort);
+
+    if (pNonIpPort->m_CapHdmi)
+        Status = DtaNonIpHdmiInitPowerUpPost(pNonIpPort);
 
     return Status;
 }
@@ -1315,6 +1498,27 @@ DtStatus  DtaNonIpIoctl(
         OutReqSize += 0;
         break;
 
+    case DTA_NONIP_CMD_DETECT_VIDSTD2:
+        pCmdStr = "DTA_NONIP_CMD_DETECT_VIDSTD2";
+        OutReqSize += sizeof(DtaIoctlNonIpCmdDetectVidStd2Output);
+        // We expect no additional input data
+        InReqSize += 0;
+        break;
+
+    case DTA_NONIP_CMD_GET_AUDIO_STATUS:
+        pCmdStr = "DTA_NONIP_CMD_GET_AUDIO_STATUS";
+        OutReqSize += sizeof(DtaIoctlNonIpCmdGetAudioStatusOutput);
+        // We expect no additional input data
+        InReqSize += 0;
+        break;
+
+    case DTA_NONIP_CMD_GET_DMA_STATS:
+        pCmdStr = "DTA_NONIP_CMD_GET_DMA_STATS";
+        OutReqSize += sizeof(DtaIoctlNonIpCmdGetDmaStatsOutput);
+        // We expect no additional input data
+        InReqSize += 0;
+        break;
+
     default:
         pCmdStr = "??UNKNOWN NONIPCMD CODE??";
         Status = DT_STATUS_NOT_SUPPORTED;
@@ -1361,7 +1565,8 @@ DtStatus  DtaNonIpIoctl(
 
         case DTA_NONIP_CMD_DETECT_VIDSTD:
             Status = DtaNonIpDetectVidStd(pNonIpPort,
-                                           &pNonIpCmdOutput->m_Data.m_DetVidStd.m_VidStd);
+                                           &pNonIpCmdOutput->m_Data.m_DetVidStd.m_VidStd,
+                                           NULL, NULL, NULL);
             break;
 
          case DTA_NONIP_CMD_GET_GENREF_PROPS:
@@ -1372,6 +1577,35 @@ DtStatus  DtaNonIpIoctl(
         case DTA_NONIP_CMD_NOTIFY_GENREF_PROPS:
             Status = DtaNonIpNotifyGenRefProp(pNonIpPort,
                                              &pNonIpCmdInput->m_Data.m_NotifyGenRefProps);
+            break;
+
+        case DTA_NONIP_CMD_DETECT_VIDSTD2: 
+            Status = DtaNonIpDetectVidStd(pNonIpPort,
+                                     &pNonIpCmdOutput->m_Data.m_DetVidStd2.m_VidStd,
+                                     &pNonIpCmdOutput->m_Data.m_DetVidStd2.m_Vpid,
+                                     &pNonIpCmdOutput->m_Data.m_DetVidStd2.m_Vpid2,
+                                     &pNonIpCmdOutput->m_Data.m_DetVidStd2.m_AspectRatio);
+            break;
+
+        case DTA_NONIP_CMD_GET_AUDIO_STATUS:
+            Status = DtaNonIpGetAudioStatus(pNonIpPort,
+                                               &pNonIpCmdOutput->m_Data.m_GetAudioStatus);
+            break;
+
+        case DTA_NONIP_CMD_GET_DMA_STATS:
+            pNonIpCmdOutput->m_Data.m_GetDmaStats.m_Time =
+                                                   pNonIpPort->m_DmaChannel.m_EndTime
+                                                   - pNonIpPort->m_DmaChannel.m_StartTime;
+            pNonIpCmdOutput->m_Data.m_GetDmaStats.m_Direction =
+                                                  pNonIpPort->m_DmaChannel.m_DmaDirection;
+            if (pNonIpPort->m_DmaChannel.m_DmaDirection == DT_DMA_DIRECTION_FROM_DEVICE)
+            {
+                pNonIpCmdOutput->m_Data.m_GetDmaStats.m_NumBytesTransferred =
+                                                  pNonIpPort->m_DmaChannel.m_NumBytesRead;
+            } else {
+                pNonIpCmdOutput->m_Data.m_GetDmaStats.m_NumBytesTransferred =
+                                         pNonIpPort->m_DmaChannel.m_CurrentTransferLength;
+            }
             break;
 
         default:
@@ -1767,17 +2001,28 @@ void  DtaTargetIdWaitForUpdateDone(
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpDetectVidStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaNonIpDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
+DtStatus  DtaNonIpDetectVidStd(
+    DtaNonIpPort*  pNonIpPort,
+    Int*  pVidStd,
+    UInt*  pVpid,
+    UInt*  pVpid2,
+    Int*  pAspectRatio)
 {
-    //DtStatus  Status = DT_STATUS_OK;
     DT_ASSERT(pNonIpPort != NULL);
 
     // Init to 'safe' value
     *pVidStd = DT_VIDSTD_UNKNOWN;
+    if (pVpid != NULL)
+        *pVpid = 0;
+    if (pVpid2 != NULL)
+        *pVpid2 = 0;
+    if (pAspectRatio != NULL)
+        *pAspectRatio = DTA_AR_UNKNOWN;
 
-    // Port must be configured as an input
-    if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value!=DT_IOCONFIG_INPUT || 
+    // Port must be configured as an input except for HDMI and SDI-RX ports
+    if ((pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value!=DT_IOCONFIG_INPUT || 
                      pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue!=DT_IOCONFIG_INPUT)
+                     && !pNonIpPort->m_CapHdmi && !pNonIpPort->m_CapSdiRx)
     {
         DtDbgOut(ERR, NONIP, "Port %d is not configured as input", 
                                                                pNonIpPort->m_PortIndex+1);
@@ -1786,7 +2031,35 @@ DtStatus  DtaNonIpDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
 
     // For matrix capable ports forward to matrix function
     if (pNonIpPort->m_CapMatrix)
-        return DtaNonIpMatrixDetectVidStd(pNonIpPort, pVidStd);
+    {
+        DT_RETURN_ON_ERROR(DtaNonIpMatrixDetectVidStd(pNonIpPort, pVidStd));
+        if (pVpid!=NULL && pVpid2!=NULL)
+            DT_RETURN_ON_ERROR(DtaMatrixGetVpid(pNonIpPort, pVpid, pVpid2));
+        return DT_STATUS_OK;
+    }
+    else if (pNonIpPort->m_CapSdiRx)
+        return DtaNonIpSdiAvRxDetectVidStd(pNonIpPort, pVidStd, pVpid, pVpid2);
+    else if (pNonIpPort->m_CapHdmi)
+        return DtaNonIpHdmiDetectVidStd(pNonIpPort, pVidStd, pAspectRatio);
+    else
+    {
+        // For now this function is not supported for any other boards
+        DtDbgOut(ERR, NONIP, "Not supported for this port %d", pNonIpPort->m_PortIndex+1);
+        return DT_STATUS_NOT_SUPPORTED;  
+    }
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpGetAudioStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaNonIpGetAudioStatus(
+    DtaNonIpPort*  pNonIpPort,
+    DtaIoctlNonIpCmdGetAudioStatusOutput*  pOut)
+{
+    DT_ASSERT(pNonIpPort != NULL);
+    if (pNonIpPort->m_CapSdiRx)
+        return DtaNonIpSdiAvRxGetAudioStatus(pNonIpPort, pOut);
+    else if (pNonIpPort->m_CapHdmi)
+        return DtaNonIpHdmiGetAudioStatus(pNonIpPort, pOut);
     else
     {
         // For now this function is not supported for any other boards
@@ -2018,6 +2291,14 @@ static DtStatus  DtaNonIpIoConfigSetIoDir(
     {
     case DT_IOCONFIG_DISABLED:
         // New value (DT_IOCONFIG_DISABLED) is saved at the end...
+        break;
+
+    case DT_IOCONFIG_INTINPUT:
+        // New value (DT_IOCONFIG_INTINPUT) is saved at the end...
+        break;
+
+    case DT_IOCONFIG_MONITOR:
+        // New value (DT_IOCONFIG_MONITOR) is saved at the end...
         break;
 
     case DT_IOCONFIG_INPUT:
@@ -2355,12 +2636,15 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
         }
         break;
 
+    case DT_IOCONFIG_AVENC:
     case DT_IOCONFIG_DEMOD:
+    case DT_IOCONFIG_HDMI:
     case DT_IOCONFIG_IFADC:
     case DT_IOCONFIG_IP:
     case DT_IOCONFIG_MOD:
     case DT_IOCONFIG_PHASENOISE:
     case DT_IOCONFIG_RS422:
+    case DT_IOCONFIG_SDIRX:
         // No action required
         break;
 
@@ -2827,6 +3111,8 @@ DtStatus  DtaNonIpReleaseResourceFromFileObject(
 //
 DtStatus  DtaNonIpPowerdownPre(DtaNonIpPort* pNonIpPort)
 {
+    if (pNonIpPort->m_CapHdmi)
+        DtaNonIpHdmiPowerdownPre(pNonIpPort);
     return DT_STATUS_OK;
 }
 

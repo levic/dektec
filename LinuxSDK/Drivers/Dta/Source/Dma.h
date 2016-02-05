@@ -1,9 +1,9 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dma.h *#*#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Dma.h *#*#*#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -138,6 +138,8 @@ struct _DmaChannel {
     UInt  m_TransferNumber;
     UInt  m_CurrentTransferLength;
     UInt  m_NumBytesRead;
+    UInt64  m_StartTime;
+    UInt64  m_EndTime;
     
     // User function arguments
     UInt8*  m_pBuffer;    

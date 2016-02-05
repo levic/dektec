@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Ad9129.c *#*#*#*#*#*#*#*#*#*#*#* (C) 2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Ad9129.c *#*#*#*#*#*#*#*#*# (C) 2015-2016 DekTec
 //
 //
 // Dta driver - Ad9129 - Implementation of Ad9129 interface functions
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2012 DekTec Digital Video B.V.
+// Copyright (C) 2015-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -107,6 +107,7 @@ DtStatus DtaRfDacInitPowerup(DtaDeviceData* pDvcData)
 
     return Status;
 }
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpAd9129Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtaAd9129Init(DtaNonIpPort*  pNonIpPort)

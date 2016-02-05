@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* I2c.c *#*#*#*#*#*#*#*#*#*# (C) 2010-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* I2c.c *#*#*#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
 //
 // Dta driver - Dta I2C read/write routines.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -29,6 +29,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void DtaI2cCompletedDpc(DtDpcArgs* pArgs);
+void DtaI2cmCompletedDpc(DtDpcArgs* pArgs);
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cInitValues -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -909,4 +910,274 @@ DtStatus  DtaI2cWriteRead(
     DtFastMutexRelease(&pI2c->m_AccessMutex);
 
     return Status;
+}
+
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cmInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaI2cmInit(DtaI2cm* pI2cm, const DtFwbI2cMaster* pFwbI2cm)
+{
+    pI2cm->m_pFwbI2cm = pFwbI2cm;
+    DtEventInit(&pI2cm->m_DoneEvent, TRUE);
+    return DtDpcInit(&pI2cm->m_CompletedDpc, DtaI2cmCompletedDpc, TRUE);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cmInitPowerup -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaI2cmInitPowerup(DtaI2cm* pI2cm, volatile UInt8* pFwbRegs)
+{
+    pI2cm->m_pFwbRegs = pFwbRegs;
+    return DT_STATUS_OK;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cmInterruptEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaI2cmInterruptEnable(DtaI2cm* pI2cm)
+{
+    DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->Control_DoneIntEnable, 1);
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cmInterruptDisable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaI2cmInterruptDisable(DtaI2cm* pI2cm)
+{
+    DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->Control_DoneIntEnable, 0);
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cmInterrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtaI2cmInterrupt(DtaI2cm*  pI2cm)
+{
+    DtDpcArgs  DpcArgs;
+    Bool  IrqHandled = FALSE;
+
+    if (DtaFwbRegRead(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->Status_DoneIntStatus) == 1)
+    {
+        DtaFwbRegClear(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->Status_DoneIntStatus);
+        DpcArgs.m_pContext = pI2cm;
+        DtDpcSchedule(&pI2cm->m_CompletedDpc, &DpcArgs);
+        IrqHandled = TRUE;
+    }
+
+    return IrqHandled;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cmCompletedDpc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void DtaI2cmCompletedDpc(DtDpcArgs* pArgs)
+{
+    DtaI2cm*  pI2cm = (DtaI2cm*)pArgs->m_pContext;
+    DtDbgOut(MAX, I2C, "I2C transfer processed");
+    DtEventSet(&pI2cm->m_DoneEvent);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cmRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaI2cmRead(DtaI2cm* pI2cm, UInt DvcAddr, UInt Length, UInt8* pBuf)
+{
+    UInt32  AddrCount;
+    UInt32  IsBusy;
+    UInt32  AddressNack, WriteDataNack, Timeout, WriteFifoUnderflow;
+    UInt32  Data;
+    
+    if (Length >= (1<<10))
+        return DT_STATUS_INVALID_PARAMETER;
+
+    IsBusy = DtaFwbRegRead(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->Status_Busy);
+    if (IsBusy != 0)
+        return DT_STATUS_BUSY;
+
+    AddrCount = (DvcAddr>>1) | (Length<<21);
+
+    DtEventReset(&pI2cm->m_DoneEvent);
+
+    DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->AddressCount, AddrCount);
+
+    DT_RETURN_ON_ERROR(DtEventWait(&pI2cm->m_DoneEvent, 2000));
+
+    AddressNack = DtaFwbRegRead(pI2cm->m_pFwbRegs,
+                                                  &pI2cm->m_pFwbI2cm->Status_AddressNack);
+    WriteDataNack = DtaFwbRegRead(pI2cm->m_pFwbRegs,
+                                                &pI2cm->m_pFwbI2cm->Status_WriteDataNack);
+    Timeout = DtaFwbRegRead(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->Status_Timeout);
+    WriteFifoUnderflow = DtaFwbRegRead(pI2cm->m_pFwbRegs,
+                                           &pI2cm->m_pFwbI2cm->Status_WriteFifoUnderflow);
+
+    if (AddressNack!=0 || WriteDataNack!=0)
+        return DT_STATUS_FAIL;
+    if (Timeout != 0)
+        return DT_STATUS_TIMEOUT;
+    if (WriteFifoUnderflow != 0)
+        return DT_STATUS_FAIL;
+
+    while (Length > 0)
+    {
+        Int  i;
+        Data = DtaFwbRegRead(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->ReadData);
+
+        for (i=0; i<4 && Length>0; i++)
+        {
+            *pBuf++ = Data&0xFF;
+            Data >>= 8;
+            Length--;
+        }
+    }
+
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cmWrite -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaI2cmWrite(DtaI2cm* pI2cm, UInt DvcAddr, UInt Length, const UInt8* pBuf)
+{
+    UInt32  AddrCount;
+    UInt32  IsBusy;
+    UInt32  AddressNack, WriteDataNack, Timeout, WriteFifoUnderflow;
+    UInt32  Data;
+
+    DtDbgOut(MAX, I2C, "Start");
+    
+    if (Length >= (1<<10))
+        return DT_STATUS_INVALID_PARAMETER;
+
+    IsBusy = DtaFwbRegRead(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->Status_Busy);
+    if (IsBusy != 0)
+        return DT_STATUS_BUSY;
+
+    AddrCount = (DvcAddr>>1) | (Length<<10);
+
+    while (Length >= 4)
+    {
+        Data = (pBuf[0]) | (pBuf[1]<<8) | (pBuf[2]<<16) | (pBuf[3]<<24);
+        DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->WriteData, Data);
+        pBuf += 4;
+        Length -= 4;
+    }
+    switch(Length)
+    {
+    case 1:
+        Data = (pBuf[0]);
+        DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->WriteData, Data);
+        break;
+    case 2:
+        Data = (pBuf[0]) | (pBuf[1]<<8);
+        DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->WriteData, Data);
+        break;
+    case 3:
+        Data = (pBuf[0]) | (pBuf[1]<<8) | (pBuf[2]<<16);
+        DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->WriteData, Data);
+        break;
+    }
+
+    DtEventReset(&pI2cm->m_DoneEvent);
+
+    DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->AddressCount, AddrCount);
+    
+    DT_RETURN_ON_ERROR(DtEventWait(&pI2cm->m_DoneEvent, 2000));
+
+    AddressNack = DtaFwbRegRead(pI2cm->m_pFwbRegs,
+                                                  &pI2cm->m_pFwbI2cm->Status_AddressNack);
+    WriteDataNack = DtaFwbRegRead(pI2cm->m_pFwbRegs,
+                                                &pI2cm->m_pFwbI2cm->Status_WriteDataNack);
+    Timeout = DtaFwbRegRead(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->Status_Timeout);
+    WriteFifoUnderflow = DtaFwbRegRead(pI2cm->m_pFwbRegs,
+                                           &pI2cm->m_pFwbI2cm->Status_WriteFifoUnderflow);
+
+    if (AddressNack!=0 || WriteDataNack!=0)
+        return DT_STATUS_FAIL;
+    if (Timeout != 0)
+        return DT_STATUS_TIMEOUT;
+    if (WriteFifoUnderflow != 0)
+        return DT_STATUS_FAIL;
+    
+    DtDbgOut(MAX, I2C, "Exit");
+
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cmWriteRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaI2cmWriteRead(
+    DtaI2cm*  pI2cm,
+    UInt  DvcAddr,
+    UInt  WriteLength,
+    const UInt8*  pWriteBuf,
+    UInt  ReadLength,
+    UInt8*  pReadBuf)
+{
+    UInt32  AddrCount;
+    UInt32  IsBusy;
+    UInt32  AddressNack, WriteDataNack, Timeout, WriteFifoUnderflow;
+    UInt32  Data;
+    
+    if (WriteLength>=(1<<10) || ReadLength>=(1<<10))
+        return DT_STATUS_INVALID_PARAMETER;
+
+    IsBusy = DtaFwbRegRead(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->Status_Busy);
+    if (IsBusy != 0)
+        return DT_STATUS_BUSY;
+
+    AddrCount = (DvcAddr>>1) | (WriteLength<<10) | (ReadLength<<21);
+
+    while (WriteLength >= 4)
+    {
+        Data = (pWriteBuf[0]) | (pWriteBuf[1]<<8) | (pWriteBuf[2]<<16) | (pWriteBuf[3]<<24);
+        DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->WriteData, Data);
+        pWriteBuf += 4;
+        WriteLength -= 4;
+    }
+    switch(WriteLength)
+    {
+    case 1:
+        Data = (pWriteBuf[0]);
+        DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->WriteData, Data);
+        break;
+    case 2:
+        Data = (pWriteBuf[0]) | (pWriteBuf[1]<<8);
+        DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->WriteData, Data);
+        break;
+    case 3:
+        Data = (pWriteBuf[0]) | (pWriteBuf[1]<<8) | (pWriteBuf[2]<<16);
+        DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->WriteData, Data);
+        break;
+    }
+
+    DtEventReset(&pI2cm->m_DoneEvent);
+
+    DtaFwbRegWrite(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->AddressCount, AddrCount);
+
+    DT_RETURN_ON_ERROR(DtEventWait(&pI2cm->m_DoneEvent, 2000));
+
+    AddressNack = DtaFwbRegRead(pI2cm->m_pFwbRegs,
+                                                  &pI2cm->m_pFwbI2cm->Status_AddressNack);
+    WriteDataNack = DtaFwbRegRead(pI2cm->m_pFwbRegs,
+                                                &pI2cm->m_pFwbI2cm->Status_WriteDataNack);
+    Timeout = DtaFwbRegRead(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->Status_Timeout);
+    WriteFifoUnderflow = DtaFwbRegRead(pI2cm->m_pFwbRegs,
+                                           &pI2cm->m_pFwbI2cm->Status_WriteFifoUnderflow);
+
+    if (AddressNack!=0 || WriteDataNack!=0)
+        return DT_STATUS_FAIL;
+    if (Timeout != 0)
+        return DT_STATUS_TIMEOUT;
+    if (WriteFifoUnderflow != 0)
+        return DT_STATUS_FAIL;
+
+    while (ReadLength > 0)
+    {
+        Int  i;
+        Data = DtaFwbRegRead(pI2cm->m_pFwbRegs, &pI2cm->m_pFwbI2cm->ReadData);
+
+        for (i=0; i<4 && ReadLength>0; i++)
+        {
+            *pReadBuf++ = Data&0xFF;
+            Data >>= 8;
+            ReadLength--;
+        }
+    }
+
+    return DT_STATUS_OK;
 }

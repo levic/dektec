@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* IpRx.c *#*#*#*#*#*#*#*#*#* (C) 2011-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* IpRx.c *#*#*#*#*#*#*#*#*#* (C) 2011-2016 DekTec
 //
 // Dta driver - IP RX functionality - Implementation of RX specific functionality for
 //                                    IP ports.
@@ -6,7 +6,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2015 DekTec Digital Video B.V.
+// Copyright (C) 2011-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -4346,7 +4346,9 @@ void  DtaIpRxDoIpStatistics(
                                        sizeof(pIpRxChannel->m_SeqNumStat[IpPortIndex][0])*
                                        (IPRX_MAX_RTP_SEQ_NUM_STAT-1));
             pIpRxChannel->m_NumSeqNumStat[IpPortIndex] = IPRX_MAX_RTP_SEQ_NUM_STAT - 1;
-        }
+        }  else if (pIpRxChannel->m_NumSeqNumStat[IpPortIndex] < IPRX_MAX_RTP_SEQ_NUM_STAT)
+            pIpRxChannel->m_NumIpPacketsReceived[IpPortIndex] += 1;
+
         // Add new seq. number
         if (pIpRxChannel->m_NumSeqNumStat[IpPortIndex] == 0)
         {
@@ -5502,6 +5504,7 @@ void  DtaIpRxParsePacket(DtaIpPort* pIpPort, UInt8* pData, UInt Size, Bool NrtRx
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Protocol UDP -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
         if (ProtocolType == DTA_PROTO_UDP) 
         {
+            UInt16  Identification = 0;
             DtDbgOut(MAX, IP_RX, "Channel %d: UDP DVB Packet received. DVB-DataSize=%i",
                                             pIpRxChannel->m_ChannelIndex, DvbTotalLength);
 
@@ -5523,10 +5526,11 @@ void  DtaIpRxParsePacket(DtaIpPort* pIpPort, UInt8* pData, UInt Size, Bool NrtRx
                 DtaIpRxUserChRefDecr(pIpRxChannel);
                 continue;
             }
-
+            if (pIpHeaderV4 != NULL)
+                Identification = DtUInt16ByteSwap(pIpHeaderV4->m_Identification);
             DtaIpRxDoIpStatistics(pIpPort, pIpRxChannel, 
-                        pIpPort->m_pDvcData->m_IpDevice.m_RefTimeStored, 
-                        pDmaRxHeader, DtUInt16ByteSwap(pIpHeaderV4->m_Identification), 0);
+                                          pIpPort->m_pDvcData->m_IpDevice.m_RefTimeStored,
+                                          pDmaRxHeader, Identification, 0);
 
             // We do not support doubly buffering with IpV6.
             if (((pIpRxChannel->m_IpParsMode & DTA_IP_RX_2022_7)!=0) && pIpHeaderV4!=NULL)

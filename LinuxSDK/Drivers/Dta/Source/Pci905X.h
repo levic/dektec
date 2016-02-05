@@ -1,11 +1,11 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Pci905X.h *#*#*#*#*#*#*#*#*# (C) 2000-2015 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Pci905X.h *#*#*#*#*#*#*#*#*# (C) 2000-2016 DekTec
 //
 // Dta driver - Definition of register sets for the PCI905X PLX devices.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2000-2015 DekTec Digital Video B.V.
+// Copyright (C) 2000-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:

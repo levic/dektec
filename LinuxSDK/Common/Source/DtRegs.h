@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtRegs.h *#*#*#*#*#*#*#*#*# (C) 2011-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtRegs.h *#*#*#*#*#*#*#*#*# (C) 2011-2016 DekTec
 //
 // DtRegs - Definition of register sets used for all devices DTA/DTU(/DTE) 
 // This file contains register offsets with mask and shift defines.
@@ -6,7 +6,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2015 DekTec Digital Video B.V.
+// Copyright (C) 2011-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -1280,11 +1280,6 @@ typedef union _DT_RFDAC_CONTROL
 #define  DT_VIDSTD_1080P25              0x010D
 #define  DT_VIDSTD_1080P29_97           0x018B
 #define  DT_VIDSTD_1080P30              0x010B
-#define  DT_VIDSTD_1080PSF23_98         0x0001
-#define  DT_VIDSTD_1080PSF24            0x0002
-#define  DT_VIDSTD_1080PSF25            0x0003
-#define  DT_VIDSTD_1080PSF29_97         0x0004
-#define  DT_VIDSTD_1080PSF30            0x0005
 #define  DT_VIDSTD_1080I50              0x014C
 #define  DT_VIDSTD_1080I59_94           0x01CA
 #define  DT_VIDSTD_1080I60              0x014A
@@ -1294,6 +1289,14 @@ typedef union _DT_RFDAC_CONTROL
 #define  DT_VIDSTD_1080P50B             0x030C
 #define  DT_VIDSTD_1080P59_94B          0x038A
 #define  DT_VIDSTD_1080P60B             0x030A
+#define  DT_VIDSTD_1080PSF23_98         0x0001
+#define  DT_VIDSTD_1080PSF24            0x0002
+#define  DT_VIDSTD_1080PSF25            0x0003
+#define  DT_VIDSTD_1080PSF29_97         0x0004
+#define  DT_VIDSTD_1080PSF30            0x0005
+#define  DT_VIDSTD_480P59_94            0x0006
+#define  DT_VIDSTD_525P59_94            0x0007
+#define  DT_VIDSTD_625P50               0x0008
 
 #define  DT_VIDSTD_TS                   -1      // Special case
 

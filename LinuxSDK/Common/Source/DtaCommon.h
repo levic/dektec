@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2016 DekTec
 //
 // Dta driver - Common file shared between Dta driver and DTAPI
 //
@@ -7,7 +7,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2015 DekTec Digital Video B.V.
+// Copyright (C) 2010-2016 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -129,7 +129,11 @@ enum {
     FUNC_DTA_GET_TABLE2,
     FUNC_DTA_RS422_CMD,
     FUNC_DTA_GET_DEV_INFO3,
-    FUNC_DTA_SET_VCXO
+    FUNC_DTA_SET_VCXO,
+    FUNC_DTA_SDIAVRX_CMD,
+    FUNC_DTA_ENDEC_CMD,
+    FUNC_DTA_D7PRO_CMD,
+    FUNC_DTA_SPIMF_CMD
 };
 
 // Ioctl input data type
@@ -917,6 +921,10 @@ ASSERT_SIZE(DtaIoctlSetIoConfigInput, 8)
 #define DTA_NONIP_CMD_GET_GENREF_PROPS  4   // Get the properties for a GENREF port
 #define DTA_NONIP_CMD_NOTIFY_GENREF_PROPS  5  // Notification message with update of 
                                               // GENREF properties
+#define DTA_NONIP_CMD_DETECT_VIDSTD2    6   // Get information about video standard
+                                            // and VPID information
+#define DTA_NONIP_CMD_GET_AUDIO_STATUS  7   // Get audio channel status
+#define DTA_NONIP_CMD_GET_DMA_STATS     8   // Get stats of last DMA transfer
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_NONIP_CMD_EXCLUSIVE_ACCESS -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
@@ -987,6 +995,47 @@ typedef DtaIoctlNonIpGenRefProps DtaIoctlNonIpNotifyGenRefPropsInput;
 ASSERT_SIZE(DtaIoctlNonIpNotifyGenRefPropsInput, 24)
 
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_NONIP_CMD_DETECT_VIDSTD2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+// Ioctl output data type
+typedef struct _DtaIoctlNonIpCmdDetectVidStd2Output {
+    Int  m_VidStd;              // Detected video standard
+    UInt  m_Vpid;               // Detected VPID
+    UInt  m_Vpid2;              // VPID in link 2 for 3g level b signals
+    Int  m_AspectRatio;         // Detected aspect ratio
+} DtaIoctlNonIpCmdDetectVidStd2Output;
+ASSERT_SIZE(DtaIoctlNonIpCmdDetectVidStd2Output, 16)
+
+#define DTA_AR_UNKNOWN                0  // Unknown aspect ratio
+#define DTA_AR_4_3                    1  // 4x3
+#define DTA_AR_16_9                   2  // 16x9
+#define DTA_AR_14_9                   3  // 14x9
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_NONIP_CMD_GET_AUDIO_STATUS -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+// Ioctl output data type
+typedef struct _DtaIoctlNonIpCmdGetAudioStatusOutput {
+    Int  m_NumAudioChannels;
+    struct 
+    {
+        Int  m_ChanIdx;
+        Int  m_IsAsynchronous;          // Is channel pair asynchronous?
+        Int  m_Rate;                    // Audio sample rate
+        Int  m_ChanStatusNumValid;      // Number of valid bytes in channel status data
+        UInt8  m_ChanStatusData[24];    // Channel status data
+    } m_AudioChanStatus[32];
+} DtaIoctlNonIpCmdGetAudioStatusOutput;
+ASSERT_SIZE(DtaIoctlNonIpCmdGetAudioStatusOutput, 1284)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_NONIP_CMD_GET_DMA_STATS -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+// Ioctl output data type
+typedef struct _DtaIoctlNonIpCmdGetDmaStatsOutput {
+    UInt64A  m_Time;            // Total DMA time in us
+    UInt  m_Direction;          // 1 = From device, 2 = To device
+    UInt64A  m_NumBytesTransferred; // Total number of bytes send or received
+} DtaIoctlNonIpCmdGetDmaStatsOutput;
+
 
 // Ioctl input data type
 typedef struct _DtaIoctlNonIpCmdInput {
@@ -997,7 +1046,6 @@ typedef struct _DtaIoctlNonIpCmdInput {
         DtaIoctlNonIpNotifyGenRefPropsInput  m_NotifyGenRefProps;
     } m_Data;
 } DtaIoctlNonIpCmdInput;
-ASSERT_SIZE(DtaIoctlNonIpCmdInput, 32)
 
 // Ioctl Output data type
 typedef struct _DtaIoctlNonIpCmdOutput {
@@ -1005,9 +1053,11 @@ typedef struct _DtaIoctlNonIpCmdOutput {
         DtaIoctlNonIpCmdGetTargetIdOutput  m_GetTargetId;
         DtaIoctlNonIpCmdDetectVidStdOutput  m_DetVidStd;
         DtaIoctlNonIpGetGenRefPropsOutput  m_GetGenRefProps;
+        DtaIoctlNonIpCmdDetectVidStd2Output  m_DetVidStd2;
+        DtaIoctlNonIpCmdGetAudioStatusOutput  m_GetAudioStatus;
+        DtaIoctlNonIpCmdGetDmaStatsOutput  m_GetDmaStats;
     } m_Data;
 } DtaIoctlNonIpCmdOutput;
-ASSERT_SIZE(DtaIoctlNonIpCmdOutput, 24)
 
 #ifdef WINBUILD
     #define DTA_IOCTL_NONIP_CMD  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_NONIP_CMD, \
@@ -1018,7 +1068,7 @@ ASSERT_SIZE(DtaIoctlNonIpCmdOutput, 24)
         DtaIoctlNonIpCmdOutput  m_Output;
     } DtaIoctlNonIpCmd;
 
-    #define DTA_IOCTL_NONIP_CMD  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_NONIP_CMD, \
+    #define DTA_IOCTL_NONIP_CMD  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_NONIP_CMD, \
                                                                          DtaIoctlNonIpCmd)
 
     // Ioctl input data type
@@ -1047,6 +1097,36 @@ ASSERT_SIZE(DtaIoctlNonIpCmdOutput, 24)
 
     #define DTA_IOCTL_NONIP_CMD_LEGACY  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_NONIP_CMD, \
                                                                    DtaIoctlNonIpCmdLegacy)
+
+    // Ioctl input data type
+    typedef struct _DtaIoctlNonIpCmdInputLegacy2 {
+        Int  m_Cmd;
+        Int  m_PortIndex;
+        union {
+            DtaIoctlNonIpCmdExclusiveAccessInput  m_ExclusiveAccess;
+            DtaIoctlNonIpNotifyGenRefPropsInput  m_NotifyGenRefProps;
+        } m_Data;
+    } DtaIoctlNonIpCmdInputLegacy2;
+    ASSERT_SIZE(DtaIoctlNonIpCmdInputLegacy2, 32)
+
+    // Ioctl Output data type
+    typedef struct _DtaIoctlNonIpCmdOutputLegacy2 {
+        union {
+            DtaIoctlNonIpCmdGetTargetIdOutput  m_GetTargetId;
+            DtaIoctlNonIpCmdDetectVidStdOutput  m_DetVidStd;
+            DtaIoctlNonIpGetGenRefPropsOutput  m_GetGenRefProps;
+        } m_Data;
+    } DtaIoctlNonIpCmdOutputLegacy2;
+    ASSERT_SIZE(DtaIoctlNonIpCmdOutputLegacy2, 24)
+
+    typedef union _DtaIoctlNonIpCmdLegacy2 {
+        DtaIoctlNonIpCmdInputLegacy2  m_Input;
+        DtaIoctlNonIpCmdOutputLegacy2  m_Output;
+    } DtaIoctlNonIpCmdLegacy2;
+    ASSERT_SIZE(DtaIoctlNonIpCmdLegacy2, 32)
+
+    #define DTA_IOCTL_NONIP_CMD_LEGACY2  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_NONIP_CMD, \
+                                                                  DtaIoctlNonIpCmdLegacy2)
 #endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_NONIP_TX_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -2689,6 +2769,7 @@ ASSERT_SIZE(DtaIoctlRs422CmdOutput, 260)
                                                                          DtaIoctlRs422Cmd)
 #endif
 
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_SET_VCXO +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //
 
@@ -2709,6 +2790,366 @@ ASSERT_SIZE(DtaIoctlSetVcxoInput, 8)
 
     #define DTA_IOCTL_SET_VCXO  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_SET_VCXO, DtaIoctlSetVcxo)
 #endif
+
+
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_SDIAVRX_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//
+// Wrapper IOCTL for all SDIAVRX-API related commands
+//
+#define DTA_SDIAVRX_MAX_NUM_AUDPAIRS   8
+
+// Command definitions
+#define  DTA_SDIAVRX_CMD_GET_AUDIOSELECT    0     // Get audio selection
+#define  DTA_SDIAVRX_CMD_SET_AUDIOSELECT    1     // Set audio selection
+#define  DTA_SDIAVRX_CMD_READ_SMPTE2020     2     // Read SMPTE-2020 ANC packets
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SDIAVRX_CMD_GET_AUDSELECT -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+typedef struct _DtaIoctSdiAvRxCmdGetAudSelectOutput
+{
+    Int  m_NumChanPairs;                // Number of channel pairs
+    UInt32  m_ChanPairSelect[DTA_SDIAVRX_MAX_NUM_AUDPAIRS];
+} DtaIoctSdiAvRxCmdGetAudSelectOutput;
+ASSERT_SIZE(DtaIoctSdiAvRxCmdGetAudSelectOutput, 4 + 4*DTA_SDIAVRX_MAX_NUM_AUDPAIRS)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SDIAVRX_CMD_SET_AUDSELECT -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+typedef struct _DtaIoctSdiAvRxCmdSetAudSelectInput
+{
+    Int  m_NumChanPairs;                // Number of channel pairs
+    UInt32  m_ChanPairSelect[DTA_SDIAVRX_MAX_NUM_AUDPAIRS];
+} DtaIoctSdiAvRxCmdSetAudSelectInput;
+ASSERT_SIZE(DtaIoctSdiAvRxCmdSetAudSelectInput, 4 + 4*DTA_SDIAVRX_MAX_NUM_AUDPAIRS)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SDIAVRX_CMD_READ_SMPTE2020 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+typedef struct _DtaIoctSdiAvRxCmdReadSmpte2020Output
+{
+    Int  m_BufSize;                     // Number of valid bytes in m_Buf
+    UInt8  m_Buf[4096];
+} DtaIoctSdiAvRxCmdReadSmpte2020Output;
+ASSERT_SIZE(DtaIoctSdiAvRxCmdReadSmpte2020Output, 4100)
+
+
+// Ioctl input data type
+typedef struct _DtaIoctlSdiAvRxCmdInput {
+    Int  m_Cmd;
+    Int  m_PortIndex;           // -1 signals a device level command
+    union {
+        DtaIoctSdiAvRxCmdSetAudSelectInput  m_AudSelect;
+    } m_Data;
+} DtaIoctlSdiAvRxCmdInput;
+ASSERT_SIZE(DtaIoctlSdiAvRxCmdInput, 44)
+
+// Ioctl output data type
+typedef struct _DtaIoctlSdiAvRxCmdOutput {
+    union {
+        DtaIoctSdiAvRxCmdGetAudSelectOutput  m_AudSelect;
+        DtaIoctSdiAvRxCmdReadSmpte2020Output  m_ReadSmpte2020;
+    } m_Data;
+} DtaIoctlSdiAvRxCmdOutput;
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_SDIAVRX_CMD  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_SDIAVRX_CMD, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlSdiAvRxCmd {
+        DtaIoctlSdiAvRxCmdInput  m_Input;
+        DtaIoctlSdiAvRxCmdOutput  m_Output;
+    } DtaIoctlSdiAvRxCmd;
+
+    #define DTA_IOCTL_SDIAVRX_CMD  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_SDIAVRX_CMD, \
+                                                                       DtaIoctlSdiAvRxCmd)
+#endif
+
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ FUNC_DTA_ENDEC_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+// Wrapper for common encoder/decoder commands
+//
+
+// Command definitions
+#define  DTA_ENDEC_CMD_EXCLUSIVE_ACCESS  0 // Acquire/release/probe exclusive access
+#define  DTA_ENDEC_CMD_GET_SOURCE_PORT   1 // Get source port selection
+#define  DTA_ENDEC_CMD_SET_SOURCE_PORT   2 // Set source port selection
+#define  DTA_ENDEC_CMD_GET_VIDSTD        3 // Get video standard selection
+#define  DTA_ENDEC_CMD_SET_VIDSTD        4 // Set video standard selection
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_ENDEC_CMD_EXCLUSIVE_ACCESS -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// Reuse DtaIoctlNonIpCmdExclusiveAccessInput
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_ENDEC_CMD_GET_SOURCE_PORT -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+typedef struct _DtaIoctEnDecCmdGetSourcePortOutput
+{
+    Int  m_PortIndex;                // Source port
+} DtaIoctEnDecCmdGetSourcePortOutput;
+ASSERT_SIZE(DtaIoctEnDecCmdGetSourcePortOutput, 4)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_ENDEC_CMD_SET_SOURCE_PORT -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+typedef struct _DtaIoctEnDecCmdSetSourcePortInput
+{
+    Int  m_PortIndex;                // Source port
+} DtaIoctEnDecCmdSetSourcePortInput;
+ASSERT_SIZE(DtaIoctEnDecCmdSetSourcePortInput, 4)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_ENDEC_CMD_GET_VIDSTD -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+typedef struct _DtaIoctEnDecCmdGetVidStdOutput
+{
+    Int  m_VidStd;                  // Video standard
+} DtaIoctEnDecCmdGetVidStdOutput;
+ASSERT_SIZE(DtaIoctEnDecCmdGetVidStdOutput, 4)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_ENDEC_CMD_SET_VIDSTD -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+typedef struct _DtaIoctEnDecCmdSetVidStdInput
+{
+    Int  m_VidStd;                  // Video standard
+} DtaIoctEnDecCmdSetVidStdInput;
+ASSERT_SIZE(DtaIoctEnDecCmdSetVidStdInput, 4)
+
+
+// Ioctl input data type
+typedef struct _DtaIoctlEnDecCmdInput {
+    Int  m_Cmd;
+    Int  m_PortIndex;
+    union {
+        DtaIoctlNonIpCmdExclusiveAccessInput  m_ExclusiveAccess;
+        DtaIoctEnDecCmdSetSourcePortInput  m_SetSourcePort;
+        DtaIoctEnDecCmdSetVidStdInput  m_SetVidStd;
+    } m_Data;
+} DtaIoctlEnDecCmdInput;
+
+// Ioctl output data type
+typedef struct _DtaIoctlEnDecCmdOutput {
+    union {
+        DtaIoctEnDecCmdGetSourcePortOutput  m_GetSourcePort;
+        DtaIoctEnDecCmdGetVidStdOutput  m_GetVidStd;
+    } m_Data;
+} DtaIoctlEnDecCmdOutput;
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_ENDEC_CMD  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_ENDEC_CMD, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlEnDecCmd {
+        DtaIoctlEnDecCmdInput  m_Input;
+        DtaIoctlEnDecCmdOutput  m_Output;
+    } DtaIoctlEnDecCmd;
+
+    #define DTA_IOCTL_ENDEC_CMD  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_ENDEC_CMD, \
+                                                                         DtaIoctlEnDecCmd)
+#endif
+
+
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ FUNC_DTA_D7PRO_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+// Wrapper for all D7Pro related commands
+//
+
+// Command definitions
+#define  DTA_D7PRO_CMD_SEND_COMMAND      0 // Send command to the control interface
+#define  DTA_D7PRO_CMD_DEBUG_READ        1 // Read text from debug port
+#define  DTA_D7PRO_CMD_STATUS_GET        2 // Get current status of encoder
+#define  DTA_D7PRO_CMD_ACK_BOOT          3 // Try to finish boot process
+#define  DTA_D7PRO_CMD_REBOOT            4 // Force a reboot of the D7Pro
+#define  DTA_D7PRO_CMD_RESET_SET         5 // Sets/clears the D7Pro reset signal
+
+// Status codes for D7Pro device
+#define DTA_D7PRO_STATE_INIT          0 // Initial state, power not checked nor enabled
+#define DTA_D7PRO_STATE_NO_12V        1 // External 12V is not present
+#define DTA_D7PRO_STATE_POWER_ERR     2 // There is an issue with the D7Pro power supplies
+#define DTA_D7PRO_STATE_FAN_FAIL      3 // Power has been disabled due to a fan error
+#define DTA_D7PRO_STATE_BOOTING       4 // D7Pro is booting, handshake not done yet
+#define DTA_D7PRO_STATE_OK            5 // Boot complete, device ready for use
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_D7PRO_CMD_SEND_COMMAND -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtaIoctlD7ProSendCommandInput {
+    Int  m_NumBytesToWrite; // Number of bytes in buffer
+    Int  m_NumBytesToRead;  // Number of bytes to read
+    Int  m_Timeout;         // Maximum time in ms to wait for data
+    UInt8  m_Buf[0];        // Data to be transmitted, dynamic sized buffer
+} DtaIoctlD7ProSendCommandInput;
+
+typedef struct _DtaIoctlD7ProSendCommandOutput {
+    Int  m_NumBytes;        // Actual number of bytes read
+    UInt8  m_Buf[0];        // Data read back, dynamic sized buffer
+} DtaIoctlD7ProSendCommandOutput;
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_D7PRO_CMD_DEBUG_READ -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtaIoctlD7ProDebugReadInput {
+    Int  m_NumBytesToRead;  // Maximum number of bytes to read
+    Int  m_Timeout;         // Maximum time in ms to wait for data
+} DtaIoctlD7ProDebugReadInput;
+ASSERT_SIZE(DtaIoctlD7ProDebugReadInput, 8)
+
+typedef struct _DtaIoctlD7ProDebugReadOutput {
+    Int  m_NumBytes;        // Actual number of bytes read
+    UInt8  m_Buf[0];        // Data read back, dynamic sized buffer
+} DtaIoctlD7ProDebugReadOutput;
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_D7PRO_CMD_STATUS_GET -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtaIoctlD7ProStatusGetOutput {
+    Int  m_Status;
+} DtaIoctlD7ProStatusGetOutput;
+ASSERT_SIZE(DtaIoctlD7ProStatusGetOutput, 4)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_D7PRO_CMD_RESET_SET -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtaIoctlD7ProResetSetInput {
+    Int  m_ResetValue;
+} DtaIoctlD7ProResetSetInput;
+ASSERT_SIZE(DtaIoctlD7ProResetSetInput, 4)
+
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_D7PRO_CMD_EXCLUSIVE_ACCESS -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// Reuse DtaIoctlNonIpCmdExclusiveAccessInput
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_D7PRO_CMD_ACK_BOOT -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// Reuse DtaIoctlD7ProStatusGetOutput
+
+// Ioctl input data type
+typedef struct _DtaIoctlD7ProCmdInput {
+    Int  m_Cmd;
+    Int  m_PortIndex;
+    union {
+        DtaIoctlD7ProSendCommandInput  m_SendCmd;
+        DtaIoctlD7ProDebugReadInput  m_DebugRead;
+        DtaIoctlNonIpCmdExclusiveAccessInput  m_ExclusiveAccess;
+        DtaIoctlD7ProResetSetInput  m_ResetSet;
+    } m_Data;
+} DtaIoctlD7ProCmdInput;
+
+// Ioctl output data type
+typedef struct _DtaIoctlD7ProCmdOutput {
+    union {
+        DtaIoctlD7ProSendCommandOutput  m_SendCmd;
+        DtaIoctlD7ProDebugReadOutput  m_DebugRead;
+        DtaIoctlD7ProStatusGetOutput  m_StatusGet;
+        DtaIoctlD7ProStatusGetOutput  m_AckBoot;
+    } m_Data;
+} DtaIoctlD7ProCmdOutput;
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_D7PRO_CMD  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_D7PRO_CMD, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlD7ProCmd {
+        DtaIoctlD7ProCmdInput  m_Input;
+        DtaIoctlD7ProCmdOutput  m_Output;
+    } DtaIoctlD7ProCmd;
+
+    #define DTA_IOCTL_D7PRO_CMD  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_D7PRO_CMD, \
+                                                                         DtaIoctlD7ProCmd)
+#endif
+
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ FUNC_DTA_SPIMF_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+// Wrapper for common SPI master falsh commands
+//
+
+// Command definitions
+#define  DTA_SPIMF_CMD_EXCLUSIVE_ACCESS  0 // Acquire/release/probe exclusive access
+#define  DTA_SPIMF_CMD_DEVICE_LOCK       1 // Lock/unlock device for write and erase ops
+#define  DTA_SPIMF_CMD_GET_PROPERTIES    3 // Get device properties
+#define  DTA_SPIMF_CMD_ERASE             4 // Erase
+#define  DTA_SPIMF_CMD_READ              5 // Read data
+#define  DTA_SPIMF_CMD_WRITE             6 // Write datea
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SPIMF_CMD_EXCLUSIVE_ACCESS -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// Reuse DtaIoctlNonIpCmdExclusiveAccessInput
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SPIMF_CMD_DEVICE_LOCK -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+typedef struct _DtaIoctlSpiMfCmdDeviceLockInput {
+    Int  m_Lock;                // Lock / Unlock
+} DtaIoctlSpiMfCmdDeviceLockInput;
+ASSERT_SIZE(DtaIoctlSpiMfCmdDeviceLockInput, 4)
+
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SPIMF_CMD_READ -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctlSpiMfCmdReadInput {
+    Int  m_StartAddress;        // Start address
+    Int  m_NumBytesToRead;      // Number of bytes to read
+} DtaIoctlSpiMfCmdReadInput;
+ASSERT_SIZE(DtaIoctlSpiMfCmdReadInput, 8)
+
+typedef struct _DtaIoctlSpiMfCmdReadOutput {
+    Int  m_NumBytes;           // Number of bytes in buffer
+    UInt8  m_Buf[0];            // Dynamic sized buffer
+} DtaIoctlSpiMfCmdReadOutput;
+ASSERT_SIZE(DtaIoctlSpiMfCmdReadOutput, 4)
+
+
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SPIMF_CMD_ERASE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctlSpiMfCmdEraseInput {
+    Int  m_StartAddress;        // Start address
+    Int  m_NumBytes;            // Number of bytes to be erased
+} DtaIoctlSpiMfCmdEraseInput;
+ASSERT_SIZE(DtaIoctlSpiMfCmdEraseInput, 8)
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SPIMF_CMD_GET_PROPERTIES -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+typedef struct _DtaIoctlSpiMfProperties {    
+    Int  m_SpiClockRate;  //  SPI Clock Rate in units of 100kHz
+    Int  m_MemoryId;      // Identifier for SPI Flash/PROM device.
+    Int  m_PageSize;      // Device page size. 
+    Int  m_SectorSize;    // Device sector size (1 = device hase no sectors).
+    Int  m_MemorySize;    // Device memory size
+
+} DtaIoctlSpiMfCmdGetPropertiesOutput;
+ASSERT_SIZE(DtaIoctlSpiMfCmdGetPropertiesOutput, 20)
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SPIMF_CMD_WRITE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctlSpiMfCmdWriteInput {
+    Int  m_StartAddress;        // Start address
+    Int  m_NumBytesToWrite;     // Number of bytes in buffer to write
+    UInt8  m_Buf[0];            // Dynamic sized buffer
+} DtaIoctlSpiMfCmdWriteInput;
+ASSERT_SIZE(DtaIoctlSpiMfCmdWriteInput, 8)
+
+// Ioctl input data type
+typedef struct _DtaIoctlSpiMfCmdInput {
+    Int  m_Cmd;
+    Int  m_PortIndex;
+    union {
+        DtaIoctlNonIpCmdExclusiveAccessInput  m_ExclusiveAccess;
+        DtaIoctlSpiMfCmdEraseInput  m_Erase;
+        DtaIoctlSpiMfCmdDeviceLockInput  m_Lock;
+        DtaIoctlSpiMfCmdReadInput  m_Read;
+        DtaIoctlSpiMfCmdWriteInput  m_Write;
+
+    } m_Data;
+} DtaIoctlSpiMfCmdInput;
+ASSERT_SIZE(DtaIoctlSpiMfCmdInput, 16)
+
+// Ioctl output data type
+typedef struct _DtaIoctlSpiMfCmdOutput {
+    union {
+        DtaIoctlSpiMfCmdReadOutput  m_Read;
+        DtaIoctlSpiMfCmdGetPropertiesOutput  m_GetProperties;
+    } m_Data;
+} DtaIoctlSpiMfCmdOutput;
+ASSERT_SIZE(DtaIoctlSpiMfCmdOutput, 20)
+
+#ifdef WINBUILD
+#define DTA_IOCTL_SPIMF_CMD  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_SPIMF_CMD, \
+                                                    METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+typedef union _DtaIoctlSpiMfCmd {
+    DtaIoctlSpiMfCmdInput  m_Input;
+    DtaIoctlSpiMfCmdOutput  m_Output;
+} DtaIoctlSpiMfCmd;
+
+#define DTA_IOCTL_SPIMF_CMD  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_SPIMF_CMD, \
+                                                                        DtaIoctlSpiMfCmd)
+#endif
+
+
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -2741,6 +3182,10 @@ typedef union _DtaIoctlInputData {
     DtaIoctlMatrixCmdInput  m_NonIpHdCmd;
     DtaIoctlSetMemoryTestModeInput  m_SetMemoryTestMode;
     DtaIoctlSetVcxoInput  m_SetVcxo;
+    DtaIoctlSdiAvRxCmdInput  m_NonIpSdiAvRxCmd;
+    DtaIoctlEnDecCmdInput  m_EnDecCmd;
+    DtaIoctlD7ProCmdInput  m_D7ProCmd;
+    DtaIoctlSpiMfCmdInput  m_SpiMfCmd;
 } DtaIoctlInputData;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlOutputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -2775,6 +3220,10 @@ typedef union _DtaIoctlOutputData {
     DtaIoctlMatrixCmdOutput  m_NonIpHdCmd;
     DtaIoctlGetDevSubTypeOutput  m_GetDevSubType;
     DtaIoctlGetGenlockStateOutput  m_GetGenlockstate;
+    DtaIoctlSdiAvRxCmdOutput  m_NonIpSdiAvRxCmd;
+    DtaIoctlEnDecCmdOutput  m_EnDecCmd;
+    DtaIoctlD7ProCmdOutput  m_D7ProCmd;
+    DtaIoctlSpiMfCmdOutput  m_SpiMfCmd;
 } DtaIoctlOutputData;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

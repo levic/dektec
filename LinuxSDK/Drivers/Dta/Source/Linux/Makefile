@@ -102,7 +102,13 @@ SRC    = $(SRCDIR)/Linux/DtaIal.o         \
          $(SRCDIR)/Max6639.o              \
          $(SRCDIR)/FpgaGenlock.o          \
          $(SRCDIR)/Rs422.o                \
+         $(SRCDIR)/SdiAvRx.o              \
+         $(SRCDIR)/Uart.o                 \
+         $(SRCDIR)/EnDec.o                \
+         $(SRCDIR)/EncD7Pro.o             \
          $(SRCDIR)/Ad9129.o               \
+         $(SRCDIR)/Hdmi.o                 \
+         $(SRCDIR)/SpiMf.o                \
          $(SRCDIR)/Linux/DtaDeviceTable.o \
          Messages.o
 

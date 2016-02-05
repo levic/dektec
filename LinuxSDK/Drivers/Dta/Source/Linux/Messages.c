@@ -17,6 +17,7 @@ const TMessage Messages[] = {
 	{ KERN_INFO, "Network admin status set to UP."},
 	{ KERN_ERR, "DtaNw driver version too old. Minimal DtaNw driver version %s"},
 	{ KERN_ERR, "The firmware variant of this device is not supported by the Dta driver."},
+	{ KERN_ERR, "The SPI master flash controller was found in an unexpected state by the Dta driver."},
  };
 
 Bool EventGetMessage(Int MsgId, const char** pLevel, const char** pMsg)
