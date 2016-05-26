@@ -80,6 +80,8 @@
 #define  LOG_LEVEL_D7PRO         LOG_AVG
 // SPI master flash
 #define  LOG_LEVEL_SPIMF         LOG_AVG
+// Programming Interface
+#define  LOG_LEVEL_PROGITF       LOG_AVG
 
 #define  USES_GENREGS(pDvcData)  (pDvcData->m_DevInfo.m_TypeNumber!=100                  \
                                       && pDvcData->m_DevInfo.m_TypeNumber!=102           \
@@ -119,6 +121,8 @@ typedef struct _DtaDeviceInfo
                                 // "Firmware Version 3"
     Int  m_FirmwareVariant;     // Firmware Variant, e.g. to distinguish between
                                 // firmware with different #inputs/#outputs
+    Int  m_FwPackageVersion;    // Firmware Package version, version number given
+                                // to the set of firmware variants
     UInt64  m_Serial;           // Serial number
     UInt64  m_UniqueId;         // Unique board ID (can be same as serial)
     Int  m_SubType;             // Device subtype (0=none, 1=A, ...)
@@ -174,6 +178,7 @@ typedef enum _DtIntEnableState
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDeviceData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
+#define MAX_NUM_FW_VARIANTS  16 
 struct _DtaDeviceData
 {
     // IAL data
@@ -237,8 +242,18 @@ struct _DtaDeviceData
     // SPI master flash controller
     DtaSpiMf  m_SpiMf;
 
+    // Multi-modulator RF-Level data
+    DtaMultiModData  m_MultiMod;
+
+    // Programming interfaces
+    DtaProgItf  m_ProgItfs[2];
+
     // Saved power measurement lock data
-    UInt m_RfPwrPreLockData;
+    UInt  m_RfPwrPreLockData;
+
+    // Firmware reboot pending, will be executed during DtaDevicePowerDown
+    Bool  m_FwRebootPending;
+    Int  m_FwRebootDelay;
 
     // Device DPC's
     DtDpc  m_GenPerIntDpc;

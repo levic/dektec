@@ -83,6 +83,7 @@ typedef struct _DtaNonIpPort DtaNonIpPort;
 #include <Rs422.h>
 #include <FanControl.h>
 #include <Ad9129.h>
+#include <ProgItf.h>
 
 
 

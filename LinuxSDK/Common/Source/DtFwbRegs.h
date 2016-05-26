@@ -894,6 +894,8 @@ typedef struct _DtFwbEncD7ProSerCtrl
     const DtFwField  Status_Is12VPresent;   // Is 12Volt present?
     const DtFwField  Status_IsPowerGood;    // Is Magnum power good?
     const DtFwField  Status_FanFail;        // Fan failure
+    const DtFwField  Status_Ext12VAbsent;   // Is 12Volt absent?
+    const DtFwField  Status_PowerFail;      // Is Magnum power failed?
     const DtFwField  AvSelect_SourceSelect; // Audio video input source selection
     const DtFwField  AvSelect_AudioSelects[8]; // D7Pro audio selectors
     // Firmware blocks
@@ -910,6 +912,8 @@ const DtFwbEncD7ProSerCtrl FwbEncD7ProSerCtrl =
     {0x008, 0, 1, FALSE, FWFIELDOP_R},      // Is 12Volt present?
     {0x008, 1, 1, FALSE, FWFIELDOP_R},      // Is Magnum power good?
     {0x008, 2, 1, FALSE, FWFIELDOP_RC},     // Fan failure
+    {0x008, 3, 1, FALSE, FWFIELDOP_RC},     // Is 12Volt absent?
+    {0x008, 4, 1, FALSE, FWFIELDOP_RC},     // Is Magnum power failed?
     {0x00C, 0, 2, FALSE, FWFIELDOP_RW},     // Audio video input source selection
     {
         {0x00C, 8, 3, FALSE, FWFIELDOP_RW},     // D7Pro audio pair 1 select
@@ -1131,16 +1135,20 @@ extern const DtFwbTsRxMemless FwbTsRxMemless;
 typedef struct _DtFwbFanMonitor
 {
     const DtFwbBlockId FwbBlockId;          // Block ID ('FANM')
-    const DtFwField  Control_MinimumRotationRate; // Minimum Fan Rotation Rate
-    const DtFwField  Status_MeasuredRotationRate; // Measured Fan Rotation Rate
+    const DtFwField  Correction_CorrectionFactorP;  // Correction factor P
+    const DtFwField  Correction_CorrectionFactorQ;  // Correction factor Q
+    const DtFwField  Control_MinimumRotationRate;   // Minimum Fan Rotation Rate
+    const DtFwField  Status_MeasuredRotationRate;   // Measured Fan Rotation Rate
 } DtFwbFanMonitor;
 
 #ifdef DEFINE_FWFIELDS
 const DtFwbFanMonitor FwbFanMonitor = 
 {
     DT_FWB_BLOCK_ID(0),                     // Block ID
-    {0x004, 0, 24, TRUE, FWFIELDOP_RW},     // Minimum Fan Rotation Rate
-    {0x008, 0, 24, TRUE, FWFIELDOP_R},      // Measured Fan Rotation Rate
+    {0x004, 0, 10, FALSE, FWFIELDOP_R},     // Correction factor P
+    {0x004, 10, 10, FALSE, FWFIELDOP_R},    // Correction factor Q
+    {0x008, 0, 24, TRUE, FWFIELDOP_RW},     // Minimum Fan Rotation Rate
+    {0x00C, 0, 24, TRUE, FWFIELDOP_R},      // Measured Fan Rotation Rate
 };
 #else
 extern const DtFwbFanMonitor FwbFanMonitor;

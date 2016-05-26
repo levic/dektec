@@ -44,4 +44,11 @@ DtStatus  DtaEepromSpiRead(DtaDeviceData* pDvcData, UInt StartOffset,  UInt8* pB
 DtStatus  DtaEepromSpiWrite(DtaDeviceData* pDvcData, UInt StartOffset, UInt8* pBuf, 
                                                                              UInt Length);
 
+DtStatus  DtaEepromCfiUnlock(volatile UInt8*  pCfiRegs);
+DtStatus  DtaEepromCfiLock(volatile UInt8*  pCfiRegs);
+DtStatus  DtaEepromCfiRead(volatile UInt8* pCfiRegs, UInt StartOffset, UInt8* pBuf,
+                                                                           UInt Length);
+
+
+
 #endif // __EEPROM_H

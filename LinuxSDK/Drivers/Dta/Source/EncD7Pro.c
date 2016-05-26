@@ -27,75 +27,57 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <DtaIncludes.h>
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define  POLL_LOOP_SLEEP        100               // Power control poll loop speed (ms)
+#define  WAIT_POWER_ENABLE      3*POLL_LOOP_SLEEP // Time-out powergood after power enable
+#define  MIN_FAN_GOOD_CNT       5                 // Threshold before going to init state
+#define  MIN_POWER_PRESENT_CNT  5                 // Threshold before going to init state
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Local functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 static DtStatus  DtaEncD7ProSendCommand(DtaNonIpPort*  pNonIpPort,
                          UInt8* pBufOut, Int BytesToWrite,
                          UInt8* pBufIn, Int NumBytesToRead, Int* pBytesRead, Int Timeout);
 static DtStatus  DtaEncD7ProDebugRead(DtaNonIpPort*  pNonIpPort,
                          UInt8* pBufIn, Int NumBytesToRead, Int* pBytesRead, Int Timeout);
-static DtStatus  DtaEncD7ProAckBoot(DtaNonIpPort* pNonIpPort, Int* pStatus);
+static DtStatus  DtaEncD7ProAckBoot(DtaNonIpPort* pNonIpPort, Bool* pIsBooted);
 static DtStatus  DtaEncD7ProReboot(DtaNonIpPort* pNonIpPort);
-static DtStatus  DtaEncD7ProResetSet(DtaNonIpPort* pNonIpPort, Int Value);
 DtStatus  DtaEncD7ProPrepareSpiMf(DtaNonIpPort* pNonIpPort, DtFileObject*  pFile);
 DtStatus  DtaEncD7ProReleaseSpiMf(DtaNonIpPort* pNonIpPort, DtFileObject*  pFile);
 static DtStatus  DtaEncD7ProUpdateSourceSelect(DtaNonIpPort* pNonIpPort);
-
+void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext);
+DtStatus  DtaEncD7ProInitPowerControl(DtaNonIpPort*  pNonIpPort);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEncD7ProInitPowerup -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtaEncD7ProInitPowerup(DtaNonIpPort*  pNonIpPort)
 {
-    Int Ext12VPresent, PowerGood, i;
     DtaEncD7ProPort*  pEncD7Pro = &pNonIpPort->m_EncD7Pro;
     volatile UInt8* pFwbRegs = pNonIpPort->m_pFwbRegs;
 
     // Initialize Uart first, we want the register pointers to be always valid
     DtaUartInitPowerup(&pEncD7Pro->m_CtrlUart, pFwbRegs);
     DtaUartInitPowerup(&pEncD7Pro->m_DbgUart, pFwbRegs);
-    // Check 12Volt
-    Ext12VPresent = DtaFwbRegRead(pFwbRegs, &FwbEncD7ProSerCtrl.Status_Is12VPresent);
-    if(!Ext12VPresent)
-    {
-        // If not present, do we have to retry? 
-        // Power-off
-        DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 0);
-        DtDbgOut(ERR, D7PRO, "External 12V supply is not present");
-        pEncD7Pro->m_State = DTA_D7PRO_STATE_NO_12V;
-        return DT_STATUS_OK;
-    }
 
-    // Clear FanFail indication
-    DtaFwbRegClear(pFwbRegs, &FwbEncD7ProSerCtrl.Status_FanFail);
-    // Assert reset
-    DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 1); 
+    DT_RETURN_ON_ERROR(DtaEncD7ProInitPowerControl(pNonIpPort));
 
-    // Power-up
-    DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 1);
-
-    // Wait maximum 1 second (100x10ms) for good power
-    PowerGood = 0;
-    for (i=0; i<100 && !PowerGood; i++)
-    {
-        DtSleep(10);  
-        PowerGood = DtaFwbRegRead(pFwbRegs, &FwbEncD7ProSerCtrl.Status_IsPowerGood);
-    }
-    if(!PowerGood)
-    {
-        // Power-off
-        DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 0);
-        DtDbgOut(ERR, D7PRO, "Power-up error");
-        pEncD7Pro->m_State = DTA_D7PRO_STATE_POWER_ERR;
-        return DT_STATUS_OK;
-    }
-
-    // Release reset
-    DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 0); 
-
-    pEncD7Pro->m_State = DTA_D7PRO_STATE_BOOTING;
-    
     return DT_STATUS_OK;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEncD7ProInitPowerControl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaEncD7ProInitPowerControl(DtaNonIpPort*  pNonIpPort)
+{
+    DtaEncD7ProPort*  pEncD7Pro = &pNonIpPort->m_EncD7Pro;
+
+    // Reset device and power-up (it attempts to recover from power and fan issues)
+    if (DtMutexAcquire(&pNonIpPort->m_EncD7Pro.m_StatusLock, 100) != DT_STATUS_OK)
+        return DT_STATUS_TIMEOUT;
+    pEncD7Pro->m_State = DTA_D7PRO_STATE_INIT;
+    DtMutexRelease(&pNonIpPort->m_EncD7Pro.m_StatusLock);
+    DtEventSet(&pNonIpPort->m_EncD7Pro.m_PowerControlEvent);
+
+    return DT_STATUS_OK;
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpEncD7ProInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -105,7 +87,12 @@ DtStatus  DtaEncD7ProInit(DtaNonIpPort*  pNonIpPort, pDtaNonIpExclusiveAccess
     DtaEncD7ProPort*  pEncD7Pro = &pNonIpPort->m_EncD7Pro;
     DT_ASSERT(pNonIpPort->m_CapAvEnc);
     
+    DtMutexInit(&pEncD7Pro->m_StatusLock);
     pEncD7Pro->m_State = DTA_D7PRO_STATE_INIT;
+    pEncD7Pro->m_Ext12FailCnt = 0;
+    pEncD7Pro->m_FanFailCnt = 0;
+    pEncD7Pro->m_PowerFailCnt = 0;
+
     pEncD7Pro->m_VidStd = DT_VIDSTD_UNKNOWN;
     pEncD7Pro->m_InputSource = 0;
     pEncD7Pro->m_DetVidStd[0] = DT_VIDSTD_UNKNOWN;
@@ -126,6 +113,13 @@ DtStatus  DtaEncD7ProInit(DtaNonIpPort*  pNonIpPort, pDtaNonIpExclusiveAccess
     DT_RETURN_ON_ERROR(DtaUartInit(&pEncD7Pro->m_DbgUart, &FwbEncD7ProSerCtrl.Uarts[1]));
     DT_RETURN_ON_ERROR(DtaSpiMfInit(&pNonIpPort->m_SpiMf, DtaEncD7ProPrepareSpiMf, 
                             DtaEncD7ProReleaseSpiMf, &FwbEncD7ProSerCtrl.SpiMasterFlash));
+
+    // Init power controller thread
+    DT_RETURN_ON_ERROR(DtThreadInit(&pEncD7Pro->m_PowerControlThread, 
+                                              DtaEncD7ProPowerControlThread, pNonIpPort));
+    DtEventInit(&pEncD7Pro->m_PowerControlEvent, TRUE);
+    DtEventInit(&pEncD7Pro->m_PowerEnabledEvent, FALSE);
+
     return DT_STATUS_OK;
 }
 
@@ -196,21 +190,9 @@ DtStatus  DtaEncD7ProIoctl(
         OutReqSize += sizeof(DtaIoctlD7ProStatusGetOutput);
         break;
 
-    case DTA_D7PRO_CMD_ACK_BOOT:
-        pCmdStr = "DTA_D7PRO_CMD_ACK_BOOT";
-        // We expect no additional data in the input buffer
-        OutReqSize += sizeof(DtaIoctlD7ProStatusGetOutput);
-        break;
-
     case DTA_D7PRO_CMD_REBOOT:
         pCmdStr = "DTA_D7PRO_CMD_REBOOT";
         // We expect no additional data in the input or output buffer
-        break;
- 
-    case DTA_D7PRO_CMD_RESET_SET:
-        pCmdStr = "DTA_D7PRO_CMD_RESET_SET";
-        InReqSize += sizeof(DtaIoctlD7ProResetSetInput);
-        // We expect no additional data in the output buffer
         break;
 
     default:
@@ -264,22 +246,27 @@ DtStatus  DtaEncD7ProIoctl(
                 break;
 
             case DTA_D7PRO_CMD_STATUS_GET:
-                pD7ProCmdOutput->m_Data.m_StatusGet.m_Status =
-                                                           pNonIpPort->m_EncD7Pro.m_State;
-                break;
+                if (DtMutexAcquire(&pNonIpPort->m_EncD7Pro.m_StatusLock, 100) 
+                                                                          != DT_STATUS_OK)
+                {
+                    Status = DT_STATUS_TIMEOUT;
+                    break;
+                }
 
-            case DTA_D7PRO_CMD_ACK_BOOT:
-                Status = DtaEncD7ProAckBoot(pNonIpPort,
-                                             &pD7ProCmdOutput->m_Data.m_AckBoot.m_Status);
+                Status = DT_STATUS_OK;
+                pD7ProCmdOutput->m_Data.m_StatusGet.m_State =
+                                                           pNonIpPort->m_EncD7Pro.m_State;
+                pD7ProCmdOutput->m_Data.m_StatusGet.m_Ext12FailCnt =
+                                                    pNonIpPort->m_EncD7Pro.m_Ext12FailCnt;
+                pD7ProCmdOutput->m_Data.m_StatusGet.m_FanFailCnt =
+                                                      pNonIpPort->m_EncD7Pro.m_FanFailCnt;
+                pD7ProCmdOutput->m_Data.m_StatusGet.m_PowerFailCnt =
+                                                    pNonIpPort->m_EncD7Pro.m_PowerFailCnt;
+                DtMutexRelease(&pNonIpPort->m_EncD7Pro.m_StatusLock);
                 break;
 
             case DTA_D7PRO_CMD_REBOOT:
                 Status = DtaEncD7ProReboot(pNonIpPort);
-                break;
-            
-            case DTA_D7PRO_CMD_RESET_SET:
-                Status = DtaEncD7ProResetSet(pNonIpPort, 
-                                          pD7ProCmdInput->m_Data.m_ResetSet.m_ResetValue);
                 break;
         }
     }
@@ -311,8 +298,16 @@ DtStatus  DtaEncD7ProSendCommand(
     Int  Timeout)
 {
     DtaEncD7ProPort*  pD7Pro = &pNonIpPort->m_EncD7Pro;
-    if (pD7Pro->m_State != DTA_D7PRO_STATE_OK)
+    Int  State;
+    
+    if (DtMutexAcquire(&pNonIpPort->m_EncD7Pro.m_StatusLock, 100) != DT_STATUS_OK)
+        return DT_STATUS_TIMEOUT;
+    State = pD7Pro->m_State;
+    DtMutexRelease(&pNonIpPort->m_EncD7Pro.m_StatusLock);
+
+    if (State != DTA_D7PRO_STATE_OK)
         return DT_STATUS_FAIL;
+
     DT_RETURN_ON_ERROR(DtaUartWrite(&pD7Pro->m_CtrlUart, pBufOut, BytesToWrite,&Timeout));
     return DtaUartRead(&pD7Pro->m_CtrlUart, pBufIn, NumBytesToRead, Timeout, pBytesRead);
 }
@@ -332,17 +327,15 @@ DtStatus  DtaEncD7ProDebugRead(
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEncD7ProAttach -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaEncD7ProAckBoot(DtaNonIpPort* pNonIpPort, Int* pStatus)
+// Pre-conditions: D7Pro is powered, currently booting, but not yet not booted
+//
+DtStatus  DtaEncD7ProAckBoot(DtaNonIpPort* pNonIpPort, Bool* pIsBooted)
 {
     DtaEncD7ProPort*  pD7Pro = &pNonIpPort->m_EncD7Pro;
     UInt8  Buf[3];
     Int  BytesRead = 0;
     DtStatus  Status = DT_STATUS_OK;
-    
-    *pStatus = pD7Pro->m_State;
-
-    if (pD7Pro->m_State != DTA_D7PRO_STATE_BOOTING)
-        return DT_STATUS_OK;
+    *pIsBooted = FALSE;
 
     DtaUartReset(&pD7Pro->m_CtrlUart);
     Status = DtaUartRead(&pD7Pro->m_CtrlUart, Buf, sizeof(Buf), 200, &BytesRead);
@@ -364,7 +357,7 @@ DtStatus  DtaEncD7ProAckBoot(DtaNonIpPort* pNonIpPort, Int* pStatus)
             DtSleep(100);
             // Reset uart so we're in a consistent state
             DtaUartReset(&pD7Pro->m_CtrlUart);
-            *pStatus = pD7Pro->m_State = DTA_D7PRO_STATE_OK;
+            *pIsBooted = TRUE;
         }
     }
     
@@ -375,34 +368,32 @@ DtStatus  DtaEncD7ProAckBoot(DtaNonIpPort* pNonIpPort, Int* pStatus)
 //
 DtStatus  DtaEncD7ProReboot(DtaNonIpPort* pNonIpPort)
 {
-    DtaEncD7ProPort*  pD7Pro = &pNonIpPort->m_EncD7Pro;
-
-    if (pD7Pro->m_State!=DTA_D7PRO_STATE_BOOTING && pD7Pro->m_State!=DTA_D7PRO_STATE_OK)
-        return DT_STATUS_FAIL;
-
-    // Reset device and power-up (it attempts to recover from power and fan issues)
-    DtaEncD7ProInitPowerup(pNonIpPort);
-    if (pD7Pro->m_State != DTA_D7PRO_STATE_BOOTING)
-        return DT_STATUS_FAIL;
+    DT_RETURN_ON_ERROR(DtaEncD7ProInitPowerControl(pNonIpPort));
 
     return DT_STATUS_OK;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEncD7ProResetSet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEncD7ProPowerdownPre -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaEncD7ProResetSet(DtaNonIpPort* pNonIpPort, Int Value)
+DtStatus  DtaEncD7ProPowerdownPre(DtaNonIpPort* pNonIpPort)
 {
     DtaEncD7ProPort*  pD7Pro = &pNonIpPort->m_EncD7Pro;
-    
-    if (pD7Pro->m_State!=DTA_D7PRO_STATE_BOOTING && pD7Pro->m_State!=DTA_D7PRO_STATE_OK)
-        return DT_STATUS_FAIL;
 
-    // Toggle reset bit
-    DtaFwbRegWrite(pNonIpPort->m_pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, Value);
+    // Stop power control thread
+    DtEventSet(&pNonIpPort->m_EncD7Pro.m_PowerControlEvent);
+    DT_RETURN_ON_ERROR(DtThreadStop(&pD7Pro->m_PowerControlThread));
 
-    // Update state
-    if (Value == 1)
-        pD7Pro->m_State = DTA_D7PRO_STATE_BOOTING;
+    return DT_STATUS_OK;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEncD7ProPowerUpPost -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaEncD7ProPowerUpPost(DtaNonIpPort* pNonIpPort)
+{
+    DtaEncD7ProPort*  pD7Pro = &pNonIpPort->m_EncD7Pro;
+
+    // Start power controller thread
+    DT_RETURN_ON_ERROR(DtThreadStart(&pD7Pro->m_PowerControlThread));
 
     return DT_STATUS_OK;
 }
@@ -421,11 +412,26 @@ DtStatus  DtaEncD7ProPrepareSpiMf(DtaNonIpPort* pNonIpPort, DtFileObject*  pFile
                                                         DTA_EXCLUSIVE_ACCESS_CMD_ACQUIRE);
     if (DT_SUCCESS(Status))
     {
-        // Assert reset signal
-        Status =  DtaEncD7ProResetSet(pNonIpPort, 1);
-        if (!DT_SUCCESS(Status))
+        // Assert reset signal and enable power
+        if (DtMutexAcquire(&pNonIpPort->m_EncD7Pro.m_StatusLock, 100) != DT_STATUS_OK)
+        {
             pD7Pro->m_pFuncExclAccess(pNonIpPort, pFile, 
                                                         DTA_EXCLUSIVE_ACCESS_CMD_RELEASE);
+            return DT_STATUS_TIMEOUT;
+        }
+        pD7Pro->m_State = DTA_D7PRO_STATE_FLASH_PROG;
+        DtMutexRelease(&pNonIpPort->m_EncD7Pro.m_StatusLock);
+
+        // Wait for reset and power to be enabled
+        DtEventReset(&pNonIpPort->m_EncD7Pro.m_PowerEnabledEvent);
+        DtEventSet(&pNonIpPort->m_EncD7Pro.m_PowerControlEvent);
+        Status = DtEventWait(&pNonIpPort->m_EncD7Pro.m_PowerEnabledEvent, 
+                                                                       WAIT_POWER_ENABLE);
+        if (!DT_SUCCESS(Status))
+        {
+            DtaEncD7ProReleaseSpiMf(pNonIpPort, pFile);
+            return DT_STATUS_TIMEOUT;
+        }
     }
 
     return Status;
@@ -443,25 +449,16 @@ DtStatus  DtaEncD7ProReleaseSpiMf(DtaNonIpPort* pNonIpPort, DtFileObject*  pFile
     pD7Pro->m_pFuncExclAccess(pNonIpPort, pFile, DTA_EXCLUSIVE_ACCESS_CMD_RELEASE);
 
     // Release reset signal
-    return DtaEncD7ProResetSet(pNonIpPort, 0);
-}
+    DT_RETURN_ON_ERROR(DtaEncD7ProInitPowerControl(pNonIpPort));
 
+    return DT_STATUS_OK;
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEncD7ProUncleanDetach -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtaEncD7ProUncleanDetach(DtaNonIpPort* pNonIpPort)
 {
-    DtaEncD7ProPort*  pD7Pro = &pNonIpPort->m_EncD7Pro;
-
-    if (pD7Pro->m_State != DTA_D7PRO_STATE_OK)
-        return DT_STATUS_OK;
-
-    // Toggle reset bit
-    DtaFwbRegWrite(pNonIpPort->m_pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 1);
-    DtaFwbRegWrite(pNonIpPort->m_pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 0);
-
-    // Update state
-    pD7Pro->m_State = DTA_D7PRO_STATE_BOOTING;
+    DT_RETURN_ON_ERROR(DtaEncD7ProInitPowerControl(pNonIpPort));
 
     return DT_STATUS_OK;
 }
@@ -478,6 +475,209 @@ Bool  DtaEncD7proInterrupt(DtaNonIpPort* pNonIpPort)
     IrqHandled |= DtaUartInterrupt(&pNonIpPort->m_EncD7Pro.m_DbgUart);
 
     return IrqHandled;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEncD7ProPowerControlThread -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext)
+{
+    // Variables
+    DtaNonIpPort*  pNonIpPort = (DtaNonIpPort*)pContext;
+    DtaEncD7ProPort*  pD7Pro = &pNonIpPort->m_EncD7Pro;
+    Int  IsExt12VPresent, IsPowerGood, FanFail, Ext12VAbsent, PowerFail;
+    Int  Ext12PresCnt=0, FanGoodCnt=0;
+    Int  CurrentFanRotation;
+    static Int  MinFanRotation;
+    volatile UInt8* pFwbRegs = pNonIpPort->m_pFwbRegs;
+    volatile UInt8* pFanMRegs = pNonIpPort->m_pDvcData->m_FanControl.m_pFanmRegs;
+
+    // Get minimum fan rotation from hardware once
+    MinFanRotation = DtaFwbRegRead(pFanMRegs, &FwbFanMonitor.Control_MinimumRotationRate);
+
+    // Power control state machine
+    while (!pThread->m_StopThread)
+    {
+        // Don't poll to often and exit sleep when we need to do something
+        DtEventWait(&pNonIpPort->m_EncD7Pro.m_PowerControlEvent, POLL_LOOP_SLEEP);
+        if (pThread->m_StopThread)
+            continue;
+
+        // Get mutex so we can change all status variables
+        if (DtMutexAcquire(&pNonIpPort->m_EncD7Pro.m_StatusLock, 0) != DT_STATUS_OK)
+            continue;
+
+        switch (pD7Pro->m_State)
+        {
+        case DTA_D7PRO_STATE_FLASH_PROG:
+            // Flash programming in progress: Assert Magnum reset, enable power and 
+            // wait for finish
+            DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 1);
+            DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 1);
+
+            // Signal power good
+            IsPowerGood = DtaFwbRegRead(pFwbRegs, &FwbEncD7ProSerCtrl.Status_IsPowerGood);
+            if (IsPowerGood)
+                DtEventSet(&pNonIpPort->m_EncD7Pro.m_PowerEnabledEvent);
+
+            break;
+
+        case DTA_D7PRO_STATE_OK:
+        case DTA_D7PRO_STATE_BOOTING:
+            // Get status from hardware
+            FanFail = DtaFwbRegRead(pFwbRegs, &FwbEncD7ProSerCtrl.Status_FanFail);
+            Ext12VAbsent = DtaFwbRegRead(pFwbRegs, 
+                                                 &FwbEncD7ProSerCtrl.Status_Ext12VAbsent);
+            PowerFail = DtaFwbRegRead(pFwbRegs, &FwbEncD7ProSerCtrl.Status_PowerFail);
+
+            // Is 12V absent? Wait for 12V presence in EXT_12_FAIL state
+            if (Ext12VAbsent)
+            {
+                // Increase error counter
+                pD7Pro->m_Ext12FailCnt++;
+
+                // Assert Magnum reset and disable Magnum power
+                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 1);
+                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 0);
+
+                // Goto EXT_12_FAIL state
+                Ext12PresCnt = 0;
+                pD7Pro->m_State = DTA_D7PRO_STATE_NO_12V;
+            }
+            // Is the fan failing? Wait for the fan to operate correctly in FAN_FAIL state
+            else if (FanFail)
+            {
+                // Increase error counter
+                pD7Pro->m_FanFailCnt++;
+
+                // Assert Magnum reset and disable Magnum power
+                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 1);
+                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 0);
+
+                // Goto FAN_FAIL state
+                FanGoodCnt = 0;
+                pD7Pro->m_State = DTA_D7PRO_STATE_FAN_FAIL;
+            }
+            // Is the power failing? Wait for the power to operate correctly in init state
+            else if (PowerFail)
+            {
+                // Increase error counter and goto init state
+                pD7Pro->m_PowerFailCnt++;
+                pD7Pro->m_State = DTA_D7PRO_STATE_INIT;
+            }
+
+            // Acknolegde Magnum boot signal
+            if (pD7Pro->m_State == DTA_D7PRO_STATE_BOOTING)
+            {
+                Bool  IsBooted;
+
+                // Release mutex so we can call DtaEncD7ProAckBoot
+                DtMutexRelease(&pNonIpPort->m_EncD7Pro.m_StatusLock);
+
+                // Acknolegde Magnum boot signal
+                DtaEncD7ProAckBoot(pNonIpPort, &IsBooted);
+
+                // Get mutex again so we can change m_State
+                DtMutexAcquire(&pNonIpPort->m_EncD7Pro.m_StatusLock, -1);
+
+                if (IsBooted)
+                    pD7Pro->m_State = DTA_D7PRO_STATE_OK;
+            }
+            break;
+
+        case DTA_D7PRO_STATE_FAN_FAIL:
+            // Read fan rotation from hardware
+            CurrentFanRotation = DtaFwbRegRead(pFanMRegs, 
+                                              &FwbFanMonitor.Status_MeasuredRotationRate);
+
+            // Check fan speed and count up to threshold before going to init state
+            if (CurrentFanRotation >= MinFanRotation)
+                FanGoodCnt += 1;
+            else
+                FanGoodCnt = 0;
+            if (FanGoodCnt > MIN_FAN_GOOD_CNT)
+                pD7Pro->m_State = DTA_D7PRO_STATE_INIT;
+
+            break;
+
+        case DTA_D7PRO_STATE_NO_12V:
+            // Get status from hardware
+            IsExt12VPresent = DtaFwbRegRead(pFwbRegs,&FwbEncD7ProSerCtrl.Status_Is12VPresent);
+
+            // Check power present and count up to threshold before going to init state
+            if (IsExt12VPresent)
+                Ext12PresCnt += 1;
+            else
+                Ext12PresCnt = 0;
+            if (Ext12PresCnt > MIN_POWER_PRESENT_CNT)
+                pD7Pro->m_State = DTA_D7PRO_STATE_INIT;
+
+            break;
+
+        default:
+        case DTA_D7PRO_STATE_INIT:
+            // Assert Magnum reset
+            DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 1);
+
+            // Get status from hardware
+            IsExt12VPresent = DtaFwbRegRead(pFwbRegs,
+                                                 &FwbEncD7ProSerCtrl.Status_Is12VPresent);
+            IsPowerGood = DtaFwbRegRead(pFwbRegs, &FwbEncD7ProSerCtrl.Status_IsPowerGood);
+            CurrentFanRotation = DtaFwbRegRead(pFanMRegs, 
+                                              &FwbFanMonitor.Status_MeasuredRotationRate);
+
+            // Is 12V absent? Wait for 12V presence in EXT_12_FAIL state
+            if (!IsExt12VPresent)
+            {
+                // Increase error counter
+                pD7Pro->m_Ext12FailCnt++;
+
+                // Disable Magnum power
+                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 0);
+
+                // Goto EXT_12_FAIL state
+                Ext12PresCnt = 0;
+                pD7Pro->m_State = DTA_D7PRO_STATE_NO_12V;
+            }
+            else if (CurrentFanRotation < MinFanRotation)
+            {
+                // Increase error counter
+                pD7Pro->m_FanFailCnt++;
+
+                // Disable Magnum power
+                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 0);
+
+                // Goto FAN_FAIL state
+                FanGoodCnt = 0;
+                pD7Pro->m_State = DTA_D7PRO_STATE_FAN_FAIL;
+            } else {
+                // Enable Magnum power
+                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 1);
+                
+                // Clear status bits
+                DtaFwbRegClear(pFwbRegs, &FwbEncD7ProSerCtrl.Status_FanFail);
+                DtaFwbRegClear(pFwbRegs, &FwbEncD7ProSerCtrl.Status_Ext12VAbsent);
+                DtaFwbRegClear(pFwbRegs, &FwbEncD7ProSerCtrl.Status_PowerFail);
+
+                // Wait for the power good signal to assert before going to init state
+                if (IsPowerGood)
+                {
+                    // De-assert Magnum reset
+                    DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 0);
+
+                    // Goto booting state
+                    pD7Pro->m_State = DTA_D7PRO_STATE_BOOTING;
+                }
+            }
+            break;
+        }
+
+        // Release the mutex
+        DtMutexRelease(&pNonIpPort->m_EncD7Pro.m_StatusLock);
+    }
+
+    // Assert Magnum reset and disable Magnum power
+    DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 1);
+    DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 0);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEncD7ProGetVidStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

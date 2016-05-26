@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        17
-#define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        74
+#define DTAPI_VERSION_MINOR        18
+#define DTAPI_VERSION_BUGFIX       1
+#define DTAPI_VERSION_BUILD        78
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -409,80 +409,81 @@ private:
 #define DTAPI_CAP_TX_DVBT     Dtapi::DtCaps(119) // DVB-T modulation
 #define DTAPI_CAP_TX_DVBT2    Dtapi::DtCaps(120) // DVB-T2 modulation
 #define DTAPI_CAP_TX_GOLD     Dtapi::DtCaps(121) // GOLD for modulators
-#define DTAPI_CAP_TX_IQ       Dtapi::DtCaps(122) // I/Q sample modulation
-#define DTAPI_CAP_TX_ISDBS    Dtapi::DtCaps(123) // ISDB-S modulation
-#define DTAPI_CAP_TX_ISDBT    Dtapi::DtCaps(124) // ISDB-T modulation
-#define DTAPI_CAP_TX_ISDBTMM  Dtapi::DtCaps(125) // ISDB-Tmm modulation
-#define DTAPI_CAP_TX_MH       Dtapi::DtCaps(126) // ATSC-MH modulation
-#define DTAPI_CAP_TX_QAMA     Dtapi::DtCaps(127) // QAM-A modulation
-#define DTAPI_CAP_TX_QAMB     Dtapi::DtCaps(128) // QAM-B modulation
-#define DTAPI_CAP_TX_QAMC     Dtapi::DtCaps(129) // QAM-C modulation
-#define DTAPI_CAP_TX_SWMC     Dtapi::DtCaps(130) // SW multi-channel modulation
-#define DTAPI_CAP_TX_T2MI     Dtapi::DtCaps(131) // T2MI transmission
-#define DTAPI_CAP_TX_T2SPLP   Dtapi::DtCaps(132) // DVB-T2 single PLP modulation
+#define DTAPI_CAP_TX_HW8CH    Dtapi::DtCaps(122) // Eight-channel HW modulation
+#define DTAPI_CAP_TX_IQ       Dtapi::DtCaps(123) // I/Q sample modulation
+#define DTAPI_CAP_TX_ISDBS    Dtapi::DtCaps(124) // ISDB-S modulation
+#define DTAPI_CAP_TX_ISDBT    Dtapi::DtCaps(125) // ISDB-T modulation
+#define DTAPI_CAP_TX_ISDBTMM  Dtapi::DtCaps(126) // ISDB-Tmm modulation
+#define DTAPI_CAP_TX_MH       Dtapi::DtCaps(127) // ATSC-MH modulation
+#define DTAPI_CAP_TX_QAMA     Dtapi::DtCaps(128) // QAM-A modulation
+#define DTAPI_CAP_TX_QAMB     Dtapi::DtCaps(129) // QAM-B modulation
+#define DTAPI_CAP_TX_QAMC     Dtapi::DtCaps(130) // QAM-C modulation
+#define DTAPI_CAP_TX_SWMC     Dtapi::DtCaps(131) // SW multi-channel modulation
+#define DTAPI_CAP_TX_T2MI     Dtapi::DtCaps(132) // T2MI transmission
+#define DTAPI_CAP_TX_T2SPLP   Dtapi::DtCaps(133) // DVB-T2 single PLP modulation
 
 // Capability group MODPROPS - Modulation properties
-#define DTAPI_CAP_ADJLVL      Dtapi::DtCaps(133) // Adjustable output level
-#define DTAPI_CAP_CM          Dtapi::DtCaps(134) // Channel simulation
-#define DTAPI_CAP_CW          Dtapi::DtCaps(135) // Continuous wave
-#define DTAPI_CAP_DIGIQ       Dtapi::DtCaps(136) // Digital I/Q sample output
-#define DTAPI_CAP_DVBCID      Dtapi::DtCaps(137) // DVB carrier ID 
-#define DTAPI_CAP_IF          Dtapi::DtCaps(138) // IF output
-#define DTAPI_CAP_MUTE        Dtapi::DtCaps(139) // Mute RF output signal
-#define DTAPI_CAP_ROLLOFF     Dtapi::DtCaps(140) // Adjustable roll-off factor
-#define DTAPI_CAP_S2APSK      Dtapi::DtCaps(141) // DVB-S2 16-APSK/32-APSK
-#define DTAPI_CAP_SNR         Dtapi::DtCaps(142) // AWGN insertion
-#define DTAPI_CAP_TX_16MHZ    Dtapi::DtCaps(143) // 16MHz bandwidth mode
-#define DTAPI_CAP_TX_SFN      Dtapi::DtCaps(144) // SNF operation
+#define DTAPI_CAP_ADJLVL      Dtapi::DtCaps(134) // Adjustable output level
+#define DTAPI_CAP_CM          Dtapi::DtCaps(135) // Channel simulation
+#define DTAPI_CAP_CW          Dtapi::DtCaps(136) // Continuous wave
+#define DTAPI_CAP_DIGIQ       Dtapi::DtCaps(137) // Digital I/Q sample output
+#define DTAPI_CAP_DVBCID      Dtapi::DtCaps(138) // DVB carrier ID 
+#define DTAPI_CAP_IF          Dtapi::DtCaps(139) // IF output
+#define DTAPI_CAP_MUTE        Dtapi::DtCaps(140) // Mute RF output signal
+#define DTAPI_CAP_ROLLOFF     Dtapi::DtCaps(141) // Adjustable roll-off factor
+#define DTAPI_CAP_S2APSK      Dtapi::DtCaps(142) // DVB-S2 16-APSK/32-APSK
+#define DTAPI_CAP_SNR         Dtapi::DtCaps(143) // AWGN insertion
+#define DTAPI_CAP_TX_16MHZ    Dtapi::DtCaps(144) // 16MHz bandwidth mode
+#define DTAPI_CAP_TX_SFN      Dtapi::DtCaps(145) // SNF operation
 
 // Capability group RFCLKSEL - RF clock source selection
-#define DTAPI_CAP_RFCLKEXT    Dtapi::DtCaps(145) // External RF clock input
-#define DTAPI_CAP_RFCLKINT    Dtapi::DtCaps(146) // Internal RF clock reference
+#define DTAPI_CAP_RFCLKEXT    Dtapi::DtCaps(146) // External RF clock input
+#define DTAPI_CAP_RFCLKINT    Dtapi::DtCaps(147) // Internal RF clock reference
 
 // Capability group RXSTD - Receiver standards
-#define DTAPI_CAP_RX_ATSC     Dtapi::DtCaps(147) // ATSC 8-VSB reception
-#define DTAPI_CAP_RX_CMMB     Dtapi::DtCaps(148) // CMMB reception
-#define DTAPI_CAP_RX_DAB      Dtapi::DtCaps(149) // DAB reception
-#define DTAPI_CAP_RX_DTMB     Dtapi::DtCaps(150) // DTMB reception
-#define DTAPI_CAP_RX_DVBC2    Dtapi::DtCaps(151) // DVB-C2 reception
-#define DTAPI_CAP_RX_DVBS     Dtapi::DtCaps(152) // DVB-S reception
-#define DTAPI_CAP_RX_DVBS2    Dtapi::DtCaps(153) // DVB-S2 reception
-#define DTAPI_CAP_RX_DVBT     Dtapi::DtCaps(154) // DVB-T reception
-#define DTAPI_CAP_RX_DVBT2    Dtapi::DtCaps(155) // DVB-T2 reception
-#define DTAPI_CAP_RX_GOLD     Dtapi::DtCaps(156) // GOLD for receivers
-#define DTAPI_CAP_RX_IQ       Dtapi::DtCaps(157) // I/Q sample reception
-#define DTAPI_CAP_RX_ISDBS    Dtapi::DtCaps(158) // ISDB-S reception
-#define DTAPI_CAP_RX_ISDBT    Dtapi::DtCaps(159) // ISDB-T reception
-#define DTAPI_CAP_RX_MH       Dtapi::DtCaps(160) // ATSC-MH reception
-#define DTAPI_CAP_RX_QAMA     Dtapi::DtCaps(161) // QAM-A reception
-#define DTAPI_CAP_RX_QAMB     Dtapi::DtCaps(162) // QAM-B reception
-#define DTAPI_CAP_RX_QAMC     Dtapi::DtCaps(163) // QAM-C reception
-#define DTAPI_CAP_RX_T2MI     Dtapi::DtCaps(164) // T2MI reception
+#define DTAPI_CAP_RX_ATSC     Dtapi::DtCaps(148) // ATSC 8-VSB reception
+#define DTAPI_CAP_RX_CMMB     Dtapi::DtCaps(149) // CMMB reception
+#define DTAPI_CAP_RX_DAB      Dtapi::DtCaps(150) // DAB reception
+#define DTAPI_CAP_RX_DTMB     Dtapi::DtCaps(151) // DTMB reception
+#define DTAPI_CAP_RX_DVBC2    Dtapi::DtCaps(152) // DVB-C2 reception
+#define DTAPI_CAP_RX_DVBS     Dtapi::DtCaps(153) // DVB-S reception
+#define DTAPI_CAP_RX_DVBS2    Dtapi::DtCaps(154) // DVB-S2 reception
+#define DTAPI_CAP_RX_DVBT     Dtapi::DtCaps(155) // DVB-T reception
+#define DTAPI_CAP_RX_DVBT2    Dtapi::DtCaps(156) // DVB-T2 reception
+#define DTAPI_CAP_RX_GOLD     Dtapi::DtCaps(157) // GOLD for receivers
+#define DTAPI_CAP_RX_IQ       Dtapi::DtCaps(158) // I/Q sample reception
+#define DTAPI_CAP_RX_ISDBS    Dtapi::DtCaps(159) // ISDB-S reception
+#define DTAPI_CAP_RX_ISDBT    Dtapi::DtCaps(160) // ISDB-T reception
+#define DTAPI_CAP_RX_MH       Dtapi::DtCaps(161) // ATSC-MH reception
+#define DTAPI_CAP_RX_QAMA     Dtapi::DtCaps(162) // QAM-A reception
+#define DTAPI_CAP_RX_QAMB     Dtapi::DtCaps(163) // QAM-B reception
+#define DTAPI_CAP_RX_QAMC     Dtapi::DtCaps(164) // QAM-C reception
+#define DTAPI_CAP_RX_T2MI     Dtapi::DtCaps(165) // T2MI reception
 
 // Capability group SPICLKSEL - Parallel port clock source selection
-#define DTAPI_CAP_SPICLKEXT   Dtapi::DtCaps(165) // External clock input
-#define DTAPI_CAP_SPICLKINT   Dtapi::DtCaps(166) // Internal clock reference
+#define DTAPI_CAP_SPICLKEXT   Dtapi::DtCaps(166) // External clock input
+#define DTAPI_CAP_SPICLKINT   Dtapi::DtCaps(167) // Internal clock reference
 
 // Capability group SPIMODE - Parallel port mode
-#define DTAPI_CAP_SPIFIXEDCLK Dtapi::DtCaps(167) // SPI fixed clock with valid signal
-#define DTAPI_CAP_SPIDVBMODE  Dtapi::DtCaps(168) // SPI DVB mode
-#define DTAPI_CAP_SPISER8B    Dtapi::DtCaps(169) // SPI serial 8-bit mode
-#define DTAPI_CAP_SPISER10B   Dtapi::DtCaps(170) // SPI serial 10-bit mode
+#define DTAPI_CAP_SPIFIXEDCLK Dtapi::DtCaps(168) // SPI fixed clock with valid signal
+#define DTAPI_CAP_SPIDVBMODE  Dtapi::DtCaps(169) // SPI DVB mode
+#define DTAPI_CAP_SPISER8B    Dtapi::DtCaps(170) // SPI serial 8-bit mode
+#define DTAPI_CAP_SPISER10B   Dtapi::DtCaps(171) // SPI serial 10-bit mode
 
 // Capability group SPISTD - Parallel port I/O standard
-#define DTAPI_CAP_SPILVDS1    Dtapi::DtCaps(171) // LVDS1
-#define DTAPI_CAP_SPILVDS2    Dtapi::DtCaps(172) // LVDS2
-#define DTAPI_CAP_SPILVTTL    Dtapi::DtCaps(173) // LVTTL
+#define DTAPI_CAP_SPILVDS1    Dtapi::DtCaps(172) // LVDS1
+#define DTAPI_CAP_SPILVDS2    Dtapi::DtCaps(173) // LVDS2
+#define DTAPI_CAP_SPILVTTL    Dtapi::DtCaps(174) // LVTTL
 
 // Capability group TSRATESEL - Transport-stream rate selection
-#define DTAPI_CAP_EXTTSRATE   Dtapi::DtCaps(174) // External TS rate clock input
-#define DTAPI_CAP_EXTRATIO    Dtapi::DtCaps(175) // External TS rate clock with ratio
-#define DTAPI_CAP_INTTSRATE   Dtapi::DtCaps(176) // Internal TS rate clock reference
-#define DTAPI_CAP_LOCK2INP    Dtapi::DtCaps(177) // Lock TS rate to input port
+#define DTAPI_CAP_EXTTSRATE   Dtapi::DtCaps(175) // External TS rate clock input
+#define DTAPI_CAP_EXTRATIO    Dtapi::DtCaps(176) // External TS rate clock with ratio
+#define DTAPI_CAP_INTTSRATE   Dtapi::DtCaps(177) // Internal TS rate clock reference
+#define DTAPI_CAP_LOCK2INP    Dtapi::DtCaps(178) // Lock TS rate to input port
 
 // Capability group VIDENC - Supported video standards
-#define DTAPI_CAP_ENC_H264    Dtapi::DtCaps(178) // H.264 video encoder
-#define DTAPI_CAP_ENC_MP2V    Dtapi::DtCaps(179) // MPEG2 video encoder
+#define DTAPI_CAP_ENC_H264    Dtapi::DtCaps(179) // H.264 video encoder
+#define DTAPI_CAP_ENC_MP2V    Dtapi::DtCaps(180) // MPEG2 video encoder
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCmmbPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -609,6 +610,7 @@ struct DtDeviceDesc
     int  m_HardwareRevision;        // Hardware revision (e.g. 302 = 3.2)
     int  m_FirmwareVersion;         // Firmware version
     int  m_FirmwareVariant;         // Firmware variant
+    int  m_FwPackageVersion;        // Firmware package version (-1 if not applicable)
     int  m_NumDtInpChan;            // Number of input channels (max)
     int  m_NumDtOutpChan;           // Number of output channels (max)
     int  m_NumPorts;                // Number of physical ports
@@ -2396,6 +2398,7 @@ public:
     virtual int  Category(void);
     virtual int  ChanType(int Port);
     virtual int  FirmwareVersion(void);
+    virtual int  FwPackageVersion();
     virtual bool  IsAttached(void);
     virtual int  TypeNumber(void);
     virtual bool  HasCaps(int  Port, const DtCaps  Caps) const;
@@ -2422,7 +2425,9 @@ public:
     virtual DTAPI_RESULT  GetDisplayName(wchar_t* pName);
     virtual DTAPI_RESULT  GetDisplayName(char* pName);
     virtual DTAPI_RESULT  GetFanSpeed(int Fan, int& Rpm);
+    virtual DTAPI_RESULT  GetFirmwareVariant(int& FirmwareVariant);
     virtual DTAPI_RESULT  GetFirmwareVersion(int& FirmwareVersion);
+    virtual DTAPI_RESULT  GetFwPackageVersion(int& FwPackVersion);
     virtual DTAPI_RESULT  GetTemperature(int TempSens, int& Temp);
     virtual DTAPI_RESULT  GetGenlockState(int& State, int& RefVidStd);
     virtual DTAPI_RESULT  GetGenlockState(int& State);
@@ -2437,6 +2442,7 @@ public:
                                                     __int64& ParXtra0, __int64& ParXtra1);
     virtual DTAPI_RESULT  GetNumLicensePoints(DtAudEncStd, int& NumPoints);
     virtual DTAPI_RESULT  GetNwSpeed(int Port, bool& Enable, int& Speed);
+    virtual DTAPI_RESULT  GetPowerStatus(int& Status);
     virtual DTAPI_RESULT  GetRefClkCnt(int& RefClkCnt);
     virtual DTAPI_RESULT  GetRefClkCnt(__uint64& RefClkCnt);
     virtual DTAPI_RESULT  GetRefClkCnt(int& RefClkCnt, int& RefClkFreqHz);
@@ -2452,9 +2458,15 @@ public:
                                                        int EventTypes, void** pId = NULL);
     virtual DTAPI_RESULT  SetDisplayName(wchar_t* pName);
     virtual DTAPI_RESULT  SetDisplayName (char* pName);
+    static  DTAPI_RESULT  SetFirmwareVariant(__int64 SerialNumber, int FwVariant, 
+                                                                    bool CheckOnly=false);
     virtual DTAPI_RESULT  SetIoConfig(int Port, int Group, int Value, int SubValue = -1,
                                             __int64 ParXtra0 = -1, __int64 ParXtra1 = -1);
     virtual DTAPI_RESULT  SetIoConfig(DtIoConfig* pIoConfigs, int Count);
+    virtual DTAPI_RESULT  SetLicenseFromFile(const std::wstring& LicFilename, 
+                                                                        bool Force=false);
+    virtual DTAPI_RESULT  SetLicenseFromString(const std::wstring& LicString,
+                                                                        bool Force=false);
     virtual DTAPI_RESULT  SetNwSpeed(int Port, bool Enable, int Speed);
     virtual DTAPI_RESULT  UnregisterCallback(void* pId);
     virtual DTAPI_RESULT  VpdDelete(const char* pTag);
@@ -2542,9 +2554,11 @@ public:                             // TODOSD should be protected
 #define DTAPI_GENL_LOCKED           3
 
 // Status and error flags for GPS-Synchronisation
-#define DTAPI_GPS_1PPS_SYNC      0x000001
-#define DTAPI_GPS_10MHZ_SYNC     0x000002
-#define DTAPI_GPS_1PPS_ERROR     0x000001
+#define DTAPI_GPS_1PPS_SYNC         0x000001
+#define DTAPI_GPS_10MHZ_SYNC        0x000002
+#define DTAPI_GPS_1PPS_ERROR        0x000001
+#define DTAPI_GPS_10MHZ_OUT_RANGE   0x000002
+#define DTAPI_GPS_10MHZ_NO_SIGNAL   0x000004
 
 // Constants for GetStateFlags() on port level
 #define DTAPI_STATE_FLAG_INSUFF_USB_BW  0x010000
@@ -2555,6 +2569,10 @@ public:                             // TODOSD should be protected
 #define DTAPI_STATE_FLAG_NO_SERIAL      0x000002
 #define DTAPI_STATE_FLAG_NO_USB3        0x000004
 #define DTAPI_STATE_FLAG_SLEEPING       0x000008
+
+// Status and error flags for power status
+#define DTAPI_POWER_STATUS_OK           0
+#define DTAPI_POWER_EXT_12V_ABSENT      0x000001
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDtaPlusDevice -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -3174,7 +3192,8 @@ public:
     virtual DTAPI_RESULT  SetMplpChannelModelling(bool CmEnable, DtCmPars&, int Chan=0);
     virtual DTAPI_RESULT  WriteMplp(int FifoIdx, char* pBuffer, int NumBytesToWrite);
     virtual DTAPI_RESULT  WriteMplpPacket(int FifoIdx, char* pPacket, int PacketSize);
-
+    virtual DTAPI_RESULT  WriteMplpPacket(int FifoIdx, char* pPacket, int PacketSize, 
+                                                                 DtFractionInt  Duration);
 private:
     bool  m_IsAttachedToVirtual;
     MplpHelper*  m_pMplpHelper;
@@ -4178,94 +4197,6 @@ private:
     SdiMatrixImpl*  m_pImpl;        // Implementation class
 };
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Global DTAPI Functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-
-DTAPI_RESULT  DtapiCheckDeviceDriverVersion(void);
-DTAPI_RESULT  DtapiCheckDeviceDriverVersion(int DeviceCategory);
-DTAPI_RESULT  DtapiDeviceScan(int NumEntries, int& NumEntriesResult,
-                                         DtDeviceDesc* DvcDescArr, bool InclDteDvcs=false,
-                                         int  ScanOrder=DTAPI_SCANORDER_ORIG);
-DTAPI_RESULT  DtapiDtaPlusDeviceScan(int NumEntries, int& NumEntriesResult,
-                                                         DtDtaPlusDeviceDesc* DvcDescArr);
-DTAPI_RESULT  DtapiDtDeviceDesc2String(DtDeviceDesc* pDvcDesc, int StringType, 
-                                                         char* pString, int StringLength);
-DTAPI_RESULT  DtapiDtDeviceDesc2String(DtDeviceDesc* pDvcDesc, int StringType, 
-                                                      wchar_t* pString, int StringLength);
-DTAPI_RESULT  DtapiDtHwFuncDesc2String(DtHwFuncDesc* pHwFunc, int StringType, 
-                                                         char* pString, int StringLength);
-DTAPI_RESULT  DtapiDtHwFuncDesc2String(DtHwFuncDesc* pHwFunc, int StringType, 
-                                                      wchar_t* pString, int StringLength);
-DTAPI_RESULT  DtapiGetDeviceDriverVersion(int, int&, int&, int&, int&);
-DTAPI_RESULT  DtapiGetDtapiServiceVersion(int&, int&, int&, int&);
-DTAPI_RESULT  DtapiGetVersion(int& Maj, int& Min, int& BugFix, int& Build);
-DTAPI_RESULT  DtapiHwFuncScan(int NumEntries, int& NumEntriesResult,
-                                           DtHwFuncDesc* pHwFuncs, bool InclDteDvcs=false,
-                                           int  ScanOrder=DTAPI_SCANORDER_ORIG);
-DTAPI_RESULT  DtapiPower2Voltage(int dBm, int& dBmV, bool Is50Ohm=false);
-const char*  DtapiResult2Str(DTAPI_RESULT DtapiResult);
-DTAPI_RESULT  DtapiVoltage2Power(int dBmV, int& dBm, bool Is50Ohm=false);
-
-// Callbacks
-DTAPI_RESULT  DtapiRegisterCallback(pDtEventCallback Callback, void* pContext,
-                                                       int EventTypes, void** pId = NULL);
-DTAPI_RESULT  DtapiUnregisterCallback(void* pId);
-
-// IP address conversion
-DTAPI_RESULT  DtapiInitDtIpParsFromIpString(DtIpPars& IpPars,
-                                                  const char* pDstIp, const char* pSrcIp);
-DTAPI_RESULT  DtapiInitDtIpParsFromIpString(DtIpPars& IpPars,
-                                            const wchar_t* pDstIp, const wchar_t* pSrcIp);
-DTAPI_RESULT  DtapiIpAddr2ByteArray(const char* pIpStr, unsigned char* pIpByte,
-                                                                              int& Flags);
-DTAPI_RESULT  DtapiIpAddr2ByteArray(const wchar_t* pIpStr, 
-                                                      unsigned char* pIpByte, int& Flags);
-DTAPI_RESULT  DtapiIpAddr2Str(char* pStr, int Len, unsigned char* pIpAddr);
-DTAPI_RESULT  DtapiIpAddr2Str(wchar_t* pStr, int Len, unsigned char* pIpAddr);
-DTAPI_RESULT  DtapiStr2IpAddr(unsigned char* pIpAddr, const char* pStr);
-DTAPI_RESULT  DtapiStr2IpAddr(unsigned char* pIpAddr, const wchar_t* pStr);
-
-// Legacy
-#define DtapiInitDtTsIpParsFromIpString DtapiInitDtIpParsFromIpString
-
-// Modulator functions
-DTAPI_RESULT  DtapiModPars2Bandwidth(int& ModBandwidth, int& TotalBandwidth,
-                                    int ModType, int ParXtra0, int ParXtra1, int ParXtra2,
-                                    void* pXtraPars, int SymRate);
-DTAPI_RESULT  DtapiModPars2SymRate(int& SymRate, int ModType, int ParXtra0,
-                                                  int ParXtra1, int ParXtra2, int TsRate);
-DTAPI_RESULT  DtapiModPars2SymRate(int& SymRate, int ModType, int ParXtra0,
-                                        int ParXtra1, int ParXtra2, DtFractionInt TsRate);
-DTAPI_RESULT  DtapiModPars2SymRate(int& SymRate, int ModType, int ParXtra0,
-                                 int ParXtra1, int ParXtra2, void* pXtraPars, int TsRate);
-DTAPI_RESULT  DtapiModPars2SymRate(int& SymRate, int ModType, int ParXtra0,
-                       int ParXtra1, int ParXtra2, void* pXtraPars, DtFractionInt TsRate);
-DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, int ModType, int ParXtra0,
-                                            int ParXtra1, int ParXtra2, int SymRate = -1);
-DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, int ModType, int ParXtra0,
-                                            int ParXtra1, int ParXtra2, int SymRate = -1);
-DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtDvbC2Pars&, int PlpIdx = 0);
-DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, DtDvbC2Pars&, int PlpIdx = 0);
-DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtDvbS2Pars&, int PlpIdx = 0);
-DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, DtDvbS2Pars&, int PlpIdx = 0);
-DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtDvbT2Pars&, int PlpIdx = 0);
-DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, DtDvbT2Pars&, int PlpIdx = 0);
-DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtIsdbTmmPars&, int TsIdx = 0);
-DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, DtIsdbTmmPars&, int TsIdx = 0);
-DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, int ModType, int ParXtra0,
-                                int ParXtra1, int ParXtra2, void* pXtraPars, int SymRate);
-DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, int ModType, int ParXtra0,
-                                int ParXtra1, int ParXtra2, void* pXtraPars, int SymRate);
-
-// HD-SDI functions
-DTAPI_RESULT  DtapiGetRequiredUsbBandwidth(int VidStd, int RxMode, long long&  Bandwidth);
-DTAPI_RESULT  DtapiGetVidStdInfo(int VidStd, DtVidStdInfo& Info);
-DTAPI_RESULT  DtapiGetVidStdInfo(int VidStd, int  LinkStd, DtVidStdInfo& Info);
-DTAPI_RESULT  DtapiIoStd2VidStd(int Value, int SubValue, int& VidStd);
-DTAPI_RESULT  DtapiVidStd2IoStd(int VidStd, int& Value, int& SubValue);
-DTAPI_RESULT  DtapiVidStd2IoStd(int VidStd, int  LinkStd, int& Value, int& SubValue);
-const char*  DtapiVidStd2Str(int VidStd);
-const char*  DtapiLinkStd2Str(int LinkStd);
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Return Codes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // NOTE: ERROR CODES 0x1100-0x12FF ARE RESERVED FOR USE IN THE DTAPIplus
@@ -4504,6 +4435,7 @@ const char*  DtapiLinkStd2Str(int LinkStd);
 #define DTAPI_E_XML_SYNTAX          (DTAPI_E + 227)
 #define DTAPI_E_XML_ELEM            (DTAPI_E + 228)
 #define DTAPI_E_FAN_FAIL            (DTAPI_E + 229)
+#define DTAPI_E_RESTART_REQD        (DTAPI_E + 230)
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+ DVB-C2, DVB-S2, DVB-T2, ISDB-Tmm Multi PLP Parameters +=+=+=+=+=+=+=+=+
@@ -7742,6 +7674,8 @@ enum DtEncResult
     DT_ENC_OK,                      // All is fine
     DT_ENC_E_AUDBITRATETOOLOW,      // Bitrate too low for selected audio service type
     DT_ENC_E_AUDBITRATETOOHIGH,     // Bitrate too high for selected audio service type
+    DT_ENC_E_EXC_NUMAAC,            // #AAC services too high
+    DT_ENC_E_EXC_NUMDOLBYE,         // #DolbyE services too high
     DT_ENC_E_EXC_NUMNONSURROUND,    // #Non-surround services too high
     DT_ENC_E_EXC_NUMSURROUND,       // #Surround services too high
     DT_ENC_E_INV_AACPAR,            // Invalid AAC parameter
@@ -8478,7 +8412,10 @@ private:
     DtVidEncStd  m_VidEncStd;       // Video encoding standard
     DtEncVidParsStdBase*  m_pPars;  // Video encoding parameters, specific to MPEG-2
                                     // video, H.264, H.265
+    DTAPI_RESULT  SetDefaultPars(); // Set default encoding parameters for 1080i50, H.264
 };
+
+
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+ TOP-LEVEL ENCODER CONTROL CLASSES +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -8605,6 +8542,95 @@ protected:
     DTAPI_RESULT  ControlAccessLock();
     DTAPI_RESULT  ControlAccessUnlock();
 };
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Global DTAPI Functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+DTAPI_RESULT  DtapiCheckDeviceDriverVersion(void);
+DTAPI_RESULT  DtapiCheckDeviceDriverVersion(int DeviceCategory);
+DTAPI_RESULT  DtapiDeviceScan(int NumEntries, int& NumEntriesResult,
+                                         DtDeviceDesc* DvcDescArr, bool InclDteDvcs=false,
+                                         int  ScanOrder=DTAPI_SCANORDER_ORIG);
+DTAPI_RESULT  DtapiDtaPlusDeviceScan(int NumEntries, int& NumEntriesResult,
+                                                         DtDtaPlusDeviceDesc* DvcDescArr);
+DTAPI_RESULT  DtapiDtDeviceDesc2String(DtDeviceDesc* pDvcDesc, int StringType, 
+                                                         char* pString, int StringLength);
+DTAPI_RESULT  DtapiDtDeviceDesc2String(DtDeviceDesc* pDvcDesc, int StringType, 
+                                                      wchar_t* pString, int StringLength);
+DTAPI_RESULT  DtapiDtHwFuncDesc2String(DtHwFuncDesc* pHwFunc, int StringType, 
+                                                         char* pString, int StringLength);
+DTAPI_RESULT  DtapiDtHwFuncDesc2String(DtHwFuncDesc* pHwFunc, int StringType, 
+                                                      wchar_t* pString, int StringLength);
+DTAPI_RESULT  DtapiGetDeviceDriverVersion(int, int&, int&, int&, int&);
+DTAPI_RESULT  DtapiGetDtapiServiceVersion(int&, int&, int&, int&);
+DTAPI_RESULT  DtapiGetVersion(int& Maj, int& Min, int& BugFix, int& Build);
+DTAPI_RESULT  DtapiHwFuncScan(int NumEntries, int& NumEntriesResult,
+                                           DtHwFuncDesc* pHwFuncs, bool InclDteDvcs=false,
+                                           int  ScanOrder=DTAPI_SCANORDER_ORIG);
+DTAPI_RESULT  DtapiPower2Voltage(int dBm, int& dBmV, bool Is50Ohm=false);
+const char*  DtapiResult2Str(DTAPI_RESULT DtapiResult);
+DTAPI_RESULT  DtapiVoltage2Power(int dBmV, int& dBm, bool Is50Ohm=false);
+
+// Callbacks
+DTAPI_RESULT  DtapiRegisterCallback(pDtEventCallback Callback, void* pContext,
+                                                       int EventTypes, void** pId = NULL);
+DTAPI_RESULT  DtapiUnregisterCallback(void* pId);
+
+// IP address conversion
+DTAPI_RESULT  DtapiInitDtIpParsFromIpString(DtIpPars& IpPars,
+                                                  const char* pDstIp, const char* pSrcIp);
+DTAPI_RESULT  DtapiInitDtIpParsFromIpString(DtIpPars& IpPars,
+                                            const wchar_t* pDstIp, const wchar_t* pSrcIp);
+DTAPI_RESULT  DtapiIpAddr2ByteArray(const char* pIpStr, unsigned char* pIpByte,
+                                                                              int& Flags);
+DTAPI_RESULT  DtapiIpAddr2ByteArray(const wchar_t* pIpStr, 
+                                                      unsigned char* pIpByte, int& Flags);
+DTAPI_RESULT  DtapiIpAddr2Str(char* pStr, int Len, unsigned char* pIpAddr);
+DTAPI_RESULT  DtapiIpAddr2Str(wchar_t* pStr, int Len, unsigned char* pIpAddr);
+DTAPI_RESULT  DtapiStr2IpAddr(unsigned char* pIpAddr, const char* pStr);
+DTAPI_RESULT  DtapiStr2IpAddr(unsigned char* pIpAddr, const wchar_t* pStr);
+
+// Legacy
+#define DtapiInitDtTsIpParsFromIpString DtapiInitDtIpParsFromIpString
+
+// Modulator functions
+DTAPI_RESULT  DtapiModPars2Bandwidth(int& ModBandwidth, int& TotalBandwidth,
+                                    int ModType, int ParXtra0, int ParXtra1, int ParXtra2,
+                                    void* pXtraPars, int SymRate);
+DTAPI_RESULT  DtapiModPars2SymRate(int& SymRate, int ModType, int ParXtra0,
+                                                  int ParXtra1, int ParXtra2, int TsRate);
+DTAPI_RESULT  DtapiModPars2SymRate(int& SymRate, int ModType, int ParXtra0,
+                                        int ParXtra1, int ParXtra2, DtFractionInt TsRate);
+DTAPI_RESULT  DtapiModPars2SymRate(int& SymRate, int ModType, int ParXtra0,
+                                 int ParXtra1, int ParXtra2, void* pXtraPars, int TsRate);
+DTAPI_RESULT  DtapiModPars2SymRate(int& SymRate, int ModType, int ParXtra0,
+                       int ParXtra1, int ParXtra2, void* pXtraPars, DtFractionInt TsRate);
+DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, int ModType, int ParXtra0,
+                                            int ParXtra1, int ParXtra2, int SymRate = -1);
+DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, int ModType, int ParXtra0,
+                                            int ParXtra1, int ParXtra2, int SymRate = -1);
+DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtDvbC2Pars&, int PlpIdx = 0);
+DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, DtDvbC2Pars&, int PlpIdx = 0);
+DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtDvbS2Pars&, int PlpIdx = 0);
+DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, DtDvbS2Pars&, int PlpIdx = 0);
+DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtDvbT2Pars&, int PlpIdx = 0);
+DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, DtDvbT2Pars&, int PlpIdx = 0);
+DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtIsdbTmmPars&, int TsIdx = 0);
+DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, DtIsdbTmmPars&, int TsIdx = 0);
+DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, int ModType, int ParXtra0,
+                                int ParXtra1, int ParXtra2, void* pXtraPars, int SymRate);
+DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, int ModType, int ParXtra0,
+                                int ParXtra1, int ParXtra2, void* pXtraPars, int SymRate);
+
+// HD-SDI functions
+DTAPI_RESULT  DtapiGetRequiredUsbBandwidth(int VidStd, int RxMode, long long&  Bandwidth);
+DTAPI_RESULT  DtapiGetVidStdInfo(int VidStd, DtVidStdInfo& Info);
+DTAPI_RESULT  DtapiGetVidStdInfo(int VidStd, int  LinkStd, DtVidStdInfo& Info);
+DTAPI_RESULT  DtapiIoStd2VidStd(int Value, int SubValue, int& VidStd);
+DTAPI_RESULT  DtapiVidStd2IoStd(int VidStd, int& Value, int& SubValue);
+DTAPI_RESULT  DtapiVidStd2IoStd(int VidStd, int  LinkStd, int& Value, int& SubValue);
+const char*  DtapiVidStd2Str(int VidStd);
+const char*  DtapiLinkStd2Str(int LinkStd);
+const char*  DtapiMxFrameStatus2Str(DtMxFrameStatus  Status);
 
 } // namespace Dtapi
 

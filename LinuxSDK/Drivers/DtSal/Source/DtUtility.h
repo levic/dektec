@@ -196,8 +196,6 @@ UInt64  DtGetTickCountUSec(void);
 #define  DT_BUFTYPE_USER                1
 #define  DT_BUFTYPE_KERNEL              2
 
-DtStatus  DtCopyPageList(DtPageList* pSrcPageList, DtPageList* pDstPageList,
-                                                                     Bool  TakeOwnership);
 DtStatus  DtCreatePageList(void* pBuffer, UInt BufSize, UInt BufType, 
                                                                    DtPageList* pPageList);
 DtStatus  DtDeletePageList(DtPageList* pPageList);

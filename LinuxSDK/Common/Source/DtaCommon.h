@@ -133,7 +133,13 @@ enum {
     FUNC_DTA_SDIAVRX_CMD,
     FUNC_DTA_ENDEC_CMD,
     FUNC_DTA_D7PRO_CMD,
-    FUNC_DTA_SPIMF_CMD
+    FUNC_DTA_SPIMF_CMD,
+    FUNC_DTA_GET_DEV_INFO4,
+    FUNC_DTA_PROGITF_CMD,
+    FUNC_DTA_MULTIMOD_CMD,
+    FUNC_DTA_GET_PROPERTY4,
+    FUNC_DTA_GET_STR_PROPERTY3,
+    FUNC_DTA_GET_TABLE3
 };
 
 // Ioctl input data type
@@ -170,6 +176,21 @@ typedef struct _DtaIoctlGetProperty3Input {
     Int  m_DtapiBugfix;                     // DTAPI bug fix version
 } DtaIoctlGetProperty3Input;
 ASSERT_SIZE(DtaIoctlGetProperty3Input, 84)
+
+typedef struct _DtaIoctlGetProperty4Input {
+    Int  m_TypeNumber;                      // Type number (-1 = get for current device)
+    Int  m_SubDvc;                          // Sub-device (-1 = get for current device)
+    Int  m_HardwareRevision;                // Hardware revision
+    Int  m_FirmwareVersion;                 // Firmware version
+    Int  m_FirmwareVariant;                 // Firmware variant
+    Int  m_PortIndex;                       // Port index
+    char  m_Name[PROPERTY_NAME_MAX_SIZE];   // Name of property
+    Int  m_DtapiMaj;                        // DTAPI major version
+    Int  m_DtapiMin;                        // DTAPI minor version
+    Int  m_DtapiBugfix;                     // DTAPI bug fix version
+} DtaIoctlGetProperty4Input;
+ASSERT_SIZE(DtaIoctlGetProperty4Input, 88)
+
 
 // Ioctl output data type
 // Don't use ENUMS in Ioctl's. Size is unknown
@@ -217,6 +238,19 @@ ASSERT_SIZE(DtaIoctlGetPropertyOutput, 16)
 
     #define DTA_IOCTL_GET_PROPERTY3  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_GET_PROPERTY3, \
                                                                  DtaIoctlGetProperty3Data)
+#endif
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_GET_PROPERTY4  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_GET_PROPERTY4, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlGetProperty4Data {
+        DtaIoctlGetProperty4Input  m_Input;
+        DtaIoctlGetPropertyOutput  m_Output;
+    } DtaIoctlGetProperty4Data;
+
+    #define DTA_IOCTL_GET_PROPERTY4  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_GET_PROPERTY4, \
+                                                                 DtaIoctlGetProperty4Data)
 #endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_GET_DEV_INFO +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -323,6 +357,48 @@ ASSERT_SIZE(DtaIoctlGetDevInfoOutput3, 64)
     #define DTA_IOCTL_GET_DEV_INFO3  _IOR(DTA_IOCTL_MAGIC, FUNC_DTA_GET_DEV_INFO3, \
                                                              DtaIoctlGetDevInfoData3)
 #endif
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_GET_DEV_INFO4 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+// Gets the device information
+//
+typedef struct _DtaIoctlGetDevInfoOutput4 {
+    UInt16  m_DeviceId;         // Device ID
+    UInt16  m_VendorId;         // Vendor ID
+    UInt16  m_SubVendorId;      // Subsystem Vendor ID
+    UInt16  m_SubSystemId;      // Subsystem ID
+    Int  m_BusNumber;           // PCI-bus number
+    Int  m_SlotNumber;          // PCI-slot number
+    Int  m_TypeNumber;          // Type number in decimal, e.g. 2160 for DTA-2160
+    Int  m_SubDvc;              // Sub-device: 0=master, 1=slave1, 2=slave2, etc
+    Int  m_HardwareRevision;    // Hardware Revision
+    Int  m_FirmwareVersion;     // Firmware Version (= Altera revision), e.g. 3 for
+                                // "Firmware Version 3"
+    Int  m_FirmwareVariant;     // Firmware Variant, e.g. to distinguish between
+                                // firmware with different #inputs/#outputs
+    Int  m_FwPackageVersion;    // Firmware Package version, version number given
+                                // to the set of firmware variants
+    UInt64A  m_Serial;          // Serial number
+    Int  m_PcieNumLanes;        // Number of allocated PCIe lanes
+    Int  m_PcieMaxLanes;        // Maximum number of PCIe lanes
+    Int  m_PcieLinkSpeed;       // Current PCIe link speed
+    Int  m_PcieMaxSpeed;        // Maximum PCIe link speed
+} DtaIoctlGetDevInfoOutput4;
+ASSERT_SIZE(DtaIoctlGetDevInfoOutput4, 64)
+    
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_GET_DEV_INFO4  CTL_CODE(DTA_DEVICE_TYPE, \
+                          FUNC_DTA_GET_DEV_INFO4, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlGetDevInfoData4 {
+        DtaIoctlGetDevInfoOutput4  m_Output;
+    } DtaIoctlGetDevInfoData4;
+
+    #define DTA_IOCTL_GET_DEV_INFO4  _IOR(DTA_IOCTL_MAGIC, FUNC_DTA_GET_DEV_INFO4, \
+                                                             DtaIoctlGetDevInfoData4)
+#endif
+
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_VPD_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
@@ -932,6 +1008,7 @@ ASSERT_SIZE(DtaIoctlSetIoConfigInput, 8)
 #define DTA_EXCLUSIVE_ACCESS_CMD_ACQUIRE  1
 #define DTA_EXCLUSIVE_ACCESS_CMD_RELEASE  2
 #define DTA_EXCLUSIVE_ACCESS_CMD_PROBE    3
+#define DTA_EXCLUSIVE_ACCESS_CMD_CHECK    4
 // Exlusive Access input data
 typedef struct _DtaIoctlNonIpCmdExclusiveAccessInput {
     Int  m_Cmd;                 // Acquire/release/probe command
@@ -2104,6 +2181,21 @@ typedef struct _DtaIoctlGetTable2Input {
 } DtaIoctlGetTable2Input;
 ASSERT_SIZE(DtaIoctlGetTable2Input, 88)
 
+typedef struct _DtaIoctlGetTable3Input {
+    Int  m_TypeNumber;                      // Type number (-1 = get for current device)
+    Int  m_SubDvc;                          // Sub-device (-1 = get for current device)
+    Int  m_HardwareRevision;                // Hardware revision
+    Int  m_FirmwareVersion;                 // Firmware version
+    Int  m_FirmwareVariant;                 // Firmware variant
+    Int  m_PortIndex;                       // Port index
+    char  m_Name[DTA_TABLE_NAME_MAX_SIZE];  // Name of table
+    UInt  m_MaxNumEntries;                  // Max. number of entry's to store
+    Int  m_DtapiMaj;                        // DTAPI major version
+    Int  m_DtapiMin;                        // DTAPI minor version
+    Int  m_DtapiBugfix;                     // DTAPI bug fix version
+} DtaIoctlGetTable3Input;
+ASSERT_SIZE(DtaIoctlGetTable3Input, 92)
+
 // Ioctl output data type
 typedef struct _DtaIoctlGetTableOutput {
     UInt  m_NumEntries;
@@ -2137,6 +2229,18 @@ ASSERT_SIZE(DtaIoctlGetTableOutput, 8)
                                                                     DtaIoctlGetTable2Data)
 #endif
 
+#ifdef WINBUILD
+    #define DTA_IOCTL_GET_TABLE3  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_GET_TABLE3, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlGetTable3Data {
+        DtaIoctlGetTable3Input  m_Input;
+        DtaIoctlGetTableOutput  m_Output;
+    } DtaIoctlGetTable3Data;
+
+    #define DTA_IOCTL_GET_TABLE3  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_GET_TABLE3, \
+                                                                    DtaIoctlGetTable3Data)
+#endif
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_SET_MEMORY_TESTMODE +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
 // Enter testmode for a memory test.
@@ -2164,7 +2268,7 @@ ASSERT_SIZE(DtaIoctlSetMemoryTestModeInput, 4)
 // Reboots the firmware
 //
 typedef struct _DtaIoctlRebootFirmwareInput {
-    Int  m_Reserved1;
+    Int  m_Delay;
     Int  m_Reserved2;
 } DtaIoctlRebootFirmwareInput;
 ASSERT_SIZE(DtaIoctlRebootFirmwareInput, 8)
@@ -2235,6 +2339,20 @@ typedef struct _DtaIoctlGetStrProperty2Input {
 } DtaIoctlGetStrProperty2Input;
 ASSERT_SIZE(DtaIoctlGetStrProperty2Input, 84)
 
+typedef struct _DtaIoctlGetStrProperty3Input {
+    Int  m_TypeNumber;                      // Type number (-1 = get for current device)
+    Int  m_SubDvc;                          // Sub-device (-1 = get for current device)
+    Int  m_HardwareRevision;                // Hardware revision
+    Int  m_FirmwareVersion;                 // Firmware version
+    Int  m_FirmwareVariant;                 // Firmware variant
+    Int  m_PortIndex;                       // Port index
+    char  m_Name[PROPERTY_NAME_MAX_SIZE];   // Name of property
+    Int  m_DtapiMaj;                        // DTAPI major version
+    Int  m_DtapiMin;                        // DTAPI minor version
+    Int  m_DtapiBugfix;                     // DTAPI bug fix version
+} DtaIoctlGetStrProperty3Input;
+ASSERT_SIZE(DtaIoctlGetStrProperty3Input, 88)
+
 // Ioctl output data type
 typedef struct _DtaIoctlGetStrPropertyOutput {
     DtPropertyScope  m_Scope;               // Scope of property
@@ -2270,7 +2388,21 @@ ASSERT_SIZE(DtaIoctlGetStrPropertyOutput, 100)
                                   FUNC_DTA_GET_STR_PROPERTY2, DtaIoctlGetStrProperty2Data)
 #endif
 
-//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_MATRIX_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+#ifdef WINBUILD
+    #define DTA_IOCTL_GET_STR_PROPERTY3  CTL_CODE(DTA_DEVICE_TYPE,                       \
+                                                        FUNC_DTA_GET_STR_PROPERTY3,      \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlGetStrProperty3Data {
+        DtaIoctlGetStrProperty3Input  m_Input;
+        DtaIoctlGetStrPropertyOutput  m_Output;
+    } DtaIoctlGetStrProperty3Data;
+
+    #define DTA_IOCTL_GET_STR_PROPERTY3  _IOWR(DTA_IOCTL_MAGIC,                          \
+                                  FUNC_DTA_GET_STR_PROPERTY3, DtaIoctlGetStrProperty3Data)
+#endif
+
+    //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_MATRIX_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
 // Wrapper IOCTL for all Matrix-API (HD-SDI) related commands
 //
@@ -2946,14 +3078,12 @@ typedef struct _DtaIoctlEnDecCmdOutput {
 #define  DTA_D7PRO_CMD_SEND_COMMAND      0 // Send command to the control interface
 #define  DTA_D7PRO_CMD_DEBUG_READ        1 // Read text from debug port
 #define  DTA_D7PRO_CMD_STATUS_GET        2 // Get current status of encoder
-#define  DTA_D7PRO_CMD_ACK_BOOT          3 // Try to finish boot process
-#define  DTA_D7PRO_CMD_REBOOT            4 // Force a reboot of the D7Pro
-#define  DTA_D7PRO_CMD_RESET_SET         5 // Sets/clears the D7Pro reset signal
+#define  DTA_D7PRO_CMD_REBOOT            3 // Force a reboot of the D7Pro
 
 // Status codes for D7Pro device
 #define DTA_D7PRO_STATE_INIT          0 // Initial state, power not checked nor enabled
-#define DTA_D7PRO_STATE_NO_12V        1 // External 12V is not present
-#define DTA_D7PRO_STATE_POWER_ERR     2 // There is an issue with the D7Pro power supplies
+#define DTA_D7PRO_STATE_FLASH_PROG    1 // Flash programming in progress
+#define DTA_D7PRO_STATE_NO_12V        2 // External 12V is not present
 #define DTA_D7PRO_STATE_FAN_FAIL      3 // Power has been disabled due to a fan error
 #define DTA_D7PRO_STATE_BOOTING       4 // D7Pro is booting, handshake not done yet
 #define DTA_D7PRO_STATE_OK            5 // Boot complete, device ready for use
@@ -2988,17 +3118,12 @@ typedef struct _DtaIoctlD7ProDebugReadOutput {
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_D7PRO_CMD_STATUS_GET -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef struct _DtaIoctlD7ProStatusGetOutput {
-    Int  m_Status;
+    Int  m_State;
+    Int  m_Ext12FailCnt;
+    Int  m_FanFailCnt;
+    Int  m_PowerFailCnt;
 } DtaIoctlD7ProStatusGetOutput;
-ASSERT_SIZE(DtaIoctlD7ProStatusGetOutput, 4)
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_D7PRO_CMD_RESET_SET -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-typedef struct _DtaIoctlD7ProResetSetInput {
-    Int  m_ResetValue;
-} DtaIoctlD7ProResetSetInput;
-ASSERT_SIZE(DtaIoctlD7ProResetSetInput, 4)
-
+ASSERT_SIZE(DtaIoctlD7ProStatusGetOutput, 16)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_D7PRO_CMD_EXCLUSIVE_ACCESS -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // Reuse DtaIoctlNonIpCmdExclusiveAccessInput
@@ -3014,7 +3139,6 @@ typedef struct _DtaIoctlD7ProCmdInput {
         DtaIoctlD7ProSendCommandInput  m_SendCmd;
         DtaIoctlD7ProDebugReadInput  m_DebugRead;
         DtaIoctlNonIpCmdExclusiveAccessInput  m_ExclusiveAccess;
-        DtaIoctlD7ProResetSetInput  m_ResetSet;
     } m_Data;
 } DtaIoctlD7ProCmdInput;
 
@@ -3024,7 +3148,6 @@ typedef struct _DtaIoctlD7ProCmdOutput {
         DtaIoctlD7ProSendCommandOutput  m_SendCmd;
         DtaIoctlD7ProDebugReadOutput  m_DebugRead;
         DtaIoctlD7ProStatusGetOutput  m_StatusGet;
-        DtaIoctlD7ProStatusGetOutput  m_AckBoot;
     } m_Data;
 } DtaIoctlD7ProCmdOutput;
 
@@ -3150,6 +3273,81 @@ typedef union _DtaIoctlSpiMfCmd {
 #endif
 
 
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ or +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//
+// Wrapper for programming interface commands
+//
+
+// Command definitions
+#define  DTA_PROGITF_CMD_EXCLUSIVE_ACCESS  0 // Acquire/release/probe exclusive access
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_PROGITF_CMD_EXCLUSIVE_ACCESS -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// Reuse DtaIoctlNonIpCmdExclusiveAccessInput
+
+// Ioctl input data type
+typedef struct _DtaIoctlProgItfCmdInput {
+    Int  m_Cmd;
+    Int  m_ItfIndex;
+    union {
+        DtaIoctlNonIpCmdExclusiveAccessInput  m_ExclusiveAccess;
+    } m_Data;
+} DtaIoctlProgItfCmdInput;
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_PROGITF_CMD  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_PROGITF_CMD, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlProgItfCmd {
+        DtaIoctlProgItfCmdInput  m_Input;
+    } DtaIoctlProgItfCmd;
+
+    #define DTA_IOCTL_PROGITF_CMD  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_PROGITF_CMD, \
+                                                                       DtaIoctlProgItfCmd)
+#endif
+
+
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ FUNC_DTA_MULTIMOD_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//
+// Wrapper for multi-modulator commands
+//
+
+// Command definitions
+#define  DTA_MULTIMOD_CMD_SET_LEVEL      0 // Set RF-level
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MULTIMOD_CMD_SET_LEVEL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+typedef struct _DtaIoctlMultiModCmdSetLevelInput {
+    Int  m_ChanTotalGainFactor; // Total gain for this channel (times 1<<16)
+    Int  m_CommonAttenFactor;   // The common attenuation part (times 1<<16)
+    Int  m_Atten1;              // Attenuator 1 setting
+    Int  m_Atten2;              // Attenuator 2 setting
+    Int  m_Atten3;              // Attenuator 3 setting
+    Int  m_FreqMHz;             // Modulator frequency in MHz
+} DtaIoctlMultiModCmdSetLevelInput;
+ASSERT_SIZE(DtaIoctlMultiModCmdSetLevelInput, 24)
+
+// Ioctl input data type
+typedef struct _DtaIoctlMultiModCmdInput {
+    Int  m_Cmd;
+    Int  m_PortIndex;
+    union {
+        DtaIoctlMultiModCmdSetLevelInput  m_SetLevel;
+    } m_Data;
+} DtaIoctlMultiModCmdInput;
+ASSERT_SIZE(DtaIoctlMultiModCmdInput, 32)
+
+
+#ifdef WINBUILD
+#define DTA_IOCTL_MULTIMOD_CMD  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_MULTIMOD_CMD, \
+                                                    METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+typedef union _DtaIoctlMultiModCmd {
+    DtaIoctlMultiModCmdInput  m_Input;
+} DtaIoctlMultiModCmd;
+
+#define DTA_IOCTL_MULTIMOD_CMD  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_MULTIMOD_CMD, \
+                                                                      DtaIoctlMultiModCmd)
+#endif
+
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -3157,6 +3355,7 @@ typedef union _DtaIoctlInputData {
     DtaIoctlGetPropertyInput  m_GetProperty;
     DtaIoctlGetProperty2Input  m_GetProperty2;
     DtaIoctlGetProperty3Input  m_GetProperty3;
+    DtaIoctlGetProperty4Input  m_GetProperty4;
     DtaIoctlVpdCmdInput  m_VpdCmd;
     DtaIoctlI2cCmdInput  m_I2cCmd;
     DtaIoctlGetAddressRegsInput  m_GetAddrRegs;
@@ -3176,9 +3375,11 @@ typedef union _DtaIoctlInputData {
     DtaIoctlIpNwCmdInput  m_IpNwCmd;
     DtaIoctlGetTableInput  m_GetTable;
     DtaIoctlGetTable2Input  m_GetTable2;
+    DtaIoctlGetTable3Input  m_GetTable3;
     DtaIoctlRebootFirmwareInput  m_RebootFirmware;
     DtaIoctlGetStrPropertyInput  m_GetStrProperty;
     DtaIoctlGetStrProperty2Input m_GetStrProperty2;
+    DtaIoctlGetStrProperty3Input m_GetStrProperty3;
     DtaIoctlMatrixCmdInput  m_NonIpHdCmd;
     DtaIoctlSetMemoryTestModeInput  m_SetMemoryTestMode;
     DtaIoctlSetVcxoInput  m_SetVcxo;
@@ -3186,6 +3387,8 @@ typedef union _DtaIoctlInputData {
     DtaIoctlEnDecCmdInput  m_EnDecCmd;
     DtaIoctlD7ProCmdInput  m_D7ProCmd;
     DtaIoctlSpiMfCmdInput  m_SpiMfCmd;
+    DtaIoctlProgItfCmdInput  m_ProgItfCmd;
+    DtaIoctlMultiModCmdInput  m_MultiModCmd;
 } DtaIoctlInputData;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlOutputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -3195,6 +3398,7 @@ typedef union _DtaIoctlOutputData {
     DtaIoctlGetDevInfoOutput  m_GetDevInfo;
     DtaIoctlGetDevInfoOutput2  m_GetDevInfo2;
     DtaIoctlGetDevInfoOutput3  m_GetDevInfo3;
+    DtaIoctlGetDevInfoOutput4  m_GetDevInfo4;
     DtaIoctlVpdCmdOutput  m_VpdCmd;
     DtaIoctlGetDriverVersionOutput  m_GetDriverVersion;
     DtaIoctlI2cCmdOutput  m_I2cCmd;

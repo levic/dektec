@@ -356,8 +356,8 @@ struct _DtUserMapping
 struct _DtPageList
 {
     UInt  m_BufType;                    // Kernel or user buffer page list
-    Bool  m_OwnedByOs;                  // TRUE if pagelist is not ours and OS is deleting
-                                        // it.
+    Bool  m_OwnedByUs;                  // TRUE, if pagelist is ours and we are 
+                                        // responsible for deleting it
     UInt8*  m_pVirtualKernel;
 #ifdef WINBUILD
     PMDL  m_pMdl;

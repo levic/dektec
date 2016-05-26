@@ -31,13 +31,21 @@
 //
 typedef struct _DtaEncD7ProPort
 {
-    Int  m_State;                  // Current chip state, DTA_D7PRO_STATE_*
-    Int  m_VidStd;                 // Current selected video standard
-    Int  m_InputSource;            // Current selected input source
-    Int  m_SourcePortIndex[3];     // Ports connected to encoder
-    Int  m_DetVidStd[3];           // Detected video standard
+    DtMutex  m_StatusLock;          // Lock for state/status flags below
+    Int  m_State;                   // Current chip state, DTA_D7PRO_STATE_*
+    Int  m_Ext12FailCnt;            // Failure counter for external 12V
+    Int  m_FanFailCnt;              // Failure counter for fan
+    Int  m_PowerFailCnt;            // Failure counter for power good
+    
+    Int  m_VidStd;                  // Current selected video standard
+    Int  m_InputSource;             // Current selected input source
+    Int  m_SourcePortIndex[3];      // Ports connected to encoder
+    Int  m_DetVidStd[3];            // Detected video standard
     pDtaNonIpExclusiveAccess  m_pFuncExclAccess;  // Callback function for requesting 
                                                   // exclusive access at the parent port
+    DtThread  m_PowerControlThread; // Power control thread
+    DtEvent  m_PowerControlEvent;   // Power control event
+    DtEvent  m_PowerEnabledEvent;   // Power enabled event
     DtaUartPort  m_CtrlUart;
     DtaUartPort  m_DbgUart;
 } DtaEncD7ProPort;
@@ -48,6 +56,8 @@ DtStatus  DtaEncD7ProIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
                                            DtIoctlObject* pIoctl, Bool  PowerDownPending);
 DtStatus  DtaEncD7ProInitPowerup(DtaNonIpPort*  pNonIpPort);
 DtStatus  DtaEncD7ProInit(DtaNonIpPort* pNonIpPort, pDtaNonIpExclusiveAccess pExclAccess);
+DtStatus  DtaEncD7ProPowerdownPre(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaEncD7ProPowerUpPost(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaEncD7ProUncleanDetach(DtaNonIpPort* pNonIpPort);
 Bool  DtaEncD7proInterrupt(DtaNonIpPort* pNonIpPort);
 

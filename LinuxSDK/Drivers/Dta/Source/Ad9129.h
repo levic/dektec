@@ -31,5 +31,34 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus DtaRfDacInitPowerup(DtaDeviceData* pDvcData);
+DtStatus  DtaAd9129Init(DtaNonIpPort*  pNonIpPort);
+
+#define DTA_MAX_NUM_MULTIMOD_CHANS  8
+typedef struct
+{
+    Bool  m_IsSupported;                    // Multi modulator is supported
+    DtFastMutex  m_MultiModRfLevelMutex;    // Mutex
+    volatile UInt8*  m_pRfRegs;             // Pointer to RF-register block
+    // Pointers to the modulator register blocks
+    volatile UInt8*  m_pModRegs[DTA_MAX_NUM_MULTIMOD_CHANS];    
+    // Parameters used for computing the modulator's RF-level setting
+    // the CommonAttenFactor is pow(10, TotalAtten/20.0 + constant). However we cannot 
+    // do the floating point computation in the driver.
+    // Modulator RF-level setting = ChanTotalGainFactor * CommonAttenFactor
+    Int  m_ChanTotalGainFactor[DTA_MAX_NUM_MULTIMOD_CHANS];
+    Int  m_CommonAttenFactor[DTA_MAX_NUM_MULTIMOD_CHANS];
+    Int  m_FreqMHz[DTA_MAX_NUM_MULTIMOD_CHANS];     // Modulator frequency (for info only)
+    Int  m_Atten1[DTA_MAX_NUM_MULTIMOD_CHANS];      // Modulator attenuator 1 setting
+    Int  m_Atten2[DTA_MAX_NUM_MULTIMOD_CHANS];      // Modulator attenuator 2 setting 
+    Int  m_Atten3[DTA_MAX_NUM_MULTIMOD_CHANS];      // Modulator attenuator 3 setting
+    Bool  m_InUse[DTA_MAX_NUM_MULTIMOD_CHANS];      // In use
+    DtFileObject  m_CurrentOwner[DTA_MAX_NUM_MULTIMOD_CHANS];  // Owner of the channel
+}DtaMultiModData;
+
+DtStatus  DtaMultiModInit(DtaDeviceData*  pDvcData);
+DtStatus  DtaMultiModInitPowerup(DtaDeviceData* pDvcData); 
+DtStatus  DtaMultiModIoctl(DtaDeviceData*  pDvcData, DtFileObject*  pFile,  
+                                          DtIoctlObject*  pIoctl, Bool  PowerDownPending);
+DtStatus  DtaMultiModClose(DtaDeviceData*  pDvcData, DtFileObject* pFile);
 
 #endif //#ifndef __AD9129_H

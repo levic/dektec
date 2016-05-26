@@ -152,30 +152,30 @@ typedef struct _HdmiVidStdInfo
 } HdmiVidStdInfo;
 
 static const HdmiVidStdInfo  g_HdmiVidInfo[] = {
-    {DT_VIDSTD_525I59_94,   720,  480,  TRUE, 59640, 60300},
-    {DT_VIDSTD_625I50,      720,  480,  TRUE, 49750, 50250},
-    {DT_VIDSTD_720P23_98,  1280,  720, FALSE, 23856, 23988},
-    {DT_VIDSTD_720P24,     1280,  720, FALSE, 23988, 24120},
-    {DT_VIDSTD_720P25,     1280,  720, FALSE, 24875, 25125},
-    {DT_VIDSTD_720P29_97,  1280,  720, FALSE, 29820, 29985},
-    {DT_VIDSTD_720P30,     1280,  720, FALSE, 29985, 30150},
-    {DT_VIDSTD_720P50,     1280,  720, FALSE, 49750, 50250},
-    {DT_VIDSTD_720P59_94,  1280,  720, FALSE, 59640, 59970},
-    {DT_VIDSTD_720P60,     1280,  720, FALSE, 59970, 60300},
-    {DT_VIDSTD_1080P23_98, 1920, 1080, FALSE, 23856, 23988},
-    {DT_VIDSTD_1080P24,    1920, 1080, FALSE, 23988, 24120},
-    {DT_VIDSTD_1080P25,    1920, 1080, FALSE, 24875, 25125},
-    {DT_VIDSTD_1080P29_97, 1920, 1080, FALSE, 29820, 29985},
+    {DT_VIDSTD_525I59_94,   720,  480,  TRUE, 59580, 60360},
+    {DT_VIDSTD_625I50,      720,  576,  TRUE, 49700, 50300},
+    {DT_VIDSTD_720P23_98,  1280,  720, FALSE, 23832, 23988},
+    {DT_VIDSTD_720P24,     1280,  720, FALSE, 23988, 24144},
+    {DT_VIDSTD_720P25,     1280,  720, FALSE, 24850, 25150},
+    {DT_VIDSTD_720P29_97,  1280,  720, FALSE, 29790, 29985},
+    {DT_VIDSTD_720P30,     1280,  720, FALSE, 29985, 30180},
+    {DT_VIDSTD_720P50,     1280,  720, FALSE, 49700, 50300},
+    {DT_VIDSTD_720P59_94,  1280,  720, FALSE, 59580, 59970},
+    {DT_VIDSTD_720P60,     1280,  720, FALSE, 59970, 60360},
+    {DT_VIDSTD_1080P23_98, 1920, 1080, FALSE, 23832, 23988},
+    {DT_VIDSTD_1080P24,    1920, 1080, FALSE, 23988, 24144},
+    {DT_VIDSTD_1080P25,    1920, 1080, FALSE, 24850, 25150},
+    {DT_VIDSTD_1080P29_97, 1920, 1080, FALSE, 29790, 29985},
     {DT_VIDSTD_1080P30,    1920, 1080, FALSE, 29985, 30150},
-    {DT_VIDSTD_1080I50,    1920, 1080,  TRUE, 49750, 50250},
-    {DT_VIDSTD_1080I59_94, 1920, 1080,  TRUE, 59640, 59970},
-    {DT_VIDSTD_1080I60,    1920, 1080,  TRUE, 59970, 60300},
-    {DT_VIDSTD_1080P50,    1920, 1080, FALSE, 49750, 50250},
-    {DT_VIDSTD_1080P59_94, 1920, 1080, FALSE, 59640, 59970},
-    {DT_VIDSTD_1080P60,    1920, 1080, FALSE, 59970, 60300},
-    {DT_VIDSTD_480P59_94,   640,  480, FALSE, 59640, 60300},
-    {DT_VIDSTD_525P59_94,   720,  480, FALSE, 59640, 60300},
-    {DT_VIDSTD_625P50,      720,  576, FALSE, 49750, 50250},
+    {DT_VIDSTD_1080I50,    1920, 1080,  TRUE, 49700, 50300},
+    {DT_VIDSTD_1080I59_94, 1920, 1080,  TRUE, 59580, 59970},
+    {DT_VIDSTD_1080I60,    1920, 1080,  TRUE, 59970, 60360},
+    {DT_VIDSTD_1080P50,    1920, 1080, FALSE, 49700, 50300},
+    {DT_VIDSTD_1080P59_94, 1920, 1080, FALSE, 59580, 59970},
+    {DT_VIDSTD_1080P60,    1920, 1080, FALSE, 59970, 60360},
+    {DT_VIDSTD_480P59_94,   640,  480, FALSE, 59580, 60360},
+    {DT_VIDSTD_525P59_94,   720,  480, FALSE, 59580, 60360},
+    {DT_VIDSTD_625P50,      720,  576, FALSE, 49700, 50300},
 };
 static const Int  HDMI_VID_INFO_COUNT = sizeof(g_HdmiVidInfo)/sizeof(g_HdmiVidInfo[0]);
 
@@ -190,22 +190,22 @@ static const UInt8 EDID_Block[256] = {
     0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x01, 0x00,
     0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00,
     0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x1D,
-    0x80, 0x18, 0x71, 0x38, 0x2D, 0x40, 0x07, 0x00,
-    0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x80, 0xD0, 0x72, 0x1C, 0x16, 0x20, 0x10, 0x2C,
+    0x25, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
     0x00, 0x00, 0x00, 0xFD, 0x00, 0x17, 0x3C, 0x1F,
     0x2D, 0x00, 0x00, 0x0A, 0x20, 0x20, 0x20, 0x20,
     0x20, 0x20, 0x00, 0x00, 0x00, 0xFC, 0x00, 0x44,
     0x54, 0x41, 0x2D, 0x32, 0x31, 0x38, 0x30, 0x0A,
     0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x00, 0x10,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0xE1,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x71,
     
-    0x02, 0x03, 0x32, 0xF0, 0x50, 0x01, 0x02, 0x03,
-    0x84, 0x85, 0x86, 0x87, 0x11, 0x12, 0x93, 0x94,
-    0x95, 0x96, 0xA0, 0xA1, 0xA2, 0x32, 0x0D, 0x07,
-    0x07, 0x15, 0x04, 0x50, 0x29, 0x04, 0x30, 0x7D,
-    0x05, 0x22, 0x79, 0x05, 0x2A, 0x7D, 0x05, 0x32,
-    0x83, 0x0F, 0x00, 0x00, 0x65, 0x03, 0x0C, 0x00,
+    0x02, 0x03, 0x2E, 0xF0, 0x4C, 0x01, 0x02, 0x84,
+    0x85, 0x86, 0x11, 0x93, 0x94, 0x95, 0xA0, 0xA1,
+    0xA2, 0x32, 0x0D, 0x07, 0x07, 0x15, 0x04, 0x50,
+    0x29, 0x04, 0x30, 0x7D, 0x05, 0x20, 0x79, 0x05,
+    0x28, 0x7D, 0x05, 0x30, 0x83, 0x0F, 0x00, 0x00,
+    0x65, 0x03, 0x0C, 0x00, 0x10, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -215,7 +215,7 @@ static const UInt8 EDID_Block[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFC,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2C,
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpHdmiInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -229,7 +229,7 @@ DtStatus  DtaNonIpHdmiInit(DtaNonIpPort* pNonIpPort)
     DT_RETURN_ON_ERROR(DtaI2cmInit(&pHdmi->m_I2c,
                                                &pHdmi->m_pFwbHdmiAdv7610Ctrl->I2cMaster));
     
-    DtSpinLockInit(&pHdmi->m_StatusLock);
+    DtMutexInit(&pHdmi->m_StatusLock);
 
     // Init controller thread
     DtThreadInit(&pHdmi->m_ControlThread, DtaHdmiControllerThread, pNonIpPort);
@@ -479,6 +479,12 @@ void  DtaHdmiControllerThread(DtThread* pThread, void* pContext)
             NewStatus.m_CableDet = (Value&0x01)!=0;
             NewStatus.m_Encrypted = (Value&0x04)!=0;
         }
+        
+        // Read/clear TMDS-PLL locked, TMDS clock detect, Vertical sync lock, 
+        // DE regeneration lock interrupts
+        Status = ADV7610_READ_REG(GENERAL, HDMI_LVL_INT_STATUS3, &Value);
+        if (Status==DT_STATUS_OK && Value!=0)
+            ADV7610_WRITE_REG(GENERAL, HDMI_LVL_INT_CLR3, Value);
 
         // Read/clear TMDS freq changed interrupt
         Status = ADV7610_READ_REG(GENERAL, HDMI_EDG_STATUS3, &Value);
@@ -490,11 +496,6 @@ void  DtaHdmiControllerThread(DtThread* pThread, void* pContext)
             NewStatus.m_TmdsPllLocked = (Value&0x02)!=0;
             NewStatus.m_AudioLocked = (Value&0x01)!=0;
         }
-        // Read/clear TMDS-PLL locked, TMDS clock detect, Vertical sync lock, 
-        // DE regeneration lock interrupts
-        Status = ADV7610_READ_REG(GENERAL, HDMI_LVL_INT_STATUS3, &Value);
-        if (Status==DT_STATUS_OK && Value!=0)
-            ADV7610_WRITE_REG(GENERAL, HDMI_LVL_INT_CLR3, Value);
 
         // Read/clear new audio info interrupt
         Status = ADV7610_READ_REG(GENERAL, HDMI_LVL_INT_STATUS1, &Value);
@@ -612,9 +613,9 @@ void  DtaHdmiControllerThread(DtThread* pThread, void* pContext)
 
             DtaHdmiLogStatus(&NewStatus);
 
-            DtSpinLockAcquire(&pHdmi->m_StatusLock);
+            DtMutexAcquire(&pHdmi->m_StatusLock, -1);
             pHdmi->m_Status = NewStatus;
-            DtSpinLockRelease(&pHdmi->m_StatusLock);
+            DtMutexRelease(&pHdmi->m_StatusLock);
 
             if (NewStatus.m_TmdsPllLocked)
             {
@@ -634,11 +635,20 @@ void  DtaHdmiControllerThread(DtThread* pThread, void* pContext)
                 if (!ConfigForHd && Status==DT_STATUS_OK)
                 {
                     if (NewVidStd == DT_VIDSTD_480P59_94)
+                    {
+                        NewVidStd = DT_VIDSTD_525I59_94;
                         VgaFraming = DTFWB_HDMI_FRAME_VGA;
-                    if (NewVidStd == DT_VIDSTD_525P59_94)
+                    }
+                    else if (NewVidStd == DT_VIDSTD_525P59_94)
+                    {
+                        NewVidStd = DT_VIDSTD_525I59_94;
                         VgaFraming = DTFWB_HDMI_FRAME_WVGA;
-                    if (NewVidStd == DT_VIDSTD_625P50)
+                    }
+                    else if (NewVidStd == DT_VIDSTD_625P50)
+                    {
+                        NewVidStd = DT_VIDSTD_625I50;
                         VgaFraming = DTFWB_HDMI_FRAME_EDTV;
+                    }
                 }
                 DtaFwbRegWrite(pNonIpPort->m_pFwbRegs,
                            &pHdmi->m_pFwbHdmiAdv7610Ctrl->Control_VgaFraming, VgaFraming);
@@ -835,8 +845,9 @@ DtStatus  DtaNonIpHdmiDetectVidStd(
     DT_ASSERT(pNonIpPort->m_CapHdmi);
 
     pHdmi = &pNonIpPort->m_Hdmi;
-
-    DtSpinLockAcquire(&pHdmi->m_StatusLock);
+    
+    if (DtMutexAcquire(&pNonIpPort->m_Hdmi.m_StatusLock, 100) != DT_STATUS_OK)
+        return DT_STATUS_TIMEOUT;
     Status = DtaHdmiDoDetectVidStd(&pHdmi->m_Status, pVidStd);
 
     if (pHdmi->m_Status.m_AviInfoFrameValid)
@@ -853,7 +864,7 @@ DtStatus  DtaNonIpHdmiDetectVidStd(
         }
     }
 
-    DtSpinLockRelease(&pHdmi->m_StatusLock);
+    DtMutexRelease(&pHdmi->m_StatusLock);
 
     // 640x480P59.94 and 720x480P59.94 are converted by firmware to 720x480i59.94
     if (*pVidStd==DT_VIDSTD_480P59_94 || *pVidStd==DT_VIDSTD_525P59_94)
@@ -876,7 +887,8 @@ DtStatus  DtaNonIpHdmiGetAudioStatus(
 
     pOut->m_NumAudioChannels = 0;
 
-    DtSpinLockAcquire(&pNonIpPort->m_Hdmi.m_StatusLock);
+    if (DtMutexAcquire(&pNonIpPort->m_Hdmi.m_StatusLock, 100) != DT_STATUS_OK)
+        return DT_STATUS_TIMEOUT;
 
     if (pStatus->m_AudioLocked && pStatus->m_AudioInfoFrameValid)
     {
@@ -921,7 +933,7 @@ DtStatus  DtaNonIpHdmiGetAudioStatus(
         }
     }
 
-    DtSpinLockRelease(&pNonIpPort->m_Hdmi.m_StatusLock);
+    DtMutexRelease(&pNonIpPort->m_Hdmi.m_StatusLock);
 
     return DT_STATUS_OK;
 }

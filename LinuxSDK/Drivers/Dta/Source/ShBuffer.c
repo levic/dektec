@@ -31,8 +31,8 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtaShBufferClose(DtaShBuffer* pShBuffer);
 DtStatus  DtaShBufferInit(DtaIoctlShBufCmdInput* pShBufCmdInput, DtFileObject*  pFile,
-                          DtPageList* pPageList, char* pBuffer, Int BufSize, UInt BufType,
-                          DtaShBuffer* pShBuffer, Int Direction, DmaChannel* pDmaCh);
+                               char* pBuffer, Int BufSize,
+                               DtaShBuffer* pShBuffer, Int Direction, DmaChannel* pDmaCh);
 DtStatus  DtaShBufferRead(DtaIoctlShBufCmdInput* pShBufCmdInput, DtaShBuffer* pShBuffer,
                 UInt8* pLocalAddress, UInt LocalAddressBufStart, UInt LocalAddressBufEnd);
 DtStatus  DtaShBufferWrite(DtaIoctlShBufCmdInput* pShBufCmdInput, DtaShBuffer* pShBuffer,
@@ -173,9 +173,7 @@ DtStatus  DtaShBufferIoctl(
             {
                 char*  pBuffer;
                 UInt  Size;
-                DtPageList*  pPageList = NULL;
 #if defined(WINBUILD)
-                DtPageList  PageList;
                 PMDL  pMdl;
                 NTSTATUS  NtStatus;
                 // Retrieve MDL and virtual buffer from request object
@@ -192,13 +190,6 @@ DtStatus  DtaShBufferIoctl(
                     if (pBuffer == NULL)
                         Status = DT_STATUS_OUT_OF_MEMORY;
                     Size = MmGetMdlByteCount(pMdl);
-
-                    // Build pagelist object for user space buffer
-                    pPageList = &PageList;
-                    pPageList->m_BufType = DT_BUFTYPE_USER;
-                    pPageList->m_OwnedByOs = TRUE;
-                    pPageList->m_pMdl = pMdl;
-                    pPageList->m_pVirtualKernel = NULL;
                 }
 #else // LINBUILD
                 Size = (UInt)pShBufCmdInput->m_Data.m_Init.m_BufferSize;
@@ -209,9 +200,8 @@ DtStatus  DtaShBufferIoctl(
 #endif
 #endif
                 if (DT_SUCCESS(Status))
-                    Status = DtaShBufferInit(pShBufCmdInput, pFile, pPageList, pBuffer, 
-                                                     Size, DT_BUFTYPE_USER, pShBuffer,
-                                                     Direction, pDmaCh);
+                    Status = DtaShBufferInit(pShBufCmdInput, pFile, pBuffer, 
+                                                      Size, pShBuffer, Direction, pDmaCh);
                 if (DT_SUCCESS(Status) && IsIpPort)
                      Status = DtaIpSharedBufferReady(&pDvcData->m_IpDevice,
                            pShBufCmdInput->m_ChannelIndex, pShBufCmdInput->m_ChannelType);
@@ -252,10 +242,8 @@ DtStatus  DtaShBufferIoctl(
 DtStatus  DtaShBufferInit(
     DtaIoctlShBufCmdInput*  pShBufCmdInput,
     DtFileObject*  pFile,
-    DtPageList*  pPageList,
     char*  pBuffer,
     Int  BufSize,
-    UInt  BufType,
     DtaShBuffer*  pShBuffer,
     Int  Direction,
     DmaChannel*  pDmaCh)
@@ -264,41 +252,50 @@ DtStatus  DtaShBufferInit(
 
     if (pShBuffer->m_Initialised)
         return DT_STATUS_IN_USE;
+
+    pShBuffer->m_pBuffer = NULL;
+    pShBuffer->m_pDmaCh = NULL;
     
     pShBuffer->m_Purpose = pShBufCmdInput->m_Data.m_Init.m_Purpose;
+
+    // Create a pagelist for the shared buffer
+    Status = DtCreatePageList(pBuffer, BufSize, DT_BUFTYPE_USER, &pShBuffer->m_PageList);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    // Lock buffer into kernel memory
+    Status = DtLockUserBuffer(&pShBuffer->m_PageList, pBuffer);
+    if (DT_SUCCESS(Status))
+        pShBuffer->m_pBuffer = pShBuffer->m_PageList.m_pVirtualKernel;
+
+    if (!DT_SUCCESS(Status))
+    {
+        DtDeletePageList(&pShBuffer->m_PageList);
+        return Status;
+    }
+
     if (pShBuffer->m_Purpose == DTA_SH_BUF_PURPOSE_DMA)
     {
-        pShBuffer->m_pDmaCh = pDmaCh;
-        
-        // Initialise DMA channel struct and create SGL buffer
-        Status = DtaDmaPrepareDataBuffer(pPageList, pBuffer, BufSize, BufType, pDmaCh, 
-                                                                               Direction);
-
-        pShBuffer->m_pBuffer = pDmaCh->m_pBuffer;
-        if (!DT_SUCCESS(Status))
-            return Status;
-    } else {
-       
-        //Create a pagelist for the shared buffer
-        Status = DtCreatePageList(pBuffer, BufSize, BufType, &pShBuffer->m_PageList);
-        if (!DT_SUCCESS(Status))
-            return Status;
-        
-        pShBuffer->m_pBuffer = pBuffer;
-        pShBuffer->m_pDmaCh = NULL;
-        if (BufType == DT_BUFTYPE_USER)
+        if (pDmaCh->m_UseDirectBufDma)
         {
-            // Lock buffer into kernel memory
-            Status = DtLockUserBuffer(&pShBuffer->m_PageList, pBuffer);
-            if (DT_SUCCESS(Status))
-                pShBuffer->m_pBuffer = pShBuffer->m_PageList.m_pVirtualKernel;
+            DtUnlockUserBuffer(&pShBuffer->m_PageList);
+            DtDeletePageList(&pShBuffer->m_PageList);
+            return DT_STATUS_OUT_OF_RESOURCES;
         }
+        pShBuffer->m_pDmaCh = pDmaCh;
+
+        // Initialise DMA channel struct and create SGL buffer
+        Status = DtaDmaPrepareDataBuffer(&pShBuffer->m_PageList, pBuffer,
+                                             BufSize, DT_BUFTYPE_USER, pDmaCh, Direction);
+
         if (!DT_SUCCESS(Status))
         {
+            DtUnlockUserBuffer(&pShBuffer->m_PageList);
             DtDeletePageList(&pShBuffer->m_PageList);
             return Status;
-        }                
+        }
     }
+
     pShBuffer->m_Owner = *pFile;
     pShBuffer->m_Initialised = TRUE;
     return Status;
@@ -357,25 +354,25 @@ DtStatus  DtaShBufferRead(
 DtStatus  DtaShBufferClose(
     DtaShBuffer*  pShBuffer)
 {
-
     if (!pShBuffer->m_Initialised)
         return DT_STATUS_NOT_INITIALISED;
 
     if (pShBuffer->m_Purpose == DTA_SH_BUF_PURPOSE_DMA)
     {
-        DtaDmaAbortDma(pShBuffer->m_pDmaCh);
-        while (!DtaDmaIsReady(pShBuffer->m_pDmaCh))
-            DtSleep(10);
+        DtStatus  Status = DtaDmaAbortDma(pShBuffer->m_pDmaCh);
+        DtDbgOut(MAX, SHBUF, "Abort status = 0x%X", Status);
+        if (DT_SUCCESS(Status))
+            Status = DtEventWaitUnInt(&pShBuffer->m_pDmaCh->m_DmaDoneEvent, -1);
 
         DtaDmaFinalTransfer(pShBuffer->m_pDmaCh);
         DtaDmaCleanupDataBuffer(pShBuffer->m_pDmaCh);
-    } else {
-        // clean pagelist
-        if (pShBuffer->m_PageList.m_BufType == DT_BUFTYPE_USER)
-            DtUnlockUserBuffer(&pShBuffer->m_PageList);
-        
-        DtDeletePageList(&pShBuffer->m_PageList);
+        DtaDmaClearAbortFlag(pShBuffer->m_pDmaCh);
     }
+    // clean pagelist
+    if (pShBuffer->m_PageList.m_BufType == DT_BUFTYPE_USER)
+        DtUnlockUserBuffer(&pShBuffer->m_PageList);
+    
+    DtDeletePageList(&pShBuffer->m_PageList);
 
     pShBuffer->m_Initialised = FALSE;
     return DT_STATUS_OK;

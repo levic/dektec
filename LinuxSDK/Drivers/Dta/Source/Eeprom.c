@@ -757,3 +757,164 @@ static void  DtaEepromSpiUnlock(DtaDeviceData* pDvcData)
     DtaRegSpiCtrlSetUnlock(pBase, 0x6);
     DtaRegSpiCtrlSetUnlock(pBase, 0xC);
 }
+
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ CFI Read - static functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+DtStatus DtaEepromCfiReadWords(volatile UInt8* pCfiRegs, UInt32 Address, UInt8* pData,
+                                                           UInt DataSize, UInt8 WordSize);
+DtStatus  DtaEepromCfiWaitStatus(volatile UInt8* pCfiRegs, Int Timeout, UInt32 Mask, 
+                                                                            UInt32 Value);
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEepromCfiUnlock -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtaEepromCfiUnlock(volatile UInt8*  pCfiRegs)
+{
+    // Unlock the device
+    WRITE_UINT_MASKED(0x1, pCfiRegs, DT_REG_FAST_FLASH_PROG_UNLOCK,
+                                                        DT_REG_FAST_FLASH_PROG_UNLOCK_MSK, 
+                                                        DT_REG_FAST_FLASH_PROG_UNLOCK_SH);
+    WRITE_UINT_MASKED(0x3, pCfiRegs, DT_REG_FAST_FLASH_PROG_UNLOCK,
+                                                        DT_REG_FAST_FLASH_PROG_UNLOCK_MSK, 
+                                                        DT_REG_FAST_FLASH_PROG_UNLOCK_SH);
+    WRITE_UINT_MASKED(0xD, pCfiRegs, DT_REG_FAST_FLASH_PROG_UNLOCK,
+                                                        DT_REG_FAST_FLASH_PROG_UNLOCK_MSK, 
+                                                        DT_REG_FAST_FLASH_PROG_UNLOCK_SH);
+    WRITE_UINT_MASKED(0x6, pCfiRegs, DT_REG_FAST_FLASH_PROG_UNLOCK,
+                                                        DT_REG_FAST_FLASH_PROG_UNLOCK_MSK, 
+                                                        DT_REG_FAST_FLASH_PROG_UNLOCK_SH);
+    WRITE_UINT_MASKED(0xC, pCfiRegs, DT_REG_FAST_FLASH_PROG_UNLOCK,
+                                                        DT_REG_FAST_FLASH_PROG_UNLOCK_MSK, 
+                                                        DT_REG_FAST_FLASH_PROG_UNLOCK_SH);
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEepromCfiLock -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtaEepromCfiLock(volatile UInt8*  pCfiRegs)
+{
+    // Lock the device
+    WRITE_UINT_MASKED(0x1, pCfiRegs, DT_REG_FAST_FLASH_PROG_UNLOCK,
+                                                        DT_REG_FAST_FLASH_PROG_UNLOCK_MSK, 
+                                                        DT_REG_FAST_FLASH_PROG_UNLOCK_SH);
+    return DT_STATUS_OK;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEepromCfiWaitStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Wait until CFI status register reaches a certain Value when given Mask is used or until
+// Timeout milliseconds have gone by.
+//
+DtStatus  DtaEepromCfiWaitStatus(volatile UInt8* pCfiRegs, Int Timeout, UInt32 Mask, 
+                                                                             UInt32 Value)
+{
+    UInt32  RegData;
+     // Wait until busy bit gets unset or timeout is reached
+    for (;;)
+    {
+        RegData = READ_UINT(pCfiRegs, DT_REG_FAST_FLASH_PROG_CTRL);
+        if ((RegData&Mask)==Value || Timeout<=0)
+            break;
+        DtSleep(1);
+        Timeout--;
+    }
+    // Check for any error conditions
+    if ((RegData&Mask)!=Value && Timeout<=0)
+        return DT_STATUS_TIMEOUT;
+
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEepromCfiRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtaEepromCfiRead(volatile UInt8* pCfiRegs, UInt StartOffset, UInt8* pBuf,
+                                                                              UInt Length)
+{
+    DtStatus Result = DT_STATUS_OK;
+     // Unlock the device
+    DT_RETURN_ON_ERROR(DtaEepromCfiUnlock(pCfiRegs));
+
+    // Perform the read
+    Result = DtaEepromCfiReadWords(pCfiRegs, StartOffset, pBuf, Length, 2);
+
+    // Lock the device again
+    DT_RETURN_ON_ERROR(DtaEepromCfiLock(pCfiRegs));
+
+    return Result;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEepromCfiReadWords -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtaEepromCfiReadWords(volatile UInt8* pCfiRegs, UInt32 Address, UInt8* pData,
+                                                            UInt DataSize, UInt8 WordSize)
+{
+    UInt32  RegData;
+    UInt  PowerOfTwo;
+    UInt  BlockSize;
+    UInt8*  pDataPointer = pData;
+    UInt  WordsRemaining = DataSize / WordSize;
+    if (DataSize % WordSize) 
+        WordsRemaining++;
+    Address = Address / WordSize;
+
+    // Wait until ready
+    DT_RETURN_ON_ERROR(DtaEepromCfiWaitStatus(pCfiRegs, 50, 
+                                                DT_REG_FAST_FLASH_PROG_CTRL_BUSY_MSK, 0));
+
+    // Chop data into 2^n blocks
+    PowerOfTwo = DT_REG_FAST_FLASH_PROG_NBR_READ_WORDS_MSK;
+    BlockSize = 1 << PowerOfTwo;
+    while (WordsRemaining > 0)
+    {
+        UInt  BlockWordsLeft;
+        while (BlockSize > WordsRemaining)
+        {
+            PowerOfTwo--;
+            BlockSize = 1 << PowerOfTwo;
+        }
+        // Set address
+        WRITE_UINT(Address, pCfiRegs, DT_REG_FAST_FLASH_PROG_ADDR);
+        // Wait until done
+        DT_RETURN_ON_ERROR(DtaEepromCfiWaitStatus(pCfiRegs, 50, 
+                                                DT_REG_FAST_FLASH_PROG_CTRL_BUSY_MSK, 0));
+
+        // Set number of words to read
+        WRITE_UINT(PowerOfTwo, pCfiRegs, DT_REG_FAST_FLASH_PROG_NBR_READ_WORDS);
+
+        // Wait until done
+        DT_RETURN_ON_ERROR(DtaEepromCfiWaitStatus(pCfiRegs, 50, 
+                                                DT_REG_FAST_FLASH_PROG_CTRL_BUSY_MSK, 0));
+        // Issue "read" command
+        WRITE_UINT_MASKED(0x1, pCfiRegs, DT_REG_FAST_FLASH_PROG_CTRL,
+                                            DT_REG_FAST_FLASH_PROG_CTRL_READ_DATA_CMD_MSK,
+                                            DT_REG_FAST_FLASH_PROG_CTRL_READ_DATA_CMD_SH);
+
+        // Read block of data
+        BlockWordsLeft = BlockSize;
+        while (BlockWordsLeft)
+        {
+            DT_RETURN_ON_ERROR(DtaEepromCfiWaitStatus(pCfiRegs, 50, 
+                                             DT_REG_FAST_FLASH_PROG_CTRL_DATA_VALID_MSK,
+                                             DT_REG_FAST_FLASH_PROG_CTRL_DATA_VALID_MSK));
+            RegData = READ_UINT(pCfiRegs, DT_REG_FAST_FLASH_PROG_DATA);
+
+            switch (WordSize)
+            {
+                case sizeof(UInt8):
+                    *pDataPointer = (UInt8)RegData;
+                    break;
+                case sizeof(UInt16):
+                    *(UInt16*)pDataPointer = (UInt16)RegData;
+                    break;
+                case sizeof(UInt32):
+                    *(UInt32*)pDataPointer = (UInt32)RegData;
+                    break;
+            }
+            pDataPointer += WordSize;
+            BlockWordsLeft--;
+        }
+        // Update address and data remaining to be read
+        Address += BlockSize;
+        WordsRemaining -= BlockSize;
+    }
+    return DT_STATUS_OK;
+}

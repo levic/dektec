@@ -88,7 +88,7 @@ DtStatus  DtaLmh1983Init(DtaDeviceData* pDvcData, DtaLmh1983* pLmh1983Data)
 static DtStatus  DtaLmh1983WriteInitSeq(DtaLmh1983*  pLmh1983Data)
 {
     // Init sequence for LMH1983 on DTA-2154 and DTA-2174
-    #define  DTA_LMH1983_I2C_INIT_SEQ_SIZE 13
+    #define  DTA_LMH1983_I2C_INIT_SEQ_SIZE 14
     #define  DTA_LMH1983_I2C_WRITE_RETRIES 4
     static UInt8  DTA_LMH1983_INIT_SEQUENCE[DTA_LMH1983_I2C_INIT_SEQ_SIZE][2] = 
     {
@@ -104,8 +104,17 @@ static DtStatus  DtaLmh1983WriteInitSeq(DtaLmh1983*  pLmh1983Data)
 
         { DTA_LMH1983_IIC_REG20, 0x16 },    // Input Format: default to 1080i50
 
-        { DTA_LMH1983_IIC_REG0A, 0x88 },    // Output Buffer Control: enable Fout1..3 and 
-                                            // CLKout1..3 
+        { DTA_LMH1983_IIC_REG34, 0x28},     // PLL4 Advanced Control:
+                                            // PLL4_Div = 2^2
+                                            // PLL4_Disable = disabled (not actually used)
+                                            // IS125M = 0 (100MHz)
+                                            // PLL4_Mode = 0 (using 27MHz)
+
+        { DTA_LMH1983_IIC_REG0A, 0x00 },    // Output Buffer Control: enable Fout1..4 and 
+                                            // CLKout1..4. NOTE: Eventhough PLL4 is not 
+                                            // enabled, we enable its outputs because 
+                                            // they are connected to the FPGA and we donot
+                                            // want them floating
 
         { DTA_LMH1983_IIC_REG13, 0x20 },    // LMH1983 datasheet recommends to write 0x20
                                             // once to the TOF3 aligment register to 
@@ -117,12 +126,12 @@ static DtStatus  DtaLmh1983WriteInitSeq(DtaLmh1983*  pLmh1983Data)
                                             // TOF_sync_far=crash mode, 
                                             // TOF_sync_near=drift mode
 
-        { DTA_LMH1983_IIC_REG12, 0x00 },    // Alignment Control – TOF2: 
-                                            // Alignment mode = auto
-
-        { DTA_LMH1983_IIC_REG13, 0x00 },    // Alignment Control – TOF3: 
-                                            // Alignment mode = auto
-
+        { DTA_LMH1983_IIC_REG12, 0x30 },    // Alignment Control – TOF2: 
+                                            // Alignment mode = never
+                                            
+        { DTA_LMH1983_IIC_REG13, 0x30 },    // Alignment Control – TOF3: 
+                                            // Alignment mode = never
+                                            
         { DTA_LMH1983_IIC_REG1D, 0x88 },    // Mask Control – PLL Lock and Output Align
                                             // MASK_LOCK4 = 1 (masked)
                                             // MASK_LOCK3 = 0 (not-masked)
@@ -361,8 +370,8 @@ void  DtaLmh1983ControllerThread(DtThread* pThread, void* pContext)
 //
 DtStatus DtaLmh1983GoToNextState(DtaLmh1983* pLmh1983Data, Int ChangeEvent)
 {
-    const UInt64  LMH1983_HOLDOVER_MIN_TIME_MS = 250;  // 250ms time out
-    const UInt64  LMH1983_HOLDOVER_MAX_TIME_MS = 60000;  // 60sec time out
+    const UInt64  LMH1983_HOLDOVER_MIN_TIME_MS = 250;       // 250ms time out
+    const UInt64  LMH1983_HOLDOVER_MAX_TIME_MS = 20000;     // 20sec time out
 
     DtStatus  Status = DT_STATUS_OK;
     Int  OldState, NewState;
@@ -635,7 +644,7 @@ DtStatus  DtaLmh1983InitChip(DtaLmh1983* pLmh1983Data)
     DtStatus  Status = DT_STATUS_OK;
     DtAvFrameProps  RefAvProps, OutAvProps;
     Int  RefVidStd,  OutVidStd;
-    UInt8  FormatCode1=0, FormatCode2=0, FormatCode3=0, MaskCtrl=0;
+    UInt8  FormatCode1=0, FormatCode2=0, FormatCode3=0, MaskCtrl=0, AlignCtrl=0;
     UInt16 Tof1Offset=0;
     Int  RefPortIdx = pLmh1983Data->m_pDvcData->m_Genlock.m_RefPortIndex;
     DtaGenlock*  pGenlock = &pLmh1983Data->m_pDvcData->m_Genlock;
@@ -698,8 +707,11 @@ DtStatus  DtaLmh1983InitChip(DtaLmh1983* pLmh1983Data)
                                                                                   Status);
             return Status;
         }
-        // Include PLL1+TOF1 & PLL3+TOF3 in lock detect and align detect
-        MaskCtrl = 0xAA;
+        // Include PLL1+TOF1, if not internal genref, also include PLL3+TOF3 in
+        // lock detect and align detect
+        MaskCtrl = 0x88;
+        if (RefPortIdx != pLmh1983Data->m_pDvcData->m_Genlock.m_IntGenrefPortIndex)
+            MaskCtrl |= 0x22;
         Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG1D, MaskCtrl);
     }
     else
@@ -717,12 +729,52 @@ DtStatus  DtaLmh1983InitChip(DtaLmh1983* pLmh1983Data)
                                                                                   Status);
             return Status;
         }
-        // Include PLL1+TOF1 & PLL2+TOF2 in lock detect and align detect
-        MaskCtrl = 0xCC;
+        // Include PLL1+TOF1, if not internal genref, also include PLL2+TOF2 in
+        // lock detect and align detect
+        MaskCtrl = 0x88;
+        if (RefPortIdx != pLmh1983Data->m_pDvcData->m_Genlock.m_IntGenrefPortIndex)
+            MaskCtrl |= 0x44;
         Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG1D, MaskCtrl);
     }
-        
-    //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Step 3: set TOF offset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+    //-.-.-.-.-.-.-.-.- Step 3: Enable/disable TOF2/TOF3 auto-align mode -.-.-.-.-.-.-.-.-
+
+    Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_IIC_REG12, &AlignCtrl);
+    if (DT_SUCCESS(Status))
+    {
+        if (RefPortIdx==pLmh1983Data->m_pDvcData->m_Genlock.m_IntGenrefPortIndex
+                                                             || RefAvProps.m_IsFractional)
+        {
+            // Never align
+            AlignCtrl |= 0x30;
+        } else {
+            // Always align
+            AlignCtrl &= ~0x30;
+        }
+        Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG12, AlignCtrl);
+    }
+    if (DT_SUCCESS(Status))
+        Status = DtaLmh1983ReadReg(pLmh1983Data, DTA_LMH1983_IIC_REG13, &AlignCtrl);
+    if (DT_SUCCESS(Status))
+    {
+        if (RefPortIdx==pLmh1983Data->m_pDvcData->m_Genlock.m_IntGenrefPortIndex
+                                                            || !RefAvProps.m_IsFractional)
+        {
+            // Never align
+            AlignCtrl |= 0x30;
+        } else {
+            // Always align
+            AlignCtrl &= ~0x30;
+        }
+        Status = DtaLmh1983WriteReg(pLmh1983Data, DTA_LMH1983_IIC_REG13, AlignCtrl);
+    }
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, GENL, "Failed to set alignment mode. Error: 0x%X", Status);
+        return Status;
+    }
+
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Step 4: set TOF offset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
     //
     // We let the LMH genereate the TOF m_LineOffset #lines to early to account for all 
     // delays in the "genlock pipeline"
@@ -778,7 +830,7 @@ DtStatus  DtaLmh1983InitChip(DtaLmh1983* pLmh1983Data)
         }
     }
 
-    //-.-.-.-.-.-.-.-.-.-.-.-.-.- Step 3: Miscellaneous setup -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.- Step 5: Miscellaneous setup -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
     // Set VCXO value
     if (pLmh1983Data->m_pDvcData->m_Genlock.m_VcxoValue!=-1)

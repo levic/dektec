@@ -1,8 +1,8 @@
-#//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Version.inc *#*#*#*#*#*#*#*#*#* (C) 2010-2016 DekTec
+#//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Version.inc *#*#*#*#*#*#*#*#*#* (C) 2010-2015 DekTec
 #//
 
 DTANW_VERSION_MAJOR = 3
 DTANW_VERSION_MINOR = 5
-DTANW_VERSION_MICRO = 1
-DTANW_VERSION_BUILD = 29
+DTANW_VERSION_MICRO = 2
+DTANW_VERSION_BUILD = 30
 DTANW_VERSION = $(DTANW_VERSION_MAJOR).$(DTANW_VERSION_MINOR).$(DTANW_VERSION_MICRO).$(DTANW_VERSION_BUILD)

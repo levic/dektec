@@ -425,7 +425,7 @@ DtStatus  DtaMatrixIoctl(
                 // Build pagelist object for user space buffer
                 pPageList = &PageList;
                 pPageList->m_BufType = DT_BUFTYPE_USER;
-                pPageList->m_OwnedByOs = TRUE;
+                pPageList->m_OwnedByUs = FALSE;  // Is OS owned i.e. not us
                 pPageList->m_pMdl = pMdl;
                 pPageList->m_pVirtualKernel = NULL;
             }
@@ -561,7 +561,7 @@ DtStatus  DtaMatrixIoctl(
                 // Build pagelist object for user space buffer
                 pPageList = &PageList;
                 pPageList->m_BufType = DT_BUFTYPE_USER;
-                pPageList->m_OwnedByOs = TRUE;
+                pPageList->m_OwnedByUs = FALSE;  // Is OS owned i.e. not us
                 pPageList->m_pMdl = pMdl;
                 pPageList->m_pVirtualKernel = NULL;
             }

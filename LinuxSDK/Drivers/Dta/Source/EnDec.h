@@ -44,10 +44,12 @@ typedef struct _DtaEnDecPort
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 DtStatus  DtaEncoderInit(DtaDeviceData*  pDvcData);
+DtStatus  DtaEnDecClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile);
 DtStatus  DtaEnDecIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
                                            DtIoctlObject* pIoctl, Bool  PowerDownPending);
 DtStatus  DtaEnDecInitPowerup(DtaNonIpPort*  pNonIpPort);
 DtStatus  DtaEnDecInit(DtaNonIpPort* pNonIpPort);
-DtStatus  DtaEnDecClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile);
+DtStatus  DtaEnDecPowerdownPre(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaEnDecPowerUpPost(DtaNonIpPort* pNonIpPort);
 
 #endif // _ENDEC_H

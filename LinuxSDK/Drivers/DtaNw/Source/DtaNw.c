@@ -464,7 +464,9 @@ DtStatus  DtaNwGetStatisticCounter(
     UInt64*  pValue)
 {
     DtStatus  Status = DtaNwGetStatisticCounterIoCtrl(pDvcData, StatisticId, pValue);
-    *pValue+= pDvcData->m_NwRcvNoBuffer;
+    if (StatisticId == DTA_MAC_CNT_GEN_RCV_NO_BUFFER)
+        *pValue+= pDvcData->m_NwRcvNoBuffer;
+
     return Status;
 }
 

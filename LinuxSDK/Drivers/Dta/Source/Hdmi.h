@@ -69,7 +69,7 @@ typedef struct _DtaHdmi
     DtEvent  m_IntEvent;
     DtDpc  m_HandleIntDpc;
     
-    DtSpinLock  m_StatusLock;
+    DtMutex  m_StatusLock;
     DtaHdmiStatus  m_Status;
     pDtaEnDecNewInputVidStd  m_NewVidStdCb;
     DtaNonIpPort* m_pPortCb;

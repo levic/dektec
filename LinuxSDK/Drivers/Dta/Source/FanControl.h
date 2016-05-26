@@ -43,10 +43,12 @@ typedef struct _DtaFanControl
 
     // Specific controllers
     DtaMax6639  m_Max6639;              // MAX6639 controller
+    volatile UInt8*  m_pFanmRegs;       // Register offset for fan monitor FPGA FW block
 } DtaFanControl;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtaFanControlInit(DtaDeviceData* pDvcData);
+DtStatus  DtaFanControlPowerUp(DtaDeviceData* pDvcData);
 
 #endif // #ifndef __FANCONTROL_H
 

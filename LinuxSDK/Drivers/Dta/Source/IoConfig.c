@@ -951,6 +951,10 @@ static DtStatus  DtaIoConfigUpdateValidateIoStd(
         if (!pNonIpPort->m_CapDemod)
             return DT_STATUS_CONFIG_ERROR;
         break;
+    case DT_IOCONFIG_GPSTIME:
+        if (!pNonIpPort->m_CapGpsTime)
+            return DT_STATUS_CONFIG_ERROR;
+        break;
     case DT_IOCONFIG_HDMI:
         if (!pNonIpPort->m_CapHdmi)
             return DT_STATUS_CONFIG_ERROR;

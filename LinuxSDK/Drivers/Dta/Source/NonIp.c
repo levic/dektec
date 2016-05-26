@@ -192,6 +192,8 @@ DtStatus  DtaNonIpInit(
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapDemod = DtPropertiesGetBool(pPropData, "CAP_DEMOD",
                                                                  pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapGpsTime = DtPropertiesGetBool(pPropData, "CAP_GPSTIME",
+                                                                 pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapHdmi = DtPropertiesGetBool(pPropData, "CAP_HDMI",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapHdSdi = DtPropertiesGetBool(pPropData, "CAP_HDSDI",
@@ -556,6 +558,11 @@ DtStatus  DtaNonIpInit(
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_DEMOD;
             break;
 
+        case DT_IOCONFIG_GPSTIME:
+            DT_ASSERT(pNonIpPort->m_CapGpsTime);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_GPSTIME;
+            break;
+
         case DT_IOCONFIG_HDMI:
             DT_ASSERT(pNonIpPort->m_CapHdmi);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDMI;
@@ -840,6 +847,8 @@ DtStatus  DtaNonIpInit(
     }
     else if (pNonIpPort->m_CapDemod)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_DEMOD;
+    else if (pNonIpPort->m_CapGpsTime)
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_GPSTIME;
     else if (pNonIpPort->m_CapHdmi)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDMI;
     else if (pNonIpPort->m_CapIfAdc)
@@ -970,6 +979,7 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_SpiMf.m_IsSupported = FALSE;
     
     // Initialize register mappings
+    pNonIpPort->m_pModRegs = NULL;
     pNonIpPort->m_pRfRegs = NULL;
     pNonIpPort->m_pRxRegs = NULL;
     pNonIpPort->m_pTxRegs = NULL;
@@ -998,10 +1008,14 @@ DtStatus  DtaNonIpInit(
         pNonIpPort->m_TxRegsOffset = (UInt16)-1;
     if (pNonIpPort->m_CapMod)
     {
+        pNonIpPort->m_ModRegsOffset = DtPropertiesGetUInt16(pPropData,
+                                                "REGISTERS_MOD", pNonIpPort->m_PortIndex);
         pNonIpPort->m_RfRegsOffset = DtPropertiesGetUInt16(pPropData,
                                                 "REGISTERS_RF", pNonIpPort->m_PortIndex);
-    } else
+    } else {
+        pNonIpPort->m_ModRegsOffset = (UInt16)-1;
         pNonIpPort->m_RfRegsOffset = (UInt16)-1;
+    }
     if (pNonIpPort->m_CapSpi)
     {
         pNonIpPort->m_SpiRegsOffset = DtPropertiesGetUInt16(pPropData,
@@ -1018,10 +1032,9 @@ DtStatus  DtaNonIpInit(
     if (pNonIpPort->m_CapSdiRx || pNonIpPort->m_CapHdmi || pNonIpPort->m_CapAvEnc)
     {
         pNonIpPort->m_FwbRegsOffset = DtPropertiesGetUInt16(pPropData,
-                                              "REGISTERS_FWB", pNonIpPort->m_PortIndex);
+                                                "REGISTERS_FWB", pNonIpPort->m_PortIndex);
     } else
         pNonIpPort->m_FwbRegsOffset = (UInt16)-1;
-
 
     // Report configuration errors
     if (DT_SUCCESS(Status))
@@ -1108,7 +1121,7 @@ DtStatus  DtaNonIpInit(
             return Status;
     }
 
-     // Audio video encoder port initialization
+    // Audio video encoder port initialization
     if (pNonIpPort->m_CapAvEnc)
     {
         Status = DtaEnDecInit(pNonIpPort);
@@ -1339,6 +1352,9 @@ DtStatus  DtaNonIpPowerup(DtaNonIpPort* pNonIpPort)
 {
     DtStatus  Status = DT_STATUS_OK;
     // Recalculate registers
+    if (pNonIpPort->m_ModRegsOffset != (UInt16)-1)
+        pNonIpPort->m_pModRegs = pNonIpPort->m_pDvcData->m_pGenRegs +
+                                                              pNonIpPort->m_ModRegsOffset;
     if (pNonIpPort->m_RfRegsOffset != (UInt16)-1)
         pNonIpPort->m_pRfRegs = pNonIpPort->m_pDvcData->m_pGenRegs +
                                                                pNonIpPort->m_RfRegsOffset;
@@ -1356,7 +1372,7 @@ DtStatus  DtaNonIpPowerup(DtaNonIpPort* pNonIpPort)
                                                             pNonIpPort->m_Rs422RegsOffset;
     if (pNonIpPort->m_FwbRegsOffset != (UInt16)-1)
         pNonIpPort->m_pFwbRegs = pNonIpPort->m_pDvcData->m_pGenRegs +
-                                                            pNonIpPort->m_FwbRegsOffset;
+                                                              pNonIpPort->m_FwbRegsOffset;
 
     // Skip init of DMA resources for a non-functional port
     if (!pNonIpPort->m_IsNonFuntional)
@@ -1419,10 +1435,25 @@ DtStatus  DtaNonIpPowerUpPost(DtaNonIpPort* pNonIpPort)
     DtStatus  Status = DT_STATUS_OK;
 
     if (pNonIpPort->m_CapMatrix)
+    {
         Status = DtaNonIpMatrixPowerUpPost(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
 
     if (pNonIpPort->m_CapHdmi)
+    {
         Status = DtaNonIpHdmiInitPowerUpPost(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+
+    if (pNonIpPort->m_CapAvEnc)
+    {
+        Status = DtaEnDecPowerUpPost(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
 
     return Status;
 }
@@ -1676,6 +1707,12 @@ DtStatus  DtaNonIpExclusiveAccess(
     } else if (Cmd == DTA_EXCLUSIVE_ACCESS_CMD_PROBE)
     {
         if (pNonIpPort->m_ExclAccess)
+            Result = DT_STATUS_IN_USE;
+    } else if (Cmd == DTA_EXCLUSIVE_ACCESS_CMD_CHECK)
+    {
+        if (!pNonIpPort->m_ExclAccess)
+            Result = DT_STATUS_EXCL_ACCESS_REQD;
+        else if (!DtFileCompare(&pNonIpPort->m_ExclAccessOwner, pFile))
             Result = DT_STATUS_IN_USE;
     } else
         Result = DT_STATUS_NOT_SUPPORTED;
@@ -2638,6 +2675,7 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
 
     case DT_IOCONFIG_AVENC:
     case DT_IOCONFIG_DEMOD:
+    case DT_IOCONFIG_GPSTIME:
     case DT_IOCONFIG_HDMI:
     case DT_IOCONFIG_IFADC:
     case DT_IOCONFIG_IP:
@@ -3113,6 +3151,10 @@ DtStatus  DtaNonIpPowerdownPre(DtaNonIpPort* pNonIpPort)
 {
     if (pNonIpPort->m_CapHdmi)
         DtaNonIpHdmiPowerdownPre(pNonIpPort);
+    
+    if (pNonIpPort->m_CapAvEnc)
+        DtaEnDecPowerdownPre(pNonIpPort);
+
     return DT_STATUS_OK;
 }
 

@@ -32,7 +32,7 @@
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaGenlockInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaFanControlInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtaFanControlInit(DtaDeviceData* pDvcData)
 {
@@ -47,7 +47,8 @@ DtStatus  DtaFanControlInit(DtaDeviceData* pDvcData)
     // Get fan type.
     // Do not set an error if not defined (not supported)
     pDvcData->m_FanControl.m_FanType = DtPropertiesGetInt(pPropData, "FAN_TYPE", -1);
-    if (pDvcData->m_FanControl.m_FanType != FAN_TYPE_MAX6639)
+    if (pDvcData->m_FanControl.m_FanType!=FAN_TYPE_MAX6639 && 
+                                        pDvcData->m_FanControl.m_FanType != FAN_TYPE_FANM)
     {     
         pPropData->m_PropertyNotFoundCounter = OldPropertyNotFoundCounter;      
         return DT_STATUS_OK;
@@ -63,6 +64,7 @@ DtStatus  DtaFanControlInit(DtaDeviceData* pDvcData)
         return DT_STATUS_OK;
     }
 
+    // Call fan specific initialization
     if (pDvcData->m_FanControl.m_FanType == FAN_TYPE_MAX6639)
     {
         Status = DtaMax6639Init(pDvcData);
@@ -74,4 +76,18 @@ DtStatus  DtaFanControlInit(DtaDeviceData* pDvcData)
     if (!DT_SUCCESS(Status))
         DtDbgOut(ERR, FAN, "Failed to read number of fans error: 0x%x", Status);
     return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaFanControlPowerUp -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaFanControlPowerUp(DtaDeviceData* pDvcData)
+{
+    DtPropertyData*  pPropData = &pDvcData->m_PropData;
+
+    // Execute fan specific initialization
+    if (pDvcData->m_FanControl.m_FanType == FAN_TYPE_FANM)
+        pDvcData->m_FanControl.m_pFanmRegs = pDvcData->m_pGenRegs 
+                                       + DtPropertiesGetUInt16(pPropData, "FAN_ADDR", -1);
+
+    return DT_STATUS_OK;
 }

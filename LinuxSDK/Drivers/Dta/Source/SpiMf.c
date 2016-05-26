@@ -141,7 +141,7 @@ DtStatus  DtaSpiMfInit(DtaSpiMf* pSpiMf, pSpiMfCallback pSpiMfPrepare,
     pSpiMf->m_pSpiMfRelease = pSpiMfRelease;
     pSpiMf->m_IsInitialized = FALSE;
     pSpiMf->m_IsSupported = TRUE;
-    DtSpinLockInit(&pSpiMf->m_ExclAccessLock);
+    DtMutexInit(&pSpiMf->m_ExclAccessLock);
 
     // Init event
     DtEventInit(&pSpiMf->m_OpComplEvent, TRUE);
@@ -305,6 +305,8 @@ DtStatus  DtaSpiMfIoctl(
                 Status = SpiMfExclAccessRelease(pSpiMf, pNonIpPort, pFile);
             else if (Cmd == DTA_EXCLUSIVE_ACCESS_CMD_PROBE)
                 Status = SpiMfExclAccessProbe(pSpiMf);
+            else if (Cmd == DTA_EXCLUSIVE_ACCESS_CMD_CHECK)
+                Status = SpiMfCheckExclAccess(pSpiMf, pFile);
             else
                 Status = DT_STATUS_NOT_SUPPORTED;
             break;
@@ -529,7 +531,6 @@ DtStatus  SpiMfErase(DtaSpiMf* pSpiMf, DtFileObject*  pFile,  Int StartAddress,
     IsEnabled = DtaFwbRegRead(pFwbRegs, &pFwbSpiMf->Status_IsEnabled);
     if (!IsEnabled)
         return DT_STATUS_NO_POWER;
-
 
     // Check is-busy state
     IsBusy = DtaFwbRegRead(pFwbRegs, &pFwbSpiMf->Status_IsBusy);
@@ -953,7 +954,8 @@ DtStatus  SpiMfExclAccessAcquire(DtaSpiMf* pSpiMf, DtaNonIpPort* pNonIpPort,
                                                                       DtFileObject* pFile)
 {
     DtStatus  Result = DT_STATUS_OK;
-    DtSpinLockAcquire(&pSpiMf->m_ExclAccessLock);
+    if (DtMutexAcquire(&pSpiMf->m_ExclAccessLock, 100) != DT_STATUS_OK)
+        return DT_STATUS_TIMEOUT;
 
     if (!pSpiMf->m_ExclAccess)
     {
@@ -967,7 +969,7 @@ DtStatus  SpiMfExclAccessAcquire(DtaSpiMf* pSpiMf, DtaNonIpPort* pNonIpPort,
     }
     else
         Result = DT_STATUS_IN_USE;
-    DtSpinLockRelease(&pSpiMf->m_ExclAccessLock);
+    DtMutexRelease(&pSpiMf->m_ExclAccessLock);
 
     return Result;
 }
@@ -984,7 +986,8 @@ DtStatus  SpiMfExclAccessRelease(DtaSpiMf* pSpiMf, DtaNonIpPort* pNonIpPort,
         SpiMfDeviceLock(pSpiMf, pFile, 1);
 
     // Thereafter release exclusive access
-    DtSpinLockAcquire(&pSpiMf->m_ExclAccessLock);
+    if (DtMutexAcquire(&pSpiMf->m_ExclAccessLock, 100) != DT_STATUS_OK)
+        return DT_STATUS_TIMEOUT;
     if (pSpiMf->m_ExclAccess)
     {
         if (DtFileCompare(&pSpiMf->m_ExclAccessOwner, pFile))
@@ -996,7 +999,7 @@ DtStatus  SpiMfExclAccessRelease(DtaSpiMf* pSpiMf, DtaNonIpPort* pNonIpPort,
         else
             Result = DT_STATUS_IN_USE;
     }
-    DtSpinLockRelease(&pSpiMf->m_ExclAccessLock);
+    DtMutexRelease(&pSpiMf->m_ExclAccessLock);
 
     return Result;
 }
@@ -1007,10 +1010,11 @@ DtStatus  SpiMfExclAccessRelease(DtaSpiMf* pSpiMf, DtaNonIpPort* pNonIpPort,
 DtStatus  SpiMfExclAccessProbe(DtaSpiMf* pSpiMf)
 {
     DtStatus  Result = DT_STATUS_OK;
-    DtSpinLockAcquire(&pSpiMf->m_ExclAccessLock);
+    if (DtMutexAcquire(&pSpiMf->m_ExclAccessLock, 100) != DT_STATUS_OK)
+        return DT_STATUS_TIMEOUT;
     if (pSpiMf->m_ExclAccess)
         Result = DT_STATUS_IN_USE;
-    DtSpinLockRelease(&pSpiMf->m_ExclAccessLock);
+    DtMutexRelease(&pSpiMf->m_ExclAccessLock);
 
     return Result;
 }
@@ -1020,7 +1024,8 @@ DtStatus  SpiMfExclAccessProbe(DtaSpiMf* pSpiMf)
 DtStatus  SpiMfCheckExclAccess(DtaSpiMf* pSpiMf, DtFileObject*  pFile)
 {
     DtStatus  Result = DT_STATUS_OK;
-    DtSpinLockAcquire(&pSpiMf->m_ExclAccessLock);
+    if (DtMutexAcquire(&pSpiMf->m_ExclAccessLock, 100) != DT_STATUS_OK)
+        return DT_STATUS_TIMEOUT;
     if (pSpiMf->m_ExclAccess)
     {
         if (!DtFileCompare(&pSpiMf->m_ExclAccessOwner, pFile))
@@ -1029,7 +1034,7 @@ DtStatus  SpiMfCheckExclAccess(DtaSpiMf* pSpiMf, DtFileObject*  pFile)
     else
         Result = DT_STATUS_EXCL_ACCESS_REQD;
     
-    DtSpinLockRelease(&pSpiMf->m_ExclAccessLock);
+    DtMutexRelease(&pSpiMf->m_ExclAccessLock);
 
     return Result;
 }

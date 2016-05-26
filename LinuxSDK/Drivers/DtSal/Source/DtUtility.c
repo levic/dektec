@@ -196,7 +196,7 @@ void*  DtMemAllocPoolLarge(DtPoolType Type, UInt Size, UInt32 Tag, DtPageList** 
     // Prevent deleting by DtDeletePageList, act as an OS owned buffer
     // Explicitly use DtMemFreePoolLarge to cleanup this buffer.
     pPageList->m_BufType = DT_BUFTYPE_KERNEL;
-    pPageList->m_OwnedByOs = TRUE;   
+    pPageList->m_OwnedByUs = FALSE;   
     pPageList->m_NumPages = BufSize / PAGE_SIZE;
     pPageList->m_pPages = kmalloc(sizeof(struct page*) * pPageList->m_NumPages, 
                                                                               GFP_KERNEL);
@@ -779,7 +779,7 @@ DtStatus  DtCreatePageList(
     Int  BytesFirstPage;
 #endif
     pPageList->m_BufType = BufType;
-    pPageList->m_OwnedByOs = FALSE;
+    pPageList->m_OwnedByUs = TRUE;
 #ifdef WINBUILD    
     pPageList->m_pMdl = IoAllocateMdl(pBuffer, BufSize, FALSE, FALSE, NULL);
     if (pPageList->m_pMdl == NULL)
@@ -840,7 +840,8 @@ DtStatus  DtCreatePageList(
 DtStatus  DtDeletePageList(
     DtPageList*  pPageList)
 {
-    if (pPageList->m_OwnedByOs)
+    // Check if we are the owner. If not, we should not delete the page list
+    if (!pPageList->m_OwnedByUs)
     {
         return DT_STATUS_OK;
     }
@@ -857,44 +858,6 @@ DtStatus  DtDeletePageList(
 
     kfree(pPageList->m_pPages);
     pPageList->m_pPages = NULL;
-#endif
-    return DT_STATUS_OK;
-}
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCopyPageList -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-// Windows: If TakeOwnership is TRUE, a new Mdl is created for the destination pagelist
-// and copied from the source pagelist. TakeOwnership must be TRUE if the Mdl is 
-// retrieved from a request object and the Mdl is still needed if the request is 
-// already completed.
-// Linux: -
-//
-DtStatus  DtCopyPageList(
-    DtPageList*  pSrcPageList, 
-    DtPageList*  pDstPageList,
-    Bool  TakeOwnership)
-{
-    pDstPageList->m_BufType = pSrcPageList->m_BufType;
-    pDstPageList->m_OwnedByOs = pSrcPageList->m_OwnedByOs;
-    pDstPageList->m_pVirtualKernel = pSrcPageList->m_pVirtualKernel;
-#ifdef WINBUILD
-    if (TakeOwnership && pSrcPageList->m_OwnedByOs)
-    {
-        // Allocate the MDL for the complete buffer
-        pDstPageList->m_pMdl = IoAllocateMdl(MmGetMdlVirtualAddress(pSrcPageList->m_pMdl), 
-                                                  MmGetMdlByteCount(pSrcPageList->m_pMdl),
-                                                  FALSE, FALSE, NULL);
-        
-        // Create a copy of the source MDL
-        IoBuildPartialMdl(pSrcPageList->m_pMdl, pDstPageList->m_pMdl, 
-                                             MmGetMdlVirtualAddress(pSrcPageList->m_pMdl),
-                                             MmGetMdlByteCount(pSrcPageList->m_pMdl));
-        pDstPageList->m_OwnedByOs = FALSE;
-    } else
-        pDstPageList->m_pMdl = pSrcPageList->m_pMdl;
-#else
-    pDstPageList->m_pPages = pSrcPageList->m_pPages;
-    pDstPageList->m_NumPages = pSrcPageList->m_NumPages;
 #endif
     return DT_STATUS_OK;
 }

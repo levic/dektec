@@ -66,7 +66,7 @@ typedef struct
     // Exclusive access
     Bool  m_ExclAccess;
     DtFileObject  m_ExclAccessOwner;
-    DtSpinLock  m_ExclAccessLock;
+    DtMutex  m_ExclAccessLock;
 } DtaSpiMf;
 
 

@@ -256,6 +256,12 @@ DtStatus  DtaEnDecExclusiveAccess(
     {
         if (pEnDec->m_ExclAccess)
             Result = DT_STATUS_IN_USE;
+    } else if (Cmd == DTA_EXCLUSIVE_ACCESS_CMD_CHECK)
+    {
+        if (!pNonIpPort->m_ExclAccess)
+            Result = DT_STATUS_EXCL_ACCESS_REQD;
+        else if (!DtFileCompare(&pEnDec->m_ExclAccessOwner, pFile))
+            Result = DT_STATUS_IN_USE;
     } else
         Result = DT_STATUS_NOT_SUPPORTED;
     
@@ -333,3 +339,22 @@ DtStatus  DtaEnDecClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile)
     return DT_STATUS_OK;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEnDecPowerdownPre -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaEnDecPowerdownPre(DtaNonIpPort* pNonIpPort)
+{
+    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180)
+        return DtaEncD7ProPowerdownPre(pNonIpPort);
+
+    return DT_STATUS_NOT_SUPPORTED;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEnDecPowerUpPost -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaEnDecPowerUpPost(DtaNonIpPort* pNonIpPort)
+{
+    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180)
+        return DtaEncD7ProPowerUpPost(pNonIpPort);
+
+    return DT_STATUS_NOT_SUPPORTED;
+}

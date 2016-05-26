@@ -78,16 +78,24 @@
 #define  DT_AD9129REG_DRIVSTRENGTH 0x7C    // Drive Strength 
 #define  DT_AD9129REG_PARTID       0x7F    // Part ID 
 
+#define  ATTN_MAX                  0x7FFFFFFF   // Maximum attenuation value
+#define  GLOBAL_RF_GAIN            0x3C0    // Global RF gain found by Peter Wieninger
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-DtStatus  DtaAd9129Init(DtaNonIpPort*  pNonIpPort);
-DtStatus  DtaAd9129StartUpDac(UInt8*  pRfRegs);
-DtStatus  DtaAd9129ResetDac(UInt8*  pRfRegs);
-DtStatus  DtaAd9129Write(UInt8*  pRfRegs, UInt RegAddr, UInt8 Data);
-DtStatus  DtaAd9129SpiWait(UInt8*  pRfRegs);
-UInt  DtaRfRegRead(UInt8* pRfRegs, UInt Offset);
-UInt  DtaRfRegReadMasked(UInt8* pRfRegs, UInt Offset, UInt Mask, UInt Shift);
-void  DtaRfRegWrite(UInt8* pRfRegs, UInt Offset, UInt Value);
-void  DtaRfRegWriteMasked(UInt8* pRfRegs, UInt Offset, UInt Mask, UInt Shift, UInt Value);
+DtStatus  DtaAd9129StartUpDac(volatile UInt8*  pRfRegs);
+DtStatus  DtaAd9129ResetDac(volatile UInt8*  pRfRegs);
+DtStatus  DtaAd9129Write(volatile UInt8*  pRfRegs, UInt RegAddr, UInt8 Data);
+DtStatus  DtaAd9129SpiWait(volatile UInt8*  pRfRegs);
+UInt  DtaRegRead(volatile UInt8* pRegs, UInt Offset);
+UInt  DtaRegReadMasked(volatile UInt8* pRegs, UInt Offset, UInt Mask, UInt Shift);
+void  DtaRegWrite(volatile UInt8* pRegs, UInt Offset, UInt Value);
+void  DtaRegWriteMasked(volatile UInt8* pRegs, UInt Offset, UInt Mask, UInt Shift,
+                                                                              UInt Value);
+DtStatus  DtaMultiModSetRfLevel(DtaDeviceData*  pDvcData, Int PortIdx,
+                                         Int  ChanTotalGainFactor, Int  CommonAttenFactor,
+                                         Int Atten1, Int Atten2, Int Atten3, Int FreqMHz,
+                                         DtFileObject* pFile);
+DtStatus  DtaMultiModUpdateRfLevels(DtaMultiModData* pMultiMod);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -114,7 +122,7 @@ DtStatus  DtaAd9129Init(DtaNonIpPort*  pNonIpPort)
 {
     Int LoopCount = 5;  // Maximum number of retries
     UInt DacIfStatus = 0;
-    UInt8* pRfRegs = (UInt8*)pNonIpPort->m_pRfRegs;
+    volatile UInt8* pRfRegs = pNonIpPort->m_pRfRegs;
     if (pRfRegs == NULL)
     {
         DtDbgOut(ERR, DAC, "AD9129 RF-registers not initialized"); 
@@ -125,14 +133,14 @@ DtStatus  DtaAd9129Init(DtaNonIpPort*  pNonIpPort)
     {
         DtDbgOut(AVG, DAC, "AD9129 Initializing :%d", LoopCount ); 
         // Select PLL frequency 2400MHz
-        DtaRfRegWriteMasked(pRfRegs, DT_RF_REG_RF_CONTROL3, DT_RFCTRL3_CLKFRESEL_MSK, 
+        DtaRegWriteMasked(pRfRegs, DT_RF_REG_RF_CONTROL3, DT_RFCTRL3_CLKFRESEL_MSK, 
                                               DT_RFCTRL3_CLKFRESEL_SH, DT_RFCLKFREQ_2400); 
                       
         // Wait 10ms for lock
         DtSleep(10);  
 
         // Reset DAC's IF-status 
-        DtaRfRegWriteMasked(pRfRegs, DT_RF_REG_DACITF_CONTROL, 
+        DtaRegWriteMasked(pRfRegs, DT_RF_REG_DACITF_CONTROL, 
                                                           DT_RFDACITFCTRL_RESETDET_MSK,
                                                           DT_RFDACITFCTRL_RESETDET_SH, 1);
 
@@ -146,27 +154,27 @@ DtStatus  DtaAd9129Init(DtaNonIpPort*  pNonIpPort)
         DtSleep(50);
         
         // Reset DAC's IF-status 
-        DtaRfRegWriteMasked(pRfRegs, DT_RF_REG_DACITF_CONTROL, 
+        DtaRegWriteMasked(pRfRegs, DT_RF_REG_DACITF_CONTROL, 
                            DT_RFDACITFCTRL_RESETDET_MSK,  DT_RFDACITFCTRL_RESETDET_SH, 1);
 
         // MixMode off
         DT_RETURN_ON_ERROR(DtaAd9129Write(pRfRegs, DT_AD9129REG_DECODERCTRL, 0x00));
 
         // Select low pass filter ( 1036MHz)
-        DtaRfRegWriteMasked(pRfRegs, DT_RF_REG_RF_CONTROL3, DT_RFCTRL3_FILTERSEL_MSK,
+        DtaRegWriteMasked(pRfRegs, DT_RF_REG_RF_CONTROL3, DT_RFCTRL3_FILTERSEL_MSK,
                                              DT_RFCTRL3_FILTERSEL_SH, DT_RFFILTER_BAND_1);  
         DtSleep(20);
 
         // Set Normal mode
-        DtaRfRegWriteMasked(pRfRegs, DT_RF_REG_DACITF_CONTROL, DT_RFDACITFCTRL_MODE_MSK, 
+        DtaRegWriteMasked(pRfRegs, DT_RF_REG_DACITF_CONTROL, DT_RFDACITFCTRL_MODE_MSK, 
                                       DT_RFDACITFCTRL_MODE_SH, DT_RFDACITF_MODE_NORMAL);
 
         // SKIP 3 LSB
-        DtaRfRegWriteMasked(pRfRegs, DT_RF_REG_DACITF_CONTROL,  DT_RFDACITFCTRL_GAIN_MSK, 
+        DtaRegWriteMasked(pRfRegs, DT_RF_REG_DACITF_CONTROL,  DT_RFDACITFCTRL_GAIN_MSK, 
                                         DT_RFDACITFCTRL_GAIN_SH, DT_RFDACITF_GAIN_1_14_3);        
     
         // Check DAC status
-        DacIfStatus = DtaRfRegReadMasked(pRfRegs, DT_RF_REG_DACITF_CONTROL, 
+        DacIfStatus = DtaRegReadMasked(pRfRegs, DT_RF_REG_DACITF_CONTROL, 
                                DT_RFDACITFCTRL_RESETDET_MSK, DT_RFDACITFCTRL_RESETDET_SH);
         LoopCount--;
     } while(DacIfStatus!=0 && LoopCount>=0);
@@ -190,7 +198,7 @@ DtStatus  DtaAd9129Init(DtaNonIpPort*  pNonIpPort)
 //
 // Execution of DAC start-up sequence
 //
-DtStatus  DtaAd9129StartUpDac(UInt8*  pRfRegs)
+DtStatus  DtaAd9129StartUpDac(volatile UInt8*  pRfRegs)
 {
     // 4-wire SPI, MSB-first packing, short addressing mode
     DT_RETURN_ON_ERROR(DtaAd9129Write(pRfRegs, DT_AD9129REG_SPICONTROL, 0x00));
@@ -238,10 +246,10 @@ DtStatus  DtaAd9129StartUpDac(UInt8*  pRfRegs)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaAd9129ResetDac -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaAd9129ResetDac(UInt8*  pRfRegs)
+DtStatus  DtaAd9129ResetDac(volatile UInt8*  pRfRegs)
 {
     // Reset AD9192
-    DtaRfRegWrite(pRfRegs, DT_RF_REG_DACSPI_CONTROL, DT_RFDACSPICTRL_SPIRESET_MSK);
+    DtaRegWrite(pRfRegs, DT_RF_REG_DACSPI_CONTROL, DT_RFDACSPICTRL_SPIRESET_MSK);
     DT_RETURN_ON_ERROR(DtaAd9129SpiWait(pRfRegs));
     
     DT_RETURN_ON_ERROR(DtaAd9129Write(pRfRegs, DT_AD9129REG_SPICONTROL, 0x00));
@@ -252,16 +260,15 @@ DtStatus  DtaAd9129ResetDac(UInt8*  pRfRegs)
     return DT_STATUS_OK;
 }
 
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaAd9129Write -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus DtaAd9129Write(UInt8*  pRfRegs, UInt RegAddr, UInt8 Data)
+DtStatus DtaAd9129Write(volatile UInt8*  pRfRegs, UInt RegAddr, UInt8 Data)
 {
     // Wait until previous SPI transfer to AD9192 is completed
     DT_RETURN_ON_ERROR(DtaAd9129SpiWait(pRfRegs));
 
     // Write data
-    DtaRfRegWrite(pRfRegs, DT_RF_REG_DACSPI_CONTROL, 
+    DtaRegWrite(pRfRegs, DT_RF_REG_DACSPI_CONTROL, 
                  DT_RFDACSPICTRL_SPIUPDATE_MSK |                  // Update-request, Write  
                  ((RegAddr&0x7F) << DT_RFDACSPICTRL_SPIADDR_SH) | // Register address
                  (Data << DT_RFDACSPICTRL_SPIDATA_SH));           // Data
@@ -271,17 +278,17 @@ DtStatus DtaAd9129Write(UInt8*  pRfRegs, UInt RegAddr, UInt8 Data)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaAd9129SpiWait -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaAd9129SpiWait(UInt8*  pRfRegs)
+DtStatus  DtaAd9129SpiWait(volatile UInt8*  pRfRegs)
 {
     Int TimeOut;
 
     // Wait until AD9192 command is completed
     UInt32 DacCtrlReg;
-    DacCtrlReg = DtaRfRegRead(pRfRegs, DT_RF_REG_DACSPI_CONTROL);  
+    DacCtrlReg = DtaRegRead(pRfRegs, DT_RF_REG_DACSPI_CONTROL);  
     TimeOut = 50;
     while ((DacCtrlReg & DT_RFDACSPICTRL_SPIREADY_MSK)==0 && TimeOut>0)
     {
-        DacCtrlReg = DtaRfRegRead(pRfRegs, DT_RF_REG_DACSPI_CONTROL);  
+        DacCtrlReg = DtaRegRead(pRfRegs, DT_RF_REG_DACSPI_CONTROL);  
         TimeOut--;
     }
     // If time-out, try again in 1ms step; wait 50 ms max
@@ -291,7 +298,7 @@ DtStatus  DtaAd9129SpiWait(UInt8*  pRfRegs)
         while ((DacCtrlReg & DT_RFDACSPICTRL_SPIREADY_MSK)==0 && TimeOut>0)
         {
             DtSleep(1);
-            DacCtrlReg = DtaRfRegRead(pRfRegs, DT_RF_REG_DACSPI_CONTROL);   
+            DacCtrlReg = DtaRegRead(pRfRegs, DT_RF_REG_DACSPI_CONTROL);   
             TimeOut--;
         }
     }
@@ -305,30 +312,347 @@ DtStatus  DtaAd9129SpiWait(UInt8*  pRfRegs)
     return DT_STATUS_OK;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRfRegRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRegRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-UInt  DtaRfRegRead(UInt8* pRfRegs, UInt Offset)
+UInt  DtaRegRead(volatile UInt8* pRegs, UInt Offset)
 {
-    return READ_UINT(pRfRegs, Offset);
+    return READ_UINT(pRegs, Offset);
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRfRegReadMasked -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRegReadMasked -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-UInt  DtaRfRegReadMasked(UInt8* pRfRegs, UInt Offset, UInt Mask, UInt Shift)
+UInt  DtaRegReadMasked(volatile UInt8* pRegs, UInt Offset, UInt Mask, UInt Shift)
 {
-    return READ_UINT_MASKED(pRfRegs, Offset, Mask, Shift);
+    return READ_UINT_MASKED(pRegs, Offset, Mask, Shift);
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRfRegWrite -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRegWrite -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void   DtaRfRegWrite(UInt8* pRfRegs, UInt Offset, UInt Value)
+void   DtaRegWrite(volatile UInt8* pRegs, UInt Offset, UInt Value)
 {
-    WRITE_UINT(Value, pRfRegs, Offset);
+    WRITE_UINT(Value, pRegs, Offset);
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRfRegWriteMasked -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRegWriteMasked -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtaRfRegWriteMasked(UInt8* pRfRegs, UInt Offset, UInt Mask, UInt Shift, UInt Value)
+void  DtaRegWriteMasked(volatile UInt8* pRegs, UInt Offset, UInt Mask, UInt Shift, UInt Value)
 {
-    WRITE_UINT_MASKED(Value, pRfRegs, Offset, Mask, Shift);
+    WRITE_UINT_MASKED(Value, pRegs, Offset, Mask, Shift);
+}
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtaMultiMod +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaMultiModInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaMultiModInit(DtaDeviceData*  pDvcData)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtaMultiModData* pMultiMod = &pDvcData->m_MultiMod;
+    Int PortIdx;
+
+    // Only supported for DTA-2115 FW-variant 1
+    pMultiMod->m_IsSupported = FALSE;
+    if (pDvcData->m_DevInfo.m_TypeNumber!=2115 
+                                              || pDvcData->m_DevInfo.m_FirmwareVariant!=1)
+        return DT_STATUS_OK;
+
+    // Set default values
+    pMultiMod->m_IsSupported = TRUE;
+    pMultiMod->m_pRfRegs = NULL;
+    DtFastMutexInit(&pMultiMod->m_MultiModRfLevelMutex);
+    for (PortIdx=0; PortIdx<DTA_MAX_NUM_MULTIMOD_CHANS; PortIdx++)
+    {
+        pMultiMod->m_pModRegs[PortIdx] = NULL;
+        pMultiMod->m_ChanTotalGainFactor[PortIdx] = 0;
+        pMultiMod->m_CommonAttenFactor[PortIdx] = ATTN_MAX;
+        pMultiMod->m_InUse[PortIdx] = FALSE;
+        pMultiMod->m_FreqMHz[PortIdx] = 0;
+        pMultiMod->m_Atten1[PortIdx] = 0;
+        pMultiMod->m_Atten2[PortIdx] = 0;
+        pMultiMod->m_Atten3[PortIdx] = 0;
+    }
+
+    return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaMultiModInitPowerup -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaMultiModInitPowerup(DtaDeviceData* pDvcData)
+{
+    DtaMultiModData* pMultiMod = &pDvcData->m_MultiMod;
+    Int PortIdx, NonIpPortIdx;
+
+    // If multi modulator is not supported, we're ready
+    if (!pMultiMod->m_IsSupported)
+        return DT_STATUS_OK;
+    
+    // Get for all channels the new modulator register address
+    DT_ASSERT(DTA_MAX_NUM_MULTIMOD_CHANS <= pDvcData->m_NumPorts);
+    for (PortIdx=0; PortIdx<pDvcData->m_NumPorts; PortIdx++)
+    {
+        if (pDvcData->m_pPortLookup[PortIdx].m_PortType!=DTA_PORT_TYPE_NONIP)
+            continue;
+
+        NonIpPortIdx = pDvcData->m_pPortLookup[PortIdx].m_Index;
+        pMultiMod->m_pModRegs[PortIdx] = 
+                                         pDvcData->m_pNonIpPorts[NonIpPortIdx].m_pModRegs;
+        // Also get the common RF-register
+        if (pDvcData->m_pNonIpPorts[NonIpPortIdx].m_pRfRegs != NULL)
+            pMultiMod->m_pRfRegs = pDvcData->m_pNonIpPorts[NonIpPortIdx].m_pRfRegs;
+    }
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaMultiModIoctl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaMultiModIoctl(
+    DtaDeviceData*  pDvcData,
+    DtFileObject*  pFile,
+    DtIoctlObject*  pIoctl,
+    Bool  PowerDownPending)
+{
+    DtaMultiModData* pMultiMod = &pDvcData->m_MultiMod;
+    DtStatus  Status = DT_STATUS_OK;
+    char*  pCmdStr;             // Mnemonic string for Command
+    UInt  InReqSize = 0;        // Required length of input buffer
+    UInt  OutReqSize = 0;       // Required length of output buffer
+    DtaIoctlMultiModCmdInput*  pMultiModCmdInput = 
+                                        (DtaIoctlMultiModCmdInput*)pIoctl->m_pInputBuffer;
+    
+    // Default require at least the size of the header preceding the data
+    InReqSize = OFFSETOF(DtaIoctlMultiModCmdInput, m_Data);
+
+    // Check if we can read m_Cmd / m_PortIndex
+    if (pIoctl->m_InputBufferSize < InReqSize)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Check whether multi-modulator is supported
+    if (!pMultiMod->m_IsSupported)
+        return DT_STATUS_NOT_SUPPORTED;
+      
+    // Determine final required output/input sizes
+    switch (pMultiModCmdInput->m_Cmd)
+    {
+    case DTA_MULTIMOD_CMD_SET_LEVEL:
+        pCmdStr = "DTA_MULTIMOD_CMD_SET_LEVEL";
+        InReqSize += sizeof(DtaIoctlMultiModCmdSetLevelInput);
+        OutReqSize = 0;
+        break;
+    default:
+        pCmdStr = "??UNKNOWN MULTIMOD_CMD CODE??";
+        Status = DT_STATUS_NOT_SUPPORTED;
+    }
+
+    if (DT_SUCCESS(Status))
+    {
+        // Check buffer sizes
+        if (pIoctl->m_InputBufferSize < InReqSize)
+        {
+            DtDbgOut(ERR, DAC, "%s: INPUT BUFFER TOO SMALL Size=%d Req=%d", pCmdStr,
+                                                    pIoctl->m_InputBufferSize, InReqSize);
+            return DT_STATUS_INVALID_PARAMETER;
+        }
+        if (pIoctl->m_OutputBufferSize < OutReqSize)
+        {
+            DtDbgOut(ERR, DAC, "%s: OUTPUT BUFFER TOO SMALL Size=%d Req=%d", pCmdStr, 
+                                                  pIoctl->m_OutputBufferSize, OutReqSize);
+            return DT_STATUS_INVALID_PARAMETER;
+        }
+
+        DtDbgOut(MAX, DAC, "%s: In=%d (Rq=%d), Out=%d (Rq=%d)", pCmdStr,
+            pIoctl->m_InputBufferSize, InReqSize, pIoctl->m_OutputBufferSize, OutReqSize);
+    }
+
+    // The bytes written will be updated if needed. Set the default value here.
+    pIoctl->m_OutputBufferBytesWritten = OutReqSize;
+
+    if (DT_SUCCESS(Status))
+    {
+        switch (pMultiModCmdInput->m_Cmd)
+        {
+        case DTA_MULTIMOD_CMD_SET_LEVEL:
+            Status = DtaMultiModSetRfLevel(pDvcData,
+                               pMultiModCmdInput->m_PortIndex,
+                               pMultiModCmdInput->m_Data.m_SetLevel.m_ChanTotalGainFactor,
+                               pMultiModCmdInput->m_Data.m_SetLevel.m_CommonAttenFactor,
+                               pMultiModCmdInput->m_Data.m_SetLevel.m_Atten1,
+                               pMultiModCmdInput->m_Data.m_SetLevel.m_Atten2,
+                               pMultiModCmdInput->m_Data.m_SetLevel.m_Atten3,
+                               pMultiModCmdInput->m_Data.m_SetLevel.m_FreqMHz,
+                               pFile);
+            break;
+
+        }
+    }
+
+    // If we failed, no data has to be copied to user space
+    if (!DT_SUCCESS(Status))
+    {
+        pIoctl->m_OutputBufferBytesWritten = 0;
+        if (Status == DT_STATUS_NOT_SUPPORTED)
+            DtDbgOut(MIN, DAC, "MultiModCmd=0x%x: NOT SUPPORTED", pMultiModCmdInput->m_Cmd);
+        else if (Status == DT_STATUS_IO_PENDING)
+            DtDbgOut(MAX, DAC, "%s: ERROR %xh", pCmdStr, Status); // NOT A REAL ERROR
+        else
+            DtDbgOut(MIN, DAC, "%s: ERROR %xh", pCmdStr, Status);
+    }
+    return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaMultiModClose -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaMultiModClose(DtaDeviceData*  pDvcData, DtFileObject* pFile)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtaMultiModData* pMultiMod = &pDvcData->m_MultiMod;
+    Bool UpdateNeeded = FALSE;
+    Int PortIdx;
+
+    // If multi modulator is not supported, we're ready
+    if (!pMultiMod->m_IsSupported)
+        return DT_STATUS_OK;
+
+    // Lock
+    DtFastMutexAcquire(&pMultiMod->m_MultiModRfLevelMutex);
+
+    // For all channels using this file-handle clear the RF-level data
+    for (PortIdx=0; PortIdx<DTA_MAX_NUM_MULTIMOD_CHANS; PortIdx++)
+    {      
+        if (pMultiMod->m_InUse[PortIdx]
+                              && DtFileCompare(&pMultiMod->m_CurrentOwner[PortIdx], pFile))
+        {
+            // Clear data
+            pMultiMod->m_ChanTotalGainFactor[PortIdx] = 0;
+            pMultiMod->m_CommonAttenFactor[PortIdx] = ATTN_MAX;
+            pMultiMod->m_InUse[PortIdx] = FALSE;
+            pMultiMod->m_FreqMHz[PortIdx] = 0;
+            pMultiMod->m_Atten1[PortIdx] = 0;
+            pMultiMod->m_Atten2[PortIdx] = 0;
+            pMultiMod->m_Atten3[PortIdx] = 0;
+            UpdateNeeded = TRUE;
+        }
+    }
+    
+    // If needed, update RF-levels for all channels
+    if (UpdateNeeded)
+        Status = DtaMultiModUpdateRfLevels(pMultiMod);
+
+    // Unlock
+    DtFastMutexRelease(&pMultiMod->m_MultiModRfLevelMutex);
+    return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaMultiModSetRfLevel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaMultiModSetRfLevel(DtaDeviceData*  pDvcData, Int PortIdx,
+                                         Int  ChanTotalGainFactor, Int  CommonAttenFactor,
+                                         Int Atten1, Int Atten2, Int Atten3, Int FreqMHz,
+                                         DtFileObject* pFile)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtaMultiModData* pMultiMod = &pDvcData->m_MultiMod;
+    
+    // Check port
+    if (PortIdx< 0 || PortIdx>=DTA_MAX_NUM_MULTIMOD_CHANS 
+                                           || pMultiMod->m_pModRegs[PortIdx]==NULL)
+        return DT_STATUS_NOT_SUPPORTED;
+
+    // Lock
+    DtFastMutexAcquire(&pMultiMod->m_MultiModRfLevelMutex);
+
+    if (!pMultiMod->m_InUse[PortIdx])
+    {
+        pMultiMod->m_InUse[PortIdx] = TRUE;
+        pMultiMod->m_CurrentOwner[PortIdx] = *pFile;
+    }
+    if (!DtFileCompare(&pMultiMod->m_CurrentOwner[PortIdx], pFile))
+    {
+       // Unexpected owner
+        DtDbgOut(MAX, DAC, "Unexpected multi-modulator channel owner"); 
+    }
+
+    // Set new RF-level data for this channel
+    pMultiMod->m_ChanTotalGainFactor[PortIdx] = ChanTotalGainFactor;
+    pMultiMod->m_CommonAttenFactor[PortIdx] = CommonAttenFactor;
+    pMultiMod->m_FreqMHz[PortIdx] = FreqMHz;
+    pMultiMod->m_Atten1[PortIdx] = Atten1;
+    pMultiMod->m_Atten2[PortIdx] = Atten2;
+    pMultiMod->m_Atten3[PortIdx] = Atten3;
+
+    // Update RF-levels for all channels
+    Status = DtaMultiModUpdateRfLevels(pMultiMod);
+
+    // Unlock
+    DtFastMutexRelease(&pMultiMod->m_MultiModRfLevelMutex);
+    return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaMultiModUpdateRfLevels -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaMultiModUpdateRfLevels(DtaMultiModData* pMultiMod)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    volatile UInt8* pModRegs;
+    volatile UInt8* pRfRegs;
+    Bool AllChanOff = TRUE;
+    Int PortIdx, LowAttnPortIdx;
+    UInt32 RegValue;
+    Int Atten1, Atten2, Atten3; 
+
+    // Find the channel with the lowest attenuation
+    LowAttnPortIdx = 0;
+    for (PortIdx=1; PortIdx<DTA_MAX_NUM_MULTIMOD_CHANS; PortIdx++)
+        if (pMultiMod->m_CommonAttenFactor[LowAttnPortIdx] 
+                                         > pMultiMod->m_CommonAttenFactor[PortIdx])
+            LowAttnPortIdx = PortIdx;
+
+    // Get the lowest attenuation settings
+    Atten1 = pMultiMod->m_Atten1[LowAttnPortIdx];
+    Atten2 = pMultiMod->m_Atten2[LowAttnPortIdx];
+    Atten3 = pMultiMod->m_Atten3[LowAttnPortIdx]; 
+
+    // Update the RF-Level of the channels
+    for (PortIdx=0; PortIdx<DTA_MAX_NUM_MULTIMOD_CHANS; PortIdx++)
+    {
+        Int64 ChanRfLevel;
+        if (pMultiMod->m_pModRegs[PortIdx] == NULL)
+            continue;
+
+        // ChanTotalGainFactor and CommonAttenFactor contain 16 bit before and 16 bit
+        // after the binary point. After the multiplication we need to shift 32 right
+        // to get the integer result.
+        ChanRfLevel = (Int64)pMultiMod->m_ChanTotalGainFactor[PortIdx]
+                                  * (Int64)pMultiMod->m_CommonAttenFactor[LowAttnPortIdx];
+        // 0dB = 1 << 11; So to get the RF-level: shift right 21
+        ChanRfLevel = ChanRfLevel>>21;
+        if (ChanRfLevel > 0)
+            AllChanOff = FALSE;
+
+        pModRegs = pMultiMod->m_pModRegs[PortIdx];
+        DtaRegWrite(pModRegs, DT_TX_REG_MOD_CHANLEVEL, (UInt)ChanRfLevel);
+    }
+    pRfRegs =  pMultiMod->m_pRfRegs;
+    DT_ASSERT(pRfRegs != NULL);
+
+    // Check new values
+    DT_ASSERT(((Atten1 << DT_RFCTRL2_ATTN1_SH) & ~DT_RFCTRL2_ATTN1_MSK) == 0);
+    DT_ASSERT(((Atten2 << DT_RFCTRL2_ATTN2_SH) & ~DT_RFCTRL2_ATTN2_MSK) == 0);
+    DT_ASSERT(((Atten3 << DT_RFCTRL2_ATTN3_SH) & ~DT_RFCTRL2_ATTN3_MSK) == 0);
+    // Set attenuators
+    RegValue = READ_UINT(pRfRegs, DT_RF_REG_RF_CONTROL2);
+    RegValue &= ~(DT_RFCTRL2_ATTN1_MSK | DT_RFCTRL2_ATTN2_MSK | DT_RFCTRL2_ATTN3_MSK);
+    RegValue |= (Atten1<<DT_RFCTRL2_ATTN1_SH) | (Atten2<<DT_RFCTRL2_ATTN2_SH)
+                                                          | (Atten3<<DT_RFCTRL2_ATTN3_SH);
+    DtaRegWrite(pRfRegs, DT_RF_REG_RF_CONTROL2, RegValue);
+
+    // Set global gain in the modulator
+    DT_ASSERT(pModRegs != NULL);
+    if (pModRegs != NULL)
+        DtaRegWrite(pModRegs, DT_TX_REG_MOD_GLOBALGAIN, GLOBAL_RF_GAIN);
+        
+    // Enable/disable RF-amplifier
+    DtaRegWriteMasked(pRfRegs, DT_RF_REG_RF_CONTROL3,
+                                          DT_RFCTRL3_AMPPOWER_MSK, DT_RFCTRL3_AMPPOWER_SH, 
+                                          AllChanOff ? 0 : 1);   
+    return Status;
 }

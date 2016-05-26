@@ -421,7 +421,11 @@ DtStatus  DtaDmaPrepareDataBuffer(
     } else {
         pPageListDma = &pDmaCh->m_Data.m_OsSgList.m_PageList;
         if (pPageList != NULL)
-            Status = DtCopyPageList(pPageList, pPageListDma, FALSE);
+        {
+            // Copy page list and mark list as not owned by us
+            *pPageListDma = *pPageList;
+            pPageListDma->m_OwnedByUs = FALSE;
+        }
         else
             Status = DtCreatePageList(pBuffer, BufSize, BufType, pPageListDma);
     }

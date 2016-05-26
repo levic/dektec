@@ -229,6 +229,7 @@ struct _DtaNonIpPort
     Bool  m_CapAsi;
     Bool  m_CapAvEnc;
     Bool  m_CapDemod;
+    Bool  m_CapGpsTime;
     Bool  m_CapHdmi;
     Bool  m_CapHdSdi;
     Bool  m_CapIfAdc;
@@ -329,6 +330,7 @@ struct _DtaNonIpPort
     DtSpinLock  m_FlagsSpinLock;
 
     // Firmware register mapping
+    UInt16  m_ModRegsOffset;
     UInt16  m_RfRegsOffset;
     UInt16  m_RxRegsOffset;
     UInt16  m_TxRegsOffset;
@@ -336,6 +338,7 @@ struct _DtaNonIpPort
     UInt16  m_Rs422RegsOffset;
     UInt16  m_FwbRegsOffset;
     UInt16  m_FifoOffset;
+    volatile UInt8*  m_pModRegs;
     volatile UInt8*  m_pRfRegs;
     volatile UInt8*  m_pRxRegs;
     volatile UInt8*  m_pTxRegs;

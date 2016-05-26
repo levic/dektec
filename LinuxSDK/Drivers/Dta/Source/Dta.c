@@ -48,13 +48,18 @@ void  DtaCleanupPortStructs(DtaDeviceData* pDvcData);
 DtStatus  DtaDeviceGenlockIoctl(DtaDeviceData* pDvcData, Int* pState, Int* pRefVidStd);
 DtStatus  DtaGetAddressRegsForUserspace(DtaDeviceData* pDvcData, DtFileObject* pFile,
                            Int PortIndex, void* pPaMap, Int* pSize, void** ppUserVirtual);
+DtStatus  DtaGetIsFwPackaged(DtaDeviceData* pDvcData, Bool* pFwPackaged);
+DtStatus  DtaGetFirmwarePackage(DtaDeviceData* pDvcData, DtFileObject* pFile, 
+                                                                   Int* pFirmwarePackage);
 void  DtaPortsCleanUp(DtaDeviceData* pDvcData);
 DtStatus  DtaPortsCleanUpPre(DtaDeviceData* pDvcData);
 DtStatus  DtaPortsInit(DtaDeviceData* pDvcData);
 DtStatus  DtaPowerupPorts(DtaDeviceData* pDvcData);
 DtStatus  DtaPowerdownPorts(DtaDeviceData* pDvcData);
 DtStatus  DtaPowerdownPortsPre(DtaDeviceData* pDvcData);
-DtStatus  DtaRebootFirmware(DtaDeviceData* pDvcData);
+DtStatus  DtaRebootFirmware(DtaDeviceData* pDvcData, Int Delay);
+DtStatus  DtaRebootFirmwarePlx(DtaDeviceData* pDvcData, Int Delay);
+DtStatus  DtaRebootFirmwareCfi(DtaDeviceData* pDvcData, Int Delay);
 DtStatus  DtaReleaseAddressRegsForUserspace(DtaDeviceData* pDvcData, DtFileObject* pFile,
                                                Int PortIndex, void** ppPaMap, Int* pSize);
 DtStatus  DtaSetMemoryTestMode(DtaDeviceData* pDvcData, Bool On);
@@ -138,6 +143,7 @@ DtStatus  DtaDeviceInit(DtaDeviceData* pDvcData)
     // The first powerup is special to initialize resources that need the hardware
     pDvcData->m_InitialPowerup = TRUE;
     pDvcData->m_IntEnableState = INT_DISABLED; // Not enabled yet
+    pDvcData->m_FwRebootPending = FALSE;
 
     // Initialize general periodic interrupt DPC
     Status = DtDpcInit(&pDvcData->m_GenPerIntDpc, DtaGeneralPeriodicIntDpc, TRUE);
@@ -185,6 +191,7 @@ DtStatus  DtaDeviceInit(DtaDeviceData* pDvcData)
     if (pDvcData->m_DevInfo.m_UsesPlxChip && !pDvcData->m_DevInfo.m_HasUninitializedPlx)
     {
         pDvcData->m_DevInfo.m_FirmwareVariant = 0;
+        pDvcData->m_DevInfo.m_FwPackageVersion = -1;
         // Initialize property data object
         pDvcData->m_PropData.m_pPropertyStore = NULL;
         pDvcData->m_PropData.m_PropertyNotFoundCounter = 0;
@@ -541,6 +548,7 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
             if (!DT_SUCCESS(Status))
                 return Status;
         } 
+
         // Check whether firmware variant is supported by this driver 
         Status = DtaCheckFwVariantSupport(pDvcData);
         if (!DT_SUCCESS(Status))
@@ -727,6 +735,22 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
         Status = DtaSpiMfDvcInit(pDvcData);
         if (!DT_SUCCESS(Status))
             return Status;
+
+        // Multi-modulator RF-Level data initialisation
+        Status = DtaMultiModInit(pDvcData);
+        if (!DT_SUCCESS(Status))
+            return Status;
+
+        // Initialize the programming interface
+        Status = DtaProgItfInit(pDvcData);
+        if (!DT_SUCCESS(Status))
+            return Status;
+
+        // Get the Firmware package version
+        Status = DtaGetFirmwarePackage(pDvcData, DT_INVALID_FILE_OBJECT_PTR,
+                                                 &pDvcData->m_DevInfo.m_FwPackageVersion);
+        if (!DT_SUCCESS(Status))
+            return Status;
     }
             
     // Set PCI latency timer, use 64 as default for all devices
@@ -784,6 +808,11 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
 
     // Initialise modulator's RF-DAC
     Status = DtaRfDacInitPowerup(pDvcData);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    // Initialise fan control (software)
+    Status = DtaFanControlPowerUp(pDvcData);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -955,11 +984,18 @@ DtStatus  DtaDevicePowerUpPost(DtaDeviceData* pDvcData)
             return Status;
     }
 
-
     // SPI master flash controller post power-up initialisation
     if (pDvcData->m_SpiMf.m_IsSupported)
     {
         Status = DtaSpiMfDvcInitPowerup(pDvcData);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
+    
+    // Multi-modulator post power-up initialisation
+    if (pDvcData->m_MultiMod.m_IsSupported)
+    {
+        Status = DtaMultiModInitPowerup(pDvcData);
         if (!DT_SUCCESS(Status))
             return Status;
     }
@@ -974,6 +1010,7 @@ DtStatus  DtaDevicePowerUpPost(DtaDeviceData* pDvcData)
             return Status;
         }
     }
+
     return DT_STATUS_OK;
 }
 
@@ -1097,6 +1134,13 @@ DtStatus  DtaDevicePowerDown(DtaDeviceData* pDvcData)
 
     DtFastMutexRelease(&pDvcData->m_FileHandleInfoMutex);
 
+    // Reboot firmware  pending?
+    if (pDvcData->m_FwRebootPending)
+    {
+        // Hereafter no registers may be accessed!!!
+        pDvcData->m_FwRebootPending = FALSE;
+        DtaRebootFirmwareCfi(pDvcData, pDvcData->m_FwRebootDelay);
+    }
     // Set power down event
     DtaEventsSet(pDvcData, NULL, DTA_EVENT_TYPE_POWER, DTA_EVENT_VALUE1_POWER_DOWN, 0);
     DtDbgOut(MAX, DTA, "Exit");
@@ -1202,6 +1246,13 @@ DtStatus  DtaDeviceClose(DtaDeviceData* pDvcData, DtFileObject* pFile)
     if (pDvcData->m_SpiMf.m_IsSupported)
         DtaSpiMfClose(&pDvcData->m_SpiMf, NULL, pFile);
 
+    // Call Multi-modulator specific close
+    if (pDvcData->m_MultiMod.m_IsSupported)
+        DtaMultiModClose(pDvcData, pFile);
+
+    // Close the programming interface
+    DtaProgItfClose(pDvcData, pFile);
+
     // Release NonIp specific resources
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {
@@ -1239,7 +1290,6 @@ DtStatus  DtaDeviceClose(DtaDeviceData* pDvcData, DtFileObject* pFile)
 
     // Unregister events
     DtaEventsUnregister(pDvcData, pFile);
-
     return DT_STATUS_OK;
 }
 
@@ -1505,6 +1555,36 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
         pIoctlStr = "DTA_IOCTL_SPIMF_CMD";
         InReqSize = 0; // Checked later
         OutReqSize = 0; // Checked later
+        break;
+    case DTA_IOCTL_GET_DEV_INFO4:
+        pIoctlStr = "DTA_IOCTL_GET_DEV_INFO4";
+        InReqSize = 0;
+        OutReqSize = sizeof(DtaIoctlGetDevInfoOutput4);
+        break;
+    case DTA_IOCTL_PROGITF_CMD:
+        pIoctlStr = "DTA_IOCTL_PROGITF_CMD";
+        InReqSize = 0; // Checked later
+        OutReqSize = 0; // Checked later
+        break;
+    case DTA_IOCTL_MULTIMOD_CMD:
+        pIoctlStr = "DTA_IOCTL_MULTIMOD_CMD";
+        InReqSize = 0; // Checked later
+        OutReqSize = 0; // Checked later
+        break;
+    case DTA_IOCTL_GET_PROPERTY4:
+        pIoctlStr = "DTA_IOCTL_GET_PROPERTY4";
+        InReqSize = sizeof(DtaIoctlGetProperty4Input);
+        OutReqSize = sizeof(DtaIoctlGetPropertyOutput);
+        break;
+    case DTA_IOCTL_GET_STR_PROPERTY3:
+        pIoctlStr = "DTA_IOCTL_GET_STR_PROPERTY3";
+        InReqSize = sizeof(DtaIoctlGetStrProperty3Input);
+        OutReqSize = sizeof(DtaIoctlGetStrPropertyOutput);
+        break;
+    case DTA_IOCTL_GET_TABLE3:
+        pIoctlStr = "DTA_IOCTL_GET_TABLE3";
+        InReqSize = sizeof(DtaIoctlGetTable3Input);
+        OutReqSize = sizeof(DtaIoctlGetTableOutput);
         break;
     default:
         Status = DT_STATUS_NOT_SUPPORTED;
@@ -1792,7 +1872,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                     // Build pagelist object for user space buffer
                     pPageList = &PageList;
                     pPageList->m_BufType = DT_BUFTYPE_USER;
-                    pPageList->m_OwnedByOs = TRUE;
+                    pPageList->m_OwnedByUs = FALSE; // Is OS owned i.e. not us
                     pPageList->m_pMdl = pMdl;
                     pPageList->m_pVirtualKernel = NULL;
                 }
@@ -1898,7 +1978,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                     // Build pagelist object for user space buffer
                     pPageList = &PageList;
                     pPageList->m_BufType = DT_BUFTYPE_USER;
-                    pPageList->m_OwnedByOs = TRUE;
+                    pPageList->m_OwnedByUs = FALSE; // Is OS owned i.e. not us
                     pPageList->m_pMdl = pMdl;
                     pPageList->m_pVirtualKernel = NULL;
                 }
@@ -2086,7 +2166,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                                                 (pInBuf->m_SetMemoryTestMode.m_On > 0));
             break;
         case DTA_IOCTL_REBOOT_FIRMWARE:
-            Status = DtaRebootFirmware(pDvcData);
+            Status = DtaRebootFirmware(pDvcData, pInBuf->m_RebootFirmware.m_Delay);
             break;
         case DTA_IOCTL_GET_STR_PROPERTY:
             // Get for specific type or for the attached devices
@@ -2309,7 +2389,161 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
         case DTA_IOCTL_SPIMF_CMD:
             Status = DtaSpiMfIoctl(pDvcData, pFile, pIoctl, PowerDownPending);
             break;
+        case DTA_IOCTL_GET_DEV_INFO4:
+            pOutBuf->m_GetDevInfo4.m_DeviceId = pDvcData->m_DevInfo.m_DeviceId;
+            pOutBuf->m_GetDevInfo4.m_VendorId = pDvcData->m_DevInfo.m_VendorId;
+            pOutBuf->m_GetDevInfo4.m_SubSystemId = pDvcData->m_DevInfo.m_SubSystemId;
+            pOutBuf->m_GetDevInfo4.m_SubVendorId = pDvcData->m_DevInfo.m_SubVendorId;
+            pOutBuf->m_GetDevInfo4.m_BusNumber = pDvcData->m_DevInfo.m_BusNumber;
+            pOutBuf->m_GetDevInfo4.m_SlotNumber = pDvcData->m_DevInfo.m_SlotNumber;
+            pOutBuf->m_GetDevInfo4.m_TypeNumber = pDvcData->m_DevInfo.m_TypeNumber;
+            pOutBuf->m_GetDevInfo4.m_SubDvc = pDvcData->m_DevInfo.m_SubDvc;
+            pOutBuf->m_GetDevInfo4.m_HardwareRevision =
+                                                   pDvcData->m_DevInfo.m_HardwareRevision;
+            pOutBuf->m_GetDevInfo4.m_FirmwareVersion =
+                                                    pDvcData->m_DevInfo.m_FirmwareVersion;
+            pOutBuf->m_GetDevInfo4.m_FirmwareVariant =
+                                                    pDvcData->m_DevInfo.m_FirmwareVariant;
+            pOutBuf->m_GetDevInfo4.m_FwPackageVersion =
+                                                   pDvcData->m_DevInfo.m_FwPackageVersion;
+            pOutBuf->m_GetDevInfo4.m_Serial = pDvcData->m_DevInfo.m_Serial;
+            pOutBuf->m_GetDevInfo4.m_PcieNumLanes = pDvcData->m_DevInfo.m_PcieNumLanes;
+            pOutBuf->m_GetDevInfo4.m_PcieMaxLanes = pDvcData->m_DevInfo.m_PcieMaxLanes;
+            pOutBuf->m_GetDevInfo4.m_PcieLinkSpeed = pDvcData->m_DevInfo.m_PcieLinkSpeed;
+            pOutBuf->m_GetDevInfo4.m_PcieMaxSpeed = pDvcData->m_DevInfo.m_PcieMaxSpeed;
+            break;
+        case DTA_IOCTL_PROGITF_CMD:
+            Status = DtaProgItfIoctl(pDvcData, pFile, pIoctl, PowerDownPending);
+            break;
+        case DTA_IOCTL_MULTIMOD_CMD:
+            Status = DtaMultiModIoctl(pDvcData, pFile, pIoctl, PowerDownPending);
+            break;
+        case DTA_IOCTL_GET_PROPERTY4:
+            // Get for specific type or for the attached devices
+            if (pInBuf->m_GetProperty4.m_TypeNumber==-1 || 
+                                                      pInBuf->m_GetProperty4.m_SubDvc==-1)
+            {
+                DtPropertyValue  Value;
+                DtPropertyValueType  Type;
+                DtPropertyScope  Scope;
 
+                // Get the property for the current device
+                Status = DtPropertiesGet(&pDvcData->m_PropData,
+                                                    pInBuf->m_GetProperty4.m_Name,
+                                                    pInBuf->m_GetProperty4.m_PortIndex,
+                                                    &Value, &Type, &Scope,
+                                                    pInBuf->m_GetProperty4.m_DtapiMaj,
+                                                    pInBuf->m_GetProperty4.m_DtapiMin,
+                                                    pInBuf->m_GetProperty4.m_DtapiBugfix);
+                pOutBuf->m_GetProperty.m_Value = Value;
+                pOutBuf->m_GetProperty.m_Type = Type;
+                pOutBuf->m_GetProperty.m_Scope = Scope;
+            } else {
+                DtPropertyValue  Value;
+                DtPropertyValueType  Type;
+                DtPropertyScope  Scope;
+                
+                // Property for a specific type was requested
+                Status = DtPropertiesGetForType("DTA",
+                                                pInBuf->m_GetProperty4.m_TypeNumber,
+                                                pInBuf->m_GetProperty4.m_SubDvc,
+                                                pInBuf->m_GetProperty4.m_HardwareRevision,
+                                                pInBuf->m_GetProperty4.m_FirmwareVersion,
+                                                pInBuf->m_GetProperty4.m_FirmwareVariant,
+                                                pInBuf->m_GetProperty4.m_Name,
+                                                pInBuf->m_GetProperty4.m_PortIndex,
+                                                &Value, &Type, &Scope,
+                                                pInBuf->m_GetProperty4.m_DtapiMaj,
+                                                pInBuf->m_GetProperty4.m_DtapiMin,
+                                                pInBuf->m_GetProperty4.m_DtapiBugfix);
+                pOutBuf->m_GetProperty.m_Value = Value;
+                pOutBuf->m_GetProperty.m_Type = Type;
+                pOutBuf->m_GetProperty.m_Scope = Scope;
+            }
+            
+            if (DT_SUCCESS(Status))
+            {
+                DT_ASSERT((pOutBuf->m_GetProperty.m_Scope&PROPERTY_SCOPE_DTAPI) ==
+                                                                    PROPERTY_SCOPE_DTAPI);
+            }
+            break;
+
+      case DTA_IOCTL_GET_STR_PROPERTY3:
+            // Get for specific type or for the attached devices
+            if (pInBuf->m_GetStrProperty3.m_TypeNumber==-1 
+                                                || pInBuf->m_GetStrProperty3.m_SubDvc==-1)
+            {
+                // Get the property for the current device
+                Status = DtPropertiesStrGet(&pDvcData->m_PropData,
+                                                 pInBuf->m_GetStrProperty3.m_Name,
+                                                 pInBuf->m_GetStrProperty3.m_PortIndex,
+                                                 pOutBuf->m_GetStrProperty.m_Str,
+                                                 &pOutBuf->m_GetStrProperty.m_Scope,
+                                                 pInBuf->m_GetStrProperty3.m_DtapiMaj,
+                                                 pInBuf->m_GetStrProperty3.m_DtapiMin,
+                                                 pInBuf->m_GetStrProperty3.m_DtapiBugfix);
+            } else {
+                // Property for a specific type was requested
+                Status = DtPropertiesStrGetForType("DTA",
+                                              pInBuf->m_GetStrProperty3.m_TypeNumber,
+                                              pInBuf->m_GetStrProperty3.m_SubDvc, 
+                                              pInBuf->m_GetStrProperty3.m_HardwareRevision, 
+                                              pInBuf->m_GetStrProperty3.m_FirmwareVersion,
+                                              pInBuf->m_GetStrProperty3.m_FirmwareVariant,
+                                              pInBuf->m_GetStrProperty3.m_Name,
+                                              pInBuf->m_GetStrProperty3.m_PortIndex,
+                                              pOutBuf->m_GetStrProperty.m_Str,
+                                              &pOutBuf->m_GetStrProperty.m_Scope,
+                                              pInBuf->m_GetStrProperty3.m_DtapiMaj,
+                                              pInBuf->m_GetStrProperty3.m_DtapiMin,
+                                              pInBuf->m_GetStrProperty3.m_DtapiBugfix);
+            }
+
+            if (DT_SUCCESS(Status))
+            {
+                DT_ASSERT((pOutBuf->m_GetProperty.m_Scope&PROPERTY_SCOPE_DTAPI) ==
+                                                                    PROPERTY_SCOPE_DTAPI);
+            }
+            break;
+
+
+        case DTA_IOCTL_GET_TABLE3:
+            if (pInBuf->m_GetTable3.m_TypeNumber==-1 || pInBuf->m_GetTable3.m_SubDvc==-1)
+            {
+                Status = DtTableGet(
+                            &pDvcData->m_PropData,
+                            pInBuf->m_GetTable3.m_Name,
+                            pInBuf->m_GetTable3.m_PortIndex,
+                            pInBuf->m_GetTable3.m_MaxNumEntries,
+                            &pOutBuf->m_GetTable.m_NumEntries,
+                            pOutBuf->m_GetTable.m_TableEntry,
+                            pIoctl->m_OutputBufferSize-OFFSETOF(DtaIoctlGetTableOutput, 
+                                                                           m_TableEntry));
+            }
+            else
+            {
+                Status = DtTableGetForType(
+                            "DTA",
+                            pInBuf->m_GetTable3.m_TypeNumber,
+                            pInBuf->m_GetTable3.m_SubDvc,
+                            pInBuf->m_GetTable3.m_HardwareRevision,
+                            pInBuf->m_GetTable3.m_FirmwareVersion,
+                            pInBuf->m_GetTable3.m_FirmwareVariant,
+                            pInBuf->m_GetTable3.m_Name,
+                            pInBuf->m_GetTable3.m_PortIndex,
+                            pInBuf->m_GetTable3.m_MaxNumEntries,
+                            &pOutBuf->m_GetTable.m_NumEntries,
+                            pOutBuf->m_GetTable.m_TableEntry,
+                            pIoctl->m_OutputBufferSize-OFFSETOF(DtaIoctlGetTableOutput, 
+                                                                           m_TableEntry));
+            }
+            if (DT_SUCCESS(Status)) 
+            {
+                if (pInBuf->m_GetTable3.m_MaxNumEntries>=pOutBuf->m_GetTable.m_NumEntries)
+                    pIoctl->m_OutputBufferBytesWritten += 
+                                  pOutBuf->m_GetTable.m_NumEntries * sizeof(DtTableEntry);
+            }
+            break;
         default:
             Status = DT_STATUS_NOT_SUPPORTED;
             break;
@@ -3645,7 +3879,7 @@ DtStatus  DtaCheckFwVariantSupport(DtaDeviceData* pDvcData)
 {
     DtStatus  Status = DT_STATUS_OK;
     DtPropertyData*  pPropData = &pDvcData->m_PropData;
-    DtTableEntry  FwVariants[16];
+    DtTableEntry  FwVariants[MAX_NUM_FW_VARIANTS];
     UInt  NumFwVariants = 0;
     UInt  i;
     // Firmware variant 0 is always supported
@@ -3664,6 +3898,100 @@ DtStatus  DtaCheckFwVariantSupport(DtaDeviceData* pDvcData)
             return DT_STATUS_OK;
     }
     return DT_STATUS_NOT_SUPPORTED;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaGetIsFwPackaged -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// This function returns whether this firmware (variant) is part of a firmware package
+//
+DtStatus  DtaGetIsFwPackaged(DtaDeviceData* pDvcData, Bool* pFwPackaged)
+{
+    UInt  OldPropertyNotFoundCounter = pDvcData->m_PropData.m_PropertyNotFoundCounter;
+    *pFwPackaged = DtPropertiesGetBool(&pDvcData->m_PropData, "FIRMWARE_IN_PACKAGE", -1);
+  
+    // The FIRMWARE_IN_PACKAGE property is optional, so no error if not found 
+    if (OldPropertyNotFoundCounter != pDvcData->m_PropData.m_PropertyNotFoundCounter)
+    {
+        pDvcData->m_PropData.m_PropertyNotFoundCounter = OldPropertyNotFoundCounter;
+        *pFwPackaged = FALSE;
+    }
+    return DT_STATUS_OK;
+}
+
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaGetFirmwarePackage -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Gets the firmware package version ( -1 for firmware not contained in a package).
+// Otherwise got from eeprom only supported through CFI
+//
+DtStatus  DtaGetFirmwarePackage(DtaDeviceData* pDvcData, DtFileObject* pFile, 
+                                                                    Int* pFirmwarePackage)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    Bool  IsFwPackaged;
+    Bool  AlreadyExclAccess = FALSE;
+    Int  CfiRegOffset;
+    Int  Bb;
+    volatile UInt8*  pCfiRegs;
+
+    // Default no package. 
+    *pFirmwarePackage = -1;
+
+    // Get whether the firmware is in contained in a package
+    Status = DtaGetIsFwPackaged(pDvcData, &IsFwPackaged);
+    if (Status != DT_STATUS_OK)
+        return Status;
+
+    // Not contained in a package? We are ready
+    if (!IsFwPackaged)
+        return DT_STATUS_OK;
+
+    // Get register offset
+    CfiRegOffset = (Int16)DtPropertiesGetUInt16(&pDvcData->m_PropData, "REGISTERS_CFI", -1);
+    if (CfiRegOffset == -1)
+        return DT_STATUS_NOT_SUPPORTED;
+    pCfiRegs = pDvcData->m_pGenRegs + CfiRegOffset;
+
+    // Get Exclusive access, only needed if we don't have it yet
+    if (DtaProgItfExclusiveAccess(&pDvcData->m_ProgItfs[0], pFile, 
+                                          DTA_EXCLUSIVE_ACCESS_CMD_CHECK) == DT_STATUS_OK)
+        AlreadyExclAccess = TRUE;
+    if (!AlreadyExclAccess)
+        Status = DtaProgItfExclusiveAccess(&pDvcData->m_ProgItfs[0], pFile, 
+                                                        DTA_EXCLUSIVE_ACCESS_CMD_ACQUIRE); 
+    if (Status != DT_STATUS_OK)
+        return Status;
+        
+    // Read the bootblock
+    for (Bb=0; Bb<=1 && Status==DT_STATUS_OK; Bb++)
+    {
+        // Bootinfo is located at address 0 and 0x8000
+        Int Address = (Bb==0) ? 0 : 0x8000;
+        UInt32 BootInfo[MAX_NUM_FW_VARIANTS + 3];  // Add Bootpointer, end and version
+        Status = DtaEepromCfiRead(pCfiRegs, Address, (UInt8*)BootInfo, sizeof(BootInfo));
+        if (Status == DT_STATUS_OK)
+        {
+            // Find the end marker (invalid pointer)
+            Int i=0;
+            for (i=1; i<MAX_NUM_FW_VARIANTS+2; i++)
+            {
+                // Extra tests to prevent that beta-firmware is considered as a package
+                if (BootInfo[i]==0 || BootInfo[i]==~0 || BootInfo[i]<0x8000)
+                    break;
+            }
+            // Is it the end marker?
+            if (BootInfo[i] == 0)
+            {
+                //Firmware package version is stored after the end-marker
+                *pFirmwarePackage = (BootInfo[i+1]) & 0xFFFF;
+                break;
+            }
+        }
+    }
+    if (!AlreadyExclAccess)
+        DtaProgItfExclusiveAccess(&pDvcData->m_ProgItfs[0], pFile, 
+                                                        DTA_EXCLUSIVE_ACCESS_CMD_RELEASE); 
+    return Status;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaCleanupPortStructs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -4060,14 +4388,70 @@ DtStatus  DtaSetMemoryTestMode(DtaDeviceData* pDvcData, Bool On)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRebootFirmware -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtaRebootFirmware(DtaDeviceData* pDvcData)
+DtStatus  DtaRebootFirmware(DtaDeviceData* pDvcData, Int Delay)
+{
+    // Currently rebooting is supported on cards with a PLX9054/9056
+    if (pDvcData->m_DevInfo.m_UsesPlxChip)
+        return DtaRebootFirmwarePlx(pDvcData, Delay);   
+    // and rebooting is supported on DTA-2115B 
+    else if (pDvcData->m_DevInfo.m_TypeNumber==2115 && pDvcData->m_DevInfo.m_SubType>=2)
+    {
+        // Check delay value
+        if (Delay<0 || Delay>=512)
+            return DT_STATUS_INVALID_PARAMETER;
+        // Actual reboot is postponed till PowerDown
+        pDvcData->m_FwRebootPending = TRUE;
+        pDvcData->m_FwRebootDelay = Delay;
+        return DT_STATUS_OK;
+    }
+    else
+        return DT_STATUS_NOT_SUPPORTED;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRebootFirmwareCfi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaRebootFirmwareCfi(DtaDeviceData* pDvcData, Int Delay)
+{
+    DtStatus  Result = DT_STATUS_OK;
+    Int  CfiRegOffset;
+    volatile UInt8*  pCfiRegs;
+   
+    // Get register offset
+    CfiRegOffset = (Int16)DtPropertiesGetUInt16(&pDvcData->m_PropData,
+                                                                     "REGISTERS_CFI", -1);
+    if (CfiRegOffset == -1)
+        return DT_STATUS_NOT_SUPPORTED;
+
+    pCfiRegs = pDvcData->m_pGenRegs + CfiRegOffset;
+
+    // Unlock the device
+    DT_RETURN_ON_ERROR(DtaEepromCfiUnlock(pCfiRegs));
+
+    // Set the reconfig delay
+    WRITE_UINT_MASKED(Delay, pCfiRegs, DT_REG_FAST_FLASH_PROG_CTRL,
+                                            DT_REG_FAST_FLASH_PROG_CTRL_RECONFIGDELAY_MSK,
+                                            DT_REG_FAST_FLASH_PROG_CTRL_RECONFIGDELAY_SH);
+    // Issue the reconfig command
+    WRITE_UINT_MASKED(0x6, pCfiRegs, DT_REG_FAST_FLASH_PROG_CTRL,
+                                                  DT_REG_FAST_FLASH_PROG_CTRL_COMMAND_MSK,
+                                                  DT_REG_FAST_FLASH_PROG_CTRL_COMMAND_SH);
+
+    // Lock the device again
+    DT_RETURN_ON_ERROR(DtaEepromCfiLock(pCfiRegs));
+
+    return Result;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRebootFirmwarePlx -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaRebootFirmwarePlx(DtaDeviceData* pDvcData, Int Delay)
 {
     DtStatus  Status = DT_STATUS_OK;
     DtStatus  StatusReboot = DT_STATUS_OK;
 
-    // Currently rebooting is only supported on cards with a PLX9054/9056
-    if (!pDvcData->m_DevInfo.m_UsesPlxChip)
-        return DT_STATUS_NOT_SUPPORTED;
+    // Only zero delay is expected
+    if (Delay != 0)
+        return DT_STATUS_INVALID_PARAMETER;
 
     // Power down the device
     StatusReboot = DtaPowerDownDevice(pDvcData);
@@ -4149,3 +4533,4 @@ void  DtaRfPwrMeasLock(DtaDeviceData* pDvcData, Int PortIndex, Int Lock)
     } else
         DtaRegRpmCtrlSetHaltMeas(pBase, 0);      // Continue
 }
+
