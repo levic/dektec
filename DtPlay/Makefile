@@ -1,5 +1,5 @@
 # ========================================================================================
-# Makefile for the DtPlay (LINUX)
+# Makefile for DtPlay (LINUX)
 # ========================================================================================
 
 # ========================================================================================
@@ -10,12 +10,11 @@ NUMLBITS = $(shell getconf LONG_BIT)
 # Set include directories. Make sure the include path to the DTAPI is correct
 
 DTAPIINCLUDE = ./DTAPI
-INCLUDEDIR = /usr/local/include -I$(DTAPIINCLUDE)
 
 # ========================================================================================
 # Compile flags
 
-CPPFLAGS = -g -O2 -I$(INCLUDEDIR) -fexceptions \
+CPPFLAGS = -g -O2 -I$(DTAPIINCLUDE) -fexceptions \
 	   -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
 # ========================================================================================
@@ -39,8 +38,8 @@ else
 DTAPILIB   = $(DTAPILIB32)
 endif
 
-LDLIBS += $(DTAPILIB)
-# NOTE: need to link with pthread and dl libraries
+LDLIBS += $(DTAPILIB) 
+# NOTE: need to link with PTHREAD library
 LDFLAGS += -lpthread -ldl
 
 all: $(TARGET)

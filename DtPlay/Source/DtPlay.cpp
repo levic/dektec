@@ -54,8 +54,8 @@ int  _kbhit()
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlay Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DTPLAY_VERSION_MAJOR        4
-#define DTPLAY_VERSION_MINOR        6
-#define DTPLAY_VERSION_BUGFIX       1
+#define DTPLAY_VERSION_MINOR        7
+#define DTPLAY_VERSION_BUGFIX       0
 
 const int c_BufSize = 1*1024*1024;      // Data transfer buffer size
 const int c_MinFifoLoad = 3*1024*1024;  // Minimum fifo load before starting DVB transmission
@@ -319,14 +319,14 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
                 L"  NOTE: set the rate to '0' to playout a file with timestamps", 0, INT_MAX),
         DtOptItem(L"t",   m_DvcType, -1, L"Device type to use (default: any output device)\n"
                 L"  100, 102, 105, 107, 110, 111, 112, 115, 116, 117, 140, 145, 160, 205,\n"
-                L"  215, 245, 2107, 2111, 2115, 2136, 2137, 2144, 2145, 2152, 2154, 2174,\n"
-                L"  2160 or 2162", 100, 3999),
+                L"  215, 245, 315, 2107, 2111, 2115, 2136, 2137, 2144, 2145, 2152, 2154,\n"
+                L"  2174, 2160 or 2162", 100, 3999),
         DtOptItem(L"n",   m_DvcNum, 1, L"Device number to use (default: 1)", 1, 99),
         DtOptItem(L"i",   m_Port, -1, L"Port number of the output channel to use", 1, 4),
         DtOptItem(L"db",  m_DblBuff, -1, L"Port to use as doubly buffered output"),
         DtOptItem(L"m",   m_TxMode, DTAPI_TXMODE_188, L"Transmit Mode (default: 188)", TransmitModes),
-        DtOptItem(L"mt",  m_ModType, -1, L"Modulation type", ModTypes),
-        DtOptItem(L"mf",  m_CarrierFreq, 0.0, L"Modulation carrier frequency in MHz", 20.0, 2300.0),
+        DtOptItem(L"mt",  m_ModType, DTAPI_MOD_DVBT, L"Modulation type (default: DVB-T)", ModTypes),
+        DtOptItem(L"mf",  m_CarrierFreq, 0.0, L"Modulation carrier frequency in MHz  (default: UHF:578MHz, LBAND:1915MHz))", 20.0, 2300.0),
         DtOptItem(L"ml",  m_OutpLevel, -27.5, L"Output level in dBm (default: -27.5dBm)", -35.0, 0.0),
         DtOptItem(L"mc",  m_CodeRate, L"Convolutional rate (default: 1/2)\n"
                 L"  General        : 1/2, 2/3, 3/4, 4/5, 5/6, 6/7 or 7/8\n"
@@ -1391,7 +1391,7 @@ void Player::InitOutput()
                         m_CmdLineParams.m_ModType,
                         m_CmdLineParams.m_IqInterpFilter,   // Interpolation filter
                         m_CmdLineParams.m_TxRate,           // Sample rate
-                        0);
+                        DTAPI_MOD_ROLLOFF_NONE);
         }
         else if (   m_CmdLineParams.m_ModType==DTAPI_MOD_DVBS_QPSK
                  || m_CmdLineParams.m_ModType==DTAPI_MOD_DVBS_BPSK )
@@ -1527,7 +1527,6 @@ void Player::InitOutput()
     }
 
     // Final initialisation
-    dr = m_DtOutp.SetFifoSizeMax();     // Set FIFO size to maximum
     dr = m_DtOutp.ClearFifo();          // Clear FIFO (i.e. start with zero load)
 
     // Set exit load. 4k for all none modulator
@@ -1745,7 +1744,7 @@ int Player::Play(int argc, char* argv[])
 
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Print start message -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-        LogF("DtPlay player V%d.%d.%d (c) 2000-2015 DekTec Digital Video B.V.\n",
+        LogF("DtPlay player V%d.%d.%d (c) 2000-2016 DekTec Digital Video B.V.\n",
               DTPLAY_VERSION_MAJOR, DTPLAY_VERSION_MINOR, DTPLAY_VERSION_BUGFIX);
 
         LogF("DTAPI compile version: V%d.%d.%d.%d\n",
@@ -1841,7 +1840,7 @@ void Player::ShowHelp()
     Log("Examples:");
     Log("   DtPlay myfile.ts -r 38000000");
     Log("   DtPlay myfile.ts -r 38000000 -t 100 -n 2 -m RAW ");
-    Log("   DtPlay myfile.ts -r 38000000 -t 107 -mt QPSK -mf 1915.0 -mc 7/8 -snr 26.0");
+    Log("   DtPlay myfile.ts -r 38000000 -t 107 -mt DVBS -mf 1915.0 -mc 7/8 -snr 26.0");
     Log("   DtPlay myfile.dtsdi -t 2144 -i 1 -m DTSDI -l 0 -mS ON");
     LogF("DtPlay version: %d.%d.%d\n", DTPLAY_VERSION_MAJOR, DTPLAY_VERSION_MINOR,
          DTPLAY_VERSION_BUGFIX);

@@ -161,6 +161,12 @@ public:
 
     // Write a description of given options to stdout.
     static void  PrintOptionsHelp(DtOptItem* Options, int NumOpt);
+    // Template to autodetect the length of the Options array.
+    template<int N>
+    static void  PrintOptionsHelp(DtOptItem (&Options)[N])
+    {
+        PrintOptionsHelp(Options, N);
+    }
 
 private:
     void  ParseIntOpt();
