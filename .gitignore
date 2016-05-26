@@ -22,3 +22,6 @@
 *.mod.c
 modules.order
 Module.symvers
+
+# windows build target
+DtPlay/DtPlay.exe
