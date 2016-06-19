@@ -89,6 +89,22 @@
 #define DtDbgOut(Level, Module, Msg, ...) do { } while (0)
 #endif
 
+#define DtDbgOutPort(Level, Module, pPort, Msg, ...)                                     \
+                        DtDbgOut(Level, Module, "[%d:%d:%d] " Msg,                       \
+                                              pPort->m_pDvcData->m_DevInfo.m_TypeNumber, \
+                                              pPort->m_pDvcData->m_DevInfo.m_SubDvc,     \
+                                              pPort->m_PortIndex, ##__VA_ARGS__)
+#define DtDbgOutDma(Level, Module, pDmaCh, Msg, ...)                                     \
+                        DtDbgOut(Level, Module, "[%d:%d:%d] " Msg,                       \
+                                              pDmaCh->m_pDvcData->m_DevInfo.m_TypeNumber,\
+                                              pDmaCh->m_pDvcData->m_DevInfo.m_SubDvc,    \
+                                              pDmaCh->m_PortIndex, ##__VA_ARGS__)
+#define DtDbgOutDev(Level, Module, pDvcData, Msg, ...)                                   \
+                        DtDbgOut(Level, Module, "[%d:%d] " Msg,                          \
+                                              pDvcData->m_DevInfo.m_TypeNumber,          \
+                                              pDvcData->m_DevInfo.m_SubDvc,              \
+                                              ##__VA_ARGS__)
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Event Logging +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtEvtLog -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

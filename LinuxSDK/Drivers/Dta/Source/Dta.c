@@ -495,11 +495,14 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
 
                 
     // Wait until FPGA is ready
-    if (pDvcData->m_DevInfo.m_UsesPlxChip)
+    Status = DtaWaitUntilFpgaIsReady(pDvcData);
+    if (!DT_SUCCESS(Status))
     {
-        Status = DtaWaitUntilFpgaIsReady(pDvcData);
-        if (!DT_SUCCESS(Status))
+        // Only for devices with PLX chip this error is fatal
+        if (pDvcData->m_DevInfo.m_UsesPlxChip)
             return Status;
+        else
+            Status = DT_STATUS_OK;
     }
     
     if (pDvcData->m_InitialPowerup)
@@ -2783,6 +2786,15 @@ DtStatus  DtaDeviceAcquireExclAccess(DtaDeviceData*  pDvcData)
     return Result;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDeviceReleaseExclAccess -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtaDeviceReleaseExclAccess(DtaDeviceData*  pDvcData)
+{
+    DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
+    // Wake up any other threads waiting for the registry write done event
+    DtEventSet(&pDvcData->m_RegWriteDoneEvt);
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDeviceInterrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
@@ -3343,7 +3355,8 @@ DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
             DT_ASSERT(NextFrame != -1);
             pNonIpPort->m_Matrix.m_CurFrame = NextFrame - 1;
 
-            DtDbgOut(AVG, NONIP, "Enter run state; Starting with frame: %lld", NextFrame); 
+            DtDbgOutPort(AVG, NONIP, pNonIpPort,
+                                 "Enter run state; Starting with frame: %lld", NextFrame);
         }
         else if (NewState == MATRIX_PORT_RUN_AUTO)
         {
@@ -3362,8 +3375,8 @@ DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
             NextFrame = DTA_FRMBUF_HOLD_FRAME;
 
             if (ChangeToHold)
-                DtDbgOut(AVG, NONIP, "Enter hold state; Repeating frame: %lld",
-                                                                               NextFrame); 
+                DtDbgOutPort(AVG, NONIP, pNonIpPort,
+                                    "Enter hold state; Repeating frame: %lld", NextFrame);
         }
 
         // Get Index of current and last frames
@@ -4390,11 +4403,13 @@ DtStatus  DtaSetMemoryTestMode(DtaDeviceData* pDvcData, Bool On)
 //
 DtStatus  DtaRebootFirmware(DtaDeviceData* pDvcData, Int Delay)
 {
-    // Currently rebooting is supported on cards with a PLX9054/9056
+    // Rebooting is supported on cards with a PLX9054/9056
     if (pDvcData->m_DevInfo.m_UsesPlxChip)
         return DtaRebootFirmwarePlx(pDvcData, Delay);   
-    // and rebooting is supported on DTA-2115B 
-    else if (pDvcData->m_DevInfo.m_TypeNumber==2115 && pDvcData->m_DevInfo.m_SubType>=2)
+
+    // Reboot is supported through CFI-interface
+    else if (pDvcData->m_ProgItfs[0].m_SuppFwReboot 
+                            && pDvcData->m_ProgItfs[0].m_InterfaceType==PROG_ITF_CFI_FAST)
     {
         // Check delay value
         if (Delay<0 || Delay>=512)

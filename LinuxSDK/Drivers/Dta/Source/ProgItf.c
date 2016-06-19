@@ -144,14 +144,21 @@ DtStatus  DtaProgItfInit(DtaDeviceData* pDvcData)
         pDvcData->m_ProgItfs[i].m_ExclAccess = FALSE;
         DtSpinLockInit(&pDvcData->m_ProgItfs[i].m_ExclAccessLock);
     }
-    // Get first programming interface
+    // Get first programming interface; FW reboot only through main programming interface
     if (i > 0)
+    {
         pDvcData->m_ProgItfs[0].m_InterfaceType = 
                                      DtPropertiesGetInt(pPropData, "PROGRAMMING_ITF", -1);
+        pDvcData->m_ProgItfs[0].m_SuppFwReboot = 
+                     DtPropertiesGetBool(pPropData, "PROGRAMMING_SUPPORTS_FW_REBOOT", -1);
+    }
     // Get second programming interface
     if (i > 1)
+    {
         pDvcData->m_ProgItfs[1].m_InterfaceType = 
                                  DtPropertiesGetInt(pPropData, "PROGRAMMING_SEC_ITF", -1);
+        pDvcData->m_ProgItfs[1].m_SuppFwReboot = FALSE;
+    }
     return DT_STATUS_OK;
 }
 

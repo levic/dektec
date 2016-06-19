@@ -1440,7 +1440,7 @@ DtStatus  DtuNonIpExclusiveAccess(
 {
     DtStatus  Result = DT_STATUS_OK;
 
-    DtFastMutexAcquire(&pNonIpPort->m_pDvcData->m_ExclAccessMutex);
+    DtuDeviceAcquireExclAccess(pNonIpPort->m_pDvcData);
 
     if (Cmd == DTU_EXCLUSIVE_ACCESS_CMD_ACQUIRE)
     {
@@ -1466,7 +1466,7 @@ DtStatus  DtuNonIpExclusiveAccess(
     } else
         Result = DT_STATUS_NOT_SUPPORTED;
 
-    DtFastMutexRelease(&pNonIpPort->m_pDvcData->m_ExclAccessMutex);
+    DtuDeviceReleaseExclAccess(pNonIpPort->m_pDvcData);
 
     return Result;
 }
@@ -1501,7 +1501,7 @@ DtStatus  DtuNonIpReleaseResourceFromFileObject(
         // Release exclusive access
         if (pDvcData->m_pNonIpPorts[i].m_ExclAccess)
         {
-            DtFastMutexAcquire(&pDvcData->m_ExclAccessMutex);
+            DtuDeviceAcquireExclAccess(pDvcData);
             if (DtFileCompare(&pDvcData->m_pNonIpPorts[i].m_ExclAccessOwner, pFile) && 
                                                   pDvcData->m_pNonIpPorts[i].m_ExclAccess)
             {
@@ -1509,7 +1509,7 @@ DtStatus  DtuNonIpReleaseResourceFromFileObject(
                 DtDbgOut(AVG, DTU, "Release exclusive access for port %i", 
                                                   pDvcData->m_pNonIpPorts[i].m_PortIndex);
             }
-            DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
+            DtuDeviceReleaseExclAccess(pDvcData);
         }
         // Close shared buffer if there is one owned by this file object
         if (DtFileCompare(&pDvcData->m_pNonIpPorts[i].m_SharedBuffer.m_Owner, pFile) &&

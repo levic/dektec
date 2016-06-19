@@ -1649,6 +1649,7 @@ ASSERT_SIZE(DtaIoctlIpTxCmdOutput, 8)
 #define DTA_IP_RX_CMD_SETUPBUFFER      15
 #define DTA_IP_RX_CMD_SETIPPARS3       16
 #define DTA_IP_RX_CMD_GETIPPARS2       17
+#define DTA_IP_RX_CMD_SETSRCFLT        18
 
 // DTA_IP_RX_CMD_GETSTATUS
 typedef struct _DtaIoctlIpRxCmdGetStatusInput {
@@ -1758,8 +1759,9 @@ typedef struct _DtaIoctlIpRxCmdSetIpPars3Input {
     Int  m_Flags;                   // Control flags: IPv4/IPv6
     Int  m_Protocol;                // Protocol: UDP/RTP
     Int  m_FecMode;                 // Error correction mode
+    UInt16  m_NumSrcFlt;            // Number of source IP-filters. If <> 0, use new style
+    UInt16  m_NumSrcFlt2;           // Number of source IP-filters. If <> 0, use new style
     // Profile
-    Int  m_Spare;                   // Not used
     Int  m_VidStd;                  // Video standard to receive. -1 = undefined
     Int  m_MaxBitrate;              // Maximal expected bitrate
     Int  m_MaxSkew;                 // Max. skew in SMPTE_2022-7
@@ -1861,6 +1863,17 @@ typedef struct _DtaIoctlIpRxCmdSetupBufferInput {
 } DtaIoctlIpRxCmdSetupBufferInput;
 ASSERT_SIZE(DtaIoctlIpRxCmdSetupBufferInput, 24)
 
+// DTA_IP_RX_CMD_SETSRCFLT
+typedef struct _DtaIoctlIpRxCmdSetSrcFltInput {
+    Int  m_Channel;
+    UInt  m_NumElements;
+    UInt  m_FilterOffset;
+    UInt  m_LastElement;
+    UInt16  m_SrcPort[4];
+    UInt8  m_SrcIp[4][16];
+} DtaIoctlIpRxCmdSetSrcFltInput;
+ASSERT_SIZE(DtaIoctlIpRxCmdSetSrcFltInput, 88)
+
 // Ioctl input data type
 typedef struct _DtaIoctlIpRxCmdInput {
     Int  m_Cmd;
@@ -1882,6 +1895,7 @@ typedef struct _DtaIoctlIpRxCmdInput {
         DtaIoctlIpRxCmdSetIpPars2Input  m_SetIpPars2;
         DtaIoctlIpRxCmdSetIpPars3Input  m_SetIpPars3;
         DtaIoctlIpRxCmdSetupBufferInput  m_SetupBuffer;
+        DtaIoctlIpRxCmdSetSrcFltInput  m_SetSrcFlt;
     } m_Data;
 } DtaIoctlIpRxCmdInput;
 ASSERT_SIZE(DtaIoctlIpRxCmdInput, 124)

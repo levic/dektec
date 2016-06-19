@@ -309,7 +309,7 @@ DtStatus  DtaNonIpMatrixClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile)
 
     DtaDeviceAcquireExclAccess(pNonIpPort->m_pDvcData);
     HasAccess = DtaNonIpHasAccess(pNonIpPort, pFile);
-    DtFastMutexRelease(&pNonIpPort->m_pDvcData->m_ExclAccessMutex);
+    DtaDeviceReleaseExclAccess(pNonIpPort->m_pDvcData);
 
     if (DT_SUCCESS(HasAccess))
     {
@@ -346,9 +346,7 @@ DtStatus  DtaNonIpMatrixConfigure(DtaNonIpPort* pNonIpPort, Bool  ForceConfig)
 
     DT_ASSERT(pNonIpPort->m_CapMatrix);
 
-    DtDbgOut(MIN, NONIP, "Configure HD-Channel: DTA-%d, PortIdx %d", 
-                                           pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber,
-                                                                 pNonIpPort->m_PortIndex);
+    DtDbgOutPort(MIN, NONIP, pNonIpPort, "Configure HD-Channel");
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Common configuration -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -430,15 +428,14 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
     // Must be matrix capable
     if (!pNonIpPort->m_CapMatrix && !pNonIpPort->m_CapMatrix2)
     {
-        DtDbgOut(ERR, NONIP, "Port %d is not matrix capable", pNonIpPort->m_PortIndex+1);
+        DtDbgOutPort(ERR, NONIP, pNonIpPort, "Port is not matrix capable");
         return DT_STATUS_NOT_SUPPORTED;
     }
     // Port must be configured as an input
     if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value!=DT_IOCONFIG_INPUT || 
                      pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue!=DT_IOCONFIG_INPUT)
     {
-        DtDbgOut(ERR, NONIP, "Port %d is not configured as input", 
-                                                               pNonIpPort->m_PortIndex+1);
+        DtDbgOutPort(ERR, NONIP, pNonIpPort, "Port is not configured as input");
         return DT_STATUS_NOT_SUPPORTED;
     }
 
@@ -484,7 +481,8 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
             Int  VidStdToggle[2] = {DT_VIDSTD_UNKNOWN, DT_VIDSTD_UNKNOWN};
             DtaMatrixPortState  State;
 
-            DtDbgOut(AVG, NONIP, "Cannot detect vidstd; will try toggling frac-mode"); 
+            DtDbgOutPort(AVG, NONIP, pNonIpPort, 
+                                     "Cannot detect vidstd; will try toggling frac-mode");
 
             //.-.- Step 1: get the state lock and confirm the channel is not running -.-.-
             
@@ -542,7 +540,8 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
                 DtaRegHdSdiFormat1SetPictureRate(pHdRegs, PictRate);
                 DtaRegHdSdiFormat1SetProgressive(pHdRegs, Progressive);
 
-                DtDbgOut(AVG, NONIP, "Toggling SDI format to: id=%d, r=%d, p=%d", VideoId,
+                DtDbgOutPort(AVG, NONIP, pNonIpPort, 
+                                     "Toggling SDI format to: id=%d, r=%d, p=%d", VideoId,
                                                                    PictRate, Progressive);
 
                 //-.-.-.-.- Step 4: wait shortly and check which standard again -.-.-.-.-.
@@ -590,14 +589,29 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
 #ifdef _DEBUG
         else if (DtaRegHdStatGetCarrierDetect(pHdRegs)==0)
         {
-            DtDbgOut(AVG, NONIP, "No carrier => skip toggling frac-mode"); 
+            DtDbgOutPort(AVG, NONIP, pNonIpPort, "No carrier => skip toggling frac-mode");
         }
 #endif
+        if ((pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2154 ||
+             pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2174) &&
+                                  pNonIpPort->m_CapMatrix2 && *pVidStd==DT_VIDSTD_UNKNOWN)
+        {
+            UInt64  CurClk = DtaRegRefClkCntGet64(pNonIpPort->m_pDvcData->m_pGenRegs);
+            if (CurClk - pNonIpPort->m_Matrix.m_LastIoReset > 54000000)
+            {
+                DtDbgOutPort(ERR, NONIP, pNonIpPort, "Doing IO reset");
+                DtaRegHdCtrl1SetIoReset(pHdRegs, 1);
+                DtSleep(5);
+                DtaRegHdCtrl1SetIoReset(pHdRegs, 0);
+                DtSleep(5);
+                pNonIpPort->m_Matrix.m_LastIoReset = CurClk;
+            }
+        }
     }
     else
     {
         // For now this function is not supported for any other boards
-        DtDbgOut(ERR, NONIP, "Not supported for this port %d", pNonIpPort->m_PortIndex+1);
+        DtDbgOutPort(ERR, NONIP, pNonIpPort, "Not supported for this port");
         return DT_STATUS_FAIL;  
     }
     return DT_STATUS_OK;
@@ -619,6 +633,8 @@ DtStatus  DtaNonIpMatrixInit(DtaNonIpPort* pNonIpPort)
     Status = DtEventInit(&pMatrix->m_LastFrameIntEvent, FALSE);
     if (!DT_SUCCESS(Status))
         return Status;
+
+    pMatrix->m_LastIoReset = 0;
     
     pMatrix->m_FrmIntCnt = 0;
     pMatrix->m_ForceRestart = 0;
@@ -721,7 +737,7 @@ DtStatus  DtaNonIpMatrixAttachToRow(DtaNonIpPort* pNonIpPort, Int  RowIdx)
     // State must be on IDLE or HOLD
     if (pMatrix->m_State!=MATRIX_PORT_IDLE && pMatrix->m_State!=MATRIX_PORT_HOLD)
     {
-        DtDbgOut(ERR, NONIP, "Cannot attach to a row in current state: %s", 
+        DtDbgOutPort(ERR, NONIP, pNonIpPort,"Cannot attach to a row in current state: %s",
                                                DtaNonIpMatrixState2Str(pMatrix->m_State));
         return DT_STATUS_FAIL;
     }
@@ -737,7 +753,8 @@ DtStatus  DtaNonIpMatrixAttachToRow(DtaNonIpPort* pNonIpPort, Int  RowIdx)
     // Check if row index has changed
     if (RowIdx != pMatrix->m_RowIdx)
     {
-        DtDbgOut(MIN, NONIP, "Row index changes (%d->%d); will re-configuring", 
+        DtDbgOutPort(MIN, NONIP, pNonIpPort, 
+                                        "Row index changes (%d->%d); will re-configuring",
                                                                pMatrix->m_RowIdx, RowIdx);
         
         // Set new row and force a re-configure the port
@@ -745,7 +762,8 @@ DtStatus  DtaNonIpMatrixAttachToRow(DtaNonIpPort* pNonIpPort, Int  RowIdx)
         Status = DtaNonIpMatrixConfigure(pNonIpPort, TRUE);
         if (!DT_SUCCESS(Status))
         {
-            DtDbgOut(ERR, NONIP, "Failed to reconfigure port (Status=0x%08X)", Status);
+            DtDbgOutPort(ERR, NONIP, pNonIpPort, 
+                                    "Failed to reconfigure port (Status=0x%08X)", Status);
             return Status;
         }
     }
@@ -829,10 +847,11 @@ DtStatus  DtaNonIpMatrixSetState(DtaNonIpPort* pNonIpPort, DtaMatrixPortState  N
     pMatrix->m_State = NewState;
 
     if (OldState != NewState)
-        DtDbgOut(AVG, NONIP, "State change %s => %s", DtaNonIpMatrixState2Str(OldState),
+        DtDbgOutPort(AVG, NONIP, pNonIpPort, "State change %s => %s",
+                                                       DtaNonIpMatrixState2Str(OldState),
                                                        DtaNonIpMatrixState2Str(NewState));
     else
-        DtDbgOut(MAX, NONIP, "State remains unchanged: %s",
+        DtDbgOutPort(MAX, NONIP, pNonIpPort, "State remains unchanged: %s",
                                                        DtaNonIpMatrixState2Str(NewState));
 
     return DT_STATUS_OK;
@@ -1259,7 +1278,8 @@ DtStatus  DtaNonIpMatrixPrepForDma(
     
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Initiate Mem Transfer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
     
-    DtDbgOut(MAX, NONIP, "MemTr: cmd=%d, #l=%d, fmt=%d, rgb=%d, sym=%d, scale=%d, "
+    DtDbgOutPort(MAX, NONIP, pNonIpPort, 
+                         "MemTr: cmd=%d, #l=%d, fmt=%d, rgb=%d, sym=%d, scale=%d, "
                          "ancf=%d, stride=%d; bufsz=%d, reqsz=%d", 
                          pMemTrSetup->m_TrCmd, pMemTrSetup->m_NumLines, 
                          pMemTrSetup->m_DataFormat, pMemTrSetup->m_RgbMode, 
@@ -1564,9 +1584,7 @@ static DtStatus  DtaNonIpMatrixConfigureForAsi(
     Int  SizeOfChannelRam = 0;
     Int  NumMatrixPorts = DtaNonIpMatrixCountMatrixPorts(pNonIpPort);
 
-    DtDbgOut(MIN, NONIP, "Configuring for ASI: DTA-%d, PortIdx %d", 
-                                           pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber,
-                                                                 pNonIpPort->m_PortIndex);
+    DtDbgOutPort(MIN, NONIP, pNonIpPort, "Configuring for ASI");
 
     // Must have ASI capability
     if (!pNonIpPort->m_CapAsi)
@@ -1641,8 +1659,8 @@ static DtStatus  DtaNonIpMatrixConfigureForAsi(
     DtaRegHdS0BeginAddrSet(pHdRegs, pSect0->m_BeginAddr);
     DtaRegHdS0EndAddrSet(pHdRegs, pSect0->m_EndAddr);
 
-    DtDbgOut(AVG, NONIP, "Frame Buffer Config  (PortIdx %d):", pNonIpPort->m_PortIndex);
-    DtDbgOut(AVG, NONIP, "- S0: sz=%d, begin,end[0x%08X:0x%08X]", 
+    DtDbgOutPort(AVG, NONIP, pNonIpPort, "Frame Buffer Config:");
+    DtDbgOutPort(AVG, NONIP, pNonIpPort, "- S0: sz=%d, begin,end[0x%08X:0x%08X]", 
               pNonIpPort->m_Matrix.m_AsiFifoSize, pSect0->m_BeginAddr, pSect0->m_EndAddr);   
         
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Enable relevant interrupts -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1741,10 +1759,8 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
     DtaFrameBufConfig*  pBufConfig = &pNonIpPort->m_Matrix.m_BufConfig;
     DtaFrameBufSectionConfig*  pSections = pBufConfig->m_Sections;
     
-    DtDbgOut(MIN, NONIP, "Configuring (mode=0x%04X) for (XX-)SDI: DTA-%d, PortIdx %d", 
-                                           ConfigMode, 
-                                           pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber,
-                                                                 pNonIpPort->m_PortIndex);
+    DtDbgOutPort(MIN, NONIP, pNonIpPort, "Configuring (mode=0x%04X) for (XX-)SDI",
+                                                                              ConfigMode);
 
     // Must have (XX-)SDI capabilty
     if (!pNonIpPort->m_CapSdi && !pNonIpPort->m_CapHdSdi && !pNonIpPort->m_Cap3GSdi)
@@ -1779,7 +1795,7 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
 
     if (!ConfigRequired && !ForceConfig)
     {
-        DtDbgOut(MIN, NONIP, "No re-configuration of channel required");
+        DtDbgOutPort(MIN, NONIP, pNonIpPort, "No re-configuration of channel required");
         
         DtaNonIpMatrixSetVpidRegs(pNonIpPort);
 
@@ -2035,12 +2051,12 @@ DtStatus  DtaNonIpMatrixApplyConfig(DtaNonIpPort* pNonIpPort)
         return Status;
     pFrameProps = &pNonIpPort->m_Matrix.m_FrameProps;
     
-    DtDbgOut(AVG, NONIP, "Frame Properties (PortIdx %d):", pNonIpPort->m_PortIndex);
-    DtDbgOut(AVG, NONIP, "- # lines: %d", pFrameProps->m_NumLines);
-    DtDbgOut(AVG, NONIP, "- Field1: f[%d:%d], v[%d:%d]", 
+    DtDbgOutPort(AVG, NONIP, pNonIpPort, "Frame Properties");
+    DtDbgOutPort(AVG, NONIP, pNonIpPort, "- # lines: %d", pFrameProps->m_NumLines);
+    DtDbgOutPort(AVG, NONIP, pNonIpPort, "- Field1: f[%d:%d], v[%d:%d]", 
                         pFrameProps->m_Field1Start, pFrameProps->m_Field1End,
                         pFrameProps->m_Field1ActVidStart, pFrameProps->m_Field1ActVidEnd);
-    DtDbgOut(AVG, NONIP, "- Field2: f[%d:%d], v[%d:%d]", 
+    DtDbgOutPort(AVG, NONIP, pNonIpPort, "- Field2: f[%d:%d], v[%d:%d]", 
                         pFrameProps->m_Field2Start, pFrameProps->m_Field2End,
                         pFrameProps->m_Field2ActVidStart, pFrameProps->m_Field2ActVidEnd);
 
@@ -2134,11 +2150,10 @@ DtStatus  DtaNonIpMatrixApplyConfig(DtaNonIpPort* pNonIpPort)
             if (PixelDelay < 0)            PixelDelay = 0;
             else if (PixelDelay > 0xFFFF)  PixelDelay = 0xFFFF;
                 
-            DtDbgOut(MIN, NONIP, "Pixel delay settings (PortIdx %d):", 
-                                                                 pNonIpPort->m_PortIndex);
-            DtDbgOut(MIN, NONIP, "- TofAlignmentOffset=%dns, OutDelay=%dns", 
+            DtDbgOutPort(MIN, NONIP, pNonIpPort, "Pixel delay settings");
+            DtDbgOutPort(MIN, NONIP, pNonIpPort, "- TofAlignmentOffset=%dns, OutDelay=%dns",
                                        pNonIpPort->m_TofAlignOffsetNs, (OutDelayPs/1000));
-            DtDbgOut(MIN, NONIP, "- Pixel delay=%dns:%dpx; Extra=%dpx", DelayNs, 
+            DtDbgOutPort(MIN, NONIP, pNonIpPort, "- Pixel delay=%dns:%dpx; Extra=%dpx", DelayNs,
                                       PixelDelay, pNonIpPort->m_Matrix.m_ExtraPixelDelay);
         }
 
@@ -2246,15 +2261,17 @@ DtStatus  DtaNonIpMatrixApplyBufferConfig(DtaNonIpPort* pNonIpPort)
     DtaRegHdS1RowConfigSetNumSymbols(pHdRegs, pSect[1].m_LineNumSymbols);
     DtaRegHdS1RowConfigSetNumBytes(pHdRegs, pSect[1].m_LineNumBytesInMem);
 
-    DtDbgOut(AVG, NONIP, "Frame Buffer Config  (PortIdx %d):", pNonIpPort->m_PortIndex);
-    DtDbgOut(AVG, NONIP, "- S0: #f,fsz=[%d:%d], begin,end[0x%08X:0x%08X], #s,#b[%d:%d]", 
-                                 pSect[0].m_NumFrames, pSect[0].m_FrameSizeInMem, 
-                                 pSect[0].m_BeginAddr,  pSect[0].m_EndAddr, 
-                                 pSect[0].m_LineNumSymbols, pSect[0].m_LineNumBytesInMem);
-    DtDbgOut(AVG, NONIP, "- S1: #f,fsz=[%d:%d], begin,end[0x%08X:0x%08X], #s,#b[%d:%d]", 
-                                 pSect[1].m_NumFrames, pSect[1].m_FrameSizeInMem, 
-                                 pSect[1].m_BeginAddr, pSect[1].m_EndAddr,
-                                 pSect[1].m_LineNumSymbols, pSect[1].m_LineNumBytesInMem);   
+    DtDbgOutPort(AVG, NONIP, pNonIpPort, "Frame Buffer Config");
+    DtDbgOutPort(AVG, NONIP, pNonIpPort,
+                           "- S0: #f,fsz=[%d:%d], begin,end[0x%08X:0x%08X], #s,#b[%d:%d]",
+                           pSect[0].m_NumFrames, pSect[0].m_FrameSizeInMem, 
+                           pSect[0].m_BeginAddr,  pSect[0].m_EndAddr, 
+                           pSect[0].m_LineNumSymbols, pSect[0].m_LineNumBytesInMem);
+    DtDbgOutPort(AVG, NONIP, pNonIpPort,
+                           "- S1: #f,fsz=[%d:%d], begin,end[0x%08X:0x%08X], #s,#b[%d:%d]",
+                           pSect[1].m_NumFrames, pSect[1].m_FrameSizeInMem, 
+                           pSect[1].m_BeginAddr, pSect[1].m_EndAddr,
+                           pSect[1].m_LineNumSymbols, pSect[1].m_LineNumBytesInMem);
     return Status;
 }
 
@@ -2718,16 +2735,18 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
     static const  UInt16  EAV_VIDEO[] = { 0x274, 0x368 };
     static const  UInt16  SAV_VIDEO[] = { 0x200, 0x31C };
 
-    DtDbgOut(AVG, NONIP, "Writing black-frame to frame-buffer: %lld", Frame);
+    DtDbgOutPort(AVG, NONIP, pNonIpPort, "Writing black-frame to frame-buffer: %lld",
+                                                                                   Frame);
 
     DT_ASSERT(pNonIpPort != NULL);
     DT_ASSERT(pNonIpPort->m_CapMatrix);
         
     pProps = &pNonIpPort->m_Matrix.m_FrameProps;
     pLocalAddress = (UInt8*)(size_t)pNonIpPort->m_FifoOffset;
-#ifdef _DEBUG
-    DtDbgOut(AVG, NONIP, "Black frame vid std = %s", VidStdName(pProps->m_VidStd));
-#endif
+
+    DtDbgOutPort(AVG, NONIP, pNonIpPort, "Black frame vid std = %s",
+                                                            VidStdName(pProps->m_VidStd));
+
     //.-.-.-.-.-.-.-.-.- Step 1: Allocate buffer for black-frame lines -.-.-.-.-.-.-.-.-.-
 
     // Get size of a single line (in # symbols)

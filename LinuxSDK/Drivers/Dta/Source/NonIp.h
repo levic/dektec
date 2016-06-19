@@ -183,6 +183,8 @@ typedef struct _DtaMatrixPort
     Int  m_AsiDmaOffset;
     Int  m_AsiCtrl;
 
+    UInt64  m_LastIoReset;
+
 } DtaMatrixPort;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaRs422Port -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

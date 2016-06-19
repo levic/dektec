@@ -37,6 +37,7 @@
 typedef struct _DtaProgItf
 {
     Int  m_InterfaceType;
+    Bool  m_SuppFwReboot;
 
     // Exclusive access (usage) of the programming interface
     Bool  m_ExclAccess;

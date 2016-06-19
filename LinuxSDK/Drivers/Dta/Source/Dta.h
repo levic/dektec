@@ -303,6 +303,7 @@ DtStatus  DtaDeviceIoctlChild(DtaChildDeviceData* pDvcData, DtFileObject* pFile,
                                                                    DtIoctlObject* pIoctl);
 
 DtStatus  DtaDeviceAcquireExclAccess(DtaDeviceData*  pDvcData);
+void  DtaDeviceReleaseExclAccess(DtaDeviceData*  pDvcData);
 
 Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData);
 

@@ -31,7 +31,7 @@
 #define FALSE false
 #endif
 #ifndef TRUE
-#define TRUE false
+#define TRUE true
 #endif
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Firmware field operations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

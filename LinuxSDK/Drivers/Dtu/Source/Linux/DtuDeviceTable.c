@@ -23,6 +23,7 @@ struct usb_device_id  DtuDeviceTable[] =
     {     USB_DEVICE(0x1297, 0x224) },
     {     USB_DEVICE(0x1297, 0x226) },
     {     USB_DEVICE(0x1297, 0x22d) },
+    {     USB_DEVICE(0x1297, 0x422d) },
     {     USB_DEVICE(0x1297, 0x30f) },
     {     USB_DEVICE(0x1297, 0x332) },
     {     USB_DEVICE(0x1297, 0x333) },

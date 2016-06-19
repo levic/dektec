@@ -27,11 +27,6 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <DtuIncludes.h>
 
-#define DTU_PID_UNIT_EEPROM      0x8613      // PID of an uninitialised DTU-2xx 
-                                                // (=PID of FX2)
-#define DTU225_PID_NOFW_OLD         0x0100      // Uninitilaised DTU-225 PID 
-#define DTU225_PID_OLD              0x0200      // Initilaised DTU-225 PID 
-
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuProductId2TypeNumber -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -45,23 +40,49 @@
 //  3) The normal case the the PID is 0x0200 + last two digits of the type number 
 //     (e.g. 0x0205 for DTU-205 (0x0200 + 5)
 //
-UInt16  DtuProductId2TypeNumber(Int ProductId)
+Int  DtuProductId2TypeNumber(Int ProductId)
 {
-    if (ProductId == DTU_PID_UNIT_EEPROM)
+    if (ProductId == DTU2xx_PID_UNIT_EEPROM)
         return 299;
-    else if (ProductId >= 0x2000)
+    else if (ProductId==DTU225_PID_OLD || ProductId==DTU225_PID_NOFW_OLD)
+        return 205;
+
+    // Ignore subtypes; Subtypes using different product Ids are encoded in bits 14 and 15
+    ProductId &= 0x3FFF;
+
+    if (ProductId >= 0x2000)
         return 200 + (ProductId>>4 & 0xFF);
     else if (ProductId > 0x300)
         return 300 + (ProductId & 0xFF);
     else if (ProductId > 0x200)
         return 200 + (ProductId & 0xFF);
-    else if (ProductId==DTU225_PID_OLD || ProductId==DTU225_PID_NOFW_OLD)
-        return 205;
     else
         DT_ASSERT(FALSE); // Unknown device
     return 200;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuTypeNumber2ProductId -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Deduces the USB product ID number based on the typenumber.
+// 
+// Note:This function returns a different PID in case manufacturing a FX2 device only.
+//      In all other cases the returned PID is the current PID.
+Int  DtuTypeNumber2ProductId(Int TypeNumber, Int CurProductId)
+{
+    Int  ProductId = CurProductId;
+
+    // If manufacturing FX2 devices, return a determined value.
+    // If not, return the product id from the USB descriptor (CurProductId).
+    if (CurProductId==DTU2xx_PID_UNIT_EEPROM)
+    {
+      if (TypeNumber == 299)
+          ProductId = DTU2xx_PID_UNIT_EEPROM;
+      else if (TypeNumber >= 200)
+          ProductId =  0x200 + (TypeNumber - 200);
+    }
+
+    return ProductId;
+}
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuPropertiesInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //

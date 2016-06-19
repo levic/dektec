@@ -1693,8 +1693,7 @@ void  DtaIpAddrMatcherAddEntryPart2(
     pNewEntry->m_pNext = NULL;
     pNewEntry->m_pPrev = NULL;
     
-    pIpRxNewEntry = DtContainingRecord(pNewEntry, UserIpRxChannel, 
-                             m_AddrMatcherEntrySSMPart2[pNewEntry->m_StreamType][IpPort]);
+    pIpRxNewEntry = pNewEntry->m_pIpRxChannel;
     while (pEntry != NULL)
     {
         pLastEntry = pEntry;
@@ -1748,13 +1747,12 @@ void  DtaIpAddrMatcherAddEntryPart2(
         // Entries are the same
         pNewEntry->m_IpV6SSM.m_IpV6Part2.m_AddressIDTag = 
                                              pEntry->m_IpV6SSM.m_IpV6Part2.m_AddressIDTag;
-        pIpRxEntry = DtContainingRecord(pEntry, UserIpRxChannel, 
-                                m_AddrMatcherEntrySSMPart2[pEntry->m_StreamType][IpPort]);
-        pIpRxNewEntry->m_pNextAddrMatcherEntryPart2[pNewEntry->m_StreamType][IpPort] = 
-                   pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort];
-        pIpRxNewEntry->m_pPrevAddrMatcherEntryPart2[pNewEntry->m_StreamType][IpPort] =
+        pIpRxEntry = pEntry->m_pIpRxChannel;
+        pIpRxNewEntry->m_pNextAddrMatcherEntryPart2[IpPort][pNewEntry->m_StreamType] = 
+                   pIpRxEntry->m_pNextAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType];
+        pIpRxNewEntry->m_pPrevAddrMatcherEntryPart2[IpPort][pNewEntry->m_StreamType] =
                                                                                    pEntry;
-        pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort] = 
+        pIpRxEntry->m_pNextAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType] = 
                                                                                 pNewEntry;
             
         DtDbgOut(MAX, IPADDRM, "[%i] Found same IPV6 element for NewEntry: %p. IdTag=%x",
@@ -1818,12 +1816,11 @@ void  DtaIpAddrMatcherAddEntry(
     
     DtMutexAcquire(&pFirstPort->m_IpPortType2.m_AddrMatcherMutex, -1);
     pEntry = pHead->m_pNext;
-    pIpRxNewEntry = DtContainingRecord(pNewEntry, UserIpRxChannel, 
-                                     m_AddrMatcherEntry[pNewEntry->m_StreamType][IpPort]);
-    pIpRxNewEntry->m_pNextAddrMatcherEntry[pNewEntry->m_StreamType][IpPort] = NULL;
-    pIpRxNewEntry->m_pPrevAddrMatcherEntry[pNewEntry->m_StreamType][IpPort] = NULL;
-    pIpRxNewEntry->m_pNextAddrMatcherEntryPart2[pNewEntry->m_StreamType][IpPort] = NULL;
-    pIpRxNewEntry->m_pPrevAddrMatcherEntryPart2[pNewEntry->m_StreamType][IpPort] = NULL;
+    pIpRxNewEntry = pNewEntry->m_pIpRxChannel;
+    pIpRxNewEntry->m_pNextAddrMatcherEntry[IpPort][pNewEntry->m_StreamType] = NULL;
+    pIpRxNewEntry->m_pPrevAddrMatcherEntry[IpPort][pNewEntry->m_StreamType] = NULL;
+    pIpRxNewEntry->m_pNextAddrMatcherEntryPart2[IpPort][pNewEntry->m_StreamType] = NULL;
+    pIpRxNewEntry->m_pPrevAddrMatcherEntryPart2[IpPort][pNewEntry->m_StreamType] = NULL;
 
     DT_ASSERT(pNewEntry->m_pNext==NULL && pNewEntry->m_pPrev== NULL && 
                                                                pNewEntry->m_pPart2==NULL);
@@ -1895,25 +1892,23 @@ void  DtaIpAddrMatcherAddEntry(
                               pNewEntryPart2->m_IpV6SSM.m_IpV6Part2_First.m_AddressIDTag);
         } else {
             pNewEntry->m_Gen.m_AddressIDTag = pEntry->m_Gen.m_AddressIDTag;
-            pIpRxEntry = DtContainingRecord(pEntry, UserIpRxChannel, 
-                                        m_AddrMatcherEntry[pEntry->m_StreamType][IpPort]);
-            pIpRxNewEntry->m_pNextAddrMatcherEntry[pNewEntry->m_StreamType][IpPort] = 
-                        pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType][IpPort];
-            pIpRxNewEntry->m_pPrevAddrMatcherEntry[pNewEntry->m_StreamType][IpPort] = 
+            pIpRxEntry = pEntry->m_pIpRxChannel;
+            pIpRxNewEntry->m_pNextAddrMatcherEntry[IpPort][pNewEntry->m_StreamType] = 
+                        pIpRxEntry->m_pNextAddrMatcherEntry[IpPort][pEntry->m_StreamType];
+            pIpRxNewEntry->m_pPrevAddrMatcherEntry[IpPort][pNewEntry->m_StreamType] = 
                                                                                    pEntry;
-            if (pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType][IpPort] != NULL)
+            if (pIpRxEntry->m_pNextAddrMatcherEntry[IpPort][pEntry->m_StreamType] != NULL)
             {
-                Int StreamType2 = pIpRxEntry->m_pNextAddrMatcherEntry\
-                                             [pEntry->m_StreamType][IpPort]->m_StreamType;
+                Int StreamType2 = pIpRxEntry->m_pNextAddrMatcherEntry \
+                                             [IpPort][pEntry->m_StreamType]->m_StreamType;
                 UserIpRxChannel*  pIpRxEntryTmp = NULL;
     
-                pIpRxEntryTmp = DtContainingRecord(pIpRxEntry->m_pNextAddrMatcherEntry \
-                                          [pEntry->m_StreamType][IpPort], UserIpRxChannel,
-                                          m_AddrMatcherEntry[StreamType2][IpPort]);
-                pIpRxEntryTmp->m_pPrevAddrMatcherEntry[StreamType2][IpPort] = pNewEntry;
+                pIpRxEntryTmp = pIpRxEntry->m_pNextAddrMatcherEntry \
+                                           [IpPort][pEntry->m_StreamType]->m_pIpRxChannel;
+                pIpRxEntryTmp->m_pPrevAddrMatcherEntry[IpPort][StreamType2] = pNewEntry;
             }
 
-            pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType][IpPort] = pNewEntry;
+            pIpRxEntry->m_pNextAddrMatcherEntry[IpPort][pEntry->m_StreamType] = pNewEntry;
             
             
             DtDbgOut(MAX, IPADDRM, "[%i] Found same element for NewEntry: %p. IdTag=%x", 
@@ -1970,27 +1965,24 @@ void  DtaIpAddrMatcherDeleteIpV4_6Entry(
     UInt  IpPort = pIpPort->m_IpPortIndex;
     UserIpRxChannel*  pIpRxEntry = NULL;
     
-    pIpRxEntry = DtContainingRecord(pEntry, UserIpRxChannel, 
-                                        m_AddrMatcherEntry[pEntry->m_StreamType][IpPort]);
-    
+    pIpRxEntry = pEntry->m_pIpRxChannel;
     if (pEntry->m_pNext!=NULL || pEntry->m_pPrev!=NULL)
     {
         // This is a root element, check if child elements are attached
-        DT_ASSERT(pIpRxEntry->m_pPrevAddrMatcherEntry[pEntry->m_StreamType][IpPort] == 
+        DT_ASSERT(pIpRxEntry->m_pPrevAddrMatcherEntry[IpPort][pEntry->m_StreamType] == 
                                                                                     NULL);
-        if (pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType][IpPort] != NULL) 
+        if (pIpRxEntry->m_pNextAddrMatcherEntry[IpPort][pEntry->m_StreamType] != NULL) 
         {
             // Another element has same IP-settings. Set other element as root element
             UserIpRxChannel*  pIpRxEntry2 = NULL;
             AddressMatcherLookupEntry*  pEntry2 = 
-                        pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType][IpPort];
-            StreamType = pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType] \
-                                                                   [IpPort]->m_StreamType;
-            pIpRxEntry2 = DtContainingRecord(
-                       pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType][IpPort],
-                       UserIpRxChannel, m_AddrMatcherEntry[pEntry->m_StreamType][IpPort]);
-            DT_ASSERT(pIpRxEntry2->m_pPrevAddrMatcherEntry[StreamType][IpPort] == pEntry);
-            pIpRxEntry2->m_pPrevAddrMatcherEntry[StreamType][IpPort] = NULL;
+                        pIpRxEntry->m_pNextAddrMatcherEntry[IpPort][pEntry->m_StreamType];
+            StreamType = pIpRxEntry->m_pNextAddrMatcherEntry[IpPort] \
+                                                     [pEntry->m_StreamType]->m_StreamType;
+            pIpRxEntry2 = pIpRxEntry->m_pNextAddrMatcherEntry \
+                                           [IpPort][pEntry->m_StreamType]->m_pIpRxChannel;
+            DT_ASSERT(pIpRxEntry2->m_pPrevAddrMatcherEntry[IpPort][StreamType] == pEntry);
+            pIpRxEntry2->m_pPrevAddrMatcherEntry[IpPort][StreamType] = NULL;
             pEntry2->m_pNext = pEntry->m_pNext;
             if (pEntry->m_pNext != NULL)
                 pEntry2->m_pNext->m_pPrev = pEntry2;
@@ -2018,27 +2010,25 @@ void  DtaIpAddrMatcherDeleteIpV4_6Entry(
             
         // This is a sub-element, we only need to change the child elements
         DT_ASSERT(pEntry->m_pNext==NULL && pEntry->m_pPrev==NULL);
-        if (pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType][IpPort] != NULL)
+        if (pIpRxEntry->m_pNextAddrMatcherEntry[IpPort][pEntry->m_StreamType] != NULL)
         {
-            StreamType = pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType] \
-                                                                   [IpPort]->m_StreamType;
+            StreamType = pIpRxEntry->m_pNextAddrMatcherEntry[IpPort] \
+                                                     [pEntry->m_StreamType]->m_StreamType;
             // Update the previous element of the next element
-            pIpRxEntryTmp = DtContainingRecord(
-                       pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType][IpPort],
-                       UserIpRxChannel, m_AddrMatcherEntry[pEntry->m_StreamType][IpPort]);
-            pIpRxEntryTmp->m_pPrevAddrMatcherEntry[StreamType][IpPort] =
-                        pIpRxEntry->m_pPrevAddrMatcherEntry[pEntry->m_StreamType][IpPort];
+            pIpRxEntryTmp = pIpRxEntry->m_pNextAddrMatcherEntry \
+                                           [IpPort][pEntry->m_StreamType]->m_pIpRxChannel;
+            pIpRxEntryTmp->m_pPrevAddrMatcherEntry[IpPort][StreamType] =
+                        pIpRxEntry->m_pPrevAddrMatcherEntry[IpPort][pEntry->m_StreamType];
         }
         // Update the next  element of the previous element
-        StreamType = pIpRxEntry->m_pPrevAddrMatcherEntry[pEntry->m_StreamType] \
-                                                                   [IpPort]->m_StreamType;
-        pIpRxEntryTmp = DtContainingRecord(
-                       pIpRxEntry->m_pPrevAddrMatcherEntry[pEntry->m_StreamType][IpPort],
-                       UserIpRxChannel, m_AddrMatcherEntry[pEntry->m_StreamType][IpPort]);
-        pIpRxEntryTmp->m_pNextAddrMatcherEntry[StreamType][IpPort] = 
-                        pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType][IpPort];
-        pIpRxEntry->m_pPrevAddrMatcherEntry[pEntry->m_StreamType][IpPort] = NULL;
-        pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType][IpPort] = NULL;
+        StreamType = pIpRxEntry->m_pPrevAddrMatcherEntry[IpPort] \
+                                                     [pEntry->m_StreamType]->m_StreamType;
+        pIpRxEntryTmp = pIpRxEntry->m_pPrevAddrMatcherEntry \
+                                           [IpPort][pEntry->m_StreamType]->m_pIpRxChannel;
+        pIpRxEntryTmp->m_pNextAddrMatcherEntry[IpPort][StreamType] = 
+                        pIpRxEntry->m_pNextAddrMatcherEntry[IpPort][pEntry->m_StreamType];
+        pIpRxEntry->m_pPrevAddrMatcherEntry[IpPort][pEntry->m_StreamType] = NULL;
+        pIpRxEntry->m_pNextAddrMatcherEntry[IpPort][pEntry->m_StreamType] = NULL;
         DtDbgOut(MAX, IPADDRM, "[%i] Entry: %p deleted. No owner change."
                                               " IdTag=%x", pIpPort->m_IpPortIndex, pEntry,
                                               (Int)pEntry->m_Gen.m_AddressIDTag);
@@ -2057,31 +2047,29 @@ void  DtaIpAddrMatcherDeleteIpV6SSMEntry(
     UInt8  StreamType;
     UInt  IpPort = pIpPort->m_IpPortIndex;
     UserIpRxChannel*  pIpRxEntry = NULL;
-    pIpRxEntry = DtContainingRecord(pEntry, UserIpRxChannel, 
-                                        m_AddrMatcherEntry[pEntry->m_StreamType][IpPort]);
+    pIpRxEntry = pEntry->m_pIpRxChannel;
     
     //+=+=+=+=+=+=+=+=+=+=+=+=+ First check the part 2 elements +=+=+=+=+=+=+=+=+=+=+=+=+=
     if (pEntryPart2->m_pNext!=NULL || pEntryPart2->m_pPrev!=NULL || 
                                                                pEntryPart2->m_pHead!=NULL)
     {
         // This is a root element, check if child elements are attached
-        DT_ASSERT(pIpRxEntry->m_pPrevAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort] 
+        DT_ASSERT(pIpRxEntry->m_pPrevAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType] 
                                                                                  == NULL);
-        if (pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort] != 
+        if (pIpRxEntry->m_pNextAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType] != 
                                                                                      NULL)
         {
             // Another element has same IP-settings. Set other element as root element
             UserIpRxChannel*  pIpRxEntry2 = NULL;
             AddressMatcherLookupEntryPart2*  pEntryPart2_2 = 
-                   pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort];
-            StreamType =  pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_StreamType] \
-                                                                   [IpPort]->m_StreamType;
-            pIpRxEntry2 = DtContainingRecord(
-               pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort],
-               UserIpRxChannel, m_AddrMatcherEntrySSMPart2[pEntry->m_StreamType][IpPort]);
-            DT_ASSERT(pIpRxEntry2->m_pPrevAddrMatcherEntryPart2[StreamType][IpPort] == 
+                   pIpRxEntry->m_pNextAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType];
+            StreamType =  pIpRxEntry->m_pNextAddrMatcherEntryPart2[IpPort] \
+                                                     [pEntry->m_StreamType]->m_StreamType;
+            pIpRxEntry2 = pIpRxEntry->m_pNextAddrMatcherEntryPart2[IpPort] \
+                                                   [pEntry->m_StreamType]->m_pIpRxChannel;
+            DT_ASSERT(pIpRxEntry2->m_pPrevAddrMatcherEntryPart2[IpPort][StreamType] == 
                                                                              pEntryPart2);
-            pIpRxEntry2->m_pPrevAddrMatcherEntryPart2[StreamType][IpPort] = NULL;
+            pIpRxEntry2->m_pPrevAddrMatcherEntryPart2[IpPort][StreamType] = NULL;
             pEntryPart2_2->m_pNext = pEntryPart2->m_pNext;
             if (pEntryPart2->m_pNext != NULL)
                 pEntryPart2_2->m_pNext->m_pPrev = pEntryPart2_2;
@@ -2133,29 +2121,27 @@ void  DtaIpAddrMatcherDeleteIpV6SSMEntry(
         // This is a sub-element, we only need to change the child elements
         DT_ASSERT(pEntryPart2->m_pNext==NULL && pEntryPart2->m_pPrev==NULL &&
                                                               pEntryPart2->m_pHead==NULL);
-        if (pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort]
+        if (pIpRxEntry->m_pNextAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType]
                                                                                   != NULL)
         {
-            StreamType = pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_StreamType] \
-                                                                   [IpPort]->m_StreamType;
+            StreamType = pIpRxEntry->m_pNextAddrMatcherEntryPart2[IpPort] \
+                                                     [pEntry->m_StreamType]->m_StreamType;
             
             // Update the previous element of the next element
-            pIpRxEntryTmp = DtContainingRecord(
-               pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort],
-               UserIpRxChannel, m_AddrMatcherEntrySSMPart2[pEntry->m_StreamType][IpPort]);
-            pIpRxEntryTmp->m_pPrevAddrMatcherEntryPart2[StreamType][IpPort] =
-                   pIpRxEntry->m_pPrevAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort];
+            pIpRxEntryTmp = pIpRxEntry->m_pNextAddrMatcherEntryPart2 \
+                                           [IpPort][pEntry->m_StreamType]->m_pIpRxChannel;
+            pIpRxEntryTmp->m_pPrevAddrMatcherEntryPart2[IpPort][StreamType] =
+                   pIpRxEntry->m_pPrevAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType];
         }
         // Update the next  element of the previous element
-        StreamType = pIpRxEntry->m_pPrevAddrMatcherEntryPart2[pEntry->m_StreamType] \
-                                                                   [IpPort]->m_StreamType;
-        pIpRxEntryTmp = DtContainingRecord(
-               pIpRxEntry->m_pPrevAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort],
-               UserIpRxChannel, m_AddrMatcherEntrySSMPart2[pEntry->m_StreamType][IpPort]);
-        pIpRxEntryTmp->m_pNextAddrMatcherEntryPart2[StreamType][IpPort] = 
-                   pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort];
-        pIpRxEntry->m_pPrevAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort] = NULL;
-        pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort] = NULL;
+        StreamType = pIpRxEntry->m_pPrevAddrMatcherEntryPart2 \
+                                             [IpPort][pEntry->m_StreamType]->m_StreamType;
+        pIpRxEntryTmp = pIpRxEntry->m_pPrevAddrMatcherEntryPart2 \
+                                           [IpPort][pEntry->m_StreamType]->m_pIpRxChannel;
+        pIpRxEntryTmp->m_pNextAddrMatcherEntryPart2[IpPort][StreamType] = 
+                   pIpRxEntry->m_pNextAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType];
+        pIpRxEntry->m_pPrevAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType] = NULL;
+        pIpRxEntry->m_pNextAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType] = NULL;
         DtDbgOut(MAX, IPADDRM, "[%i] Entry: %p deleted. No owner change."
                             " IdTag=%x", pIpPort->m_IpPortIndex, pEntryPart2,
                             (Int)pEntryPart2->m_IpV6SSM.m_IpV6Part2_First.m_AddressIDTag);
@@ -2168,11 +2154,9 @@ void  DtaIpAddrMatcherDeleteIpV6SSMEntry(
         DT_ASSERT(pEntry->m_pPrev != NULL);
         StreamType = pEntry->m_pPart2->m_StreamType;
         // We have to set a new part1 element
-        pIpRxEntryTmp = DtContainingRecord(pEntry->m_pPart2,
-                         UserIpRxChannel, m_AddrMatcherEntrySSMPart2 \
-                                                [pEntry->m_pPart2->m_StreamType][IpPort]);
+        pIpRxEntryTmp = pEntry->m_pPart2->m_pIpRxChannel;
         DT_ASSERT(pIpRxEntryTmp != pIpRxEntry);
-        pEntry2 = &pIpRxEntryTmp->m_AddrMatcherEntry[StreamType][IpPort];
+        pEntry2 = &pIpRxEntryTmp->m_AddrMatcherEntry[IpPort][StreamType];
         DT_ASSERT(pEntry2->m_pNext==NULL && pEntry2->m_pPrev==NULL && 
                                                                  pEntry2->m_pPart2==NULL);
         pEntry2->m_pPart2 = pEntry->m_pPart2;
@@ -2209,19 +2193,16 @@ void  DtaIpAddrMatcherDeleteEntry(
     UInt  FirstIpPortNum = pIpPort->m_IpPortIndex&0xfffffffe;
     DtaIpPort*  pFirstPort = &pIpPort->m_pDvcData->m_IpDevice.m_pIpPorts[FirstIpPortNum];
     UInt  IpPort = pIpPort->m_IpPortIndex;
-    UserIpRxChannel*  pIpRxEntry = NULL;
-    pIpRxEntry = DtContainingRecord(pEntry, UserIpRxChannel, 
-                                        m_AddrMatcherEntry[pEntry->m_StreamType][IpPort]);
-    
+    UserIpRxChannel*  pIpRxEntry = pEntry->m_pIpRxChannel;
     DtMutexAcquire(&pFirstPort->m_IpPortType2.m_AddrMatcherMutex, -1);
 
     if (pEntry->m_pNext==NULL && pEntry->m_pPrev==NULL && 
-          pIpRxEntry->m_pPrevAddrMatcherEntry[pEntry->m_StreamType][IpPort]== NULL &&
-          pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType][IpPort]== NULL &&
-          pEntryPart2->m_pNext==NULL && pEntryPart2->m_pPrev==NULL &&
-          pEntryPart2->m_pHead==NULL &&
-          pIpRxEntry->m_pPrevAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort]== NULL &&
-          pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_StreamType][IpPort]== NULL)
+           pIpRxEntry->m_pPrevAddrMatcherEntry[IpPort][pEntry->m_StreamType]==NULL &&
+           pIpRxEntry->m_pNextAddrMatcherEntry[IpPort][pEntry->m_StreamType]==NULL &&
+           pEntryPart2->m_pNext==NULL && pEntryPart2->m_pPrev==NULL &&
+           pEntryPart2->m_pHead==NULL &&
+           pIpRxEntry->m_pPrevAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType]==NULL &&
+           pIpRxEntry->m_pNextAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType]==NULL)
     {
         // Entry not in list
         DtDbgOut(MAX, IPADDRM, "[%i] Entry: %p not in list.",
@@ -2413,7 +2394,7 @@ void  DtaIpAddrMatcherUpdateTable(
 
     DtMutexRelease (&pFirstPort->m_IpPortType2.m_AddrMatcherMutex);
 #ifdef  _DEBUG
-    //DtaIpDumpAddrMatcherTable(pIpPort, pHead);
+    DtaIpDumpAddrMatcherTable(pIpPort, pHead);
 #endif
 }
 
@@ -2438,12 +2419,11 @@ void  DtaIpDumpAddrMatcherTable(DtaIpPort* pIpPort, AddressMatcherLookupEntry* p
         AddressMatcherLookupEntry*  pEntryCP;
 
         UserIpRxChannel*  pIpRxEntry = NULL;
-        pIpRxEntry = DtContainingRecord(pEntry, UserIpRxChannel, 
-                          m_AddrMatcherEntry[pEntry->m_StreamType][pEntry->m_Gen.m_Port]);
-        pEntryCN = pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_StreamType] \
-                                                                   [pEntry->m_Gen.m_Port];
-        pEntryCP = pIpRxEntry->m_pPrevAddrMatcherEntry[pEntry->m_StreamType] \
-                                                                   [pEntry->m_Gen.m_Port];
+        pIpRxEntry = pEntry->m_pIpRxChannel;
+        pEntryCN = pIpRxEntry->m_pNextAddrMatcherEntry[pEntry->m_Gen.m_Port] \
+                                                                   [pEntry->m_StreamType];
+        pEntryCP = pIpRxEntry->m_pPrevAddrMatcherEntry[pEntry->m_Gen.m_Port] \
+                                                                   [pEntry->m_StreamType];
         
         DtDbgOut(ERR, IPADDRM, "pEntry:%p ST:%i Prev:%p Next:%p ChildPrev:%p"
                                     " ChildNext:%p", pEntry, pEntry->m_StreamType, 
@@ -2452,12 +2432,11 @@ void  DtaIpDumpAddrMatcherTable(DtaIpPort* pIpPort, AddressMatcherLookupEntry* p
         {
             AddressMatcherLookupEntry*  pEntryTmp = pEntryCN;
 
-            pIpRxEntry = DtContainingRecord(pEntryTmp, UserIpRxChannel, 
-                    m_AddrMatcherEntry[pEntryTmp->m_StreamType][pEntryTmp->m_Gen.m_Port]);
-            pEntryCN = pIpRxEntry->m_pNextAddrMatcherEntry[pEntryTmp->m_StreamType] \
-                                                                [pEntryTmp->m_Gen.m_Port];
-            pEntryCP = pIpRxEntry->m_pPrevAddrMatcherEntry[pEntryTmp->m_StreamType] \
-                                                                [pEntryTmp->m_Gen.m_Port];
+            pIpRxEntry = pEntryTmp->m_pIpRxChannel;
+            pEntryCN = pIpRxEntry->m_pNextAddrMatcherEntry[pEntryTmp->m_Gen.m_Port] \
+                                                                [pEntryTmp->m_StreamType];
+            pEntryCP = pIpRxEntry->m_pPrevAddrMatcherEntry[pEntryTmp->m_Gen.m_Port] \
+                                                                [pEntryTmp->m_StreamType];
         
             DtDbgOut(ERR, IPADDRM, "    Sub: pEntry:%p ST:%i Prev:%p Next:%p ChildPrev:%p"
                               " ChildNext:%p ", pEntryTmp, pEntryTmp->m_StreamType,
@@ -2473,15 +2452,13 @@ void  DtaIpDumpAddrMatcherTable(DtaIpPort* pIpPort, AddressMatcherLookupEntry* p
                 AddressMatcherLookupEntryPart2*  pEntryP2CN;
                 AddressMatcherLookupEntryPart2*  pEntryP2CP;
                 UserIpRxChannel*  pIpRxEntry = NULL;
-                pIpRxEntry = DtContainingRecord(pPart2, UserIpRxChannel, 
-                                        m_AddrMatcherEntrySSMPart2[pPart2->m_StreamType] \
-                                        [pEntry->m_Gen.m_Port]);
+                pIpRxEntry = pPart2->m_pIpRxChannel;
                 pEntryP2CN = 
-                          pIpRxEntry->m_pNextAddrMatcherEntryPart2[pPart2->m_StreamType] \
-                                                                   [pEntry->m_Gen.m_Port];
+                          pIpRxEntry->m_pNextAddrMatcherEntryPart2[pEntry->m_Gen.m_Port] \
+                                                                   [pPart2->m_StreamType];
                 pEntryP2CP = 
-                          pIpRxEntry->m_pPrevAddrMatcherEntryPart2[pPart2->m_StreamType] \
-                                                                   [pEntry->m_Gen.m_Port];
+                          pIpRxEntry->m_pPrevAddrMatcherEntryPart2[pEntry->m_Gen.m_Port] \
+                                                                   [pPart2->m_StreamType];
         
                 DtDbgOut(ERR, IPADDRM, "  pEntryP2:%p ST: %i Prev:%p Next:%p ChildPrev:%p"
                                 " ChildNext:%p", pPart2, pPart2->m_StreamType, 
@@ -2491,13 +2468,11 @@ void  DtaIpDumpAddrMatcherTable(DtaIpPort* pIpPort, AddressMatcherLookupEntry* p
                 {
                     AddressMatcherLookupEntryPart2*  pEntryP2Tmp = pEntryP2CN;
 
-                    pIpRxEntry = DtContainingRecord(pEntryP2Tmp, UserIpRxChannel, 
-                                   m_AddrMatcherEntrySSMPart2[pEntryP2Tmp->m_StreamType] \
-                                                                  [pEntry->m_Gen.m_Port]);
+                    pIpRxEntry = pEntryP2Tmp->m_pIpRxChannel;
                     pEntryP2CN = pIpRxEntry->m_pNextAddrMatcherEntryPart2 \
-                                        [pEntryP2Tmp->m_StreamType][pEntry->m_Gen.m_Port];
+                                        [pEntry->m_Gen.m_Port][pEntryP2Tmp->m_StreamType];
                     pEntryP2CP = pIpRxEntry->m_pPrevAddrMatcherEntryPart2 \
-                                        [pEntryP2Tmp->m_StreamType][pEntry->m_Gen.m_Port];
+                                        [pEntry->m_Gen.m_Port][pEntryP2Tmp->m_StreamType];
         
                     DtDbgOut(ERR, IPADDRM, "    Sub: pEntryP2:%p ST: %i Prev:%p Next:%p"
                                           " ChildPrev:%p ChildNext:%p ", pEntryP2Tmp, 

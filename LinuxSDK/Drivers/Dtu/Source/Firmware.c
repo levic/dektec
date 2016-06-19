@@ -45,6 +45,14 @@ const UInt8*  DtuGetPldFirmware(Int ProductId, Int FwVariant, Int HwRev, Int* pS
     const UInt8*  pFirmware = NULL;
     Int  MinHwRev = -1;
     Int  i=0;
+
+    DtDbgOut(MAX, DTU, "Trying to find FW for PID 0x%04X, FwVariant %d, HWRev %d",
+                                                             ProductId, FwVariant, HwRev);
+
+    // Ignore subtypes; Subtypes using different product Ids are encoded in bits 14 and 15    
+    if (ProductId != DTU2xx_PID_UNIT_EEPROM)
+      ProductId &= 0x3FFF;    
+
     for (i=0; i<DtuPldFirmwareStoreCount; i++)
     {
         if (DtuPldFirmwareStores[i].m_ProductId==ProductId
@@ -85,6 +93,9 @@ const DtuIntelHexRecord*  DtuGetEzUsbFirmware(Int ProductId, Int FwVariant, Int 
     const DtuIntelHexRecord*  pFirmware = NULL;
     Int  MinHwRev = -1;
     Int  i=0;
+
+    DtDbgOut(MAX, DTU, "Searching EzUsb FW for ProductId %d, FwVariant %d, HwRev %d", 
+                       ProductId, FwVariant, HwRev);
     for (i=0; i<DtuEzUsbFirmwareStoreCount; i++)
     {
         if (DtuEzUsbFirmwareStores[i].m_ProductId==ProductId
@@ -112,7 +123,7 @@ const DtuIntelHexRecord*  DtuGetEzUsbFirmware(Int ProductId, Int FwVariant, Int 
     }
 
     if (pFirmware != NULL)
-        DtDbgOut(MAX, DTU, "Found USB FW for : PID 0x%04X HW_REV >= %d", ProductId, 
+        DtDbgOut(MAX, DTU, "Found EzUSB USB FW for : PID 0x%04X HW_REV >= %d", ProductId, 
                                                                                 MinHwRev);
     return pFirmware;
 }

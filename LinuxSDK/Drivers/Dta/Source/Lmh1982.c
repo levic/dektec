@@ -403,6 +403,9 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
     // Always use 27MHz for SD clock
     pRegs->m_Reg08.Fields.m_SdFreq = DTA_LMH1982_IIC_SD_FREQ_27_00;
 
+    // Keep Tx clock in reset while switching clock
+    DtaRegControl0SetTxClkRstEnable(pLmh1982Data->m_pDvcData->m_pGenRegs, 1);
+
     if (DtaVidStdIsFractional(OutVidStd))
     {
         DtDbgOut(MIN, GENL, "Switching to DTA_LMH1982_IIC_HD_FREQ_148_35");
@@ -410,40 +413,42 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
         pRegs->m_Reg08.Fields.m_HdFreq = DTA_LMH1982_IIC_HD_FREQ_148_35;
         Status = DtaLmh1982WriteReg(pLmh1982Data, DTA_LMH1982_IIC_REG08_8B,
                                                                       pRegs->m_Reg08.All);
-        if (!DT_SUCCESS(Status))
-            return DT_STATUS_FAIL;
-
-        pRegs->m_Reg04_05.Fields.m_FbDiv = 1;
-        Status = DtaLmh1982WriteReg16(pLmh1982Data, DTA_LMH1982_IIC_REG04_16B,
+        if (DT_SUCCESS(Status))
+        {
+          pRegs->m_Reg04_05.Fields.m_FbDiv = 1;
+          Status = DtaLmh1982WriteReg16(pLmh1982Data, DTA_LMH1982_IIC_REG04_16B,
                                                                    pRegs->m_Reg04_05.All);
-        if (!DT_SUCCESS(Status))
-            return DT_STATUS_FAIL;
+        }
 
-        pRegs->m_Reg09_0A.Fields.m_TofRst = 1;
-        Status = DtaLmh1982WriteReg16(pLmh1982Data, DTA_LMH1982_IIC_REG09_16B, 
+        if (DT_SUCCESS(Status))
+        {
+          pRegs->m_Reg09_0A.Fields.m_TofRst = 1;
+          Status = DtaLmh1982WriteReg16(pLmh1982Data, DTA_LMH1982_IIC_REG09_16B, 
                                                                    pRegs->m_Reg09_0A.All);
-        if (!DT_SUCCESS(Status))
-            return DT_STATUS_FAIL;
+        }
 
-        pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1;
-        Status = DtaLmh1982WriteReg16(pLmh1982Data, DTA_LMH1982_IIC_REG0F_16B, 
+        if (DT_SUCCESS(Status))
+        {
+          pRegs->m_Reg0F_10.Fields.m_RefLpfm = 1;
+          Status = DtaLmh1982WriteReg16(pLmh1982Data, DTA_LMH1982_IIC_REG0F_16B, 
                                                                    pRegs->m_Reg0F_10.All);
-        if (!DT_SUCCESS(Status))
-            return DT_STATUS_FAIL;
+        }
 
-        pRegs->m_Reg09_0A.Fields.m_EnTofRst = 1;
-        Status = DtaLmh1982WriteReg16(pLmh1982Data, DTA_LMH1982_IIC_REG09_16B, 
+        if (DT_SUCCESS(Status))
+        {         
+          pRegs->m_Reg09_0A.Fields.m_EnTofRst = 1;
+          Status = DtaLmh1982WriteReg16(pLmh1982Data, DTA_LMH1982_IIC_REG09_16B, 
                                                                    pRegs->m_Reg09_0A.All);
-        if (!DT_SUCCESS(Status))
-            return DT_STATUS_FAIL;
+        }
 
-        // Wait at least 2 27Mhz cycles
-        DtSleep(1);
-        pRegs->m_Reg09_0A.Fields.m_EnTofRst = 0;
-        Status = DtaLmh1982WriteReg16(pLmh1982Data, DTA_LMH1982_IIC_REG09_16B, 
+        if (DT_SUCCESS(Status))
+        {
+          // Wait at least 2 27Mhz cycles
+          DtSleep(1);
+          pRegs->m_Reg09_0A.Fields.m_EnTofRst = 0;
+          Status = DtaLmh1982WriteReg16(pLmh1982Data, DTA_LMH1982_IIC_REG09_16B, 
                                                                    pRegs->m_Reg09_0A.All);
-        if (!DT_SUCCESS(Status))
-            return DT_STATUS_FAIL;
+        }
     }
     else
     {
@@ -452,10 +457,13 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
 
         Status = DtaLmh1982WriteReg(pLmh1982Data, DTA_LMH1982_IIC_REG08_8B, 
                                                                       pRegs->m_Reg08.All);
-        if (!DT_SUCCESS(Status))
-            return DT_STATUS_FAIL;
+        
     }
-    
+
+    // Get Tx clock out of reset after switching the clock
+    DtaRegControl0SetTxClkRstEnable(pLmh1982Data->m_pDvcData->m_pGenRegs, 0);
+    if (!DT_SUCCESS(Status))
+      return DT_STATUS_FAIL;
     
     //.-.-.-.-.-.-.-.-.-.-.-.- Step 3.2: Set Reference Registers -.-.-.-.-.-.-.-.-.-.-.-.-
 

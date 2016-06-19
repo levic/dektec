@@ -404,6 +404,18 @@ static __inline void  DtaRegControl0SetPwrEnable(volatile UInt8* pBase, UInt Pow
                                                                 DT_GEN_CONTROL0_PWREN_SH);
 }
 
+// Get reset state of transmitter clock (DTA-2152)
+static __inline UInt  DtaRegControl0GetTxClkRstEnable(volatile UInt8* pBase) {
+    return READ_UINT_MASKED( pBase, DT_GEN_REG_CONTROL0, DT_GEN_CONTROL0_TXCLKRSTEN_MSK, 
+                                                           DT_GEN_CONTROL0_TXCLKRSTEN_SH);
+}
+
+// Set reset state of transmitter clock (DTA-2152)
+static __inline void  DtaRegControl0SetTxClkRstEnable(volatile UInt8* pBase, UInt Enble) {
+    WRITE_UINT_MASKED(Enble, pBase, DT_GEN_REG_CONTROL0,
+                           DT_GEN_CONTROL0_TXCLKRSTEN_MSK, DT_GEN_CONTROL0_TXCLKRSTEN_SH);
+}
+
 //.-.-.-.-.-.-.-.-.-.-.- BoardControl1 Registers: Access Functions -.-.-.-.-.-.-.-.-.-.-.-
 static __inline UInt  DtaRegControl1Get(volatile UInt8* pBase) {
     return READ_UINT(pBase, DT_GEN_REG_CONTROL1);

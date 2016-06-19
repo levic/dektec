@@ -154,6 +154,7 @@ struct _DtuDeviceData
 
     // Registry
     Bool  m_RegistryWriteBusy;
+    DtEvent  m_RegWriteDoneEvt;
 
     // VPD
     DtVpd  m_Vpd;
@@ -208,6 +209,9 @@ DtStatus  DtuDeviceOpen(DtuDeviceData* pDvcData, DtFileObject* pFile);
 DtStatus  DtuDeviceClose(DtuDeviceData* pDvcData, DtFileObject* pFile);
 DtStatus  DtuDeviceIoctl(DtuDeviceData* pDvcData, DtFileObject* pFile,
                                                                    DtIoctlObject* pIoctl);
+
+DtStatus  DtuDeviceAcquireExclAccess(DtuDeviceData*  pDvcData);
+void  DtuDeviceReleaseExclAccess(DtuDeviceData*  pDvcData);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 DtStatus  DtuGetNonIpPortIndex(DtuDeviceData* pDvcData, Int PortIndex,

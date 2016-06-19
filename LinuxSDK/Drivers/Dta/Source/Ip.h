@@ -132,6 +132,7 @@ struct _AddressMatcherLookupEntry{
     AddressMatcherLookupEntry*  m_pNext;  // Next with different content (Other ID Tag)
     AddressMatcherLookupEntry*  m_pPrev;  // Prev. with different content (Other ID Tag)
     AddressMatcherLookupEntryPart2*  m_pPart2; // With IPV6 SSM link
+    UserIpRxChannel*  m_pIpRxChannel;     // Pointer to channel owning this record
     UInt8  m_StreamType;                  // Type of stream (Main, Fec Row/Column)
 };
 
@@ -180,6 +181,7 @@ struct _AddressMatcherLookupEntryPart2 {
     AddressMatcherLookupEntryPart2*  m_pPrev; // Prev with different content(Other ID Tag)
     AddressMatcherLookupEntry*  m_pHead;      // Points to the head if this element is the
                                               // first in the list
+    UserIpRxChannel*  m_pIpRxChannel;         // Pointer to channel owning this record
     UInt8  m_StreamType;                      // Type of stream (Main, Fec Row/Column)
 };
 

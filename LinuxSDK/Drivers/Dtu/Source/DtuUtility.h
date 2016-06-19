@@ -38,7 +38,8 @@
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
-UInt16  DtuProductId2TypeNumber(Int ProductId);
+Int  DtuProductId2TypeNumber(Int ProductId);
+Int  DtuTypeNumber2ProductId(Int TypeNumber, Int CurProductId);
 
 
 DtStatus  DtuPropertiesInit(DtuDeviceData* pDvcData);

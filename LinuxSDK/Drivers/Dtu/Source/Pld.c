@@ -68,6 +68,7 @@ DtStatus  DtuPldInit(DtuDeviceData* pDvcData)
         DtDbgOut(ERR, DTU, "Failed to upload PLD firmware (Status=0x%08X)", Status);
         return Status;
     }
+    DtDbgOut(MIN, DTU, "Uploading PLD firmware done");
     return Status;
 }
 
@@ -216,9 +217,17 @@ DtStatus  DtuLoadPldFirmware(
     UInt8  BitTest;
     Int  i, Total, l, BitNr, Dummy;
     UInt16  WordBits[1024];
-
+    
     // Get pipe for firmware uploading
     UInt8  Pipe = (UInt8)pDvcData->m_EzUsb.m_FirmwarePipe;
+
+    // Check if we need to use fast passive programming (only for 245B type devices).
+    Bool  UseFpp = pDvcData->m_DevInfo.m_TypeNumber==245 
+                                             && pDvcData->m_DevInfo.m_HardwareRevision>=6;
+    DtDbgOut(MIN, DTU, "Programming Pld Firmware using FPP = %d, PID: 0x%04X, HWREV=%d", 
+                                                  UseFpp, 
+                                                  pDvcData->m_DevInfo.m_ProductId,
+                                                  pDvcData->m_DevInfo.m_HardwareRevision);
 
     //.-.-.-.-.-.-.-.-.-.- Reset the ALTERA and activate program mode -.-.-.-.-.-.-.-.-.-.
     //
@@ -236,35 +245,64 @@ DtStatus  DtuLoadPldFirmware(
     if (!DT_SUCCESS(Status))
         return Status;
 
+    // For parallel programming we must wait at least 1,5 ms before starting actual 
+    // programming.
+    if (UseFpp)
+      DtSleep(10);
+        
     //-.-.-.-.-.-.-.-.-.- Read all bytes and send them to the DTU-2xx -.-.-.-.-.-.-.-.-.-.
 
     // Init counters
     Total = BitNr = 0;
 
-    // Add 10 bytes extra to have 80 (=10*8) extra clock cycles to init Altera
+    // Add 10 bytes extra to have 80 (=10*8) or 10 (FPP) extra clock cycles to init Altera
     for (i=0; i<Size+10; i++)
     {
         if (i<Size)
             BitTest = pFirmware[i];
         else
             BitTest = 0; // Do not really care about data here; we only want some extra
+        
         // clock cycles to make sure the ALTERA intialises
-
-        // Generate clock data waveform for byte
-
-        for ( l=0; l<8; l++)
+        if (UseFpp)
         {
-            if (BitTest&0x01)
-            {
-                WordBits[BitNr]=1;
-                WordBits[BitNr+1]=3;
-            } else
-            {
-                WordBits[BitNr]=0;
-                WordBits[BitNr+1]=2;
-            }
-            BitNr+=2;
-            BitTest>>=1;
+          // Generate clock data waveform for byte
+          // Note: For 8-bits FPP with compression. 
+          // If DataByte=d7..d0 then WordBits: b0=d0, b1=clock level, b2..b8 = d1..d7
+          // Clk0: xxxxxxx0x
+          // Clk1: xxxxxxx1x
+          // Clk2: xxxxxxx0x
+          // Clk3: xxxxxxx1x
+          WordBits[BitNr] = BitTest;
+          WordBits[BitNr] = WordBits[BitNr] << 1;
+          WordBits[BitNr] &= 0xFFFC;
+          WordBits[BitNr] |= BitTest&1;
+
+          WordBits[BitNr+1] = WordBits[BitNr];    // same data as previous word
+          WordBits[BitNr+1] |= 2;                 // but with the clock high
+
+          WordBits[BitNr+2] = WordBits[BitNr];    // same data as previous word
+
+          WordBits[BitNr+3] = WordBits[BitNr];    // same data as previous word
+          WordBits[BitNr+3] |= 2;                 // but with the clock high
+        
+          BitNr+=4;
+        } else {
+          // Generate clock data waveform for byte
+          for ( l=0; l<8; l++)
+          {
+              if (BitTest&0x01)
+              {
+                  WordBits[BitNr]=1;
+                  WordBits[BitNr+1]=3;
+              } else
+              {
+                  WordBits[BitNr]=0;
+                  WordBits[BitNr+1]=2;
+              }
+              BitNr+=2;
+              BitTest>>=1;
+          }
         }
 
         // Max number of bits (send data to DTU-2xx)
@@ -277,7 +315,7 @@ DtStatus  DtuLoadPldFirmware(
             BitNr=0;
         }
     } 
-    // Write last chuck
+    // Write last chunck
     Status = DtUsbPipeWrite(&pDvcData->m_Device, NULL, Pipe, (UInt8*)WordBits, (BitNr*2),
                                                                       MAX_USB_RW_TIMEOUT);
     if (!DT_SUCCESS(Status))

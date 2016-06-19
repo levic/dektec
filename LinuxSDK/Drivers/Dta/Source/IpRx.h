@@ -134,6 +134,12 @@ typedef struct _IpRxSkew
     Bool  m_MinMaxValid;       // TRUE is m_MinSkew/m_MaxSkew are set
 } IpRxSkew;
 
+typedef struct _IpRxSrcFilter
+{
+    UInt16  m_Port;
+    UInt8  m_IPAddress[16];
+} IpRxSrcFilter;
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- UserIpRxChannel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // This structure holds the state data for a single User-IP Receive channel.
@@ -189,24 +195,20 @@ struct _UserIpRxChannel
     UInt16  m_CurIpHeaderOffset;
 
     // IP Parameters
-    UInt16  m_SrcPort;
-    UInt16  m_DstPort;
-    UInt8  m_SrcIPAddress[16];
+    IpRxSrcFilter*  m_pSrcFilter[2];    // Source filter IP/Port port1/2
+    Int  m_NumSrcFilter[2];             // Number of source filters port1/2
+    UInt16  m_DstPort[2];
     UInt8  m_DstIPAddress[16];          // Used for multicast receive
-    Int  m_VlanId;
-    UInt16  m_SrcPort2;
-    UInt16  m_DstPort2;
-    UInt8  m_SrcIPAddress2[16];
     UInt8  m_DstIPAddress2[16];         // Used for multicast receive
-    Int  m_VlanId2;
+    Int  m_VlanId[2];
     
     Int  m_FecMode;
     Bool  m_IpParsValid;                // True if IpPars is set
     Int  m_IpParsMode;                  // IpPars mode
     Int  m_IpParsFlags;                 // IpPars flags
-    Bool  m_DoSSMCheckSw;               // TRUE: If SSM check must be done in SW 1st port
-    Bool  m_DoSSMCheckSw2;              // TRUE: If SSM check must be done in SW 2nd port
-
+    Bool  m_DoSSMCheckSw[2];            // TRUE: SSM check must be done in SW 1st+2nd port
+    Int  m_NumEntryTypes[2];            // # elements available for HW filter 1st+2nd port
+    
     // Profile
     Int  m_VidStd;                      // Video standard to receive. -1= TS, 0= SDI auto.
     Int  m_MaxBitrate;                  // Maximal expected bitrate
@@ -303,23 +305,23 @@ struct _UserIpRxChannel
     UserIpRxChannel*  m_pPrev;          // Pointer to previous UserIpRxChannel element
     
     // Extra type2 fields for Address Matcher entries
-    // [x][y]: x: StreamType(main, FecR,FecC), y=First+Second ethernet port
-    AddressMatcherLookupEntry*  m_pNextAddrMatcherEntry[3][2];
+    // [y][x]: x: StreamType(main, FecR,FecC and extra source filters), 
+    //         y: First+Second ethernet port
+    AddressMatcherLookupEntry**  m_pNextAddrMatcherEntry[2];
                                         // Pointer to next UserIpRxChannel using the same 
                                         // address matcher entry
-    AddressMatcherLookupEntry*  m_pPrevAddrMatcherEntry[3][2];
+    AddressMatcherLookupEntry**  m_pPrevAddrMatcherEntry[2];
                                         // Pointer to prev. UserIpRxChannel using the same
                                         // address matcher entry
-    
-    AddressMatcherLookupEntryPart2*  m_pNextAddrMatcherEntryPart2[3][2];
+    AddressMatcherLookupEntryPart2**  m_pNextAddrMatcherEntryPart2[2];
                                         // Pointer to next UserIpRxChannel using the same 
                                         // address matcher entry part2
-    AddressMatcherLookupEntryPart2*  m_pPrevAddrMatcherEntryPart2[3][2];
+    AddressMatcherLookupEntryPart2**  m_pPrevAddrMatcherEntryPart2[2];
                                         // Pointer to prev. UserIpRxChannel using the same
                                         // address matcher entry part2
-    AddressMatcherLookupEntry  m_AddrMatcherEntry[3][2];
+    AddressMatcherLookupEntry*  m_AddrMatcherEntry[2];
                                         // Address Matcher entry
-    AddressMatcherLookupEntryPart2  m_AddrMatcherEntrySSMPart2[3][2];
+    AddressMatcherLookupEntryPart2*  m_AddrMatcherEntrySSMPart2[2];
                                         // Address Matcher SSM entry
 };
 
@@ -347,5 +349,7 @@ void  DtaIpRxUserChDestroyUnsafe(DtaIpUserChannels* pIpUserChannels,
                                                            UserIpRxChannel* pIpRxChannel);
 void  DtaIpRxRtUpdateSlicePointer(DtaIpPort* pIpPort, Bool SliceOverflow);
 UInt8*  DtaIpRxRtpListsInit(UserIpRxChannel* pIpRxChannel, UInt RtpBufSize);
+DtStatus  DtaIpRxIoctlAddSrcFilter(DtaIpUserChannels* pIpUserChannels, Int IpPortIndex,
+                                                  DtaIoctlIpRxCmdSetSrcFltInput* pSrcFlt);
 
 #endif

@@ -36,8 +36,7 @@ DtStatus  EzUsbInit(DtuDeviceData* pDvcData, Bool* pReEnumerate)
     Int  FirmwareEndpoint;
     Int  ReadEndpoint;
     Int  WriteEndpoint;
-    
-    
+    Int  ProductId;
 
     // Initialize properties
     FirmwareEndpoint = DtPropertiesGetInt(pPropData, "USB_END_POINT_FIRMWARE", -1);
@@ -102,14 +101,17 @@ DtStatus  EzUsbInit(DtuDeviceData* pDvcData, Bool* pReEnumerate)
             }
             DtDbgOut(ERR, DTU, "FX3 firmware uploaded");
         } else {
-            // Lookup firmware
-            pEzUsbFirmware = DtuGetEzUsbFirmware(pDvcData->m_DevInfo.m_ProductId,
+            // Lookup FX2 firmware
+            // TypeNumber is already set
+            ProductId = DtuTypeNumber2ProductId(pDvcData->m_DevInfo.m_TypeNumber, 
+                                                         pDvcData->m_DevInfo.m_ProductId);
+            pEzUsbFirmware = DtuGetEzUsbFirmware(ProductId,
                                                   -1,
                                                   pDvcData->m_DevInfo.m_HardwareRevision);
             if (pEzUsbFirmware == NULL)
             {
                 DtDbgOut(ERR, DTU, "No EzUsb firmware available for DTU-%d", 
-                                                            pDvcData->m_DevInfo.m_TypeNumber);
+                                                        pDvcData->m_DevInfo.m_TypeNumber);
                 return DT_STATUS_FAIL;
             }
 

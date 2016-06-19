@@ -1313,7 +1313,7 @@ DtStatus  DtaNonIpClose(
 
     DtaDeviceAcquireExclAccess(pNonIpPort->m_pDvcData);
     HasAccess = DtaNonIpHasAccess(pNonIpPort, pFile);
-    DtFastMutexRelease(&pNonIpPort->m_pDvcData->m_ExclAccessMutex);
+    DtaDeviceReleaseExclAccess(pNonIpPort->m_pDvcData);
 
     if (DT_SUCCESS(HasAccess))
     {
@@ -1717,7 +1717,7 @@ DtStatus  DtaNonIpExclusiveAccess(
     } else
         Result = DT_STATUS_NOT_SUPPORTED;
 
-    DtFastMutexRelease(&pNonIpPort->m_pDvcData->m_ExclAccessMutex);
+    DtaDeviceReleaseExclAccess(pNonIpPort->m_pDvcData);
 
     return Result;
 }
@@ -3136,7 +3136,7 @@ DtStatus  DtaNonIpReleaseResourceFromFileObject(
                 DtDbgOut(AVG, DTA, "Release exclusive access for port %i", 
                                                   pDvcData->m_pNonIpPorts[i].m_PortIndex);
             }
-            DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
+            DtaDeviceReleaseExclAccess(pDvcData);
         }
     }
     return DT_STATUS_OK; 

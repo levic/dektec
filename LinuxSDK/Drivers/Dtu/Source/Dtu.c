@@ -111,23 +111,62 @@ DtStatus  DtuDeviceInit(DtuDeviceData* pDvcData)
     
     DtDbgOut(MAX, DTU, "Start");
 
-    // Deduce typenumber
-    if (pDvcData->m_DevInfo.m_ProductId == DTU3_PID_UNIT_EEPROM)
+    // The USB device is not initialized, and is connected as a cypress FX2 or FX3 device.
+    // We must be in manufacturing mode then, so deduce typenumber and hardware revision.
+    if (pDvcData->m_DevInfo.m_ProductId == DTU3_PID_UNIT_EEPROM || 
+        pDvcData->m_DevInfo.m_ProductId == DTU2xx_PID_UNIT_EEPROM)
     {
         Int64  TypeNumber = -1;
+        Int64  ForcedHardwareRevision = -1;
+
+        DtDbgOut(MIN, DTU, "Found an un-programmed USB device with pid 0x%04X. " 
+                                 "Trying to find manufacturing settings for this device.", 
+                                 pDvcData->m_DevInfo.m_ProductId);
+
+        // Get manufacturing device type
         Status = DtNonVolatileManufSettingsRead(&pDvcData->m_Driver, -1, "DtuTypeNumber",
                                                                              &TypeNumber);
         pDvcData->m_DevInfo.m_TypeNumber = (Int)TypeNumber;
         if (!DT_SUCCESS(Status))
-            DtDbgOut(ERR, DTU, "FX3 device with uninitialized eeprom found but \"DtuTypeNumber\" not set");
+        {
+          DtDbgOut(ERR, DTU, "FX2 or FX3 device with uninitialized eeprom found but"
+                                                            " \"DtuTypeNumber\" not set");
+        } else {
+          // On manufacturing get forced hardware revision for FX2 devices, 
+          // so the correct firmware is loaded. 
+          if (pDvcData->m_DevInfo.m_ProductId == DTU2xx_PID_UNIT_EEPROM)
+          {
+            Status = DtNonVolatileManufSettingsRead(&pDvcData->m_Driver, 
+                            pDvcData->m_DevInfo.m_TypeNumber, "ForcedHardwareRevision", 
+                                                                &ForcedHardwareRevision);
+            if (DT_SUCCESS(Status))
+            {                
+                DtDbgOut(MIN, DTU, "Hardware revision set to %d from registry key "
+                                                            "'ForcedHardwareRevision'", 
+                                                            (Int)ForcedHardwareRevision);                  
+                pDvcData->m_DevInfo.m_HardwareRevision = (Int)(ForcedHardwareRevision);
+                pDvcData->m_DevInfo.m_HardwareRevision /= 100;                  
+            }else
+              DtDbgOut(ERR, DTU, "FX2 registry key \"ForcedHardwareRevision\" not found");
+          }
+        }
+        // If the old FX2 manufacturing method is used (no registry keys), continue 
+        // using the 'DTU299' code.
+        if (!DT_SUCCESS(Status) && pDvcData->m_DevInfo.m_ProductId==DTU2xx_PID_UNIT_EEPROM)
+        {
+          pDvcData->m_DevInfo.m_TypeNumber = 
+                                 DtuProductId2TypeNumber(pDvcData->m_DevInfo.m_ProductId);
+          Status = DT_STATUS_OK;
+        }
     } else {
         pDvcData->m_DevInfo.m_TypeNumber = 
                                  DtuProductId2TypeNumber(pDvcData->m_DevInfo.m_ProductId);
     }
 
-    DtDbgOut(MIN, DTU, "Found: pid 0x%04X, vendor 0x%04X => DTU-%d", 
-                       pDvcData->m_DevInfo.m_ProductId, pDvcData->m_DevInfo.m_VendorId,
-                                                        pDvcData->m_DevInfo.m_TypeNumber);
+    DtDbgOut(MIN, DTU, "Found: pid 0x%04X, vendor 0x%04X => DTU-%d, HW rev. %d", 
+                          pDvcData->m_DevInfo.m_ProductId, pDvcData->m_DevInfo.m_VendorId,
+                          pDvcData->m_DevInfo.m_TypeNumber,
+                          pDvcData->m_DevInfo.m_HardwareRevision);
 
     // The first powerup is special to initialize resources that need the hardware
     pDvcData->m_InitialPowerup = TRUE;
@@ -145,6 +184,8 @@ DtStatus  DtuDeviceInit(DtuDeviceData* pDvcData)
 
     // Initialize Exclusive access fast mutex
     DtFastMutexInit(&pDvcData->m_ExclAccessMutex);
+    pDvcData->m_RegistryWriteBusy = FALSE;
+    DtEventInit(&pDvcData->m_RegWriteDoneEvt, TRUE);
 
     // Initialize events
     DtuEventsInit(pDvcData);
@@ -1579,6 +1620,14 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
         // Update Property data
         pPropData->m_FirmwareVersion = pDvcData->m_DevInfo.m_FirmwareVersion;
 
+        // After reading the FW/HW version from the VPD, the VPD must be re-initialized to 
+        // compensate for VPD settings in the device descriptions that may be different 
+        // from the default like for example the EEPROM size.
+        DtuVpdCleanup(pDvcData);        
+        Status = DtuVpdInit(pDvcData);
+        if (!DT_SUCCESS(Status))
+            return Status;
+
         // Initialize ports (SW)
         Status = DtuPortsInit(pDvcData);
         if (!DT_SUCCESS(Status))
@@ -1791,14 +1840,14 @@ DtStatus  DtuDeviceClose(DtuDeviceData* pDvcData, DtFileObject* pFile)
     // Switch off power when not in use
     if (pDvcData->m_DevInfo.m_TypeNumber == 315)
     {
-        DtFastMutexAcquire(&pDvcData->m_ExclAccessMutex);
+        DtuDeviceAcquireExclAccess(pDvcData);
         if (!DtuDeviceIsInuse(pDvcData))
         {
             DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
                           DTU_PNP_CMD_DVC_POWER, DTU_DVC_POWER_OFF, DT_USB_HOST_TO_DEVICE,
                           NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
         }
-        DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
+        DtuDeviceReleaseExclAccess(pDvcData);
     }
 
     // Unregister events
@@ -2848,6 +2897,29 @@ DtStatus  DtuDeviceIoctl(
             DtDbgOut(MIN, DTU, "Ioctl: %xh NOT SUPPORTED", pIoctl->m_IoctlCode);
     }
     return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuDeviceAcquireExclAccess -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtuDeviceAcquireExclAccess(DtuDeviceData*  pDvcData)
+{
+    DtStatus  Result = DtFastMutexAcquire(&pDvcData->m_ExclAccessMutex);
+    while (Result==DT_STATUS_OK && pDvcData->m_RegistryWriteBusy)
+    {
+        DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
+        DtEventWait(&pDvcData->m_RegWriteDoneEvt, -1);
+        Result = DtFastMutexAcquire(&pDvcData->m_ExclAccessMutex);
+    }
+    return Result;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuDeviceReleaseExclAccess -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtuDeviceReleaseExclAccess(DtuDeviceData*  pDvcData)
+{
+    DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
+    // Wake up any other threads waiting for the registry write done event
+    DtEventSet(&pDvcData->m_RegWriteDoneEvt);
 }
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+

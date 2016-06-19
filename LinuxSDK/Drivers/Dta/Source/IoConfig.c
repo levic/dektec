@@ -324,7 +324,7 @@ DtStatus  DtaIoConfigSet(
     // Return on error or if all configs were for IP ports
     if (!DT_SUCCESS(Result) || NumIpCfgs==Count)
     {
-        DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
+        DtaDeviceReleaseExclAccess(pDvcData);
         return Result;
     }
 
@@ -336,7 +336,7 @@ DtStatus  DtaIoConfigSet(
         DtDbgOut(ERR, IOCONFIG, "Failed to allocate %dkB for update structure",
             (int)((sizeof(DtaIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts)/1024));
 
-        DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);   
+        DtaDeviceReleaseExclAccess(pDvcData);
         return DT_STATUS_OUT_OF_MEMORY;
     }
     else
@@ -405,8 +405,8 @@ DtStatus  DtaIoConfigSet(
                     Result = DtaNonIpHasAccess(pNonIpPort, pFile);
                     if (!DT_SUCCESS(Result))
                     {
-                        DtDbgOut(ERR, IOCONFIG, "Port configuration needs to be updated, but"
-                                               " port %i is in use", pNonIpPort->m_PortIndex);
+                        DtDbgOutPort(ERR, IOCONFIG, pNonIpPort,
+                            "Port configuration needs to be updated, but port is in use");
                         break;
                     }
                 }
@@ -433,7 +433,9 @@ DtStatus  DtaIoConfigSet(
     if (DT_SUCCESS(Result))
         pDvcData->m_RegistryWriteBusy = TRUE;
 
-    // Release exclusive access mutex
+    // Release exclusive access mutex. Use DtFastMutexRelease instead of
+    // DtaDeviceReleaseExclAccess to prevent setting the m_RegWriteDoneEvt event. It'll
+    // be set by DtaIoConfigUpdateApply.
     DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
 
     if (DT_SUCCESS(Result))
@@ -673,7 +675,7 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
     Int  i, Buddy, Isi;
     DtaDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
     
-    DtDbgOut(MAX, IOCONFIG, "Configuration IODIR Value: %d SubValue: %d",
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort, "Configuration IODIR Value: %d SubValue: %d",
                                    pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].m_Value,
                                    pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].m_SubValue);
 
@@ -893,7 +895,7 @@ static DtStatus  DtaIoConfigUpdateValidateIoStd(
     DtaIoConfigNonIpPortUpdate*  pPortUpdate,
     DtaIoConfigUpdate* pUpdate)
 {
-    DtDbgOut(MAX, IOCONFIG, "Configuration IOSTD Value: %d SubValue: %d",
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort, "Configuration IOSTD Value: %d SubValue: %d",
                                    pPortUpdate->m_CfgValue[DT_IOCONFIG_IOSTD].m_Value,
                                    pPortUpdate->m_CfgValue[DT_IOCONFIG_IOSTD].m_SubValue);
 
@@ -1135,7 +1137,7 @@ static DtStatus  DtaIoConfigUpdateValidateRfClkSel(
     DtaIoConfigNonIpPortUpdate*  pPortUpdate,
     DtaIoConfigUpdate* pUpdate)
 {
-    DtDbgOut(MAX, IOCONFIG, "Configuration RFCLKSEL Value: %d SubValue: %d",
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort, "Configuration RFCLKSEL Value: %d SubValue: %d",
                                 pPortUpdate->m_CfgValue[DT_IOCONFIG_RFCLKSEL].m_Value,
                                 pPortUpdate->m_CfgValue[DT_IOCONFIG_RFCLKSEL].m_SubValue);
 
@@ -1168,7 +1170,7 @@ static DtStatus  DtaIoConfigUpdateValidateSpiClkSel(
     DtaIoConfigNonIpPortUpdate*  pPortUpdate,
     DtaIoConfigUpdate* pUpdate)
 {
-    DtDbgOut(MAX, IOCONFIG, "Configuration SPICLKSEL Value: %d SubValue: %d",
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort, "Configuration SPICLKSEL Value: %d SubValue: %d",
                                pPortUpdate->m_CfgValue[DT_IOCONFIG_SPICLKSEL].m_Value,
                                pPortUpdate->m_CfgValue[DT_IOCONFIG_SPICLKSEL].m_SubValue);
 
@@ -1200,7 +1202,7 @@ static DtStatus  DtaIoConfigUpdateValidateSpiMode(
     DtaIoConfigNonIpPortUpdate*  pPortUpdate,
     DtaIoConfigUpdate* pUpdate)
 {
-    DtDbgOut(MAX, IOCONFIG, "Configuration SPIMODE Value: %d SubValue: %d",
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort, "Configuration SPIMODE Value: %d SubValue: %d",
                                  pPortUpdate->m_CfgValue[DT_IOCONFIG_SPIMODE].m_Value,
                                  pPortUpdate->m_CfgValue[DT_IOCONFIG_SPIMODE].m_SubValue);
 
@@ -1240,7 +1242,7 @@ static DtStatus  DtaIoConfigUpdateValidateSpiStd(
     DtaIoConfigNonIpPortUpdate*  pPortUpdate,
     DtaIoConfigUpdate* pUpdate)
 {
-    DtDbgOut(MAX, IOCONFIG, "Configuration SPISTD Value: %d SubValue: %d",
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort, "Configuration SPISTD Value: %d SubValue: %d",
                                   pPortUpdate->m_CfgValue[DT_IOCONFIG_SPISTD].m_Value,
                                   pPortUpdate->m_CfgValue[DT_IOCONFIG_SPISTD].m_SubValue);
 
@@ -1275,7 +1277,7 @@ static DtStatus  DtaIoConfigUpdateValidateTsRateSel(
     DtaIoConfigNonIpPortUpdate*  pPortUpdate,
     DtaIoConfigUpdate* pUpdate)
 {
-    DtDbgOut(MAX, IOCONFIG, "Configuration TSRATESEL Value: %d SubValue: %d",
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort, "Configuration TSRATESEL Value: %d SubValue: %d",
                                pPortUpdate->m_CfgValue[DT_IOCONFIG_TSRATESEL].m_Value,
                                pPortUpdate->m_CfgValue[DT_IOCONFIG_TSRATESEL].m_SubValue);
 
@@ -1316,7 +1318,7 @@ static DtStatus  DtaIoConfigUpdateValidateSwS2Apsk(
     DtaNonIpPort*  pNonIpBuddyPort;
     DtaDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
     
-    DtDbgOut(MAX, IOCONFIG, "Configuration SWS2APSK Value: %d SubValue: %d",
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort, "Configuration SWS2APSK Value: %d SubValue: %d",
                                 pPortUpdate->m_CfgValue[DT_IOCONFIG_SWS2APSK].m_Value,
                                 pPortUpdate->m_CfgValue[DT_IOCONFIG_SWS2APSK].m_SubValue);
 
@@ -1368,7 +1370,7 @@ static DtStatus  DtaIoConfigUpdateValidateFailSafe(
     DtaIoConfigNonIpPortUpdate*  pPortUpdate,
     DtaIoConfigUpdate* pUpdate)
 {
-    DtDbgOut(MAX, IOCONFIG, "Configuration FAILSAFE Value: %d SubValue: %d",
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort, "Configuration FAILSAFE Value: %d SubValue: %d",
                                 pPortUpdate->m_CfgValue[DT_IOCONFIG_FAILSAFE].m_Value,
                                 pPortUpdate->m_CfgValue[DT_IOCONFIG_FAILSAFE].m_SubValue);
 
@@ -1400,7 +1402,7 @@ static DtStatus  DtaIoConfigUpdateValidateGenLocked(
     DtaIoConfigNonIpPortUpdate*  pPortUpdate,
     DtaIoConfigUpdate* pUpdate)
 {
-    DtDbgOut(MAX, IOCONFIG, "Configuration GENLOCKED Value: %d SubValue: %d",
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort, "Configuration GENLOCKED Value: %d SubValue: %d",
                                pPortUpdate->m_CfgValue[DT_IOCONFIG_GENLOCKED].m_Value,
                                pPortUpdate->m_CfgValue[DT_IOCONFIG_GENLOCKED].m_SubValue);
 
@@ -1431,7 +1433,7 @@ static DtStatus  DtaIoConfigUpdateValidateGenRef(
     DtaIoConfigUpdate* pUpdate)
 {
     Int  IoStdVal;
-    DtDbgOut(MAX, IOCONFIG, "Configuration GENREF Value: %d SubValue: %d",
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort, "Configuration GENREF Value: %d SubValue: %d",
                                   pPortUpdate->m_CfgValue[DT_IOCONFIG_GENREF].m_Value,
                                   pPortUpdate->m_CfgValue[DT_IOCONFIG_GENREF].m_SubValue);
     
@@ -1495,7 +1497,7 @@ static DtStatus  DtaIoConfigUpdateValidateFracMode(
     DtaNonIpPort*  pOtherIpPort = NULL;
     DtaDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
     
-    DtDbgOut(MAX, IOCONFIG, "Configuration FRACMODE Value: %d SubValue: %d",
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort, "Configuration FRACMODE Value: %d SubValue: %d",
                                 pPortUpdate->m_CfgValue[DT_IOCONFIG_FRACMODE].m_Value,
                                 pPortUpdate->m_CfgValue[DT_IOCONFIG_FRACMODE].m_SubValue);
 

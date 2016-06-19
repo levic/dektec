@@ -50,9 +50,13 @@ Int  DtaDeviceId2SubDvcNumber(Int TypeNumber, Int  DeviceId)
     // 12-bits of the DeviceId
     if ((DeviceId&0X0FFF) == TypeNumber)
     {
-        // Sub device number is encoded in MSB 4-bits of device ID
+        // Sub device number is encoded in bits 12..13 of device ID
+        // and the DTA-2179 it is encoded in bits 12..14
         // NOTE: 0=master, 1=slave1, 2=slavee, etc, etc
-        return (DeviceId>>12 & 0x000F);
+        if (TypeNumber == 2179)
+            return (DeviceId>>12 & 0x0007);
+        else
+            return (DeviceId>>12 & 0x0003);
     }   
     return 0;   // assume this is the one and only sub-device
 }

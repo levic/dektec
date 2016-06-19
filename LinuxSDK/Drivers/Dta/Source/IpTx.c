@@ -1246,7 +1246,7 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
 #ifdef  _DEBUG
     //UInt64  Delay;
     //UInt64  StartTime;
-    Bool FirstTime = TRUE;
+    //Bool FirstTime = TRUE;
 #endif
 
     // Get IP port from interrupt.
@@ -1313,8 +1313,8 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
     if ((pIpPort->m_IpPortIndex==1 && (CurTime - MinPacketTime > 0xffff)) || 
                 (pIpPort->m_IpPortIndex==0 && (CurTime+0x7ffff - MinPacketTime > 0xffff)))
     {
-        DtDbgOut(ERR, IP_TX, "Port %i: CurTime:%I64x MinTime:%I64x. "
-                           "MaxTime:%I64x. Late in processing!",
+        DtDbgOut(ERR, IP_TX, "Port %i: CurTime:%llx MinTime:%llx. "
+                           "MaxTime:%llx. Late in processing!",
                            pIpPort->m_IpPortIndex, CurTime, MinPacketTime, MaxPacketTime);
     }
     LastCurTime[pIpPort->m_IpPortIndex] = CurTime;
@@ -1322,8 +1322,8 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
     if (pIpPort->m_IpPortType2.m_IpTxLastMinPktTime+0x100000!=MinPacketTime && 
                                            pIpPort->m_IpPortType2.m_IpTxLastMinPktTime!=0)
     {
-        DtDbgOut(ERR, IP_TX, "Port %i: CurTime:%I64x LastCurTime:%I64x MinPkttime:%I64x"
-                     " LastMinPktTime: %I64x ERROR IN PROCESSING!!",
+        DtDbgOut(ERR, IP_TX, "Port %i: CurTime:%llx LastCurTime:%llx MinPkttime:%llx"
+                     " LastMinPktTime: %llx ERROR IN PROCESSING!!",
                      pIpPort->m_IpPortIndex, CurTime, LastCurTime[pIpPort->m_IpPortIndex], 
                      MinPacketTime, pIpPort->m_IpPortType2.m_IpTxLastMinPktTime);
         DpcTooLate = TRUE;

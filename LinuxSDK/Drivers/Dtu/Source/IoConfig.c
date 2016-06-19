@@ -243,12 +243,9 @@ DtStatus  DtuIoConfigSet(
 
     // Get exclusive access lock to prevent ports from being opened/closed and other
     // IO configs from being applied
-    Result = DtFastMutexAcquire(&pDvcData->m_ExclAccessMutex);
-    if (pDvcData->m_RegistryWriteBusy)
-    {
-        DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
-        return DT_STATUS_BUSY;
-    }
+    Result = DtuDeviceAcquireExclAccess(pDvcData);
+    if (Result != DT_STATUS_OK)
+        return Result;
     
     // Use a dynamic allocated structure to avoid stack errors.
      Update.m_pNonIpPortUpdate = 
@@ -256,7 +253,7 @@ DtStatus  DtuIoConfigSet(
                  sizeof(DtuIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts, DTU_TAG);
     if (Update.m_pNonIpPortUpdate == NULL)
     {
-        DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
+        DtuDeviceReleaseExclAccess(pDvcData);
         return DT_STATUS_OUT_OF_MEMORY;
     }
     
@@ -347,7 +344,9 @@ DtStatus  DtuIoConfigSet(
     if (DT_SUCCESS(Result))
         pDvcData->m_RegistryWriteBusy = TRUE;
 
-    // Release exclusive access mutex
+    // Release exclusive access mutex. Use DtFastMutexRelease instead of
+    // DtuDeviceReleaseExclAccess to prevent setting the m_RegWriteDoneEvt event. It'll
+    // be set by DtuIoConfigUpdateApply.
     DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
 
     if (DT_SUCCESS(Result))
@@ -397,6 +396,7 @@ static DtStatus  DtuIoConfigUpdateApply(
                 if (!DT_SUCCESS(Result))
                 {
                     pDvcData->m_RegistryWriteBusy = FALSE;
+                    DtEventSet(&pDvcData->m_RegWriteDoneEvt);
                     return Result;
                 }
 
@@ -408,6 +408,7 @@ static DtStatus  DtuIoConfigUpdateApply(
         }
     }
     pDvcData->m_RegistryWriteBusy = FALSE;
+    DtEventSet(&pDvcData->m_RegWriteDoneEvt);
     DtDbgOut(MAX, IOCONFIG, "Exit");
     return DT_STATUS_OK;
 }
