@@ -118,13 +118,27 @@ static DtStatus  DtaEventsSetEvent(
     UInt  Value1,
     UInt  Value2)
 {
-    DtStatus  Result = DT_STATUS_OK;
     DtaEvent*  pDtaEvent;
 
     // Skip unregistered events
     if ((EventType & pDtaEvents->m_EventTypeMask) != 0)
     {
         DtSpinLockAcquire(&pDtaEvents->m_Lock);
+
+        if (EventType == DTA_EVENT_TYPE_IOCONFIG)
+        {
+            UInt i;
+            for (i=0; i<pDtaEvents->m_NumPendingEvents; i++)
+            {
+                if (pDtaEvents->m_PendingEvents[i].m_EventType==DTA_EVENT_TYPE_IOCONFIG
+                                  && pDtaEvents->m_PendingEvents[i].m_EventValue1==Value1)
+                {
+                    // Event is already pending, don't create a duplicate
+                    DtSpinLockRelease(&pDtaEvents->m_Lock);
+                    return DT_STATUS_OK;
+                }
+            }
+        }
 
         // Add new events
         if (pDtaEvents->m_NumPendingEvents == MAX_PENDING_EVENTS)
@@ -151,7 +165,7 @@ static DtStatus  DtaEventsSetEvent(
         DtEventSet(&pDtaEvents->m_PendingEvent);
         DtSpinLockRelease(&pDtaEvents->m_Lock);
     }
-    return Result;
+    return DT_STATUS_OK;
 }
 
 #ifdef WINBUILD

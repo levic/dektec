@@ -183,7 +183,8 @@ typedef struct _DtaMatrixPort
     Int  m_AsiDmaOffset;
     Int  m_AsiCtrl;
 
-    UInt64  m_LastIoReset;
+    UInt64  m_LastIoSerDesReset; // Last time the IO-SERDES interface was reset
+    Int  m_NumIoSerDesReset;    // Number of consecutive resets
 
 } DtaMatrixPort;
 

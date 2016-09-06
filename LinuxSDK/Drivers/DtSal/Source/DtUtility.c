@@ -683,56 +683,22 @@ UInt  DtGetPagesUserBufferAndLock(
     UInt  NumPages,             // Length of buffer in page size
     DtPageList* pPageList)
 {
-    struct vm_area_struct**  pVmArea = NULL;
     Int  NumPagesRet;
-    Int  i;
-    unsigned long Truncate;
-    unsigned long BufStart;
-    
-    // Allocate memory for temporarily storing the vm_area list
-    pVmArea = kmalloc(sizeof(struct vm_area_struct*) * NumPages, GFP_KERNEL);
-    if (pVmArea == NULL)
-        return 0;   
-
-    // Get mmap reader/writer semaphore
-    // We have to get the write semaphore because we are going to change the flags
-    down_write(&pTask->mm->mmap_sem);
-
-    // Make sure pBuffer is page aligned, otherwise get_user_pages can take one page too short
-    Truncate = PAGE_SIZE - 1;
-    BufStart = (unsigned long)pBuffer & (~Truncate);
-    
-    NumPagesRet = get_user_pages(
-                    pTask,              // Task performing I/O
-                    pTask->mm,          // The tasks memory-management structure
-                    BufStart,           // Page-aligned starting address of user buffer
-                                        // unsigned long is 64-bit on 64-bit Linux
+    NumPagesRet = get_user_pages_fast(
+                    (unsigned long)pBuffer,
                     NumPages,           // Length of the buffer in pages
-                    1,                  // Map for read access (i.e. user app performing a write)
-                    0,                  // Do not force an override of page protections
-                    pPageList->m_pPages,// Will contain list of page pointers describing buffer
-                    pVmArea);           // Will contain list of associated VMAs
-    // Make sure the pages will be permanently locked into physical memory
-    if (NumPagesRet == NumPages)
-    {
-        for (i = 0; i < NumPages; i++)
-            pVmArea[i]->vm_flags |= VM_LOCKED;
-    }
-    else if (NumPagesRet < 0)
+                    1,
+                    pPageList->m_pPages// Will contain list of page pointers describing buffer
+                    );
+    if (NumPagesRet < 0)
     {
         NumPagesRet = 0;
         DtDbgOut(ERR, SAL, "get_user_pages returned %i", NumPagesRet);
-    } else {
+    }
+    else if (NumPagesRet != NumPages)
+    {
         DtDbgOut(ERR, SAL, "Numpages(%i) != NumPagesRet(%i).", NumPages, NumPagesRet);
     }
-
-    
-    //pPageList->m_NumPages = NumPagesRet;
-
-    // Release mmap semaphore
-    up_write(&pTask->mm->mmap_sem);
-    kfree(pVmArea);
-    pVmArea = NULL;
     return NumPagesRet;
 }
 
@@ -744,7 +710,9 @@ void  DtFreePagesUserBuffer(
     Int i;
     for (i=0; i<pPageList->m_NumPages; i++) 
     {
-        page_cache_release(pPageList->m_pPages[i]);
+        if (!PageReserved(pPageList->m_pPages[i]))
+            SetPageDirty(pPageList->m_pPages[i]);
+        put_page(pPageList->m_pPages[i]);
     }
 }
 

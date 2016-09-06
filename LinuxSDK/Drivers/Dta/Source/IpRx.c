@@ -1110,8 +1110,10 @@ DtStatus IpRxAddSrcFilterToHwFilterType2(IpRxSrcFilter* pSrcFilter, int FilterIn
             pSrcIp = pSrcFilter->m_IPAddress;
     }
     // Add main entry
-    pEntry = &pIpRxChannel->m_AddrMatcherEntry[pIpPort->m_IpPortIndex&0x1][Index + ADDRM_TYPE_MAIN];
-    pEntryPart2 = &pIpRxChannel->m_AddrMatcherEntrySSMPart2[pIpPort->m_IpPortIndex&0x1][Index + ADDRM_TYPE_MAIN];
+    pEntry = &pIpRxChannel->m_AddrMatcherEntry[pIpPort->m_IpPortIndex&0x1]\
+                                                                [Index + ADDRM_TYPE_MAIN];
+    pEntryPart2 = &pIpRxChannel->m_AddrMatcherEntrySSMPart2[pIpPort->m_IpPortIndex&0x1]\
+                                                                [Index + ADDRM_TYPE_MAIN];
     Status = DtaIpRxAddrMatcherPrepareAndAddEntry(pIpPort, pEntry, pEntryPart2, IpV6,
                                                                 pSrcIp, pDstIp, DstPort);
     if (!DT_SUCCESS(Status))
@@ -1120,16 +1122,19 @@ DtStatus IpRxAddSrcFilterToHwFilterType2(IpRxSrcFilter* pSrcFilter, int FilterIn
     // Add FEC entries
     if (pIpRxChannel->m_FecMode != DTA_FEC_DISABLE)
     {
-        pEntry = &pIpRxChannel->m_AddrMatcherEntry[pIpPort->m_IpPortIndex&0x1][Index + ADDRM_TYPE_FECROW];
-        pEntryPart2 = &pIpRxChannel->m_AddrMatcherEntrySSMPart2[0][Index + ADDRM_TYPE_FECROW];
+        pEntry = &pIpRxChannel->m_AddrMatcherEntry[pIpPort->m_IpPortIndex&0x1]\
+                                                              [Index + ADDRM_TYPE_FECROW];
+        pEntryPart2 = &pIpRxChannel->m_AddrMatcherEntrySSMPart2\
+                                [pIpPort->m_IpPortIndex & 0x1][Index + ADDRM_TYPE_FECROW];
         Status = DtaIpRxAddrMatcherPrepareAndAddEntry(pIpPort, pEntry, pEntryPart2, 
                                         IpV6, pSrcIp, pDstIp, DstPort+FEC_INC_ROW_PORT);
         if (!DT_SUCCESS(Status))
             return Status;
 
-        pEntry = &pIpRxChannel->m_AddrMatcherEntry[pIpPort->m_IpPortIndex&0x1][Index + ADDRM_TYPE_FECCOLUMN];
+        pEntry = &pIpRxChannel->m_AddrMatcherEntry[pIpPort->m_IpPortIndex&0x1]\
+                                                           [Index + ADDRM_TYPE_FECCOLUMN];
         pEntryPart2 = &pIpRxChannel->m_AddrMatcherEntrySSMPart2 \
-                                                            [pIpPort->m_IpPortIndex&0x1][Index + ADDRM_TYPE_FECCOLUMN];
+                               [pIpPort->m_IpPortIndex&0x1][Index + ADDRM_TYPE_FECCOLUMN];
         Status = DtaIpRxAddrMatcherPrepareAndAddEntry(pIpPort, pEntry, pEntryPart2, 
                                     IpV6, pSrcIp, pDstIp, DstPort+FEC_INC_COLUMN_PORT);
         if (!DT_SUCCESS(Status))
@@ -1154,7 +1159,8 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
     Bool  IpV6 = (Flags & DTA_IP_V6) != 0;
     DtStatus  Status = DT_STATUS_OK;
     UInt16  NumNeededSrcFlt[2] = {0, 0};
-    UInt16  NumSrcFlt[2] = {NumSrcFltI, NumSrcFltI2};
+    UInt16  NumSrcFlt[2];
+    Int  SrcFltPortIndex = pIpRxChannel->m_IpPortIndex&1;
 
     if (pIpRxChannel == NULL)
         return DT_STATUS_INVALID_PARAMETER;
@@ -1216,17 +1222,31 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
             DtMemFreePool(pIpRxChannel->m_pRtpAvailLookup2, IPRX_TAG);
         pIpRxChannel->m_pRtpAvailLookup2 = NULL;
     }
-    
-    // Check source filter
-    if (NumSrcFlt[0] != 0)
-        NumNeededSrcFlt[0] = NumSrcFlt[0];
-    else if (SrcPort!=0 || !DtaIpIsIpAddressEmpty(IpV6, pSrcIp))
-        NumNeededSrcFlt[0] = 1;
-    if (NumSrcFlt[1] != 0)
-        NumNeededSrcFlt[1] = NumSrcFlt[1];
-    else if (SrcPort2!=0 || (pSrcIp2!= NULL && !DtaIpIsIpAddressEmpty(IpV6, pSrcIp2)))
-        NumNeededSrcFlt[1] = 1;
 
+    // Check source filter
+    if ((Mode & DTA_IP_RX_2022_7) == 0)
+    {
+        NumSrcFlt[SrcFltPortIndex] = NumSrcFltI;
+        NumSrcFlt[SrcFltPortIndex^1] = 0;
+        if (NumSrcFlt[SrcFltPortIndex] != 0)
+            NumNeededSrcFlt[SrcFltPortIndex] = NumSrcFlt[SrcFltPortIndex];
+        else if (SrcPort!=0 || !DtaIpIsIpAddressEmpty(IpV6, pSrcIp))
+            NumNeededSrcFlt[SrcFltPortIndex] = 1;
+        NumNeededSrcFlt[SrcFltPortIndex^1] = 0;
+    }
+    else
+    {
+        NumSrcFlt[0] = NumSrcFltI;
+        NumSrcFlt[1] = NumSrcFltI2;
+        if (NumSrcFlt[0] != 0)
+            NumNeededSrcFlt[0] = NumSrcFlt[0];
+        else if (SrcPort!=0 || !DtaIpIsIpAddressEmpty(IpV6, pSrcIp))
+            NumNeededSrcFlt[0] = 1;
+        if (NumSrcFlt[1] != 0)
+            NumNeededSrcFlt[1] = NumSrcFlt[1];
+        else if (SrcPort2!=0 || (pSrcIp2!= NULL && !DtaIpIsIpAddressEmpty(IpV6, pSrcIp2)))
+            NumNeededSrcFlt[1] = 1;
+    }
     // Initialise source filter
     for (i=0; i<2; i++)
     {
@@ -1246,9 +1266,15 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
         }
         if (pIpRxChannel->m_NumSrcFilter[i]!=0 && NumSrcFlt[i]==0)
         {
+            Int  Index;
             UInt8*  pSrcIpAddr;
             DT_ASSERT(pIpRxChannel->m_NumSrcFilter[i]==1);
-            switch (i)
+
+            if ((Mode & DTA_IP_RX_2022_7) == 0)
+                Index = 0;
+            else
+                Index = i;
+            switch (Index)
             {
             case 0: 
                 pIpRxChannel->m_pSrcFilter[i][0].m_Port = SrcPort;
@@ -1266,12 +1292,20 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
 
     if (pIpUserChannels->m_pDvcData->m_IpDevice.m_PortType == DTA_IPPORT_TYPE2)
     {
-        DtaIpPort*  pIpPortFirst = &pIpDevice->m_pIpPorts[pIpRxChannel->m_IpPortIndex];
-        DtaIpPort*  pIpPortSecond = &pIpDevice->m_pIpPorts[pIpRxChannel->m_IpPortIndex+1];
+        DtaIpPort*  pIpPortFirst = &pIpDevice->m_pIpPorts\
+                                                 [pIpRxChannel->m_IpPortIndex&0xfffffffe];
+        DtaIpPort*  pIpPortSecond = &pIpDevice->m_pIpPorts\
+                                             [(pIpRxChannel->m_IpPortIndex&0xfffffffe)+1];
             
         // Calculate number of entries needed
-        NumEntriesNeeded[0] = 1 + (FecMode != DTA_FEC_DISABLE ? 2 : 0);
-        NumEntriesNeeded[1] = ((Mode & DTA_IP_RX_2022_7) != 0 ? NumEntriesNeeded[0] : 0);
+        if ((Mode & DTA_IP_RX_2022_7) == 0)
+        {
+            NumEntriesNeeded[SrcFltPortIndex] = 1 + (FecMode != DTA_FEC_DISABLE ? 2 : 0);
+            NumEntriesNeeded[SrcFltPortIndex^1] = 0;
+        } else {
+            NumEntriesNeeded[0] = 1 + (FecMode != DTA_FEC_DISABLE ? 2 : 0);
+            NumEntriesNeeded[1] = 1 + (FecMode != DTA_FEC_DISABLE ? 2 : 0);
+        }
 
         for (i=0; i<2; i++)
         {
@@ -1309,13 +1343,26 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
                 if (NumEntriesNeeded[i] != 0)
                 {
                     // Allocate memory
-                    pIpRxChannel->m_pNextAddrMatcherEntry[i] = (AddressMatcherLookupEntry**)DtMemAllocPool(DtPoolNonPaged, NumEntriesNeeded[i]*sizeof(void*), IPRX_TAG);
-                    pIpRxChannel->m_pPrevAddrMatcherEntry[i] = (AddressMatcherLookupEntry**)DtMemAllocPool(DtPoolNonPaged, NumEntriesNeeded[i]*sizeof(void*), IPRX_TAG);
-                    pIpRxChannel->m_pNextAddrMatcherEntryPart2[i] = (AddressMatcherLookupEntryPart2**)DtMemAllocPool(DtPoolNonPaged, NumEntriesNeeded[i]*sizeof(void*), IPRX_TAG);
-                    pIpRxChannel->m_pPrevAddrMatcherEntryPart2[i] = (AddressMatcherLookupEntryPart2**)DtMemAllocPool(DtPoolNonPaged, NumEntriesNeeded[i]*sizeof(void*), IPRX_TAG);
+                    pIpRxChannel->m_pNextAddrMatcherEntry[i] = 
+                               (AddressMatcherLookupEntry**)DtMemAllocPool(DtPoolNonPaged,
+                               NumEntriesNeeded[i]*sizeof(void*), IPRX_TAG);
+                    pIpRxChannel->m_pPrevAddrMatcherEntry[i] = 
+                               (AddressMatcherLookupEntry**)DtMemAllocPool(DtPoolNonPaged,
+                               NumEntriesNeeded[i]*sizeof(void*), IPRX_TAG);
+                    pIpRxChannel->m_pNextAddrMatcherEntryPart2[i] = 
+                          (AddressMatcherLookupEntryPart2**)DtMemAllocPool(DtPoolNonPaged,
+                          NumEntriesNeeded[i]*sizeof(void*), IPRX_TAG);
+                    pIpRxChannel->m_pPrevAddrMatcherEntryPart2[i] = 
+                          (AddressMatcherLookupEntryPart2**)DtMemAllocPool(DtPoolNonPaged,
+                          NumEntriesNeeded[i]*sizeof(void*), IPRX_TAG);
 
-                    pIpRxChannel->m_AddrMatcherEntry[i] = (AddressMatcherLookupEntry*)DtMemAllocPool(DtPoolNonPaged, NumEntriesNeeded[i]*sizeof(AddressMatcherLookupEntry), IPRX_TAG);
-                    pIpRxChannel->m_AddrMatcherEntrySSMPart2[i] = (AddressMatcherLookupEntryPart2*)DtMemAllocPool(DtPoolNonPaged, NumEntriesNeeded[i]*sizeof(AddressMatcherLookupEntryPart2), IPRX_TAG);
+                    pIpRxChannel->m_AddrMatcherEntry[i] = 
+                         (AddressMatcherLookupEntry*)DtMemAllocPool(DtPoolNonPaged, 
+                         NumEntriesNeeded[i]*sizeof(AddressMatcherLookupEntry), IPRX_TAG);
+                    pIpRxChannel->m_AddrMatcherEntrySSMPart2[i] = 
+                           (AddressMatcherLookupEntryPart2*)DtMemAllocPool(DtPoolNonPaged,
+                           NumEntriesNeeded[i]*sizeof(AddressMatcherLookupEntryPart2), 
+                           IPRX_TAG);
 
                     if (pIpRxChannel->m_pNextAddrMatcherEntry[i]==NULL || 
                                     pIpRxChannel->m_pPrevAddrMatcherEntry[i]==NULL ||
@@ -1325,28 +1372,39 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
                                     pIpRxChannel->m_AddrMatcherEntrySSMPart2[i]==NULL)
                     {
                         if (pIpRxChannel->m_pNextAddrMatcherEntry[i]!=NULL)
-                            DtMemFreePool(pIpRxChannel->m_pNextAddrMatcherEntry[i], IPRX_TAG);
+                            DtMemFreePool(pIpRxChannel->m_pNextAddrMatcherEntry[i], 
+                                                                                IPRX_TAG);
                         if (pIpRxChannel->m_pPrevAddrMatcherEntry[i]!=NULL)
-                            DtMemFreePool(pIpRxChannel->m_pPrevAddrMatcherEntry[i], IPRX_TAG);
+                            DtMemFreePool(pIpRxChannel->m_pPrevAddrMatcherEntry[i], 
+                                                                                IPRX_TAG);
                         if (pIpRxChannel->m_pNextAddrMatcherEntryPart2[i]!=NULL)
-                            DtMemFreePool(pIpRxChannel->m_pNextAddrMatcherEntryPart2[i], IPRX_TAG);
+                            DtMemFreePool(pIpRxChannel->m_pNextAddrMatcherEntryPart2[i],
+                                                                                IPRX_TAG);
                         if (pIpRxChannel->m_pPrevAddrMatcherEntryPart2[i]!=NULL)
-                            DtMemFreePool(pIpRxChannel->m_pPrevAddrMatcherEntryPart2[i], IPRX_TAG);
+                            DtMemFreePool(pIpRxChannel->m_pPrevAddrMatcherEntryPart2[i],
+                                                                                IPRX_TAG);
                         if (pIpRxChannel->m_AddrMatcherEntry[i]!=NULL)
                             DtMemFreePool(pIpRxChannel->m_AddrMatcherEntry[i], IPRX_TAG);
                         if (pIpRxChannel->m_AddrMatcherEntrySSMPart2[i]!=NULL)
-                            DtMemFreePool(pIpRxChannel->m_AddrMatcherEntrySSMPart2[i], IPRX_TAG);
+                            DtMemFreePool(pIpRxChannel->m_AddrMatcherEntrySSMPart2[i], 
+                                                                                IPRX_TAG);
                        return DT_STATUS_OUT_OF_MEMORY;
                     }
                     pIpRxChannel->m_NumEntryTypes[i] = NumEntriesNeeded[i];
 
-                    DtMemZero(pIpRxChannel->m_pNextAddrMatcherEntry[i], NumEntriesNeeded[i]*sizeof(void*));
-                    DtMemZero(pIpRxChannel->m_pPrevAddrMatcherEntry[i], NumEntriesNeeded[i]*sizeof(void*));
-                    DtMemZero(pIpRxChannel->m_pNextAddrMatcherEntryPart2[i], NumEntriesNeeded[i]*sizeof(void*));
-                    DtMemZero(pIpRxChannel->m_pPrevAddrMatcherEntryPart2[i], NumEntriesNeeded[i]*sizeof(void*));
-                    DtMemZero(pIpRxChannel->m_AddrMatcherEntry[i], NumEntriesNeeded[i]*sizeof(AddressMatcherLookupEntry));
-                    DtMemZero(pIpRxChannel->m_AddrMatcherEntrySSMPart2[i], NumEntriesNeeded[i]*sizeof(AddressMatcherLookupEntryPart2));
-                    
+                    DtMemZero(pIpRxChannel->m_pNextAddrMatcherEntry[i], 
+                                                       NumEntriesNeeded[i]*sizeof(void*));
+                    DtMemZero(pIpRxChannel->m_pPrevAddrMatcherEntry[i], 
+                                                       NumEntriesNeeded[i]*sizeof(void*));
+                    DtMemZero(pIpRxChannel->m_pNextAddrMatcherEntryPart2[i], 
+                                                       NumEntriesNeeded[i]*sizeof(void*));
+                    DtMemZero(pIpRxChannel->m_pPrevAddrMatcherEntryPart2[i], 
+                                                       NumEntriesNeeded[i]*sizeof(void*));
+                    DtMemZero(pIpRxChannel->m_AddrMatcherEntry[i], 
+                                   NumEntriesNeeded[i]*sizeof(AddressMatcherLookupEntry));
+                    DtMemZero(pIpRxChannel->m_AddrMatcherEntrySSMPart2[i], 
+                              NumEntriesNeeded[i]*sizeof(AddressMatcherLookupEntryPart2));
+
                     // Initialise memory
                     for (j=0; j<NumEntriesNeeded[i]; j++)
                     {
@@ -1365,23 +1423,40 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
 
         pIpRxChannel->m_DoSSMCheckSw[0] = FALSE;
         pIpRxChannel->m_DoSSMCheckSw[1] = FALSE;
-        if (NumSrcFlt[0] == 0)
+        if ((Mode & DTA_IP_RX_2022_7) == 0)
         {
-            IpRxSrcFilter*  pSrcFilter = NULL;
-            if (pIpRxChannel->m_NumSrcFilter[0] != 0)
-                pSrcFilter = &pIpRxChannel->m_pSrcFilter[0][0];
-            Status = IpRxAddSrcFilterToHwFilterType2(pSrcFilter, 0, pDstIp, DstPort, pIpRxChannel, pIpPortFirst);
-            if (!DT_SUCCESS(Status))
-                return Status;
-        }
-        if (((Mode & DTA_IP_RX_2022_7) != 0) && (NumSrcFlt[1] == 0))
+            if (NumSrcFlt[SrcFltPortIndex] == 0)
+            {
+                IpRxSrcFilter*  pSrcFilter = NULL;
+                if (pIpRxChannel->m_NumSrcFilter[SrcFltPortIndex] != 0)
+                    pSrcFilter = &pIpRxChannel->m_pSrcFilter[SrcFltPortIndex][0];
+                Status = IpRxAddSrcFilterToHwFilterType2(pSrcFilter, 0, pDstIp, DstPort, 
+                                                                   pIpRxChannel, pIpPort);
+                if (!DT_SUCCESS(Status))
+                    return Status;
+            }
+        } else
         {
-            IpRxSrcFilter*  pSrcFilter = NULL;
-            if (pIpRxChannel->m_NumSrcFilter[1] != 0)
-                pSrcFilter = &pIpRxChannel->m_pSrcFilter[1][0];
-            Status = IpRxAddSrcFilterToHwFilterType2(pSrcFilter, 0, pDstIp2, DstPort2, pIpRxChannel, pIpPortSecond);
-            if (!DT_SUCCESS(Status))
-                return Status;
+            if (NumSrcFlt[0] == 0)
+            {
+                IpRxSrcFilter*  pSrcFilter = NULL;
+                if (pIpRxChannel->m_NumSrcFilter[0] != 0)
+                    pSrcFilter = &pIpRxChannel->m_pSrcFilter[0][0];
+                Status = IpRxAddSrcFilterToHwFilterType2(pSrcFilter, 0, pDstIp, DstPort, 
+                                                              pIpRxChannel, pIpPortFirst);
+                if (!DT_SUCCESS(Status))
+                    return Status;
+            }
+            if (NumSrcFlt[1] == 0)
+            {
+                IpRxSrcFilter*  pSrcFilter = NULL;
+                if (pIpRxChannel->m_NumSrcFilter[1] != 0)
+                    pSrcFilter = &pIpRxChannel->m_pSrcFilter[1][0];
+                Status = IpRxAddSrcFilterToHwFilterType2(pSrcFilter, 0, pDstIp2, DstPort2,
+                                                             pIpRxChannel, pIpPortSecond);
+                if (!DT_SUCCESS(Status))
+                    return Status;
+            }
         }
 
         // Update address matcher
@@ -1507,7 +1582,12 @@ DtStatus  DtaIpRxAddSrcFilter(DtaIpPort* pIpPort, UserIpRxChannel* pIpRxChannel,
     {
         Bool  InList = FALSE;
         UInt8*  pDstIp;
-        switch (PortIndex)
+        Int  Index;
+        if ((pIpRxChannel->m_IpParsMode & DTA_IP_RX_2022_7) == 0)
+                Index = 0;
+            else
+                Index = PortIndex;
+        switch (Index)
         {
         case 0: pDstIp = pIpRxChannel->m_DstIPAddress; break;
         case 1: pDstIp = pIpRxChannel->m_DstIPAddress2; break;
@@ -1536,7 +1616,7 @@ DtStatus  DtaIpRxAddSrcFilter(DtaIpPort* pIpPort, UserIpRxChannel* pIpRxChannel,
         if (!InList)
         {
             Status = IpRxAddSrcFilterToHwFilterType2(pSrcFilter, FilterIndex, pDstIp, 
-                               pIpRxChannel->m_DstPort[PortIndex], pIpRxChannel, pIpPort);
+                               pIpRxChannel->m_DstPort[Index], pIpRxChannel, pIpPort);
             if (!DT_SUCCESS(Status))
                 return Status;
         }
@@ -2869,22 +2949,8 @@ UInt  DtaIpRxGetChannelsForDVB(DtaIpPort* pIpPort, UInt32 IdTag, UInt8* pIpSrc,
         IpRxSrcFilter* pSrcFilter;
         Int  NumSrcFilter = 0;
             
-        if ((pIpRxChannel->m_IpParsMode & DTA_IP_RX_2022_7) !=0)
-        {
-            if (((pIpPort->m_IpPortIndex&1)==0)/* && pIpRxChannel->m_DoSSMCheckSw[0]*/)
-            {
-                pSrcFilter = pIpRxChannel->m_pSrcFilter[0];
-                NumSrcFilter = pIpRxChannel->m_NumSrcFilter[0];
-            } else if (((pIpPort->m_IpPortIndex&1)==1)/* && pIpRxChannel->m_DoSSMCheckSw[1]*/)
-            {
-                pSrcFilter = pIpRxChannel->m_pSrcFilter[1];
-                NumSrcFilter = pIpRxChannel->m_NumSrcFilter[1];
-            }
-        } else/* if (pIpRxChannel->m_DoSSMCheckSw[0])*/
-        {
-            pSrcFilter = pIpRxChannel->m_pSrcFilter[0];
-            NumSrcFilter = pIpRxChannel->m_NumSrcFilter[0];
-        }
+        pSrcFilter = pIpRxChannel->m_pSrcFilter[pIpPort->m_IpPortIndex&1];
+        NumSrcFilter = pIpRxChannel->m_NumSrcFilter[pIpPort->m_IpPortIndex&1];
         
         if (NumSrcFilter != 0)
         {

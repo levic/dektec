@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        19
+#define DTAPI_VERSION_MINOR        20
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        81
+#define DTAPI_VERSION_BUILD        83
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -688,6 +688,7 @@ typedef void (*pDtEventCallback)(int Event, const DtEventArgs* pArgs);
 // Device events
 #define DT_EVENT_TYPE_POWER         0x00000004
 #define DT_EVENT_TYPE_GENLOCK       0x00000008
+#define DT_EVENT_TYPE_IOCONFIG      0x00000010
 #define DT_EVENT_TYPE_TEST          0x80000000
 // Network events
 #define DT_EVENT_IP_CHANGED         0x01000000
@@ -1610,6 +1611,11 @@ struct DtIpProfile
 
     // Set the video standard to transmit/receive. 
     int  m_VideoStandard;           // DTAPI_VIDSTD_ defines.
+
+public:
+    DtIpProfile&  operator = (const DtIpProfile&);
+    bool  operator == (const DtIpProfile&) const;
+    bool  operator != (const DtIpProfile&) const;
 };
 
 // IP tranmission profile (DtIpProfile::m_Profile)
@@ -1681,6 +1687,8 @@ public:
     DtIpPars();
     ~DtIpPars();
     void operator=(const DtIpPars2& IpPars);
+    bool  operator == (const DtIpPars&) const;
+    bool  operator != (const DtIpPars&) const;
 };
 
 // Legacy
@@ -4298,6 +4306,8 @@ private:
 //
 #define DTAPI_OK                    0
 #define DTAPI_OK_FAILSAFE           1
+#define DTAPI_OK_PENDING            2
+#define DTAPI_OK_PARTIAL_DEV        3
 #define DTAPI_E                     0x1000
 #define DTAPI_E_ATTACHED            (DTAPI_E + 0)
 #define DTAPI_E_BUF_TOO_SMALL       (DTAPI_E + 1)
@@ -4549,7 +4559,14 @@ private:
 #define DTAPI_E_INVALID_VERSION     (DTAPI_E + 246)
 #define DTAPI_E_INVALID_LDM_LEVEL   (DTAPI_E + 247)
 #define DTAPI_E_INVALID_MISO        (DTAPI_E + 248)
-
+#define DTAPI_E_INVALID_PLP_TYPE    (DTAPI_E + 249)
+#define DTAPI_E_NUM_SUBSLICES       (DTAPI_E + 250)
+#define DTAPI_E_SUBSLICE_INTERVAL   (DTAPI_E + 251)
+#define DTAPI_E_INVALID_HTI_PARS    (DTAPI_E + 252)
+#define DTAPI_E_PREAMBLE_PAR_COMBI  (DTAPI_E + 253)
+#define DTAPI_E_INVALID_PLP_SIZE    (DTAPI_E + 254)
+#define DTAPI_E_INVALID_PLP_START   (DTAPI_E + 255)
+#define DTAPI_E_INVALID_PLP_REF     (DTAPI_E + 256)
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+ DVB-C2, DVB-S2, DVB-T2, ISDB-Tmm Multi PLP Parameters +=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -4612,6 +4629,10 @@ public:
     bool  operator == (DtPlpInpPars& PlpInPars);
     bool  operator != (DtPlpInpPars& PlpInPars);
     bool  IsEqual(DtPlpInpPars& PlpInPars);
+
+    // Serialization
+    DTAPI_RESULT  FromXml(const std::wstring& XmlString, const std::wstring& Root); 
+    DTAPI_RESULT  ToXml(const std::wstring& Root, std::wstring& XmlString);
 };
 
 // Test point data format
@@ -4722,6 +4743,9 @@ public:
     bool  IsEqual(DtVirtualOutPars& VirtOutPars);
     bool  operator == (DtVirtualOutPars& VirtOutPars);
     bool  operator != (DtVirtualOutPars& VirtOutPars);
+    // Serialisation
+    DTAPI_RESULT  FromXml(const std::wstring& XmlString, const std::wstring& Root); 
+    DTAPI_RESULT  ToXml(const std::wstring& Root, std::wstring& XmlString);
 };
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ ATSC 3.0 Parameters +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -4736,18 +4760,18 @@ public:
 #define DTAPI_ATSC3_8MHZ            2           // 8 MHz
 #define DTAPI_ATSC3_GT8MHZ          3           // Greater than 8 MHz
 // Guard interval
-#define DTAPI_ATSC3_GI_1_192        1           // 1/192 
-#define DTAPI_ATSC3_GI_2_384        2           // 3/384
-#define DTAPI_ATSC3_GI_3_512        3           // 3/512
-#define DTAPI_ATSC3_GI_4_768        4           // 4/768
-#define DTAPI_ATSC3_GI_5_1024       5           // 5/1024
-#define DTAPI_ATSC3_GI_6_1536       6           // 6/1536   
-#define DTAPI_ATSC3_GI_7_2048       7           // 7/2048 
-#define DTAPI_ATSC3_GI_8_2432       8           // 8/2432 
-#define DTAPI_ATSC3_GI_9_3072       9           // 9/3072 
-#define DTAPI_ATSC3_GI_10_3648      10          // 10/3648
-#define DTAPI_ATSC3_GI_11_4096      11          // 11/4096
-#define DTAPI_ATSC3_GI_12_4864      12          // 12/4864
+#define DTAPI_ATSC3_GI_1_192        1           // GI1_192 
+#define DTAPI_ATSC3_GI_2_384        2           // GI3_384
+#define DTAPI_ATSC3_GI_3_512        3           // GI3_512
+#define DTAPI_ATSC3_GI_4_768        4           // GI4_768
+#define DTAPI_ATSC3_GI_5_1024       5           // GI5_1024
+#define DTAPI_ATSC3_GI_6_1536       6           // GI6_1536   
+#define DTAPI_ATSC3_GI_7_2048       7           // GI7_2048 
+#define DTAPI_ATSC3_GI_8_2432       8           // GI8_2432 
+#define DTAPI_ATSC3_GI_9_3072       9           // GI9_3072 
+#define DTAPI_ATSC3_GI_10_3648      10          // GI10_3648
+#define DTAPI_ATSC3_GI_11_4096      11          // GI11_4096
+#define DTAPI_ATSC3_GI_12_4864      12          // GI12_4864
 // Scattered pilot patterns for SISO and MIMO
 #define DTAPI_ATSC3_PP_3_2          0           // SP3_2 / MP3_2
 #define DTAPI_ATSC3_PP_3_4          1           // SP3_4 / MP3_4    
@@ -4837,7 +4861,7 @@ public:
 #define DTAPI_ATSC3_TIME_MS         1           // Time information with ms precision
 #define DTAPI_ATSC3_TIME_US         2           // Time information with us precision
 #define DTAPI_ATSC3_TIME_NS         3           // Time information with ns precision
-// Frame lenght mode
+// Frame length mode
 #define DTAPI_ATSC3_ALIGN_TIME      0           // Frame length is time-aligned 
 #define DTAPI_ATSC3_ALIGN_SYMBOL    1           // Frame length is symbol-aligned 
 
@@ -4893,19 +4917,56 @@ public:
     int  m_CodeRate;            // Code rate, see DTAPI_ATSC3_COD_x
     int  m_FecCodeLength;       // FEC LDPC code length, see DTAPI_ATSC3_LDPC_x   
     int  m_FecOuterCode;        // FEC outer code type, see DTAPI_ATSC3_OUTER_x  
-    int  m_TiMode;              // Time interleaver mode, see DTAPI_ATSC3_TIMODE_x
-    // Convolutional Time Interleaver Mode (CTI) parameters
-    int  m_CtiDepth;            // Convolutional time interleaver depth, 
-                                // see DTAPI_ATSC3_CTIDEPTH_x
-
-    // Hybrid Time Interleaver Mode (HTI) parameters
-    // Not yet supported 
-
-    bool  m_TiExtInterleaving;  // Enable extended interleaving
-    int   m_LdmInjectLevel;     // LDM injection level (only used in enhanced layer)
+    int  m_LdmInjectLevel;      // LDM injection level (only used in enhanced layer)
                                 // value <  10  gives injection level of -value/2.0 dB
-                                // value >= 10  gives injection level of 5.0-value dB                             
+                                // value >= 10  gives injection level of 5.0-value dB
+    // Folowing parameters are only used in core layer
+    int  m_PlpType;             // L1D_plp_type; PLP-type, see DTAPI_ATSC3_PLPTYPE_x
+    int  m_NumSubslices;        // Number of subslices: 1...16384, if PlpType is dispersed
+    int  m_SubsliceInterval;    // Interval: 1.. 2^24-1, if PlpType is dispersed
+    int  m_TiMode;              // Time interleaver mode, see DTAPI_ATSC3_TIMODE_x
+    int  m_CtiDepth;            // Convolutional time interleaver depth, 
+                                // see DTAPI_ATSC3_CTIDEPTH_xx, if TiMode=CTI
+    bool  m_TiExtInterleaving;  // Enable extended interleaving
+
+    // HTI interleaving parameters (only applicable if TiMode=HTI)
+    bool  m_HtiInterSubframe;   // Enable inter-subframe interleaving 
+    int  m_HtiNumTiBlocks;      // If inter-subframe interleaving is disabled: the
+                                // number of TI blocks per interleaving frame.
+                                // If inter-subframe interleaving is enabled:
+                                // the number of subframes over which cells from 
+                                // one TI block are carried. Range: 1..16
+    int  m_HtiNumFecBlocksMax;  // The maximum number of FEC blocks per interleaving frame
+                                // for the current PLP: 1..4096
+    bool  m_HtiCellInterleaver; // Enable the cell-interleaver
+
+    // Scheduling parameters
+    int  m_CoreLayerPlpId;      // If enhanced layer, the PLP ID of the corresponding 
+                                // core layer. Currently the enhanced layer is scheduled
+                                // with the same number of cells as the core layer.
+    int  m_HtiNumFecBlocks;     // Used when TiMode = HTI and core layer.
+                                // The number of FEC blocks per subframe, 
+                                // range: 1..m_HtiNumFecBlocksMax 
+    int  m_PlpSize;             // For core layer: used when TiMode = NONE or CTI. 
+                                // The number of cells per subframe, -1 means to use the
+                                // full subframe.
+                                // For enhanced layer: -1 means the complete size of the
+                                // first core PLP (identified by m_CoreLayerPlpId).
+                                // Otherwise it is the number of cells of the 
+                                // enhanced layer PLP.
+    int  m_PlpStart;            // If -1, plp_start is automatically set by allocating
+                                // PLPs by increasing PLP index assuming each PLP uses
+                                // m_PlpSize cells (plp_type=non-dispersed) or
+                                // ceil(m_PlpSize/m_NumSubslices) cells
+                                // (plp_type=dispersed). 
+                                // For complex FDM allocations the previous automatic
+                                // algorithm is not sufficient so m_PlpStart must be set
+                                // manually. 
+                                // For  enhanced layer: It is defined as the starting 
+                                // cell counting from the start of core PLP 
+                                // (identified by m_CoreLayerPlpId).                           
 public:
+    DtAtsc3PlpPars();
     void  Init(int PlpId = 0);
     bool  IsEqual(DtAtsc3PlpPars& PlpPars);
     bool  operator == (DtAtsc3PlpPars& PlpPars);
@@ -4937,6 +4998,7 @@ public:
     // PLPs 
     std::vector<DtAtsc3PlpPars>  m_Plps;   
 public:
+    DtAtsc3SubframePars();
     void  Init();
     bool  IsEqual(DtAtsc3SubframePars& SubframePars);
     bool  operator == (DtAtsc3SubframePars& SubframePars);
@@ -4992,14 +5054,44 @@ public:
     DtTestPointOutPars  m_TpOutput; // Test point data output parameters (Optional)
 
 public:
+    DtAtsc3Pars();
     DTAPI_RESULT  CheckValidity(void);
-    void  Init(void);
+    DTAPI_RESULT  CheckValidity(int& SubframeIdx, int& PlpIdx);
+    DTAPI_RESULT  GetParamInfo(struct DtAtsc3ParamInfo& Atsc3Info);
+    void Init();
+    void  SetDefaultPars(void);
     bool  IsEqual(DtAtsc3Pars& Atsc3Pars);
     bool  operator == (DtAtsc3Pars& Atsc3Pars);
     bool  operator != (DtAtsc3Pars& Atsc3Pars);
     // Serialisation
-    DTAPI_RESULT  FromXml(const std::wstring&); 
-    DTAPI_RESULT  ToXml(std::wstring&);
+    DTAPI_RESULT  FromXml(const std::wstring& XmlString); 
+    DTAPI_RESULT  ToXml(std::wstring& XmlString);
+};
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAtsc3SubframeInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct DtAtsc3SubframeInfo
+{
+    int  m_TotalNumDataCells;       // Total number of data cells available for PLPs
+                                    // including the preamble PLP cells for the first
+                                    // subframe
+    int  m_NumCellsInDataSym;       // Number of cells in data symbols
+    int  m_NumCellsInSbsSym;        // number of cells in SBS symbols
+};
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAtsc3ParamInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+struct DtAtsc3ParamInfo 
+{
+    int  m_L1BasicNumDataCells;     // Number of L1-Basic data cells
+    int  m_L1DetailNumDataCells;    // Number of L1-Detail data cells
+    int  m_PreambleNumSymbols;      // Number of preamble symbols
+    int  m_NumCellsInFirstPreamble; // Number of cells in the first preamble symbol
+    int  m_NumCellsInNextPreamble;  // Number of cells in the next preamble symbol
+    int  m_NumPlpCellsInPreambles;  // Number of cells in the preamble available for PLPs
+                                 
+    std::vector<DtAtsc3SubframeInfo> m_Subframes;   // Subframe information
 };
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ ATSC 3.0 Demodulation  +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -5018,7 +5110,6 @@ struct DtAtsc3DemodL1PlpData
     int  m_ScramblerType;       // L1D_plp_scrambler_type;  0 
     int  m_FecCodeLength;       // L1D_plp_fec_type (code length), see DTAPI_ATSC3_LDPC_x   
     int  m_FecOuterCode;        // L1D_plp_fec_type (outer type), see DTAPI_ATSC3_OUTER_x  
-    int  m_FecType;             // L1D_plp_fec_type; FEC type, see DTAPI_ATSC3_PLPFEC_x
     int  m_Modulation;          // L1D_plp_mod; modulation, see DTAPI_ATSC3_QAMx
     int  m_CodeRate;            // L1D_plp_cod; code rate, see DTAPI_ATSC3_COD_x
     int  m_TiMode;              // L1D_plp_TI_mode; time interleaver mode,
@@ -5028,15 +5119,36 @@ struct DtAtsc3DemodL1PlpData
                                 // first complete FEC frame for the current PLP leaving 
                                 // the CTI in the current or subsequent subframes 
     // .....
-    int  m_Type;                // L1D_plp_type; PLP-type, see DTAPI_ATSC3_PLPTYPE_x
+    int  m_PlpType;             // L1D_plp_type; PLP-type, see DTAPI_ATSC3_PLPTYPE_x
+    int  m_NumSubslices;        // L1D_plp_num_subslices+1; Number of subslices 1...16384 
+                                // valid if plp_type=1
+    int  m_SubsliceInterval;    // L1D_plp_subslice_interval+1; 1.. 2^24-1, valid if plp_type=1
     bool  m_TiExtInterleaving;  // L1D_plp_TI_extended_interleaving, extended IL is used
     int  m_CtiDepth;            // L1D_plp_CTI_depth; convolutional time interleaver
                                 // depth, see DTAPI_ATSC3_CTIDEPTH_x
     int   m_CtiStartRow;        // L1D_plp_CTI_start_row; position of the interleaver 
                                 // selector at the start of the subframe
+
+    // HTI interleaving parameters (only applicable if TiMode=HTI)
+    bool  m_HtiInterSubframe;   // L1D_plp_HTI_inter_subframe; inter-subframe interleaving
+                                // is used.
+    int  m_HtiNumTiBlocks;      // L1D_plp_HTI_num_ti_blocks; If inter-subframe 
+                                // interleaving is disabled: the number of TI blocks per 
+                                // interleaving frame.
+                                // If inter-subframe interleaving is enabled:
+                                // the number of subframes over which cells from 
+                                // one TI block are carried. Range: 1..16
+    int  m_HtiNumFecBlocksMax;  // L1D_plp_HTI_num_fec_blocks_max+1; The maximum number of 
+                                // FEC blocks per interleaving frame for the current
+                                // PLP: 1..4096
+    int  m_HtiNumFecBlocks[16]; // L1D_plp_HTI_num_fec_blocks+1; the number of FEC blocks
+                                // contained in the interleaving frames for the current
+                                // PLP
+    bool m_HtiCellInterleaver;  // L1D_plp_HTI_cell_interleaver;  cell-interleaver is used
+
     int   m_LdmInjectLevel;     // L1D_plp_ldm_injection_level;
-                                // InjectLevel <  10 : InjectLevel/2 dB
-                                // InjectLevel >= 10 : 5.0 + InjectLevel dB
+                                // InjectLevel <  10 : InjectLevel/2.0 dB
+                                // InjectLevel >= 10 : InjectLevel - 5.0 dB
 };
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAtsc3DemodL1SubframeData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -5092,11 +5204,11 @@ struct DtAtsc3DemodL1BasicData
                                 // the number of sample periods between the nearest 
                                 // preceding or coincident millisecond boundary and the
                                 // leading edge of the frame
-    int  m_AdditionalSamples; // L1B_additional_samples - if m_FrameLengthMode=
+    int  m_AdditionalSamples;   // L1B_additional_samples - if m_FrameLengthMode=
                                 // symbol-aligned, the number of additional samples added
                                 // at the end of a frame.
     int  m_NumSubframes;        // L1B_num_subframes +1; number of subframes: 1..256
-    // L1-Basic information for L1-Detail
+    // L1-Basic parameters for L1-Detail
     int  m_PreambleNumSymbols;  // L1B_preamble_num_symbols +1; number of Preamble 
                                 // OFDM symbols
     int  m_PreambleReducedCarriers; // L1B_preamble_reduced_carriers - Carrier
@@ -5105,7 +5217,7 @@ struct DtAtsc3DemodL1BasicData
                                 // L1-Detail contents is modified, 0..3
     int  m_L1DetailSize;        // L1B_L1_Detail_size_bytes; size of L1-Detail (in bytes)
     int  m_L1DetailFecMode;     // L1B_L1_Detail_fec_type; FEC Type Mode: 1..7
-    int  m_L1DetailAdditionalParityMode;  // L1B_L1_Detail_additional_parity_mode;
+    int  m_L1DetailAddParity;   // L1B_L1_Detail_additional_parity_mode;
                                 // additional parity mode K, 0, 1 or 2
     int  m_L1DetailNumCells;    // L1B_L1_Detail_total_cells; size (in OFDM cells) of
                                 // coded and modulated L1-Detail + additional parity bits
@@ -5136,7 +5248,7 @@ struct DtAtsc3DemodL1BasicData
 struct DtAtsc3DemodL1DetailData
 {
     int  m_Version;             // L1D_version; version: 0
-    int  m_NumRf;               // L1D_num_rf; umber of frequencies involved in channel
+    int  m_NumRf;               // L1D_num_rf; number of frequencies involved in channel
                                 // bonding
     int  m_RfFrequency[7];      // L1D_rf_frequency; the center frequencies  (in 10kHz)
                                 // of the other RF channels
@@ -5145,6 +5257,7 @@ struct DtAtsc3DemodL1DetailData
     int  m_TimeMillisec;        // L1D_time_msec; milliseconds component 
     int  m_TimeMicrosec;        // L1D_time_usec; microseconds component 
     int  m_TimeNanosec;         // L1D_time_nsec; nanoseconds component
+    __int64  m_AgeOfTimeInfo;   // The age of the time information in nanoseconds
     // Note: L1 basic first_sub are copied in the first subframe
     std::vector<DtAtsc3DemodL1SubframeData> m_Subframes;    // Subframes
 };
@@ -6906,7 +7019,7 @@ struct DtConstelPars
     int  m_Period;                  // Minimum period between callbacks in ms
     int  m_ConstellationType;       // 0: Constellation per PLP
                                     // 1: Constellation per carrier (after equalization)
-    int  m_Index;                   // Index of the PLP or carrier
+    int  m_Index;                   // Index of the carrier or PLP-ID
     int  m_MaxNumPoints;            // Maximum number of constellation points
 };
 
@@ -7306,6 +7419,7 @@ enum DtMxAudioSampleType
 {
     DT_AUDIO_SAMPLE_PCM,        // 32-bit PCM samples
     DT_AUDIO_SAMPLE_AES3,       // AES samples
+    DT_AUDIO_SAMPLE_S337,       // 32-bit SMPTE-337 data-burst samples
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- enum DtMxOutputMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -7906,6 +8020,8 @@ public:
     DTAPI_RESULT  InitChannelStatus();
     DTAPI_RESULT  InitChannelStatus(const DtMxAudioService&  Service);
 
+    DTAPI_RESULT  AddAudio(const DtMxAudioService&, unsigned char* pSamples, 
+                                                         int& NumSamples, int SampleSize);
     DTAPI_RESULT  GetAudio(const DtMxAudioService&, unsigned char* pSamples, 
                                                          int& NumSamples, int SampleSize);
 };
@@ -9226,4 +9342,4 @@ const char*  DtapiMxFrameStatus2Str(DtMxFrameStatus  Status);
 using namespace Dtapi;
 #endif
 
-#endif //#ifndef __DTAPI_H
+#endif //#ifndef __DTAPI_H

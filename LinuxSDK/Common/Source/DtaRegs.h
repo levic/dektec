@@ -4355,6 +4355,13 @@ static __inline void  DtaRegHdCtrl2SetLvlBConvEn(volatile UInt8* pBase, UInt  En
                                                                DT_HD_CTRL2_LVLBCONVEN_SH);
 }
 
+// HD-Channel Control2 register:  IO serdes reset
+static __inline void  DtaRegHdCtrl2SetIoSerDesReset(volatile UInt8* pBase, UInt  Mode)
+{
+    WRITE_UINT_MASKED(Mode, pBase, DT_HD_REG_CTRL2, DT_HD_CTRL2_IOSERDESRST_MSK,
+                                                              DT_HD_CTRL2_IOSERDESRST_SH);
+}
+
 //-.-.-.-.-.-.-.-.- HD-Channel Current Frame register: Access Functions -.-.-.-.-.-.-.-.-.
 
 static __inline Int64 DtaRegHdCurrentFrameGet(volatile UInt8* pBase)

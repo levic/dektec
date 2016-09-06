@@ -716,6 +716,7 @@ ASSERT_SIZE(DtaIoctlReleaseAddressRegsOutput, 16)
 // Event types
 #define DTA_EVENT_TYPE_POWER         0x00000001
 #define DTA_EVENT_TYPE_GENLOCK       0x00000002
+#define DTA_EVENT_TYPE_IOCONFIG      0x00000004
 #define DTA_EVENT_TYPE_ALL           0xFFFFFFFF
 // Power event values
 #define DTA_EVENT_VALUE1_POWER_DOWN  0x00000001

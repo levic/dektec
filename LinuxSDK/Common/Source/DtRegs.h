@@ -1167,7 +1167,7 @@ typedef union _DT_RFDAC_CONTROL
 #define DT_HD_CTRL1_IOBYPASSEQ_SH        3
 #define DT_HD_CTRL1_IOPORT_MSK           0x000000F0
 #define DT_HD_CTRL1_IOPORT_SH            4
-#define DT_HD_CTRL1_DBLBUF_MSK           0x00000700
+#define DT_HD_CTRL1_DBLBUF_MSK           0x00000F00
 #define DT_HD_CTRL1_DBLBUF_SH            8
 #define DT_HD_CTRL1_OPMODE_MSK           0x00007000
 #define DT_HD_CTRL1_OPMODE_SH            12
@@ -1230,8 +1230,6 @@ typedef union _DT_RFDAC_CONTROL
 
 //-.-.-.-.-.-.-.-.-.-.-.- HD-Channel Control2 register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.-
 //
-// NOTE: All bits in Control 2 register are write-only bits, so for now we can simple 
-// write a 1 to the control bits (i.e. no need for read-modify-write)
 
 #define DT_HD_CTRL2_REPFRM_MSK           0x00000001
 #define DT_HD_CTRL2_REPFRM_SH            0
@@ -1241,6 +1239,8 @@ typedef union _DT_RFDAC_CONTROL
 #define DT_HD_CTRL2_FRACCLKSEL_SH        2
 #define DT_HD_CTRL2_LVLBCONVEN_MSK       0x00000008
 #define DT_HD_CTRL2_LVLBCONVEN_SH        3
+#define DT_HD_CTRL2_IOSERDESRST_MSK      0x00000100
+#define DT_HD_CTRL2_IOSERDESRST_SH       8
 
 
 //.-.-.-.-.-.-.-.-.-.-.-.- HD-Channel Status register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.-.

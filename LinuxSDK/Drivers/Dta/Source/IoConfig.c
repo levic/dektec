@@ -274,7 +274,15 @@ DtStatus  DtaIoConfigSet(
     Int  ConfigSubValue;
     Int  ParXtra;
     Int  NumIpCfgs = 0;
+    Bool*  pPortsUpdated = NULL;
 
+    pPortsUpdated = (Bool*)DtMemAllocPool(DtPoolNonPaged,
+                                            sizeof(Bool) * pDvcData->m_NumPorts, DTA_TAG);
+    if (pPortsUpdated == NULL)
+    {
+        return DT_STATUS_OUT_OF_MEMORY;
+    }
+    DtMemZero(pPortsUpdated, sizeof(Bool) * pDvcData->m_NumPorts);
 
     // Get exclusive access lock to prevent ports from being opened/closed and other
     // IO configs from being applied
@@ -296,6 +304,9 @@ DtStatus  DtaIoConfigSet(
             Result = DT_STATUS_OK;
             continue;
         }
+
+        pPortsUpdated[pCfg->m_PortIndex] = TRUE;
+
         // Get Idx of ConfigGroup
         Result = IoConfigCodeGet(pCfg->m_Group, &IoGroup);
         if (!DT_SUCCESS(Result))
@@ -325,6 +336,7 @@ DtStatus  DtaIoConfigSet(
     if (!DT_SUCCESS(Result) || NumIpCfgs==Count)
     {
         DtaDeviceReleaseExclAccess(pDvcData);
+        DtMemFreePool(pPortsUpdated, DTA_TAG);
         return Result;
     }
 
@@ -337,6 +349,7 @@ DtStatus  DtaIoConfigSet(
             (int)((sizeof(DtaIoConfigNonIpPortUpdate) * pDvcData->m_NumNonIpPorts)/1024));
 
         DtaDeviceReleaseExclAccess(pDvcData);
+        DtMemFreePool(pPortsUpdated, DTA_TAG);
         return DT_STATUS_OUT_OF_MEMORY;
     }
     else
@@ -410,6 +423,8 @@ DtStatus  DtaIoConfigSet(
                         break;
                     }
                 }
+                
+                pPortsUpdated[pCfg->m_PortIndex] = TRUE;
 
                 pPortUpdate->m_CfgValue[IoGroup].m_Value = ConfigValue;
                 pPortUpdate->m_CfgValue[IoGroup].m_SubValue = ConfigSubValue;
@@ -439,8 +454,19 @@ DtStatus  DtaIoConfigSet(
     DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
 
     if (DT_SUCCESS(Result))
+    {
+        Int  i;
         Result = DtaIoConfigUpdateApply(pDvcData, &Update, TRUE);
 
+        for (i=0; i<pDvcData->m_NumPorts; i++)
+        {
+            if (!pPortsUpdated[i])
+                continue;
+            DtaEventsSet(pDvcData, NULL, DTA_EVENT_TYPE_IOCONFIG, i, 0);
+        }
+    }
+    
+    DtMemFreePool(pPortsUpdated, DTA_TAG);
     DtMemFreePool(Update.m_pNonIpPortUpdate, DTA_TAG);
 
     return Result;

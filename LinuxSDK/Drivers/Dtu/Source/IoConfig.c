@@ -239,13 +239,24 @@ DtStatus  DtuIoConfigSet(
     Int  ConfigValue;
     Int  ConfigSubValue;
     Int  ParXtra;
+    Bool*  pPortsUpdated = NULL;
 
+    pPortsUpdated = (Bool*)DtMemAllocPool(DtPoolNonPaged,
+                                            sizeof(Bool) * pDvcData->m_NumPorts, DTU_TAG);
+    if (pPortsUpdated == NULL)
+    {
+        return DT_STATUS_OUT_OF_MEMORY;
+    }
+    DtMemZero(pPortsUpdated, sizeof(Bool) * pDvcData->m_NumPorts);
 
     // Get exclusive access lock to prevent ports from being opened/closed and other
     // IO configs from being applied
     Result = DtuDeviceAcquireExclAccess(pDvcData);
     if (Result != DT_STATUS_OK)
+    {
+        DtMemFreePool(pPortsUpdated, DTU_TAG);
         return Result;
+    }
     
     // Use a dynamic allocated structure to avoid stack errors.
      Update.m_pNonIpPortUpdate = 
@@ -254,6 +265,7 @@ DtStatus  DtuIoConfigSet(
     if (Update.m_pNonIpPortUpdate == NULL)
     {
         DtuDeviceReleaseExclAccess(pDvcData);
+        DtMemFreePool(pPortsUpdated, DTU_TAG);
         return DT_STATUS_OUT_OF_MEMORY;
     }
     
@@ -320,6 +332,9 @@ DtStatus  DtuIoConfigSet(
                         break;
                     }
                 }
+                
+                pPortsUpdated[pCfg->m_PortIndex] = TRUE;
+
 
                 pPortUpdate->m_CfgValue[IoGroup].m_Value = ConfigValue;
                 pPortUpdate->m_CfgValue[IoGroup].m_SubValue = ConfigSubValue;
@@ -350,8 +365,19 @@ DtStatus  DtuIoConfigSet(
     DtFastMutexRelease(&pDvcData->m_ExclAccessMutex);
 
     if (DT_SUCCESS(Result))
+    {
+        Int  i;
         Result = DtuIoConfigUpdateApply(pDvcData, &Update, TRUE);
 
+        for (i=0; i<pDvcData->m_NumPorts; i++)
+        {
+            if (!pPortsUpdated[i])
+                continue;
+            DtuEventsSet(pDvcData, NULL, DTU_EVENT_TYPE_IOCONFIG, i, 0);
+        }
+    }
+    
+    DtMemFreePool(pPortsUpdated, DTU_TAG);
     DtMemFreePool(Update.m_pNonIpPortUpdate, DTU_TAG);
 
     return Result;

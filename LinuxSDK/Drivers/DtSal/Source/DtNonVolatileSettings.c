@@ -357,8 +357,15 @@ NTSTATUS  DriverParametersKeyRead(
         // Read string or binary value
         if (pStrValue != NULL)
         {
-            // Create Wdf string
-            NtStatus = WdfStringCreate(NULL, WDF_NO_OBJECT_ATTRIBUTES, &WdfString);
+            // Set string attributes with the key as parent object, so that the string 
+            // object is freed when the key object is destroyed. If we donot do this the
+            // string object is freed when the driver unloads, meaning that the each call 
+            // to DriverParametersKeyRead result in an increase of memory usage, only 
+            // to be freed on the unload.
+            WDF_OBJECT_ATTRIBUTES  WdfStringAttr;
+            WDF_OBJECT_ATTRIBUTES_INIT(&WdfStringAttr);
+            WdfStringAttr.ParentObject = Key;
+            NtStatus = WdfStringCreate(pStrValue, &WdfStringAttr, &WdfString);
 
             // Read string from registry
             if (NT_SUCCESS(NtStatus))
@@ -435,7 +442,15 @@ NTSTATUS  DriverParametersKeyWrite(
         // Write string or binary value
         if (pStrValue != NULL)
         {
-            NtStatus = WdfStringCreate(pStrValue, WDF_NO_OBJECT_ATTRIBUTES, &WdfString);
+            // Set string attributes with the key as parent object, so that the string 
+            // object is freed when the key object is destroyed. If we donot do this the
+            // string object is freed when the driver unloads, meaning that the each call 
+            // to DriverParametersKeyWrite result in an increase of memory usage, only 
+            // to be freed on the unload.
+            WDF_OBJECT_ATTRIBUTES  WdfStringAttr;
+            WDF_OBJECT_ATTRIBUTES_INIT(&WdfStringAttr);
+            WdfStringAttr.ParentObject = Key;
+            NtStatus = WdfStringCreate(pStrValue, &WdfStringAttr, &WdfString);
 
             if (NT_SUCCESS(NtStatus))
                 NtStatus = WdfRegistryAssignString(Key, pValueName, WdfString);

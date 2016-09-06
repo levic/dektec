@@ -442,6 +442,7 @@ ASSERT_SIZE(DtuIoctlI2cCmdOutput, 516)
 //
 // Event types
 #define DTU_EVENT_TYPE_POWER         0x00000001
+#define DTU_EVENT_TYPE_IOCONFIG      0x00000002
 #define DTU_EVENT_TYPE_TEST          0x80000000
 #define DTU_EVENT_TYPE_ALL           0xFFFFFFFF
 // Power event values

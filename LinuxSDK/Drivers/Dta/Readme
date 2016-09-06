@@ -44,16 +44,22 @@ Currently the driver provides support for the following cards:
 - DTA-160	(GigE + 3x ASI ports for PCI)
 - DTA-2107	(Multi-standard L-band modulator for PCI Express)
 - DTA-2111	(Multi-standard VHF/UHF modulator for PCI Express)
+- DTA-2115	(Multi-Standard All-Band Modulator for PCI Express)
 - DTA-2131	(Multi-standard VHF/UHF demodulator for PCI Express)
 - DTA-2135	(Dual DVB-T receiver for PCI Express)
 - DTA-2136	(Dual QAM-A/B/C receiver for PCI Express)
 - DTA-2137	(Dual DVB-S/DVB-S2 receiver for PCI Express)
+- DTA-2138	(DVB C2/T2 Receiver for PCI Express)
 - DTA-2139	(12 channel QAM-A/B/C receiver for PCI Express)
 - DTA-2142	(Multi-mode serial and parallel port for PCI Express)
 - DTA-2144	(Quad ASI/SDI in+out for PCI Express)
 - DTA-2145	(ASI/SDI in+out with bypass relais for PCI Express)
 - DTA-2152	(Dual HD-SDI in+out for PCI Express)
+- DTA-2154	(Quad HD-SDI In+Out Adapter for PCI Express)
 - DTA-2160	(GigE + 3x ASI ports for PCI Express)
+- DTA-2162	(Dual GigE TS-over-IP for PCI Express)
+- DTA-2174	(Quad 3G/HD-SDI In+Out Adapter for PCI Express)
+- DTA-2180	(H.264 HD Contribution Encoder for PCI Express)
  
 NOTE: The DTA-110T is not supported
  
@@ -76,7 +82,8 @@ NOTE: MAKE SURE THE 'KERNEL_DIR' DEFINE IN THE MAKEFILE SPECIFIES THE CORRECT
 --------------------------------------------------------------------------------
 
 The Dta driver has the following system requirements:
- - Kernel version 2.6.18 or higher
+ - Kernel version 2.6.18 or higher   
+ - DTA-2139, DTA-2160 and DTA-2162; Kernel version 2.6.32 or higher
  - Linux hotplug should be installed
  
 For easy usage of the driver, DekTec provides the DTAPI wrapper library.

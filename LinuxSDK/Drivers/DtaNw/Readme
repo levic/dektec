@@ -33,7 +33,7 @@ Currently the driver provides support for the following cards:
 - DTA-2162  (Dual GigE ports for PCI Express)
 
 The DtaNw driver has the following system requirements:
- - Kernel version 2.6.18 or higher
+ - Kernel version 2.6.32 or higher
  - Linux hotplug should be installed
 
 

@@ -10859,7 +10859,7 @@ static const DtProperty  DtProperties2139_0_25[] =
 {
     { "INTERRUPT_PER_INT_CLK_BIT", 21, NULL, PROPERTY_VALUE_TYPE_UINT8, -1, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "PCB_LAST_REV", 200, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "PCB_LAST_REV", 201, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2139_0_26[] =
@@ -13587,7 +13587,7 @@ static const DtProperty  DtProperties2154_0_00[] =
 };
 static const DtProperty  DtProperties2154_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 7, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 9, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N1_1", -1, "Improved DMA performance", PROPERTY_VALUE_TYPE_STRING, -1,
                                             -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -13680,6 +13680,8 @@ static const DtProperty  DtProperties2154_0_07[] =
                                         -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N7_1", -1,
       "Bug fix: no frames received when switching source with same standard",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N8_0", -1, "Support for rebooting the firmware without a power cycle",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_0_08[] =
@@ -13701,6 +13703,10 @@ static const DtProperty  DtProperties2154_0_08[] =
     { "FIRMWARE_R_N7_2", -1,
       "Bug fix: no input detected after repeated rebooting of the PC",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N8_1", -1, "Bug fix: illegal codes in video should be clamped",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N9_0", -1, "Bug fix: data corruption after application kill",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_FREQ", 54000000, NULL, PROPERTY_VALUE_TYPE_UINT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REGISTERS_TX", 0x300, NULL, PROPERTY_VALUE_TYPE_UINT16, 0, -1, 0, 0, -1,
@@ -13719,6 +13725,8 @@ static const DtProperty  DtProperties2154_0_09[] =
     { "FIRMWARE_R_N7_3", -1,
       "Bug fix: no input detected after repeatedly switching standards",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N9_1", -1, "Several other minor bug fixes", PROPERTY_VALUE_TYPE_STRING,
+                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "GENLOCK_ASYNC_PORT", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 5, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -14259,9 +14267,9 @@ static const DtPropertyHashSet  DtPropertyHashSets2154_0[] =
     { DtProperties2154_0_04, 8 },
     { DtProperties2154_0_05, 1 },
     { DtProperties2154_0_06, 8 },
-    { DtProperties2154_0_07, 10 },
-    { DtProperties2154_0_08, 11 },
-    { DtProperties2154_0_09, 7 },
+    { DtProperties2154_0_07, 11 },
+    { DtProperties2154_0_08, 13 },
+    { DtProperties2154_0_09, 8 },
     { DtProperties2154_0_10, 8 },
     { DtProperties2154_0_11, 6 },
     { DtProperties2154_0_12, 7 },
@@ -14333,7 +14341,7 @@ static const DtProperty  DtProperties2154_1_00[] =
 };
 static const DtProperty  DtProperties2154_1_01[] =
 {
-    { "FIRMWARE_LAST_VER", 7, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 9, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N1_1", -1, "Improved DMA performance", PROPERTY_VALUE_TYPE_STRING, -1,
                                             -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -14406,6 +14414,8 @@ static const DtProperty  DtProperties2154_1_07[] =
                                         -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N7_1", -1,
       "Bug fix: no frames received when switching source with same standard",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N8_0", -1, "Support for rebooting the firmware without a power cycle",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2154_1_08[] =
@@ -14422,6 +14432,10 @@ static const DtProperty  DtProperties2154_1_08[] =
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N7_2", -1,
       "Bug fix: no input detected after repeated rebooting of the PC",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N8_1", -1, "Bug fix: illegal codes in video should be clamped",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N9_0", -1, "Bug fix: data corruption after application kill",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_FREQ", 54000000, NULL, PROPERTY_VALUE_TYPE_UINT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -14441,6 +14455,8 @@ static const DtProperty  DtProperties2154_1_09[] =
     { "FIRMWARE_R_N7_3", -1,
       "Bug fix: no input detected after repeatedly switching standards",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N9_1", -1, "Several other minor bug fixes", PROPERTY_VALUE_TYPE_STRING,
+                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "VPD_RO_SIZE", 256, NULL, PROPERTY_VALUE_TYPE_UINT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -14845,9 +14861,9 @@ static const DtPropertyHashSet  DtPropertyHashSets2154_1[] =
     { DtProperties2154_1_04, 6 },
     { DtProperties2154_1_05, 1 },
     { DtProperties2154_1_06, 6 },
-    { DtProperties2154_1_07, 6 },
-    { DtProperties2154_1_08, 9 },
-    { DtProperties2154_1_09, 5 },
+    { DtProperties2154_1_07, 7 },
+    { DtProperties2154_1_08, 11 },
+    { DtProperties2154_1_09, 6 },
     { DtProperties2154_1_10, 7 },
     { DtProperties2154_1_11, 4 },
     { DtProperties2154_1_12, 3 },
@@ -15770,7 +15786,7 @@ static const DtProperty  DtProperties2174_0_00[] =
 };
 static const DtProperty  DtProperties2174_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 4, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N2_0", -1, "Intermediate version released to few BETA customers",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
@@ -15787,7 +15803,9 @@ static const DtProperty  DtProperties2174_0_02[] =
 static const DtProperty  DtProperties2174_0_03[] =
 {
     { "FIRMWARE_R_N3_1", -1, "Support for PsF standards", PROPERTY_VALUE_TYPE_STRING, -1,
-                                            -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                            -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N4_0", -1, "Support for rebooting the firmware without a power cycle",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2174_0_04[] =
 {
@@ -15805,6 +15823,8 @@ static const DtProperty  DtProperties2174_0_04[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N3_2", -1, "Support for double-buffering", PROPERTY_VALUE_TYPE_STRING,
                                         -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N4_1", -1, "Bug fix: illegal codes in video should be clamped",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_EXT_CLK_FREQ", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -16181,7 +16201,9 @@ static const DtProperty  DtProperties2174_0_36[] =
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 4, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1,
-                        0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                        3, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2174_0_37[] =
 {
@@ -16232,8 +16254,10 @@ static const DtProperty  DtProperties2174_0_42[] =
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
                                                                                    0, 0 },
-    { "PROGRAMMING_ITF", PROG_ITF_CFI_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0,
-                              -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "PROGRAMMING_ITF", PROG_ITF_CFI_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 3, 0,
+                              -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, PROG_ITF_CFI_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2174_0_43[] =
 {
@@ -16422,8 +16446,10 @@ static const DtProperty  DtProperties2174_0_61[] =
                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "MATRIX_MEM_LINE_ALIGNMENT", 128, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "PROGRAMMING_SUPPORTS_FW_REBOOT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0,
+    { "PROGRAMMING_SUPPORTS_FW_REBOOT", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 3, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "TESTING_LOOP_BACK_32B_TX", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
@@ -16447,8 +16473,8 @@ static const DtPropertyHashSet  DtPropertyHashSets2174_0[] =
     { DtProperties2174_0_00, 6 },
     { DtProperties2174_0_01, 2 },
     { DtProperties2174_0_02, 3 },
-    { DtProperties2174_0_03, 1 },
-    { DtProperties2174_0_04, 8 },
+    { DtProperties2174_0_03, 2 },
+    { DtProperties2174_0_04, 9 },
     { DtProperties2174_0_05, 1 },
     { DtProperties2174_0_06, 7 },
     { DtProperties2174_0_07, 9 },
@@ -16480,13 +16506,13 @@ static const DtPropertyHashSet  DtPropertyHashSets2174_0[] =
     { NULL, 0 },
     { DtProperties2174_0_34, 1 },
     { DtProperties2174_0_35, 10 },
-    { DtProperties2174_0_36, 11 },
+    { DtProperties2174_0_36, 12 },
     { DtProperties2174_0_37, 2 },
     { DtProperties2174_0_38, 4 },
     { DtProperties2174_0_39, 5 },
     { DtProperties2174_0_40, 2 },
     { DtProperties2174_0_41, 1 },
-    { DtProperties2174_0_42, 3 },
+    { DtProperties2174_0_42, 4 },
     { DtProperties2174_0_43, 1 },
     { DtProperties2174_0_44, 1 },
     { DtProperties2174_0_45, 6 },
@@ -16505,7 +16531,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2174_0[] =
     { NULL, 0 },
     { DtProperties2174_0_59, 13 },
     { DtProperties2174_0_60, 1 },
-    { DtProperties2174_0_61, 5 },
+    { DtProperties2174_0_61, 6 },
     { NULL, 0 },
     { DtProperties2174_0_63, 5 }
 };
@@ -16525,7 +16551,7 @@ static const DtProperty  DtProperties2174_1_00[] =
 };
 static const DtProperty  DtProperties2174_1_01[] =
 {
-    { "FIRMWARE_LAST_VER", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 4, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N2_0", -1, "Intermediate version released to few BETA customers",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
@@ -16538,7 +16564,9 @@ static const DtProperty  DtProperties2174_1_02[] =
 static const DtProperty  DtProperties2174_1_03[] =
 {
     { "FIRMWARE_R_N3_1", -1, "Support for PsF standards", PROPERTY_VALUE_TYPE_STRING, -1,
-                                            -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                            -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N4_0", -1, "Support for rebooting the firmware without a power cycle",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2174_1_04[] =
 {
@@ -16552,6 +16580,8 @@ static const DtProperty  DtProperties2174_1_04[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N3_2", -1, "Support for double-buffering", PROPERTY_VALUE_TYPE_STRING,
                                         -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N4_1", -1, "Bug fix: illegal codes in video should be clamped",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_EXT_CLK_FREQ", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -17044,8 +17074,8 @@ static const DtPropertyHashSet  DtPropertyHashSets2174_1[] =
     { DtProperties2174_1_00, 3 },
     { DtProperties2174_1_01, 2 },
     { DtProperties2174_1_02, 1 },
-    { DtProperties2174_1_03, 1 },
-    { DtProperties2174_1_04, 6 },
+    { DtProperties2174_1_03, 2 },
+    { DtProperties2174_1_04, 7 },
     { DtProperties2174_1_05, 1 },
     { DtProperties2174_1_06, 5 },
     { DtProperties2174_1_07, 5 },

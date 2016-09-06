@@ -415,7 +415,7 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
     DtStatus  Status = DT_STATUS_OK;
     volatile UInt8*  pHdRegs = NULL;
     DtaMatrixPort*  pMatrix = NULL;
-    
+        
     DT_ASSERT(pNonIpPort!=NULL && pVidStd!=NULL);
     DT_ASSERT(pNonIpPort->m_CapMatrix);
 
@@ -592,21 +592,53 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
             DtDbgOutPort(AVG, NONIP, pNonIpPort, "No carrier => skip toggling frac-mode");
         }
 #endif
-        if ((pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2154 ||
-             pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2174) &&
-                                  pNonIpPort->m_CapMatrix2 && *pVidStd==DT_VIDSTD_UNKNOWN)
+
+        //=+=+=+=+=+=+=+=+=+=+=+=+=+=+ WORKAROUND FOR TT2186 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+        //
+        // Resetting the IO-serdes-interface helps when the SERDES has entered a state in 
+        // which it fails to detect a valid signal on it's input
+        //
+        // NOTE:
+        //  1. Only reset when we have a carrier
+        //  2. Initially reset no more than once per second, but after 3 attempts lower
+        //     the reset frequency to no more that once per 5-seconds
+        //
+
+        if (pNonIpPort->m_CapMatrix2 
+                  && (   pNonIpPort->m_AsiSdiDeserItfType==ASI_SDI_DESER_ITF_FPGA_BASED
+                      || pNonIpPort->m_AsiSdiDeserItfType==ASI_SDI_DESER_ITF_FPGA_LMH0387
+                      || pNonIpPort->m_AsiSdiDeserItfType==ASI_SDI_DESER_ITF_FPGA_GS3490))
         {
-            UInt64  CurClk = DtaRegRefClkCntGet64(pNonIpPort->m_pDvcData->m_pGenRegs);
-            if (CurClk - pNonIpPort->m_Matrix.m_LastIoReset > 54000000)
+            UInt64  CurTime = DtGetTickCount();
+            if (DtaRegHdStatGetCarrierDetect(pHdRegs)!=0 && *pVidStd==DT_VIDSTD_UNKNOWN)
             {
-                DtDbgOutPort(ERR, NONIP, pNonIpPort, "Doing IO reset");
-                DtaRegHdCtrl1SetIoReset(pHdRegs, 1);
-                DtSleep(5);
-                DtaRegHdCtrl1SetIoReset(pHdRegs, 0);
-                DtSleep(5);
-                pNonIpPort->m_Matrix.m_LastIoReset = CurClk;
+                // Should we use short or long interval?
+                const Int  ResetInterval = 
+                               (pNonIpPort->m_Matrix.m_NumIoSerDesReset>=3) ? 5000 : 1000;
+                if ((CurTime - pNonIpPort->m_Matrix.m_LastIoSerDesReset)>=ResetInterval)
+                {
+                    DtDbgOutPort(ERR, NONIP, pNonIpPort, "Resetting SerDes interface");
+
+                    DtaRegHdCtrl2SetIoSerDesReset(pHdRegs, 1);
+                    DtSleep(5);
+                    DtaRegHdCtrl2SetIoSerDesReset(pHdRegs, 0);
+                    DtSleep(5);
+
+                    // Store time of last reset and update reset count
+                    pNonIpPort->m_Matrix.m_LastIoSerDesReset = CurTime;
+                    pNonIpPort->m_Matrix.m_NumIoSerDesReset++;
+                }
+            }
+            else
+            {
+                // No carier or valid signal => restart timeout counter
+                pNonIpPort->m_Matrix.m_LastIoSerDesReset = CurTime;
+                pNonIpPort->m_Matrix.m_NumIoSerDesReset = 0;
             }
         }
+
+        //
+        //=+=+=+=+=+=+=+=+=+=+=+=+=+=+ WORKAROUND FOR TT2186 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
     }
     else
     {
@@ -634,7 +666,8 @@ DtStatus  DtaNonIpMatrixInit(DtaNonIpPort* pNonIpPort)
     if (!DT_SUCCESS(Status))
         return Status;
 
-    pMatrix->m_LastIoReset = 0;
+    pMatrix->m_LastIoSerDesReset = 0;
+    pMatrix->m_NumIoSerDesReset = 0;
     
     pMatrix->m_FrmIntCnt = 0;
     pMatrix->m_ForceRestart = 0;

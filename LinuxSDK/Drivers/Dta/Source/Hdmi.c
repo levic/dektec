@@ -1042,7 +1042,7 @@ void  DtaHdmiLogStatus(DtaHdmiStatus* pStatus)
                                                                   pStatus->m_StdiFcl*256);
         if (pStatus->m_StdiFcl > 0)
         {
-            Framerate = 2700000000 / (pStatus->m_StdiFcl*256);
+            Framerate = 2700000000u / (pStatus->m_StdiFcl*256);
             DtDbgOut(MAX, HDMI, "Framerate = %d.%02d", Framerate/100, Framerate%100);
         }
     }

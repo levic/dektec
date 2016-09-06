@@ -25,13 +25,15 @@ changes included in the release.
 
 The Dtu driver is a char driver for DekTec's DTU-series of USB devices.
 Currently the driver provides support for the following devices:
-- DTU-205	(ASI/SDI output for USB)
-- DTU-215	(VHF/UHF modulator for USB)
-- DTU-225	(ASI/SDI input for USB)
-- DTU-234	(VSB/QAM-B receiver for USB)
-- DTU-235	(DVB-T measurement receiver for USB)
-- DTU-236	(QAM measurement receiver + ASI input for USB)
-- DTU-245	(ASI/SDI input+output for USB)
+- DTU-205	(ASI/SDI output for USB-2)
+- DTU-215	(VHF/UHF modulator for USB-2)
+- DTU-225	(ASI/SDI input for USB-2)
+- DTU-234	(VSB/QAM-B receiver for USB-2)
+- DTU-235	(DVB-T measurement receiver for USB-2)
+- DTU-236	(QAM measurement receiver + ASI input for USB-2)
+- DTU-238	(DVB-T/T2, DVB-C input for USB-2)
+- DTU-245	(ASI/SDI input+output for USB-2)
+- DTU-351	(HD-SDI input for USB-3)
  
 --------------------------------------------------------------------------------
 - 3. Installation Instructions
