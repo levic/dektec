@@ -67,7 +67,8 @@ typedef struct _DmaOsSgl
     KEVENT  m_DmaPrepareDoneEvent;
 #else
     UInt  m_NumSglEntries;
-    struct scatterlist*  m_pSgList;
+    struct scatterlist*  m_pSgList;          // Allocated once, grown when needed
+    UInt  m_SgListSize;                      // Size in bytes of m_pSgList
 #endif
 } DmaOsSgl;
 

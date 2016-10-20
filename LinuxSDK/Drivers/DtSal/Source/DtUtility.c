@@ -625,7 +625,7 @@ DtStatus  DtLockUserBuffer(DtPageList* pPageList, UInt8* pBuffer)
     // For linux the DtPageList is always locked into memory during creation of the buffer
     // No separate function is needed to lock the buffer
     pPageList->m_pVirtualKernel = vmap(pPageList->m_pPages, pPageList->m_NumPages, 
-                                                         VM_READ | VM_WRITE, PAGE_SHARED);
+                                             VM_SHARED | VM_READ | VM_WRITE, PAGE_KERNEL);
     if (pPageList->m_pVirtualKernel == NULL)
         return DT_STATUS_OUT_OF_RESOURCES;
 

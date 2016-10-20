@@ -465,6 +465,7 @@ void  DtaHdmiControllerThread(DtThread* pThread, void* pContext)
     {
         UInt8  Value;
         DtaHdmiStatus  NewStatus;
+        Int  NewVidStd = DT_VIDSTD_UNKNOWN;
 
         DtaHdmiClearStatus(&NewStatus);
 
@@ -609,7 +610,6 @@ void  DtaHdmiControllerThread(DtThread* pThread, void* pContext)
             const DtFwbAudioSrcWithDpll*  pAudioSrc =
                                                  &FwbHdmiAdv7610AudioSrc.AudioSrcWithDpll;
             Int  SampleRate = 44100;
-            Int  NewVidStd = DT_VIDSTD_UNKNOWN;
 
             DtaHdmiLogStatus(&NewStatus);
 
@@ -713,7 +713,12 @@ void  DtaHdmiControllerThread(DtThread* pThread, void* pContext)
         DtaFwbRegWrite(pNonIpPort->m_pFwbRegs,
                                      &pHdmi->m_pFwbHdmiAdv7610Ctrl->Control_IntEnable, 1);
         // Wait for exit or HDMI interrupt
-        DtThreadWaitForStopOrEvent(pThread, &pHdmi->m_IntEvent);
+        if (NewVidStd == DT_VIDSTD_UNKNOWN)
+        {
+            DtDbgOut(MAX, HDMI, "Video standard not detected, retrying in 500ms");
+            DtEventWait(&pHdmi->m_IntEvent, 1000);
+        } else
+            DtThreadWaitForStopOrEvent(pThread, &pHdmi->m_IntEvent);
     }
     
     // Disable interrupt and put chip back in reset

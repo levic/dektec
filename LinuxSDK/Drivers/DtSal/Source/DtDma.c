@@ -291,6 +291,7 @@ DtStatus  DtDmaCreateSgList(
     WDF_DMA_DIRECTION  WdfDmaDirection;
 #else
     Int  i;
+    UInt  SgSizeReq;
 #endif
 
     if (pOsSgl->m_Allocated)
@@ -322,8 +323,13 @@ DtStatus  DtDmaCreateSgList(
                                                                                     NULL);
 #else
     // Allocate a buffer to store the OS SG list
-    pOsSgl->m_pSgList = kmalloc(sizeof(struct scatterlist) * pPageList->m_NumPages, 
-                                                                              GFP_KERNEL);
+    SgSizeReq = sizeof(struct scatterlist) * pPageList->m_NumPages;
+    if (SgSizeReq>pOsSgl->m_SgListSize || pOsSgl->m_pSgList==NULL)
+    {
+        kfree(pOsSgl->m_pSgList);
+        pOsSgl->m_pSgList = kmalloc(SgSizeReq, GFP_KERNEL);
+        pOsSgl->m_SgListSize = SgSizeReq;
+    }
     if (pOsSgl->m_pSgList == NULL)
     {
         DtDbgOut(ERR, SAL_DMA, 
@@ -374,10 +380,8 @@ DtStatus  DtDmaFreeSgList(DtDvcObject* pDevice, DmaOsSgl* pOsSgl, UInt Direction
     pOsSgl->m_pSgList = NULL;  // ???Do we need to do something...???  or is KMDF deleting
                                // it for us when deleting the transaction??
 #else
-    pci_unmap_sg(pDevice->m_pPciDev, pOsSgl->m_pSgList, pOsSgl->m_NumSglEntries,
+    pci_unmap_sg(pDevice->m_pPciDev, pOsSgl->m_pSgList, pOsSgl->m_PageList.m_NumPages,
            (Direction == DT_DMA_DIRECTION_FROM_DEVICE ? DMA_FROM_DEVICE : DMA_TO_DEVICE));
-    kfree(pOsSgl->m_pSgList);
-    pOsSgl->m_pSgList = NULL; 
 #endif
     pOsSgl->m_Allocated = FALSE;
     return DT_STATUS_OK;

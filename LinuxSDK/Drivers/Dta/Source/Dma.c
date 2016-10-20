@@ -309,6 +309,12 @@ DtStatus  DtaDmaInitCh(
         }
         else
             DmaSglListSize = sizeof(SglDesc) * NumSglElements;
+
+#ifdef LINBUILD
+        // SgList is kept between DMA actions. Initialize buffer/size here
+        pDmaCh->m_Data.m_OsSgList.m_pSgList = NULL;
+        pDmaCh->m_Data.m_OsSgList.m_SgListSize = 0;
+#endif
     }
 
     // Create Common buffer to store SGL descriptors
@@ -334,6 +340,11 @@ void  DtaDmaCleanupCh(DtaDeviceData* pDvcData, DmaChannel* pDmaCh)
     // free possibly used common buffer
     if (pDmaCh->m_UseDirectBufDma)
         DtDmaFreeDirectBuffer(&pDvcData->m_Device, &pDmaCh->m_Data.m_DmaData);
+    else {
+#ifdef LINBUILD
+        kfree(pDmaCh->m_Data.m_OsSgList.m_pSgList);
+#endif
+    }
 
     // free SGL list
     DtDmaFreeDirectBuffer(&pDvcData->m_Device, &pDmaCh->m_SGListBuf);

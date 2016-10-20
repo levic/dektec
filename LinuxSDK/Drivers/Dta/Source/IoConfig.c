@@ -1580,7 +1580,8 @@ static DtStatus  DtaIoConfigUpdateValidateGenRefBoard(
             if (pUpdate->m_pNonIpPortUpdate[i].m_CfgValue[DT_IOCONFIG_GENREF].m_Value
                                                                       == DT_IOCONFIG_TRUE)
                 NumGenRef++;
-            if (pNonIpPort->m_CapVirtual)
+            // Check for a virtual GENREF that is not a slave
+            if (pNonIpPort->m_CapVirtual && !pNonIpPort->m_CapGenRefSlave)
                 HasVirtualGenref = TRUE;
         }
         if (pNonIpPort->m_CapGenLocked)

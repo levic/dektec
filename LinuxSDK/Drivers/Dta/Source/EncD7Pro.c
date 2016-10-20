@@ -41,11 +41,11 @@ static DtStatus  DtaEncD7ProDebugRead(DtaNonIpPort*  pNonIpPort,
                          UInt8* pBufIn, Int NumBytesToRead, Int* pBytesRead, Int Timeout);
 static DtStatus  DtaEncD7ProAckBoot(DtaNonIpPort* pNonIpPort, Bool* pIsBooted);
 static DtStatus  DtaEncD7ProReboot(DtaNonIpPort* pNonIpPort);
-DtStatus  DtaEncD7ProPrepareSpiMf(DtaNonIpPort* pNonIpPort, DtFileObject*  pFile);
-DtStatus  DtaEncD7ProReleaseSpiMf(DtaNonIpPort* pNonIpPort, DtFileObject*  pFile);
+static DtStatus  DtaEncD7ProPrepareSpiMf(DtaNonIpPort* pNonIpPort, DtFileObject*  pFile);
+static DtStatus  DtaEncD7ProReleaseSpiMf(DtaNonIpPort* pNonIpPort, DtFileObject*  pFile);
 static DtStatus  DtaEncD7ProUpdateSourceSelect(DtaNonIpPort* pNonIpPort);
-void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext);
-DtStatus  DtaEncD7ProInitPowerControl(DtaNonIpPort*  pNonIpPort);
+static void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext);
+static DtStatus  DtaEncD7ProInitPowerControl(DtaNonIpPort*  pNonIpPort);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEncD7ProInitPowerup -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -420,10 +420,12 @@ DtStatus  DtaEncD7ProPrepareSpiMf(DtaNonIpPort* pNonIpPort, DtFileObject*  pFile
             return DT_STATUS_TIMEOUT;
         }
         pD7Pro->m_State = DTA_D7PRO_STATE_FLASH_PROG;
+        // Reset event before release StatusLock mutex to prevent any chance of
+        // racing with the power control thread
+        DtEventReset(&pNonIpPort->m_EncD7Pro.m_PowerEnabledEvent);
         DtMutexRelease(&pNonIpPort->m_EncD7Pro.m_StatusLock);
 
         // Wait for reset and power to be enabled
-        DtEventReset(&pNonIpPort->m_EncD7Pro.m_PowerEnabledEvent);
         DtEventSet(&pNonIpPort->m_EncD7Pro.m_PowerControlEvent);
         Status = DtEventWait(&pNonIpPort->m_EncD7Pro.m_PowerEnabledEvent, 
                                                                        WAIT_POWER_ENABLE);
@@ -487,7 +489,7 @@ void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext)
     Int  IsExt12VPresent, IsPowerGood, FanFail, Ext12VAbsent, PowerFail;
     Int  Ext12PresCnt=0, FanGoodCnt=0;
     Int  CurrentFanRotation;
-    static Int  MinFanRotation;
+    Int  MinFanRotation;
     volatile UInt8* pFwbRegs = pNonIpPort->m_pFwbRegs;
     volatile UInt8* pFanMRegs = pNonIpPort->m_pDvcData->m_FanControl.m_pFanmRegs;
 
