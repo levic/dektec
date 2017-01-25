@@ -58,6 +58,7 @@ typedef struct _DtaI2c
 } DtaI2c;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+Bool  DtaI2cInterrupt(DtaI2c* pI2c);
 DtStatus  DtaI2cInit(DtaDeviceData* pDvcData);
 DtStatus  DtaI2cLockCallBackSet(DtaDeviceData* pDvcData, Int PortIndex, 
                          void (*pFunc)(DtaDeviceData* pDvcData, Int PortIndex, Int Lock));

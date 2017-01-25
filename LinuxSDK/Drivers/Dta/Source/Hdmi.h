@@ -85,8 +85,8 @@ Bool  DtaNonIpHdmiInterrupt(DtaNonIpPort* pNonIpPort);
 
 DtStatus  DtaNonIpHdmiDetectVidStd(DtaNonIpPort* pNonIpPort, Int* pVidStd,
                                                                        Int* pAspectRatio);
-DtStatus  DtaNonIpHdmiGetAudioStatus(DtaNonIpPort* pNonIpPort,
-                                              DtaIoctlNonIpCmdGetAudioStatusOutput* pOut);
+DtStatus  DtaNonIpHdmiGetAudioStatus2(DtaNonIpPort* pNonIpPort,
+                                             DtaIoctlNonIpCmdGetAudioStatus2Output* pOut);
 DtStatus  DtaNonIpHdmiSetNewVidStdCb(DtaNonIpPort* pNonIpPort,
                                        pDtaEnDecNewInputVidStd Cb, DtaNonIpPort* pPortCb);
 

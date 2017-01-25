@@ -72,6 +72,28 @@ DtStatus  DtaI2cInitValues(
     return DtDpcInit(&pI2c->m_I2cCompletedDpc, DtaI2cCompletedDpc, TRUE);
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cInterrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtaI2cInterrupt(DtaI2c* pI2c)
+{
+    DtDpcArgs  DpcArgs;
+    Bool  IrqHandled = FALSE;
+
+    if (DtaRegI2cStatusGetRdyInt(pI2c->m_pI2cRegs) != 0)
+    {
+        // This is the I2C interrupt. Clear it
+        DtaRegI2cStatusClrRdyInt(pI2c->m_pI2cRegs);
+
+        // Schedule to DPC
+        DpcArgs.m_pContext = pI2c;
+        DtDpcSchedule(&pI2c->m_I2cCompletedDpc, &DpcArgs);
+        // Interrupt was ours
+        IrqHandled = TRUE;
+    }
+
+    return IrqHandled;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaI2cInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtaI2cInit(DtaDeviceData* pDvcData)

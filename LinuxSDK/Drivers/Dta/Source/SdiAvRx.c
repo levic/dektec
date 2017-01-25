@@ -31,8 +31,12 @@
 static void  DtaNonIpSdiAvRxIntDpc(DtDpcArgs* pArgs);
 static DtStatus DtaSdiAvRxGetAudSelect(DtaNonIpPort*  pNonIpPort,
                                               DtaIoctSdiAvRxCmdGetAudSelectOutput* pData);
+static DtStatus DtaSdiAvRxGetAudSelect2(DtaNonIpPort*  pNonIpPort,
+                                             DtaIoctSdiAvRxCmdGetAudSelect2Output* pData);
 static DtStatus DtaSdiAvRxSetAudSelect(DtaNonIpPort*  pNonIpPort,
                                                DtaIoctSdiAvRxCmdSetAudSelectInput* pData);
+static DtStatus DtaSdiAvRxSetAudSelect2(DtaNonIpPort*  pNonIpPort,
+                                               DtaIoctSdiAvRxCmdSetAudSelect2Input* pData);
 static DtStatus DtaSdiAvRxReadSmpte2020(DtaNonIpPort*  pNonIpPort,
                                              DtaIoctSdiAvRxCmdReadSmpte2020Output* pData);
 
@@ -53,10 +57,20 @@ DtStatus DtaSdiAvRxInitPowerup(DtaNonIpPort*  pNonIpPort)
     DtaSdiAvRxPort*  pSdiAvRx = &pNonIpPort->m_SdiAvRx;
     volatile UInt8* pFwbRegs = pNonIpPort->m_pFwbRegs;
 
+    // Get the audio extractor fwblock version
+    pSdiAvRx->m_AudioExtractorVersion = DtaFwbRegRead(pFwbRegs, 
+                            &FwbSdiAvReceiver.AudioExtract[0].FwbBlockId.BlockId_Version);
+
     for (i=0; i<pSdiAvRx->m_NumAudioExtractors; i++)
     {
         // Initialize the audio channel pair selection
-        DtaFwbRegWrite(pFwbRegs, &FwbSdiAvReceiver.AudioExtract[i].ChanPairSelect, i);  
+        DtaFwbRegWrite(pFwbRegs, 
+                             &FwbSdiAvReceiver.AudioExtract[i].Control_ChanPairSelect, i);
+        // Initialize the audio extraction mode for fwbvers >= 1
+        if (pSdiAvRx->m_AudioExtractorVersion >= 1)
+            DtaFwbRegWrite(pFwbRegs, 
+                             &FwbSdiAvReceiver.AudioExtract[i].Control_ChanExtractMode, 
+                             DTFWB_AUDEXT_EXTRACT_BOTH);
     }
     return Status;
 }
@@ -94,8 +108,12 @@ DtStatus  DtaNonIpSdiAvRxInit(DtaNonIpPort*  pNonIpPort)
 
     // Get periodic timer interrupt interval
     pSdiAvRx->m_PerIntItvUs = (Int)DtaGetPerIntItvUS(pNonIpPort->m_pDvcData);
+    
     // Disable timeout
     pSdiAvRx->m_FrameIntTimeoutUs = -1;
+
+    // Initialize version
+    pSdiAvRx->m_AudioExtractorVersion = 0;
 
     // Set the maximum number of audio extractors
     pSdiAvRx->m_NumAudioExtractors = DTA_SDIAVRX_MAX_NUM_AUDPAIRS;
@@ -302,9 +320,19 @@ DtStatus  DtaSdiAvRxIoctl(
         InReqSize += 0;  // We expect no additional data in the input buffer
         OutReqSize += sizeof(DtaIoctSdiAvRxCmdGetAudSelectOutput);
         break;
+    case DTA_SDIAVRX_CMD_GET_AUDIOSELECT2:
+        pCmdStr = "DTA_SDIAVRX_CMD_GET_AUDIOSELECT2";
+        InReqSize += 0;  // We expect no additional data in the input buffer
+        OutReqSize += sizeof(DtaIoctSdiAvRxCmdGetAudSelect2Output);
+        break;
     case DTA_SDIAVRX_CMD_SET_AUDIOSELECT:
         pCmdStr = "DTA_SDIAVRX_CMD_SET_AUDIOSELECT";
         InReqSize += sizeof(DtaIoctSdiAvRxCmdSetAudSelectInput);
+        OutReqSize += 0; // We expect no additional data in the output buffer
+        break;
+    case DTA_SDIAVRX_CMD_SET_AUDIOSELECT2:
+        pCmdStr = "DTA_SDIAVRX_CMD_SET_AUDIOSELECT2";
+        InReqSize += sizeof(DtaIoctSdiAvRxCmdSetAudSelect2Input);
         OutReqSize += 0; // We expect no additional data in the output buffer
         break;
     case DTA_SDIAVRX_CMD_READ_SMPTE2020:
@@ -351,9 +379,19 @@ DtStatus  DtaSdiAvRxIoctl(
                                                   &pSdiAvRxCmdOutput->m_Data.m_AudSelect);
             break;
 
+        case DTA_SDIAVRX_CMD_GET_AUDIOSELECT2:
+            Status = DtaSdiAvRxGetAudSelect2(pNonIpPort,
+                                                 &pSdiAvRxCmdOutput->m_Data.m_AudSelect2);
+            break;
+
         case DTA_SDIAVRX_CMD_SET_AUDIOSELECT:
             Status = DtaSdiAvRxSetAudSelect(pNonIpPort,
                                                    &pSdiAvRxCmdInput->m_Data.m_AudSelect);
+            break;
+
+        case DTA_SDIAVRX_CMD_SET_AUDIOSELECT2:
+            Status = DtaSdiAvRxSetAudSelect2(pNonIpPort,
+                                                  &pSdiAvRxCmdInput->m_Data.m_AudSelect2);
             break;
 
         case DTA_SDIAVRX_CMD_READ_SMPTE2020:
@@ -553,11 +591,11 @@ DtStatus  DtaNonIpSdiAvRxDoDetectVidStd(
     return Status;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpSdiAvRxGetAudioStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpSdiAvRxGetAudioStatus2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaNonIpSdiAvRxGetAudioStatus(
+DtStatus  DtaNonIpSdiAvRxGetAudioStatus2(
     DtaNonIpPort*  pNonIpPort,
-    DtaIoctlNonIpCmdGetAudioStatusOutput*  pOut)
+    DtaIoctlNonIpCmdGetAudioStatus2Output*  pOut)
 {
     DtaSdiAvRxPort*  pSdiAvRx = &pNonIpPort->m_SdiAvRx;
     Int  i;
@@ -591,6 +629,8 @@ DtStatus  DtaNonIpSdiAvRxGetAudioStatus(
                 pOut->m_AudioChanStatus[pOut->m_NumAudioChannels].m_Rate = -1;
                 break;
             }
+            pOut->m_AudioChanStatus[pOut->m_NumAudioChannels].m_Content =
+                                                     pSdiAvRx->m_AudioStatus[i].m_Content;
             pOut->m_AudioChanStatus[pOut->m_NumAudioChannels].m_ChanStatusNumValid = 24;
             DtMemCopy(pOut->m_AudioChanStatus[pOut->m_NumAudioChannels].m_ChanStatusData,
                                     pSdiAvRx->m_AudioStatus[i].m_Chan1StatusData,
@@ -620,6 +660,9 @@ DtStatus  DtaNonIpSdiAvRxGetAudioStatus(
                 pOut->m_AudioChanStatus[pOut->m_NumAudioChannels].m_Rate = -1;
                 break;
             }
+            pOut->m_AudioChanStatus[pOut->m_NumAudioChannels].m_Content =
+                                                     pSdiAvRx->m_AudioStatus[i].m_Content;
+
             pOut->m_AudioChanStatus[pOut->m_NumAudioChannels].m_ChanStatusNumValid = 24;
             DtMemCopy(pOut->m_AudioChanStatus[pOut->m_NumAudioChannels].m_ChanStatusData,
                                     pSdiAvRx->m_AudioStatus[i].m_Chan2StatusData,
@@ -638,6 +681,22 @@ DtStatus  DtaNonIpSdiAvRxGetAudioStatus(
 static DtStatus DtaSdiAvRxGetAudSelect(DtaNonIpPort*  pNonIpPort,
                                                DtaIoctSdiAvRxCmdGetAudSelectOutput* pData)
 {
+    DtaIoctSdiAvRxCmdGetAudSelect2Output Out2;
+    DtStatus  Status = DtaSdiAvRxGetAudSelect2(pNonIpPort, &Out2);
+
+    // Copy data
+    pData->m_NumChanPairs = Out2.m_NumChanPairs;
+    memcpy(pData->m_ChanPairSelect, Out2.m_ChanPairSelect, 
+                                                         sizeof(pData->m_ChanPairSelect));
+    return Status;
+}
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaSdiAvRxGetAudSelect2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static DtStatus DtaSdiAvRxGetAudSelect2(DtaNonIpPort*  pNonIpPort,
+                                              DtaIoctSdiAvRxCmdGetAudSelect2Output* pData)
+{
     Int i;
     DtStatus  Status = DT_STATUS_OK;
     DtaSdiAvRxPort* pSdiAvRx = &pNonIpPort->m_SdiAvRx;
@@ -648,8 +707,17 @@ static DtStatus DtaSdiAvRxGetAudSelect(DtaNonIpPort*  pNonIpPort,
 
     // Get the current audio selection setting
     for (i=0; i<pSdiAvRx->m_NumAudioExtractors; i++)
+    { 
         pData->m_ChanPairSelect[i] = DtaFwbRegRead(pFwbRegs, 
-                                        &FwbSdiAvReceiver.AudioExtract[i].ChanPairSelect);
+                                &FwbSdiAvReceiver.AudioExtract[i].Control_ChanPairSelect);
+        // Get the audio extraction mode for fwbvers >= 1
+        if (pSdiAvRx->m_AudioExtractorVersion >= 1)
+            pData->m_ChanExtractMode[i] = DtaFwbRegRead(pFwbRegs, 
+                               &FwbSdiAvReceiver.AudioExtract[i].Control_ChanExtractMode);
+        else
+            pData->m_ChanExtractMode[i] = DTFWB_AUDEXT_EXTRACT_BOTH;
+
+    }
     DtSpinLockRelease(&pSdiAvRx->m_StateLock);
 
     return Status;
@@ -659,6 +727,24 @@ static DtStatus DtaSdiAvRxGetAudSelect(DtaNonIpPort*  pNonIpPort,
 //
 static DtStatus DtaSdiAvRxSetAudSelect(DtaNonIpPort*  pNonIpPort,
                                                 DtaIoctSdiAvRxCmdSetAudSelectInput* pData)
+{
+    DtaIoctSdiAvRxCmdSetAudSelect2Input In2;
+    Int i;
+    
+    // Copy data and set default extraction mode
+    In2.m_NumChanPairs = pData->m_NumChanPairs;
+    memcpy(In2.m_ChanPairSelect, pData->m_ChanPairSelect,sizeof(pData->m_ChanPairSelect));
+    for (i=0; i<DTA_SDIAVRX_MAX_NUM_AUDPAIRS; i++)
+        In2.m_ChanExtractMode[i] = DTFWB_AUDEXT_EXTRACT_BOTH; 
+
+    return DtaSdiAvRxSetAudSelect2(pNonIpPort, &In2);
+
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaSdiAvRxGetAudSelect2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static DtStatus DtaSdiAvRxSetAudSelect2(DtaNonIpPort*  pNonIpPort,
+                                               DtaIoctSdiAvRxCmdSetAudSelect2Input* pData)
 {
     Int i;
     DtaSdiAvRxPort* pSdiAvRx = &pNonIpPort->m_SdiAvRx;
@@ -678,28 +764,40 @@ static DtStatus DtaSdiAvRxSetAudSelect(DtaNonIpPort*  pNonIpPort,
     for (i=0; i<pData->m_NumChanPairs; i++)
     {
         if (pData->m_ChanPairSelect[i] != DtaFwbRegRead(pFwbRegs, 
-                                        &FwbSdiAvReceiver.AudioExtract[i].ChanPairSelect))
+                                &FwbSdiAvReceiver.AudioExtract[i].Control_ChanPairSelect))
         {
             // Change selection
-            DtaFwbRegWrite(pFwbRegs, &FwbSdiAvReceiver.AudioExtract[i].ChanPairSelect, 
-                                                              pData->m_ChanPairSelect[i]);
+            DtaFwbRegWrite(pFwbRegs, 
+                                &FwbSdiAvReceiver.AudioExtract[i].Control_ChanPairSelect, 
+                                pData->m_ChanPairSelect[i]);
             // Clear status
             DtaSdiAvRxClearAudStatus(pSdiAvRx, i);
         }
+
+        // Set the audio extraction mode for fwbvers >= 1
+        if (pSdiAvRx->m_AudioExtractorVersion >= 1)
+            DtaFwbRegWrite(pFwbRegs, 
+                              &FwbSdiAvReceiver.AudioExtract[i].Control_ChanExtractMode,
+                              pData->m_ChanExtractMode[i]);
     }
 
     // Set remaining to their default
     for (; i<pSdiAvRx->m_NumAudioExtractors; i++)
     {
         if (i != DtaFwbRegRead(pFwbRegs, 
-                                        &FwbSdiAvReceiver.AudioExtract[i].ChanPairSelect))
+                                &FwbSdiAvReceiver.AudioExtract[i].Control_ChanPairSelect))
         {
             // Change selection
-            DtaFwbRegWrite(pFwbRegs, &FwbSdiAvReceiver.AudioExtract[i].ChanPairSelect, 
-                                                                                       i);
+            DtaFwbRegWrite(pFwbRegs, 
+                             &FwbSdiAvReceiver.AudioExtract[i].Control_ChanPairSelect, i);
             // Clear status
             DtaSdiAvRxClearAudStatus(pSdiAvRx, i);
         }
+        // Set the audio extraction mode for fwbvers >= 1
+        if (pSdiAvRx->m_AudioExtractorVersion >= 1)
+            DtaFwbRegWrite(pFwbRegs, 
+                              &FwbSdiAvReceiver.AudioExtract[i].Control_ChanExtractMode,
+                              DTFWB_AUDEXT_EXTRACT_BOTH);
     }
 
     // All status data should be updated again
@@ -764,8 +862,7 @@ DtStatus DtaSdiAvRxReadAvStatus(DtaNonIpPort*  pNonIpPort, Int Force)
     }
 
     // Copy Audio Presence
-    pSdiAvRx->m_AudioPresence = DtaFwbRegRead(pFwbRegs, 
-                                &FwbSdiAvReceiver.AudioPresence);
+    pSdiAvRx->m_AudioPresence = DtaFwbRegRead(pFwbRegs, &FwbSdiAvReceiver.AudioPresence);
 
     // New audio status?
     if (Force || DtaFwbRegRead(pFwbRegs, &FwbSdiAvReceiver.Status_IsAudioStatusNew))
@@ -784,25 +881,31 @@ DtStatus DtaSdiAvRxReadAvStatus(DtaNonIpPort*  pNonIpPort, Int Force)
 
                 // Read audio status                   
                 pSdiAvRx->m_AudioStatus[i].m_ChanPairSelect = DtaFwbRegRead(pFwbRegs, 
-                                &FwbSdiAvReceiver.AudioExtract[i].ChanPairSelect);
+                                &FwbSdiAvReceiver.AudioExtract[i].Control_ChanPairSelect);
                 pSdiAvRx->m_AudioStatus[i].m_IsAcpPresent = DtaFwbRegRead(pFwbRegs, 
-                                &FwbSdiAvReceiver.AudioExtract[i].Status_IsAcpPresent);
+                                   &FwbSdiAvReceiver.AudioExtract[i].Status_IsAcpPresent);
                 pSdiAvRx->m_AudioStatus[i].m_IsAsynchronous = DtaFwbRegRead(pFwbRegs, 
-                                &FwbSdiAvReceiver.AudioExtract[i].Status_IsAsynchronous);
+                                 &FwbSdiAvReceiver.AudioExtract[i].Status_IsAsynchronous);
                 pSdiAvRx->m_AudioStatus[i].m_Rate = DtaFwbRegRead(pFwbRegs, 
-                                &FwbSdiAvReceiver.AudioExtract[i].Status_Rate);
+                                           &FwbSdiAvReceiver.AudioExtract[i].Status_Rate);
+                // Get the audio extraction content for fwbvers >= 1
+                if (pSdiAvRx->m_AudioExtractorVersion >= 1)
+                    pSdiAvRx->m_AudioStatus[i].m_Content = DtaFwbRegRead(pFwbRegs, 
+                                  &FwbSdiAvReceiver.AudioExtract[i].Status_ChanPcmOrData);
+                else 
+                    pSdiAvRx->m_AudioStatus[i].m_Content = DTFWB_AUDEXT_CONTENT_UNSUP;
                 pSdiAvRx->m_AudioStatus[i].m_IsChan1Active = DtaFwbRegRead(pFwbRegs, 
-                                &FwbSdiAvReceiver.AudioExtract[i].Status_IsChan1Active);
+                                  &FwbSdiAvReceiver.AudioExtract[i].Status_IsChan1Active);
                 pSdiAvRx->m_AudioStatus[i].m_IsChan2Active = DtaFwbRegRead(pFwbRegs, 
-                                &FwbSdiAvReceiver.AudioExtract[i].Status_IsChan2Active);
+                                  &FwbSdiAvReceiver.AudioExtract[i].Status_IsChan2Active);
                 for (j=0; j<6; j++)
                     pSdiAvRx->m_AudioStatus[i].m_Chan1StatusData[j] = 
                             DtaFwbRegRead(pFwbRegs, 
-                                &FwbSdiAvReceiver.AudioExtract[i].ChanStatusData);
+                                        &FwbSdiAvReceiver.AudioExtract[i].ChanStatusData);
                 for (j=0; j<6; j++)
                     pSdiAvRx->m_AudioStatus[i].m_Chan2StatusData[j] = 
                             DtaFwbRegRead(pFwbRegs, 
-                                &FwbSdiAvReceiver.AudioExtract[i].ChanStatusData);
+                                        &FwbSdiAvReceiver.AudioExtract[i].ChanStatusData);
             }
         }
     }
@@ -828,6 +931,10 @@ DtStatus DtaSdiAvRxClearAvStatus(DtaSdiAvRxPort* pSdiAvRx)
         // Clear audio status
         DtaSdiAvRxClearAudStatus(pSdiAvRx, i);     
     }
+    
+    // Clear ANC extract FIFO
+    pSdiAvRx->m_AncEx.m_BufLoad = 0;
+
     return DT_STATUS_OK;
 }
 
@@ -883,5 +990,31 @@ DtStatus  DtaNonIpSdiAvRxSetNewVidStdCb(DtaNonIpPort* pNonIpPort,
     pSdiAvRx->m_NewVidStdCb = Cb;
     pSdiAvRx->m_pPortCb = pPortCb;
     return DT_STATUS_OK;
+}
+
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpSdiAvRxCopyStatus2Old -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtaNonIpSdiAvRxCopyStatus2Old(DtaIoctlNonIpCmdGetAudioStatus2Output* pSrc,
+                                               DtaIoctlNonIpCmdGetAudioStatusOutput* pDst)
+{
+    // Copy DtaIoctlNonIpCmdGetAudioStatusOutput2 to DtaIoctlNonIpCmdGetAudioStatusOutput
+    Int i;
+    DT_ASSERT(pDst!=NULL && pSrc!=NULL);
+
+    pDst->m_NumAudioChannels = pSrc->m_NumAudioChannels;
+    for (i=0; i < sizeof(pDst->m_AudioChanStatus)/sizeof(pSrc->m_AudioChanStatus[0]); i++)
+    {
+        pDst->m_AudioChanStatus[i].m_ChanIdx = pSrc->m_AudioChanStatus[i].m_ChanIdx;
+        pDst->m_AudioChanStatus[i].m_IsAsynchronous = 
+                                              pSrc->m_AudioChanStatus[i].m_IsAsynchronous;
+        pDst->m_AudioChanStatus[i].m_Rate = pSrc->m_AudioChanStatus[i].m_Rate;
+        pDst->m_AudioChanStatus[i].m_ChanStatusNumValid = 
+                                          pSrc->m_AudioChanStatus[i].m_ChanStatusNumValid;
+        memcpy(pDst->m_AudioChanStatus[i].m_ChanStatusData,
+                                     pSrc->m_AudioChanStatus[i].m_ChanStatusData,
+                                     sizeof(pDst->m_AudioChanStatus[i].m_ChanStatusData));
+
+    }
 }
 

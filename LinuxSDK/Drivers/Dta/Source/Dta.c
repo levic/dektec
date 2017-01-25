@@ -33,12 +33,12 @@
 
 // Forward declarations
 static void  DtaGeneralPeriodicIntDpc(DtDpcArgs* pArgs);
+static Bool  DtaDevicePeriodicInt(DtaDeviceData* pDvcData);
 static DtStatus  DtaGetAddressRegs(DtaDeviceData* pDvcData, DtFileObject* pFile,
             Int PortIndex, Int RegsType, void* pPaMmap, Int* pSize, void** ppUserVirtual);
 static DtStatus  DtaWaitUntilFpgaIsReady(DtaDeviceData* pDvcData);
 static DtStatus  DtaInitUserMapping(DtaDeviceData* pDvcData);
 static DtStatus  DtaInterruptSofIntHandler(DtaDeviceData* pDvcData);
-static DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort);
 static DtStatus  DtaReleaseAddressRegs(DtaDeviceData* pDvcData, DtFileObject* pFile,
                                 Int PortIndex, Int RegsType, void** ppPaMmap, Int* pSize);
 
@@ -912,7 +912,7 @@ DtStatus  DtaDeviceInterruptEnable(DtaDeviceData* pDvcData)
     for (i=0; i<pDvcData->m_NumIpPorts; i++)
     {
         pIpPort = &pDvcData->m_IpDevice.m_pIpPorts[i];
-        DtaIpEnableInterrupts(pIpPort);
+        DtaIpInterruptEnable(pIpPort);
     }
 
     // All our interrupts are up
@@ -1095,7 +1095,7 @@ DtStatus  DtaDeviceInterruptDisable(DtaDeviceData* pDvcData)
     for (i=0; i<pDvcData->m_NumIpPorts; i++)
     {
         pIpPort = &pDvcData->m_IpDevice.m_pIpPorts[i];
-        DtaIpDisableInterrupts(pIpPort);
+        DtaIpInterruptDisable(pIpPort);
     }    
 
     // Interrupts are down
@@ -1448,6 +1448,11 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
         InReqSize = 0; // Checked later
         OutReqSize = 0; // Checked later
         break;
+    case DTA_IOCTL_NONIP_CMD_LEGACY3:
+        pIoctlStr = "DTA_IOCTL_NONIP_CMD_LEGACY3";
+        InReqSize = 0; // Checked later
+        OutReqSize = 0; // Checked later
+        break;
 #endif
     case DTA_IOCTL_NONIP_TX_CMD:
         pIoctlStr = "DTA_IOCTL_NONIP_TX_CMD";
@@ -1605,6 +1610,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
 #ifdef LINBUILD
             case DTA_IOCTL_NONIP_CMD_LEGACY:
             case DTA_IOCTL_NONIP_CMD_LEGACY2:
+            case DTA_IOCTL_NONIP_CMD_LEGACY3:
 #endif
             case DTA_IOCTL_NONIP_TX_CMD:
             case DTA_IOCTL_NONIP_RX_CMD:
@@ -2095,6 +2101,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
 #ifdef LINBUILD
         case DTA_IOCTL_NONIP_CMD_LEGACY:
         case DTA_IOCTL_NONIP_CMD_LEGACY2:
+        case DTA_IOCTL_NONIP_CMD_LEGACY3:
 #endif
             Status = DtaNonIpIoctl(pDvcData, pFile, pIoctl);
             break;
@@ -2795,6 +2802,155 @@ void  DtaDeviceReleaseExclAccess(DtaDeviceData*  pDvcData)
     DtEventSet(&pDvcData->m_RegWriteDoneEvt);
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDevicePeriodicInt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Handle periodic interrupt
+//
+Bool  DtaDevicePeriodicInt(DtaDeviceData* pDvcData)
+{
+    DtDpcArgs  DpcArgs;
+    Int  i;
+    Bool  UseGenregs = USES_GENREGS(pDvcData);
+
+    if ((UseGenregs && DtaRegGenStatGetPerInt(pDvcData->m_pGenRegs)!=0)
+        || (!UseGenregs && pDvcData->m_pNonIpPorts!=NULL &&
+            DtaRegTxStatGetPerInt(pDvcData->m_pNonIpPorts[0].m_pTxRegs)!=0)
+        || (!UseGenregs && (pDvcData->m_DevInfo.m_TypeNumber==122) && 
+            pDvcData->m_pNonIpPorts!=NULL &&
+            DtaRegRxStatGetPerInt(pDvcData->m_pNonIpPorts[0].m_pRxRegs)!=0))
+    {
+        // Clear periodic interrupt
+        if (UseGenregs)
+            DtaRegGenStatClrPerInt(pDvcData->m_pGenRegs);
+        // Special cases for old cards with old register layout
+        else if (pDvcData->m_DevInfo.m_TypeNumber==122 && pDvcData->m_pNonIpPorts!=NULL)
+            DtaRegRxStatClrPerInt(pDvcData->m_pNonIpPorts[0].m_pRxRegs);
+        else if (pDvcData->m_pNonIpPorts!=NULL)
+            DtaRegTxStatClrPerInt(pDvcData->m_pNonIpPorts[0].m_pTxRegs);
+    } else {
+        // Periodic interrupt did not fire
+        return FALSE;
+    }
+
+    //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Genlock processing -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+    //
+    // NOTE: 
+    //  Only execute code for boards that support genlocking and use a 145/2144
+    //  genlocking architecture
+
+    if (pDvcData->m_Genlock.m_IsSupported && 
+                                   (   pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_145 
+                                    || pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_2144))
+    {
+        // Check for reference channels
+        Bool  FoundGenlockRef = FALSE;
+        for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
+        {
+            if (pDvcData->m_pNonIpPorts[i].m_IoCfg[DT_IOCONFIG_GENREF].m_Value 
+                                                                      == DT_IOCONFIG_TRUE)
+            {
+                DtaFpgaGenlockUpdateTiming(&pDvcData->m_Genlock.m_FpgaGenlock);
+                DtaFpgaGenlockUpdateRx(&pDvcData->m_Genlock.m_FpgaGenlock, i);
+                FoundGenlockRef = TRUE;
+                break;  // Only need to call methods above once 
+            }
+        }
+
+        // Check for genlocked outputs
+        for (i=0; i<pDvcData->m_NumNonIpPorts && FoundGenlockRef; i++)
+        {
+            if (pDvcData->m_pNonIpPorts[i].m_IoCfg[DT_IOCONFIG_GENLOCKED].m_Value 
+                                                                      == DT_IOCONFIG_TRUE)
+            {
+                DtaFpgaGenlockUpdateTx(&pDvcData->m_Genlock.m_FpgaGenlock, i);
+                break;  // Only need to call methods above once 
+            }
+        }
+        // note: revise code above for crossboard genlock
+    }
+
+    //-.-.-.-.-.-.-.-.-.- Failsafe processing and bitrate measurement -.-.-.-.-.-.-.-.-.-.
+
+    for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
+    {
+        // Toggle failsafe watchdog
+        if (pDvcData->m_pNonIpPorts[i].m_CapFailSafe)
+        {
+            if (pDvcData->m_pNonIpPorts[i].m_IoCfg[DT_IOCONFIG_FAILSAFE].m_Value 
+                                                                      == DT_IOCONFIG_TRUE)
+            {
+                // Check if application is still alive
+                if ((pDvcData->m_pNonIpPorts[i].m_FailsafeTimeoutCnt > 
+                                            pDvcData->m_pNonIpPorts[i].m_FailsafeCnt) && 
+                                            (pDvcData->m_pNonIpPorts[i].m_FailsafeEnable))
+                {
+                    DtAtomicIncrement(&pDvcData->m_pNonIpPorts[i].m_FailsafeCnt);
+                    DtaWatchdogPulse(pDvcData->m_pGenRegs);
+                } // else: Failsafe not enabled or Application did not respond within
+                  //       time or Failsafe disabled
+            } else {
+                // No failsafe enabled, toggle always
+                DtaWatchdogPulse(pDvcData->m_pGenRegs);
+            }
+        }
+
+        if (pDvcData->m_pNonIpPorts[i].m_IoCfg[DT_IOCONFIG_IODIR].m_Value == 
+                                                                       DT_IOCONFIG_OUTPUT)
+        {
+            // If the output is using an external clock, and the FW does not 
+            // support the external clock frequency register, we need to estimate the
+            // external clock.
+            if (pDvcData->m_pNonIpPorts[i].m_CapExtTsRate
+                      && !pDvcData->m_DevInfo.m_HasExtClockFreq
+                      && pDvcData->m_pNonIpPorts[i].m_IoCfg[DT_IOCONFIG_TSRATESEL].m_Value
+                                                                 == DT_IOCONFIG_EXTTSRATE)
+            {
+                // Read input clock freq counter register. Value is processed in DPC
+                pDvcData->m_pNonIpPorts[i].m_BitrateMeasure.m_ValidCountSample =
+                                DtaRegTxClkCountGet(pDvcData->m_pNonIpPorts[i].m_pTxRegs);
+            }
+        }
+
+        if (pDvcData->m_pNonIpPorts[i].m_IoCfg[DT_IOCONFIG_IODIR].m_Value == 
+                                                                        DT_IOCONFIG_INPUT)
+        {
+            // Read valid counter register. Value is processed in DPC
+            if (pDvcData->m_pNonIpPorts[i].m_CapAvEnc)
+            {
+                pDvcData->m_pNonIpPorts[i].m_BitrateMeasure.m_ValidCountSample =
+                                       DtaFwbRegRead(pDvcData->m_pNonIpPorts[i].m_pRxRegs,
+                                                              &FwbTsRxMemless.ValidCount);
+            }
+            else if (!pDvcData->m_pNonIpPorts[i].m_CapMatrix)
+            {
+                pDvcData->m_pNonIpPorts[i].m_BitrateMeasure.m_ValidCountSample =
+                              DtaRegRxValidCountGet(pDvcData->m_pNonIpPorts[i].m_pRxRegs);
+            }
+        }
+    }
+
+    // For now always schedule general periodic interrupt DPC
+    DpcArgs.m_pContext = pDvcData;
+    DtDpcSchedule(&pDvcData->m_GenPerIntDpc, &DpcArgs);
+
+    if (pDvcData->m_NumIpPorts != 0)
+    {
+        DpcArgs.m_pContext = &pDvcData->m_IpDevice;
+
+        if (pDvcData->m_IpDevice.m_PortType == DTA_IPPORT_TYPE1)
+        {
+            // Schedule a DPC to handle IpRtTx packets for all ports and channels
+            DtDpcSchedule(&pDvcData->m_IpDevice.m_IpRtTxDpc, &DpcArgs);
+        }
+
+        // Schedule a DPC to handle bit rate measurements for all channels
+        DtDpcSchedule(&pDvcData->m_IpDevice.m_IpRtRxBrmDpc, &DpcArgs);
+    }
+
+    // We handled an interrupt
+    return TRUE;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDeviceInterrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
@@ -2802,10 +2958,8 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
     Bool  IrqHandled = FALSE;
     DtDpcArgs  DpcArgs;
     Int  i, j;
-    Bool  FoundGenlockRef = FALSE;
     UInt32  PlxIntCsr = 0;
     UInt8*  pPci905XRegs = pDvcData->m_Pci905XConfRegs.m_pKernel;
-    Bool  UseGenregs = USES_GENREGS(pDvcData);
 
     // If a PLX chip is used, we can check if an interrupt is pending without looking at
     // every status bit
@@ -2820,179 +2974,13 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
             return FALSE; // Can't be ours
     }
 
-    //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Periodic interrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-    // 
-    if ((UseGenregs && DtaRegGenStatGetPerInt(pDvcData->m_pGenRegs)!=0)
-        || (!UseGenregs && pDvcData->m_pNonIpPorts!=NULL &&
-                           DtaRegTxStatGetPerInt(pDvcData->m_pNonIpPorts[0].m_pTxRegs)!=0)
-        || (!UseGenregs && (pDvcData->m_DevInfo.m_TypeNumber==122) && 
-                          pDvcData->m_pNonIpPorts!=NULL &&
-                          DtaRegRxStatGetPerInt(pDvcData->m_pNonIpPorts[0].m_pRxRegs)!=0))
-    {
-        // Clear periodic interrupt
-        if (UseGenregs)
-            DtaRegGenStatClrPerInt(pDvcData->m_pGenRegs);
-        // Special cases for old cards with old register layout
-        else if (pDvcData->m_DevInfo.m_TypeNumber==122 && pDvcData->m_pNonIpPorts!=NULL)
-            DtaRegRxStatClrPerInt(pDvcData->m_pNonIpPorts[0].m_pRxRegs);
-        else if (pDvcData->m_pNonIpPorts!=NULL)
-            DtaRegTxStatClrPerInt(pDvcData->m_pNonIpPorts[0].m_pTxRegs);
-
-        //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Genlock processing -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-        //
-        // NOTE: 
-        //  Only execute code for boards that support genlocking and use a 145/2144
-        //  genlocking architecture
-
-        if (pDvcData->m_Genlock.m_IsSupported && 
-                                   (   pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_145 
-                                    || pDvcData->m_Genlock.m_GenlArch==GENLOCK_ARCH_2144))
-        {
-            // Check for reference channels
-            FoundGenlockRef = FALSE;
-            for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
-            {
-                if (pDvcData->m_pNonIpPorts[i].m_IoCfg[DT_IOCONFIG_GENREF].m_Value 
-                                                                      == DT_IOCONFIG_TRUE)
-                {
-                    DtaFpgaGenlockUpdateTiming(&pDvcData->m_Genlock.m_FpgaGenlock);
-                    DtaFpgaGenlockUpdateRx(&pDvcData->m_Genlock.m_FpgaGenlock, i);
-                    FoundGenlockRef = TRUE;
-                    break;  // Only need to call methods above once 
-                }
-            }
-
-            // Check for genlocked outputs
-            for (i=0; i<pDvcData->m_NumNonIpPorts && FoundGenlockRef; i++)
-            {
-                if (pDvcData->m_pNonIpPorts[i].m_IoCfg[DT_IOCONFIG_GENLOCKED].m_Value 
-                                                                      == DT_IOCONFIG_TRUE)
-                {
-                    DtaFpgaGenlockUpdateTx(&pDvcData->m_Genlock.m_FpgaGenlock, i);
-                    break;  // Only need to call methods above once 
-                }
-            }
-            // note: revise code above for crossboard genlock
-        }
-
-        //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Failsafe processing -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-
-        for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
-        {
-            // Skip ports with Matrix-API interface; below code does not apply to them
-            if (pDvcData->m_pNonIpPorts[i].m_CapMatrix)
-                continue;
-
-            // Toggle failsafe watchdog
-            if (pDvcData->m_pNonIpPorts[i].m_CapFailSafe)
-            {
-                if (pDvcData->m_pNonIpPorts[i].m_IoCfg[DT_IOCONFIG_FAILSAFE].m_Value 
-                                                                    == DT_IOCONFIG_TRUE)
-                {
-                    // Check if application is still alive
-                    if ((pDvcData->m_pNonIpPorts[i].m_FailsafeTimeoutCnt > 
-                                            pDvcData->m_pNonIpPorts[i].m_FailsafeCnt) && 
-                                            (pDvcData->m_pNonIpPorts[i].m_FailsafeEnable))
-                    {
-                        DtAtomicIncrement(&pDvcData->m_pNonIpPorts[i].m_FailsafeCnt);
-                        DtaWatchdogPulse(pDvcData->m_pGenRegs);
-                    } // else: Failsafe not enabled or Application did not respond within
-                      //       time or Failsafe disabled
-                } else
-                    // No failsafe enabled, toggle always
-                    DtaWatchdogPulse(pDvcData->m_pGenRegs);
-            }
-            
-            if (pDvcData->m_pNonIpPorts[i].m_IoCfg[DT_IOCONFIG_IODIR].m_Value == 
-                                                                      DT_IOCONFIG_OUTPUT)
-            {
-                // If the output is using an external clock, and the FW does not 
-                // support the external clock frequency register, we need to estimate the
-                // external clock.
-                if (pDvcData->m_pNonIpPorts[i].m_CapExtTsRate
-                      && !pDvcData->m_DevInfo.m_HasExtClockFreq
-                      && pDvcData->m_pNonIpPorts[i].m_IoCfg[DT_IOCONFIG_TSRATESEL].m_Value
-                                                                 == DT_IOCONFIG_EXTTSRATE)
-                {
-                    // Read input clock freq counter register. Value is processed in DPC
-                    pDvcData->m_pNonIpPorts[i].m_BitrateMeasure.m_ValidCountSample =
-                                DtaRegTxClkCountGet(pDvcData->m_pNonIpPorts[i].m_pTxRegs);
-                }
-            }
-
-            if (pDvcData->m_pNonIpPorts[i].m_IoCfg[DT_IOCONFIG_IODIR].m_Value == 
-                                                                       DT_IOCONFIG_INPUT)
-            {
-                // Read valid counter register. Value is processed in DPC
-                if (pDvcData->m_pNonIpPorts[i].m_CapAvEnc)
-                {
-                    pDvcData->m_pNonIpPorts[i].m_BitrateMeasure.m_ValidCountSample =
-                                       DtaFwbRegRead(pDvcData->m_pNonIpPorts[i].m_pRxRegs,
-                                                              &FwbTsRxMemless.ValidCount);
-                } else {
-                    pDvcData->m_pNonIpPorts[i].m_BitrateMeasure.m_ValidCountSample =
-                              DtaRegRxValidCountGet(pDvcData->m_pNonIpPorts[i].m_pRxRegs);
-                }
-            }
-        }
-
-        // For now always schedule general periodic interrupt DPC
-        DpcArgs.m_pContext = pDvcData;
-        DtDpcSchedule(&pDvcData->m_GenPerIntDpc, &DpcArgs);
-
-        if (pDvcData->m_NumIpPorts != 0)
-        {
-            DpcArgs.m_pContext = &pDvcData->m_IpDevice;
-
-            if (pDvcData->m_IpDevice.m_PortType == DTA_IPPORT_TYPE1)
-                // Schedule a DPC to handle IpRtTx packets for all ports and channels
-                DtDpcSchedule(&pDvcData->m_IpDevice.m_IpRtTxDpc, &DpcArgs);
-
-            // Schedule a DPC to handle bit rate measurements for all channels
-            DtDpcSchedule(&pDvcData->m_IpDevice.m_IpRtRxBrmDpc, &DpcArgs);
-        }
-
-        // Interrupt was ours
-        IrqHandled = TRUE;
-    }
+    // Periodic interrupt is supported by all devices
+    IrqHandled |= DtaDevicePeriodicInt(pDvcData);
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- I2C interrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-
     // Check for device level I2c interrupts
-    if (pDvcData->m_I2c.m_IsSupported && 
-                                  DtaRegI2cStatusGetRdyInt(pDvcData->m_I2c.m_pI2cRegs)!=0)
-    {   
-        // This is the I2C interrupt. Clear it
-        DtaRegI2cStatusClrRdyInt(pDvcData->m_I2c.m_pI2cRegs);
-        
-        // Schedule to DPC
-        DpcArgs.m_pContext = &pDvcData->m_I2c;
-        DtDpcSchedule(&pDvcData->m_I2c.m_I2cCompletedDpc, &DpcArgs);
-
-        // Interrupt was ours
-        IrqHandled = TRUE;
-    }
-
-    // Check for port level I2c interrupts
-    for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
-    {
-        // Check port support matrix
-        if (!pDvcData->m_pNonIpPorts[i].m_I2c.m_IsSupported)
-            continue;
-
-        if (DtaRegI2cStatusGetRdyInt(pDvcData->m_pNonIpPorts[i].m_I2c.m_pI2cRegs)!=0)
-        {
-            // This is the I2C interrupt. Clear it
-            DtaRegI2cStatusClrRdyInt(pDvcData->m_pNonIpPorts[i].m_I2c.m_pI2cRegs);
-
-            // Schedule to DPC
-            DpcArgs.m_pContext = &pDvcData->m_pNonIpPorts[i].m_I2c;
-            DtDpcSchedule(&pDvcData->m_pNonIpPorts[i].m_I2c.m_I2cCompletedDpc, 
-                                                                            &DpcArgs);
-            // Interrupt was ours
-            IrqHandled = TRUE;
-        }
-    }
+    if (pDvcData->m_I2c.m_IsSupported)
+        IrqHandled |= DtaI2cInterrupt(&pDvcData->m_I2c);
 
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Matrix (HD-SDI) interrupts -.-.-.-.-.-.-.-.-.-.-.-.-.-.
     //
@@ -3009,40 +2997,6 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
             // Interrupt was ours
             IrqHandled = TRUE;
         }
-
-        // Check for channel channel Frame interrputs
-        for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
-        {
-            // Check port support matrix
-            if (!pDvcData->m_pNonIpPorts[i].m_CapMatrix)
-                continue;
-            if (DtaRegHdStatGetLastFrameInt(pDvcData->m_pNonIpPorts[i].m_pRxRegs) != 0)
-            {
-                // Call handler. NOTE: the handler will clear the interrupt flag
-                DtaInterruptLastFrameIntHandler(&pDvcData->m_pNonIpPorts[i]);
-                // Interrupt was ours
-                IrqHandled = TRUE;
-            }
-        }
-    }
-
-    //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- RS-422 interrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-    //
-    for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
-    {
-        if (pDvcData->m_pNonIpPorts[i].m_CapRs422)
-        {
-            if (DtaRegRs422StatGetTxReadyInt(pDvcData->m_pNonIpPorts[i].m_pRs422Regs) || 
-                DtaRegRs422StatGetRxDataAvailInt(pDvcData->m_pNonIpPorts[i].m_pRs422Regs))
-            {
-                DtDpcArgs  DpcArgs;
-                DpcArgs.m_pContext = &pDvcData->m_pNonIpPorts[i];
-                // Schedule DPC to handle the interrupt. The DPC will clear the int flag.
-                DtDpcSchedule(&pDvcData->m_pNonIpPorts[i].m_Rs422.m_IntDpc, &DpcArgs);
-                // Interrupt was ours
-                IrqHandled = TRUE;
-            }
-        }
     }
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SPIMF interrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -3052,18 +3006,6 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
         if (DtaSpiMfInterrupt(&pDvcData->m_SpiMf))
             IrqHandled = TRUE;
     }
-
-    // Check for port level SpiMf interrupts 
-    for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
-    {
-        // Check for SPIMF channels
-        if (!pDvcData->m_pNonIpPorts[i].m_SpiMf.m_IsSupported)
-            continue;
-
-        if (DtaSpiMfInterrupt(&pDvcData->m_pNonIpPorts[i].m_SpiMf))
-            IrqHandled = TRUE;
-    }
-
 
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Port-level interrupts -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
     //
@@ -3169,81 +3111,7 @@ Bool  DtaDeviceInterrupt(DtaDeviceData* pDvcData)
 
     for (i=0; i<pDvcData->m_NumIpPorts; i++) 
     {
-        DtaIpPort*  pIpPort = &pDvcData->m_IpDevice.m_pIpPorts[i];
-        // Check PHY interrupt
-        if (DtaNwStatGetMdioInt(pIpPort->m_pGenNwRegs)!=0 && 
-                                          DtaNwCtrlGetMdioIntEn(pIpPort->m_pGenNwRegs)!=0)
-        {
-            // PHY interrupt occured.
-            // Disable interrupt enable-bit because the interrupt must be cleared
-            // later in the PHY and will be enabled again there.
-            DtaNwCtrlSetMdioIntEn(pIpPort->m_pGenNwRegs, 0);
-
-            // We schedule a DPC to handle the interrupt
-            DpcArgs.m_pContext = &pIpPort->m_PhyMac;
-            DtDpcSchedule(&pIpPort->m_PhyMac.m_PhyIntDpc, &DpcArgs);
-
-            // Interrupt was ours
-            IrqHandled = TRUE;
-        }
-
-        // Check receive status network interrupts
-        if (pIpPort->m_PortType == DTA_IPPORT_TYPE1) 
-        {
-            UInt32  RxStat;
-            // Due to a bug in firmware the IpRxFifoOvfInt can be set when disabled
-            // So clear this flag if enabled
-            RxStat = DtaNwRxStatGet(pIpPort->m_IpPortType1.m_Rx.m_pRegs);
-            RxStat = RxStat & (DTA_NWRX_STAT_VAL_CNT_OVF_INT | 
-                                                           DTA_NWRX_STAT_INV_CNT_OVF_INT |
-                                                           DTA_NWRX_STAT_RX_FIFO_OVF_INT);
-            if ((RxStat & DTA_NWRX_STAT_VAL_CNT_OVF_INT) != 0)
-                pIpPort->m_NumRxFifoOverflow++;
-            
-            // Reset the receive status interrupts
-            DtaNwRxStatSet(pIpPort->m_IpPortType1.m_Rx.m_pRegs, RxStat);
-            
-            // Do not handle these interrupts if they are supposed to be disabled.
-            // Note: See also issue D120.            
-        }
-        else if (pIpPort->m_IpPortType2.m_InterruptsEnabled) 
-        {
-            UInt32  RxStat;
-            UInt32  TxStat;
-            Bool  SliceOverflow = FALSE;
-            RxStat = DtaNwRxStatGet(pIpPort->m_IpPortType2.m_RxRt.m_pRegs);
-            RxStat = RxStat & (DTA_NWRX_STAT_VAL_CNT_OVF_INT
-                                                           | DTA_NWRX_STAT_INV_CNT_OVF_INT
-                                                           | DTA_NWRX_STAT_RX_FIFO_OVF_INT
-                                                           | DTA_NWRX_STAT_SLICE_AVAIL_INT
-                                                           | DTA_NWRX_STAT_SLICE_OVF_INT);
-            if ((RxStat & DTA_NWRX_STAT_SLICE_OVF_INT) != 0)
-            {
-                SliceOverflow = TRUE;
-                pIpPort->m_NumRxFifoOverflow++;
-            }
-
-            if ((RxStat & DTA_NWRX_STAT_SLICE_AVAIL_INT) != 0)
-                DtaIpRxRtUpdateSlicePointer(pIpPort, SliceOverflow);
-            
-            // Reset the receive status interrupts
-            DtaNwRxStatSet(pIpPort->m_IpPortType2.m_RxRt.m_pRegs, RxStat);
-
-
-            TxStat = DtaNwTxStatGet(pIpPort->m_IpPortType2.m_TxRt.m_pRegs);
-            TxStat = TxStat & DTA_NWTX_STAT_DMA_READY_INT;
-            // Check IpTx Slice interrupt / DMA ready
-            if ((TxStat & DTA_NWTX_STAT_DMA_READY_INT) != 0)
-            {
-                DpcArgs.m_pContext = pIpPort;
-                DtDpcSchedule(pIpPort->m_IpPortType2.m_pIpRtTxDpc, &DpcArgs);
-                // This interrupt is enabled, so we have to report it.
-                IrqHandled = TRUE;
-            }
-
-            // Reset the transmit status interrupts
-            DtaNwTxStatSet(pIpPort->m_IpPortType2.m_TxRt.m_pRegs, TxStat);
-        }
+        IrqHandled |= DtaIpInterrupt(&pDvcData->m_IpDevice.m_pIpPorts[i]);
     }
     return IrqHandled;
 }
@@ -3281,235 +3149,6 @@ DtStatus  DtaInterruptSofIntHandler(DtaDeviceData* pDvcData)
     // Finaly: clear SOF interrupt
     DtaRegHdGenlStatClrSofInt(pDvcData->m_Genlock.m_pGenlRegs);
     
-    return DT_STATUS_OK;
-}
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaInterruptLastFrameIntHandler -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-DtStatus  DtaInterruptLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
-{
-    DtDpcArgs  DpcArgs;
-    Int  CurFrmIdx=0, NextFrmIdx=0, LastFrmIdx = 0;
-    Bool  IsRunning = TRUE;
-    const DtAvFrameProps*  pFrameProps = NULL;
-    DtaFrameBufSectionConfig*  pSections = pNonIpPort->m_Matrix.m_BufConfig.m_Sections;
-
-    DT_ASSERT(pNonIpPort->m_CapMatrix);
-    pFrameProps = &pNonIpPort->m_Matrix.m_FrameProps;
-
-    // If the port is configured for ASI => "ignore" this interrupt
-    if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI)
-    {
-        // Clear interrupt flag and return
-        DtaRegHdStatClrLastFrameInt(pNonIpPort->m_pRxRegs);
-        return DT_STATUS_OK;
-    }
-        
-    // In the legacy HD-channel register interface, the last/current frame counters are
-    // maintained by the hardware as opposed to being maintained in the driver
-    if (DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort))
-    {
-        // Store last frame
-        //
-        // NOTE: Due to a firmware bug hardware does not latch the last frame, but the 
-        // current frame => last-frame is effectively the same as the current frame.
-        //
-        // AS WORKARROUND, we therefore now read the current frame register and subtract 
-        // 1 to get the last frame
-        Int64  CurFrame = DtaRegHdCurrentFrameGet(pNonIpPort->m_pRxRegs);
-        UInt64  RefClk = DtaRegRefClkCntGet64(pNonIpPort->m_pDvcData->m_pGenRegs);
-        pNonIpPort->m_Matrix.m_LastFrame = CurFrame - 1;
-        // Set reference clock for current frame
-        CurFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, CurFrame);
-        LastFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, 
-                                                        pNonIpPort->m_Matrix.m_LastFrame);
-        // Set end time reference clock for just the rx-/tx-ed frame
-        pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClkStart = RefClk;
-        pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkEnd = RefClk;
-    }
-    else
-    {
-        Int64  NextFrame = DTA_FRMBUF_HOLD_FRAME;
-        Bool  ChangeToRun=FALSE, ChangeToHold=FALSE;
-        DtaMatrixPortState  NewState = pNonIpPort->m_Matrix.m_State;
-
-        // Set just completed frame as last received/transmitted
-        pNonIpPort->m_Matrix.m_LastFrame = pNonIpPort->m_Matrix.m_CurFrame;
-        
-        // Check for state change
-        IsRunning = (pNonIpPort->m_Matrix.m_LastStateAtInt >= MATRIX_PORT_RUN_AUTO);
-        ChangeToRun = !IsRunning && (NewState>=MATRIX_PORT_RUN_AUTO);
-        ChangeToHold = NewState==MATRIX_PORT_HOLD && 
-                                (pNonIpPort->m_Matrix.m_LastStateAtInt!=MATRIX_PORT_HOLD);
-
-        if (DtAtomicCompareExchange(&pNonIpPort->m_Matrix.m_ForceRestart, 1, 0)==1 &&
-                                                         (NewState>=MATRIX_PORT_RUN_AUTO))
-        {
-            IsRunning = FALSE;
-            ChangeToRun = TRUE;
-        }
-
-        if (ChangeToRun)
-        {
-            NextFrame = pNonIpPort->m_Matrix.m_NextFrame;
-            DT_ASSERT(NextFrame != -1);
-            pNonIpPort->m_Matrix.m_CurFrame = NextFrame - 1;
-
-            DtDbgOutPort(AVG, NONIP, pNonIpPort,
-                                 "Enter run state; Starting with frame: %lld", NextFrame);
-        }
-        else if (NewState == MATRIX_PORT_RUN_AUTO)
-        {
-            // Update current frame
-            pNonIpPort->m_Matrix.m_CurFrame++;  
-            NextFrame = pNonIpPort->m_Matrix.m_CurFrame+1;  // set next
-        }
-        else if (NewState == MATRIX_PORT_RUN_MAN)
-        {
-            // Update current frame
-            pNonIpPort->m_Matrix.m_CurFrame = pNonIpPort->m_Matrix.m_NextFrame;
-        }
-        else
-        {
-            // Next frame shall be the hold frame (i.e. a black frame) 
-            NextFrame = DTA_FRMBUF_HOLD_FRAME;
-
-            if (ChangeToHold)
-                DtDbgOutPort(AVG, NONIP, pNonIpPort,
-                                    "Enter hold state; Repeating frame: %lld", NextFrame);
-        }
-
-        // Get Index of current and last frames
-        CurFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, 
-                                                         pNonIpPort->m_Matrix.m_CurFrame);
-        LastFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, 
-                                                        pNonIpPort->m_Matrix.m_LastFrame);
-        
-        if (NewState >= MATRIX_PORT_RUN_AUTO)
-        {
-            UInt64  RefClk;
-            // Read time the hardware started transmitting/receiving this frame. Use
-            // latched register if available, otherwise read the clock here.
-            if (pNonIpPort->m_CapMatrix2)
-            {
-                RefClk = DtaRegHdFrmTimeGet(pNonIpPort->m_pRxRegs);
-                //.-.-.-.-.-.-.-.-.-.-.-.- Workaround for TT#2182 -.-.-.-.-.-.-.-.-.-.-.-.
-                // Firmware latches start of frame timestamp instead of end of frame
-                // timestamp. Compute expected time of one frame and add that to the
-                // read value.
-                if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2154 &&
-                                   pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion<=5)
-                {
-                    UInt  FrameTime = pNonIpPort->m_pDvcData->m_DevInfo.m_RefClk / 
-                                                                       pFrameProps->m_Fps;
-                    if (pFrameProps->m_IsFractional)
-                    {
-                            FrameTime = FrameTime * 1000 / 1001;
-                    }
-                    RefClk += FrameTime;
-                }
-                //.-.-.-.-.-.-.-.-.-.-.- End of TT#2182 workaround -.-.-.-.-.-.-.-.-.-.-.-
-            } else {
-                RefClk = DtaRegRefClkCntGet64(pNonIpPort->m_pDvcData->m_pGenRegs);
-            }
-
-            if (DtaVidStdIs3glvlBSdi(pFrameProps->m_VidStd) &&
-                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_INPUT)
-            {
-                // For 3G level B input the interrupts are 1126 and 1124 lines apart. To
-                // correct for this we adjust time we read from the firmware by one
-                // line every odd frame.
-                UInt  ExpectedFrameTime = 0, LineTime;
-                Int64  RealFrameTime;
-                switch (pFrameProps->m_VidStd)
-                {
-                default:
-                    DT_ASSERT(FALSE);
-                case DT_VIDSTD_1080P50B:
-                    ExpectedFrameTime = pNonIpPort->m_pDvcData->m_DevInfo.m_RefClk/50;
-                    break;
-                case DT_VIDSTD_1080P59_94B:
-                    ExpectedFrameTime = pNonIpPort->m_pDvcData->m_DevInfo.m_RefClk/60;
-                    ExpectedFrameTime = ExpectedFrameTime * 1001 / 1000;
-                    break;
-                case DT_VIDSTD_1080P60B:
-                    ExpectedFrameTime = pNonIpPort->m_pDvcData->m_DevInfo.m_RefClk/60;
-                    break;
-                }
-                LineTime = ExpectedFrameTime / 1125;
-                RealFrameTime = RefClk -
-                               pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkStart;
-                pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_UNKNOWN;
-                if (RealFrameTime > ExpectedFrameTime+LineTime/2 &&
-                                             RealFrameTime < ExpectedFrameTime+LineTime*2)
-                {
-                    // Frame time is beteen +0.5 line and +2 lines of expected time
-                    RefClk -= LineTime;
-                    pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf=DTA_3GB_BOTTOM;
-                }
-                else if (RealFrameTime > ExpectedFrameTime-LineTime/2 && 
-                                             RealFrameTime < ExpectedFrameTime+LineTime/2)
-                {
-                    // Frame time is beteen -0.5 line and +0.5 lines of expected time
-                    pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_TOP;
-                }
-            }
-            else if (DtaVidStdIs3glvlBSdi(pFrameProps->m_VidStd) &&
-                       pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_OUTPUT)
-            {
-                if (DtaRegHdStatGetCurLvlAToBFrame(pNonIpPort->m_pRxRegs) == 0)
-                {
-                    pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_TOP;
-                } else {
-                    pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf=DTA_3GB_BOTTOM;
-                }
-            } else {
-                pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_UNKNOWN;
-            }
-
-            // For the start time of the current frame there are two options, namely:
-            // 1. Repeat the same frame => use the previous end time as start time
-            // 2. New frame => end time of just rx-/tx-ed frame is start time
-            if (CurFrmIdx == LastFrmIdx)
-                pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClkStart = 
-                                 pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkEnd;
-            else
-                pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClkStart = RefClk;
-            // Set end time reference clock for just the rx-/tx-ed frame
-            pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkEnd = RefClk;
-        }
-    
-        if (NewState>=MATRIX_PORT_IDLE && (ChangeToRun || NewState!=MATRIX_PORT_RUN_MAN))
-        {
-            // Set address for the next frame to be transmited/received
-            NextFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, NextFrame);
-
-            DT_ASSERT(pSections[0].m_FrameStartAddr[NextFrmIdx] != -1);
-            DtaRegHdS0NextFrmAddrSet(pNonIpPort->m_pRxRegs, 
-                                               pSections[0].m_FrameStartAddr[NextFrmIdx]);
-            DT_ASSERT(pSections[1].m_FrameStartAddr[NextFrmIdx] != -1);
-            DtaRegHdS1NextFrmAddrSet(pNonIpPort->m_pRxRegs, 
-                                               pSections[1].m_FrameStartAddr[NextFrmIdx]);
-        }
-
-        // Save last state seen by interrupt
-        pNonIpPort->m_Matrix.m_LastStateAtInt = NewState;
-    }
-
-    pNonIpPort->m_Matrix.m_FrmIntCnt++;
-
-    // Schedule DPC for handling of "low-prio" part of Last Frame interrupt, burt only if 
-    // the channel is in running state
-    if (IsRunning)
-    {
-        DpcArgs.m_pContext = pNonIpPort;
-        DpcArgs.m_Data1.m_UInt64 = (UInt64)pNonIpPort->m_Matrix.m_LastFrame;
-        DtDpcSchedule(&pNonIpPort->m_Matrix.m_LastFrameIntDpc, &DpcArgs);
-    }
-    
-    // Finaly: clear last frame interrupt
-    DtaRegHdStatClrLastFrameInt(pNonIpPort->m_pRxRegs);
-
     return DT_STATUS_OK;
 }
 
@@ -4374,7 +4013,7 @@ DtStatus  DtaSetMemoryTestMode(DtaDeviceData* pDvcData, Bool On)
                 DtDbgOut(ERR, IP, "Error stopping IP port %i", i);
                 return Status;
             }
-            DtaIpDisableInterrupts(pIpPort);           
+            DtaIpInterruptDisable(pIpPort);           
             DtaIpPowerdown(&pDvcData->m_IpDevice, pIpPort);
         } 
         return DT_STATUS_OK;
@@ -4394,7 +4033,7 @@ DtStatus  DtaSetMemoryTestMode(DtaDeviceData* pDvcData, Bool On)
             DtDbgOut(ERR, IP, "Error starting DMA and port threads %i", i);
             return Status;
         }        
-        DtaIpEnableInterrupts(pIpPort);
+        DtaIpInterruptEnable(pIpPort);
     }   
     return DT_STATUS_OK;
 }

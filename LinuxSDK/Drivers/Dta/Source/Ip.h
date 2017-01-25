@@ -407,8 +407,9 @@ void  DtaIpAddrMatcherAddEntry(DtaIpPort* pIpPort, AddressMatcherLookupEntry* pH
                                          AddressMatcherLookupEntry* pNewEntry,
                                          AddressMatcherLookupEntryPart2*  pNewEntryPart2);
 void  DtaIpClearIpAddress(Bool IpV6, UInt8* pIpAddr);
-void  DtaIpDisableInterrupts(DtaIpPort* pIpPort);
-void  DtaIpEnableInterrupts(DtaIpPort* pIpPort);
+void  DtaIpInterruptDisable(DtaIpPort* pIpPort);
+void  DtaIpInterruptEnable(DtaIpPort* pIpPort);
+Bool  DtaIpInterrupt(DtaIpPort* pIpPort);
 Bool  DtaIpIsIpAddressEmpty(Bool IpV6, UInt8* pIpAddr);
 Bool  DtaIpIsMulticastAddress(Bool IpV6, UInt8* pIpAddr);
 Bool  DtaIpIsSSMulticastAddress(Bool IpV6, UInt8* pIpAddr);

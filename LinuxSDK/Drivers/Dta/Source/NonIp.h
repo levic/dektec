@@ -434,6 +434,7 @@ Bool  DtaNonIpIsVidStdSupported(DtaNonIpPort* pNonIpPort, Int  VidStd);
 DtStatus  DtaNonIpMatrixClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile);
 DtStatus  DtaNonIpMatrixConfigure(DtaNonIpPort* pNonIpPort, Bool  ForceConfig);
 DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd);
+Bool  DtaNonIpMatrixInterrupt(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpMatrixInit(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpMatrixInterruptEnable(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpMatrixInterruptDisable(DtaNonIpPort* pNonIpPort);
@@ -458,10 +459,6 @@ Bool  DtaNonIpMatrixUsesLegacyHdChannelInterface(DtaNonIpPort* pNonIpPort);
 UInt  DtaNonIpMatrixDmaReadFinished(DtaNonIpPort* pNonIpPort, Int TrCmd);
 UInt  DtaNonIpMatrixDmaWriteFinished(DtaNonIpPort* pNonIpPort, Int TrCmd);
 void  DtaNonIpMatrixPeriodicInt(DtaNonIpPort* pNonIpPort);
-
-DtStatus  DtaNonIpRs422Init(DtaNonIpPort* pNonIpPort);
-DtStatus  DtaNonIpRs422InterruptEnable(DtaNonIpPort* pNonIpPort);
-DtStatus  DtaNonIpRs422InterruptDisable(DtaNonIpPort* pNonIpPort);
 
 
 

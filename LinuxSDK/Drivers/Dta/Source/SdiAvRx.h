@@ -51,6 +51,7 @@ typedef struct _DtaSdiAvRxAudStatus
     Int  m_IsAcpPresent;                // Is audio control packet present?
     Int  m_IsAsynchronous;              // Is Chan pair asynchronous?
     Int  m_Rate;                        // Audio sample rate
+    Int  m_Content;                     // Channel content (PCM or data)
     Int  m_IsChan1Active;               // Is audio Channel 1 active?
     Int  m_IsChan2Active;               // Is audio Channel 2 active?
     UInt32  m_Chan1StatusData[6];       // Channel 1 status data
@@ -80,6 +81,7 @@ typedef struct _DtaSdiAvRxPort
     Int  m_PerIntItvUs;             // Periodic interrupt interval in micro seconds
     DtaSdiAvRxVidStatus  m_VideoStatus;
     UInt32  m_AudioPresence;
+    Int  m_AudioExtractorVersion;   //  Version number of audio extractor firmware block
     Int  m_NumAudioExtractors;
     DtaSdiAvRxAudStatus  m_AudioStatus[DTA_SDIAVRX_MAX_NUM_AUDPAIRS];
     DtaSdiAvRxAncExStatus  m_AncEx; // ANC extractor
@@ -99,8 +101,10 @@ DtStatus  DtaNonIpSdiAvRxInterruptDisable(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpSdiAvRxPeriodicInt(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpSdiAvRxDetectVidStd(DtaNonIpPort* pNonIpPort, Int* pVidStd,
                                                                UInt* pVpid, UInt* pVpid2);
-DtStatus  DtaNonIpSdiAvRxGetAudioStatus(DtaNonIpPort* pNonIpPort,
-                                              DtaIoctlNonIpCmdGetAudioStatusOutput* pOut);
+DtStatus  DtaNonIpSdiAvRxGetAudioStatus2(DtaNonIpPort* pNonIpPort,
+                                             DtaIoctlNonIpCmdGetAudioStatus2Output* pOut);
 DtStatus  DtaNonIpSdiAvRxSetNewVidStdCb(DtaNonIpPort* pNonIpPort,
                                        pDtaEnDecNewInputVidStd Cb, DtaNonIpPort* pPortCb);
+void  DtaNonIpSdiAvRxCopyStatus2Old(DtaIoctlNonIpCmdGetAudioStatus2Output* pSrc,
+                                              DtaIoctlNonIpCmdGetAudioStatusOutput* pDst);
 #endif // __SDIAVRX_H

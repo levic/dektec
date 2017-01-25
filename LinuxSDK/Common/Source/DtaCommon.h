@@ -1002,6 +1002,7 @@ ASSERT_SIZE(DtaIoctlSetIoConfigInput, 8)
                                             // and VPID information
 #define DTA_NONIP_CMD_GET_AUDIO_STATUS  7   // Get audio channel status
 #define DTA_NONIP_CMD_GET_DMA_STATS     8   // Get stats of last DMA transfer
+#define DTA_NONIP_CMD_GET_AUDIO_STATUS2  9  // Get audio channel status and PCM/Data
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_NONIP_CMD_EXCLUSIVE_ACCESS -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
@@ -1105,6 +1106,23 @@ typedef struct _DtaIoctlNonIpCmdGetAudioStatusOutput {
 } DtaIoctlNonIpCmdGetAudioStatusOutput;
 ASSERT_SIZE(DtaIoctlNonIpCmdGetAudioStatusOutput, 1284)
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_NONIP_CMD_GET_AUDIO_STATUS2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+// Ioctl output data type
+typedef struct _DtaIoctlNonIpCmdGetAudioStatus2Output {
+    Int  m_NumAudioChannels;
+    struct 
+    {
+        Int  m_ChanIdx;
+        Int  m_IsAsynchronous;          // Is channel pair asynchronous?
+        Int  m_Rate;                    // Audio sample rate
+        Int  m_Content;                 // Audio channel contents
+        Int  m_ChanStatusNumValid;      // Number of valid bytes in channel status data
+        UInt8  m_ChanStatusData[24];    // Channel status data
+    } m_AudioChanStatus[32];
+} DtaIoctlNonIpCmdGetAudioStatus2Output;
+ASSERT_SIZE(DtaIoctlNonIpCmdGetAudioStatus2Output, 1412)
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_NONIP_CMD_GET_DMA_STATS -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
 // Ioctl output data type
@@ -1113,6 +1131,7 @@ typedef struct _DtaIoctlNonIpCmdGetDmaStatsOutput {
     UInt  m_Direction;          // 1 = From device, 2 = To device
     UInt64A  m_NumBytesTransferred; // Total number of bytes send or received
 } DtaIoctlNonIpCmdGetDmaStatsOutput;
+ASSERT_SIZE(DtaIoctlNonIpCmdGetDmaStatsOutput, 24)
 
 
 // Ioctl input data type
@@ -1124,6 +1143,7 @@ typedef struct _DtaIoctlNonIpCmdInput {
         DtaIoctlNonIpNotifyGenRefPropsInput  m_NotifyGenRefProps;
     } m_Data;
 } DtaIoctlNonIpCmdInput;
+ASSERT_SIZE(DtaIoctlNonIpCmdInput, 32)
 
 // Ioctl Output data type
 typedef struct _DtaIoctlNonIpCmdOutput {
@@ -1133,9 +1153,11 @@ typedef struct _DtaIoctlNonIpCmdOutput {
         DtaIoctlNonIpGetGenRefPropsOutput  m_GetGenRefProps;
         DtaIoctlNonIpCmdDetectVidStd2Output  m_DetVidStd2;
         DtaIoctlNonIpCmdGetAudioStatusOutput  m_GetAudioStatus;
+        DtaIoctlNonIpCmdGetAudioStatus2Output  m_GetAudioStatus2;
         DtaIoctlNonIpCmdGetDmaStatsOutput  m_GetDmaStats;
     } m_Data;
 } DtaIoctlNonIpCmdOutput;
+ASSERT_SIZE(DtaIoctlNonIpCmdOutput, 1416)
 
 #ifdef WINBUILD
     #define DTA_IOCTL_NONIP_CMD  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_NONIP_CMD, \
@@ -1145,9 +1167,11 @@ typedef struct _DtaIoctlNonIpCmdOutput {
         DtaIoctlNonIpCmdInput  m_Input;
         DtaIoctlNonIpCmdOutput  m_Output;
     } DtaIoctlNonIpCmd;
+    ASSERT_SIZE(DtaIoctlNonIpCmd, 1416)
 
     #define DTA_IOCTL_NONIP_CMD  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_NONIP_CMD, \
                                                                          DtaIoctlNonIpCmd)
+
 
     // Ioctl input data type
     typedef struct _DtaIoctlNonIpCmdInputLegacy {
@@ -1205,6 +1229,28 @@ typedef struct _DtaIoctlNonIpCmdOutput {
 
     #define DTA_IOCTL_NONIP_CMD_LEGACY2  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_NONIP_CMD, \
                                                                   DtaIoctlNonIpCmdLegacy2)
+
+    // Ioctl Output data type
+    typedef struct _DtaIoctlNonIpCmdOutputLegacy3 {
+        union {
+            DtaIoctlNonIpCmdGetTargetIdOutput  m_GetTargetId;
+            DtaIoctlNonIpCmdDetectVidStdOutput  m_DetVidStd;
+            DtaIoctlNonIpGetGenRefPropsOutput  m_GetGenRefProps;
+            DtaIoctlNonIpCmdDetectVidStd2Output  m_DetVidStd2;
+            DtaIoctlNonIpCmdGetAudioStatusOutput  m_GetAudioStatus;
+            DtaIoctlNonIpCmdGetDmaStatsOutput  m_GetDmaStats;
+        } m_Data;
+    } DtaIoctlNonIpCmdOutputLegacy3;
+
+    typedef union _DtaIoctlNonIpCmdLegacy3 {
+        DtaIoctlNonIpCmdInputLegacy2  m_Input;
+        DtaIoctlNonIpCmdOutputLegacy3  m_Output;
+    } DtaIoctlNonIpCmdLegacy3;
+    ASSERT_SIZE(DtaIoctlNonIpCmdLegacy3, 1288)
+
+    #define DTA_IOCTL_NONIP_CMD_LEGACY3  _IOWR(DTA_IOCTL_MAGIC_SIZE, FUNC_DTA_NONIP_CMD, \
+                                                                  DtaIoctlNonIpCmdLegacy3)
+
 #endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_NONIP_TX_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -2949,6 +2995,8 @@ ASSERT_SIZE(DtaIoctlSetVcxoInput, 8)
 #define  DTA_SDIAVRX_CMD_GET_AUDIOSELECT    0     // Get audio selection
 #define  DTA_SDIAVRX_CMD_SET_AUDIOSELECT    1     // Set audio selection
 #define  DTA_SDIAVRX_CMD_READ_SMPTE2020     2     // Read SMPTE-2020 ANC packets
+#define  DTA_SDIAVRX_CMD_GET_AUDIOSELECT2   3     // Get audio selection and extract mode
+#define  DTA_SDIAVRX_CMD_SET_AUDIOSELECT2   4     // Set audio selection and extract mode
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SDIAVRX_CMD_GET_AUDSELECT -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -2959,6 +3007,18 @@ typedef struct _DtaIoctSdiAvRxCmdGetAudSelectOutput
 } DtaIoctSdiAvRxCmdGetAudSelectOutput;
 ASSERT_SIZE(DtaIoctSdiAvRxCmdGetAudSelectOutput, 4 + 4*DTA_SDIAVRX_MAX_NUM_AUDPAIRS)
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SDIAVRX_CMD_GET_AUDSELECT2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtaIoctSdiAvRxCmdGetAudSelect2Output
+{
+    Int  m_NumChanPairs;                // Number of channel pairs
+    UInt32  m_ChanPairSelect[DTA_SDIAVRX_MAX_NUM_AUDPAIRS];
+    UInt32  m_ChanExtractMode[DTA_SDIAVRX_MAX_NUM_AUDPAIRS];
+} DtaIoctSdiAvRxCmdGetAudSelect2Output;
+ASSERT_SIZE(DtaIoctSdiAvRxCmdGetAudSelect2Output, 4 + 8*DTA_SDIAVRX_MAX_NUM_AUDPAIRS)
+
+
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SDIAVRX_CMD_SET_AUDSELECT -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 typedef struct _DtaIoctSdiAvRxCmdSetAudSelectInput
 {
@@ -2966,6 +3026,16 @@ typedef struct _DtaIoctSdiAvRxCmdSetAudSelectInput
     UInt32  m_ChanPairSelect[DTA_SDIAVRX_MAX_NUM_AUDPAIRS];
 } DtaIoctSdiAvRxCmdSetAudSelectInput;
 ASSERT_SIZE(DtaIoctSdiAvRxCmdSetAudSelectInput, 4 + 4*DTA_SDIAVRX_MAX_NUM_AUDPAIRS)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SDIAVRX_CMD_SET_AUDSELECT2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+typedef struct _DtaIoctSdiAvRxCmdSetAudSelect2Input
+{
+    Int  m_NumChanPairs;                // Number of channel pairs
+    UInt32  m_ChanPairSelect[DTA_SDIAVRX_MAX_NUM_AUDPAIRS];
+    UInt32  m_ChanExtractMode[DTA_SDIAVRX_MAX_NUM_AUDPAIRS];
+} DtaIoctSdiAvRxCmdSetAudSelect2Input;
+ASSERT_SIZE(DtaIoctSdiAvRxCmdSetAudSelect2Input, 4 + 8*DTA_SDIAVRX_MAX_NUM_AUDPAIRS)
+
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_SDIAVRX_CMD_READ_SMPTE2020 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 typedef struct _DtaIoctSdiAvRxCmdReadSmpte2020Output
@@ -2982,14 +3052,16 @@ typedef struct _DtaIoctlSdiAvRxCmdInput {
     Int  m_PortIndex;           // -1 signals a device level command
     union {
         DtaIoctSdiAvRxCmdSetAudSelectInput  m_AudSelect;
+        DtaIoctSdiAvRxCmdSetAudSelect2Input  m_AudSelect2;
     } m_Data;
 } DtaIoctlSdiAvRxCmdInput;
-ASSERT_SIZE(DtaIoctlSdiAvRxCmdInput, 44)
+ASSERT_SIZE(DtaIoctlSdiAvRxCmdInput, 76)
 
 // Ioctl output data type
 typedef struct _DtaIoctlSdiAvRxCmdOutput {
     union {
         DtaIoctSdiAvRxCmdGetAudSelectOutput  m_AudSelect;
+        DtaIoctSdiAvRxCmdGetAudSelect2Output  m_AudSelect2;
         DtaIoctSdiAvRxCmdReadSmpte2020Output  m_ReadSmpte2020;
     } m_Data;
 } DtaIoctlSdiAvRxCmdOutput;

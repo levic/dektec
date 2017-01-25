@@ -881,11 +881,11 @@ DtStatus  DtaNonIpHdmiDetectVidStd(
     return Status;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpHdmiGetAudioStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpHdmiGetAudioStatus2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaNonIpHdmiGetAudioStatus(
+DtStatus  DtaNonIpHdmiGetAudioStatus2(
     DtaNonIpPort*  pNonIpPort,
-    DtaIoctlNonIpCmdGetAudioStatusOutput*  pOut)
+    DtaIoctlNonIpCmdGetAudioStatus2Output*  pOut)
 {
     DtaHdmiStatus*  pStatus = &pNonIpPort->m_Hdmi.m_Status;
     Int  i;
@@ -925,6 +925,7 @@ DtStatus  DtaNonIpHdmiGetAudioStatus(
             pOut->m_AudioChanStatus[i].m_ChanIdx = i;
             pOut->m_AudioChanStatus[i].m_IsAsynchronous = 1;
             pOut->m_AudioChanStatus[i].m_Rate = SampleRate;
+            pOut->m_AudioChanStatus[i].m_Rate = DTFWB_AUDEXT_CONTENT_UNSUP;
             if (pStatus->m_AudioChanStatusValid)
             {
                 pOut->m_AudioChanStatus[i].m_ChanStatusNumValid =

@@ -104,6 +104,24 @@ DtStatus  DtaNonIpRs422InterruptDisable(DtaNonIpPort* pNonIpPort)
     return DT_STATUS_OK;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpRs422Interrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool DtaNonIpRs422Interrupt(DtaNonIpPort * pNonIpPort)
+{
+    Bool  IrqHandled = FALSE;
+    if (DtaRegRs422StatGetTxReadyInt(pNonIpPort->m_pRs422Regs) || 
+                               DtaRegRs422StatGetRxDataAvailInt(pNonIpPort->m_pRs422Regs))
+    {
+        DtDpcArgs  DpcArgs;
+        DpcArgs.m_pContext = pNonIpPort;
+        // Schedule DPC to handle the interrupt. The DPC will clear the int flag.
+        DtDpcSchedule(&pNonIpPort->m_Rs422.m_IntDpc, &DpcArgs);
+        // Interrupt was ours
+        IrqHandled = TRUE;
+    }
+    return IrqHandled;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixLastFrameIntDpc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void  DtaNonIpRs422IntDpc(DtDpcArgs* pArgs)

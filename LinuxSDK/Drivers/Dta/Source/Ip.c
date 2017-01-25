@@ -645,9 +645,9 @@ DtStatus  DtaIpPowerupType2(DtaIpPort* pIpPort)
     return Status;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpDisableInterrupts -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpInterruptDisable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtaIpDisableInterrupts(DtaIpPort* pIpPort)
+void  DtaIpInterruptDisable(DtaIpPort* pIpPort)
 {
     if (pIpPort->m_PortType == DTA_IPPORT_TYPE1)
         return;
@@ -664,9 +664,9 @@ void  DtaIpDisableInterrupts(DtaIpPort* pIpPort)
     pIpPort->m_IpPortType2.m_InterruptsEnabled = FALSE;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpEnableInterrups -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpInterruptEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtaIpEnableInterrupts(DtaIpPort* pIpPort)
+void  DtaIpInterruptEnable(DtaIpPort* pIpPort)
 {
     if (pIpPort->m_PortType == DTA_IPPORT_TYPE1)
         return;
@@ -678,6 +678,90 @@ void  DtaIpEnableInterrupts(DtaIpPort* pIpPort)
     DtaNwTxCtrlSetDmaReadyIntEn(pIpPort->m_IpPortType2.m_TxRt.m_pRegs, 1);
     // Enable Rt(RVB) receive int
     DtaNwRxCtrlSetSliceIntEn(pIpPort->m_IpPortType2.m_RxRt.m_pRegs, 1);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpInterrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtaIpInterrupt(DtaIpPort* pIpPort)
+{
+    DtDpcArgs  DpcArgs;
+    Bool  IrqHandled = FALSE;
+
+    // Check PHY interrupt
+    if (DtaNwStatGetMdioInt(pIpPort->m_pGenNwRegs)!=0 && 
+        DtaNwCtrlGetMdioIntEn(pIpPort->m_pGenNwRegs)!=0)
+    {
+        // PHY interrupt occured.
+        // Disable interrupt enable-bit because the interrupt must be cleared
+        // later in the PHY and will be enabled again there.
+        DtaNwCtrlSetMdioIntEn(pIpPort->m_pGenNwRegs, 0);
+
+        // We schedule a DPC to handle the interrupt
+        DpcArgs.m_pContext = &pIpPort->m_PhyMac;
+        DtDpcSchedule(&pIpPort->m_PhyMac.m_PhyIntDpc, &DpcArgs);
+
+        // Interrupt was ours
+        IrqHandled = TRUE;
+    }
+
+    // Check receive status network interrupts
+    if (pIpPort->m_PortType == DTA_IPPORT_TYPE1) 
+    {
+        UInt32  RxStat;
+        // Due to a bug in firmware the IpRxFifoOvfInt can be set when disabled
+        // So clear this flag if enabled
+        RxStat = DtaNwRxStatGet(pIpPort->m_IpPortType1.m_Rx.m_pRegs);
+        RxStat = RxStat & (DTA_NWRX_STAT_VAL_CNT_OVF_INT | 
+            DTA_NWRX_STAT_INV_CNT_OVF_INT |
+            DTA_NWRX_STAT_RX_FIFO_OVF_INT);
+        if ((RxStat & DTA_NWRX_STAT_VAL_CNT_OVF_INT) != 0)
+            pIpPort->m_NumRxFifoOverflow++;
+
+        // Reset the receive status interrupts
+        DtaNwRxStatSet(pIpPort->m_IpPortType1.m_Rx.m_pRegs, RxStat);
+
+        // Do not handle these interrupts if they are supposed to be disabled.
+        // Note: See also issue D120.            
+    }
+    else if (pIpPort->m_IpPortType2.m_InterruptsEnabled) 
+    {
+        UInt32  RxStat;
+        UInt32  TxStat;
+        Bool  SliceOverflow = FALSE;
+        RxStat = DtaNwRxStatGet(pIpPort->m_IpPortType2.m_RxRt.m_pRegs);
+        RxStat = RxStat & (DTA_NWRX_STAT_VAL_CNT_OVF_INT
+            | DTA_NWRX_STAT_INV_CNT_OVF_INT
+            | DTA_NWRX_STAT_RX_FIFO_OVF_INT
+            | DTA_NWRX_STAT_SLICE_AVAIL_INT
+            | DTA_NWRX_STAT_SLICE_OVF_INT);
+        if ((RxStat & DTA_NWRX_STAT_SLICE_OVF_INT) != 0)
+        {
+            SliceOverflow = TRUE;
+            pIpPort->m_NumRxFifoOverflow++;
+        }
+
+        if ((RxStat & DTA_NWRX_STAT_SLICE_AVAIL_INT) != 0)
+            DtaIpRxRtUpdateSlicePointer(pIpPort, SliceOverflow);
+
+        // Reset the receive status interrupts
+        DtaNwRxStatSet(pIpPort->m_IpPortType2.m_RxRt.m_pRegs, RxStat);
+
+
+        TxStat = DtaNwTxStatGet(pIpPort->m_IpPortType2.m_TxRt.m_pRegs);
+        TxStat = TxStat & DTA_NWTX_STAT_DMA_READY_INT;
+        // Check IpTx Slice interrupt / DMA ready
+        if ((TxStat & DTA_NWTX_STAT_DMA_READY_INT) != 0)
+        {
+            DpcArgs.m_pContext = pIpPort;
+            DtDpcSchedule(pIpPort->m_IpPortType2.m_pIpRtTxDpc, &DpcArgs);
+            // This interrupt is enabled, so we have to report it.
+            IrqHandled = TRUE;
+        }
+
+        // Reset the transmit status interrupts
+        DtaNwTxStatSet(pIpPort->m_IpPortType2.m_TxRt.m_pRegs, TxStat);
+    }
+    return IrqHandled;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIpPowerup -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

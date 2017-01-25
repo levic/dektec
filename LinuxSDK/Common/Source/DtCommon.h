@@ -264,6 +264,17 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define PCIE_BRIDGE_TYPE_PEX87XX     0           // PLX PEX 87XX chip
 #define PCIE_BRIDGE_TYPE_PEX811X     1           // PLX PEX 8711/8712 chip
 
+// RX register block type
+#define ARCHITECTURE_RX_LEGACY             0     // Legacy RX channel
+#define ARCHITECTURE_RX_LEGACY_MATRIX      1     // Legacy matrix RX channel
+#define ARCHITECTURE_RX_LEGACY_TS_MEMLESS  2     // Legacy memory-less TS RX channel
+#define ARCHITECTURE_RX_LEGACY_USB_SDI_MEMLESS 3 // Legacy RX channel as on DTU-351
+
+
+// TX register block type
+#define ARCHITECTURE_TX_LEGACY             0     // Legacy TX channel
+#define ARCHITECTURE_TX_LEGACY_MATRIX      1     // Legacy matrix TX channel
+#define ARCHITECTURE_TX_LEGACY_USB_315     2     // Legacy USB TX channel as on DTU-315
 
 // Properties
 #define PROPERTY_NAME_MAX_SIZE      50

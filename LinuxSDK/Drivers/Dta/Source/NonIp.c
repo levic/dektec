@@ -34,6 +34,8 @@ Int  DtaNonIpGetMaxDmaBurstSize(DtaNonIpPort* pNonIpPort);
 Int  DtaNonIpGetMaxFifoSize(DtaNonIpPort* pNonIpPort);
 static DtStatus  DtaNonIpGetAudioStatus(DtaNonIpPort* pNonIpPort,
                                               DtaIoctlNonIpCmdGetAudioStatusOutput* pOut);
+static DtStatus  DtaNonIpGetAudioStatus2(DtaNonIpPort* pNonIpPort,
+                                              DtaIoctlNonIpCmdGetAudioStatus2Output* pOut);
 static DtStatus  DtaNonIpIoConfigSetIoDir(DtaNonIpPort* pNonIpPort,  Int Group,
                                                                DtaIoConfigValue CfgValue);
 static DtStatus  DtaNonIpIoConfigSetIoStd(DtaNonIpPort* pNonIpPort,  Int Group,
@@ -1221,6 +1223,18 @@ Bool  DtaNonIpInterrupt(DtaNonIpPort* pNonIpPort)
 {
     Bool  IrqHandled = FALSE;
 
+    if (pNonIpPort->m_CapRs422)
+        IrqHandled |= DtaNonIpRs422Interrupt(pNonIpPort);
+
+    if (pNonIpPort->m_I2c.m_IsSupported)
+        IrqHandled |= DtaI2cInterrupt(&pNonIpPort->m_I2c);
+
+    if (pNonIpPort->m_CapMatrix)
+        IrqHandled |= DtaNonIpMatrixInterrupt(pNonIpPort);
+
+    if (pNonIpPort->m_SpiMf.m_IsSupported)
+        IrqHandled |= DtaSpiMfInterrupt(&pNonIpPort->m_SpiMf);
+
     if (pNonIpPort->m_CapSdiRx)
         IrqHandled |= DtaSdiAvRxInterrupt(pNonIpPort);
     
@@ -1543,6 +1557,12 @@ DtStatus  DtaNonIpIoctl(
         InReqSize += 0;
         break;
 
+    case DTA_NONIP_CMD_GET_AUDIO_STATUS2:
+        pCmdStr = "DTA_NONIP_CMD_GET_AUDIO_STATUS2";
+        OutReqSize += sizeof(DtaIoctlNonIpCmdGetAudioStatus2Output);
+        // We expect no additional input data
+        InReqSize += 0;
+        break;
     case DTA_NONIP_CMD_GET_DMA_STATS:
         pCmdStr = "DTA_NONIP_CMD_GET_DMA_STATS";
         OutReqSize += sizeof(DtaIoctlNonIpCmdGetDmaStatsOutput);
@@ -1621,6 +1641,11 @@ DtStatus  DtaNonIpIoctl(
         case DTA_NONIP_CMD_GET_AUDIO_STATUS:
             Status = DtaNonIpGetAudioStatus(pNonIpPort,
                                                &pNonIpCmdOutput->m_Data.m_GetAudioStatus);
+            break;
+
+        case DTA_NONIP_CMD_GET_AUDIO_STATUS2:
+            Status = DtaNonIpGetAudioStatus2(pNonIpPort,
+                                              &pNonIpCmdOutput->m_Data.m_GetAudioStatus2);
             break;
 
         case DTA_NONIP_CMD_GET_DMA_STATS:
@@ -2092,11 +2117,26 @@ DtStatus  DtaNonIpGetAudioStatus(
     DtaNonIpPort*  pNonIpPort,
     DtaIoctlNonIpCmdGetAudioStatusOutput*  pOut)
 {
+    DtStatus  Status;
+    DtaIoctlNonIpCmdGetAudioStatus2Output  Out2;
+    Status = DtaNonIpGetAudioStatus2(pNonIpPort, &Out2);  
+    if (Status == DT_STATUS_OK)
+        DtaNonIpSdiAvRxCopyStatus2Old(&Out2, pOut);
+
+    return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpGetAudioStatus2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaNonIpGetAudioStatus2(
+    DtaNonIpPort*  pNonIpPort,
+    DtaIoctlNonIpCmdGetAudioStatus2Output*  pOut)
+{
     DT_ASSERT(pNonIpPort != NULL);
     if (pNonIpPort->m_CapSdiRx)
-        return DtaNonIpSdiAvRxGetAudioStatus(pNonIpPort, pOut);
+        return DtaNonIpSdiAvRxGetAudioStatus2(pNonIpPort, pOut);
     else if (pNonIpPort->m_CapHdmi)
-        return DtaNonIpHdmiGetAudioStatus(pNonIpPort, pOut);
+        return DtaNonIpHdmiGetAudioStatus2(pNonIpPort, pOut);
     else
     {
         // For now this function is not supported for any other boards
@@ -2104,6 +2144,7 @@ DtStatus  DtaNonIpGetAudioStatus(
         return DT_STATUS_NOT_SUPPORTED;  
     }
 }
+
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ GENREF properties +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 

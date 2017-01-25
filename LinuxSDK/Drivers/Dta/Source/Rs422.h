@@ -30,4 +30,9 @@
 DtStatus  DtaRs422Ioctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
                                            DtIoctlObject* pIoctl, Bool  PowerDownPending);
 
+DtStatus  DtaNonIpRs422Init(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpRs422InterruptEnable(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpRs422InterruptDisable(DtaNonIpPort* pNonIpPort);
+Bool  DtaNonIpRs422Interrupt(DtaNonIpPort* pNonIpPort);
+
 #endif // __RS422_H

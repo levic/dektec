@@ -1,16 +1,16 @@
 //*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI.h *#*#*#*#*#*#*#*#*#* (C) 2000-2016 DekTec
 //
-// DTAPI - C++ API for DekTec PCI/PCI-Express cards, USB-2 adapters and network devices
+// DTAPI - C++ API for DekTec PCI/PCI-Express cards, USB adapters and network devices
 //
- 
+
 #ifndef __DTAPI_H
 #define __DTAPI_H
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        21
+#define DTAPI_VERSION_MINOR        23
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        85
+#define DTAPI_VERSION_BUILD        89
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -145,6 +145,7 @@ class MplpHelper;
 class OutpChannel;
 class SdiMatrixImpl;
 class AvInputStatus;
+struct DtAtscStreamSelPars;
 struct DtAtsc3DemodL1Data;
 struct DtAtsc3StreamSelPars;
 struct DtDabEnsembleInfo;
@@ -190,6 +191,7 @@ struct DtIsdbtStreamSelPars;
 struct DtIsdbTmmPars;
 struct DtPar;
 struct DtPlpInpPars;
+struct DtQamStreamSelPars;
 struct DtStatistic;
 struct DtT2MiStreamSelPars;
 struct DtVirtualOutData;
@@ -2339,6 +2341,14 @@ struct DtDetVidStd
     DtAspectRatio  m_AspectRatio;   // Picture Aspect Ratio
 };
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- enum DtAudChanContent -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+enum DtAudChanContent
+{
+    DT_AUDCHANCONT_UNKNOWN,         // Channel content is unknown or not defined yet
+    DT_AUDCHANCONT_PCM,             // Channel carries PCM samples
+    DT_AUDCHANCONT_DATA,            // Channel carries data
+    DT_AUDCHANCONT_UNSUPPORTED,     // Content detection is not supported
+};
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct DtAudChanStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 struct DtAudChanStatus
@@ -2346,6 +2356,7 @@ struct DtAudChanStatus
     int  m_ChanIdx;                 // Channel index in underlying audio/video stream
     bool  m_IsAsynchronous;         // Is channel asynchronous wrt video clock?
     int  m_SampleRate;              // Audio sample rate
+    DtAudChanContent  m_Content;    // Channel content
     int  m_StatusWordNumValid;      // Number of valid bytes in m_ChanStat
     unsigned char  m_ChanStat[24];  // Raw channel-status word data
 
@@ -4670,6 +4681,15 @@ struct DtComplexFloat
 typedef void  DtTpWriteDataFunc(void* pOpaque, int TpIndex, int StreamIndex,
                   const void* Buffer, int Length, int Format, float Mult, int IsNewFrame);
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtQamStreamSelPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// This structure specifies the selection parameters for a QAM transport stream
+//
+struct DtQamStreamSelPars
+{
+    // No selection parameters yet
+};
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtTestPointOutPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Class for enabling the test point data output specifying a callback function
@@ -4884,6 +4904,15 @@ public:
 #define DTAPI_ATSC3_ALIGN_TIME      0           // Frame length is time-aligned 
 #define DTAPI_ATSC3_ALIGN_SYMBOL    1           // Frame length is symbol-aligned 
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-. DtAtscStreamSelPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// This structure specifies the selection parameters for an ATSC stream
+//
+struct DtAtscStreamSelPars
+{
+    // No selection parameters yet
+};
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ ATSC 3.0 Modulation  +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 // ATSC 3.0  Test points
@@ -5089,6 +5118,15 @@ public:
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAtsc3PlpInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct DtAtsc3PlpInfo
+{
+    int  m_BbFramerate;             // Frame rate in BB-frames per second
+    int  m_PlpBitrate;              // PLP bitrate in bits per second, excluding the
+                                    // bbframe header, assuming a two byte position field.
+};
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAtsc3SubframeInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 struct DtAtsc3SubframeInfo
@@ -5098,6 +5136,7 @@ struct DtAtsc3SubframeInfo
                                     // subframe
     int  m_NumCellsInDataSym;       // Number of cells in data symbols
     int  m_NumCellsInSbsSym;        // number of cells in SBS symbols
+    std::vector<DtAtsc3PlpInfo> m_Plps;  // PLP information
 };
 
 
@@ -7027,6 +7066,7 @@ struct DtIsdbTmmPars
 //
 enum DtStreamType 
 {
+    STREAM_ATSC,                    // ATSC stream
     STREAM_ATSC3,                   // ATSC 3.0 stream (ALP packets)
     STREAM_CONSTEL,                 // Constellation points
     STREAM_DAB,                     // DAB stream
@@ -7042,6 +7082,7 @@ enum DtStreamType
     STREAM_IMPRESP,                 // Impulse response
     STREAM_ISDBT,                   // ISDB-T stream
     STREAM_MER,                     // MER
+    STREAM_QAM,                     // QAM stream
     STREAM_SPECTRUM,                // Spectrum
     STREAM_T2MI,                    // DVB-T2 stream
     STREAM_TF_ABS,                  // Transfer function absolute
@@ -7201,7 +7242,9 @@ struct DtStreamSelPars
 
     union {
         // Selection parameters for demodulated streams
+        DtAtscStreamSelPars  m_Atsc;
         DtAtsc3StreamSelPars  m_Atsc3;
+        DtQamStreamSelPars  m_Qam;
         DtDvbC2StreamSelPars  m_DvbC2;
         DtDvbTStreamSelPars  m_DvbT;
         DtDvbT2StreamSelPars  m_DvbT2;
@@ -7403,13 +7446,16 @@ public:
     int  m_Scaling;             // Scaling mode (OFF, 1/4, 1/16). DTAPI_SCALING_*
     int  m_LineAlignment;       // -1 if all symbols should directly follow eachother,
                                 // otherwise the minimum alignment each line should
-                                // have. HLM will chose a stride, usually
+                                // have. DTAPI will chose the stride internally, usually
                                 // n*m_LineAlignment for smallest n where the stride is
                                 // equal or longer than the required number of bytes per
-                                // line. HLM is allowed to pick larger stride for
+                                // line. DTAPI is allowed to pick larger stride for
                                 // performance reasons.
                                 // Common values will be -1 (no alignment), 1 (align
                                 // each line at byte-boundary) and 16 (sse2 alignment).
+    int  m_BufAlignment;        // Minimal byte alignment for the video buffers. Defaults
+                                // to -1 in which case DTAPI will pick an alignment.
+                                // Must be a multiple of 2.
     DtMxPixelFormat  m_PixelFormat; // Pixel format
     bool  m_UserBuffer;         // When set to true the callback function is responsible
                                 // for allocating the video sample buffers. When set to
@@ -8300,15 +8346,50 @@ enum DtMxClockMode
                                 // clock so that the average fifo load remains the same.
 };
 
-// Affinity masks for several threads. Each can be left empty to disable them.
-class  DtMxCpuAffinity
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxSchedulingArgs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+class DtMxSchedulingArgs
 {
 public:
-    std::vector<int>  m_Default; // Mask for all other threads
-    std::vector<int>  m_Dma;     // Mask for DMA threads
-    std::vector<int>  m_Decode;  // Mask for decode threads
-    std::vector<int>  m_Callback;  // Mask for callback threads
-    std::vector<int>  m_Encode;  // Mask for encode threads
+    // List of cores that are allowed to run threads in this group. Leave empty
+    // to allow the threads to run on all cores.
+    std::vector<int>  m_Affinity;
+    // Linux-only: Scheduling policy for threads part of this group. Currently
+    // only SCHED_OTHER, SCHED_FIFO and SCHED_RR are supported
+    int  m_SchedPolicy;
+    // OS-specific thread priority.
+    // Windows: THREAD_PRIORITY_*
+    // Linux with SCHED_FIFO or SCHED_RR: 1..99 (higher is higher priority)
+    // Linux with SCHED_OTHER: -20..19 (lower value is higher priority)
+    int  m_SchedPrio;
+};
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxThreadScheduling -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+class DtMxThreadScheduling
+{
+public:
+    // Scheduling settings for threads in the events group. Those threads have low CPU
+    // usage but need to react very quickly to various events. They shall have the
+    // highest priority of all threads in the system.
+    // Default priority windows: THREAD_PRIORITY_TIME_CRITICAL
+    // Default priority linux: SCHED_FIFO 80
+    DtMxSchedulingArgs  m_EventThreads;
+    // The worker threads are CPU intensive but can tolerate a bit more scheduling latency
+    // than the event threads. In general those threads should be run at a fairly high
+    // priority to make sure no frames are dropped.
+    // Default priority windows: THREAD_PRIORITY_HIGHEST
+    // Default priority linux: SCHED_FIFO 20
+    DtMxSchedulingArgs  m_WorkerThreads;
+    // The callback threads are the ones that run the callback functions. The priority
+    // of these threads depends on the kind of work the callback does. It should not
+    // be higher than the priority of the worker threads.
+    // Default priority windows: THREAD_PRIORITY_ABOVE_NORMAL
+    // Default priority linux: SCHED_OTHER -10
+    DtMxSchedulingArgs  m_CallbackThreads;
+
+public:
+    DtMxThreadScheduling();
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxProcess -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -8380,7 +8461,7 @@ public:
     // Stop a runnig matrix process and return to IDLE.
     DTAPI_RESULT  Stop();
 
-    DTAPI_RESULT  SetThreadAffinity(const DtMxCpuAffinity& Affinity);
+    DTAPI_RESULT  SetThreadScheduling(const DtMxThreadScheduling& Scheduling);
 
     //TODO: add function to initialize "error-frame" for input/output and output rows.
     // This error-frame can be played out during the first few frames when there is
@@ -8818,6 +8899,9 @@ public:
     DtEncAudPars&  operator = (const DtEncAudPars&);
     bool  operator == (const DtEncAudPars&) const;
     bool  operator != (const DtEncAudPars&) const;
+    // Serialisation
+    DTAPI_RESULT  FromXml(const std::wstring&); 
+    DTAPI_RESULT  ToXml(std::wstring&);
 
 private:
     DtAudEncStd  m_AudEncStd;       // Audio encoding standard
@@ -9235,6 +9319,8 @@ public:
     // General member functions for top-level hardware abstraction classes
     DTAPI_RESULT  AttachToPort(DtDevice*, int Port, bool ProbeOnly=false);
     DTAPI_RESULT  Detach();
+    DTAPI_RESULT  GetCodecVersion(DtAudEncStd, std::wstring&);
+    DTAPI_RESULT  GetCodecVersion(DtVidEncStd, std::wstring&);
     DTAPI_RESULT  GetDescriptor(DtHwFuncDesc&);
     DTAPI_RESULT  GetIoConfig(int Group, int& Value);
     DTAPI_RESULT  GetIoConfig(int Group, int& Value, int& SubValue);

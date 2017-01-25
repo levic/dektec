@@ -29,6 +29,7 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Internal functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 static void  DtaNonIpMatrixLastFrameIntDpc(DtDpcArgs* pArgs);
+static DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort);
 static DtStatus  DtaNonIpMatrixConfigureForAsi(DtaNonIpPort* pNonIpPort, Int ConfigMode);
 static DtStatus  DtaNonIpMatrixConfigureForSdi(DtaNonIpPort* pNonIpPort, 
                                                        Int64  StartFrame, Int ConfigMode);
@@ -647,6 +648,20 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
         return DT_STATUS_FAIL;  
     }
     return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixInterrupt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtaNonIpMatrixInterrupt(DtaNonIpPort* pNonIpPort)
+{
+    if (DtaRegHdStatGetLastFrameInt(pNonIpPort->m_pRxRegs) != 0)
+    {
+        // Call handler. NOTE: the handler will clear the interrupt flag
+        DtaNonIpMatrixLastFrameIntHandler(pNonIpPort);
+        // Interrupt was ours
+        return TRUE;
+    }
+    return FALSE;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1602,6 +1617,235 @@ void  DtaNonIpMatrixLastFrameIntDpc(DtDpcArgs* pArgs)
 
     // Fire last frame event
     DtEventSet(&pNonIpPort->m_Matrix.m_LastFrameIntEvent);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixLastFrameIntHandler -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
+{
+    DtDpcArgs  DpcArgs;
+    Int  CurFrmIdx=0, NextFrmIdx=0, LastFrmIdx = 0;
+    Bool  IsRunning = TRUE;
+    const DtAvFrameProps*  pFrameProps = NULL;
+    DtaFrameBufSectionConfig*  pSections = pNonIpPort->m_Matrix.m_BufConfig.m_Sections;
+
+    DT_ASSERT(pNonIpPort->m_CapMatrix);
+    pFrameProps = &pNonIpPort->m_Matrix.m_FrameProps;
+
+    // If the port is configured for ASI => "ignore" this interrupt
+    if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI)
+    {
+        // Clear interrupt flag and return
+        DtaRegHdStatClrLastFrameInt(pNonIpPort->m_pRxRegs);
+        return DT_STATUS_OK;
+    }
+
+    // In the legacy HD-channel register interface, the last/current frame counters are
+    // maintained by the hardware as opposed to being maintained in the driver
+    if (DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort))
+    {
+        // Store last frame
+        //
+        // NOTE: Due to a firmware bug hardware does not latch the last frame, but the 
+        // current frame => last-frame is effectively the same as the current frame.
+        //
+        // AS WORKARROUND, we therefore now read the current frame register and subtract 
+        // 1 to get the last frame
+        Int64  CurFrame = DtaRegHdCurrentFrameGet(pNonIpPort->m_pRxRegs);
+        UInt64  RefClk = DtaRegRefClkCntGet64(pNonIpPort->m_pDvcData->m_pGenRegs);
+        pNonIpPort->m_Matrix.m_LastFrame = CurFrame - 1;
+        // Set reference clock for current frame
+        CurFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, CurFrame);
+        LastFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, 
+                                                        pNonIpPort->m_Matrix.m_LastFrame);
+        // Set end time reference clock for just the rx-/tx-ed frame
+        pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClkStart = RefClk;
+        pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkEnd = RefClk;
+    }
+    else
+    {
+        Int64  NextFrame = DTA_FRMBUF_HOLD_FRAME;
+        Bool  ChangeToRun=FALSE, ChangeToHold=FALSE;
+        DtaMatrixPortState  NewState = pNonIpPort->m_Matrix.m_State;
+
+        // Set just completed frame as last received/transmitted
+        pNonIpPort->m_Matrix.m_LastFrame = pNonIpPort->m_Matrix.m_CurFrame;
+
+        // Check for state change
+        IsRunning = (pNonIpPort->m_Matrix.m_LastStateAtInt >= MATRIX_PORT_RUN_AUTO);
+        ChangeToRun = !IsRunning && (NewState>=MATRIX_PORT_RUN_AUTO);
+        ChangeToHold = NewState==MATRIX_PORT_HOLD && 
+                                (pNonIpPort->m_Matrix.m_LastStateAtInt!=MATRIX_PORT_HOLD);
+
+        if (DtAtomicCompareExchange(&pNonIpPort->m_Matrix.m_ForceRestart, 1, 0)==1 &&
+                                                         (NewState>=MATRIX_PORT_RUN_AUTO))
+        {
+            IsRunning = FALSE;
+            ChangeToRun = TRUE;
+        }
+
+        if (ChangeToRun)
+        {
+            NextFrame = pNonIpPort->m_Matrix.m_NextFrame;
+            DT_ASSERT(NextFrame != -1);
+            pNonIpPort->m_Matrix.m_CurFrame = NextFrame - 1;
+
+            DtDbgOutPort(AVG, NONIP, pNonIpPort,
+                                 "Enter run state; Starting with frame: %lld", NextFrame);
+        }
+        else if (NewState == MATRIX_PORT_RUN_AUTO)
+        {
+            // Update current frame
+            pNonIpPort->m_Matrix.m_CurFrame++;  
+            NextFrame = pNonIpPort->m_Matrix.m_CurFrame+1;  // set next
+        }
+        else if (NewState == MATRIX_PORT_RUN_MAN)
+        {
+            // Update current frame
+            pNonIpPort->m_Matrix.m_CurFrame = pNonIpPort->m_Matrix.m_NextFrame;
+        }
+        else
+        {
+            // Next frame shall be the hold frame (i.e. a black frame) 
+            NextFrame = DTA_FRMBUF_HOLD_FRAME;
+
+            if (ChangeToHold)
+                DtDbgOutPort(AVG, NONIP, pNonIpPort,
+                                    "Enter hold state; Repeating frame: %lld", NextFrame);
+        }
+
+        // Get Index of current and last frames
+        CurFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort,
+                                                         pNonIpPort->m_Matrix.m_CurFrame);
+        LastFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort,
+                                                        pNonIpPort->m_Matrix.m_LastFrame);
+
+        if (NewState >= MATRIX_PORT_RUN_AUTO)
+        {
+            UInt64  RefClk;
+            // Read time the hardware started transmitting/receiving this frame. Use
+            // latched register if available, otherwise read the clock here.
+            if (pNonIpPort->m_CapMatrix2)
+            {
+                RefClk = DtaRegHdFrmTimeGet(pNonIpPort->m_pRxRegs);
+                //.-.-.-.-.-.-.-.-.-.-.-.- Workaround for TT#2182 -.-.-.-.-.-.-.-.-.-.-.-.
+                // Firmware latches start of frame timestamp instead of end of frame
+                // timestamp. Compute expected time of one frame and add that to the
+                // read value.
+                if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2154 &&
+                                   pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion<=5)
+                {
+                    UInt  FrameTime = pNonIpPort->m_pDvcData->m_DevInfo.m_RefClk / 
+                                                                       pFrameProps->m_Fps;
+                    if (pFrameProps->m_IsFractional)
+                    {
+                        FrameTime = FrameTime * 1000 / 1001;
+                    }
+                    RefClk += FrameTime;
+                }
+                //.-.-.-.-.-.-.-.-.-.-.- End of TT#2182 workaround -.-.-.-.-.-.-.-.-.-.-.-
+            } else {
+                RefClk = DtaRegRefClkCntGet64(pNonIpPort->m_pDvcData->m_pGenRegs);
+            }
+
+            if (DtaVidStdIs3glvlBSdi(pFrameProps->m_VidStd) &&
+                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_INPUT)
+            {
+                // For 3G level B input the interrupts are 1126 and 1124 lines apart. To
+                // correct for this we adjust time we read from the firmware by one
+                // line every odd frame.
+                UInt  ExpectedFrameTime = 0, LineTime;
+                Int64  RealFrameTime;
+                switch (pFrameProps->m_VidStd)
+                {
+                default:
+                    DT_ASSERT(FALSE);
+                case DT_VIDSTD_1080P50B:
+                    ExpectedFrameTime = pNonIpPort->m_pDvcData->m_DevInfo.m_RefClk/50;
+                    break;
+                case DT_VIDSTD_1080P59_94B:
+                    ExpectedFrameTime = pNonIpPort->m_pDvcData->m_DevInfo.m_RefClk/60;
+                    ExpectedFrameTime = ExpectedFrameTime * 1001 / 1000;
+                    break;
+                case DT_VIDSTD_1080P60B:
+                    ExpectedFrameTime = pNonIpPort->m_pDvcData->m_DevInfo.m_RefClk/60;
+                    break;
+                }
+                LineTime = ExpectedFrameTime / 1125;
+                RealFrameTime = RefClk -
+                               pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkStart;
+                pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_UNKNOWN;
+                if (RealFrameTime > ExpectedFrameTime+LineTime/2 &&
+                                             RealFrameTime < ExpectedFrameTime+LineTime*2)
+                {
+                    // Frame time is beteen +0.5 line and +2 lines of expected time
+                    RefClk -= LineTime;
+                    pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf=DTA_3GB_BOTTOM;
+                }
+                else if (RealFrameTime > ExpectedFrameTime-LineTime/2 && 
+                                             RealFrameTime < ExpectedFrameTime+LineTime/2)
+                {
+                    // Frame time is beteen -0.5 line and +0.5 lines of expected time
+                    pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_TOP;
+                }
+            }
+            else if (DtaVidStdIs3glvlBSdi(pFrameProps->m_VidStd) &&
+                       pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_OUTPUT)
+            {
+                if (DtaRegHdStatGetCurLvlAToBFrame(pNonIpPort->m_pRxRegs) == 0)
+                {
+                    pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_TOP;
+                } else {
+                    pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf=DTA_3GB_BOTTOM;
+                }
+            } else {
+                pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_UNKNOWN;
+            }
+
+            // For the start time of the current frame there are two options, namely:
+            // 1. Repeat the same frame => use the previous end time as start time
+            // 2. New frame => end time of just rx-/tx-ed frame is start time
+            if (CurFrmIdx == LastFrmIdx)
+                pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClkStart = 
+                pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkEnd;
+            else
+                pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClkStart = RefClk;
+            // Set end time reference clock for just the rx-/tx-ed frame
+            pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkEnd = RefClk;
+        }
+
+        if (NewState>=MATRIX_PORT_IDLE && (ChangeToRun || NewState!=MATRIX_PORT_RUN_MAN))
+        {
+            // Set address for the next frame to be transmited/received
+            NextFrmIdx = DtaNonIpMatrixFrame2Index(pNonIpPort, NextFrame);
+
+            DT_ASSERT(pSections[0].m_FrameStartAddr[NextFrmIdx] != -1);
+            DtaRegHdS0NextFrmAddrSet(pNonIpPort->m_pRxRegs, 
+                                               pSections[0].m_FrameStartAddr[NextFrmIdx]);
+            DT_ASSERT(pSections[1].m_FrameStartAddr[NextFrmIdx] != -1);
+            DtaRegHdS1NextFrmAddrSet(pNonIpPort->m_pRxRegs, 
+                                               pSections[1].m_FrameStartAddr[NextFrmIdx]);
+        }
+
+        // Save last state seen by interrupt
+        pNonIpPort->m_Matrix.m_LastStateAtInt = NewState;
+    }
+
+    pNonIpPort->m_Matrix.m_FrmIntCnt++;
+
+    // Schedule DPC for handling of "low-prio" part of Last Frame interrupt, burt only if 
+    // the channel is in running state
+    if (IsRunning)
+    {
+        DpcArgs.m_pContext = pNonIpPort;
+        DpcArgs.m_Data1.m_UInt64 = (UInt64)pNonIpPort->m_Matrix.m_LastFrame;
+        DtDpcSchedule(&pNonIpPort->m_Matrix.m_LastFrameIntDpc, &DpcArgs);
+    }
+
+    // Finaly: clear last frame interrupt
+    DtaRegHdStatClrLastFrameInt(pNonIpPort->m_pRxRegs);
+
+    return DT_STATUS_OK;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixConfigureForAsi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-

@@ -746,10 +746,12 @@ extern const DtFwbSdiAncExtract FwbSdiAncExtract;
 typedef struct _DtFwbAudioExtract
 {
     const DtFwbBlockId FwbBlockId;          // Block ID ('AEX0')
-    const DtFwField  ChanPairSelect;        // Audio channel pair selection
+    const DtFwField  Control_ChanPairSelect;// Audio channel pair selection
+    const DtFwField  Control_ChanExtractMode; // Channel audio extraction mode (v1)
     const DtFwField  Status_IsAcpPresent;   // Is audio control packet present?
     const DtFwField  Status_IsAsynchronous; // Is channel pair asynchronous?
     const DtFwField  Status_Rate;           // Audio sample rate
+    const DtFwField  Status_ChanPcmOrData;  // Indicates channel carries PCM or Data (v1) 
     const DtFwField  Status_IsChan1Active;  // Is audio channel 1 active?
     const DtFwField  Status_IsChan2Active;  // Is audio channel 2 active?
     const DtFwField  Status_IsStatusNew;    // Is audio status new?
@@ -760,10 +762,12 @@ typedef struct _DtFwbAudioExtract
 #define DT_FWB_AUDIO_EXTRACT(OFFSET)                                                     \
 {                                                                                        \
     DT_FWB_BLOCK_ID(0 + OFFSET),                  /* Block ID */                         \
-    {0x004 + OFFSET, 0, 6, TRUE, FWFIELDOP_RW},   /* Audio channel pair selection */     \
+    {0x004 + OFFSET, 0, 6, FALSE, FWFIELDOP_RW},  /* Audio channel pair selection */     \
+    {0x004 + OFFSET, 6, 2, FALSE, FWFIELDOP_RW},  /* Channel extraction mode (v1) */     \
     {0x008 + OFFSET, 0, 1, FALSE, FWFIELDOP_R},   /* Is audio control packet present? */ \
     {0x008 + OFFSET, 2, 1, FALSE, FWFIELDOP_R},   /* Is channel pair asynchronous? */    \
     {0x008 + OFFSET, 3, 2, FALSE, FWFIELDOP_R},   /* Audio sample rate */                \
+    {0x008 + OFFSET, 5, 2, FALSE, FWFIELDOP_R},   /* Channel carries PCM or Data (v1)*/  \
     {0x008 + OFFSET, 8, 1, FALSE, FWFIELDOP_R},   /* Is audio channel 1 active? */       \
     {0x008 + OFFSET, 9, 1, FALSE, FWFIELDOP_R},   /* Is audio channel 2 active? */       \
     {0x008 + OFFSET, 31, 1, FALSE, FWFIELDOP_RC}, /* Is audio status new? */             \
@@ -780,6 +784,18 @@ extern const DtFwbAudioExtract FwbAudioExtract;
 #define DTFWB_AUDEXT_RATE_48KHZ     0x00    // 48 kHz sample rate
 #define DTFWB_AUDEXT_RATE_44_1KHZ   0x01    // 44.1 kHz sample rate
 #define DTFWB_AUDEXT_RATE_32KHZ     0x02    // 32 kHz sample rate
+
+// Audio channel extraction mode
+#define DTFWB_AUDEXT_EXTRACT_BOTH   0x00    // Extractor accepts both PCM and DATA
+#define DTFWB_AUDEXT_EXTRACT_PCM    0x01    // Extractor accepts only PCM
+#define DTFWB_AUDEXT_EXTRACT_DATA   0x02    // Extractor accepts only DATA
+
+// Audio channel contents
+#define DTFWB_AUDEXT_CONTENT_UNKNOWN  0x00  // Channel contents is unknown
+#define DTFWB_AUDEXT_CONTENT_PCM    0x01    // Channel carries PCM samples
+#define DTFWB_AUDEXT_CONTENT_DATA   0x02    // Channel carries data
+#define DTFWB_AUDEXT_CONTENT_UNSUP  (~0)    // Channel contents detection is not
+                                            // supported. Only used by the driver software
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- FwbSdiAvReceiver -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 typedef struct _DtFwbSdiAvReceiver
