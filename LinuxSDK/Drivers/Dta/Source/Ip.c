@@ -2072,6 +2072,7 @@ void  DtaIpAddrMatcherDeleteIpV4_6Entry(
                 pEntry2->m_pNext->m_pPrev = pEntry2;
             pEntry2->m_pPrev = pEntry->m_pPrev;
             pEntry->m_pPrev->m_pNext = pEntry2;
+            pIpRxEntry->m_pNextAddrMatcherEntry[IpPort][pEntry->m_StreamType] = NULL;
             DtaIpSetNewOwnerAddrMatchLUTable(pIpPort, (UInt)pEntry2->m_Gen.m_AddressIDTag,
                                                                  pIpRxEntry2, StreamType);
             DtDbgOut(MAX, IPADDRM, "[%i] Entry: %p deleted and new owner %p."
@@ -2166,6 +2167,7 @@ void  DtaIpAddrMatcherDeleteIpV6SSMEntry(
                 pEntryPart2_2->m_pHead = pEntryPart2->m_pHead;
             } else 
                 pEntryPart2->m_pPrev->m_pNext = pEntryPart2_2;
+            pIpRxEntry->m_pNextAddrMatcherEntryPart2[IpPort][pEntry->m_StreamType] = NULL;
             DtaIpSetNewOwnerAddrMatchLUTable(pIpPort, 
                             (UInt)pEntryPart2->m_IpV6SSM.m_IpV6Part2_First.m_AddressIDTag,
                             pIpRxEntry2, StreamType);

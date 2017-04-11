@@ -415,15 +415,15 @@ static Int  DtaNwEvtSetMacAddr(struct net_device* pDevice, void* pAddr)
 {
     DtaNwDeviceData*  pDvcData = netdev_priv(pDevice);
     DtStatus  Status;
+    struct sockaddr*  pSockAddr = (struct sockaddr*)pAddr;
 
-    Status = DtaNwSetMacAddress(pDvcData, pAddr);
-    
+    Status = DtaNwSetMacAddress(pDvcData, pSockAddr->sa_data);
     if (!DT_SUCCESS(Status))
         return -EFAULT;
 
     // Update current MAC address
-    DtMemCopy(pDvcData->m_MacAddressCur, pAddr, 6);
-    DtMemCopy(pDevice->dev_addr, pAddr, 6);
+    DtMemCopy(pDvcData->m_MacAddressCur, pSockAddr->sa_data, 6);
+    DtMemCopy(pDevice->dev_addr, pSockAddr->sa_data, 6);
     return 0;
 }
 
@@ -811,7 +811,6 @@ Int  DtaNwEvtProbe(DtaDeviceItf* pDevItf, Int Id)
         
         // Initialise device struct for default ethernet values
         ether_setup(pNwDev);
-        pNwDev->flags |= IFF_MULTICAST;
         pDvcData = netdev_priv(pNwDev);
 
         // Initialize device data to default values

@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaTableStore.c *#*#*#*#*#*#*#*#*#*# (C) 2016 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaTableStore.c *#*#*#*#*#*#*#*#*#*# (C) 2017 DekTec
 //
 // CapParser - Device Table Store - Tables with calibration data, filter coefficients, ...
 //
@@ -2686,7 +2686,24 @@ static const DtTableLink  DtTableLink2179_5[] =
     { "SUBDVC_PORT_MAP", -1, -1, 0, 0, 2, DtTable2179_5_005 }
 };
 
-const Int  DtTableStoreCount = 21;
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2195; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static const DtTableEntry  DtTable2195_0_000[] =
+{
+    { 0, 6 }, { 1, 7 }, { 2, 8 }
+};
+static const DtTableEntry  DtTable2195_0_001[] =
+{
+    { 0, 9 }, { 1, 10 }, { 2, 11 }
+};
+
+static const DtTableLink  DtTableLink2195_0[] = 
+{
+    { "SUB_PORT_MAP", 0, -1, 0, 0, 3, DtTable2195_0_000 },
+    { NULL, 1, -1, 0, 0, 3, DtTable2195_0_001 }
+};
+
+const Int  DtTableStoreCount = 22;
 const DtTableStore  DtTableStores[] = 
 {
     { 107, 0, 1, DtTableLink107_0 },
@@ -2709,5 +2726,6 @@ const DtTableStore  DtTableStores[] =
     { 2179, 2, 1, DtTableLink2179_2 },
     { 2179, 3, 1, DtTableLink2179_3 },
     { 2179, 4, 1, DtTableLink2179_4 },
-    { 2179, 5, 1, DtTableLink2179_5 }
+    { 2179, 5, 1, DtTableLink2179_5 },
+    { 2195, 0, 2, DtTableLink2195_0 }
 };

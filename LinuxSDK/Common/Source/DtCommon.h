@@ -231,6 +231,7 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define ASI_SDI_DESER_ITF_GS2961     4           // Uses Gennum GS2961
 #define ASI_SDI_DESER_ITF_FPGA_LMH0387  5        // FPGA deserialiser + LMH0387 equaliser
 #define ASI_SDI_DESER_ITF_FPGA_GS3490  6         // FPGA deserialiser + GS3490 equaliser
+#define ASI_SDI_DESER_ITF_FPGA_M23544G 7         // FPGA deserialiser + M23544G equaliser
 
 #define ASI_SDI_SER_ITF_NONE         0           // No ASI/SDI serialiser used
 #define ASI_SDI_SER_ITF_HOTLINK      1           // Use Cypress hotlink
@@ -239,6 +240,8 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define ASI_SDI_SER_ITF_GS2962       4           // Uses Gennum GS2962
 #define ASI_SDI_SER_ITF_FPGA_LMH0387 5           // FPGA serialiser + LMH0387 line driver
 #define ASI_SDI_SER_ITF_FPGA_GS3490 6            // FPGA serialiser + GS3490 line driver
+#define ASI_SDI_SER_ITF_FPGA_M23145_23528 7      // FPGA serialiser + M23145G reclocker +
+                                                 // MACD23145 line driver
 
 // Genlock: architecture
 #define GENLOCK_ARCH_NONE           0            // No genlock logic present

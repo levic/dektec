@@ -256,24 +256,24 @@ DtStatus  DtaGs296xReadRegister(DtaNonIpPort*  pNonIpPort, Int Addr, UInt32*  pV
         return DT_STATUS_NOT_SUPPORTED;
 
     // Step 1: write read command to card
-    SpiCmd = (Addr << DT_HD_GS29XXSPI_ADDR_SH) & DT_HD_GS29XXSPI_ADDR_MSK;
-    SpiCmd |= (0<<DT_HD_GS29XXSPI_AUTOINC_SH) & DT_HD_GS29XXSPI_AUTOINC_MSK;
-    SpiCmd |= (1<<DT_HD_GS29XXSPI_READ_SH) & DT_HD_GS29XXSPI_READ_MSK;
-    SpiCmd |= (1<<DT_HD_GS29XXSPI_START_SH) & DT_HD_GS29XXSPI_START_MSK;
+    SpiCmd = (Addr << DT_HD_SPICTRL_ADDR_SH) & DT_HD_SPICTRL_ADDR_MSK;
+    SpiCmd |= (0<<DT_HD_SPICTRL_AUTOINC_SH) & DT_HD_SPICTRL_AUTOINC_MSK;
+    SpiCmd |= (1<<DT_HD_SPICTRL_READ_SH) & DT_HD_SPICTRL_READ_MSK;
+    SpiCmd |= (1<<DT_HD_SPICTRL_START_SH) & DT_HD_SPICTRL_START_MSK;
 
-    WRITE_UINT(SpiCmd, pNonIpPort->m_pRxRegs, DT_HD_REG_GS29XXSPI);
+    WRITE_UINT(SpiCmd, pNonIpPort->m_pRxRegs, DT_HD_REG_SPICTRL);
 
     // Step 2: wait for done bit
-    SpiCmd = READ_UINT(pNonIpPort->m_pRxRegs, DT_HD_REG_GS29XXSPI);
-    while ((SpiCmd & DT_HD_GS29XXSPI_DONE_MSK) == 0)
+    SpiCmd = READ_UINT(pNonIpPort->m_pRxRegs, DT_HD_REG_SPICTRL);
+    while ((SpiCmd & DT_HD_SPICTRL_DONE_MSK) == 0)
     {
         DtSleep(1);
-        SpiCmd = READ_UINT(pNonIpPort->m_pRxRegs, DT_HD_REG_GS29XXSPI);
+        SpiCmd = READ_UINT(pNonIpPort->m_pRxRegs, DT_HD_REG_SPICTRL);
         Timeout--;
         if (Timeout <= 0)
             return DT_STATUS_TIMEOUT;
     }
-    *pValue = (UInt32)((SpiCmd & DT_HD_GS29XXSPI_DATA_MSK) >> DT_HD_GS29XXSPI_DATA_SH);
+    *pValue = (UInt32)((SpiCmd & DT_HD_SPICTRL_DATA_MSK) >> DT_HD_SPICTRL_DATA_SH);
     return DT_STATUS_OK;
 }
 
@@ -288,22 +288,22 @@ DtStatus  DtaGs296xWriteRegister(DtaNonIpPort*  pNonIpPort, Int Addr, UInt32  Va
         return DT_STATUS_NOT_SUPPORTED;
 
     // Step 1: write write-command to card
-    SpiCmd = (Value << DT_HD_GS29XXSPI_DATA_SH) & DT_HD_GS29XXSPI_DATA_MSK;
-    SpiCmd |= (Addr << DT_HD_GS29XXSPI_ADDR_SH) & DT_HD_GS29XXSPI_ADDR_MSK;
-    SpiCmd |= (0<<DT_HD_GS29XXSPI_AUTOINC_SH) & DT_HD_GS29XXSPI_AUTOINC_MSK;
-    SpiCmd |= (0<<DT_HD_GS29XXSPI_READ_SH) & DT_HD_GS29XXSPI_READ_MSK;
-    SpiCmd |= (1<<DT_HD_GS29XXSPI_START_SH) & DT_HD_GS29XXSPI_START_MSK;
+    SpiCmd = (Value << DT_HD_SPICTRL_DATA_SH) & DT_HD_SPICTRL_DATA_MSK;
+    SpiCmd |= (Addr << DT_HD_SPICTRL_ADDR_SH) & DT_HD_SPICTRL_ADDR_MSK;
+    SpiCmd |= (0<<DT_HD_SPICTRL_AUTOINC_SH) & DT_HD_SPICTRL_AUTOINC_MSK;
+    SpiCmd |= (0<<DT_HD_SPICTRL_READ_SH) & DT_HD_SPICTRL_READ_MSK;
+    SpiCmd |= (1<<DT_HD_SPICTRL_START_SH) & DT_HD_SPICTRL_START_MSK;
 
     DtDbgOut(MAX, DTA, "Addr=0x%04X, Value=0x%04X, SpiCmd=0x%08X", Addr, Value, SpiCmd);
     
-    WRITE_UINT(SpiCmd, pNonIpPort->m_pRxRegs, DT_HD_REG_GS29XXSPI);
+    WRITE_UINT(SpiCmd, pNonIpPort->m_pRxRegs, DT_HD_REG_SPICTRL);
 
     // Step 2: wait for done bit
-    SpiCmd = READ_UINT(pNonIpPort->m_pRxRegs, DT_HD_REG_GS29XXSPI);
-    while ((SpiCmd & DT_HD_GS29XXSPI_DONE_MSK) == 0)
+    SpiCmd = READ_UINT(pNonIpPort->m_pRxRegs, DT_HD_REG_SPICTRL);
+    while ((SpiCmd & DT_HD_SPICTRL_DONE_MSK) == 0)
     {
         DtSleep(1);
-        SpiCmd = READ_UINT(pNonIpPort->m_pRxRegs, DT_HD_REG_GS29XXSPI);
+        SpiCmd = READ_UINT(pNonIpPort->m_pRxRegs, DT_HD_REG_SPICTRL);
         Timeout--;
         if (Timeout <= 0)
             return DT_STATUS_TIMEOUT;

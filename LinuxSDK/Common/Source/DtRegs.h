@@ -183,6 +183,10 @@
 //.-.-.-.-.-.-.-.-.-.-.-.- General Control1 Register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-
 #define DT_GEN_CONTROL1_WATCHDOG_MSK   0x00000001
 #define DT_GEN_CONTROL1_WATCHDOG_SH    0
+#define DT_GEN_CONTROL1_HW_ENABLE_MSK  0x00000002
+#define DT_GEN_CONTROL1_HW_ENABLE_SH   1
+#define DT_GEN_CONTROL1_O_ENABLE_MSK   0x00000004
+#define DT_GEN_CONTROL1_O_ENABLE_SH    2
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- VCXO Control Register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.-
 #define DT_VCXOCTRL_EN_MSK             0x00000001
@@ -215,6 +219,8 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.- I2C Control Registers: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.-
 #define DT_I2CCTRL_RDYINT_EN_MSK       0x00000001
 #define DT_I2CCTRL_RDYINT_EN_SH        0
+#define DT_I2CCTRL_EDDC_EN_MSK         0x00000002
+#define DT_I2CCTRL_EDDC_EN_SH          1
 #define DT_I2CCTRL_BUSSEL_MSK          0x000001E0
 #define DT_I2CCTRL_BUSSEL_SH           5
 #define DT_I2CCTRL_CLKDIV_MSK          0x0FFF0000
@@ -231,6 +237,9 @@
 #define DT_I2CSTAT_RDADDR_NACK_SH      3
 #define DT_I2CSTAT_TIMEOUT_MSK         0x00000010
 #define DT_I2CSTAT_TIMEOUT_SH          4
+#define DT_I2CSTAT_EDDC_NACK_MSK       0x00000020
+#define DT_I2CSTAT_EDDC_NACK_SH        5
+
 
 //-.-.-.-.-.-.-.-.-.-.-.- I2C Address/Count Registers: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.
 #define DT_I2CADDRCNT_WRADDR_MSK       0x0000007F
@@ -1140,7 +1149,7 @@ typedef union _DT_RFDAC_CONTROL
 #define DT_HD_REG_FRMCONF5              0x0074
 #define DT_HD_REG_MEMTRNUMB_ASI         0x0078
 #define DT_HD_REG_ASIRATE               0x007C
-#define DT_HD_REG_GS29XXSPI             0x0080
+#define DT_HD_REG_SPICTRL               0x0080
 #define DT_HD_REG_FRM_TIME_LSB          0x0088
 #define DT_HD_REG_FRM_TIME_MSB          0x008C
 #define DT_HD_REG_S0_NEXTFRM_ADDR       0x0090
@@ -1214,6 +1223,8 @@ typedef union _DT_RFDAC_CONTROL
 #define DT_HD_OPMODE_HD                 0x2
 #define DT_HD_OPMODE_3G                 0x3
 #define DT_HD_OPMODE_ASI                0x4
+#define DT_HD_OPMODE_6G                 0x5
+#define DT_HD_OPMODE_12G                0x6
 
 // HD-Channel COntrol register: ASI Invert
 #define DT_ASI_INV_RX_AUTO              0
@@ -1300,6 +1311,19 @@ typedef union _DT_RFDAC_CONTROL
 #define  DT_VIDSTD_480P59_94            0x0006
 #define  DT_VIDSTD_525P59_94            0x0007
 #define  DT_VIDSTD_625P50               0x0008
+// 6G 2160 formats
+#define  DT_VIDSTD_2160P23_98           0x1001
+#define  DT_VIDSTD_2160P24              0x1002
+#define  DT_VIDSTD_2160P25              0x1003
+#define  DT_VIDSTD_2160P29_97           0x1004
+#define  DT_VIDSTD_2160P30              0x1005
+// 12G 2160 formats
+#define  DT_VIDSTD_2160P50              0x1006
+#define  DT_VIDSTD_2160P59_94           0x1007
+#define  DT_VIDSTD_2160P60              0x1008
+#define  DT_VIDSTD_2160P50B             0x1009
+#define  DT_VIDSTD_2160P59_94B          0x100A
+#define  DT_VIDSTD_2160P60B             0x100B
 
 #define  DT_VIDSTD_TS                   -1      // Special case
 
@@ -1357,6 +1381,10 @@ typedef union _DT_RFDAC_CONTROL
 #define  DT_HD_SDIFMT_VIDEOID_HD1080     133
 #define  DT_HD_SDIFMT_VIDEOID_3GLVLA     137
 #define  DT_HD_SDIFMT_VIDEOID_3GLVLB     138
+#define  DT_HD_SDIFMT_VIDEOID_6G         192
+#define  DT_HD_SDIFMT_VIDEOID_12G        206  
+#define  DT_HD_SDIFMT_VIDEOID_12G_ADEAS  161    // TODOTD can be removed after fix
+
 
 // HD-Channel SDI Format register: Picture rate values
 #define  DT_HD_SDIFMT_PICTRATE_23_98     2     
@@ -1567,33 +1595,23 @@ typedef union _DT_RFDAC_CONTROL
 #define DT_HD_FRMCONF7_PIXELDELAY_MSK   0x0000FFFF
 #define DT_HD_FRMCONF7_PIXELDELAY_SH    0
 
-//.-.-.-.-.-.-.-.-.- HD-Channel GS29XX SPI Control register: Bit Fields -.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.- HD-Channel SPI Control register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.
+#define DT_HD_SPICTRL_DATA_MSK    0x0000FFFF
+#define DT_HD_SPICTRL_DATA_SH     0
+#define DT_HD_SPICTRL_ADDR_MSK    0x0FFF0000
+#define DT_HD_SPICTRL_ADDR_SH     16
+#define DT_HD_SPICTRL_AUTOINC_MSK 0x10000000
+#define DT_HD_SPICTRL_AUTOINC_SH  28
+#define DT_HD_SPICTRL_DEVSEL_MSK  0x10000000
+#define DT_HD_SPICTRL_DEVSEL_SH   28
+#define DT_HD_SPICTRL_READ_MSK    0x20000000
+#define DT_HD_SPICTRL_READ_SH     29
+#define DT_HD_SPICTRL_START_MSK   0x40000000
+#define DT_HD_SPICTRL_START_SH    30
+#define DT_HD_SPICTRL_DONE_MSK    0x80000000
+#define DT_HD_SPICTRL_DONE_SH     31
 
-#define DT_HD_GS29XXSPI_DATA_MSK    0x0000FFFF
-#define DT_HD_GS29XXSPI_DATA_SH     0
-#define DT_HD_GS29XXSPI_ADDR_MSK    0x0FFF0000
-#define DT_HD_GS29XXSPI_ADDR_SH     16
-#define DT_HD_GS29XXSPI_AUTOINC_MSK 0x10000000
-#define DT_HD_GS29XXSPI_AUTOINC_SH  28
-#define DT_HD_GS29XXSPI_READ_MSK    0x20000000
-#define DT_HD_GS29XXSPI_READ_SH     29
-#define DT_HD_GS29XXSPI_START_MSK   0x40000000
-#define DT_HD_GS29XXSPI_START_SH    30
-#define DT_HD_GS29XXSPI_DONE_MSK    0x80000000
-#define DT_HD_GS29XXSPI_DONE_SH     31
 
-//-.-.-.-.-.-.-.-.- HD-Channel LMH0387 SPI Control register: Bit Fields -.-.-.-.-.-.-.-.-.
-
-#define DT_HD_LMH0387SPI_DATA_MSK   0x0000FFFF
-#define DT_HD_LMH0387SPI_DATA_SH     0
-#define DT_HD_LMH0387SPI_ADDR_MSK    0x0FFF0000
-#define DT_HD_LMH0387SPI_ADDR_SH     16
-#define DT_HD_LMH0387SPI_READ_MSK    0x20000000
-#define DT_HD_LMH0387SPI_READ_SH     29
-#define DT_HD_LMH0387SPI_START_MSK   0x40000000
-#define DT_HD_LMH0387SPI_START_SH    30
-#define DT_HD_LMH0387SPI_DONE_MSK    0x80000000
-#define DT_HD_LMH0387SPI_DONE_SH     31
 
 //-.-.-.-.-.-.- HD-Channel S0 Next Frame Start Address register: Bit Fields -.-.-.-.-.-.-.
 

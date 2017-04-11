@@ -139,7 +139,8 @@ enum {
     FUNC_DTA_MULTIMOD_CMD,
     FUNC_DTA_GET_PROPERTY4,
     FUNC_DTA_GET_STR_PROPERTY3,
-    FUNC_DTA_GET_TABLE3
+    FUNC_DTA_GET_TABLE3,
+    FUNC_DTA_HDMI_TX_CMD
 };
 
 // Ioctl input data type
@@ -3436,6 +3437,129 @@ typedef union _DtaIoctlMultiModCmd {
 #endif
 
 
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_IOCTL_HDMI_TX_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+// Wrapper command to perform a HDMI command.
+//
+
+// Constants
+
+// DTA HDMI commands
+#define DTA_HDMI_TX_CMD_GET_HDMI_STATUS        1
+#define DTA_HDMI_TX_CMD_GET_VIDSTD             2
+#define DTA_HDMI_TX_CMD_SET_VIDMOD             3
+#define DTA_HDMI_TX_CMD_FORCE_TEST_PICTURE     4
+#define DTA_HDMI_TX_CMD_FORCE_MONITOR_DETECTED 5
+#define DTA_HDMI_TX_CMD_DISABLE_EDID_CHECK     6
+#define DTA_HDMI_TX_CMD_DISABLE_OUTPUT         7
+
+
+// DTA HDMI get vidstd from index
+typedef struct _DtaIoctlHdmiTxCmdGetVidStdInput {
+    Int  m_Index;
+} DtaIoctlHdmiTxCmdGetVidStdInput;
+
+// DTA HDMI set vidmod
+typedef struct _DtaIoctlHdmiTxCmdSetVidModInput {
+    Int  m_VidMod;
+} DtaIoctlHdmiTxCmdSetVidModInput;
+
+// DTA HDMI force test picture
+typedef struct _DtaIoctlHdmiTxCmdForceTestPictureInput {
+    Int  m_Enable;
+} DtaIoctlHdmiTxCmdForceTestPictureInput;
+
+// DTA HDMI force monitor detected
+typedef struct _DtaIoctlHdmiTxCmdForceMonitorDetectedInput {
+    Int  m_Enable;
+} DtaIoctlHdmiTxCmdForceMonitorDetectedInput;
+
+// DTA HDMI disable edid check
+typedef struct _DtaIoctlHdmiTxCmdDisableEdidCheckInput {
+    Int  m_Disable;
+} DtaIoctlHdmiTxCmdDisableEdidCheckInput;
+
+// DTA HDMI disable edid check
+typedef struct _DtaIoctlHdmiTxCmdDisableOutputInput {
+    Int  m_Disable;
+} DtaIoctlHdmiTxCmdDisableOutputInput;
+
+// Ioctl input data type
+typedef struct _DtaIoctlHdmiTxCmdInput {
+    UInt  m_Cmd;
+    Int  m_PortIndex;
+    union {
+        DtaIoctlHdmiTxCmdGetVidStdInput  m_GetVidStd;
+        DtaIoctlHdmiTxCmdSetVidModInput  m_SetVidMod;
+        DtaIoctlHdmiTxCmdForceTestPictureInput  m_ForceTestPicture;
+        DtaIoctlHdmiTxCmdForceMonitorDetectedInput  m_ForceMonitorDetected;
+        DtaIoctlHdmiTxCmdDisableEdidCheckInput  m_DisableEdidCheck;
+        DtaIoctlHdmiTxCmdDisableOutputInput  m_DisableHdmiOutput;
+    } m_Data;
+} DtaIoctlHdmiTxCmdInput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdInput, 12)
+
+// DTA Get HDMI status command output data type
+typedef struct _DtaIoctlHdmiTxCmdGetHdmiStatusOutput {
+    Int  m_MonDetected;
+    Int  m_EdidError;
+    Int  m_SupportHdmi;
+    Int  m_SupportYCbCr444;
+    Int  m_SupportYCbCr422;
+    Int  m_SupportBasicAudio;
+    Int  m_SupportScDc;
+    Int  m_SupportMonitorRangeLimits;
+    Int  m_ForceTestPicture;
+    Int  m_UsingTestPicture;
+    Int  m_ForceMonitorDetected;
+    Int  m_DisableEdidCheck;
+    Int  m_DisableHdmiOutput;
+    Int  m_UsedVidStd;
+    Int  m_UsedAspectRatio;
+    Int  m_SelectedVidStd;
+    Int  m_SelectedAspectRatio;
+    Int  m_UsedVidMod;
+    Int  m_SelectedVidMod;
+    UInt  m_MaxPixelClk;
+    UInt  m_MinVRate;
+    UInt  m_MaxVRate;
+    UInt  m_MinHRate;
+    UInt  m_MaxHRate;
+    UInt64A  m_MonSupportedFormats;
+    UInt64A  m_MonSupportedAudio;
+} DtaIoctlHdmiTxCmdGetHdmiStatusOutput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdGetHdmiStatusOutput, 112)
+
+// DTA Get vidstd command output data type
+typedef struct _DtaIoctlHdmiTxCmdGetVidStdOutput {
+    Int  m_VidStd;
+    Int  m_AspectRatio;
+} DtaIoctlHdmiTxCmdGetVidStdOutput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdGetVidStdOutput, 8)
+
+// Ioctl output data type
+typedef struct _DtaIoctlHdmiTxCmdOutput {
+    union {
+        DtaIoctlHdmiTxCmdGetHdmiStatusOutput  m_GetHdmiStatus;
+        DtaIoctlHdmiTxCmdGetVidStdOutput  m_GetVidStd;
+    } m_Data;
+} DtaIoctlHdmiTxCmdOutput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdOutput, 112)
+
+
+#ifdef WINBUILD
+    #define DTA_IOCTL_HDMI_TX_CMD  CTL_CODE(DTA_DEVICE_TYPE, FUNC_DTA_HDMI_TX_CMD, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlHdmiTxCmdData {
+        DtaIoctlHdmiTxCmdInput  m_Input;
+        DtaIoctlHdmiTxCmdOutput  m_Output;
+    } DtaIoctlHdmiTxCmdData;
+
+    #define DTA_IOCTL_HDMI_TX_CMD  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_HDMI_TX_CMD, \
+                                                                       DtaIoctlHdmiTxCmdData)
+#endif
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef union _DtaIoctlInputData {
@@ -3476,6 +3600,7 @@ typedef union _DtaIoctlInputData {
     DtaIoctlSpiMfCmdInput  m_SpiMfCmd;
     DtaIoctlProgItfCmdInput  m_ProgItfCmd;
     DtaIoctlMultiModCmdInput  m_MultiModCmd;
+    DtaIoctlHdmiTxCmdInput  m_HdmiTxCmd;
 } DtaIoctlInputData;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlOutputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -3515,6 +3640,7 @@ typedef union _DtaIoctlOutputData {
     DtaIoctlEnDecCmdOutput  m_EnDecCmd;
     DtaIoctlD7ProCmdOutput  m_D7ProCmd;
     DtaIoctlSpiMfCmdOutput  m_SpiMfCmd;
+    DtaIoctlHdmiTxCmdOutput  m_HdmiTxCmd;
 } DtaIoctlOutputData;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

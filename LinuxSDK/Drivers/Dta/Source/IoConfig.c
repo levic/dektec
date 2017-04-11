@@ -728,9 +728,10 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
         if (pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].m_SubValue != DT_IOCONFIG_MONITOR)
             return DT_STATUS_CONFIG_ERROR;
         Buddy = (Int)pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].m_ParXtra[0];
-        // No property to check which buddy port is valid. Hardcode based on typenumber
-        // for now.
-        if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2180 && Buddy!=3)
+        // No property to check which buddy port index is valid. 
+        // Hardcode based on typenumber for now.
+        if (   (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2180 && Buddy!=3)
+            || (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2195 && Buddy!=1))
             return DT_STATUS_CONFIG_ERROR;
         break;
     case DT_IOCONFIG_INPUT:
@@ -932,11 +933,45 @@ static DtStatus  DtaIoConfigUpdateValidateIoStd(
         if (!pNonIpPort->m_IsNonFuntional)
             return DT_STATUS_CONFIG_ERROR;
         break;
+    case DT_IOCONFIG_12GSDI:
+        if (!pNonIpPort->m_Cap12GSdi)
+            return DT_STATUS_CONFIG_ERROR;
+        // Validate DT_IOCONFIG_12GSDI
+        switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_IOSTD].m_SubValue)
+        {
+        case DT_IOCONFIG_2160P50:
+            if (!pNonIpPort->m_Cap2160P50)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_2160P59_94:
+            if (!pNonIpPort->m_Cap2160P59_94)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_2160P60:
+            if (!pNonIpPort->m_Cap2160P60)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_2160P50B:
+            if (!pNonIpPort->m_Cap2160P50B)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_2160P59_94B:
+            if (!pNonIpPort->m_Cap2160P59_94B)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_2160P60B:
+            if (!pNonIpPort->m_Cap2160P60B)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        default:
+            return DT_STATUS_CONFIG_ERROR;
+        }
+        break;
     case DT_IOCONFIG_3GSDI:
         if (!pNonIpPort->m_Cap3GSdi)
             return DT_STATUS_CONFIG_ERROR;
 
-        // Validate DT_IOCONFIG_HDSDI
+        // Validate DT_IOCONFIG_3GSDI
         switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_IOSTD].m_SubValue)
         {
         case DT_IOCONFIG_1080P50:
@@ -967,6 +1002,36 @@ static DtStatus  DtaIoConfigUpdateValidateIoStd(
             return DT_STATUS_CONFIG_ERROR;
         }
         break;
+    case DT_IOCONFIG_6GSDI:
+        if (!pNonIpPort->m_Cap6GSdi)
+            return DT_STATUS_CONFIG_ERROR;
+        // Validate DT_IOCONFIG_6GSDI
+        switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_IOSTD].m_SubValue)
+        {
+        case DT_IOCONFIG_2160P30:
+            if (!pNonIpPort->m_Cap2160P30)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_2160P29_97:
+            if (!pNonIpPort->m_Cap2160P29_97)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_2160P25:
+            if (!pNonIpPort->m_Cap2160P25)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_2160P24:
+            if (!pNonIpPort->m_Cap2160P24)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_2160P23_98:
+            if (!pNonIpPort->m_Cap2160P23_98)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        default:
+            return DT_STATUS_CONFIG_ERROR;
+        }
+        break;
     case DT_IOCONFIG_ASI:
         if (!pNonIpPort->m_CapAsi)
             return DT_STATUS_CONFIG_ERROR;
@@ -984,7 +1049,7 @@ static DtStatus  DtaIoConfigUpdateValidateIoStd(
             return DT_STATUS_CONFIG_ERROR;
         break;
     case DT_IOCONFIG_HDMI:
-        if (!pNonIpPort->m_CapHdmi)
+        if (!pNonIpPort->m_CapHdmiRx && !pNonIpPort->m_CapHdmiTx)
             return DT_STATUS_CONFIG_ERROR;
         break;
     case DT_IOCONFIG_HDSDI:

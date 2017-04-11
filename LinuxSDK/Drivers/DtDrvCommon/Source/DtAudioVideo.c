@@ -59,6 +59,17 @@ static const Int  g_VidStds[] = {
     DT_VIDSTD_1080P50B,
     DT_VIDSTD_1080P59_94B,
     DT_VIDSTD_1080P60B,
+    DT_VIDSTD_2160P23_98,
+    DT_VIDSTD_2160P24,
+    DT_VIDSTD_2160P25,
+    DT_VIDSTD_2160P29_97,
+    DT_VIDSTD_2160P30,
+    DT_VIDSTD_2160P50,
+    DT_VIDSTD_2160P59_94,
+    DT_VIDSTD_2160P60,
+    DT_VIDSTD_2160P50B,
+    DT_VIDSTD_2160P59_94B,
+    DT_VIDSTD_2160P60B,
     DT_VIDSTD_480P59_94,
     DT_VIDSTD_525P59_94,
     DT_VIDSTD_625P50,
@@ -205,21 +216,32 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
         pProps->m_SyncPointPixelOff = 0;
         break;
 
+    case DT_VIDSTD_2160P60:
+    case DT_VIDSTD_2160P60B:
+    case DT_VIDSTD_2160P59_94:
+    case DT_VIDSTD_2160P59_94B:
+    case DT_VIDSTD_2160P50:
+    case DT_VIDSTD_2160P50B:
     case DT_VIDSTD_1080P60:
     case DT_VIDSTD_1080P60B:
     case DT_VIDSTD_1080P59_94:
     case DT_VIDSTD_1080P59_94B:
     case DT_VIDSTD_1080P50:
     case DT_VIDSTD_1080P50B:
+
         pProps->m_NumLines = 1125;
 
-        if (VidStd==DT_VIDSTD_1080P50 || VidStd==DT_VIDSTD_1080P50B)
+        if (VidStd==DT_VIDSTD_1080P50 || VidStd==DT_VIDSTD_1080P50B
+                               || VidStd==DT_VIDSTD_2160P50 || VidStd==DT_VIDSTD_2160P50B)
+
             pProps->m_Fps = 50;
         else
             pProps->m_Fps = 60;
 
-        pProps->m_IsFractional = (VidStd==DT_VIDSTD_1080P59_94 ||
-                                                           VidStd==DT_VIDSTD_1080P59_94B);
+        pProps->m_IsFractional = (VidStd==DT_VIDSTD_1080P59_94
+                                                        || VidStd==DT_VIDSTD_1080P59_94B
+                                                        || VidStd==DT_VIDSTD_2160P59_94
+                                                        || VidStd==DT_VIDSTD_2160P59_94B);
         pProps->m_IsInterlaced = FALSE;
         pProps->m_IsHd = TRUE;
 
@@ -239,14 +261,19 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
         pProps->m_Field2ActVidEnd  = 0;
         
         pProps->m_VancNumS = pProps->m_ActVidNumS = 1920*2;
-        if (VidStd==DT_VIDSTD_1080P60 || VidStd==DT_VIDSTD_1080P60B ||
-                            VidStd==DT_VIDSTD_1080P59_94 || VidStd==DT_VIDSTD_1080P59_94B)
+        if (VidStd==DT_VIDSTD_1080P60 || VidStd==DT_VIDSTD_1080P60B
+                         || VidStd==DT_VIDSTD_1080P59_94 || VidStd==DT_VIDSTD_1080P59_94B
+                         || VidStd==DT_VIDSTD_2160P60 || VidStd==DT_VIDSTD_2160P60B
+                         || VidStd==DT_VIDSTD_2160P59_94 || VidStd==DT_VIDSTD_2160P59_94B)
+
         {
             pProps->m_HancNumS = 268*2;
             // Set Sync point
             pProps->m_SyncPointPixelOff = 88;   // Sync point @pixel 88
         }
-        else if (VidStd==DT_VIDSTD_1080P50 || VidStd==DT_VIDSTD_1080P50B)
+        else if (VidStd==DT_VIDSTD_1080P50 || VidStd==DT_VIDSTD_1080P50B 
+                               || VidStd==DT_VIDSTD_2160P50 || VidStd==DT_VIDSTD_2160P50B)
+
         {
             pProps->m_HancNumS = 708*2;
             pProps->m_SyncPointPixelOff = 528;   // Sync point @pixel 528
@@ -258,24 +285,34 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
         pProps->m_SavNumS = 4*2;
         break;
 
+    case DT_VIDSTD_2160P30:
+    case DT_VIDSTD_2160P29_97:
+    case DT_VIDSTD_2160P25:
+    case DT_VIDSTD_2160P24:
+    case DT_VIDSTD_2160P23_98:
     case DT_VIDSTD_1080P30:
     case DT_VIDSTD_1080P29_97:
     case DT_VIDSTD_1080P25:
     case DT_VIDSTD_1080P24:
     case DT_VIDSTD_1080P23_98:
+
         pProps->m_NumLines = 1125;
 
-        if (VidStd==DT_VIDSTD_1080P30 || VidStd==DT_VIDSTD_1080P29_97)
+        if (VidStd==DT_VIDSTD_1080P30 || VidStd==DT_VIDSTD_1080P29_97
+                             || VidStd==DT_VIDSTD_2160P30 || VidStd==DT_VIDSTD_2160P29_97)
             pProps->m_Fps = 30;
-        else if (VidStd==DT_VIDSTD_1080P25)
+        else if (VidStd==DT_VIDSTD_1080P25 || VidStd==DT_VIDSTD_2160P25)
             pProps->m_Fps = 25;
-        else if (VidStd==DT_VIDSTD_1080P24 || VidStd==DT_VIDSTD_1080P23_98)
+        else if (VidStd==DT_VIDSTD_1080P24 || VidStd==DT_VIDSTD_1080P23_98
+                             || VidStd==DT_VIDSTD_2160P24 || VidStd==DT_VIDSTD_2160P23_98)
             pProps->m_Fps = 24;
         else
             DT_ASSERT(1==0);
 
         pProps->m_IsFractional = (VidStd==DT_VIDSTD_1080P29_97 
-                                                         || VidStd==DT_VIDSTD_1080P23_98);
+                                                         || VidStd==DT_VIDSTD_1080P23_98
+                                                         || VidStd==DT_VIDSTD_2160P29_97
+                                                         || VidStd==DT_VIDSTD_2160P23_98);
         pProps->m_IsInterlaced = FALSE;
         pProps->m_IsHd = TRUE;
 
@@ -293,17 +330,19 @@ DtStatus  DtAvGetFrameProps(Int VidStd, DtAvFrameProps*  pProps)
         pProps->m_SwitchingLines[1] = -1;
 
         pProps->m_VancNumS = pProps->m_ActVidNumS = 1920*2;
-        if (VidStd==DT_VIDSTD_1080P30 || VidStd==DT_VIDSTD_1080P29_97)
+        if (VidStd==DT_VIDSTD_1080P30 || VidStd==DT_VIDSTD_1080P29_97
+                             || VidStd==DT_VIDSTD_2160P30 || VidStd==DT_VIDSTD_2160P29_97)
         {
             pProps->m_HancNumS = 268*2;
             pProps->m_SyncPointPixelOff = 88;   // Sync point @pixel 88
         }
-        else if (VidStd == DT_VIDSTD_1080P25)
+        else if (VidStd==DT_VIDSTD_1080P25 || VidStd==DT_VIDSTD_2160P25)
         {
             pProps->m_HancNumS = 708*2;
             pProps->m_SyncPointPixelOff = 528;   // Sync point @pixel 528
         }
-        else if (VidStd==DT_VIDSTD_1080P24 || VidStd==DT_VIDSTD_1080P23_98)
+        else if (VidStd==DT_VIDSTD_1080P24 || VidStd==DT_VIDSTD_1080P23_98
+                             || VidStd==DT_VIDSTD_2160P24 || VidStd==DT_VIDSTD_2160P23_98)
         {
             pProps->m_HancNumS = 818*2;
             pProps->m_SyncPointPixelOff = 638;   // Sync point @pixel 638

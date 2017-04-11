@@ -613,6 +613,17 @@ Int  DtaIoStd2VidStd(Int  Value, Int  SubValue)
     case DT_IOCONFIG_1080PSF25:     return DT_VIDSTD_1080PSF25;
     case DT_IOCONFIG_1080PSF29_97:  return DT_VIDSTD_1080PSF29_97;
     case DT_IOCONFIG_1080PSF30:     return DT_VIDSTD_1080PSF30;
+    case DT_IOCONFIG_2160P23_98:    return DT_VIDSTD_2160P23_98;
+    case DT_IOCONFIG_2160P24:       return DT_VIDSTD_2160P24;
+    case DT_IOCONFIG_2160P25:       return DT_VIDSTD_2160P25;
+    case DT_IOCONFIG_2160P29_97:    return DT_VIDSTD_2160P29_97;
+    case DT_IOCONFIG_2160P30:       return DT_VIDSTD_2160P30;
+    case DT_IOCONFIG_2160P50:       return DT_VIDSTD_2160P50;
+    case DT_IOCONFIG_2160P50B:      return DT_VIDSTD_2160P50B;
+    case DT_IOCONFIG_2160P59_94:    return DT_VIDSTD_2160P59_94;
+    case DT_IOCONFIG_2160P59_94B:   return DT_VIDSTD_2160P59_94B;
+    case DT_IOCONFIG_2160P60:       return DT_VIDSTD_2160P60;
+    case DT_IOCONFIG_2160P60B:      return DT_VIDSTD_2160P60B;
     case DT_IOCONFIG_720P23_98:     return DT_VIDSTD_720P23_98;
     case DT_IOCONFIG_720P24:        return DT_VIDSTD_720P24;
     case DT_IOCONFIG_720P25:        return DT_VIDSTD_720P25;
@@ -639,6 +650,10 @@ Int  DtaVidStd2Fps(Int  VidStd)
     case DT_VIDSTD_1080P59_94B:
     case DT_VIDSTD_1080P60:
     case DT_VIDSTD_1080P60B:
+    case DT_VIDSTD_2160P59_94:
+    case DT_VIDSTD_2160P59_94B:
+    case DT_VIDSTD_2160P60:
+    case DT_VIDSTD_2160P60B:
     case DT_VIDSTD_480P59_94:
     case DT_VIDSTD_525P59_94:
         return 60;
@@ -646,6 +661,8 @@ Int  DtaVidStd2Fps(Int  VidStd)
     case DT_VIDSTD_720P50:
     case DT_VIDSTD_1080P50:
     case DT_VIDSTD_1080P50B:
+    case DT_VIDSTD_2160P50:
+    case DT_VIDSTD_2160P50B:
     case DT_VIDSTD_625P50:
         return 50;
 
@@ -658,6 +675,8 @@ Int  DtaVidStd2Fps(Int  VidStd)
     case DT_VIDSTD_1080PSF29_97:
     case DT_VIDSTD_1080I59_94:
     case DT_VIDSTD_1080I60: 
+    case DT_VIDSTD_2160P29_97:
+    case DT_VIDSTD_2160P30:
         return 30;
 
     case DT_VIDSTD_625I50:
@@ -665,6 +684,7 @@ Int  DtaVidStd2Fps(Int  VidStd)
     case DT_VIDSTD_1080P25:
     case DT_VIDSTD_1080PSF25:
     case DT_VIDSTD_1080I50:
+    case DT_VIDSTD_2160P25:
         return 25;
     
     case DT_VIDSTD_720P23_98:
@@ -673,6 +693,8 @@ Int  DtaVidStd2Fps(Int  VidStd)
     case DT_VIDSTD_1080P23_98:
     case DT_VIDSTD_1080PSF24:
     case DT_VIDSTD_1080PSF23_98:
+    case DT_VIDSTD_2160P23_98:
+    case DT_VIDSTD_2160P24:
         return 24;
 
    default:
@@ -700,6 +722,10 @@ Bool  DtaVidStdIsFractional(Int  VidStd)
     case DT_VIDSTD_1080PSF23_98:
     case DT_VIDSTD_480P59_94:
     case DT_VIDSTD_525P59_94:
+    case DT_VIDSTD_2160P23_98:
+    case DT_VIDSTD_2160P29_97:
+    case DT_VIDSTD_2160P59_94:
+    case DT_VIDSTD_2160P59_94B:
         return TRUE;
     }
     return FALSE;
@@ -759,6 +785,38 @@ Bool  DtaVidStdIs3gSdi(Int  VidStd)
     }
     return FALSE;
 }
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStdIs6gSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtaVidStdIs6gSdi(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_2160P23_98:
+    case DT_VIDSTD_2160P24:
+    case DT_VIDSTD_2160P25:
+    case DT_VIDSTD_2160P29_97:
+    case DT_VIDSTD_2160P30:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStdIs12gSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtaVidStdIs12gSdi(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_2160P50:
+    case DT_VIDSTD_2160P50B:
+    case DT_VIDSTD_2160P59_94:
+    case DT_VIDSTD_2160P59_94B:
+    case DT_VIDSTD_2160P60:
+    case DT_VIDSTD_2160P60B:
+        return TRUE;
+    }
+    return FALSE;
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStdIs3glvlBSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -778,8 +836,9 @@ Bool  DtaVidStdIs3glvlBSdi(Int  VidStd)
 //
 Bool  DtaVidStdIsHdSdi(Int  VidStd)
 {
-    // Not 3G-SDI and also not SD-SDI, than it must be HD-SDI
-    return (!DtaVidStdIs3gSdi(VidStd) && !DtaVidStdIsSdSdi(VidStd));
+    // Not 3G/6G/12G-SDI and also not SD-SDI, than it must be HD-SDI
+    return (!DtaVidStdIs12gSdi(VidStd) && !DtaVidStdIs6gSdi(VidStd) && 
+                                  !DtaVidStdIs3gSdi(VidStd) && !DtaVidStdIsSdSdi(VidStd));
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVidStdIsSdSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -795,3 +854,52 @@ Bool  DtaVidStdIsSdSdi(Int  VidStd)
     return FALSE;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- VidStdName -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+char*  VidStdName(Int VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_1080P50:       return "1080P50";
+    case DT_VIDSTD_1080P50B:      return "1080P50B";
+    case DT_VIDSTD_1080P59_94:    return "1080P59.94";
+    case DT_VIDSTD_1080P59_94B:   return "1080P59.94B";
+    case DT_VIDSTD_1080P60:       return "1080P60";
+    case DT_VIDSTD_1080P60B:      return "1080P60B";
+    case DT_VIDSTD_1080I50:       return "1080I50";
+    case DT_VIDSTD_1080I59_94:    return "1080I59.94";
+    case DT_VIDSTD_1080I60:       return "1080I60";
+    case DT_VIDSTD_1080P23_98:    return "1080P23.98";
+    case DT_VIDSTD_1080P24:       return "1080P24";
+    case DT_VIDSTD_1080P25:       return "1080P25";
+    case DT_VIDSTD_1080P29_97:    return "1080P29.97";
+    case DT_VIDSTD_1080P30:       return "1080P30";
+    case DT_VIDSTD_1080PSF23_98:  return "1080PSF23.98";
+    case DT_VIDSTD_1080PSF24:     return "1080PSF24";
+    case DT_VIDSTD_1080PSF25:     return "1080PSF25";
+    case DT_VIDSTD_1080PSF29_97:  return "1080PSF29.97";
+    case DT_VIDSTD_1080PSF30:     return "1080PSF30";
+    case DT_VIDSTD_2160P23_98:    return "2160P23.98";
+    case DT_VIDSTD_2160P24:       return "2160P24";
+    case DT_VIDSTD_2160P25:       return "2160P25";
+    case DT_VIDSTD_2160P29_97:    return "2160P29.97";
+    case DT_VIDSTD_2160P30:       return "2160P30";
+    case DT_VIDSTD_2160P50:       return "2160P50";
+    case DT_VIDSTD_2160P50B:      return "2160P50B";
+    case DT_VIDSTD_2160P59_94:    return "2160P59.94";
+    case DT_VIDSTD_2160P59_94B:   return "2160P59.94B";
+    case DT_VIDSTD_2160P60:       return "2160P60";
+    case DT_VIDSTD_2160P60B:      return "2160P60B";
+    case DT_VIDSTD_720P23_98:     return "720P23.98";
+    case DT_VIDSTD_720P24:        return "720P24";
+    case DT_VIDSTD_720P25:        return "720P25";
+    case DT_VIDSTD_720P29_97:     return "720P29.97";
+    case DT_VIDSTD_720P30:        return "720P30";
+    case DT_VIDSTD_720P50:        return "720P50";
+    case DT_VIDSTD_720P59_94:     return "720P59.94";
+    case DT_VIDSTD_720P60:        return "720P60";
+    case DT_VIDSTD_525I59_94:     return "525I59.94";
+    case DT_VIDSTD_625I50:        return "625I50";
+    }
+    return "Unknown";
+}

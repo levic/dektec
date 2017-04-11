@@ -492,7 +492,10 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
 
         }
     }
-
+    
+    // Enable hardware. Some boards (DTA-2195) use this to enable power to some devices.
+    DtaRegControl1SetHwEnable(pDvcData->m_pGenRegs, 0x1);
+    DtaRegControl1SetOutputEnable(pDvcData->m_pGenRegs, 0x1);
                 
     // Wait until FPGA is ready
     Status = DtaWaitUntilFpgaIsReady(pDvcData);
@@ -1144,6 +1147,12 @@ DtStatus  DtaDevicePowerDown(DtaDeviceData* pDvcData)
         pDvcData->m_FwRebootPending = FALSE;
         DtaRebootFirmwareCfi(pDvcData, pDvcData->m_FwRebootDelay);
     }
+
+    // Disable hardware
+    DtaRegControl1SetHwEnable(pDvcData->m_pGenRegs, 0);
+    DtaRegControl1SetOutputEnable(pDvcData->m_pGenRegs, 0);
+
+
     // Set power down event
     DtaEventsSet(pDvcData, NULL, DTA_EVENT_TYPE_POWER, DTA_EVENT_VALUE1_POWER_DOWN, 0);
     DtDbgOut(MAX, DTA, "Exit");
@@ -1594,6 +1603,11 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
         InReqSize = sizeof(DtaIoctlGetTable3Input);
         OutReqSize = sizeof(DtaIoctlGetTableOutput);
         break;
+    case DTA_IOCTL_HDMI_TX_CMD:
+        pIoctlStr = "DTA_IOCTL_HDMI_TX_CMD";
+        InReqSize = 0; // Checked later
+        OutReqSize = 0; // Checked later
+        break;
     default:
         Status = DT_STATUS_NOT_SUPPORTED;
         break;
@@ -1623,6 +1637,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
             case DTA_IOCTL_SDIAVRX_CMD:
             case DTA_IOCTL_ENDEC_CMD:
             case DTA_IOCTL_D7PRO_CMD:
+            case DTA_IOCTL_HDMI_TX_CMD:
                 DtDbgOut(ERR, DTA, "%s: Skipping IOCTL because powerdown  occured!",
                                                                                pIoctlStr);
                 return DT_STATUS_POWERDOWN;
@@ -2554,6 +2569,9 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                                   pOutBuf->m_GetTable.m_NumEntries * sizeof(DtTableEntry);
             }
             break;
+        case DTA_IOCTL_HDMI_TX_CMD:
+            Status = DtHdmiTxIoctl(pDvcData, pFile, pIoctl);
+            break;
         default:
             Status = DT_STATUS_NOT_SUPPORTED;
             break;
@@ -2869,7 +2887,7 @@ Bool  DtaDevicePeriodicInt(DtaDeviceData* pDvcData)
         // note: revise code above for crossboard genlock
     }
 
-    //-.-.-.-.-.-.-.-.-.- Failsafe processing and bitrate measurement -.-.-.-.-.-.-.-.-.-.
+    //-.-.-.-.-.-.-.- Failsafe processing, bitrate measurement and others -.-.-.-.-.-.-.-.
 
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {

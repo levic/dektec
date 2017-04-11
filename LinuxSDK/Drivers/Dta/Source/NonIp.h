@@ -224,16 +224,20 @@ struct _DtaNonIpPort
     Bool  m_CapLoopThr;
     // IOPROPS (I/O properties) - Capabilities
     Bool  m_CapMatrix;
+    Bool  m_CapMatrix1;
     Bool  m_CapMatrix2;
     Bool  m_CapVirtual;
     Bool  m_CapGenRefSlave;
     // IOSTD (I/O standard) - Capabilities
+    Bool  m_Cap12GSdi;
     Bool  m_Cap3GSdi;
+    Bool  m_Cap6GSdi;
     Bool  m_CapAsi;
     Bool  m_CapAvEnc;
     Bool  m_CapDemod;
     Bool  m_CapGpsTime;
-    Bool  m_CapHdmi;
+    Bool  m_CapHdmiRx;
+    Bool  m_CapHdmiTx;
     Bool  m_CapHdSdi;
     Bool  m_CapIfAdc;
     Bool  m_CapIp;
@@ -278,6 +282,19 @@ struct _DtaNonIpPort
     Bool  m_Cap1080P59_94B;
     Bool  m_Cap1080P60;
     Bool  m_Cap1080P60B;
+    // IOSTD - SDI (6G-SDI) - Sub capabilities
+    Bool  m_Cap2160P23_98;
+    Bool  m_Cap2160P24;
+    Bool  m_Cap2160P25;
+    Bool  m_Cap2160P29_97;
+    Bool  m_Cap2160P30;
+    // IOSTD - SDI (12G-SDI) - Sub capabilities
+    Bool  m_Cap2160P50;
+    Bool  m_Cap2160P50B;
+    Bool  m_Cap2160P59_94;
+    Bool  m_Cap2160P59_94B;
+    Bool  m_Cap2160P60;
+    Bool  m_Cap2160P60B;
     // RFCLKSEL (RF clock source selection) - Capabilities
     Bool  m_CapRfClkExt;
     Bool  m_CapRfClkInt;
@@ -314,6 +331,7 @@ struct _DtaNonIpPort
     Int  m_AsiSdiDeserItfType;
     Int  m_AsiSdiSerItfType;
     Int  m_AsiSdiSerDelayNsSd, m_AsiSdiSerDelayNsHd, m_AsiSdiSerDelayNs3g;
+    Int  m_AsiSdiSerDelayNs6g, m_AsiSdiSerDelayNs12g;
                                 // Specifies the pipeline delay (in ns) of the serial 
                                 // interface for SDI signals. This delay must be 
                                 // compensated for by the genlock logic to properly align
@@ -379,8 +397,11 @@ struct _DtaNonIpPort
     // SDI-AV-RX API 
     DtaSdiAvRxPort  m_SdiAvRx;
 
-    // HDMI port
-    DtaHdmi  m_Hdmi;
+    // HDMI RX port
+    DtaHdmi  m_HdmiRx;
+
+    // HDMI TX port
+    DtaHdmiTx  m_HdmiTx;
 
     // D7Pro encoder port
     DtaEncD7ProPort  m_EncD7Pro;

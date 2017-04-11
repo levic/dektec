@@ -12,15 +12,15 @@ The Linux SDK consists of:
                   DTA-2107, DTA-2111, DTA-2115, DTA-2131, DTA-2135,
                   DTA-2136, DTA-2137, DTA-2138, DTA-2139, DTA-2142,
                   DTA-2144, DTA-2145, DTA-2152, DTA-2154, DTA-2160,
-                  DTA-2162 and DTA-2174;
+                  DTA-2162, DTA-2174, DTA-2179 and DTA-2180;
  - DtaNw:         Network driver for DTA-160, DTA-2160 and DTA-2162;
  - Dtu:           Linux driver for DTU-205, DTU-215, DTU-225, DTU-234, DTU-235,
-                  DTU-236 and DTU-245;
+                  DTU-236, DTU-238, DTU-245 and DTU-351;
  - DTAPI:         C++ API that wraps the driver calls into an easy-to-use and
                   object-oriented programming interface.
  - DtapiService:  DTAPI daemon (service) that controls demodulator boards (e.g.
-                  DTU-235, DTU-236, DTA-2131, DTA-2135, DTA-2136, DTA-2137
-                  or DTA-2139).
+                  DTU-235, DTU-236, DTU-238, DTA-2131, DTA-2135, DTA-2136, 
+                  DTA-2137 or DTA-2139).
 
 To use the SDK, you first have to compile the Dta, DtaNw and Dtu drivers.
 The DTAPI is provided as precompiled binary without the source code. Please refer

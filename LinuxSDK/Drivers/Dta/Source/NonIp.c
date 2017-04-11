@@ -147,6 +147,7 @@ DtStatus  DtaNonIpInit(
     Int  IoConfig, ParXtra, DefIoStd=-1, OldPropertyNotFoundCounter=0;
     UInt  DmaRegsOffset;
     Bool  HasIc2RfPwrMeas;
+    Bool  CapHdmi;
     
     DtPropertyData*  pPropData = &pDvcData->m_PropData;
     
@@ -179,14 +180,20 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_CapLoopThr = DtPropertiesGetBool(pPropData, "CAP_LOOPTHR",
                                                                  pNonIpPort->m_PortIndex);
     // IOPROPS (I/O properties) - Capabilities
-    pNonIpPort->m_CapMatrix = DtPropertiesGetBool(pPropData, "CAP_MATRIX",
+    pNonIpPort->m_CapMatrix1 = DtPropertiesGetBool(pPropData, "CAP_MATRIX",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapMatrix2 = DtPropertiesGetBool(pPropData, "CAP_MATRIX2",
                                                                  pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapMatrix = pNonIpPort->m_CapMatrix1 || pNonIpPort->m_CapMatrix2;
+
     pNonIpPort->m_CapVirtual = DtPropertiesGetBool(pPropData, "CAP_VIRTUAL",
                                                                  pNonIpPort->m_PortIndex);
     // IOSTD (I/O standard) - Capabilities
+    pNonIpPort->m_Cap12GSdi = DtPropertiesGetBool(pPropData, "CAP_12GSDI",
+                                                                 pNonIpPort->m_PortIndex);
     pNonIpPort->m_Cap3GSdi = DtPropertiesGetBool(pPropData, "CAP_3GSDI",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap6GSdi = DtPropertiesGetBool(pPropData, "CAP_6GSDI",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapAsi = DtPropertiesGetBool(pPropData, "CAP_ASI",
                                                                  pNonIpPort->m_PortIndex);
@@ -196,8 +203,11 @@ DtStatus  DtaNonIpInit(
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapGpsTime = DtPropertiesGetBool(pPropData, "CAP_GPSTIME",
                                                                  pNonIpPort->m_PortIndex);
-    pNonIpPort->m_CapHdmi = DtPropertiesGetBool(pPropData, "CAP_HDMI",
-                                                                 pNonIpPort->m_PortIndex);
+    CapHdmi = DtPropertiesGetBool(pPropData, "CAP_HDMI", pNonIpPort->m_PortIndex);
+    pNonIpPort->m_CapHdmiRx = CapHdmi 
+                                 && (pNonIpPort->m_CapInput || pNonIpPort->m_CapIntInput);
+    pNonIpPort->m_CapHdmiTx = CapHdmi 
+                                 && (pNonIpPort->m_CapOutput || pNonIpPort->m_CapMonitor);
     pNonIpPort->m_CapHdSdi = DtPropertiesGetBool(pPropData, "CAP_HDSDI",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapIfAdc = DtPropertiesGetBool(pPropData, "CAP_IFADC",
@@ -284,6 +294,30 @@ DtStatus  DtaNonIpInit(
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_Cap1080P60B = DtPropertiesGetBool(pPropData, "CAP_1080P60B",
                                                                  pNonIpPort->m_PortIndex);
+     // IOSTD - SDI (6G-SDI) - Sub capabilities
+    pNonIpPort->m_Cap2160P23_98 = DtPropertiesGetBool(pPropData, "CAP_2160P23_98",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap2160P24 = DtPropertiesGetBool(pPropData, "CAP_2160P24",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap2160P25 = DtPropertiesGetBool(pPropData, "CAP_2160P25",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap2160P29_97 = DtPropertiesGetBool(pPropData, "CAP_2160P29_97",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap2160P30 = DtPropertiesGetBool(pPropData, "CAP_2160P30",
+                                                                 pNonIpPort->m_PortIndex);
+    // IOSTD - SDI (12G-SDI) - Sub capabilities
+    pNonIpPort->m_Cap2160P50 = DtPropertiesGetBool(pPropData, "CAP_2160P50",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap2160P50B = DtPropertiesGetBool(pPropData, "CAP_2160P50B",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap2160P59_94 = DtPropertiesGetBool(pPropData, "CAP_2160P59_94",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap2160P59_94B = DtPropertiesGetBool(pPropData, "CAP_2160P59_94B",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap2160P60 = DtPropertiesGetBool(pPropData, "CAP_2160P60",
+                                                                 pNonIpPort->m_PortIndex);
+    pNonIpPort->m_Cap2160P60B = DtPropertiesGetBool(pPropData, "CAP_2160P60B",
+                                                                 pNonIpPort->m_PortIndex);
     // RFCLKSEL (RF clock source selection) - Capabilities
     pNonIpPort->m_CapRfClkExt = DtPropertiesGetBool(pPropData, "CAP_RFCLKEXT",
                                                                  pNonIpPort->m_PortIndex);
@@ -337,7 +371,8 @@ DtStatus  DtaNonIpInit(
 
     // Get ASI/SDI deserialiser interface type
     pNonIpPort->m_AsiSdiDeserItfType = ASI_SDI_DESER_ITF_NONE;
-    if (pNonIpPort->m_CapInput && (pNonIpPort->m_Cap3GSdi || pNonIpPort->m_CapAsi 
+    if (pNonIpPort->m_CapInput && (pNonIpPort->m_Cap12GSdi || pNonIpPort->m_Cap3GSdi 
+                                       || pNonIpPort->m_Cap6GSdi || pNonIpPort->m_CapAsi 
                                        || pNonIpPort->m_CapHdSdi || pNonIpPort->m_CapSdi))
     {
         pNonIpPort->m_AsiSdiDeserItfType = DtPropertiesGetInt(pPropData, 
@@ -346,7 +381,8 @@ DtStatus  DtaNonIpInit(
     
     // Get ASI/SDI serialiser interface type
     pNonIpPort->m_AsiSdiSerItfType = ASI_SDI_SER_ITF_NONE;
-    if (pNonIpPort->m_CapOutput && (pNonIpPort->m_Cap3GSdi || pNonIpPort->m_CapAsi 
+    if (pNonIpPort->m_CapOutput && (pNonIpPort->m_Cap12GSdi || pNonIpPort->m_Cap3GSdi 
+                                       || pNonIpPort->m_Cap6GSdi || pNonIpPort->m_CapAsi 
                                        || pNonIpPort->m_CapHdSdi || pNonIpPort->m_CapSdi))
     {
         pNonIpPort->m_AsiSdiSerItfType = DtPropertiesGetInt(pPropData, 
@@ -356,8 +392,10 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_AsiSdiSerDelayNsSd = pNonIpPort->m_AsiSdiSerDelayNsHd = 
                                                      pNonIpPort->m_AsiSdiSerDelayNs3g = 0;
     if (pNonIpPort->m_AsiSdiSerItfType==ASI_SDI_SER_ITF_FPGA_GS3490
-                          || pNonIpPort->m_AsiSdiSerItfType==ASI_SDI_SER_ITF_GS2962
-                          || pNonIpPort->m_AsiSdiSerItfType==ASI_SDI_SER_ITF_FPGA_LMH0387)
+                     || pNonIpPort->m_AsiSdiSerItfType==ASI_SDI_SER_ITF_GS2962
+                     || pNonIpPort->m_AsiSdiSerItfType==ASI_SDI_SER_ITF_FPGA_LMH0387
+                     || pNonIpPort->m_AsiSdiSerItfType==ASI_SDI_SER_ITF_FPGA_M23145_23528)
+
     {
         if (pNonIpPort->m_CapSdi)
         {
@@ -376,6 +414,18 @@ DtStatus  DtaNonIpInit(
             pNonIpPort->m_AsiSdiSerDelayNs3g = DtPropertiesGetInt(pPropData, 
                                   "ASI_SDI_HW_SER_ITF_DELAY_3G", pNonIpPort->m_PortIndex);
             DT_ASSERT(pNonIpPort->m_AsiSdiSerDelayNs3g >= 0);
+        }
+        if (pNonIpPort->m_Cap6GSdi)
+        {
+            pNonIpPort->m_AsiSdiSerDelayNs6g = DtPropertiesGetInt(pPropData, 
+                                  "ASI_SDI_HW_SER_ITF_DELAY_6G", pNonIpPort->m_PortIndex);
+            DT_ASSERT(pNonIpPort->m_AsiSdiSerDelayNs6g >= 0);
+        }
+        if (pNonIpPort->m_Cap12GSdi)
+        {
+            pNonIpPort->m_AsiSdiSerDelayNs12g = DtPropertiesGetInt(pPropData, 
+                                 "ASI_SDI_HW_SER_ITF_DELAY_12G", pNonIpPort->m_PortIndex);
+            DT_ASSERT(pNonIpPort->m_AsiSdiSerDelayNs12g >= 0);
         }
     }
 
@@ -424,12 +474,12 @@ DtStatus  DtaNonIpInit(
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_INPUT;
             break;
         case DT_IOCONFIG_INTINPUT:
-            DT_ASSERT(pNonIpPort->m_CapInput);
+            DT_ASSERT(pNonIpPort->m_CapIntInput);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INTINPUT;
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_INTINPUT;
             break;
         case DT_IOCONFIG_MONITOR:
-            DT_ASSERT(pNonIpPort->m_CapInput);
+            DT_ASSERT(pNonIpPort->m_CapMonitor);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_MONITOR;
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_MONITOR;
             ParXtra = DtPropertiesGetInt(pPropData, "DEFAULT_PARXTRA0", 
@@ -566,7 +616,7 @@ DtStatus  DtaNonIpInit(
             break;
 
         case DT_IOCONFIG_HDMI:
-            DT_ASSERT(pNonIpPort->m_CapHdmi);
+            DT_ASSERT(pNonIpPort->m_CapHdmiRx || pNonIpPort->m_CapHdmiTx);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDMI;
             break;
 
@@ -599,6 +649,60 @@ DtStatus  DtaNonIpInit(
             DT_ASSERT(pNonIpPort->m_CapSpi);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_SPI;
             break;
+
+        case DT_IOCONFIG_12GSDI:
+            DT_ASSERT(pNonIpPort->m_Cap12GSdi);
+
+            // Select any of the 12G-SDI standards
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_12GSDI;
+            if (pNonIpPort->m_Cap2160P60)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P60;
+            else if (pNonIpPort->m_Cap2160P50)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P50;
+            else if (pNonIpPort->m_Cap2160P59_94)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = 
+                                                                   DT_IOCONFIG_2160P59_94;
+            else if (pNonIpPort->m_Cap2160P50B)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P50B;
+            else if (pNonIpPort->m_Cap2160P59_94B)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = 
+                                                                  DT_IOCONFIG_2160P59_94B;
+            else if (pNonIpPort->m_Cap2160P60B)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P60B;
+            else
+                DT_ASSERT(1==0);
+            break;
+        case DT_IOCONFIG_2160P50:
+            DT_ASSERT(pNonIpPort->m_Cap2160P50);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_12GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P50;
+            break;
+        case DT_IOCONFIG_2160P50B:
+            DT_ASSERT(pNonIpPort->m_Cap2160P50B);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_12GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P50B;
+            break;
+        case DT_IOCONFIG_2160P59_94:
+            DT_ASSERT(pNonIpPort->m_Cap2160P59_94);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_12GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P59_94;
+            break;
+        case DT_IOCONFIG_2160P59_94B:
+            DT_ASSERT(pNonIpPort->m_Cap2160P59_94B);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_12GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P59_94B;
+            break;
+        case DT_IOCONFIG_2160P60:
+            DT_ASSERT(pNonIpPort->m_Cap2160P60);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_12GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P60;
+            break;
+        case DT_IOCONFIG_2160P60B:
+            DT_ASSERT(pNonIpPort->m_Cap2160P60B);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_12GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P60B;
+            break;
+
 
         case DT_IOCONFIG_3GSDI:
             DT_ASSERT(pNonIpPort->m_Cap3GSdi);
@@ -651,6 +755,52 @@ DtStatus  DtaNonIpInit(
             DT_ASSERT(pNonIpPort->m_Cap1080P60B);
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_3GSDI;
             pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P60B;
+            break;
+
+        case DT_IOCONFIG_6GSDI:
+            DT_ASSERT(pNonIpPort->m_Cap6GSdi);
+
+            // Select any of the 6G-SDI standards
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_6GSDI;
+            if (pNonIpPort->m_Cap2160P23_98)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = 
+                                                                   DT_IOCONFIG_2160P23_98;
+            else if (pNonIpPort->m_Cap2160P24)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P24;
+            else if (pNonIpPort->m_Cap2160P25)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P25;
+            else if (pNonIpPort->m_Cap2160P29_97)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = 
+                                                                   DT_IOCONFIG_2160P29_97;
+            else if (pNonIpPort->m_Cap2160P30)
+                pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P30;
+            else
+                DT_ASSERT(1==0);
+            break;
+        case DT_IOCONFIG_2160P23_98:
+            DT_ASSERT(pNonIpPort->m_Cap2160P23_98);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_6GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P23_98;
+            break;
+        case DT_IOCONFIG_2160P24:
+            DT_ASSERT(pNonIpPort->m_Cap2160P24);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_6GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P24;
+            break;
+        case DT_IOCONFIG_2160P25:
+            DT_ASSERT(pNonIpPort->m_Cap2160P25);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_6GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P25;
+            break;
+        case DT_IOCONFIG_2160P29_97:
+            DT_ASSERT(pNonIpPort->m_Cap2160P29_97);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_6GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P29_97;
+            break;
+        case DT_IOCONFIG_2160P30:
+            DT_ASSERT(pNonIpPort->m_Cap2160P30);
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_6GSDI;
+            pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P30;
             break;
 
         case DT_IOCONFIG_HDSDI:
@@ -837,10 +987,20 @@ DtStatus  DtaNonIpInit(
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_ASI;
     else if (pNonIpPort->m_CapAvEnc)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_AVENC;
+    else if (pNonIpPort->m_Cap12GSdi && pNonIpPort->m_Cap2160P60)
+    {
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_12GSDI;
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P60;
+    }
     else if (pNonIpPort->m_Cap3GSdi && pNonIpPort->m_Cap1080P50)
     {
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_3GSDI;
-        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P50;
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_1080P60;
+    }
+    else if (pNonIpPort->m_Cap6GSdi && pNonIpPort->m_Cap2160P30)
+    {
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_6GSDI;
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue = DT_IOCONFIG_2160P30;
     }
     else if (pNonIpPort->m_CapHdSdi && pNonIpPort->m_Cap1080I50)
     {
@@ -851,7 +1011,7 @@ DtStatus  DtaNonIpInit(
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_DEMOD;
     else if (pNonIpPort->m_CapGpsTime)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_GPSTIME;
-    else if (pNonIpPort->m_CapHdmi)
+    else if (pNonIpPort->m_CapHdmiRx || pNonIpPort->m_CapHdmiTx)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_HDMI;
     else if (pNonIpPort->m_CapIfAdc)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value = DT_IOCONFIG_IFADC;
@@ -985,8 +1145,9 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_pRfRegs = NULL;
     pNonIpPort->m_pRxRegs = NULL;
     pNonIpPort->m_pTxRegs = NULL;
-    if (pNonIpPort->m_CapInput)
+    if (pNonIpPort->m_CapInput || pNonIpPort->m_CapMatrix)
     {
+        // NOTE: matrix channels use both m_pTxRegs and m_pRxRegs     
         pNonIpPort->m_RxRegsOffset = DtPropertiesGetUInt16(pPropData,
                                                  "REGISTERS_RX", pNonIpPort->m_PortIndex);
 
@@ -997,8 +1158,9 @@ DtStatus  DtaNonIpInit(
             pNonIpPort->m_FifoOffset = pNonIpPort->m_RxRegsOffset+DTA_LOCALADDR_FIFODATA;
     } else
         pNonIpPort->m_RxRegsOffset = (UInt16)-1;
-    if (pNonIpPort->m_CapOutput)
+    if (pNonIpPort->m_CapOutput || pNonIpPort->m_CapMatrix) // TODOTD check this
     {
+        // NOTE: matrix channels use both m_pTxRegs and m_pRxRegs    
         pNonIpPort->m_TxRegsOffset = DtPropertiesGetUInt16(pPropData,
                                                  "REGISTERS_TX", pNonIpPort->m_PortIndex);
         // NOTE: matrix channels use a different offset for the local DMA address
@@ -1031,7 +1193,7 @@ DtStatus  DtaNonIpInit(
     } else
         pNonIpPort->m_Rs422RegsOffset = (UInt16)-1;
     
-    if (pNonIpPort->m_CapSdiRx || pNonIpPort->m_CapHdmi || pNonIpPort->m_CapAvEnc)
+    if (pNonIpPort->m_CapSdiRx || pNonIpPort->m_CapHdmiRx || pNonIpPort->m_CapAvEnc)
     {
         pNonIpPort->m_FwbRegsOffset = DtPropertiesGetUInt16(pPropData,
                                                 "REGISTERS_FWB", pNonIpPort->m_PortIndex);
@@ -1115,14 +1277,20 @@ DtStatus  DtaNonIpInit(
             return Status;
     }
 
-    // HDMI port initialization
-    if (pNonIpPort->m_CapHdmi)
+    // HDMI RX port initialization
+    if (pNonIpPort->m_CapHdmiRx)
     {
         Status = DtaNonIpHdmiInit(pNonIpPort);
         if (!DT_SUCCESS(Status))
             return Status;
     }
-
+    // HDMI TX port initialization
+    if (pNonIpPort->m_CapHdmiTx)
+    {
+        Status = DtHdmiTxInit(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
     // Audio video encoder port initialization
     if (pNonIpPort->m_CapAvEnc)
     {
@@ -1175,10 +1343,13 @@ DtStatus  DtaNonIpInterruptEnable(DtaNonIpPort* pNonIpPort)
     if (pNonIpPort->m_CapSdiRx)
         DT_RETURN_ON_ERROR(DtaNonIpSdiAvRxInterruptEnable(pNonIpPort));
 
-    // Enable HDMI specific interrupts
-    if (pNonIpPort->m_CapHdmi)
+    // Enable HDMI RX specific interrupts
+    if (pNonIpPort->m_CapHdmiRx)
         DT_RETURN_ON_ERROR(DtaNonIpHdmiInterruptEnable(pNonIpPort));
 
+    // Enable HDMI TX specific interrupt
+    if (pNonIpPort->m_CapHdmiTx)
+         DT_RETURN_ON_ERROR(DtHdmiTxInterruptEnable(pNonIpPort));
     return DT_STATUS_OK;
 }
 
@@ -1210,10 +1381,13 @@ DtStatus  DtaNonIpInterruptDisable(DtaNonIpPort* pNonIpPort)
     if (pNonIpPort->m_CapSdiRx)
         DT_RETURN_ON_ERROR(DtaNonIpSdiAvRxInterruptDisable(pNonIpPort));
 
-    // Disable HDMI specific interrupts
-    if (pNonIpPort->m_CapHdmi)
+    // Disable HDMI RX specific interrupts
+    if (pNonIpPort->m_CapHdmiRx)
         DT_RETURN_ON_ERROR(DtaNonIpHdmiInterruptDisable(pNonIpPort));
 
+    // Disbable HDMI TX specific interrupt
+    if (pNonIpPort->m_CapHdmiTx)
+         DT_RETURN_ON_ERROR(DtHdmiTxInterruptDisable(pNonIpPort));
     return DT_STATUS_OK;
 }
 
@@ -1238,8 +1412,11 @@ Bool  DtaNonIpInterrupt(DtaNonIpPort* pNonIpPort)
     if (pNonIpPort->m_CapSdiRx)
         IrqHandled |= DtaSdiAvRxInterrupt(pNonIpPort);
     
-    if (pNonIpPort->m_CapHdmi)
+    if (pNonIpPort->m_CapHdmiRx)
         IrqHandled |= DtaNonIpHdmiInterrupt(pNonIpPort);
+
+    if (pNonIpPort->m_CapHdmiTx)
+        IrqHandled |= DtHdmiTxInterrupt(pNonIpPort);
 
     if (pNonIpPort->m_CapAvEnc)
         IrqHandled |= DtaEncD7proInterrupt(pNonIpPort);
@@ -1404,14 +1581,21 @@ DtStatus  DtaNonIpPowerup(DtaNonIpPort* pNonIpPort)
             return Status;
     }
 
-    // HDMI power-up initialisation
-    if (pNonIpPort->m_CapHdmi)
+    // HDMI RX power-up initialisation
+    if (pNonIpPort->m_CapHdmiRx)
     {
         Status = DtaNonIpHdmiInitPowerup(pNonIpPort);
         if (!DT_SUCCESS(Status))
             return Status;
     }
     
+    // HDMI TX power-up initialisation
+    if (pNonIpPort->m_CapHdmiTx)
+    {
+        Status = DtHdmiTxInitPowerUp(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
     // Encoder/decoder power-up
     if (pNonIpPort->m_CapAvEnc)
     {
@@ -1455,13 +1639,18 @@ DtStatus  DtaNonIpPowerUpPost(DtaNonIpPort* pNonIpPort)
             return Status;
     }
 
-    if (pNonIpPort->m_CapHdmi)
+    if (pNonIpPort->m_CapHdmiRx)
     {
         Status = DtaNonIpHdmiInitPowerUpPost(pNonIpPort);
         if (!DT_SUCCESS(Status))
             return Status;
     }
-
+    if (pNonIpPort->m_CapHdmiTx)
+    {
+        Status = DtHdmiTxInitPowerUpPost(pNonIpPort);
+        if (!DT_SUCCESS(Status))
+            return Status;
+    }
     if (pNonIpPort->m_CapAvEnc)
     {
         Status = DtaEnDecPowerUpPost(pNonIpPort);
@@ -2084,7 +2273,7 @@ DtStatus  DtaNonIpDetectVidStd(
     // Port must be configured as an input except for HDMI and SDI-RX ports
     if ((pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value!=DT_IOCONFIG_INPUT || 
                      pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue!=DT_IOCONFIG_INPUT)
-                     && !pNonIpPort->m_CapHdmi && !pNonIpPort->m_CapSdiRx)
+                     && !pNonIpPort->m_CapHdmiRx && !pNonIpPort->m_CapSdiRx)
     {
         DtDbgOut(ERR, NONIP, "Port %d is not configured as input", 
                                                                pNonIpPort->m_PortIndex+1);
@@ -2101,7 +2290,7 @@ DtStatus  DtaNonIpDetectVidStd(
     }
     else if (pNonIpPort->m_CapSdiRx)
         return DtaNonIpSdiAvRxDetectVidStd(pNonIpPort, pVidStd, pVpid, pVpid2);
-    else if (pNonIpPort->m_CapHdmi)
+    else if (pNonIpPort->m_CapHdmiRx)
         return DtaNonIpHdmiDetectVidStd(pNonIpPort, pVidStd, pAspectRatio);
     else
     {
@@ -2135,7 +2324,7 @@ DtStatus  DtaNonIpGetAudioStatus2(
     DT_ASSERT(pNonIpPort != NULL);
     if (pNonIpPort->m_CapSdiRx)
         return DtaNonIpSdiAvRxGetAudioStatus2(pNonIpPort, pOut);
-    else if (pNonIpPort->m_CapHdmi)
+    else if (pNonIpPort->m_CapHdmiRx)
         return DtaNonIpHdmiGetAudioStatus2(pNonIpPort, pOut);
     else
     {
@@ -2144,7 +2333,6 @@ DtStatus  DtaNonIpGetAudioStatus2(
         return DT_STATUS_NOT_SUPPORTED;  
     }
 }
-
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ GENREF properties +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -2556,8 +2744,11 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
 {
     DtStatus  Status = DT_STATUS_OK;
     Bool  ForceConfig=FALSE, IsSdiIoConfig=FALSE, IsTheGenref=FALSE;
+    DtaDeviceData*  pDvcData = pNonIpPort->m_pDvcData;
     DtaIoConfigValue  OldCfgValue = pNonIpPort->m_IoCfg[Group];
     DtaIoConfigValue  IoDirValue;
+    Int i;
+
     DtaNonIpIoConfigGet(pNonIpPort, DT_IOCONFIG_IODIR, &IoDirValue);
 
     switch (CfgValue.m_Value)
@@ -2577,11 +2768,34 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
             Status =  DtaNonIpMatrixConfigure(pNonIpPort, ForceConfig);
             // Restore original config, if failed to apply new one
             if (!DT_SUCCESS(Status))
-                pNonIpPort->m_IoCfg[Group] = OldCfgValue;   
+                pNonIpPort->m_IoCfg[Group] = OldCfgValue;
 
+            // Switch off HDMI monitor ports
+            for (i=0; i<pDvcData->m_NumNonIpPorts && DT_SUCCESS(Status); i++)
+            {
+                DtaNonIpPort* pOtherNonIpPort = &pDvcData->m_pNonIpPorts[i];
+
+                // Skip this port
+                if (pOtherNonIpPort->m_PortIndex == pNonIpPort->m_PortIndex)
+                    continue;
+                    
+                if (   pOtherNonIpPort->m_CapMonitor
+                    && pOtherNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue
+                                                                     ==DT_IOCONFIG_MONITOR
+                    && pOtherNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_ParXtra[0]
+                                                                ==pNonIpPort->m_PortIndex)
+                {
+                    // Monitor output is associated to the configured port
+                    if (pOtherNonIpPort->m_CapHdmiTx)
+                    {
+                        DtaHdmiVidStd NewVidStd = {DT_VIDSTD_TS ,DTA_AR_UNKNOWN};
+                        Status = DtHdmiTxUpdateVidStd(pOtherNonIpPort, NewVidStd, FALSE);
+                    }
+                }
+            }
             break;
         }
-        
+
         // "Normal ASI" ports
         if (IoDirValue.m_Value == DT_IOCONFIG_OUTPUT)
             DtaRegTxCtrlSetSdiMode(pNonIpPort->m_pTxRegs, 0);
@@ -2589,41 +2803,56 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
             DtaRegRxCtrlSetSdiMode(pNonIpPort->m_pRxRegs, 0);
         break;
 
+    case DT_IOCONFIG_12GSDI:
+    case DT_IOCONFIG_6GSDI:
     case DT_IOCONFIG_3GSDI:
-        DT_ASSERT(pNonIpPort->m_Cap3GSdi);
-        IsSdiIoConfig = TRUE;
-
-        if (!pNonIpPort->m_CapMatrix)
-            break;  // Nothing to do for none matrix ports
-
-        // Force a reconfig if IOSTD was not already 3G-SDI
-        ForceConfig = (OldCfgValue.m_Value != DT_IOCONFIG_3GSDI);
-
-        // Save new config, before apply-ing
-        pNonIpPort->m_IoCfg[Group] = CfgValue;
-        Status =  DtaNonIpMatrixConfigure(pNonIpPort, ForceConfig);
-        // Restore original config, if failed to apply new one
-        if (!DT_SUCCESS(Status))
-            pNonIpPort->m_IoCfg[Group] = OldCfgValue;   
-        break;
-
     case DT_IOCONFIG_HDSDI:
-        DT_ASSERT(pNonIpPort->m_CapHdSdi);
+        DT_ASSERT(pNonIpPort->m_CapHdSdi || pNonIpPort->m_Cap3GSdi ||
+                                       pNonIpPort->m_Cap6GSdi || pNonIpPort->m_Cap12GSdi);
         IsSdiIoConfig = TRUE;
-        
+
         if (!pNonIpPort->m_CapMatrix)
             break;  // Nothing to do for none matrix ports
-        
-        // Force a reconfig if IOSTD was not already HD-SDI
-        ForceConfig = (OldCfgValue.m_Value != DT_IOCONFIG_HDSDI);
 
+        // Force a reconfig if IOSTD was not already the SDI standard
+        ForceConfig = (OldCfgValue.m_Value != CfgValue.m_Value);
         // Save new config, before apply-ing
         pNonIpPort->m_IoCfg[Group] = CfgValue;
         Status =  DtaNonIpMatrixConfigure(pNonIpPort, ForceConfig);
         // Restore original config, if failed to apply new one
         if (!DT_SUCCESS(Status))
             pNonIpPort->m_IoCfg[Group] = OldCfgValue;   
+        else
+        {
+            // Update all associated monitor outputs; default use 16:9 
+            DtaHdmiVidStd NewVidStd;
+            NewVidStd.m_AspectRatio = DTA_AR_16_9;
+            NewVidStd.m_VidStd = 
+                           DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value,
+                                       pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
+
+            for (i=0; i<pDvcData->m_NumNonIpPorts && DT_SUCCESS(Status); i++)
+            {
+                DtaNonIpPort* pOtherNonIpPort = &pDvcData->m_pNonIpPorts[i];
+
+                // Skip this port
+                if (pOtherNonIpPort->m_PortIndex == pNonIpPort->m_PortIndex)
+                    continue;
+                    
+                if (   pOtherNonIpPort->m_CapMonitor
+                    && pOtherNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue
+                                                                     ==DT_IOCONFIG_MONITOR
+                    && pOtherNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_ParXtra[0]
+                                                                ==pNonIpPort->m_PortIndex)
+                {
+                    // Monitor output is associated to the configured port
+                    if (pOtherNonIpPort->m_CapHdmiTx)
+                        Status = DtHdmiTxUpdateVidStd(pOtherNonIpPort, NewVidStd, FALSE);
+                }
+            }
+        }
         break;
+
 
     case DT_IOCONFIG_SDI:
         DT_ASSERT(pNonIpPort->m_CapSdi);
@@ -2640,6 +2869,36 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
             // Restore original config, if failed to apply new one
             if (!DT_SUCCESS(Status))
                 pNonIpPort->m_IoCfg[Group] = OldCfgValue;   
+            else
+            {
+                // Update all associated monitor outputs; default use 16:9 
+                DtaHdmiVidStd NewVidStd;
+                NewVidStd.m_AspectRatio = DTA_AR_16_9;
+                NewVidStd.m_VidStd = 
+                           DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value,
+                                       pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
+
+                for (i=0; i<pDvcData->m_NumNonIpPorts && DT_SUCCESS(Status); i++)
+                {
+                    DtaNonIpPort* pOtherNonIpPort = &pDvcData->m_pNonIpPorts[i];
+
+                    // Skip this port
+                    if (pOtherNonIpPort->m_PortIndex == pNonIpPort->m_PortIndex)
+                        continue;
+                    
+                    if (   pOtherNonIpPort->m_CapMonitor
+                        && pOtherNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_SubValue
+                                                                     ==DT_IOCONFIG_MONITOR
+                        && pOtherNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_ParXtra[0]
+                                                                ==pNonIpPort->m_PortIndex)
+                    {
+                        // Monitor output is associated to the configured port
+                        if (pOtherNonIpPort->m_CapHdmiTx)
+                            Status = DtHdmiTxUpdateVidStd(pOtherNonIpPort, NewVidStd,
+                                                                                   FALSE);
+                    }
+                }
+            }
             break;
         }
         if (pNonIpPort->m_IsNonFuntional)
@@ -3190,7 +3449,7 @@ DtStatus  DtaNonIpReleaseResourceFromFileObject(
 //
 DtStatus  DtaNonIpPowerdownPre(DtaNonIpPort* pNonIpPort)
 {
-    if (pNonIpPort->m_CapHdmi)
+    if (pNonIpPort->m_CapHdmiRx)
         DtaNonIpHdmiPowerdownPre(pNonIpPort);
     
     if (pNonIpPort->m_CapAvEnc)
@@ -3205,6 +3464,10 @@ DtStatus  DtaNonIpPowerdownPre(DtaNonIpPort* pNonIpPort)
 //
 void  DtaNonIpPowerdown(DtaNonIpPort* pNonIpPort)
 {
+    // ... todo: MATRIX??
+    // prevent crash....
+    if (pNonIpPort->m_CapHdmiTx)
+        DtHdmiTxPowerDown(pNonIpPort);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpEstimateRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -3326,21 +3589,21 @@ Bool  DtaNonIpIsVidStdSupported(DtaNonIpPort* pNonIpPort, Int  VidStd)
 {
     switch (VidStd)
     {
-    case DT_VIDSTD_525I59_94:  return pNonIpPort->m_Cap525I59_94;
-    case DT_VIDSTD_625I50:     return pNonIpPort->m_Cap625I50;
-    case DT_VIDSTD_720P23_98:  return pNonIpPort->m_Cap720P23_98;
-    case DT_VIDSTD_720P24:     return pNonIpPort->m_Cap720P24;
-    case DT_VIDSTD_720P25:     return pNonIpPort->m_Cap720P25;
-    case DT_VIDSTD_720P29_97:  return pNonIpPort->m_Cap720P29_97;
-    case DT_VIDSTD_720P30:     return pNonIpPort->m_Cap720P30;
-    case DT_VIDSTD_720P50:     return pNonIpPort->m_Cap720P50;
-    case DT_VIDSTD_720P59_94:  return pNonIpPort->m_Cap720P59_94;
-    case DT_VIDSTD_720P60:     return pNonIpPort->m_Cap720P60;
-    case DT_VIDSTD_1080P23_98: return pNonIpPort->m_Cap1080P23_98;
-    case DT_VIDSTD_1080P24:    return pNonIpPort->m_Cap1080P24;
-    case DT_VIDSTD_1080P25:    return pNonIpPort->m_Cap1080P25;
-    case DT_VIDSTD_1080P29_97: return pNonIpPort->m_Cap1080P29_97;
-    case DT_VIDSTD_1080P30:    return pNonIpPort->m_Cap1080P30;
+    case DT_VIDSTD_525I59_94:    return pNonIpPort->m_Cap525I59_94;
+    case DT_VIDSTD_625I50:       return pNonIpPort->m_Cap625I50;
+    case DT_VIDSTD_720P23_98:    return pNonIpPort->m_Cap720P23_98;
+    case DT_VIDSTD_720P24:       return pNonIpPort->m_Cap720P24;
+    case DT_VIDSTD_720P25:       return pNonIpPort->m_Cap720P25;
+    case DT_VIDSTD_720P29_97:    return pNonIpPort->m_Cap720P29_97;
+    case DT_VIDSTD_720P30:       return pNonIpPort->m_Cap720P30;
+    case DT_VIDSTD_720P50:       return pNonIpPort->m_Cap720P50;
+    case DT_VIDSTD_720P59_94:    return pNonIpPort->m_Cap720P59_94;
+    case DT_VIDSTD_720P60:       return pNonIpPort->m_Cap720P60;
+    case DT_VIDSTD_1080P23_98:   return pNonIpPort->m_Cap1080P23_98;
+    case DT_VIDSTD_1080P24:      return pNonIpPort->m_Cap1080P24;
+    case DT_VIDSTD_1080P25:      return pNonIpPort->m_Cap1080P25;
+    case DT_VIDSTD_1080P29_97:   return pNonIpPort->m_Cap1080P29_97;
+    case DT_VIDSTD_1080P30:      return pNonIpPort->m_Cap1080P30;
     case DT_VIDSTD_1080PSF23_98: return pNonIpPort->m_Cap1080Psf23_98;
     case DT_VIDSTD_1080PSF24:    return pNonIpPort->m_Cap1080Psf24;
     case DT_VIDSTD_1080PSF25:    return pNonIpPort->m_Cap1080Psf25;
@@ -3350,11 +3613,22 @@ Bool  DtaNonIpIsVidStdSupported(DtaNonIpPort* pNonIpPort, Int  VidStd)
     case DT_VIDSTD_1080P50B:     return pNonIpPort->m_Cap1080P50B;
     case DT_VIDSTD_1080P59_94:   return pNonIpPort->m_Cap1080P59_94;
     case DT_VIDSTD_1080P59_94B:  return pNonIpPort->m_Cap1080P59_94B;
-    case DT_VIDSTD_1080P60:    return pNonIpPort->m_Cap1080P60;
-    case DT_VIDSTD_1080P60B:   return pNonIpPort->m_Cap1080P60B;
-    case DT_VIDSTD_1080I50:    return pNonIpPort->m_Cap1080I50;
-    case DT_VIDSTD_1080I59_94: return pNonIpPort->m_Cap1080I59_94;
-    case DT_VIDSTD_1080I60:    return pNonIpPort->m_Cap1080I60;
+    case DT_VIDSTD_1080P60:      return pNonIpPort->m_Cap1080P60;
+    case DT_VIDSTD_1080P60B:     return pNonIpPort->m_Cap1080P60B;
+    case DT_VIDSTD_1080I50:      return pNonIpPort->m_Cap1080I50;
+    case DT_VIDSTD_1080I59_94:   return pNonIpPort->m_Cap1080I59_94;
+    case DT_VIDSTD_1080I60:      return pNonIpPort->m_Cap1080I60;
+    case DT_VIDSTD_2160P23_98:   return pNonIpPort->m_Cap2160P23_98;
+    case DT_VIDSTD_2160P24:      return pNonIpPort->m_Cap2160P24;
+    case DT_VIDSTD_2160P25:      return pNonIpPort->m_Cap2160P25;
+    case DT_VIDSTD_2160P29_97:   return pNonIpPort->m_Cap2160P29_97;
+    case DT_VIDSTD_2160P30:      return pNonIpPort->m_Cap2160P30;
+    case DT_VIDSTD_2160P50:      return pNonIpPort->m_Cap2160P50;
+    case DT_VIDSTD_2160P50B:     return pNonIpPort->m_Cap2160P50B;
+    case DT_VIDSTD_2160P59_94:   return pNonIpPort->m_Cap2160P59_94;
+    case DT_VIDSTD_2160P59_94B:  return pNonIpPort->m_Cap2160P59_94B;
+    case DT_VIDSTD_2160P60:      return pNonIpPort->m_Cap2160P60;
+    case DT_VIDSTD_2160P60B:     return pNonIpPort->m_Cap2160P60B;
 
     default:        
         DT_ASSERT(1 == 0);  // should never come here

@@ -294,6 +294,17 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
     case DT_VIDSTD_1080P25:     DT_ASSERT(pNonIpPort->m_Cap1080P25); break;
     case DT_VIDSTD_1080P29_97:  DT_ASSERT(pNonIpPort->m_Cap1080P29_97); break;
     case DT_VIDSTD_1080P30:     DT_ASSERT(pNonIpPort->m_Cap1080P30); break;
+    case DT_VIDSTD_2160P23_98:  DT_ASSERT(pNonIpPort->m_Cap2160P23_98); break;
+    case DT_VIDSTD_2160P24:     DT_ASSERT(pNonIpPort->m_Cap2160P24); break;
+    case DT_VIDSTD_2160P25:     DT_ASSERT(pNonIpPort->m_Cap2160P25); break;
+    case DT_VIDSTD_2160P29_97:  DT_ASSERT(pNonIpPort->m_Cap2160P29_97); break;
+    case DT_VIDSTD_2160P30:     DT_ASSERT(pNonIpPort->m_Cap2160P30); break;
+    case DT_VIDSTD_2160P50:     DT_ASSERT(pNonIpPort->m_Cap2160P50); break;
+    case DT_VIDSTD_2160P50B:    DT_ASSERT(pNonIpPort->m_Cap2160P50B); break;
+    case DT_VIDSTD_2160P59_94:  DT_ASSERT(pNonIpPort->m_Cap2160P59_94); break;
+    case DT_VIDSTD_2160P59_94B: DT_ASSERT(pNonIpPort->m_Cap2160P59_94B); break;
+    case DT_VIDSTD_2160P60:     DT_ASSERT(pNonIpPort->m_Cap2160P60); break;
+    case DT_VIDSTD_2160P60B:    DT_ASSERT(pNonIpPort->m_Cap2160P60B); break;
     case DT_VIDSTD_720P23_98:   DT_ASSERT(pNonIpPort->m_Cap720P23_98); break;
     case DT_VIDSTD_720P24:      DT_ASSERT(pNonIpPort->m_Cap720P24); break;
     case DT_VIDSTD_720P25:      DT_ASSERT(pNonIpPort->m_Cap720P25); break;

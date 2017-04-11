@@ -222,7 +222,7 @@ static const UInt8 EDID_Block[256] = {
 //
 DtStatus  DtaNonIpHdmiInit(DtaNonIpPort* pNonIpPort)
 {
-    DtaHdmi*  pHdmi = &pNonIpPort->m_Hdmi;
+    DtaHdmi*  pHdmi = &pNonIpPort->m_HdmiRx;
 
     pHdmi->m_pFwbHdmiAdv7610Ctrl = &FwbHdmiAdv7610AudioSrc.HdmiAdv7610Ctrl;
 
@@ -234,7 +234,7 @@ DtStatus  DtaNonIpHdmiInit(DtaNonIpPort* pNonIpPort)
     // Init controller thread
     DtThreadInit(&pHdmi->m_ControlThread, DtaHdmiControllerThread, pNonIpPort);
 
-    DtaHdmiClearStatus(&pNonIpPort->m_Hdmi.m_Status);
+    DtaHdmiClearStatus(&pNonIpPort->m_HdmiRx.m_Status);
 
     DtEventInit(&pHdmi->m_IntEvent, TRUE);
 
@@ -247,7 +247,7 @@ DtStatus  DtaNonIpHdmiInit(DtaNonIpPort* pNonIpPort)
 //
 DtStatus  DtaNonIpHdmiInitPowerup(DtaNonIpPort* pNonIpPort)
 {
-    DT_RETURN_ON_ERROR(DtaI2cmInitPowerup(&pNonIpPort->m_Hdmi.m_I2c,
+    DT_RETURN_ON_ERROR(DtaI2cmInitPowerup(&pNonIpPort->m_HdmiRx.m_I2c,
                                                                  pNonIpPort->m_pFwbRegs));
 
     return DT_STATUS_OK;
@@ -257,23 +257,23 @@ DtStatus  DtaNonIpHdmiInitPowerup(DtaNonIpPort* pNonIpPort)
 //
 DtStatus  DtaNonIpHdmiInitPowerUpPost(DtaNonIpPort* pNonIpPort)
 {
-    return DtThreadStart(&pNonIpPort->m_Hdmi.m_ControlThread);
+    return DtThreadStart(&pNonIpPort->m_HdmiRx.m_ControlThread);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpHdmiPowerdownPre -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtaNonIpHdmiPowerdownPre(DtaNonIpPort* pNonIpPort)
 {
-    return DtThreadStop(&pNonIpPort->m_Hdmi.m_ControlThread);
+    return DtThreadStop(&pNonIpPort->m_HdmiRx.m_ControlThread);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpHdmiInterruptEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtaNonIpHdmiInterruptEnable(DtaNonIpPort* pNonIpPort)
 {
-    DT_ASSERT(pNonIpPort->m_CapHdmi);
+    DT_ASSERT(pNonIpPort->m_CapHdmiRx);
 
-    DT_RETURN_ON_ERROR(DtaI2cmInterruptEnable(&pNonIpPort->m_Hdmi.m_I2c));
+    DT_RETURN_ON_ERROR(DtaI2cmInterruptEnable(&pNonIpPort->m_HdmiRx.m_I2c));
 
     return DT_STATUS_OK;
 }
@@ -282,9 +282,9 @@ DtStatus  DtaNonIpHdmiInterruptEnable(DtaNonIpPort* pNonIpPort)
 //
 DtStatus  DtaNonIpHdmiInterruptDisable(DtaNonIpPort* pNonIpPort)
 {
-    DT_ASSERT(pNonIpPort->m_CapHdmi);
+    DT_ASSERT(pNonIpPort->m_CapHdmiRx);
 
-    DT_RETURN_ON_ERROR(DtaI2cmInterruptDisable(&pNonIpPort->m_Hdmi.m_I2c));
+    DT_RETURN_ON_ERROR(DtaI2cmInterruptDisable(&pNonIpPort->m_HdmiRx.m_I2c));
 
     return DT_STATUS_OK;
 }
@@ -293,10 +293,10 @@ DtStatus  DtaNonIpHdmiInterruptDisable(DtaNonIpPort* pNonIpPort)
 //
 Bool  DtaNonIpHdmiInterrupt(DtaNonIpPort*  pNonIpPort)
 {
-    DtaHdmi*  pHdmi = &pNonIpPort->m_Hdmi;
+    DtaHdmi*  pHdmi = &pNonIpPort->m_HdmiRx;
     Bool  IrqHandled = FALSE;
 
-    IrqHandled |= DtaI2cmInterrupt(&pNonIpPort->m_Hdmi.m_I2c);
+    IrqHandled |= DtaI2cmInterrupt(&pNonIpPort->m_HdmiRx.m_I2c);
 
     if (DtaFwbRegRead(pNonIpPort->m_pFwbRegs,
                                     &pHdmi->m_pFwbHdmiAdv7610Ctrl->Status_IntStatus) == 1)
@@ -318,7 +318,7 @@ void  DtaHdmiControllerThread(DtThread* pThread, void* pContext)
 {
     DtStatus  Status = DT_STATUS_OK;
     DtaNonIpPort* pNonIpPort = (DtaNonIpPort*)pContext;
-    DtaHdmi*  pHdmi = &pNonIpPort->m_Hdmi;
+    DtaHdmi*  pHdmi = &pNonIpPort->m_HdmiRx;
     Bool  ConfigForHd = TRUE;
 
     DtDbgOut(MAX, HDMI, "Thread begin");
@@ -735,7 +735,7 @@ void  DtaHdmiControllerThread(DtThread* pThread, void* pContext)
 void  DtaHdmiHandleIntDpc(DtDpcArgs* pArgs)
 {
     DtaNonIpPort*  pNonIpPort = (DtaNonIpPort*)pArgs->m_pContext;
-    DtaHdmi*  pHdmi = &pNonIpPort->m_Hdmi;
+    DtaHdmi*  pHdmi = &pNonIpPort->m_HdmiRx;
     DtDbgOut(MAX, HDMI, "HDMI interrupt processed");
     DtEventSet(&pHdmi->m_IntEvent);
 }
@@ -793,7 +793,7 @@ DtStatus  DtaHdmiConfigForHd(DtaHdmi*  pHdmi)
 DtStatus  DtaNonIpHdmiSetNewVidStdCb(DtaNonIpPort* pNonIpPort,
                                        pDtaEnDecNewInputVidStd Cb, DtaNonIpPort* pPortCb)
 {
-    DtaHdmi*  pHdmi = &pNonIpPort->m_Hdmi;
+    DtaHdmi*  pHdmi = &pNonIpPort->m_HdmiRx;
     pHdmi->m_NewVidStdCb = Cb;
     pHdmi->m_pPortCb = pPortCb;
     return DT_STATUS_OK;
@@ -847,11 +847,11 @@ DtStatus  DtaNonIpHdmiDetectVidStd(
     DtaHdmi*  pHdmi;
     
     DT_ASSERT(pNonIpPort!=NULL && pVidStd!=NULL);
-    DT_ASSERT(pNonIpPort->m_CapHdmi);
+    DT_ASSERT(pNonIpPort->m_CapHdmiRx);
 
-    pHdmi = &pNonIpPort->m_Hdmi;
+    pHdmi = &pNonIpPort->m_HdmiRx;
     
-    if (DtMutexAcquire(&pNonIpPort->m_Hdmi.m_StatusLock, 100) != DT_STATUS_OK)
+    if (DtMutexAcquire(&pNonIpPort->m_HdmiRx.m_StatusLock, 100) != DT_STATUS_OK)
         return DT_STATUS_TIMEOUT;
     Status = DtaHdmiDoDetectVidStd(&pHdmi->m_Status, pVidStd);
 
@@ -887,12 +887,12 @@ DtStatus  DtaNonIpHdmiGetAudioStatus2(
     DtaNonIpPort*  pNonIpPort,
     DtaIoctlNonIpCmdGetAudioStatus2Output*  pOut)
 {
-    DtaHdmiStatus*  pStatus = &pNonIpPort->m_Hdmi.m_Status;
+    DtaHdmiStatus*  pStatus = &pNonIpPort->m_HdmiRx.m_Status;
     Int  i;
 
     pOut->m_NumAudioChannels = 0;
 
-    if (DtMutexAcquire(&pNonIpPort->m_Hdmi.m_StatusLock, 100) != DT_STATUS_OK)
+    if (DtMutexAcquire(&pNonIpPort->m_HdmiRx.m_StatusLock, 100) != DT_STATUS_OK)
         return DT_STATUS_TIMEOUT;
 
     if (pStatus->m_AudioLocked && pStatus->m_AudioInfoFrameValid)
@@ -939,7 +939,7 @@ DtStatus  DtaNonIpHdmiGetAudioStatus2(
         }
     }
 
-    DtMutexRelease(&pNonIpPort->m_Hdmi.m_StatusLock);
+    DtMutexRelease(&pNonIpPort->m_HdmiRx.m_StatusLock);
 
     return DT_STATUS_OK;
 }

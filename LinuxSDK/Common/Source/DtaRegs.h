@@ -435,6 +435,17 @@ static __inline void  DtaRegControl1SetWatchdog(volatile UInt8* pBase, UInt Watc
     WRITE_UINT_MASKED(Watchdog, pBase, DT_GEN_REG_CONTROL1, DT_GEN_CONTROL1_WATCHDOG_MSK,
                                                              DT_GEN_CONTROL1_WATCHDOG_SH);
 }
+// Set HW Enable
+static __inline void  DtaRegControl1SetHwEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_GEN_REG_CONTROL1, DT_GEN_CONTROL1_HW_ENABLE_MSK,
+                                                            DT_GEN_CONTROL1_HW_ENABLE_SH);
+}
+
+// Set Output Enable
+static __inline void  DtaRegControl1SetOutputEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_GEN_REG_CONTROL1, DT_GEN_CONTROL1_O_ENABLE_MSK,
+                                                             DT_GEN_CONTROL1_O_ENABLE_SH);
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Status0 Registers: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-.
 
@@ -545,6 +556,15 @@ static __inline void  DtaRegI2cCtrlSetRdyIntEn(volatile UInt8* pBase, UInt RdyIn
     WRITE_UINT_MASKED(RdyIntEn, pBase, DT_GEN_REG_I2CCTRL, DT_I2CCTRL_RDYINT_EN_MSK,
                                                                  DT_I2CCTRL_RDYINT_EN_SH);
 }
+// I2C Control: EddcEn
+static __inline UInt  DtaRegI2cCtrlGetEddcEn(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_GEN_REG_I2CCTRL, DT_I2CCTRL_EDDC_EN_MSK, 
+                                                                   DT_I2CCTRL_EDDC_EN_SH);
+}
+static __inline void  DtaRegI2cCtrlSetEddcEn(volatile UInt8* pBase, UInt EddcEn) {
+    WRITE_UINT_MASKED(EddcEn, pBase, DT_GEN_REG_I2CCTRL, DT_I2CCTRL_EDDC_EN_MSK,
+                                                                   DT_I2CCTRL_EDDC_EN_SH);
+}
 
 // I2C Control: BusSel
 static __inline UInt  DtaRegI2cCtrlGetBusSel(volatile UInt8* pBase) {
@@ -607,6 +627,12 @@ static __inline UInt  DtaRegI2cStatusGetRdAddrNack(volatile UInt8* pBase) {
 static __inline UInt  DtaRegI2cStatusGetTimeout(volatile UInt8* pBase) {
     return READ_UINT_MASKED(pBase, DT_GEN_REG_I2CSTAT, DT_I2CSTAT_TIMEOUT_MSK, 
                                                                    DT_I2CSTAT_TIMEOUT_SH);
+}
+
+// I2C Control: Read-EDDC-Nacked
+static __inline UInt  DtaRegI2cStatusGetEddcNack(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_GEN_REG_I2CSTAT, DT_I2CSTAT_EDDC_NACK_MSK, 
+                                                                 DT_I2CSTAT_EDDC_NACK_SH);
 }
 
 //.-.-.-.-.-.-.-.-.-.- I2C Address/Count Registers: Access Functions -.-.-.-.-.-.-.-.-.-.-
@@ -4219,6 +4245,11 @@ static __inline void  DtaRegHdCtrl1SetOpMode(volatile UInt8* pBase, UInt  Mode)
     WRITE_UINT_MASKED(Mode, pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_OPMODE_MSK,
                                                                    DT_HD_CTRL1_OPMODE_SH);
 }
+static __inline UInt  DtaRegHdCtrl1GetOpMode(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_OPMODE_MSK,
+                                                                   DT_HD_CTRL1_OPMODE_SH);
+}
 
 // HD-Channel Control1 register:  rx/tx-control
 static __inline void  DtaRegHdCtrl1SetRxTxCtrl(volatile UInt8* pBase, UInt  Val)
@@ -5065,6 +5096,601 @@ static __inline void  DtaRegRs422StatClrTxReadyInt(volatile UInt8* pBase)
 static __inline UInt8  DtaRegRs422RxDataGet(volatile UInt8* pBase) {
     return (UInt8)READ_UINT_MASKED(pBase, DT_RS422_REG_RX_DATA, DT_RS422_RXDATA_MSK,
                                                                       DT_RS422_RXDATA_SH);
+}
+
+
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ HDMI Registers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+#define DT_HDMITX_REG_GENCTRL             0x0000
+#define DT_HDMITX_REG_INFOFRAMECTRL       0x0004
+#define DT_HDMITX_REG_VIDCTRL             0x0008
+#define DT_HDMITX_REG_AUDCTRL             0x000C
+#define DT_HDMITX_REG_GENSTATUS           0x0010
+#define DT_HDMITX_REG_VIDSTATUS           0x0014
+#define DT_HDMITX_REG_AVI_INFO1           0x0018
+#define DT_HDMITX_REG_AVI_INFO2           0x001C
+#define DT_HDMITX_REG_AVI_INFO3           0x0020
+#define DT_HDMITX_REG_AVI_INFO4           0x0024
+#define DT_HDMITX_REG_VS_INFO1            0x0028
+#define DT_HDMITX_REG_VS_INFO2            0x002C
+#define DT_HDMITX_REG_AUD_INFO1           0x0030
+#define DT_HDMITX_REG_AUD_INFO2           0x0034
+#define DT_HDMITX_REG_VID_HTIM1           0x0038
+#define DT_HDMITX_REG_VID_HTIM2           0x003C
+#define DT_HDMITX_REG_VID_VTIM1           0x0040
+#define DT_HDMITX_REG_VID_VTIM2           0x0044
+#define DT_HDMITX_REG_VID_VTIM3           0x0048
+#define DT_HDMITX_REG_VID_VTIM4           0x004C
+#define DT_HDMITX_REG_AUDCTS              0x0050
+#define DT_HDMITX_REG_AUDN                0x0054
+#define DT_HDMITX_REG_TEXT                0x0070
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- General-Control register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-
+#define DT_HDMITX_GENCTRL_ENABLE_MSK          0x00000001
+#define DT_HDMITX_GENCTRL_ENABLE_SH           0
+#define DT_HDMITX_GENCTRL_RESET_MSK           0x00000002
+#define DT_HDMITX_GENCTRL_RESET_SH            1
+#define DT_HDMITX_GENCTRL_PIXCLK_MSK          0x0000001c
+#define DT_HDMITX_GENCTRL_PIXCLK_SH           2
+#define DT_HDMITX_GENCTRL_FRACCLK_SEL_MSK     0x00000020
+#define DT_HDMITX_GENCTRL_FRACCLK_SEL_SH      5
+#define DT_HDMITX_GENCTRL_HDMIMODE_MSK        0x00000100
+#define DT_HDMITX_GENCTRL_HDMIMODE_SH         8
+#define DT_HDMITX_GENCTRL_SCRAMBL_EN_MSK      0x00000200
+#define DT_HDMITX_GENCTRL_SCRAMBL_EN_SH       9
+#define DT_HDMITX_GENCTRL_TMDSCLKRAT_MSK      0x00000400
+#define DT_HDMITX_GENCTRL_TMDSCLKRAT_SH       10
+#define DT_HDMITX_GENCTRL_TPG_EN_MSK          0x00000800
+#define DT_HDMITX_GENCTRL_TPG_EN_SH           11
+#define DT_HDMITX_GENCTRL_PIXREP_MSK          0x000F0000
+#define DT_HDMITX_GENCTRL_PIXREP_SH           16
+#define DT_HDMITX_GENCTRL_UNDERFLOW_INT_EN_MSK 0x20000000
+#define DT_HDMITX_GENCTRL_UNDERFLOW_INT_EN_SH 29
+#define DT_HDMITX_GENCTRL_SINKCON_INT_EN_MSK  0x40000000
+#define DT_HDMITX_GENCTRL_SINKCON_INT_EN_SH   30
+#define DT_HDMITX_GENCTRL_SINKDIS_INT_EN_MSK  0x80000000
+#define DT_HDMITX_GENCTRL_SINKDIS_INT_EN_SH   31
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- General-Status register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.
+#define DT_HDMITX_GENSTAT_SINKSTAT_MSK        0x00000001
+#define DT_HDMITX_GENSTAT_SINKSTAT_SH         0
+#define DT_HDMITX_GENSTAT_PLLLOCKED_MSK       0x00000002
+#define DT_HDMITX_GENSTAT_PLLLOCKED_SH        1
+#define DT_HDMITX_GENSTAT_UNDERFLOW_INT_MSK   0x20000000
+#define DT_HDMITX_GENSTAT_UNDERFLOW_INT_SH    29
+#define DT_HDMITX_GENSTAT_SINKCON_INT_MSK     0x40000000
+#define DT_HDMITX_GENSTAT_SINKCON_INT_SH      30
+#define DT_HDMITX_GENSTAT_SINKDIS_INT_MSK     0x80000000
+#define DT_HDMITX_GENSTAT_SINKDIS_INT_SH      31
+
+//-.-.-.-.-.-.-.-.-.-.-.- Info Frame Control register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.
+#define DT_HDMITX_FRAMECTRL_AVIINFO_EN_MSK    0x00000001
+#define DT_HDMITX_FRAMECTRL_AVIINFO_EN_SH     0
+#define DT_HDMITX_FRAMECTRL_VSINFO_EN_MSK     0x00000002
+#define DT_HDMITX_FRAMECTRL_VSINFO_EN_SH      1
+#define DT_HDMITX_FRAMECTRL_AUDINFO_EN_MSK    0x00000004
+#define DT_HDMITX_FRAMECTRL_AUDINFO_EN_SH     2
+#define DT_HDMITX_FRAMECTRL_AVIINFO_LAT_MSK   0x00010000
+#define DT_HDMITX_FRAMECTRL_AVIINFO_LAT_SH    16
+#define DT_HDMITX_FRAMECTRL_VSINFO_LAT_MSK    0x00020000
+#define DT_HDMITX_FRAMECTRL_VSINFO_LAT_SH     17
+#define DT_HDMITX_FRAMECTRL_AUDINFO_LAT_MSK   0x00040000
+#define DT_HDMITX_FRAMECTRL_AUDINFO_LAT_SH    18
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- Video Control register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.
+#define DT_HDMITX_VIDCTRL_VIDMOD_MSK          0x0000000F
+#define DT_HDMITX_VIDCTRL_VIDMOD_SH           0
+#define DT_HDMITX_VIDCTRL_PROGINT_MSK         0x00000010
+#define DT_HDMITX_VIDCTRL_PROGINT_SH          4
+#define DT_HDMITX_VIDCTRL_HSPOL_MSK           0x00000020
+#define DT_HDMITX_VIDCTRL_HSPOL_SH            5
+#define DT_HDMITX_VIDCTRL_VSPOL_MSK           0x00000040
+#define DT_HDMITX_VIDCTRL_VSPOL_SH            6
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- Video Timing registers: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.
+#define DT_HDMITX_VIDHTIM1_HACT_WIDTH_MSK     0x0000FFFF
+#define DT_HDMITX_VIDHTIM1_HACT_WIDTH_SH      0
+#define DT_HDMITX_VIDHTIM1_HSYNC_WIDTH_MSK    0xFFFF0000
+#define DT_HDMITX_VIDHTIM1_HSYNC_WIDTH_SH     16
+#define DT_HDMITX_VIDHTIM2_HFP_WIDTH_MSK      0x0000FFFF
+#define DT_HDMITX_VIDHTIM2_HFP_WIDTH_SH       0
+#define DT_HDMITX_VIDHTIM2_HBP_WIDTH_MSK      0xFFFF0000
+#define DT_HDMITX_VIDHTIM2_HBP_WIDTH_SH       16
+#define DT_HDMITX_VIDVTIM1_F1_VACT_WIDTH_MSK  0x0000FFFF
+#define DT_HDMITX_VIDVTIM1_F1_VACT_WIDTH_SH   0
+#define DT_HDMITX_VIDVTIM1_F1_VSYNC_WIDTH_MSK 0xFFFF0000
+#define DT_HDMITX_VIDVTIM1_F1_VSYNC_WIDTH_SH  16
+#define DT_HDMITX_VIDVTIM2_F1_VFP_WIDTH_MSK   0x0000FFFF
+#define DT_HDMITX_VIDVTIM2_F1_VFP_WIDTH_SH    0
+#define DT_HDMITX_VIDVTIM2_F1_VBP_WIDTH_MSK   0xFFFF0000
+#define DT_HDMITX_VIDVTIM2_F1_VBP_WIDTH_SH    16
+#define DT_HDMITX_VIDVTIM3_F2_VACT_WIDTH_MSK  0x0000FFFF
+#define DT_HDMITX_VIDVTIM3_F2_VACT_WIDTH_SH   0
+#define DT_HDMITX_VIDVTIM3_F2_VSYNC_WIDTH_MSK 0xFFFF0000
+#define DT_HDMITX_VIDVTIM3_F2_VSYNC_WIDTH_SH  16
+#define DT_HDMITX_VIDVTIM4_F2_VFP_WIDTH_MSK   0x0000FFFF
+#define DT_HDMITX_VIDVTIM4_F2_VFP_WIDTH_SH    0
+#define DT_HDMITX_VIDVTIM4_F2_VBP_WIDTH_MSK   0xFFFF0000
+#define DT_HDMITX_VIDVTIM4_F2_VBP_WIDTH_SH    16
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- Audio CTS register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+#define DT_HDMITX_AUDCTS_MSK                  0x0001FFFFF
+#define DT_HDMITX_AUDCTS_SH                   0
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Audio N register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define DT_HDMITX_AUDN_MSK                    0x0001FFFFF
+#define DT_DHMITX_AUDN_SH                     0
+
+//.-.-.-.-.-.-.-.-.-.-.- General Control Register: Access Functions -.-.-.-.-.-.-.-.-.-.-.
+// General Control: Register access
+static __inline UInt  DtaRegHdmiTxGenCtrlGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DT_HDMITX_REG_GENCTRL);
+}
+static __inline void  DtaRegHdmiTxGenCtrlSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DT_HDMITX_REG_GENCTRL);
+}
+
+// General Control: Enable
+static __inline UInt  DtaRegHdmiTxGenCtrlGetEnable(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENCTRL, DT_HDMITX_GENCTRL_ENABLE_MSK, 
+                                                             DT_HDMITX_GENCTRL_ENABLE_SH);
+}
+static __inline void  DtaRegHdmiTxGenCtrlSetEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_GENCTRL, DT_HDMITX_GENCTRL_ENABLE_MSK, 
+                                                             DT_HDMITX_GENCTRL_ENABLE_SH);
+}
+
+// General Control: Reset
+static __inline void  DtaRegHdmiTxGenCtrlReset(volatile UInt8* pBase) {
+    WRITE_UINT_MASKED(1, pBase, DT_HDMITX_REG_GENCTRL, DT_HDMITX_GENCTRL_RESET_MSK, 
+                                                              DT_HDMITX_GENCTRL_RESET_SH);
+}
+
+// General Control: Pixel Clock
+//
+#define DT_HDMI_PIXCLK_13M5             0
+#define DT_HDMI_PIXCLK_27M              1
+#define DT_HDMI_PIXCLK_74M25            2
+#define DT_HDMI_PIXCLK_148M5            3
+#define DT_HDMI_PIXCLK_297M             4
+#define DT_HDMI_PIXCLK_594M             5
+//
+static __inline UInt  DtaRegHdmiTxGenCtrlGetPixelClk(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENCTRL, DT_HDMITX_GENCTRL_PIXCLK_MSK, 
+                                                             DT_HDMITX_GENCTRL_PIXCLK_SH);
+}
+static __inline void  DtaRegHdmiTxGenCtrlSetPixelClk(volatile UInt8* pBase, UInt PixelClk) {
+    WRITE_UINT_MASKED(PixelClk, pBase, DT_HDMITX_REG_GENCTRL, 
+                               DT_HDMITX_GENCTRL_PIXCLK_MSK, DT_HDMITX_GENCTRL_PIXCLK_SH);
+}
+
+// General Control: HdmiMode
+static __inline UInt  DtaRegHdmiTxGenCtrlGetHdmiMode(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENCTRL, DT_HDMITX_GENCTRL_HDMIMODE_MSK, 
+                                                           DT_HDMITX_GENCTRL_HDMIMODE_SH);
+}
+static __inline void  DtaRegHdmiTxGenCtrlSetHdmiMode(volatile UInt8* pBase, UInt Mode) {
+    WRITE_UINT_MASKED(Mode, pBase, DT_HDMITX_REG_GENCTRL, 
+                           DT_HDMITX_GENCTRL_HDMIMODE_MSK, DT_HDMITX_GENCTRL_HDMIMODE_SH);
+}
+
+// General Control: Fractional clock
+static __inline UInt  DtaRegHdmiTxGenCtrlGetFracClkEnable(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENCTRL, 
+                     DT_HDMITX_GENCTRL_FRACCLK_SEL_MSK, DT_HDMITX_GENCTRL_FRACCLK_SEL_SH);
+}
+static __inline void  DtaRegGenCtrlSetFracClkEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_GENCTRL, 
+                     DT_HDMITX_GENCTRL_FRACCLK_SEL_MSK, DT_HDMITX_GENCTRL_FRACCLK_SEL_SH);
+}
+
+// General Control: Scrambler Enable
+static __inline UInt  DtaRegHdmiTxGenCtrlGetScramblerEnable(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENCTRL, 
+                       DT_HDMITX_GENCTRL_SCRAMBL_EN_MSK, DT_HDMITX_GENCTRL_SCRAMBL_EN_SH);
+}
+static __inline void  DtaRegGenCtrlSetScramblerEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_GENCTRL, 
+                       DT_HDMITX_GENCTRL_SCRAMBL_EN_MSK, DT_HDMITX_GENCTRL_SCRAMBL_EN_SH);
+}
+
+// General Control: TMDS Clock Ratio
+//
+#define DT_HDMI_TMDS_CLKRATIO_L3_4G     0       // 1/10
+#define DT_HDMI_TMDS_CLKRATIO_L6G       1       // 1/40
+
+static __inline UInt  DtaRegHdmiTxGenCtrlGetTmdsClockRatio(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENCTRL, 
+                       DT_HDMITX_GENCTRL_TMDSCLKRAT_MSK, DT_HDMITX_GENCTRL_TMDSCLKRAT_SH);
+}
+static __inline void  DtaRegHdmiTxGenCtrlSetTmdsClockRatio(volatile UInt8* pBase, UInt ClkRat) {
+    WRITE_UINT_MASKED(ClkRat, pBase, DT_HDMITX_REG_GENCTRL, 
+                       DT_HDMITX_GENCTRL_TMDSCLKRAT_MSK, DT_HDMITX_GENCTRL_TMDSCLKRAT_SH);
+}
+
+// General Control: Test Pattern Enable
+static __inline UInt  DtaRegHdmiTxGenCtrlGetTestPatternEnable(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENCTRL, 
+               DT_HDMITX_GENCTRL_TPG_EN_MSK, DT_HDMITX_GENCTRL_TPG_EN_SH);
+}
+static __inline void  DtaRegHdmiTxGenCtrlSetTestPatternEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_GENCTRL, 
+               DT_HDMITX_GENCTRL_TPG_EN_MSK, DT_HDMITX_GENCTRL_TPG_EN_SH);
+}
+
+// General Control: Pixel Repetition
+//
+static __inline UInt  DtaRegHdmiTxGenCtrlGetPixelRep(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENCTRL, DT_HDMITX_GENCTRL_PIXREP_MSK, 
+                                                             DT_HDMITX_GENCTRL_PIXREP_SH);
+}
+static __inline void  DtaRegHdmiTxGenCtrlSetPixelRep(volatile UInt8* pBase, UInt PixelRep) {
+    WRITE_UINT_MASKED(PixelRep, pBase, DT_HDMITX_REG_GENCTRL, 
+                               DT_HDMITX_GENCTRL_PIXREP_MSK, DT_HDMITX_GENCTRL_PIXREP_SH);
+}
+
+// General Control: Underflow Interrupt Enable
+static __inline UInt  DtaRegHdmiTxGenCtrlGetUnderflowIntEnable(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENCTRL, 
+               DT_HDMITX_GENCTRL_UNDERFLOW_INT_EN_MSK, DT_HDMITX_GENCTRL_UNDERFLOW_INT_EN_SH);
+}
+static __inline void  DtaRegHdmiTxGenCtrlSetUnderflowIntEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_GENCTRL, 
+               DT_HDMITX_GENCTRL_UNDERFLOW_INT_EN_MSK, DT_HDMITX_GENCTRL_UNDERFLOW_INT_EN_SH);
+}
+
+// General Control: Sink Connect Interrupt Enable
+static __inline UInt  DtaRegHdmiTxGenCtrlGetSinkConIntEnable(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENCTRL, 
+               DT_HDMITX_GENCTRL_SINKCON_INT_EN_MSK, DT_HDMITX_GENCTRL_SINKCON_INT_EN_SH);
+}
+static __inline void  DtaRegHdmiTxGenCtrlSetSinkConIntEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_GENCTRL, 
+               DT_HDMITX_GENCTRL_SINKCON_INT_EN_MSK, DT_HDMITX_GENCTRL_SINKCON_INT_EN_SH);
+}
+
+// General Control: Sink Disconnect Interrupt Enable
+static __inline UInt  DtaRegHdmiTxGenCtrlGetSinkDisIntEnable(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENCTRL, 
+               DT_HDMITX_GENCTRL_SINKDIS_INT_EN_MSK, DT_HDMITX_GENCTRL_SINKDIS_INT_EN_SH);
+}
+static __inline void  DtaRegHdmiTxGenCtrlSetSinkDisIntEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_GENCTRL, 
+               DT_HDMITX_GENCTRL_SINKDIS_INT_EN_MSK, DT_HDMITX_GENCTRL_SINKDIS_INT_EN_SH);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.- InfoFrameCtrl Register: Access Functions -.-.-.-.-.-.-.-.-.-.-.
+// InfoFrameCtrl: Register access
+static __inline UInt  DtaRegHdmiTxInfoFrameCtrlGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DT_HDMITX_REG_INFOFRAMECTRL);
+}
+static __inline void  DtaRegHdmiTxInfoFrameCtrlSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DT_HDMITX_REG_INFOFRAMECTRL);
+}
+
+// InfoFrameCtrl: Avi Info Frame Enable
+static __inline UInt  DtaRegHdmiTxInfoFrameCtrlGetAviInfoFrameEnable(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_INFOFRAMECTRL, 
+               DT_HDMITX_FRAMECTRL_AVIINFO_EN_MSK, DT_HDMITX_FRAMECTRL_AVIINFO_EN_SH);
+}
+static __inline void  DtaRegHdmiTxInfoFrameCtrlSetAviInfoFrameEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_INFOFRAMECTRL, 
+               DT_HDMITX_FRAMECTRL_AVIINFO_EN_MSK, DT_HDMITX_FRAMECTRL_AVIINFO_EN_SH);
+}
+
+// InfoFrameCtrl: Vendor Specific Info Frame Enable
+static __inline UInt  DtaRegHdmiTxInfoFrameCtrlGetVsInfoFrameEnable(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_INFOFRAMECTRL, 
+               DT_HDMITX_FRAMECTRL_VSINFO_EN_MSK, DT_HDMITX_FRAMECTRL_VSINFO_EN_SH);
+}
+static __inline void  DtaRegHdmiTxInfoFrameCtrlSetVsInfoFrameEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_INFOFRAMECTRL, 
+               DT_HDMITX_FRAMECTRL_VSINFO_EN_MSK, DT_HDMITX_FRAMECTRL_VSINFO_EN_SH);
+}
+
+// InfoFrameCtrl: Audio Info Frame Enable
+static __inline UInt  DtaRegHdmiTxInfoFrameCtrlGetAudInfoFrameEnable(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_INFOFRAMECTRL, 
+               DT_HDMITX_FRAMECTRL_AUDINFO_EN_MSK, DT_HDMITX_FRAMECTRL_AUDINFO_EN_SH);
+}
+static __inline void  DtaRegHdmiTxInfoFrameCtrlSetAudInfoFrameEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_INFOFRAMECTRL, 
+               DT_HDMITX_FRAMECTRL_AUDINFO_EN_MSK, DT_HDMITX_FRAMECTRL_AUDINFO_EN_SH);
+}
+
+// InfoFrameCtrl: Avi Info Frame Latch
+static __inline void  DtaRegHdmiTxInfoFrameCtrlSetAviInfoFrameLatch(volatile UInt8* pBase) {
+    WRITE_UINT_MASKED(1, pBase, DT_HDMITX_REG_INFOFRAMECTRL, 
+               DT_HDMITX_FRAMECTRL_AVIINFO_LAT_MSK, DT_HDMITX_FRAMECTRL_AVIINFO_LAT_SH);
+}
+
+// InfoFrameCtrl: Vendor Specific Info Frame Latch
+static __inline void  DtaRegHdmiTxInfoFrameCtrlSetVsInfoFrameLatch(volatile UInt8* pBase) {
+    WRITE_UINT_MASKED(1, pBase, DT_HDMITX_REG_INFOFRAMECTRL, 
+               DT_HDMITX_FRAMECTRL_VSINFO_LAT_MSK, DT_HDMITX_FRAMECTRL_VSINFO_LAT_SH);
+}
+
+// InfoFrameCtrl: Audio Info Frame Latch
+static __inline void  DtaRegHdmiTxInfoFrameCtrlSetAudInfoFrameLatch(volatile UInt8* pBase) {
+    WRITE_UINT_MASKED(1, pBase, DT_HDMITX_REG_INFOFRAMECTRL, 
+               DT_HDMITX_FRAMECTRL_AUDINFO_LAT_MSK, DT_HDMITX_FRAMECTRL_AUDINFO_LAT_SH);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.- Video Control Register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-
+// Video Control: Register access
+static __inline UInt  DtaRegHdmiTxVideoCtrlGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DT_HDMITX_REG_VIDCTRL);
+}
+static __inline void  DtaRegHdmiTxVideoCtrlSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DT_HDMITX_REG_VIDCTRL);
+}
+
+// Video Control: Video Mode
+#define DT_HDMI_VIDMOD_UNKNOWN          -1
+#define DT_HDMI_VIDMOD_YCBCR_422        0
+#define DT_HDMI_VIDMOD_YCBCR_444        1
+#define DT_HDMI_VIDMOD_RGB_444          2
+
+static __inline UInt  DtaRegHdmiTxVideoCtrlGetVideoMode(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VIDCTRL, DT_HDMITX_VIDCTRL_VIDMOD_MSK, 
+                                                       DT_HDMITX_VIDCTRL_VIDMOD_SH);
+}
+static __inline void  DtaRegHdmiTxVideoCtrlSetVideoMode(volatile UInt8* pBase, UInt VidMod) {
+    WRITE_UINT_MASKED(VidMod, pBase, DT_HDMITX_REG_VIDCTRL, DT_HDMITX_VIDCTRL_VIDMOD_MSK, 
+                                                        DT_HDMITX_VIDCTRL_VIDMOD_SH);
+}
+
+// Video Control: Progressive / Interlaced
+static __inline UInt  DtaRegHdmiTxVideoCtrlGetInterlaced(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VIDCTRL, DT_HDMITX_VIDCTRL_PROGINT_MSK, 
+                                                       DT_HDMITX_VIDCTRL_PROGINT_SH);
+}
+static __inline void  DtaRegHdmiTxVideoCtrlSetInterlacedEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_VIDCTRL, DT_HDMITX_VIDCTRL_PROGINT_MSK, 
+                                                        DT_HDMITX_VIDCTRL_PROGINT_SH);
+}
+
+// Video Control: Horizontal Sync Polarity
+static __inline UInt  DtaRegHdmiTxVideoCtrlGetHSyncPolPositive(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VIDCTRL, DT_HDMITX_VIDCTRL_HSPOL_MSK, 
+                                                       DT_HDMITX_VIDCTRL_HSPOL_SH);
+}
+static __inline void  DtaRegHdmiTxVideoCtrlSetHSyncPolPositive(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_VIDCTRL, DT_HDMITX_VIDCTRL_HSPOL_MSK, 
+                                                        DT_HDMITX_VIDCTRL_HSPOL_SH);
+}
+
+// Video Control: Vertical Sync Polarity
+static __inline UInt  DtaRegHdmiTxVideoCtrlGetVSyncPolPositive(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VIDCTRL, DT_HDMITX_VIDCTRL_VSPOL_MSK, 
+                                                       DT_HDMITX_VIDCTRL_VSPOL_SH);
+}
+static __inline void  DtaRegHdmiTxVideoCtrlSetVSyncPolPositive(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_VIDCTRL, DT_HDMITX_VIDCTRL_VSPOL_MSK, 
+                                                        DT_HDMITX_VIDCTRL_VSPOL_SH);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.- Audio Control Register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-
+// Video Control: Register access
+static __inline UInt  DtaRegHdmiTxAudioCtrlGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DT_HDMITX_REG_AUDCTRL);
+}
+static __inline void  DtaRegHdmiTxAudioCtrlSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DT_HDMITX_REG_AUDCTRL);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.- General Status Register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-
+// General Status: Register access
+static __inline UInt  DtaRegHdmiTxGenStatGet(volatile UInt8* pBase) {
+    return READ_UINT(pBase, DT_HDMITX_REG_GENSTATUS);
+}
+static __inline void  DtaRegHdmiTxGenStatSet(volatile UInt8* pBase, UInt Val) {
+    WRITE_UINT(Val, pBase, DT_HDMITX_REG_GENSTATUS);
+}
+
+// General Status: Sink Status
+static __inline UInt  DtaRegHdmiTxGenStatGetSinkStat(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENSTATUS, DT_HDMITX_GENSTAT_SINKSTAT_MSK, 
+                                                           DT_HDMITX_GENSTAT_SINKSTAT_SH);
+}
+
+// General Status: PLL Lock tatus
+static __inline UInt  DtaRegHdmiTxGenStatGetPllLockStat(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENSTATUS, 
+                         DT_HDMITX_GENSTAT_PLLLOCKED_MSK, DT_HDMITX_GENSTAT_PLLLOCKED_SH);
+}
+
+
+// General Status: Underflow Interrupt
+static __inline UInt  DtaRegHdmiTxGenStatGetUnderflowInt(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENSTATUS, DT_HDMITX_GENSTAT_UNDERFLOW_INT_MSK, 
+                                                       DT_HDMITX_GENSTAT_UNDERFLOW_INT_SH);
+}
+static __inline void  DtaRegHdmiTxGenStatClrUnderflowInt(volatile UInt8* pBase) {
+    WRITE_UINT_MASKED(1, pBase, DT_HDMITX_REG_GENSTATUS, DT_HDMITX_GENSTAT_UNDERFLOW_INT_MSK, 
+                                                        DT_HDMITX_GENSTAT_UNDERFLOW_INT_SH);
+}
+
+// General Status: Sink Connect Interrupt
+static __inline UInt  DtaRegHdmiTxGenStatGetSinkConInt(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENSTATUS, DT_HDMITX_GENSTAT_SINKCON_INT_MSK, 
+                                                       DT_HDMITX_GENSTAT_SINKCON_INT_SH);
+}
+static __inline void  DtaRegHdmiTxGenStatClrSinkConInt(volatile UInt8* pBase) {
+    WRITE_UINT_MASKED(1, pBase, DT_HDMITX_REG_GENSTATUS, DT_HDMITX_GENSTAT_SINKCON_INT_MSK, 
+                                                        DT_HDMITX_GENSTAT_SINKCON_INT_SH);
+}
+
+// General Status: Sink Disconnect Interrupt
+static __inline UInt  DtaRegHdmiTxGenStatGetSinkDisInt(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_GENSTATUS, DT_HDMITX_GENSTAT_SINKDIS_INT_MSK, 
+                                                       DT_HDMITX_GENSTAT_SINKDIS_INT_SH);
+}
+static __inline void  DtaRegHdmiTxGenStatClrSinkDisInt(volatile UInt8* pBase) {
+    WRITE_UINT_MASKED(1, pBase, DT_HDMITX_REG_GENSTATUS, DT_HDMITX_GENSTAT_SINKDIS_INT_MSK, 
+                                                        DT_HDMITX_GENSTAT_SINKDIS_INT_SH);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.- AviInfoFrame Register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.
+// AviInfoFrame: Register access
+static __inline UInt  DtaRegHdmiTxAviInfoFrameGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT(pBase, DT_HDMITX_REG_AVI_INFO1 + Index*4);
+}
+static __inline void  DtaRegHdmiTxAviInfoFrameSet(volatile UInt8* pBase, Int Index, UInt Val) {
+    WRITE_UINT(Val, pBase, DT_HDMITX_REG_AVI_INFO1 + Index*4);
+}
+
+//-.-.-.-.-.-.-.-.- Vendor Specific InfoFrame Register: Access Functions -.-.-.-.-.-.-.-.-
+// Vendor Specific InfoFrame: Register access
+static __inline UInt  DtaRegHdmiTxVsInfoFrameGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT(pBase, DT_HDMITX_REG_VS_INFO1 + Index*4);
+}
+static __inline void  DtaRegHdmiTxVsInfoFrameSet(volatile UInt8* pBase, Int Index, UInt Val) {
+    WRITE_UINT(Val, pBase, DT_HDMITX_REG_VS_INFO1 + Index*4);
+}
+
+//-.-.-.-.-.-.-.-.- Audio InfoFrame Register: Access Functions -.-.-.-.-.-.-.-.-
+// Audio InfoFrame: Register access
+static __inline UInt  DtaRegHdmiTxAudInfoFrameGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT(pBase, DT_HDMITX_REG_AUD_INFO1 + Index*4);
+}
+static __inline void  DtaRegHdmiTxAudInfoFrameSet(volatile UInt8* pBase, Int Index, UInt Val) {
+    WRITE_UINT(Val, pBase, DT_HDMITX_REG_AUD_INFO1 + Index*4);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.- Video Timing Register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.
+// VidHTim1: Horizontal Active Width
+static __inline UInt  DtaRegHdmiTxHActWidthGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VID_HTIM1, DT_HDMITX_VIDHTIM1_HACT_WIDTH_MSK, 
+                                                       DT_HDMITX_VIDHTIM1_HACT_WIDTH_SH);
+}
+static __inline void  DtaRegHdmiTxHActWidthSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_VID_HTIM1, DT_HDMITX_VIDHTIM1_HACT_WIDTH_MSK, 
+                                                        DT_HDMITX_VIDHTIM1_HACT_WIDTH_SH);
+}
+// VidHTim1: Horizontal Sync Width
+static __inline UInt  DtaRegHdmiTxHSyncWidthGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VID_HTIM1, DT_HDMITX_VIDHTIM1_HSYNC_WIDTH_MSK, 
+                                                       DT_HDMITX_VIDHTIM1_HSYNC_WIDTH_SH);
+}
+static __inline void  DtaRegHdmiTxHSyncWidthSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_VID_HTIM1, DT_HDMITX_VIDHTIM1_HSYNC_WIDTH_MSK, 
+                                                        DT_HDMITX_VIDHTIM1_HSYNC_WIDTH_SH);
+}
+// VidHTim2: Horizontal Front Porch Width
+static __inline UInt  DtaRegHdmiTxHFPWidthGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VID_HTIM2, DT_HDMITX_VIDHTIM2_HFP_WIDTH_MSK, 
+                                                       DT_HDMITX_VIDHTIM2_HFP_WIDTH_SH);
+}
+static __inline void  DtaRegHdmiTxHFPWidthSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_VID_HTIM2, DT_HDMITX_VIDHTIM2_HFP_WIDTH_MSK, 
+                                                        DT_HDMITX_VIDHTIM2_HFP_WIDTH_SH);
+}
+// VidHTim2: Horizontal Back Porch Width
+static __inline UInt  DtaRegHdmiTxHBPWidthGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VID_HTIM2, DT_HDMITX_VIDHTIM2_HBP_WIDTH_MSK, 
+                                                       DT_HDMITX_VIDHTIM2_HBP_WIDTH_SH);
+}
+static __inline void  DtaRegHdmiTxHBPWidthSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_VID_HTIM2, DT_HDMITX_VIDHTIM2_HBP_WIDTH_MSK, 
+                                                        DT_HDMITX_VIDHTIM2_HBP_WIDTH_SH);
+}
+// VidVTim1: Field1 Vertical Active Width
+static __inline UInt  DtaRegHdmiTxF1VActWidthGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VID_VTIM1, DT_HDMITX_VIDVTIM1_F1_VACT_WIDTH_MSK, 
+                                                       DT_HDMITX_VIDVTIM1_F1_VACT_WIDTH_SH);
+}
+static __inline void  DtaRegHdmiTxF1VActWidthSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_VID_VTIM1, DT_HDMITX_VIDVTIM1_F1_VACT_WIDTH_MSK, 
+                                                        DT_HDMITX_VIDVTIM1_F1_VACT_WIDTH_SH);
+}
+// VidVTim1: Field1 Vertical Sync Width
+static __inline UInt  DtaRegHdmiTxF1VSyncWidthGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VID_VTIM1, DT_HDMITX_VIDVTIM1_F1_VSYNC_WIDTH_MSK, 
+                                                       DT_HDMITX_VIDVTIM1_F1_VSYNC_WIDTH_SH);
+}
+static __inline void  DtaRegHdmiTxF1VSyncWidthSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_VID_VTIM1, DT_HDMITX_VIDVTIM1_F1_VSYNC_WIDTH_MSK, 
+                                                        DT_HDMITX_VIDVTIM1_F1_VSYNC_WIDTH_SH);
+}
+// VidVTim2: Field1 Vertical Front Porch Width
+static __inline UInt  DtaRegHdmiTxF1VFPWidthGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VID_VTIM2, DT_HDMITX_VIDVTIM2_F1_VFP_WIDTH_MSK, 
+                                                       DT_HDMITX_VIDVTIM2_F1_VFP_WIDTH_SH);
+}
+static __inline void  DtaRegHdmiTxF1VFPWidthSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_VID_VTIM2, DT_HDMITX_VIDVTIM2_F1_VFP_WIDTH_MSK, 
+                                                        DT_HDMITX_VIDVTIM2_F1_VFP_WIDTH_SH);
+}
+// VidVTim2: Field1 Vertical Back Porch Width
+static __inline UInt  DtaRegHdmiTxF1VBPWidthGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VID_VTIM2, DT_HDMITX_VIDVTIM2_F1_VBP_WIDTH_MSK, 
+                                                       DT_HDMITX_VIDVTIM2_F1_VBP_WIDTH_SH);
+}
+static __inline void  DtaRegHdmiTxF1VBPWidthSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_VID_VTIM2, DT_HDMITX_VIDVTIM2_F1_VBP_WIDTH_MSK, 
+                                                        DT_HDMITX_VIDVTIM2_F1_VBP_WIDTH_SH);
+}
+// VidVTim3: Field2 Vertical Active Width
+static __inline UInt  DtaRegHdmiTxF2VActWidthGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VID_VTIM3, DT_HDMITX_VIDVTIM3_F2_VACT_WIDTH_MSK, 
+                                                       DT_HDMITX_VIDVTIM3_F2_VACT_WIDTH_SH);
+}
+static __inline void  DtaRegHdmiTxF2VActWidthSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_VID_VTIM3, DT_HDMITX_VIDVTIM3_F2_VACT_WIDTH_MSK, 
+                                                        DT_HDMITX_VIDVTIM3_F2_VACT_WIDTH_SH);
+}
+// VidVTim3: Field2 Vertical Sync Width
+static __inline UInt  DtaRegHdmiTxF2VSyncWidthGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VID_VTIM3, DT_HDMITX_VIDVTIM3_F2_VSYNC_WIDTH_MSK, 
+                                                       DT_HDMITX_VIDVTIM3_F2_VSYNC_WIDTH_SH);
+}
+static __inline void  DtaRegHdmiTxF2VSyncWidthSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_VID_VTIM3, DT_HDMITX_VIDVTIM3_F2_VSYNC_WIDTH_MSK, 
+                                                        DT_HDMITX_VIDVTIM3_F2_VSYNC_WIDTH_SH);
+}
+// VidVTim4: Field2 Vertical Front Porch Width
+static __inline UInt  DtaRegHdmiTxF2VFPWidthGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VID_VTIM4, DT_HDMITX_VIDVTIM4_F2_VFP_WIDTH_MSK, 
+                                                       DT_HDMITX_VIDVTIM4_F2_VFP_WIDTH_SH);
+}
+static __inline void  DtaRegHdmiTxF2VFPWidthSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_VID_VTIM4, DT_HDMITX_VIDVTIM4_F2_VFP_WIDTH_MSK, 
+                                                        DT_HDMITX_VIDVTIM4_F2_VFP_WIDTH_SH);
+}
+// VidVTim4: Field2 Vertical Back Porch Width
+static __inline UInt  DtaRegHdmiTxF2VBPWidthGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_VID_VTIM4, DT_HDMITX_VIDVTIM4_F2_VBP_WIDTH_MSK, 
+                                                       DT_HDMITX_VIDVTIM4_F2_VBP_WIDTH_SH);
+}
+static __inline void  DtaRegHdmiTxF2VBPWidthSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_VID_VTIM4, DT_HDMITX_VIDVTIM4_F2_VBP_WIDTH_MSK, 
+                                                        DT_HDMITX_VIDVTIM4_F2_VBP_WIDTH_SH);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- Audio CTS Register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-
+static __inline UInt  DtaRegHdmiTxAudioCtsGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_AUDCTS, DT_HDMITX_AUDCTS_MSK, 
+                                                                     DT_HDMITX_AUDCTS_SH);
+}
+static __inline void  DtaRegHdmiTxAudioCtsSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_AUDCTS, DT_HDMITX_AUDCTS_MSK, 
+                                                                     DT_HDMITX_AUDCTS_SH);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- Audio N Register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.-.
+static __inline UInt  DtaRegHdmiTxAudioNGet(volatile UInt8* pBase, Int Index) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_AUDN, DT_HDMITX_AUDN_MSK, 
+                                                                       DT_DHMITX_AUDN_SH);
+}
+static __inline void  DtaRegHdmiTxAudioNSet(volatile UInt8* pBase, UInt Value) {
+    WRITE_UINT_MASKED(Value, pBase, DT_HDMITX_REG_AUDN, DT_HDMITX_AUDN_MSK, 
+                                                                       DT_DHMITX_AUDN_SH);
+}
+
+// Text output
+static __inline void  DtaRegHdmiTxTextSet(volatile UInt8* pBase, UInt Addres, UInt Data) {
+    UInt32  Value = (Addres<<16) | (Data & 0xff);
+    WRITE_UINT(Value, pBase, DT_HDMITX_REG_TEXT);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaFwbcRegRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

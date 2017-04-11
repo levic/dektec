@@ -69,6 +69,7 @@ typedef struct _DtaNonIpPort DtaNonIpPort;
 #include <IoConfig.h>
 #include <ShBuffer.h>
 #include <Hdmi.h>
+#include <HdmiTx.h>
 #include <NonIp.h>
 #include <NonIpRx.h>
 #include <NonIpTx.h>
@@ -84,6 +85,10 @@ typedef struct _DtaNonIpPort DtaNonIpPort;
 #include <FanControl.h>
 #include <Ad9129.h>
 #include <ProgItf.h>
+#include "M235x4.h"
+#include "M23528.h"
+#include "M23145.h"
+
 
 
 

@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaDeviceTable.c *#*#*#*#*#*#*#*#*#* (C) 2016 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaDeviceTable.c *#*#*#*#*#*#*#*#*#* (C) 2017 DekTec
 //
 // CapParser - Device Table
 //
@@ -51,6 +51,7 @@ DEFINE_PCI_DEVICE_TABLE(DtaDeviceTable) =
     { 0x1a0e, 0x4883, 0x0, 0x0, 0, 0, 0 },
     { 0x1a0e, 0x5883, 0x0, 0x0, 0, 0, 0 },
     { 0x1a0e, 0x884, 0x0, 0x0, 0, 0, 0 },
+    { 0x1a0e, 0x893, 0x0, 0x0, 0, 0, 0 },
     { }
 };
 MODULE_DEVICE_TABLE(pci, DtaDeviceTable);

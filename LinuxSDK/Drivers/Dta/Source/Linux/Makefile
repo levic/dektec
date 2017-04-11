@@ -110,6 +110,10 @@ SRC    = $(SRCDIR)/Linux/DtaIal.o         \
          $(SRCDIR)/Hdmi.o                 \
          $(SRCDIR)/SpiMf.o                \
          $(SRCDIR)/ProgItf.o              \
+         $(SRCDIR)/HdmiTx.o               \
+         $(SRCDIR)/M23145.o               \
+         $(SRCDIR)/M235x4.o               \
+         $(SRCDIR)/M23528.o               \
          $(SRCDIR)/Linux/DtaDeviceTable.o \
          Messages.o
 

@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2016 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2017 DekTec
 //
 // CapParser - Property Store - Tables storing device properties
 //
@@ -212,6 +212,11 @@ static const DtProperty  DtProperties205_0_50[] =
     { "PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties205_0_54[] =
+{
+    { "MAIN_PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties205_0_56[] =
 {
     { "CAP_SDI", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 2, 0, -1,
@@ -292,7 +297,7 @@ static const DtPropertyHashSet  DtPropertyHashSets205_0[] =
     { NULL, 0 },
     { NULL, 0 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties205_0_54, 1 },
     { NULL, 0 },
     { DtProperties205_0_56, 2 },
     { NULL, 0 },
@@ -573,6 +578,11 @@ static const DtProperty  DtProperties215_0_53[] =
     { "MOD_FREQ_MIN", 36, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties215_0_54[] =
+{
+    { "MAIN_PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties215_0_55[] =
 {
     { "MOD_FREQ_MAX", 1002, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
@@ -672,7 +682,7 @@ static const DtPropertyHashSet  DtPropertyHashSets215_0[] =
     { DtProperties215_0_51, 1 },
     { DtProperties215_0_52, 2 },
     { DtProperties215_0_53, 3 },
-    { NULL, 0 },
+    { DtProperties215_0_54, 1 },
     { DtProperties215_0_55, 1 },
     { DtProperties215_0_56, 2 },
     { NULL, 0 },
@@ -893,6 +903,11 @@ static const DtProperty  DtProperties225_0_51[] =
     { "ASI_SDI_HW_DESER_ITF", ASI_SDI_DESER_ITF_FPGA_BASED, NULL,
                PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties225_0_54[] =
+{
+    { "MAIN_PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties225_0_56[] =
 {
     { "CAP_SDI", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 4, 0, -1,
@@ -968,7 +983,7 @@ static const DtPropertyHashSet  DtPropertyHashSets225_0[] =
     { DtProperties225_0_51, 1 },
     { NULL, 0 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties225_0_54, 1 },
     { NULL, 0 },
     { DtProperties225_0_56, 2 },
     { NULL, 0 },
@@ -1134,6 +1149,11 @@ static const DtProperty  DtProperties234_0_53[] =
     { "MOD_FREQ_MIN", 50, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties234_0_54[] =
+{
+    { "MAIN_PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties234_0_55[] =
 {
     { "MOD_FREQ_MAX", 860, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
@@ -1219,7 +1239,7 @@ static const DtPropertyHashSet  DtPropertyHashSets234_0[] =
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties234_0_53, 1 },
-    { NULL, 0 },
+    { DtProperties234_0_54, 1 },
     { DtProperties234_0_55, 1 },
     { DtProperties234_0_56, 1 },
     { NULL, 0 },
@@ -1378,6 +1398,11 @@ static const DtProperty  DtProperties235_0_53[] =
     { "MOD_FREQ_MIN", 50, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties235_0_54[] =
+{
+    { "MAIN_PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties235_0_55[] =
 {
     { "MOD_FREQ_MAX", 860, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
@@ -1465,7 +1490,7 @@ static const DtPropertyHashSet  DtPropertyHashSets235_0[] =
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties235_0_53, 1 },
-    { NULL, 0 },
+    { DtProperties235_0_54, 1 },
     { DtProperties235_0_55, 1 },
     { DtProperties235_0_56, 1 },
     { NULL, 0 },
@@ -1679,6 +1704,11 @@ static const DtProperty  DtProperties236_0_53[] =
     { NULL, 44, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties236_0_54[] =
+{
+    { "MAIN_PORT_COUNT", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties236_0_55[] =
 {
     { "MOD_FREQ_MAX", 1002, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 200, -1,
@@ -1772,7 +1802,7 @@ static const DtPropertyHashSet  DtPropertyHashSets236_0[] =
     { DtProperties236_0_51, 1 },
     { NULL, 0 },
     { DtProperties236_0_53, 2 },
-    { NULL, 0 },
+    { DtProperties236_0_54, 1 },
     { DtProperties236_0_55, 2 },
     { DtProperties236_0_56, 1 },
     { NULL, 0 },
@@ -1978,6 +2008,11 @@ static const DtProperty  DtProperties238_0_53[] =
     { "MOD_FREQ_MIN", 42, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties238_0_54[] =
+{
+    { "MAIN_PORT_COUNT", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties238_0_55[] =
 {
     { "MOD_FREQ_MAX", 1002, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
@@ -2069,7 +2104,7 @@ static const DtPropertyHashSet  DtPropertyHashSets238_0[] =
     { DtProperties238_0_51, 1 },
     { NULL, 0 },
     { DtProperties238_0_53, 1 },
-    { NULL, 0 },
+    { DtProperties238_0_54, 1 },
     { DtProperties238_0_55, 1 },
     { DtProperties238_0_56, 1 },
     { NULL, 0 },
@@ -2357,6 +2392,11 @@ static const DtProperty  DtProperties245_0_51[] =
     { "ASI_SDI_HW_DESER_ITF", ASI_SDI_DESER_ITF_FPGA_BASED, NULL,
                PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties245_0_54[] =
+{
+    { "MAIN_PORT_COUNT", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties245_0_56[] =
 {
     { "CAP_SDI", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
@@ -2447,7 +2487,7 @@ static const DtPropertyHashSet  DtPropertyHashSets245_0[] =
     { DtProperties245_0_51, 1 },
     { NULL, 0 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties245_0_54, 1 },
     { NULL, 0 },
     { DtProperties245_0_56, 3 },
     { NULL, 0 },
@@ -2642,6 +2682,11 @@ static const DtProperty  DtProperties255_0_51[] =
     { "ASI_SDI_HW_DESER_ITF", ASI_SDI_DESER_ITF_FPGA_BASED, NULL,
                PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties255_0_54[] =
+{
+    { "MAIN_PORT_COUNT", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties255_0_56[] =
 {
     { "CAP_SDI", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
@@ -2726,7 +2771,7 @@ static const DtPropertyHashSet  DtPropertyHashSets255_0[] =
     { DtProperties255_0_51, 1 },
     { NULL, 0 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties255_0_54, 1 },
     { NULL, 0 },
     { DtProperties255_0_56, 3 },
     { NULL, 0 },
@@ -2854,6 +2899,11 @@ static const DtProperty  DtProperties299_0_50[] =
     { "PORT_COUNT", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties299_0_54[] =
+{
+    { "MAIN_PORT_COUNT", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties299_0_56[] =
 {
     { "USB_END_POINT_WRITE", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -2925,7 +2975,7 @@ static const DtPropertyHashSet  DtPropertyHashSets299_0[] =
     { NULL, 0 },
     { NULL, 0 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties299_0_54, 1 },
     { NULL, 0 },
     { DtProperties299_0_56, 1 },
     { NULL, 0 },
@@ -3196,6 +3246,8 @@ static const DtProperty  DtProperties315_0_35[] =
 };
 static const DtProperty  DtProperties315_0_36[] =
 {
+    { "CAP_DVBCID", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MOD_SAMPRATE_HW_MAX", 43750000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 43750000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 1, 0, 0, -1,
@@ -3352,6 +3404,19 @@ static const DtProperty  DtProperties315_0_53[] =
     { NULL, 36, NULL, PROPERTY_VALUE_TYPE_INT, 0, 3, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties315_0_54[] =
+{
+    { "MAIN_PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 2, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 3, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties315_0_55[] =
 {
     { "MOD_FREQ_MAX", 2000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
@@ -3462,7 +3527,7 @@ static const DtPropertyHashSet  DtPropertyHashSets315_0[] =
     { DtProperties315_0_33, 5 },
     { DtProperties315_0_34, 4 },
     { DtProperties315_0_35, 5 },
-    { DtProperties315_0_36, 5 },
+    { DtProperties315_0_36, 6 },
     { DtProperties315_0_37, 1 },
     { NULL, 0 },
     { DtProperties315_0_39, 1 },
@@ -3480,7 +3545,7 @@ static const DtPropertyHashSet  DtPropertyHashSets315_0[] =
     { DtProperties315_0_51, 1 },
     { DtProperties315_0_52, 3 },
     { DtProperties315_0_53, 6 },
-    { NULL, 0 },
+    { DtProperties315_0_54, 5 },
     { DtProperties315_0_55, 4 },
     { DtProperties315_0_56, 5 },
     { DtProperties315_0_57, 1 },
@@ -3681,6 +3746,8 @@ static const DtProperty  DtProperties350_0_52[] =
 static const DtProperty  DtProperties350_0_54[] =
 {
     { "CAP_720P23_98", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "MAIN_PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties350_0_56[] =
@@ -3765,7 +3832,7 @@ static const DtPropertyHashSet  DtPropertyHashSets350_0[] =
     { NULL, 0 },
     { DtProperties350_0_52, 1 },
     { NULL, 0 },
-    { DtProperties350_0_54, 1 },
+    { DtProperties350_0_54, 2 },
     { NULL, 0 },
     { DtProperties350_0_56, 2 },
     { NULL, 0 },
@@ -3996,6 +4063,8 @@ static const DtProperty  DtProperties351_0_52[] =
 static const DtProperty  DtProperties351_0_54[] =
 {
     { "CAP_720P23_98", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "MAIN_PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties351_0_56[] =
@@ -4082,7 +4151,7 @@ static const DtPropertyHashSet  DtPropertyHashSets351_0[] =
     { DtProperties351_0_51, 1 },
     { DtProperties351_0_52, 1 },
     { NULL, 0 },
-    { DtProperties351_0_54, 1 },
+    { DtProperties351_0_54, 2 },
     { NULL, 0 },
     { DtProperties351_0_56, 2 },
     { NULL, 0 },
@@ -4196,6 +4265,11 @@ static const DtProperty  DtProperties399_0_50[] =
     { "PORT_COUNT", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties399_0_54[] =
+{
+    { "MAIN_PORT_COUNT", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties399_0_56[] =
 {
     { "USB_END_POINT_WRITE", -1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -4267,7 +4341,7 @@ static const DtPropertyHashSet  DtPropertyHashSets399_0[] =
     { NULL, 0 },
     { NULL, 0 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties399_0_54, 1 },
     { NULL, 0 },
     { DtProperties399_0_56, 1 },
     { NULL, 0 },
@@ -4335,72 +4409,85 @@ const char*  IoConfigCodeStrings[] =
 /* 23 */ "LOOPS2L3",
 /* 24 */ "LOOPS2TS",
 /* 25 */ "LOOPTHR",
-/* 26 */ "3GSDI",
-/* 27 */ "ASI",
-/* 28 */ "AVENC",
-/* 29 */ "DEMOD",
-/* 30 */ "GPSTIME",
-/* 31 */ "HDMI",
-/* 32 */ "HDSDI",
-/* 33 */ "IFADC",
-/* 34 */ "IP",
-/* 35 */ "MOD",
-/* 36 */ "PHASENOISE",
-/* 37 */ "RS422",
-/* 38 */ "SDIRX",
-/* 39 */ "SDI",
-/* 40 */ "SPI",
-/* 41 */ "SPISDI",
-/* 42 */ "1080P50",
-/* 43 */ "1080P50B",
-/* 44 */ "1080P59_94",
-/* 45 */ "1080P59_94B",
-/* 46 */ "1080P60",
-/* 47 */ "1080P60B",
-/* 48 */ "1080I50",
-/* 49 */ "1080I59_94",
-/* 50 */ "1080I60",
-/* 51 */ "1080P23_98",
-/* 52 */ "1080P24",
-/* 53 */ "1080P25",
-/* 54 */ "1080P29_97",
-/* 55 */ "1080P30",
-/* 56 */ "1080PSF23_98",
-/* 57 */ "1080PSF24",
-/* 58 */ "1080PSF25",
-/* 59 */ "1080PSF29_97",
-/* 60 */ "1080PSF30",
-/* 61 */ "720P23_98",
-/* 62 */ "720P24",
-/* 63 */ "720P25",
-/* 64 */ "720P29_97",
-/* 65 */ "720P30",
-/* 66 */ "720P50",
-/* 67 */ "720P59_94",
-/* 68 */ "720P60",
-/* 69 */ "525I59_94",
-/* 70 */ "625I50",
-/* 71 */ "SPI525I59_94",
-/* 72 */ "SPI625I50",
-/* 73 */ "MODHQ",
-/* 74 */ "LOWPWR",
-/* 75 */ "RFCLKEXT",
-/* 76 */ "RFCLKINT",
-/* 77 */ "SPICLKEXT",
-/* 78 */ "SPICLKINT",
-/* 79 */ "SPIFIXEDCLK",
-/* 80 */ "SPIDVBMODE",
-/* 81 */ "SPISER8B",
-/* 82 */ "SPISER10B",
-/* 83 */ "SPILVDS1",
-/* 84 */ "SPILVDS2",
-/* 85 */ "SPILVTTL",
-/* 86 */ "EXTTSRATE",
-/* 87 */ "EXTRATIO",
-/* 88 */ "INTTSRATE",
-/* 89 */ "LOCK2INP"
+/* 26 */ "12GSDI",
+/* 27 */ "3GSDI",
+/* 28 */ "6GSDI",
+/* 29 */ "ASI",
+/* 30 */ "AVENC",
+/* 31 */ "DEMOD",
+/* 32 */ "GPSTIME",
+/* 33 */ "HDMI",
+/* 34 */ "HDSDI",
+/* 35 */ "IFADC",
+/* 36 */ "IP",
+/* 37 */ "MOD",
+/* 38 */ "PHASENOISE",
+/* 39 */ "RS422",
+/* 40 */ "SDIRX",
+/* 41 */ "SDI",
+/* 42 */ "SPI",
+/* 43 */ "SPISDI",
+/* 44 */ "2160P50",
+/* 45 */ "2160P50B",
+/* 46 */ "2160P59_94",
+/* 47 */ "2160P59_94B",
+/* 48 */ "2160P60",
+/* 49 */ "2160P60B",
+/* 50 */ "1080P50",
+/* 51 */ "1080P50B",
+/* 52 */ "1080P59_94",
+/* 53 */ "1080P59_94B",
+/* 54 */ "1080P60",
+/* 55 */ "1080P60B",
+/* 56 */ "2160P23_98",
+/* 57 */ "2160P24",
+/* 58 */ "2160P25",
+/* 59 */ "2160P29_97",
+/* 60 */ "2160P30",
+/* 61 */ "1080I50",
+/* 62 */ "1080I59_94",
+/* 63 */ "1080I60",
+/* 64 */ "1080P23_98",
+/* 65 */ "1080P24",
+/* 66 */ "1080P25",
+/* 67 */ "1080P29_97",
+/* 68 */ "1080P30",
+/* 69 */ "1080PSF23_98",
+/* 70 */ "1080PSF24",
+/* 71 */ "1080PSF25",
+/* 72 */ "1080PSF29_97",
+/* 73 */ "1080PSF30",
+/* 74 */ "720P23_98",
+/* 75 */ "720P24",
+/* 76 */ "720P25",
+/* 77 */ "720P29_97",
+/* 78 */ "720P30",
+/* 79 */ "720P50",
+/* 80 */ "720P59_94",
+/* 81 */ "720P60",
+/* 82 */ "525I59_94",
+/* 83 */ "625I50",
+/* 84 */ "SPI525I59_94",
+/* 85 */ "SPI625I50",
+/* 86 */ "MODHQ",
+/* 87 */ "LOWPWR",
+/* 88 */ "RFCLKEXT",
+/* 89 */ "RFCLKINT",
+/* 90 */ "SPICLKEXT",
+/* 91 */ "SPICLKINT",
+/* 92 */ "SPIFIXEDCLK",
+/* 93 */ "SPIDVBMODE",
+/* 94 */ "SPISER8B",
+/* 95 */ "SPISER10B",
+/* 96 */ "SPILVDS1",
+/* 97 */ "SPILVDS2",
+/* 98 */ "SPILVTTL",
+/* 99 */ "EXTTSRATE",
+/* 100 */ "EXTRATIO",
+/* 101 */ "INTTSRATE",
+/* 102 */ "LOCK2INP"
 };
-const Int  IoConfigCodeStringCount = 90;
+const Int  IoConfigCodeStringCount = 103;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IoConfigCodes_XX[] -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -4414,69 +4501,82 @@ static const IoConfigCode  IoConfigCodes_0[] =
 };
 static const IoConfigCode  IoConfigCodes_1[] =
 {
-    { "1080P30", 55 }
+    { "1080P30", 68 }
 };
 static const IoConfigCode  IoConfigCodes_2[] =
 {
-    { "RS422", 37 }
+    { "RS422", 39 }
 };
 static const IoConfigCode  IoConfigCodes_3[] =
 {
     { "PWRMODE", 2 },
     { "LOOPS2L3", 23 },
-    { "1080P50", 42 },
-    { "720P23_98", 61 }
+    { "1080P50", 50 },
+    { "720P23_98", 74 }
+};
+static const IoConfigCode  IoConfigCodes_4[] =
+{
+    { "2160P60", 48 },
+    { "2160P24", 57 }
 };
 static const IoConfigCode  IoConfigCodes_5[] =
 {
-    { "SDI", 39 }
+    { "SDI", 41 },
+    { "2160P50B", 45 },
+    { "2160P25", 58 }
 };
 static const IoConfigCode  IoConfigCodes_6[] =
 {
-    { "FRACMODE", 10 }
+    { "FRACMODE", 10 },
+    { "2160P60B", 49 }
 };
 static const IoConfigCode  IoConfigCodes_7[] =
 {
-    { "HDMI", 31 },
-    { "SPILVTTL", 85 }
+    { "HDMI", 33 },
+    { "SPILVTTL", 98 }
 };
 static const IoConfigCode  IoConfigCodes_8[] =
 {
     { "IOSTD", 1 },
-    { "720P29_97", 64 },
-    { "720P59_94", 67 }
+    { "720P29_97", 77 },
+    { "720P59_94", 80 }
 };
 static const IoConfigCode  IoConfigCodes_12[] =
 {
-    { "1080PSF23_98", 56 }
+    { "1080PSF23_98", 69 }
 };
 static const IoConfigCode  IoConfigCodes_14[] =
 {
-    { "DEMOD", 29 }
+    { "DEMOD", 31 }
+};
+static const IoConfigCode  IoConfigCodes_15[] =
+{
+    { "12GSDI", 26 }
 };
 static const IoConfigCode  IoConfigCodes_16[] =
 {
     { "FALSE", 15 },
-    { "625I50", 70 }
+    { "625I50", 83 }
 };
 static const IoConfigCode  IoConfigCodes_17[] =
 {
     { "GENLOCKED", 11 },
-    { "HDSDI", 32 },
-    { "SPI", 40 },
-    { "SPISDI", 41 },
-    { "1080I59_94", 49 },
-    { "1080PSF29_97", 59 },
-    { "720P30", 65 }
+    { "HDSDI", 34 },
+    { "SPI", 42 },
+    { "SPISDI", 43 },
+    { "1080I59_94", 62 },
+    { "1080PSF29_97", 72 },
+    { "720P30", 78 }
 };
 static const IoConfigCode  IoConfigCodes_18[] =
 {
-    { "AVENC", 28 },
-    { "SPIDVBMODE", 80 }
+    { "AVENC", 30 },
+    { "SPIDVBMODE", 93 }
 };
 static const IoConfigCode  IoConfigCodes_19[] =
 {
-    { "720P50", 66 }
+    { "2160P23_98", 56 },
+    { "720P50", 79 }
 };
 static const IoConfigCode  IoConfigCodes_20[] =
 {
@@ -4485,78 +4585,93 @@ static const IoConfigCode  IoConfigCodes_20[] =
 static const IoConfigCode  IoConfigCodes_21[] =
 {
     { "INPUT", 17 },
-    { "EXTRATIO", 87 }
+    { "EXTRATIO", 100 }
 };
 static const IoConfigCode  IoConfigCodes_22[] =
 {
     { "SPIMODE", 5 },
-    { "SPICLKINT", 78 }
+    { "SPICLKINT", 91 }
+};
+static const IoConfigCode  IoConfigCodes_24[] =
+{
+    { "2160P59_94", 46 },
+    { "2160P29_97", 59 }
+};
+static const IoConfigCode  IoConfigCodes_26[] =
+{
+    { "2160P59_94B", 47 }
 };
 static const IoConfigCode  IoConfigCodes_27[] =
 {
-    { "SPIFIXEDCLK", 79 }
+    { "SPIFIXEDCLK", 92 }
 };
 static const IoConfigCode  IoConfigCodes_28[] =
 {
     { "IODIR", 0 },
     { "SPISTD", 6 },
     { "TSRATESEL", 7 },
-    { "SPI625I50", 72 },
-    { "SPICLKEXT", 77 }
+    { "SPI625I50", 85 },
+    { "SPICLKEXT", 90 }
 };
 static const IoConfigCode  IoConfigCodes_29[] =
 {
-    { "1080I60", 50 },
-    { "1080PSF24", 57 }
+    { "1080I60", 63 },
+    { "1080PSF24", 70 }
 };
 static const IoConfigCode  IoConfigCodes_30[] =
 {
     { "BW", 8 },
-    { "GPSTIME", 30 },
-    { "1080PSF25", 58 }
+    { "GPSTIME", 32 },
+    { "1080PSF25", 71 }
 };
 static const IoConfigCode  IoConfigCodes_31[] =
 {
-    { "3GSDI", 26 }
+    { "3GSDI", 27 }
+};
+static const IoConfigCode  IoConfigCodes_33[] =
+{
+    { "2160P30", 60 }
 };
 static const IoConfigCode  IoConfigCodes_34[] =
 {
-    { "ASI", 27 },
-    { "RFCLKINT", 76 }
+    { "6GSDI", 28 },
+    { "ASI", 29 },
+    { "RFCLKINT", 89 }
 };
 static const IoConfigCode  IoConfigCodes_35[] =
 {
     { "SWS2APSK", 13 },
-    { "INTTSRATE", 88 }
+    { "2160P50", 44 },
+    { "INTTSRATE", 101 }
 };
 static const IoConfigCode  IoConfigCodes_36[] =
 {
-    { "1080P60", 46 },
-    { "1080P24", 52 },
-    { "525I59_94", 69 }
+    { "1080P60", 54 },
+    { "1080P24", 65 },
+    { "525I59_94", 82 }
 };
 static const IoConfigCode  IoConfigCodes_37[] =
 {
     { "TRUE", 14 },
-    { "MOD", 35 },
-    { "1080P50B", 43 },
-    { "1080P25", 53 }
+    { "MOD", 37 },
+    { "1080P50B", 51 },
+    { "1080P25", 66 }
 };
 static const IoConfigCode  IoConfigCodes_38[] =
 {
-    { "1080P60B", 47 }
+    { "1080P60B", 55 }
 };
 static const IoConfigCode  IoConfigCodes_39[] =
 {
-    { "LOCK2INP", 89 }
+    { "LOCK2INP", 102 }
 };
 static const IoConfigCode  IoConfigCodes_40[] =
 {
-    { "RFCLKEXT", 75 }
+    { "RFCLKEXT", 88 }
 };
 static const IoConfigCode  IoConfigCodes_41[] =
 {
-    { "EXTTSRATE", 86 }
+    { "EXTTSRATE", 99 }
 };
 static const IoConfigCode  IoConfigCodes_43[] =
 {
@@ -4570,27 +4685,27 @@ static const IoConfigCode  IoConfigCodes_45[] =
 static const IoConfigCode  IoConfigCodes_47[] =
 {
     { "SPICLKSEL", 4 },
-    { "SDIRX", 38 }
+    { "SDIRX", 40 }
 };
 static const IoConfigCode  IoConfigCodes_48[] =
 {
-    { "SPI525I59_94", 71 },
-    { "LOWPWR", 74 }
+    { "SPI525I59_94", 84 },
+    { "LOWPWR", 87 }
 };
 static const IoConfigCode  IoConfigCodes_51[] =
 {
-    { "1080P23_98", 51 }
+    { "1080P23_98", 64 }
 };
 static const IoConfigCode  IoConfigCodes_52[] =
 {
-    { "PHASENOISE", 36 },
-    { "720P24", 62 },
-    { "720P60", 68 }
+    { "PHASENOISE", 38 },
+    { "720P24", 75 },
+    { "720P60", 81 }
 };
 static const IoConfigCode  IoConfigCodes_53[] =
 {
-    { "720P25", 63 },
-    { "SPISER8B", 81 }
+    { "720P25", 76 },
+    { "SPISER8B", 94 }
 };
 static const IoConfigCode  IoConfigCodes_54[] =
 {
@@ -4598,25 +4713,25 @@ static const IoConfigCode  IoConfigCodes_54[] =
 };
 static const IoConfigCode  IoConfigCodes_56[] =
 {
-    { "1080P59_94", 44 },
-    { "1080P29_97", 54 }
+    { "1080P59_94", 52 },
+    { "1080P29_97", 67 }
 };
 static const IoConfigCode  IoConfigCodes_58[] =
 {
-    { "1080P59_94B", 45 },
-    { "1080PSF30", 60 }
+    { "1080P59_94B", 53 },
+    { "1080PSF30", 73 }
 };
 static const IoConfigCode  IoConfigCodes_59[] =
 {
     { "RFCLKSEL", 3 },
-    { "SPILVDS1", 83 }
+    { "SPILVDS1", 96 }
 };
 static const IoConfigCode  IoConfigCodes_60[] =
 {
     { "GENREF", 12 },
-    { "IFADC", 33 },
-    { "1080I50", 48 },
-    { "SPILVDS2", 84 }
+    { "IFADC", 35 },
+    { "1080I50", 61 },
+    { "SPILVDS2", 97 }
 };
 static const IoConfigCode  IoConfigCodes_61[] =
 {
@@ -4624,9 +4739,9 @@ static const IoConfigCode  IoConfigCodes_61[] =
 };
 static const IoConfigCode  IoConfigCodes_62[] =
 {
-    { "IP", 34 },
-    { "MODHQ", 73 },
-    { "SPISER10B", 82 }
+    { "IP", 36 },
+    { "MODHQ", 86 },
+    { "SPISER10B", 95 }
 };
 static const IoConfigCode  IoConfigCodes_63[] =
 {
@@ -4643,9 +4758,9 @@ const IoConfigCodeHashSet  IoConfigCodeHashSets[] =
     { IoConfigCodes_1, 1 },
     { IoConfigCodes_2, 1 },
     { IoConfigCodes_3, 4 },
-    { NULL, 0 },
-    { IoConfigCodes_5, 1 },
-    { IoConfigCodes_6, 1 },
+    { IoConfigCodes_4, 2 },
+    { IoConfigCodes_5, 3 },
+    { IoConfigCodes_6, 2 },
     { IoConfigCodes_7, 2 },
     { IoConfigCodes_8, 3 },
     { NULL, 0 },
@@ -4654,27 +4769,27 @@ const IoConfigCodeHashSet  IoConfigCodeHashSets[] =
     { IoConfigCodes_12, 1 },
     { NULL, 0 },
     { IoConfigCodes_14, 1 },
-    { NULL, 0 },
+    { IoConfigCodes_15, 1 },
     { IoConfigCodes_16, 2 },
     { IoConfigCodes_17, 7 },
     { IoConfigCodes_18, 2 },
-    { IoConfigCodes_19, 1 },
+    { IoConfigCodes_19, 2 },
     { IoConfigCodes_20, 1 },
     { IoConfigCodes_21, 2 },
     { IoConfigCodes_22, 2 },
     { NULL, 0 },
+    { IoConfigCodes_24, 2 },
     { NULL, 0 },
-    { NULL, 0 },
-    { NULL, 0 },
+    { IoConfigCodes_26, 1 },
     { IoConfigCodes_27, 1 },
     { IoConfigCodes_28, 5 },
     { IoConfigCodes_29, 2 },
     { IoConfigCodes_30, 3 },
     { IoConfigCodes_31, 1 },
     { NULL, 0 },
-    { NULL, 0 },
-    { IoConfigCodes_34, 2 },
-    { IoConfigCodes_35, 2 },
+    { IoConfigCodes_33, 1 },
+    { IoConfigCodes_34, 3 },
+    { IoConfigCodes_35, 3 },
     { IoConfigCodes_36, 3 },
     { IoConfigCodes_37, 4 },
     { IoConfigCodes_38, 1 },
