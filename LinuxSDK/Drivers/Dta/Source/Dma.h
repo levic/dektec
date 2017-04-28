@@ -95,6 +95,15 @@ typedef struct _DmaOpt {
 //
 typedef void  (*DmaCallbackFunc)(DmaChannel* pDmaChannel, void* pContext);
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DmaPrepFunc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// Callback func called before a DMA is started to perform channel specific preperations
+typedef DtStatus  (*DmaPrepFunc)(DmaChannel* pDmaChannel, void* pContext);
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DmaSubTransferStartFunc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// Callback to channel specific DMA transfer program function. Called just before the 
+// DMA is started
+typedef DtStatus  (*DmaProgramTransferFunc)(DmaChannel* pDmaChannel, void* pContext);
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DMA Channel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 struct _DmaChannel {
@@ -151,6 +160,14 @@ struct _DmaChannel {
     DmaCallbackFunc  m_pDmaFinishFunc;
     void*  m_pDmaFinishContext;
 
+    DmaPrepFunc  m_pDmaPrepFunc;    // If non-NULL, called to perform channel specific
+                                    // DMA prepartions
+    void*  m_pDmaPrepContext;       // Context object passed to m_pDmaPrepFunc
+    DmaProgramTransferFunc  m_pDmaProgramTrFunc;  
+                                    // If non-NULL, called to start a channel specific
+                                    // sub-transfer
+    void*  m_pDmaProgramTrContext;  // Context object passed to m_pDmaPrepFunc
+
     // DMA buffers
     DmaDirectBuffer  m_SGListBuf;
     union
@@ -175,10 +192,12 @@ DtStatus  DtaDmaGetDmaChannelPlx(DtaDeviceData* pDvcData, Int PlxDmaChannel,
                                                                DmaChannel** ppDmaChannel);
 DtStatus  DtaDmaInit(DtaDeviceData* pDvcData);
 DtStatus  DtaDmaInitCh(DtaDeviceData* pDvcData, Int PortIndex, UInt MaxDmaLength,
-                                         UInt DmaMode, UInt DmaRegsOffset, UInt  DmaFlags,
-                                         Int Timeout, DmaCallbackFunc pDmaFinishFunc, 
-                                         void* pDmaFinishContext, DmaChannel* pDmaCh,
-                                         Bool FixedLocalAddress);
+                                     UInt DmaMode, UInt DmaRegsOffset, UInt  DmaFlags,
+                                     Int Timeout, DmaCallbackFunc pDmaFinishFunc, 
+                                     void* pDmaFinishContext, DmaChannel* pDmaCh,
+                                     Bool FixedLocalAddress,
+                                     DmaPrepFunc, void*  pDmaPrepContext,
+                                     DmaProgramTransferFunc, void*  pDmaProgramTrContext);
 void  DtaDmaCleanupCh(DtaDeviceData* pDvcData, DmaChannel* pDmaCh);
 DtStatus  DtaDmaInitChPowerup(DmaChannel* pDmaCh);
 DtStatus  DtaDmaInitPowerup(DtaDeviceData* pDvcData);
@@ -186,11 +205,11 @@ DtStatus  DtaDmaStartHpTransfer(DtaShBuffer* pShBuffer, Int TransferSize,
                                       Int TransferOffset, UInt8* pLocalAddress,
                                       UInt LocalAddressBufStart, UInt LocalAddressBufEnd);
 DtStatus  DtaDmaStartTransfer(DmaChannel* pDmaCh, DtPageList* pPageList, Int BufType,
-                                     UInt Direction, UInt8* pBuffer, Int TransferSize, 
-                                     Int TransferOffset,
-                                     UInt8* pLocalAddress, UInt LocalAddressBufStart, 
-                                     UInt LocalAddressBufEnd, Bool ReuseDataBuffer,
-                                     Int* pNumBytesRead);
+                                         UInt Direction, UInt8* pBuffer, Int TransferSize,
+                                         Int TransferOffset,
+                                         UInt8* pLocalAddress, UInt LocalAddressBufStart, 
+                                         UInt LocalAddressBufEnd, Bool ReuseDataBuffer,
+                                         Int* pNumBytesRead);
 DtStatus  DtaDmaStartKernelBufTransfer(DmaChannel* pDmaCh, UInt8* pBuffer, 
                                       Int TransferSize,
                                       Int TransferOffset, UInt8* pLocalAddress, 

@@ -291,7 +291,11 @@ Int  DtaNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
         pDvcData->m_IalData.m_NetStats.tx_errors++;
         return 1;
     }
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 7, 0)
     pDevice->trans_start = jiffies;
+#else
+    netif_trans_update(pDevice);
+#endif
 
     dev_kfree_skb(pSkb);
     return 0;
@@ -550,7 +554,7 @@ static Int  DtaNwEvtSetSettings(struct net_device* pDevice, struct ethtool_cmd* 
             Speed = DTA_PHY_SPEED_100_HALF;
         else
             Speed = DTA_PHY_SPEED_100_FULL;
-            pDvcData->m_IalData.m_AutoNegEn = FALSE;
+        pDvcData->m_IalData.m_AutoNegEn = FALSE;
     } else if (pCmd->speed == SPEED_1000)
     {
         if (pCmd->duplex == DUPLEX_HALF) 

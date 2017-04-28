@@ -1214,18 +1214,37 @@ DtStatus  DtaNonIpInit(
                                                                           &DmaRegsOffset);
 
         if (DT_SUCCESS(Status) && !pNonIpPort->m_CapAvEnc)
+        {
+            
+            DmaPrepFunc  pDmaPreFunc = NULL;
+            void*  pDmaPrepContext = NULL;
+            DmaProgramTransferFunc  pDmaProgramTrFunc = NULL;
+            void*  pDmaProgramTrContext = NULL;
+
+            // Matrix API cards use special prep and program callbacks
+            if (pNonIpPort->m_CapMatrix)
+            {
+                pDmaPreFunc = DtaNonIpMatrixDmaPrepCallback;
+                pDmaPrepContext = pNonIpPort;
+                pDmaProgramTrFunc = DtaNonIpMatrixDmaProgramTrCallback;
+                pDmaProgramTrContext = pNonIpPort;
+            }
+            
             Status = DtaDmaInitCh(pDvcData, PortIndex, 
-                                                   DtaNonIpGetMaxDmaBurstSize(pNonIpPort),
-                                                   DTA_DMA_MODE_DEFAULT, DmaRegsOffset, 
+                                                 DtaNonIpGetMaxDmaBurstSize(pNonIpPort),
+                                                 DTA_DMA_MODE_DEFAULT, DmaRegsOffset, 
 #ifdef WINBUILD
-                                                   DTA_DMA_FLAGS_NONE, -1,
-                                                   DtaNonIpDmaCompletedWindows, NULL,
+                                                 DTA_DMA_FLAGS_NONE, -1,
+                                                 DtaNonIpDmaCompletedWindows, NULL,
 #else
-                                                   DTA_DMA_FLAGS_BLOCKING, -1,
-                                                   NULL, NULL,
+                                                 DTA_DMA_FLAGS_BLOCKING, -1,
+                                                 NULL, NULL,
 #endif
-                                                   &pNonIpPort->m_DmaChannel,
-                                                   TRUE);
+                                                 &pNonIpPort->m_DmaChannel,
+                                                 TRUE,
+                                                 pDmaPreFunc, pDmaPrepContext,
+                                                 pDmaProgramTrFunc, pDmaProgramTrContext);
+        }
         if (DT_SUCCESS(Status) && pNonIpPort->m_CapAvEnc)
             Status = DtaDmaInitCh(pDvcData, PortIndex, 
                                                   DtaNonIpGetMaxDmaBurstSize(pNonIpPort),
@@ -1233,7 +1252,7 @@ DtStatus  DtaNonIpInit(
                                                   DTA_DMA_FLAGS_DATA_BUF_NO_COPY, -1,
                                                   NULL, NULL,
                                                   &pNonIpPort->m_DmaChannel,
-                                                  TRUE);
+                                                  TRUE, NULL, NULL, NULL, NULL);
         if (!DT_SUCCESS(Status))
             return Status;
     }

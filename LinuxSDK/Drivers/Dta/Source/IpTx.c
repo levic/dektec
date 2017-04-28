@@ -259,7 +259,8 @@ DtStatus  DtaIpTxInitType1(DtaIpPort* pIpPort)
                                       DTA_IPTX_RT_PINGPONG_BUF_SIZE, DTA_DMA_MODE_DEFAULT,
                                       DmaRegsOffsetTxRt, DTA_DMA_FLAGS_DATA_BUF_NO_COPY,
                                       -1, NULL, NULL,
-                                      &pIpPortType1->m_TxRt.m_DmaChannel, TRUE);
+                                      &pIpPortType1->m_TxRt.m_DmaChannel, TRUE,
+                                      NULL, NULL, NULL, NULL);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, IP_TX, "Error initialising IpTx Rt DMA channel");
@@ -274,7 +275,7 @@ DtStatus  DtaIpTxInitType1(DtaIpPort* pIpPort)
                                   DTA_DMA_MODE_DEFAULT, DmaRegsOffsetTxNrt,
                                   DTA_DMA_FLAGS_DATA_BUF_NO_COPY | DTA_DMA_FLAGS_BLOCKING,
                                   -1, NULL, NULL, &pIpPortType1->m_TxNrt.m_DmaChannel,
-                                  TRUE);
+                                  TRUE, NULL, NULL, NULL, NULL);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, IP_TX, "Error initialising IpTx Nrt DMA channel");
@@ -359,7 +360,7 @@ DtStatus  DtaIpTxInitType2(DtaIpPort* pIpPort)
                                   DTA_DMA_MODE_DEFAULT, DmaRegsOffsetTxNrt,
                                   DTA_DMA_FLAGS_DATA_BUF_NO_COPY | DTA_DMA_FLAGS_BLOCKING,
                                   -1, NULL, NULL, &pIpPortType2->m_TxNrt.m_DmaChannel,
-                                  TRUE);
+                                  TRUE, NULL, NULL, NULL, NULL);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, IP_TX, "Error initialising IpTx Nrt DMA channel");
@@ -377,7 +378,8 @@ DtStatus  DtaIpTxInitType2(DtaIpPort* pIpPort)
                                       DmaRegsOffsetTxRt, DTA_DMA_FLAGS_DATA_BUF_NO_COPY |
                                       DTA_DMA_FLAGS_NOINT_AFTER_DONE,
                                       -1, NULL, NULL,
-                                      &pIpPortType2->m_TxRt.m_DmaChannel, TRUE);
+                                      &pIpPortType2->m_TxRt.m_DmaChannel, TRUE,
+                                      NULL, NULL, NULL, NULL);
         if (!DT_SUCCESS(Status))
         {
             DtDbgOut(ERR, IP_TX, "Error initialising IpTx Rt DMA channel");

@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        24
+#define DTAPI_VERSION_MINOR        25
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        91
+#define DTAPI_VERSION_BUILD        94
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -147,6 +147,7 @@ class SdiMatrixImpl;
 class AvInputStatus;
 struct DtAtscStreamSelPars;
 struct DtAtsc3DemodL1Data;
+struct DtAtsc3TxIdInfo;
 struct DtAtsc3StreamSelPars;
 struct DtDabEnsembleInfo;
 struct DtDabEtiStreamSelPars;
@@ -687,6 +688,7 @@ struct DtDtaPlusDeviceDesc
 struct DtDvbCidPars
 {
     bool  m_Enable;             // Enable DVB-CID signalling
+    bool  m_MuteDvbS2;          // Mute the satellite signal
     unsigned int  m_GuidHigh;   // DVB-CID Global Unique Identifier MSBs
     unsigned int  m_GuidLow;    // DVB-CID Global Unique Identifier LSBs
    
@@ -694,6 +696,7 @@ struct DtDvbCidPars
     // Content ID 0 (carrier ID format) shall have the value 0x0001
     std::map<int, int>  m_Content;
 
+    DtDvbCidPars() : m_MuteDvbS2(false) {};
     DTAPI_RESULT  CheckValidity();
 };
 
@@ -1271,6 +1274,9 @@ struct DtModPars
     DtCmPars  m_CmPars[DTAPI_MAX_OUTPUTS];
                                     // Channel modelling parameters
 
+    bool  m_IsChanAttenEnable;      // Channel attenuation is enable yes/no
+    double m_ChanAtten;             // Channel attenuation
+
     // Custom roll-off roll
     bool  m_IsRoEnable;             // Custom roll-off filter enable yes/no
     DtFilterPars  m_RollOffFilter;  // Custom roll-off filter parameters
@@ -1303,7 +1309,7 @@ struct DtModPars
     // Predicates
     bool  HasSymRate();
     bool  IsAdtbT(), IsAdtbtDtmb(), IsAtsc(), IsAtsc3(), IsAtscMh(), IsCmmb();
-    bool  IsCmEnable(int i=0);
+    bool  IsChanAttenEnable(), IsCmEnable(int i=0);
     bool  IsDab(), IsDtmb(), IsDvbC2(), IsDvbCidEnable(), IsDvbS(), IsDvbS2();
     bool  IsDvbS2Apsk(), IsDvbS2L3(), IsDvbS2X(), IsDvbS2XL3(), IsDvbS2Mux();
     bool  IsDvbT(), IsDvbT2(), IsIqDirect(), IsIsdbS(), IsIsdbT(), IsIsdbTmm();
@@ -1444,7 +1450,7 @@ struct DtStatistic
         STAT_VT_ISDBT_PARS, STAT_VT_LDPC_STATS, STAT_VT_MA_DATA,
         STAT_VT_MA_STATS, STAT_VT_PLP_BLOCKS, STAT_VT_VIT_STATS,
         STAT_VT_DAB_ENSEM, STAT_VT_RS_STATS, STAT_VT_DVBT_TPS, STAT_VT_DAB_TXID,
-        STAT_VT_ATSC3_L1, STAT_VT_DVBT2_TXID
+        STAT_VT_ATSC3_L1, STAT_VT_DVBT2_TXID, STAT_VT_ATSC3_TXID
     };
 
 
@@ -1461,7 +1467,7 @@ struct DtStatistic
                                     // STAT_VT_DVBT2_L1, STAT_VT_VIT_STATS
                                     // STAT_VT_DAB_ENSEM, STAT_VT_RS_STATS,
                                     // STAT_VT_DAB_TXID, STAT_VT_ATSC3_L1,
-                                    // STAT_VT_DVBT2_TXID
+                                    // STAT_VT_DVBT2_TXID, STAT_VT_ATSC3_TXID
     };
     void  Cleanup();
     DTAPI_RESULT  GetName(const char*& pName, const char*& pShortName);
@@ -1470,6 +1476,7 @@ struct DtStatistic
     DTAPI_RESULT  GetValue(double &Value);
     DTAPI_RESULT  GetValue(bool &Value);
     DTAPI_RESULT  GetValue(DtAtsc3DemodL1Data*& pValue);
+    DTAPI_RESULT  GetValue(DtAtsc3TxIdInfo*& pValue);
     DTAPI_RESULT  GetValue(DtDabEnsembleInfo*& pValue);
     DTAPI_RESULT  GetValue(DtDabTransmitterIdInfo*& pValue);
     DTAPI_RESULT  GetValue(DtDvbC2DemodL1Part2Data*& pValue);
@@ -1489,6 +1496,7 @@ struct DtStatistic
     DTAPI_RESULT  SetValue(double Value);
     DTAPI_RESULT  SetValue(bool Value);
     DTAPI_RESULT  SetValue(DtAtsc3DemodL1Data& pValue);
+    DTAPI_RESULT  SetValue(DtAtsc3TxIdInfo& pValue);
     DTAPI_RESULT  SetValue(DtDabEnsembleInfo& pValue);
     DTAPI_RESULT  SetValue(DtDabTransmitterIdInfo& pValue);
     DTAPI_RESULT  SetValue(DtDvbC2DemodL1Part2Data& Value);
@@ -1580,6 +1588,7 @@ private:
 #define DTAPI_STAT_DAB_ENSEM_INFO   0x308        // DAB ensemble information from the
                                                  // Fast Information Channel (FIC)
 #define DTAPI_STAT_ATSC3_L1DATA     0x30D        // ATSC3 Layer-1 data
+#define DTAPI_STAT_ATSC3_TXID_INFO  0x30F        // ATSC3 transmitter ID information
 #define DTAPI_STAT_DAB_TXID_INFO    0x30C        // DAB transmitter ID information
 #define DTAPI_STAT_DVBC2_L1P2DATA   0x300        // DVB-C2 Layer-1 Part 2 data
 #define DTAPI_STAT_DVBC2_PLPSIGDATA 0x301        // DVB-C2 Layer-1 PLP signalling data
@@ -2625,6 +2634,7 @@ public:
     virtual DTAPI_RESULT  SetLicenseFromString(const std::wstring& LicString,
                                                                         bool Force=false);
     virtual DTAPI_RESULT  SetNwSpeed(int Port, bool Enable, int Speed);
+    virtual DTAPI_RESULT  SetVcxoState(bool Enable, int Value);
     virtual DTAPI_RESULT  UnregisterCallback(void* pId);
     virtual DTAPI_RESULT  VpdDelete(const char* pTag);
     virtual DTAPI_RESULT  VpdDelete(const wchar_t* pTag);
@@ -4636,6 +4646,8 @@ private:
 #define DTAPI_E_INVALID_PLP_SIZE    (DTAPI_E + 254)
 #define DTAPI_E_INVALID_PLP_START   (DTAPI_E + 255)
 #define DTAPI_E_INVALID_PLP_REF     (DTAPI_E + 256)
+#define DTAPI_E_INVALID_TXID_INJ    (DTAPI_E + 257)
+#define DTAPI_E_INVALID_TXID        (DTAPI_E + 258)
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+ DVB-C2, DVB-S2, DVB-T2, ISDB-Tmm Multi PLP Parameters +=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -4929,6 +4941,21 @@ public:
 #define DTAPI_ATSC3_FFT_8K          0           // 8K FFT
 #define DTAPI_ATSC3_FFT_16K         1           // 16K FFT
 #define DTAPI_ATSC3_FFT_32K         2           // 32K FFT
+// TXID injection level
+#define DTAPI_ATSC3_TXID_INJ_OFF    0           // Tx-ID injection off
+#define DTAPI_ATSC3_TXID_INJ_45DB   1           // Tx-ID injection 45dB below preamble
+#define DTAPI_ATSC3_TXID_INJ_42DB   2           // Tx-ID injection 42dB below preamble
+#define DTAPI_ATSC3_TXID_INJ_39DB   3           // Tx-ID injection 39dB below preamble
+#define DTAPI_ATSC3_TXID_INJ_36DB   4           // Tx-ID injection 36dB below preamble
+#define DTAPI_ATSC3_TXID_INJ_33DB   5           // Tx-ID injection 33dB below preamble
+#define DTAPI_ATSC3_TXID_INJ_30DB   6           // Tx-ID injection 30dB below preamble
+#define DTAPI_ATSC3_TXID_INJ_27DB   7           // Tx-ID injection 27dB below preamble
+#define DTAPI_ATSC3_TXID_INJ_24DB   8           // Tx-ID injection 24dB below preamble
+#define DTAPI_ATSC3_TXID_INJ_21DB   9           // Tx-ID injection 21dB below preamble
+#define DTAPI_ATSC3_TXID_INJ_18DB   10          // Tx-ID injection 18dB below preamble
+#define DTAPI_ATSC3_TXID_INJ_15DB   11          // Tx-ID injection 15dB below preamble
+#define DTAPI_ATSC3_TXID_INJ_12DB   12          // Tx-ID injection 12dB below preamble
+#define DTAPI_ATSC3_TXID_INJ_9DB    13          // Tx-ID injection 9dB below preamble
 // PAPR - Peak to Average Power Reduction
 #define DTAPI_ATSC3_PAPR_NONE       0           // None
 #define DTAPI_ATSC3_PAPR_TR         1           // TR - PAPR using reserved carriers
@@ -5116,6 +5143,9 @@ public:
     int  m_L1BasicFecMode;      // L1-Basic FEC-type mode 1..7
     int  m_L1DetailFecMode;     // L1 Detail FEC-type mode: 1..7
     int  m_L1DetailAddParity;   // L1-Detail aditional parity mode K: 0, 1 or 2
+
+    int  m_TxIdInjectLevelCode; // Tx-ID injection level see DTAPI_ATSC3_TXIDLVL_xx
+    int  m_TxIdAddress;         // Tx-ID address: 0..8191
   
     // Time information seconds elapsed since the PTP epoch on 1st January 1970
     int   m_TimeInfoFlag;       // Generation of time information: None, Millisecond, 
@@ -5399,6 +5429,25 @@ struct DtAtsc3DemodL1Data
 struct DtAtsc3StreamSelPars
 {
     int  m_PlpId;                   // ID of the data PLP
+};
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAtsc3TxId -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+struct DtAtsc3TxId
+{
+    int  m_TxIdAddress;             // Transmitter identification address
+    double  m_LeveldB;              // Level expressed in dB relative to the ATSC3 
+                                    // symbol power
+};
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAtsc3TxIdInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Information about a ATSC 3.0 transmitter identification
+//
+struct DtAtsc3TxIdInfo
+{
+    __int64  m_ProgressCount;                   // Scan progress counter
+    std::vector<DtAtsc3TxId>  m_TxIds;          // Transmitters sorted in decreasing
+                                                // relative power
 };
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DAB Parameters +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -7126,7 +7175,8 @@ enum DtStreamType
     STREAM_T2MI,                    // DVB-T2 stream
     STREAM_TF_ABS,                  // Transfer function absolute
     STREAM_TF_PHASE,                // Transfer function phase
-    STREAM_TF_GROUPDELAY            // Transfer function group delay
+    STREAM_TF_GROUPDELAY,           // Transfer function group delay
+    STREAM_TXID_IMPRESP             // Impulse reponse of Tx-ID
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtConstelPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -7270,6 +7320,20 @@ struct DtTransFuncPars
     int  m_Channel;                 // Channel used for MISO
 };
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtTxIdImpRespPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// This structure specifies the parameters for an transmitter identification
+// impulse-response stream
+//
+struct DtTxIdImpRespPars
+{
+    int  m_Period;                  // Minimum period between callbacks in ms
+    int  m_TxIdAddress;             // Selected Tx-ID address: 0..8191
+    int  m_AveragePeriod;           // In 8192 samples Tx-ID sequences. 
+                                    // Increase it to lower noise.
+};
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtStreamSelPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Structure for streaming data selection
@@ -7299,6 +7363,7 @@ struct DtStreamSelPars
         DtMerPars  m_Mer;
         DtSpectrumPars  m_Spectrum;
         DtTransFuncPars  m_TransFunc;
+        DtTxIdImpRespPars   m_TxIdImpResp;
     } u;
 
     bool  operator == (DtStreamSelPars& Rhs);
@@ -7613,6 +7678,29 @@ public:
                                 //       true, otherwise they're initially empty.
 };
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxAuxObjConfigVideoIndex -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+class DtMxAuxObjConfigVideoIndex : public DtMxAuxObjConfig
+{
+public:
+    static const int  LINE1_DEFAULT_525 = 11;
+    static const int  LINE2_DEFAULT_525 = 274;
+    static const int  LINE1_DEFAULT_625 = 19;
+    static const int  LINE2_DEFAULT_625 = 332;
+
+public:
+    int  m_Line1;               // Line in field 1 to extract or insert the video-index
+                                // from/to. Valid lines are:
+                                // - 525: 1..16 (default=11)
+                                // - 625: 1..22 (default=19)
+                                // NOTE: -1, means use default
+    int  m_Line2;               // Line in field 2 to extract or insert the video-index
+                                // from/to. Valid lines are:
+                                // - 525: 263..279 (default=274)
+                                // - 625: 313..35 (default=332)
+                                // NOTE: -1, means use default
+};
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxAuxConfigSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 class DtMxAuxConfigSdi
@@ -7621,7 +7709,8 @@ public:
     typedef std::vector<std::pair<unsigned int, unsigned int> >  VpidList;
 
     DtMxAuxObjConfig  m_AncPackets;  // Settings for ancillary data packets
-    DtMxAuxObjConfig  m_VideoIndex;  // Settings for (deprecated SD only) video index data
+    DtMxAuxObjConfigVideoIndex  m_VideoIndex;
+                                     // Settings for (deprecated SD only) video index data
     DtMxAuxObjConfig  m_Wss;         // Settings for (SD only) Wide Screen Signaling
     DtMxAuxObjConfig  m_Line21;      // Settings for (SD only) analog CEA-608 line 21 data
     DtMxAuxObjConfig  m_Teletext;    // Settings for (PAL only) teletext
@@ -7898,6 +7987,7 @@ public:
 
     unsigned char m_Data[90];   // Raw video index data
     bool  m_Valid;              // True if m_Data contains valid data
+    int  m_Line;                // Line number in which the video index was found
 
     DtMxSdVideoIndex();
 };
@@ -7939,7 +8029,7 @@ public:
 
     WssType  m_Type;            // Encoding of data in m_Data
     int  m_Data;                // Raw data
-    bool  m_Valid;              // True if m_Data contains valid data
+    int  m_NumBitsValid;        // The number of bits in m_Data that contain valid data
 
     DtMxSdWss();
 };
@@ -8338,7 +8428,7 @@ public:
     DtMxPort();
     // 2. Constructor that links to a single physical port. Video standard and
     // link standard are not explicitly set and will be determined from IOConfig.
-    DtMxPort(DtDevice*, int  Port, int  ClockPriority=0);
+    DtMxPort(DtDevice*, int  Port, int  ClockPriority=0, int  PixelOffset=0);
     // 3. Constructor that initializes the object for a multi-link structure.
     DtMxPort(int  VidStd, int  LinkStd);
     // 4. Copy constructor
@@ -8348,7 +8438,8 @@ public:
     // Assignment operator
     DtMxPort& operator = (const DtMxPort&);
     
-    DTAPI_RESULT  AddPhysicalPort(DtDevice*, int  Port, int  ClockPriority=0);
+    DTAPI_RESULT  AddPhysicalPort(DtDevice*, int  Port, int  ClockPriority=0, 
+                                                                      int  PixelOffset=0);
 
 private:
     class MxPortImpl*  m_pImpl;

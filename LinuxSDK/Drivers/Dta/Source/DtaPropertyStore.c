@@ -21235,8 +21235,10 @@ static const DtProperty  DtProperties2180_0_00[] =
 };
 static const DtProperty  DtProperties2180_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "FIRMWARE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N2_0", -1, "Dolby support fix: PCM detection and mute",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2180_0_02[] =
 {
@@ -21523,7 +21525,7 @@ static const DtProperty  DtProperties2180_0_63[] =
 static const DtPropertyHashSet  DtPropertyHashSets2180_0[] =
 {
     { DtProperties2180_0_00, 1 },
-    { DtProperties2180_0_01, 1 },
+    { DtProperties2180_0_01, 2 },
     { DtProperties2180_0_02, 1 },
     { NULL, 0 },
     { DtProperties2180_0_04, 2 },
@@ -21625,6 +21627,12 @@ static const DtProperty  DtProperties2195_0_04[] =
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 4, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 8, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 9, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 10, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_EXT_CLK_FREQ", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
@@ -21806,8 +21814,8 @@ static const DtProperty  DtProperties2195_0_14[] =
 {
     { "ASI_SDI_HW_SER_ITF_DELAY_SD", 0, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
-                                                                                   0, 0 },
+    { NULL, 518, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+                                                                                0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 5, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
                                                                                    0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 6, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
@@ -21930,20 +21938,20 @@ static const DtProperty  DtProperties2195_0_20[] =
 {
     { "ASI_SDI_HW_SER_ITF_DELAY_6G", 0, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
-                                                                                   0, 0 },
+    { NULL, 238, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+                                                                                0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 5, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
                                                                                    0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 6, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
                                                                                    0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 7, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
                                                                                    0, 0 },
-    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 8, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
-                                                                                   0, 0 },
-    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 9, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
-                                                                                   0, 0 },
-    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 10, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
-                                                                                   0, 0 },
+    { NULL, 238, NULL, PROPERTY_VALUE_TYPE_INT, 8, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+                                                                                0, 0, 0 },
+    { NULL, 238, NULL, PROPERTY_VALUE_TYPE_INT, 9, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+                                                                                0, 0, 0 },
+    { NULL, 238, NULL, PROPERTY_VALUE_TYPE_INT, 10, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+                                                                                0, 0, 0 },
     { "CAP_2160P30", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
@@ -22151,20 +22159,20 @@ static const DtProperty  DtProperties2195_0_33[] =
 {
     { "ASI_SDI_HW_SER_ITF_DELAY_12G", 0, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
-                                                                                   0, 0 },
+    { NULL, 238, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+                                                                                0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 5, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
                                                                                    0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 6, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
                                                                                    0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 7, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
                                                                                    0, 0 },
-    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 8, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
-                                                                                   0, 0 },
-    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 9, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
-                                                                                   0, 0 },
-    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 10, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
-                                                                                   0, 0 } 
+    { NULL, 238, NULL, PROPERTY_VALUE_TYPE_INT, 8, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+                                                                                0, 0, 0 },
+    { NULL, 238, NULL, PROPERTY_VALUE_TYPE_INT, 9, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+                                                                                0, 0, 0 },
+    { NULL, 238, NULL, PROPERTY_VALUE_TYPE_INT, 10, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+                                                                                0, 0, 0 } 
 };
 static const DtProperty  DtProperties2195_0_34[] =
 {
@@ -22195,8 +22203,8 @@ static const DtProperty  DtProperties2195_0_35[] =
 {
     { "ASI_SDI_HW_SER_ITF_DELAY_HD", 0, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
-                                                                                   0, 0 },
+    { NULL, 268, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+                                                                                0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 5, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
                                                                                    0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 6, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
@@ -22402,6 +22410,18 @@ static const DtProperty  DtProperties2195_0_45[] =
     { "CAP_MATRIX", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 5, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 6, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 7, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 8, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 9, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 10, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2195_0_46[] =
@@ -22444,8 +22464,8 @@ static const DtProperty  DtProperties2195_0_49[] =
 {
     { "ASI_SDI_HW_SER_ITF_DELAY_3G", 0, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
-                                                                                   0, 0 },
+    { NULL, 238, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+                                                                                0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 5, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
                                                                                    0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, 6, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0,
@@ -22738,7 +22758,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2195_0[] =
     { DtProperties2195_0_01, 1 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties2195_0_04, 9 },
+    { DtProperties2195_0_04, 12 },
     { NULL, 0 },
     { DtProperties2195_0_06, 15 },
     { DtProperties2195_0_07, 8 },
@@ -22779,7 +22799,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2195_0[] =
     { DtProperties2195_0_42, 9 },
     { DtProperties2195_0_43, 21 },
     { DtProperties2195_0_44, 1 },
-    { DtProperties2195_0_45, 6 },
+    { DtProperties2195_0_45, 12 },
     { DtProperties2195_0_46, 10 },
     { DtProperties2195_0_47, 5 },
     { NULL, 0 },

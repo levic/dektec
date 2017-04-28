@@ -1032,7 +1032,7 @@ DtStatus  DtHdmiReadEdid(DtaHdmiTx* pHdmiTx)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxHotplugWorkItem -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtHdmiTxHotplugWorkItem(DtWorkItemArgs* pArgs)
+void  DtHdmiTxHotplugWorkItem(DtWorkItemArgs* pArgs)
 {
     DtaHdmiTx*  pHdmiTx = (DtaHdmiTx*)pArgs->m_pContext;
     DtStatus  Status = DT_STATUS_OK;
@@ -1050,7 +1050,7 @@ DtStatus  DtHdmiTxHotplugWorkItem(DtWorkItemArgs* pArgs)
         if (!DT_SUCCESS(Status))
             DtDbgOut(ERR, HDMI, "Error updating video standard");
         DtMutexRelease(&pHdmiTx->m_StateLock);
-        return DT_STATUS_OK;
+        return;
     }
     
     DtMutexAcquire(&pHdmiTx->m_StateLock, -1);
@@ -1086,12 +1086,11 @@ DtStatus  DtHdmiTxHotplugWorkItem(DtWorkItemArgs* pArgs)
             // Disable HDMI
             DtaRegHdmiTxGenCtrlSetEnable(pHdmiTx->m_pHdmiRegs, 0);
             DtHdmiTxEnableHdmiOutputDriver(pHdmiTx, FALSE);
-
         }
     }
     DtMutexRelease(&pHdmiTx->m_StateLock);
-    return Status;
 }
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxHotplugDpc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtHdmiTxHotplugDpc(DtDpcArgs* pArgs)
@@ -1956,7 +1955,6 @@ void  DtHdmiEdidDecodeDisplayRangeLimits(DtaHdmiTx* pHdmiTx, UInt8* pDisplayRL)
     Int  MinVOffset=0;
     Int  MaxHOffset=0;
     Int  MinHOffset=0;
-    Int  MaxPixClkOffset = 0;
 
     if ((pDisplayRL[0] & 0x03) == 0)
         DtDbgOut(MAX, HDMI, "Vertical Rate Offsets are zero");

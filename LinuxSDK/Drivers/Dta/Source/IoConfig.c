@@ -1559,8 +1559,9 @@ static DtStatus  DtaIoConfigUpdateValidateGenRef(
         }
         // Port must be configured for SDI
         IoStdVal = pPortUpdate->m_CfgValue[DT_IOCONFIG_IOSTD].m_Value;
-        if (IoStdVal!=DT_IOCONFIG_SDI && IoStdVal!=DT_IOCONFIG_HDSDI &&
-                                                              IoStdVal!=DT_IOCONFIG_3GSDI)
+        if (IoStdVal!=DT_IOCONFIG_SDI && IoStdVal!=DT_IOCONFIG_HDSDI 
+                             && IoStdVal!=DT_IOCONFIG_3GSDI && IoStdVal!=DT_IOCONFIG_6GSDI 
+                             && IoStdVal!=DT_IOCONFIG_12GSDI)
         {
             DtDbgOut(ERR, IOCONFIG, "Port %i is not an input", pNonIpPort->m_PortIndex);
             return DT_STATUS_CONFIG_ERROR;

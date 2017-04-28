@@ -1212,83 +1212,49 @@ UInt32  DtaNonIpMatrixGetFrameAddrInMem(
     return FrameAddr;
 }
 
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixPrepForAsiDma -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixCheckMemTrParams -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaNonIpMatrixPrepForAsiDma(
-    DtaNonIpPort* pNonIpPort,
-    Int  BufSize,
-    const DtaMatrixMemTrSetup*  pMemTrSetup)
-{
-    UInt32  AsiStartAddr = 0;
-    volatile UInt8*  pHdRegs = pNonIpPort->m_pRxRegs;
-
-    DT_ASSERT(pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIRD
-                                           || pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIWR);
-
-    // Check that tr-size is a multiple of 32
-    if (BufSize==0 || (BufSize%32)!=0)
-    {
-        DtDbgOut(ERR, NONIP, "ASI transfer size (=%d) is not a multiple of 32", BufSize);
-        return DT_STATUS_INVALID_PARAMETER;
-    }
-
-    
-    // Step 1: set the transfer command to IDLE
-    DtaRegHdMemTrControlSetTrCmd(pHdRegs, DT_MEMTR_TRCMD_IDLE);
-    // Step 2: Set section 0 start address
-    AsiStartAddr = pNonIpPort->m_Matrix.m_BufConfig.m_Sections[0].m_BeginAddr
-                                                    + pNonIpPort->m_Matrix.m_AsiDmaOffset;
-    DtaRegHdS0StartAddrSet(pHdRegs, AsiStartAddr);
-    // Step 3: Set number of bytes to transfer
-    DtaRegHdSetMemTrNumBAsi(pHdRegs, BufSize);
-    //DtDbgOut(ERR, DTA, "new %s dma: start=0x%X, size=0x%X", 
-    //                          pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIRD?"read":"write",
-    //                                                             AsiStartAddr, BufSize);
-    // Finally: set the actual transfer command to start the transfer
-    DtaRegHdMemTrControlSetTrCmd(pHdRegs, pMemTrSetup->m_TrCmd);
-
-    return DT_STATUS_OK;
-}
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixPrepForDma -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-DtStatus  DtaNonIpMatrixPrepForDma(
+DtStatus  DtaNonIpMatrixCheckMemTrParams(
     DtaNonIpPort* pNonIpPort,                   
     Int  BufSize,                               // Size of DMA buffer
     const DtaMatrixMemTrSetup*  pMemTrSetup,    // DMA transfer setup parameters
     Int*  pDmaSize)                             // Actual # of bytes to be DMA-ed
+
 {
     DtStatus  Status = DT_STATUS_OK;
     Int  ReqDmaSize = 0;
-    UInt32  MemStartAddr = 0;
     DtAvFrameProps*  pFrameProps = NULL;
-    DtaFrameBufConfig*  pBufConf = NULL;
-    volatile UInt8*  pHdRegs = NULL;
     
     DT_ASSERT(pNonIpPort!=NULL && pNonIpPort->m_CapMatrix);
     DT_ASSERT(pMemTrSetup != NULL);
     DT_ASSERT(pDmaSize != NULL);
 
+    pFrameProps = &pNonIpPort->m_Matrix.m_FrameProps;
+
     // Init to 'safe' value
     *pDmaSize = 0;
 
+    // Check for ASI
     if (pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIRD
-                                            || pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIWR)
+        || pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIWR)
     {
-        *pDmaSize = BufSize;
-        return DtaNonIpMatrixPrepForAsiDma(pNonIpPort, BufSize, pMemTrSetup);
-    }
+        // Check that tr-size is a multiple of 32
+        if (BufSize==0 || (BufSize%32)!=0)
+        {
+            DtDbgOut(ERR, NONIP, "ASI transfer size (=%d) is not a multiple of 32", 
+                BufSize);
+            return DT_STATUS_INVALID_PARAMETER;
+        }
 
-    pHdRegs = pNonIpPort->m_pRxRegs;
-    pFrameProps = &pNonIpPort->m_Matrix.m_FrameProps;
-    pBufConf = &pNonIpPort->m_Matrix.m_BufConfig;
+        *pDmaSize = BufSize;    // Transfer all
+        return DT_STATUS_OK;
+    }
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Validate parameters -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
     // Check: transfer command
     if (pMemTrSetup->m_TrCmd!=DT_MEMTR_TRCMD_IDLE 
-                                            && pMemTrSetup->m_TrCmd!=DT_MEMTR_TRCMD_SECT0 
+                                            && pMemTrSetup->m_TrCmd!=DT_MEMTR_TRCMD_SECT0
                                             && pMemTrSetup->m_TrCmd!=DT_MEMTR_TRCMD_SECT1
                                             && pMemTrSetup->m_TrCmd!=DT_MEMTR_TRCMD_FRAME)
     {
@@ -1318,7 +1284,7 @@ DtStatus  DtaNonIpMatrixPrepForDma(
                                        && pMemTrSetup->m_SymFlt!=DT_MEMTR_SYMFLTMODE_SWAP)
     {
         DtDbgOut(ERR, NONIP, "Unsupported symbol filter mode (%d)", 
-                                                                   pMemTrSetup->m_SymFlt);
+            pMemTrSetup->m_SymFlt);
         return DT_STATUS_INVALID_PARAMETER;
     }
     // Check: scaling mode
@@ -1335,15 +1301,15 @@ DtStatus  DtaNonIpMatrixPrepForDma(
                                     && pMemTrSetup->m_AncFlt!=DT_MEMTR_ANCFLTMODE_VANCALL)
     {
         DtDbgOut(ERR, NONIP, "Unsupported ancillary filter mode (%d)", 
-                                                                   pMemTrSetup->m_AncFlt);
+            pMemTrSetup->m_AncFlt);
         return DT_STATUS_INVALID_PARAMETER;
     }
     // Check: line numbers
-    if (!DtaNonIpMatrixValidateStartLineAndNumLines(pFrameProps, pMemTrSetup->m_StartLine, 
+    if (!DtaNonIpMatrixValidateStartLineAndNumLines(pFrameProps, pMemTrSetup->m_StartLine,
                                                                  pMemTrSetup->m_NumLines))
     {
         DtDbgOut(ERR, NONIP, "Invalid start line (%d) and/or number of lines (%d)",
-                                       pMemTrSetup->m_StartLine, pMemTrSetup->m_NumLines);
+            pMemTrSetup->m_StartLine, pMemTrSetup->m_NumLines);
         return DT_STATUS_INVALID_PARAMETER;
     }
     // Stride mode is checked in DtaNonIpMatrixGetReqDmaSize()
@@ -1353,7 +1319,7 @@ DtStatus  DtaNonIpMatrixPrepForDma(
     Status = DtaNonIpMatrixGetReqDmaSize(pNonIpPort, pMemTrSetup, &ReqDmaSize);
     if (!DT_SUCCESS(Status))
         return Status;
-    
+
     if (pMemTrSetup->m_IsWrite)
     {
         // With the anc filter disabled BufSize>=ReqDmaSize, with anc filter enabled 
@@ -1378,18 +1344,99 @@ DtStatus  DtaNonIpMatrixPrepForDma(
             return DT_STATUS_BUF_TOO_SMALL;
     }
     *pDmaSize = ReqDmaSize;
+
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixPrepForAsiDma -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaNonIpMatrixPrepForAsiDma(
+    DtaNonIpPort* pNonIpPort,
+    Int  BufSize,
+    const DtaMatrixMemTrSetup*  pMemTrSetup)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    UInt32  AsiStartAddr = 0;
+    Int  DmaSize = 0;
+    volatile UInt8*  pHdRegs = pNonIpPort->m_pRxRegs;
+
+    DT_ASSERT(pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIRD
+                                           || pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIWR);
+
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Validate parameters -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+    Status = DtaNonIpMatrixCheckMemTrParams(pNonIpPort, BufSize, pMemTrSetup, &DmaSize);
+    if (!DT_SUCCESS(Status))
+        return Status;
+    DT_ASSERT(DmaSize == BufSize);
+
+    //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Initiate Mem Transfer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+    // Step 1: set the transfer command to IDLE
+    DtaRegHdMemTrControlSetTrCmd(pHdRegs, DT_MEMTR_TRCMD_IDLE);
+    // Step 2: Set section 0 start address
+    AsiStartAddr = pNonIpPort->m_Matrix.m_BufConfig.m_Sections[0].m_BeginAddr
+        + pNonIpPort->m_Matrix.m_AsiDmaOffset;
+    DtaRegHdS0StartAddrSet(pHdRegs, AsiStartAddr);
+    // Step 3: Set number of bytes to transfer
+    DtaRegHdSetMemTrNumBAsi(pHdRegs, DmaSize);
+
+    // NOTE: the actual transfer command is issued in the DMA-program-transfer-callback
+    // (see DtaNonIpMatrixDmaProgramTrCallback)
+
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixPrepForDma -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaNonIpMatrixPrepForDma(
+    DtaNonIpPort* pNonIpPort,                   
+    Int  BufSize,                               // Size of DMA buffer
+    const DtaMatrixMemTrSetup*  pMemTrSetup,    // DMA transfer setup parameters
+    Int*  pDmaSize)                             // Actual # of bytes to be DMA-ed
+{
+    DtStatus  Status = DT_STATUS_OK;
+    Int  ReqDmaSize = 0;
+    UInt32  MemStartAddr = 0;
+    DtAvFrameProps*  pFrameProps = NULL;
+    DtaFrameBufConfig*  pBufConf = NULL;
+    volatile UInt8*  pHdRegs = NULL;
+
+    DT_ASSERT(pNonIpPort!=NULL && pNonIpPort->m_CapMatrix);
+    DT_ASSERT(pMemTrSetup != NULL);
+    DT_ASSERT(pDmaSize != NULL);
+
+    // Init to 'safe' value
+    *pDmaSize = 0;
+
+    if (pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIRD
+        || pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIWR)
+    {
+        *pDmaSize = BufSize;
+        return DtaNonIpMatrixPrepForAsiDma(pNonIpPort, BufSize, pMemTrSetup);
+    }
+
+    pHdRegs = pNonIpPort->m_pRxRegs;
+    pFrameProps = &pNonIpPort->m_Matrix.m_FrameProps;
+    pBufConf = &pNonIpPort->m_Matrix.m_BufConfig;
+
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Validate parameters -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+    Status = DtaNonIpMatrixCheckMemTrParams(pNonIpPort, BufSize, pMemTrSetup, pDmaSize);
+    if (!DT_SUCCESS(Status))
+        return Status;
     
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Initiate Mem Transfer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-    
+
     DtDbgOutPort(MAX, NONIP, pNonIpPort, 
-                         "MemTr: cmd=%d, #l=%d, fmt=%d, rgb=%d, sym=%d, scale=%d, "
-                         "ancf=%d, stride=%d; bufsz=%d, reqsz=%d", 
-                         pMemTrSetup->m_TrCmd, pMemTrSetup->m_NumLines, 
-                         pMemTrSetup->m_DataFormat, pMemTrSetup->m_RgbMode, 
-                         pMemTrSetup->m_SymFlt, pMemTrSetup->m_Scaling,
-                         pMemTrSetup->m_AncFlt, 
-                                              pMemTrSetup->m_Stride, BufSize, ReqDmaSize);
-    
+                                "MemTr: cmd=%d, #l=%d, fmt=%d, rgb=%d, sym=%d, scale=%d, "
+                                "ancf=%d, stride=%d; bufsz=%d, reqsz=%d", 
+                                pMemTrSetup->m_TrCmd, pMemTrSetup->m_NumLines, 
+                                pMemTrSetup->m_DataFormat, pMemTrSetup->m_RgbMode, 
+                                pMemTrSetup->m_SymFlt, pMemTrSetup->m_Scaling,
+                                pMemTrSetup->m_AncFlt, 
+                                pMemTrSetup->m_Stride, BufSize, ReqDmaSize);
+
     // Step 1: set the transfer command to IDLE
     DtaRegHdMemTrControlSetTrCmd(pHdRegs, DT_MEMTR_TRCMD_IDLE);
     // Step 2: set number of lines
@@ -1411,7 +1458,7 @@ DtStatus  DtaNonIpMatrixPrepForDma(
     if (pMemTrSetup->m_TrCmd == DT_MEMTR_TRCMD_SECT0)
     {
         MemStartAddr = DtaNonIpMatrixGetFrameAddrInMem(pNonIpPort, 0, 
-                                          pMemTrSetup->m_Frame, pMemTrSetup->m_StartLine);
+            pMemTrSetup->m_Frame, pMemTrSetup->m_StartLine);
         DtaRegHdS0StartAddrSet(pHdRegs, MemStartAddr);
 
         DtDbgOut(MAX, NONIP, "Section 0 Start Address: 0x%08X", MemStartAddr);
@@ -1419,7 +1466,7 @@ DtStatus  DtaNonIpMatrixPrepForDma(
     else if (pMemTrSetup->m_TrCmd == DT_MEMTR_TRCMD_SECT1)
     {
         MemStartAddr = DtaNonIpMatrixGetFrameAddrInMem(pNonIpPort, 1, 
-                                          pMemTrSetup->m_Frame, pMemTrSetup->m_StartLine);
+            pMemTrSetup->m_Frame, pMemTrSetup->m_StartLine);
         DtaRegHdS1StartAddrSet(pHdRegs, MemStartAddr);
 
         DtDbgOut(MAX, NONIP, "Section 1 Start Address: 0x%08X", MemStartAddr);
@@ -1427,11 +1474,11 @@ DtStatus  DtaNonIpMatrixPrepForDma(
     else if (pMemTrSetup->m_TrCmd == DT_MEMTR_TRCMD_FRAME)
     {
         MemStartAddr = DtaNonIpMatrixGetFrameAddrInMem(pNonIpPort, 0,
-                                          pMemTrSetup->m_Frame, pMemTrSetup->m_StartLine);
+            pMemTrSetup->m_Frame, pMemTrSetup->m_StartLine);
         DtaRegHdS0StartAddrSet(pHdRegs, MemStartAddr);
         DtDbgOut(MAX, NONIP, "Section 0 Start Address: 0x%08X", MemStartAddr);
         MemStartAddr = DtaNonIpMatrixGetFrameAddrInMem(pNonIpPort, 1, 
-                                          pMemTrSetup->m_Frame, pMemTrSetup->m_StartLine);
+            pMemTrSetup->m_Frame, pMemTrSetup->m_StartLine);
         DtaRegHdS1StartAddrSet(pHdRegs, MemStartAddr);
         DtDbgOut(MAX, NONIP, "Section 1 Start Address: 0x%08X", MemStartAddr);
     }
@@ -1469,14 +1516,14 @@ DtStatus  DtaNonIpMatrixPrepForDma(
             if (pMemTrSetup->m_DataFormat != DT_MEMTR_DATAFMT_16B)
             {
                 DtDbgOut(ERR, NONIP, "Unsupported data format (%d) for compressed ANC",
-                                                               pMemTrSetup->m_DataFormat);
+                    pMemTrSetup->m_DataFormat);
                 return DT_STATUS_INVALID_PARAMETER;
             }
             TotalNumS = ReqDmaSize / 2; // Compute number of symbols
         }
         else
             TotalNumS = (LineNumS/ScalingFactor) * (pMemTrSetup->m_NumLines/ScalingFactor);
-        
+
         // Set # of symbols + #bytes
         DtaRegHdMemTrNumSymbolsSet(pHdRegs, TotalNumS);
         DtaRegHdMemTrNumBytesSet(pHdRegs, ReqDmaSize);
@@ -1489,8 +1536,8 @@ DtStatus  DtaNonIpMatrixPrepForDma(
         DtaRegHdMemTrNumBytesSet(pHdRegs, pMemTrSetup->m_Stride);
     }
 
-    // Finally: set the actual transfer command to start the transfer
-    DtaRegHdMemTrControlSetTrCmd(pHdRegs, pMemTrSetup->m_TrCmd);
+    // NOTE: the actual transfer command is issued in the DMA-program-transfer-callback
+    // (see DtaNonIpMatrixDmaProgramTrCallback)
     
     return DT_STATUS_OK;
 }
@@ -3055,12 +3102,12 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
 {
     DtStatus  Status = DT_STATUS_OK;
     Bool  VSync;
-    DtaMatrixMemTrSetup  MemTrSetup;
+    DtaMatrixMemTrSetup*  pMemTrSetup = NULL;
     DtAvFrameProps*  pProps = NULL;
     UInt8*  pLocalAddress = NULL;
     UInt16 *pLineBuf=NULL, *pEav=NULL, *pSav=NULL, *pHanc=NULL;
     DtPageList* pPageList = NULL;
-    Int  s, f, l = 0, LineNumS=0, LineDmaSize=0, DmaSize=0, LineBlockStart;
+    Int  s, f, l = 0, LineNumS=0, LineDmaSize=0, LineBlockStart, DmaSize=0;
     volatile UInt8* pHdRegs =  pNonIpPort->m_pRxRegs;
     Int CurOpMode;
     
@@ -3082,6 +3129,7 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
     DT_ASSERT(pNonIpPort != NULL);
     DT_ASSERT(pNonIpPort->m_CapMatrix);
         
+    pMemTrSetup = &pNonIpPort->m_Matrix.m_DmaContext.m_MemTrSetup;
     pProps = &pNonIpPort->m_Matrix.m_FrameProps;
     pLocalAddress = (UInt8*)(size_t)pNonIpPort->m_FifoOffset;
 
@@ -3096,23 +3144,23 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
     DtDbgOut(AVG, NONIP, "One black frame line has %d symbols", LineNumS);
 
     // Get DMA size for a single line
-    MemTrSetup.m_IsWrite = TRUE;
-    MemTrSetup.m_Frame = Frame;
-    MemTrSetup.m_StartLine = 1;
+    pMemTrSetup->m_IsWrite = TRUE;
+    pMemTrSetup->m_Frame = Frame;
+    pMemTrSetup->m_StartLine = 1;
     
-    MemTrSetup.m_NumLines = 5;  // We will transfer five lines at a time
-    DT_ASSERT((pProps->m_NumLines % MemTrSetup.m_NumLines) == 0);
+    pMemTrSetup->m_NumLines = 5;  // We will transfer five lines at a time
+    DT_ASSERT((pProps->m_NumLines % pMemTrSetup->m_NumLines) == 0);
     
-    MemTrSetup.m_TrCmd = DT_MEMTR_TRCMD_FRAME;
-    MemTrSetup.m_DataFormat = DT_MEMTR_DATAFMT_16B; // 16-bit format
-    MemTrSetup.m_RgbMode = DT_MEMTR_RGBMODE_OFF;
-    MemTrSetup.m_SymFlt = DT_MEMTR_SYMFLTMODE_ALL;
-    MemTrSetup.m_Scaling = DT_MEMTR_SCMODE_OFF;
-    MemTrSetup.m_AncFlt = DT_MEMTR_ANCFLTMODE_OFF;
-    MemTrSetup.m_Stride = 0;
+    pMemTrSetup->m_TrCmd = DT_MEMTR_TRCMD_FRAME;
+    pMemTrSetup->m_DataFormat = DT_MEMTR_DATAFMT_16B; // 16-bit format
+    pMemTrSetup->m_RgbMode = DT_MEMTR_RGBMODE_OFF;
+    pMemTrSetup->m_SymFlt = DT_MEMTR_SYMFLTMODE_ALL;
+    pMemTrSetup->m_Scaling = DT_MEMTR_SCMODE_OFF;
+    pMemTrSetup->m_AncFlt = DT_MEMTR_ANCFLTMODE_OFF;
+    pMemTrSetup->m_Stride = 0;
 
     
-    Status = DtaNonIpMatrixGetReqDmaSize(pNonIpPort, &MemTrSetup, &LineDmaSize);
+    Status = DtaNonIpMatrixGetReqDmaSize(pNonIpPort, pMemTrSetup, &LineDmaSize);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, DTA, "DtaNonIpMatrixGetReqDmaSize failed (ERROR=0x%08X)", Status);
@@ -3243,18 +3291,20 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
             }
         }
         // Prep for DMA
-        MemTrSetup.m_StartLine = l - 5; // set next line to write
-        DmaSize = 0;
-        Status = DtaNonIpMatrixPrepForDma(pNonIpPort, LineDmaSize, &MemTrSetup, &DmaSize);
+        pMemTrSetup->m_StartLine = l - 5; // set next line to write
+        Status = DtaNonIpMatrixPrepForDma(pNonIpPort, LineDmaSize, pMemTrSetup, &DmaSize);
         if (!DT_SUCCESS(Status))
         {
             DtDbgOut(ERR, DTA, "Prep-DMA for black-frame (l=%d-%d) failed (ERROR=0x%08X)",
-                              MemTrSetup.m_StartLine, MemTrSetup.m_StartLine + 5, Status);
+                                                      pMemTrSetup->m_StartLine,
+                                                      pMemTrSetup->m_StartLine+5, Status);
             DtaDmaCleanupKernelBuffer(&pNonIpPort->m_DmaChannel, pLineBuf, pPageList, 
                                                                                  DTA_TAG);
             return Status;
         }
         DT_ASSERT(LineDmaSize >= DmaSize);
+        // Store the transfer size
+        pNonIpPort->m_Matrix.m_DmaContext.m_TrSize = DmaSize;
 
 #ifdef WINBUILD
         // We don't want a DMA completed callback function, we block in this functions
@@ -3263,12 +3313,16 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
 #endif
 
         // Write line to card
-        Status = DtaDmaStartKernelBufTransfer(&pNonIpPort->m_DmaChannel, (UInt8*)pLineBuf,
-                                                         DmaSize, 0, pLocalAddress, 0, 0);
+        Status = DtaDmaStartKernelBufTransfer(&pNonIpPort->m_DmaChannel, 
+                                                                  (UInt8*)pLineBuf,
+                                                                  DmaSize, 
+                                                                  0, pLocalAddress, 0, 0);
         if (!DT_SUCCESS(Status))
         {
             DtDbgOut(ERR, DTA, "DMA-transfer for black-frame (l=%d-%d) failed "
-            "(ERROR=0x%08X)", MemTrSetup.m_StartLine, MemTrSetup.m_StartLine + 5, Status);
+                                                      "(ERROR=0x%08X)", 
+                                                      pMemTrSetup->m_StartLine, 
+                                                      pMemTrSetup->m_StartLine+5, Status);
             DtaDmaCleanupKernelBuffer(&pNonIpPort->m_DmaChannel, pLineBuf, pPageList, 
                                                                                  DTA_TAG);
             return Status;
@@ -3308,6 +3362,49 @@ Bool  DtaNonIpMatrixUsesLegacyHdChannelInterface(DtaNonIpPort* pNonIpPort)
     // DTA-2152;FW0: uses the legacy HD-channel register interface
     return (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2152 && 
                                   pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==0);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixDmaPrepCallback -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaNonIpMatrixDmaPrepCallback(DmaChannel*  pDmaCh, void*  pContext)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtaNonIpPort*  pNonIpPort = (DtaNonIpPort*)pContext;
+    DtaMatrixDmaContext*  pDmaContext = NULL;
+    DtaMatrixMemTrSetup*  pMemTrSetup = NULL;
+    Int  BufSize=0, ReqDmaSize=0;
+
+    DT_ASSERT(pDmaCh!=NULL && pNonIpPort!=NULL);
+    DT_ASSERT(pNonIpPort->m_CapMatrix);
+
+    pDmaContext = &pNonIpPort->m_Matrix.m_DmaContext;
+    pMemTrSetup = &pDmaContext->m_MemTrSetup;
+    BufSize = pDmaContext->m_TrSize;
+
+    // Prep the memory transfer
+    Status = DtaNonIpMatrixPrepForDma(pNonIpPort, BufSize, pMemTrSetup, &ReqDmaSize);
+    if (DT_SUCCESS(Status))
+        DT_ASSERT(pDmaContext->m_TrSize == ReqDmaSize);
+    return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixDmaProgramTrCallback -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaNonIpMatrixDmaProgramTrCallback(DmaChannel*  pDmaCh, void*  pContext)
+{
+    DtaNonIpPort*  pNonIpPort = (DtaNonIpPort*)pContext;
+    DtaMatrixDmaContext*  pDmaContext = NULL;
+    volatile UInt8*  pHdRegs = NULL;
+
+    DT_ASSERT(pDmaCh!=NULL && pNonIpPort!=NULL);
+    DT_ASSERT(pNonIpPort->m_CapMatrix);
+
+    pDmaContext = &pNonIpPort->m_Matrix.m_DmaContext;
+    pHdRegs = pNonIpPort->m_pRxRegs;
+
+    // Issue the memory transfer start command
+    DtaRegHdMemTrControlSetTrCmd(pHdRegs, pDmaContext->m_MemTrSetup.m_TrCmd);
+    return DT_STATUS_OK;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixDmaReadFinished -.-.-.-.-.-.-.-.-.-.-.-.-.-.-

@@ -514,10 +514,10 @@ DtStatus  DtaIpPowerdownType2Pre(DtaIpPort* pIpPort)
                            !DtaDmaIsReady(&pIpPort->m_IpPortType2.m_TxNrt.m_DmaChannel) ||
                            !DtaDmaIsReady(&pIpPort->m_IpPortType2.m_TxRt.m_DmaChannel) ||
                            !DtaDmaIsReady(&pIpPort->m_IpPortType2.m_RxRt.m_DmaChannel))
-        DtSleep(10);
+            DtSleep(10);
     } else {
         while (!DtaDmaIsReady(&pIpPort->m_IpPortType2.m_RxNrt.m_DmaChannel) || 
-                            !DtaDmaIsReady(&pIpPort->m_IpPortType2.m_TxNrt.m_DmaChannel));
+                             !DtaDmaIsReady(&pIpPort->m_IpPortType2.m_TxNrt.m_DmaChannel))
             DtSleep(10);
     }
     return DT_STATUS_OK;

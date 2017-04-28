@@ -1,9 +1,9 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtDrvCommon.h *#*#*#*#*#*#*#*# (C) 2011-2016 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtDrvCommon.h *#*#*#*#*#*#*#*# (C) 2011-2017 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2016 DekTec Digital Video B.V.
+// Copyright (C) 2011-2017 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -50,7 +50,7 @@
 #define  LOG_LEVEL_AV            LOG_MIN
 
 // IoConfig
-#define  LOG_LEVEL_IOCONFIG      LOG_MAX
+#define  LOG_LEVEL_IOCONFIG      LOG_MIN
 
 // VPD related
 #define  LOG_LEVEL_VPD           LOG_MIN

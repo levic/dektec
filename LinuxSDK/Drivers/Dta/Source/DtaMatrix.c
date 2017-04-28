@@ -394,7 +394,8 @@ DtStatus  DtaMatrixIoctl(
             DtPageList*  pPageList = NULL;
             UInt8*  pLocalAddress;
             DmaChannel*  pDmaCh = NULL;
-            DtaMatrixMemTrSetup  MemTrSetup;
+            DtaMatrixDmaContext*  pDmaContext = &pNonIpPort->m_Matrix.m_DmaContext;
+            DtaMatrixMemTrSetup*  pMemTrSetup = &pDmaContext->m_MemTrSetup;
                 
 #if defined(WINBUILD)
             DtPageList  PageList;
@@ -438,21 +439,23 @@ DtStatus  DtaMatrixIoctl(
 #endif
 #endif
             // Prep channel (memory) for DMA
-            MemTrSetup.m_IsWrite = TRUE;
-            MemTrSetup.m_Frame = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Frame;
-            MemTrSetup.m_StartLine = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Line;
-            MemTrSetup.m_NumLines = 
+            pMemTrSetup->m_IsWrite = TRUE;
+            pMemTrSetup->m_Frame = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Frame;
+            pMemTrSetup->m_StartLine = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Line;
+            pMemTrSetup->m_NumLines = 
                                    pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_NumLines;
-            MemTrSetup.m_TrCmd = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_TrCmd;
-            MemTrSetup.m_DataFormat = 
+            pMemTrSetup->m_TrCmd = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_TrCmd;
+            pMemTrSetup->m_DataFormat = 
                                  pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_DataFormat;
-            MemTrSetup.m_RgbMode = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_RgbMode;
-            MemTrSetup.m_SymFlt = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_SymFlt;
-            MemTrSetup.m_Scaling = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Scaling;
-            MemTrSetup.m_AncFlt = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_AncFlt;
-            MemTrSetup.m_Stride = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Stride;
+            pMemTrSetup->m_RgbMode = 
+                                    pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_RgbMode;
+            pMemTrSetup->m_SymFlt = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_SymFlt;
+            pMemTrSetup->m_Scaling = 
+                                    pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Scaling;
+            pMemTrSetup->m_AncFlt = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_AncFlt;
+            pMemTrSetup->m_Stride = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Stride;
             
-            if (MemTrSetup.m_TrCmd==DT_MEMTR_TRCMD_ASIWR)
+            if (pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIWR)
             {
                 Int  BytesLeftFlat = pNonIpPort->m_Matrix.m_AsiFifoSize
                                                     - pNonIpPort->m_Matrix.m_AsiDmaOffset;
@@ -464,11 +467,16 @@ DtStatus  DtaMatrixIoctl(
                     Size = BytesLeftFlat;
                 }
             }
-            
+
+            // Check memory transfer pararmeters
             if (DT_SUCCESS(Status))
-                Status = DtaNonIpMatrixPrepForDma(pNonIpPort, Size, &MemTrSetup, &Size);
-            
-            // If prepped, start DMA
+            {
+                Status = DtaNonIpMatrixCheckMemTrParams(pNonIpPort, Size, 
+                                                                      pMemTrSetup, &Size);
+                pDmaContext->m_TrSize = Size;
+            }
+
+            // If transfer parameter check out
             if (DT_SUCCESS(Status))
             {
                 pDmaCh = &pNonIpPort->m_DmaChannel;
@@ -482,7 +490,7 @@ DtStatus  DtaMatrixIoctl(
                     Status = DT_STATUS_OUT_OF_RESOURCES;
                 else {
                     pRequestContext->m_pData =  &pDvcData->m_pNonIpPorts[NonIpPortIndex];
-                    pRequestContext->m_Value = MemTrSetup.m_TrCmd;
+                    pRequestContext->m_Value = pMemTrSetup->m_TrCmd;
                 }
 
                 if (DT_SUCCESS(Status))
@@ -494,10 +502,11 @@ DtStatus  DtaMatrixIoctl(
                         
                     // Store the WdfRequest for the completion routine
                     DtaDmaReInitCallback(pDmaCh, DtaNonIpMatrixDmaCompletedWindows, 
-                                                                pIoctl->m_WdfRequest);
+                                                                    pIoctl->m_WdfRequest);
                 }
 #endif
             }
+
             if (DT_SUCCESS(Status))
             {
                 Status = DtaDmaStartTransfer(pDmaCh, pPageList, DT_BUFTYPE_USER, 
@@ -517,7 +526,8 @@ DtStatus  DtaMatrixIoctl(
 #else
             if (DT_SUCCESS(Status))
                 pMatrixCmdOutput->m_Data.m_DmaWrite.m_NumBytesWritten = 
-                          DtaNonIpMatrixDmaWriteFinished(pNonIpPort,  MemTrSetup.m_TrCmd);
+                          DtaNonIpMatrixDmaWriteFinished(pNonIpPort,
+                                                                    pMemTrSetup->m_TrCmd);
             else
                 pMatrixCmdOutput->m_Data.m_DmaWrite.m_NumBytesWritten = 0;
 #endif
@@ -531,7 +541,8 @@ DtStatus  DtaMatrixIoctl(
             DtPageList*  pPageList = NULL;
             UInt8*  pLocalAddress;
             DmaChannel*  pDmaCh = NULL;
-            DtaMatrixMemTrSetup  MemTrSetup;
+            DtaMatrixDmaContext*  pDmaContext = &pNonIpPort->m_Matrix.m_DmaContext;
+            DtaMatrixMemTrSetup*  pMemTrSetup = &pDmaContext->m_MemTrSetup;
 
 #if defined(WINBUILD)
             DtPageList  PageList;
@@ -574,20 +585,21 @@ DtStatus  DtaMatrixIoctl(
 #endif
 #endif
             // Prep channel (memory) for DMA
-            MemTrSetup.m_IsWrite = FALSE;
-            MemTrSetup.m_Frame = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Frame;
-            MemTrSetup.m_StartLine = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Line;
-            MemTrSetup.m_NumLines = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_NumLines;
-            MemTrSetup.m_TrCmd = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_TrCmd;
-            MemTrSetup.m_DataFormat = 
+            pMemTrSetup->m_IsWrite = FALSE;
+            pMemTrSetup->m_Frame = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Frame;
+            pMemTrSetup->m_StartLine = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Line;
+            pMemTrSetup->m_NumLines = 
+                                    pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_NumLines;
+            pMemTrSetup->m_TrCmd = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_TrCmd;
+            pMemTrSetup->m_DataFormat = 
                                   pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_DataFormat;
-            MemTrSetup.m_RgbMode = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_RgbMode;
-            MemTrSetup.m_SymFlt = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_SymFlt;
-            MemTrSetup.m_Scaling = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Scaling;
-            MemTrSetup.m_AncFlt = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_AncFlt;
-            MemTrSetup.m_Stride = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Stride;
+            pMemTrSetup->m_RgbMode = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_RgbMode;
+            pMemTrSetup->m_SymFlt = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_SymFlt;
+            pMemTrSetup->m_Scaling = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Scaling;
+            pMemTrSetup->m_AncFlt = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_AncFlt;
+            pMemTrSetup->m_Stride = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Stride;
             
-            if (MemTrSetup.m_TrCmd==DT_MEMTR_TRCMD_ASIRD)
+            if (pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIRD)
             {
                 Int  BytesLeftFlat = pNonIpPort->m_Matrix.m_AsiFifoSize
                                                     - pNonIpPort->m_Matrix.m_AsiDmaOffset;
@@ -603,12 +615,17 @@ DtStatus  DtaMatrixIoctl(
             if (((UInt64)pBuffer)%8 != 0)
                 Status = DT_STATUS_INVALID_PARAMETER;
 
+            // Check memory transfer pararmeters
             if (DT_SUCCESS(Status))
-                Status = DtaNonIpMatrixPrepForDma(pNonIpPort, Size, &MemTrSetup, &Size);
+            {
+                Status = DtaNonIpMatrixCheckMemTrParams(pNonIpPort, Size, 
+                                                                      pMemTrSetup, &Size);
+                pDmaContext->m_TrSize = Size;
+            }
 
-            // If prepped, start DMA
+            // If transfer parameter check out
             if (DT_SUCCESS(Status))
-            {           
+            {
                 pDmaCh = &pNonIpPort->m_DmaChannel;
                 pLocalAddress = (UInt8*)(size_t)pNonIpPort->m_FifoOffset;
 #ifdef WINBUILD
@@ -620,7 +637,7 @@ DtStatus  DtaMatrixIoctl(
                 else
                 {
                     pRequestContext->m_pData = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
-                    pRequestContext->m_Value = MemTrSetup.m_TrCmd;
+                    pRequestContext->m_Value = pMemTrSetup->m_TrCmd;
                 }
 
                 if (DT_SUCCESS(Status))
@@ -636,6 +653,7 @@ DtStatus  DtaMatrixIoctl(
                 }
 #endif
             }
+
             if (DT_SUCCESS(Status))
             {
                 Status = DtaDmaStartTransfer(pDmaCh, pPageList, DT_BUFTYPE_USER, 
@@ -655,7 +673,8 @@ DtStatus  DtaMatrixIoctl(
 #else
             if (DT_SUCCESS(Status))
                 pMatrixCmdOutput->m_Data.m_DmaRead.m_NumBytesRead = 
-                            DtaNonIpMatrixDmaReadFinished(pNonIpPort, MemTrSetup.m_TrCmd);
+                            DtaNonIpMatrixDmaReadFinished(pNonIpPort, 
+                                                           pMemTrSetup->m_TrCmd);
             else
                 pMatrixCmdOutput->m_Data.m_DmaRead.m_NumBytesRead = 0;
 #endif

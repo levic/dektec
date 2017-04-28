@@ -73,6 +73,7 @@
 #define  DTA_IPRX_LOST_PKT_SECOND         3
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+UInt16  DtaIpRxGetMaxOutOfSync(UserIpRxChannel* pIpRxChannel) ;
 void  DtaIpRxWorkerThread(DtThread* pThread, void* pContext);
 void  DtaIpRxRtWorkerThread(DtThread* pThread, void* pContext);
 void  DtaIpRxReconstructThread(DtThread* pThread, void* pContext);
@@ -195,7 +196,8 @@ DtStatus  DtaIpRxInitType1(DtaIpPort* pIpPort)
     Status = DtaDmaInitCh(pIpPort->m_pDvcData, pIpPort->m_PortIndex, 
                               DTA_IPRX_PINGPONG_BUF_SIZE, DTA_DMA_MODE_TIMEOUT_ENABLE,
                               DmaRegsOffsetRx, DTA_DMA_FLAGS_DATA_BUF_NO_COPY, 2,
-                              NULL, NULL, &pIpPortType1->m_Rx.m_DmaChannel, TRUE);
+                              NULL, NULL, &pIpPortType1->m_Rx.m_DmaChannel, TRUE,
+                              NULL, NULL, NULL, NULL);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, IP_RX, "Error initialising IpRx DMA channel");
@@ -274,7 +276,8 @@ DtStatus  DtaIpRxInitType2(DtaIpPort* pIpPort)
     Status = DtaDmaInitCh(pIpPort->m_pDvcData, pIpPort->m_PortIndex, 
                                   DTA_IPRX_PINGPONG_BUF_SIZE, DTA_DMA_MODE_TIMEOUT_ENABLE,
                                   DmaRegsOffsetNrtRx, DTA_DMA_FLAGS_DATA_BUF_NO_COPY, 2,
-                                  NULL, NULL, &pIpPortType2->m_RxNrt.m_DmaChannel, TRUE);
+                                  NULL, NULL, &pIpPortType2->m_RxNrt.m_DmaChannel, TRUE,
+                                  NULL, NULL, NULL, NULL);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOut(ERR, IP_RX, "Error initialising IpRx Nrt DMA channel");
@@ -316,7 +319,8 @@ DtStatus  DtaIpRxInitType2(DtaIpPort* pIpPort)
         Status = DtaDmaInitCh(pIpPort->m_pDvcData, pIpPort->m_PortIndex, 
                                    DTA_IPRX_RT_PINGPONG_BUF_SIZE, 0,
                                    DmaRegsOffsetRtRx, DTA_DMA_FLAGS_DATA_BUF_NO_COPY, -1,
-                                   NULL, NULL, &pIpPortType2->m_RxRt.m_DmaChannel, FALSE);
+                                   NULL, NULL, &pIpPortType2->m_RxRt.m_DmaChannel, FALSE,
+                                   NULL, NULL, NULL, NULL);
         if (!DT_SUCCESS(Status))
         {
             DtDbgOut(ERR, IP_RX, "Error initialising IpRx Rt DMA channel");
@@ -5059,6 +5063,7 @@ void  DtaIpRxParsePayLoadRtp(UserIpRxChannel* pIpRxChannel, DtaDmaRxHeader* pDma
 {
     RtpListEntry*  pRtpListEntry;
     Int  MaxNumRtpDvbPackets = MAX_NUM_RTP_PACKETS_TS;
+    UInt16  MaxOutOfSync = DtaIpRxGetMaxOutOfSync(pIpRxChannel);
     // Timestamp must not be 0 for the lookup table to work
     if (Timestamp == 0)
         Timestamp = 1;
@@ -5071,6 +5076,10 @@ void  DtaIpRxParsePayLoadRtp(UserIpRxChannel* pIpRxChannel, DtaDmaRxHeader* pDma
     if (pIpRxChannel->m_VidStd != DT_VIDSTD_TS)
         MaxNumRtpDvbPackets = MAX_NUM_RTP_PACKETS_SDI;
 
+    
+    if (MaxNumRtpDvbPackets < MaxOutOfSync)
+        MaxNumRtpDvbPackets = MaxOutOfSync;
+    
     // Increment No Fec packets receive counter
     if (++pIpRxChannel->m_RstCntFecColumn >= MaxNumRtpDvbPackets)
         pIpRxChannel->m_DetFecNumColumns = 0;

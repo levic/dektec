@@ -127,6 +127,14 @@ typedef struct _DtaMatrixMemTrSetup
     Int  m_Stride;              // -1 means no stride
 } DtaMatrixMemTrSetup;
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaMatrixDmaContext -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtaMatrixDmaContext
+{
+   DtaMatrixMemTrSetup  m_MemTrSetup;  // Memory transfer setup data
+   Int  m_TrSize;              // Size of the transfer in number of bytes
+}  DtaMatrixDmaContext;
+
 typedef enum _DtaMatrixPortState
 {
     MATRIX_PORT_UNINIT = 0,     // Port is uninitialised
@@ -158,6 +166,8 @@ typedef struct _DtaMatrixPort
     DtAvFrameProps  m_FrameProps;  // Frame properties
     DtaFrameBufConfig  m_BufConfig;  // Frame buffer configuration
     Int  m_RowIdx;                // Matrix row the port is associated with
+
+    DtaMatrixDmaContext  m_DmaContext;  // Context for the curent DMA transfer
     
     DtDpc  m_LastFrameIntDpc;   // DPC for last-frame-interrupt 
     DtEvent  m_LastFrameIntEvent;  // Event to signal last-frame-interrupt
@@ -468,6 +478,8 @@ DtStatus  DtaNonIpMatrixStart(DtaNonIpPort* pNonIpPort, Int64  StartFrame, Bool 
 DtStatus  DtaNonIpMatrixStop(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpMatrixGetCurrentFrame(DtaNonIpPort* pNonIpPort, Int64*  pFrame);
 DtStatus  DtaNonIpMatrixSetNextFrame(DtaNonIpPort* pNonIpPort, Int64  NextFrame);
+DtStatus  DtaNonIpMatrixCheckMemTrParams(DtaNonIpPort*, Int  BufSize,
+                                              const DtaMatrixMemTrSetup*, Int*  pDmaSize);
 DtStatus  DtaNonIpMatrixPrepForDma(DtaNonIpPort* pNonIpPort, Int  BufSize, 
                                              const DtaMatrixMemTrSetup*,  Int*  pDmaSize);
 DtStatus  DtaNonIpMatrixGetReqDmaSize(DtaNonIpPort* pNonIpPort, 
@@ -477,9 +489,12 @@ UInt32  DtaNonIpMatrixGetFrameAddrInMem(DtaNonIpPort* pNonIpPort, Int  Section,
                                                                  Int64  Frame, Int  Line);
 Int  DtaNonIpMatrixFrame2Index(DtaNonIpPort* pNonIpPort, Int64  Frame);
 Bool  DtaNonIpMatrixUsesLegacyHdChannelInterface(DtaNonIpPort* pNonIpPort);
+DtStatus  DtaNonIpMatrixDmaPrepCallback(DmaChannel*, void*);
+DtStatus  DtaNonIpMatrixDmaProgramTrCallback(DmaChannel*, void*);
 UInt  DtaNonIpMatrixDmaReadFinished(DtaNonIpPort* pNonIpPort, Int TrCmd);
 UInt  DtaNonIpMatrixDmaWriteFinished(DtaNonIpPort* pNonIpPort, Int TrCmd);
 void  DtaNonIpMatrixPeriodicInt(DtaNonIpPort* pNonIpPort);
+
 
 
 

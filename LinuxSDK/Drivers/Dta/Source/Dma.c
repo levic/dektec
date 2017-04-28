@@ -210,7 +210,11 @@ DtStatus  DtaDmaInitCh(
     DmaCallbackFunc  pDmaFinishFunc,
     void*  pDmaFinishContext,
     DmaChannel*  pDmaCh,
-    Bool  FixedLocalAddress)    // TRUE: DMA Local address = fixed
+    Bool  FixedLocalAddress,    // TRUE: DMA Local address = fixed
+    DmaPrepFunc  pDmaPrepFunc,
+    void*  pDmaPrepContext,
+    DmaProgramTransferFunc  pDmaProgramTrFunc,
+    void*  pDmaProgramTrContext)
 {
     DtStatus  Status = DT_STATUS_OK;
     Int  DmaSglListSize, SgDescPrefetchCnt=-1;
@@ -250,6 +254,11 @@ DtStatus  DtaDmaInitCh(
     pDmaCh->m_Timeout = Timeout;
     pDmaCh->m_pDmaFinishFunc = pDmaFinishFunc;
     pDmaCh->m_pDmaFinishContext = pDmaFinishContext;
+    pDmaCh->m_pDmaPrepFunc = pDmaPrepFunc;
+    pDmaCh->m_pDmaPrepContext = pDmaPrepContext;
+    pDmaCh->m_pDmaProgramTrFunc = pDmaProgramTrFunc;
+    pDmaCh->m_pDmaProgramTrContext = pDmaProgramTrContext;
+
     // If not specified default to 32-bit aligment
     if (DmaMemAlign == (UInt16)-1)
         pDmaCh->m_BufAlignment = 4;
@@ -517,12 +526,23 @@ static DtStatus  DtaDmaInitTransfer(
     // First try to set the init state, and check if we have to abort
     OldState = DtAtomicCompareExchange((Int*)&pDmaCh->m_State, DTA_DMA_STATE_IDLE, 
                                                                       DTA_DMA_STATE_INIT);
-    if (OldState == DTA_DMA_STATE_ABORT)
+    if ((OldState & DTA_DMA_STATE_ABORT) != 0)
     {
         DtDbgOutDma(ERR, DTA, pDmaCh, "New DMA cancelled due to abort flag");
         return DT_STATUS_CANCELLED;
     }
     DT_ASSERT(OldState == DTA_DMA_STATE_IDLE);
+
+    // Any channel specific DMA preparation to perform?
+    if (pDmaCh->m_pDmaPrepFunc != NULL)
+    {
+        Status = pDmaCh->m_pDmaPrepFunc(pDmaCh, pDmaCh->m_pDmaPrepContext);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutDma(ERR, DTA, pDmaCh, "Channel specific preparation failed");
+            return Status;
+        }
+    }
 
     // Create SglList and pagelist if databuffer is not re-used (HP Transfers)
     if (!ReUseDataBuffer)
@@ -571,8 +591,15 @@ static DtStatus  DtaDmaInitTransfer(
                 Status = DtaDmaAbortDma(pDmaCh);
                 if (DT_SUCCESS(Status))
                 {
-                    Status = DtEventWaitUnInt(&pDmaCh->m_DmaDoneEvent, -1);
+                    // Wait a max of 1 sec for the DMA to abort
+                    Status = DtEventWaitUnInt(&pDmaCh->m_DmaDoneEvent, 1000);
+                    if (!DT_SUCCESS(Status))
+                        DtDbgOutDma(ERR, DMA, pDmaCh, "Wait for aborted DMA failed");
+                    else
+                        Status = DT_STATUS_CANCELLED;   // Mark as cancelled
                 }
+                // We attempted to abort, so now we clear the abort flag unconditionally
+                DtaDmaClearAbortFlag(pDmaCh);
             }
         }
 
@@ -674,6 +701,17 @@ static DtStatus  DtaDmaProgramTransfer(
     }
 
     DT_ASSERT(OldState == DTA_DMA_STATE_INIT);
+
+    // Any channel specific DMA programming?
+    if (pDmaCh->m_pDmaProgramTrFunc != NULL)
+    {
+        Status = pDmaCh->m_pDmaProgramTrFunc(pDmaCh, pDmaCh->m_pDmaProgramTrContext);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutDma(ERR, DTA, pDmaCh, "Channel specific program DMA failed");
+            return Status;
+        }
+    }
     
     // Program DMA controller
     if (pDmaOpt->m_UseDmaInFpga)
@@ -725,7 +763,7 @@ static DtStatus  DtaDmaProgramTransfer(
 
         CmdStat |= PCI905X_DMACSR_ENABLE | PCI905X_DMACSR_START;
 
-        // Start transfer
+                // Start transfer
         WRITE_UINT32(pDmaCh->m_pRegCmdStat, 0, CmdStat);
     } else {    // PLX
         Int  DmaChannelNum;
@@ -976,7 +1014,6 @@ DtStatus  DtaDmaStartTransfer(
     
     DtDbgOutDma(MAX, DMA, pDmaCh, "pVirtualAddress: %p TransferOffset: %d, TransferSize: %d",
                                                    pBuffer, TransferOffset, TransferSize);
-
     
     Status = DtaDmaInitTransfer(pDmaCh, pPageList, BufType, Direction, pBuffer,
                                                      TransferSize, TransferOffset,
@@ -1114,9 +1151,6 @@ void DtaDmaCompletedDpc(DtDpcArgs* pArgs)
     
     pDmaCh->m_EndTime = DtGetTickCountUSec();
     
-    // Reset the flags but leave the abort flag
-    DtAtomicSet((Int*)&pDmaCh->m_State, pDmaCh->m_State & DTA_DMA_STATE_ABORT);
-    
     if ((pDmaCh->m_DmaFlags&DTA_DMA_FLAGS_BLOCKING) == 0)
     {
         // Finalize DMA transfer and clean databuffer if buffer not re-used and blocking
@@ -1135,10 +1169,15 @@ void DtaDmaCompletedDpc(DtDpcArgs* pArgs)
         DtDbgOutDma(MAX, DMA, pDmaCh, "DMA completed event (Offset:%x)",
                                                                     pDmaCh->m_RegsOffset);
 
+    // Reset the state to IDLE but leave the abort flag
+    DtAtomicSet((Int*)&pDmaCh->m_State, pDmaCh->m_State & DTA_DMA_STATE_ABORT);
+
+    // Finally: call the finish function and/or just set the done-event.
+    // NOTE: in principle the finish function and done-event are mutual exclusive. 
+    // Meaning the caller is either waiting for a the done-event or until the finish 
+    // function is called
     if (pDmaCh->m_pDmaFinishFunc != NULL)
         pDmaCh->m_pDmaFinishFunc(pDmaCh, pDmaCh->m_pDmaFinishContext);
-    
-    // Trigger done event
     DtEventSet(&pDmaCh->m_DmaDoneEvent);
 }
 
@@ -1282,8 +1321,11 @@ DtStatus  DtaDmaAbortDma(
     {
         OldState = pDmaCh->m_State;
     }
-    if (OldState == 0)
+    if (OldState == DTA_DMA_STATE_IDLE)
+    {
+        DtDbgOutDma(MIN, DMA, pDmaCh, "WARNING: called DMA abort, while in IDLE state");
         return DT_STATUS_NOT_STARTED;
+    }
     if ((OldState & DTA_DMA_STATE_ABORT) != 0)
         return DT_STATUS_OK;
 
