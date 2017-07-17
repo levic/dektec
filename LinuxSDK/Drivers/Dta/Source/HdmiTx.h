@@ -67,6 +67,7 @@ typedef struct _DtaHdmiTx
     UInt64  m_MonSupportedFormats;  // From DTD + SVD
     UInt64  m_MonSupportedAudio;    // From ...??...
     Bool  m_SupportHdmi;            // HDMI VSDB (IEEE 0xc03) available
+    Bool  m_SupportHdr;             // From extented data block 0x6: HDR static metadata
     Bool  m_SupportYCbCr444;        // From CEA Extension byte3
     Bool  m_SupportYCbCr422;        // From CEA Extension byte3
     Bool  m_SupportBasicAudio;      // From CEA Extension byte3

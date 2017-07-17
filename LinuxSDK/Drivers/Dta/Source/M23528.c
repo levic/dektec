@@ -76,9 +76,12 @@ DtStatus  DtaM23528Init(DtaNonIpPort* pNonIpPort)
         // Powerdown unused port 1. (port2 is used in DTA-2195 HWrev > 0)
         DT_RETURN_ON_ERROR(DtaM23528WriteRegister(pNonIpPort, 0, M23528_REG_DRIVER1, 
                                                                                    0x81));
-        // Powerup other port
+        // Powerup other port and set output swing to +7%
         DT_RETURN_ON_ERROR(DtaM23528WriteRegister(pNonIpPort, 0, M23528_REG_DRIVER2, 
-                                                                                   0x80));
+                                                                                   0xF0));
+        // Set Pre-emphasis
+        DT_RETURN_ON_ERROR(DtaM23528WriteRegister(pNonIpPort, 0, M23528_REG_PRE_EMPH, 
+                                                                                   0x70));
     }
     return DT_STATUS_OK;
 }

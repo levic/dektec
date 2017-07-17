@@ -27,12 +27,6 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <DtuIncludes.h>
 
-#ifdef LINBUILD
-#if LINUX_VERSION_CODE<KERNEL_VERSION(2,6,34)
-#define usb_alloc_coherent usb_buffer_alloc
-#define usb_free_coherent usb_buffer_free
-#endif
-#endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -41,7 +35,38 @@ static DtStatus  DtuCalculateAndCreatePortsStruct(DtuDeviceData* pDvcData);
 static void  DtuCleanupPortStructs(DtuDeviceData* pDvcData);
 static DtStatus  DtuPortsInit(DtuDeviceData* pDvcData);
 static void  DtuPortsCleanUp(DtuDeviceData* pDvcData);
-static Bool DtuDeviceIsInuse(DtuDeviceData* pDvcData);
+static Bool  DtuDeviceIsInuse(DtuDeviceData* pDvcData);
+static void  Dtu351WorkerThreadCheckLock(DtuDeviceData*, DtuNonIpPort*);
+static void  Dtu351WorkerThreadReadData(DtuDeviceData*, DtuNonIpPort*);
+static void  Dtu315WorkerThreadWriteData(DtuDeviceData*, DtuNonIpPort*);
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- AsyncRequestDtu351 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+typedef struct _AsyncRequestDtu351
+{
+    Dtu351DataHdr*  m_DataHeaders;
+    Int  m_FirstIdx;
+} AsyncRequestDtu351;
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- AsyncRequestDtu315 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+typedef struct _AsyncRequestDtu315
+{
+    UInt  m_OffsetStart;
+    UInt  m_Size;
+} AsyncRequestDtu315;
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351EvtComplete -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  Dtu351EvtComplete(AsyncRequest* pAsyncRequest, UInt ActualLength)
+{
+    AsyncRequestDtu351*  pReq = (AsyncRequestDtu351*)pAsyncRequest->m_pContext;
+    
+    if (pAsyncRequest->m_Result != DT_STATUS_OK)
+        pReq->m_DataHeaders[pReq->m_FirstIdx].m_NumValid = 0;
+    else
+        pReq->m_DataHeaders[pReq->m_FirstIdx].m_NumValid = ActualLength;
+
+    pReq->m_DataHeaders[pReq->m_FirstIdx].m_Flags = 1;
+}
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Dtu Common Interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -142,8 +167,8 @@ DtStatus  DtuDeviceInit(DtuDeviceData* pDvcData)
             if (DT_SUCCESS(Status))
             {                
                 DtDbgOut(MIN, DTU, "Hardware revision set to %d from registry key "
-                                                            "'ForcedHardwareRevision'", 
-                                                            (Int)ForcedHardwareRevision);                  
+                                                             "'ForcedHardwareRevision'", 
+                                                             (Int)ForcedHardwareRevision);
                 pDvcData->m_DevInfo.m_HardwareRevision = (Int)(ForcedHardwareRevision);
                 pDvcData->m_DevInfo.m_HardwareRevision /= 100;                  
             }else
@@ -227,145 +252,6 @@ DtStatus  DtuDeviceOpen(DtuDeviceData* pDvcData, DtFileObject* pFile)
 
     return DT_STATUS_OK;
 }
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct  AsyncRequestDtu351 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-typedef struct  _AsyncRequestDtu351
-{
-#ifdef WINBUILD
-    PURB  m_pUrb;
-    WDFMEMORY  m_UrbMemory;
-    WDFREQUEST  m_WdfRequest;
-#else
-    struct urb*  m_pUrb;
-    void*  m_pBuf;
-#endif
-    DtEvent  m_EvtRequestDone;
-    Bool  m_IsValid;
-    Dtu351DataHdr*  m_DataHeaders;
-    Int  m_FirstIdx;
-} AsyncRequestDtu351;
-
-#ifdef WINBUILD
-EVT_WDF_REQUEST_COMPLETION_ROUTINE  Dtu351EvtComplete;
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351EvtComplete -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-void  Dtu351EvtComplete(
-    WDFREQUEST  Request,
-    WDFIOTARGET  Target,
-    PWDF_REQUEST_COMPLETION_PARAMS  Params,
-    void*  pContext
-    )
-{
-    AsyncRequestDtu351*  Req = (AsyncRequestDtu351*)pContext;
-    Int  NumPackets = 1;
-
-    if (Params->IoStatus.Status != STATUS_SUCCESS)
-    {
-        DtDbgOut(ERR, DTU, "IoStatus: 0x%X", Params->IoStatus.Status);
-        Req->m_DataHeaders[Req->m_FirstIdx].m_NumValid = 0;
-    }
-    else if (Req->m_pUrb->UrbHeader.Status != USBD_STATUS_SUCCESS)
-    {
-        DtDbgOut(ERR, DTU, "UrbHeader.Status: 0x%X", Req->m_pUrb->UrbHeader.Status);
-        Req->m_DataHeaders[Req->m_FirstIdx].m_NumValid = 0;
-    } else {
-        Req->m_DataHeaders[Req->m_FirstIdx].m_NumValid = 
-                             Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBufferLength;
-    }
-
-    Req->m_DataHeaders[Req->m_FirstIdx].m_Flags = 1;
-    
-    DtEventSet(&Req->m_EvtRequestDone);
-}
-#else
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351EvtComplete -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-void  Dtu351EvtComplete(struct urb*  pUrb)
-{
-    AsyncRequestDtu351*  Req = (AsyncRequestDtu351*)pUrb->context;
-    
-    if (pUrb->status != 0)
-    {
-        DtDbgOut(ERR, DTU, "pUrb->status: 0x%X", pUrb->status);
-    }
-    memcpy(Req->m_pBuf, pUrb->transfer_buffer, pUrb->actual_length);
-
-    Req->m_DataHeaders[Req->m_FirstIdx].m_NumValid = pUrb->actual_length;
-    Req->m_DataHeaders[Req->m_FirstIdx].m_Flags = 1;
-
-    DtEventSet(&Req->m_EvtRequestDone);
-}
-#endif
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct  AsyncRequestDtu315 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-typedef struct  _AsyncRequestDtu315
-{
-#ifdef WINBUILD
-    PURB  m_pUrb;
-    WDFMEMORY  m_UrbMemory;
-    WDFREQUEST  m_WdfRequest;
-#else
-    struct urb*  m_pUrb;
-    void*  m_pBuf;
-#endif
-    DtEvent  m_EvtRequestDone;
-    Bool  m_IsValid;
-    DtStatus  m_Result;
-    UInt  m_OffsetStart;
-    UInt  m_Size;
-} AsyncRequestDtu315;
-
-#ifdef WINBUILD
-EVT_WDF_REQUEST_COMPLETION_ROUTINE  Dtu315EvtComplete;
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu315EvtComplete -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-void  Dtu315EvtComplete(
-    WDFREQUEST  Request,
-    WDFIOTARGET  Target,
-    PWDF_REQUEST_COMPLETION_PARAMS  Params,
-    void*  pContext
-    )
-{
-    AsyncRequestDtu315*  Req = (AsyncRequestDtu315*)pContext;
-
-    if (Params->IoStatus.Status != STATUS_SUCCESS)
-    {
-        DtDbgOut(ERR, DTU, "IoStatus: 0x%X", Params->IoStatus.Status);
-        if (Params->IoStatus.Status == STATUS_IO_TIMEOUT)
-            Req->m_Result = DT_STATUS_TIMEOUT;
-        else
-            Req->m_Result = DT_STATUS_FAIL;
-    }
-    else if (Req->m_pUrb->UrbHeader.Status != USBD_STATUS_SUCCESS)
-    {
-        DtDbgOut(ERR, DTU, "UrbHeader.Status: 0x%X", Req->m_pUrb->UrbHeader.Status);
-        Req->m_Result = DT_STATUS_FAIL;
-    } else {
-        Req->m_Result = DT_STATUS_OK;
-    }
-    
-    DtEventSet(&Req->m_EvtRequestDone);
-}
-#else
-void  Dtu315EvtComplete(struct urb*  pUrb)
-{
-    AsyncRequestDtu315*  Req = (AsyncRequestDtu315*)pUrb->context;
-    
-    if (pUrb->status != 0)
-    {
-        DtDbgOut(ERR, DTU, "pUrb->status: 0x%X", pUrb->status);
-    }
-    //TODOTM: linux implementation DTU-315
-
-    DtEventSet(&Req->m_EvtRequestDone);
-}
-#endif
-
-void  Dtu351WorkerThreadCheckLock(DtuDeviceData*, DtuNonIpPort*);
-void  Dtu351WorkerThreadReadData(DtuDeviceData*, DtuNonIpPort*);
-void  Dtu315WorkerThreadWriteData(DtuDeviceData*, DtuNonIpPort*);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu3WorkerThread -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -514,163 +400,23 @@ void  Dtu351WorkerThreadCheckLock(
     } while (DtEventWait(&pPort->m_StateChanged, 500) == DT_STATUS_TIMEOUT);
 }
 
-#ifdef WINBUILD
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351InitAsyncRequest -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-Bool  Dtu351InitAsyncRequest(AsyncRequestDtu351  *Req, void* pBuf, Int  BufLen,
-    USBD_PIPE_HANDLE wdmhUSBPipe,
-    WDFUSBPIPE  Pipe,
-    Int  UrbSize,
-    WDFIOTARGET  IoTarget)
-{
-    NTSTATUS  NtStatus = WdfMemoryCreate(WDF_NO_OBJECT_ATTRIBUTES, NonPagedPool, DTU_TAG,
-                                    UrbSize, &Req->m_UrbMemory, (void**)&Req->m_pUrb);
-    if (!NT_SUCCESS(NtStatus))
-    {
-        DtDbgOut(ERR, DTU, "WdfMemoryCreate failed");
-        Req->m_pUrb = NULL;
-        return FALSE;
-    }
-
-    NtStatus = WdfRequestCreate(WDF_NO_OBJECT_ATTRIBUTES, IoTarget, &Req->m_WdfRequest);
-    if (!NT_SUCCESS(NtStatus))
-    {
-        DtDbgOut(ERR, DTU, "WdfRequestCreate failed");
-        WdfObjectDelete(Req->m_UrbMemory);
-        Req->m_pUrb = NULL;
-        return FALSE;
-    }
-
-    RtlZeroMemory(Req->m_pUrb, UrbSize);
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Length = (USHORT)UrbSize;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Function = URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferFlags = USBD_TRANSFER_DIRECTION_IN
-                                                                | USBD_SHORT_TRANSFER_OK;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBuffer = pBuf;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBufferLength = BufLen;
-    NtStatus = WdfUsbTargetPipeFormatRequestForUrb(Pipe, Req->m_WdfRequest,
-                                                                Req->m_UrbMemory, NULL);
-    if (!NT_SUCCESS(NtStatus))
-    {
-        DtDbgOut(ERR, DTU, "WdfUsbTargetPipeFormatRequestForUrb failed");
-        WdfObjectDelete(Req->m_WdfRequest);
-        WdfObjectDelete(Req->m_UrbMemory);
-        Req->m_pUrb = NULL;
-        NtStatus = STATUS_UNSUCCESSFUL;
-        return FALSE;
-    }
-    if (!DT_SUCCESS(DtEventInit(&Req->m_EvtRequestDone, TRUE)))
-    {
-        DtDbgOut(ERR, DTU, "DtEventInit failed");
-        WdfObjectDelete(Req->m_WdfRequest);
-        WdfObjectDelete(Req->m_UrbMemory);
-        Req->m_pUrb = NULL;
-        NtStatus = STATUS_UNSUCCESSFUL;
-        return FALSE;
-    }
-    WdfRequestSetCompletionRoutine(Req->m_WdfRequest, Dtu351EvtComplete, Req);
-    return TRUE;
-}
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351ReInitAsyncRequest -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Bool  Dtu351ReInitAsyncRequest(AsyncRequestDtu351  *Req, void* pBuf, Int  BufLen,
-    USBD_PIPE_HANDLE wdmhUSBPipe,
-    WDFUSBPIPE  Pipe,
-    Int  UrbSize,
-    WDFIOTARGET  IoTarget)
-{
-    NTSTATUS  NtStatus;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Length = (USHORT)UrbSize;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Function = URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferFlags = USBD_TRANSFER_DIRECTION_IN
-                                                                | USBD_SHORT_TRANSFER_OK;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBuffer = pBuf;
-    Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBufferLength = BufLen;
-
-    NtStatus = WdfUsbTargetPipeFormatRequestForUrb(Pipe, Req->m_WdfRequest,
-                                                                  Req->m_UrbMemory, NULL);
-    if (!NT_SUCCESS(NtStatus))
-    {
-        DtDbgOut(ERR, DTU, "WdfUsbTargetPipeFormatRequestForUrb failed");
-        return FALSE;
-    }
-    WdfRequestSetCompletionRoutine(Req->m_WdfRequest, Dtu351EvtComplete, Req);
-    return TRUE;
-}
-#else
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351InitAsyncRequest -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-Bool  Dtu351InitAsyncRequest(AsyncRequestDtu351  *Req, void* pBuf, Int  BufLen,
-    DtuDeviceData*  pDvcData,
-    UInt  Pipe)
-{
-    UInt8*  pUrbMem = NULL;
-    struct usb_device*  pDev = pDvcData->m_Device.m_pUsbDev;
-    if (!DT_SUCCESS(DtEventInit(&Req->m_EvtRequestDone, TRUE)))
-    {
-        DtDbgOut(ERR, DTU, "DtEventInit failed");
-        return FALSE;
-    }
-
-    Req->m_pUrb = usb_alloc_urb(0, GFP_ATOMIC);
-    if (Req->m_pUrb == NULL)
-    {
-        DtDbgOut(ERR, DTU, "Failed to allocate urb");
-        return FALSE;
-    }
-    pUrbMem = usb_alloc_coherent(pDev, BufLen, GFP_KERNEL, &Req->m_pUrb->transfer_dma);
-    if (pUrbMem == NULL)
-    {
-        DtDbgOut(ERR, DTU, "Failed to allocate memory for urb");
-        usb_free_urb(Req->m_pUrb);
-        Req->m_pUrb = NULL;
-        return FALSE;
-    }
-
-    usb_fill_bulk_urb(Req->m_pUrb, pDev, Pipe, pUrbMem, BufLen, Dtu351EvtComplete, Req);
-    Req->m_pUrb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-    Req->m_pBuf = pBuf;
-    return TRUE;
-}
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351ReInitAsyncRequest -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Bool  Dtu351ReInitAsyncRequest(AsyncRequestDtu351  *Req, void* pBuf, Int  BufLen,
-    DtuDeviceData*  pDvcData,
-    UInt  Pipe)
-{
-    Req->m_pBuf = pBuf;
-    return TRUE;
-}
-#endif
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu351WorkerThreadReadData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void  Dtu351WorkerThreadReadData(
-    DtuDeviceData*  pDvcData,
-    DtuNonIpPort*  pPort)
+void  Dtu351WorkerThreadReadData(DtuDeviceData* pDvcData, DtuNonIpPort* pPort)
 {
 #ifdef WINBUILD
     NTSTATUS  NtStatus = STATUS_SUCCESS;
-    USBD_PIPE_HANDLE wdmhUSBPipe;
-    WDFUSBPIPE  Pipe = NULL;
-    WDFIOTARGET  IoTarget;
-    WDF_REQUEST_SEND_OPTIONS  SendOptions;
     Int  OldPriority;
-    Int  UrbSize = -1;
 #else
-    UInt  Pipe;
+    
 #endif
+    Int  Timeout;
+    Int  PipeNumber;
     DtStatus  Status = DT_STATUS_OK;
     Dtu351BufHdr*  BufHeader;
-    UInt8*  Buf;
+    UInt8*  pBuf;
     Int  i;
-    AsyncRequestDtu351*  Requests;
+    AsyncRequest*  Requests;
     Bool  FatalError = FALSE;
     Int  NumAsyncRequests;
     Dtu351DataHdr*  DataBufHeaders;
@@ -679,7 +425,7 @@ void  Dtu351WorkerThreadReadData(
     Bool  IsHd = FALSE;
     Int  LoopCtr = 0;
     Int  SingleDataBufSize;
-
+    
     DtDbgOut(MAX, DTU, "Start");
 #ifdef WINBUILD
     OldPriority = KeSetPriorityThread(KeGetCurrentThread(), 30);
@@ -691,7 +437,7 @@ void  Dtu351WorkerThreadReadData(
     BufHeader = (Dtu351BufHdr*)pPort->m_SharedBuffer.m_pBuffer;
     DataBufHeaders = (Dtu351DataHdr*)(pPort->m_SharedBuffer.m_pBuffer + 
                                                                     sizeof(Dtu351BufHdr));
-    Buf = pPort->m_SharedBuffer.m_pBuffer + sizeof(Dtu351BufHdr)
+    pBuf = pPort->m_SharedBuffer.m_pBuffer + sizeof(Dtu351BufHdr)
                                           + BufHeader->m_NumBuffers*sizeof(Dtu351DataHdr);
 
     DtuGetuFrameSize(pPort, &SingleDataBufSize);
@@ -715,14 +461,7 @@ void  Dtu351WorkerThreadReadData(
         DtEventWait(&pPort->m_StateChanged, -1);
         return;
     }
-    
-#ifdef WINBUILD
-    // Initialize send options used for URB timeouts
-    WDF_REQUEST_SEND_OPTIONS_INIT(&SendOptions, WDF_REQUEST_SEND_OPTION_TIMEOUT);
-    // 500*NumAsyncRequests ms Timeout in 100ns units
-    WDF_REQUEST_SEND_OPTIONS_SET_TIMEOUT(&SendOptions, -10*1000*500*NumAsyncRequests);
-#endif
-    
+
     // Isochronous transfers are only started when the signal is valid. If the signal
     // turns out to be invalid we'll stop the transfers and detect it soon enough. While
     // we are transferring data we don't check the lock flag of the gennum but instead
@@ -755,19 +494,17 @@ void  Dtu351WorkerThreadReadData(
         }
     }
     
-    Requests = DtMemAllocPool(DtPoolNonPaged, sizeof(AsyncRequestDtu351)*NumAsyncRequests,
-                                                                                 DTU_TAG);
-    
-#ifdef WINBUILD
-    Pipe = WdfUsbInterfaceGetConfiguredPipe(pDvcData->m_Device.m_UsbInterface, 0, NULL);
-    
-    wdmhUSBPipe = WdfUsbTargetPipeWdmGetPipeHandle(Pipe);
-    IoTarget = WdfUsbTargetDeviceGetIoTarget(pDvcData->m_Device.m_UsbDevice);
+    Requests = DtuAllocateAsyncRequests(NumAsyncRequests, sizeof(AsyncRequestDtu351));
+    if (Requests == NULL)
+    {
+        DtDbgOut(ERR, DTU, "Failed to allocate async requests");
+        return;
+    }
 
-    UrbSize = sizeof(struct _URB_BULK_OR_INTERRUPT_TRANSFER);
-#else
-    Pipe = usb_rcvbulkpipe(pDvcData->m_Device.m_pUsbDev, 3);
-#endif
+    PipeNumber = pDvcData->m_EzUsb.m_ReadPipe;
+
+    // 500*NumAsyncRequests ms Timeout
+    Timeout = 500 * NumAsyncRequests;
 
     // Set gennum rate selection to manual and hd/sd
     Status = Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_GS1661, 0x24, IsHd ? 0 : 1);
@@ -777,30 +514,17 @@ void  Dtu351WorkerThreadReadData(
     Status = Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_FPGA, 0x04, IsHd ? 1 : 0);
     DT_ASSERT(DT_SUCCESS(Status));
 
-    // Default-initialize all request, so we can clean up properly later.
-    for (i=0; i<NumAsyncRequests; i++)
-    {
-        AsyncRequestDtu351  *Req = &Requests[i];
-        Req->m_pUrb = NULL;
-        Req->m_IsValid = FALSE;
-    }
-
     // First initialize all requests
     for (i=0; i<NumAsyncRequests && !FatalError; i++)
     {
         Bool  InitOk = FALSE;
-        AsyncRequestDtu351  *Req = &Requests[i];
-#ifdef WINBUILD
-        InitOk = Dtu351InitAsyncRequest(Req, Buf + NextBufIdx*SingleDataBufSize,
-                                                    SingleDataBufSize,
-                                                    wdmhUSBPipe, Pipe, UrbSize, IoTarget);
-#else
-        InitOk = Dtu351InitAsyncRequest(Req, Buf + NextBufIdx*SingleDataBufSize,
-                                                    SingleDataBufSize,
-                                                    pDvcData, Pipe);
-#endif
-        Req->m_DataHeaders = DataBufHeaders;
-        Req->m_FirstIdx = NextBufIdx;
+        AsyncRequestDtu351*  pReq;
+        InitOk = DtuInitAsyncRequest(&Requests[i], PipeNumber, &pDvcData->m_Device, 
+                               DT_USB_DEVICE_TO_HOST, pBuf + NextBufIdx*SingleDataBufSize,
+                               SingleDataBufSize, Dtu351EvtComplete);
+        pReq = (AsyncRequestDtu351*)Requests[i].m_pContext;
+        pReq->m_DataHeaders = DataBufHeaders;
+        pReq->m_FirstIdx = NextBufIdx;
         NextBufIdx++;
         if (!InitOk)
         {
@@ -813,42 +537,19 @@ void  Dtu351WorkerThreadReadData(
         // Now start all requests for the first time
         for (i=0; i<NumAsyncRequests && !FatalError; i++)
         {
-            AsyncRequestDtu351  *Req = &Requests[i];
-#ifdef WINBUILD
-            if (WdfRequestSend(Req->m_WdfRequest, IoTarget, &SendOptions) == FALSE)
+            if (!DT_SUCCESS(DtuSendAsyncRequest(&Requests[i], &pDvcData->m_Device, 
+                                                                                Timeout)))
             {
-                DtDbgOut(ERR, DTU, "WdfRequestSend failed");
-                WdfObjectDelete(Req->m_WdfRequest);
-                WdfObjectDelete(Req->m_UrbMemory);
-                Req->m_pUrb = NULL;
                 FatalError = TRUE;
                 break;
             }
-#else
-            int res = usb_submit_urb(Req->m_pUrb, GFP_ATOMIC);
-            if (res != 0)
-            {
-                DtDbgOut(ERR, DTU, "usb_submit_urb failed. Res = %d", res);
-                usb_free_coherent(Req->m_pUrb->dev, Req->m_pUrb->transfer_buffer_length,
-                                 Req->m_pUrb->transfer_buffer, Req->m_pUrb->transfer_dma);
-                usb_free_urb(Req->m_pUrb);
-                Req->m_pUrb = NULL;
-                FatalError = TRUE;
-                break;
-            }
-#endif
-            Req->m_IsValid = TRUE;
         }
     }
+
     DtDbgOut(AVG, DTU, "Request initialization done");
     if (FatalError)
-    {
         DtDbgOut(ERR, DTU, "FatalError was set");
-#ifdef WINBUILD
-        DtDbgOut(ERR, DTU, "NtStatus: 0x%0X", NtStatus);
-#endif
-    }
-
+    
     if (!FatalError)
     {
         // Set FPGA register RxMode
@@ -856,6 +557,7 @@ void  Dtu351WorkerThreadReadData(
                                                              (UInt32)pPort->m_InitRxMode);
         DT_ASSERT(DT_SUCCESS(Status));
     }
+
     // We're fully initialized. Allow changes to the RxMode register from other threads.
     pPort->m_AllowRxModeChanges = TRUE;
     
@@ -863,20 +565,15 @@ void  Dtu351WorkerThreadReadData(
     
     while (DtEventWait(&pPort->m_StateChanged, 0)==DT_STATUS_TIMEOUT && !FatalError)
     {
-#ifdef WINBUILD
-        WDF_REQUEST_REUSE_PARAMS  ReusePars;
-        WDF_REQUEST_REUSE_PARAMS_INIT(&ReusePars, WDF_REQUEST_REUSE_NO_FLAGS, 
-                                                                          STATUS_SUCCESS);
-#endif
         LoopCtr++;
         for (i=0; i<NumAsyncRequests 
                         && DtEventWait(&pPort->m_StateChanged, 0)==DT_STATUS_TIMEOUT; i++)
         {
-            AsyncRequestDtu351  *Req = &Requests[i];
+            AsyncRequestDtu351*  pReq;
             Bool  ReinitOk;
             while (TRUE)
             {
-                Status = DtEventWait(&Req->m_EvtRequestDone, 100);
+                Status = DtEventWait(&Requests[i].m_EvtRequestDone, 100);
                 if (!DT_SUCCESS(Status))
                 {
                     DtDbgOut(ERR, DTU, "DtEventWait failed: %x", Status);
@@ -886,31 +583,20 @@ void  Dtu351WorkerThreadReadData(
                     break;
                 }
             }
-#ifdef WINBUILD
-            NtStatus = WdfRequestReuse(Req->m_WdfRequest, &ReusePars);
-            if (!NT_SUCCESS(NtStatus))
-            {
-                DtDbgOut(ERR, DTU, "WdfRequestReuse failed");
-                FatalError = TRUE;
-                break;
-            }
-#endif
-            
-#ifdef WINBUILD
-            ReinitOk = Dtu351ReInitAsyncRequest(Req, Buf + NextBufIdx*SingleDataBufSize,
-                                 SingleDataBufSize, wdmhUSBPipe, Pipe, UrbSize, IoTarget);
-#else
-            ReinitOk = Dtu351ReInitAsyncRequest(Req, Buf + NextBufIdx*SingleDataBufSize,
-                                                       SingleDataBufSize, pDvcData, Pipe);
-#endif
 
-            Req->m_DataHeaders = DataBufHeaders;
-            Req->m_FirstIdx = NextBufIdx;
+            ReinitOk = DtuReInitAsyncRequest(&Requests[i], PipeNumber, 
+                                               &pDvcData->m_Device, DT_USB_DEVICE_TO_HOST,
+                                               pBuf + NextBufIdx*SingleDataBufSize,
+                                               SingleDataBufSize);
+            pReq = (AsyncRequestDtu351*)Requests[i].m_pContext;
+            pReq->m_DataHeaders = DataBufHeaders;
+            pReq->m_FirstIdx = NextBufIdx;
             if (DataBufHeaders[NextBufIdx].m_Flags != 0)
             {
                 if (BufHeader->m_Overflow == 0)
                 {
-                    DtDbgOut(ERR, DTU, "Overflow in kernel<>dtapi buffer (%d) (Loop %d)", NextBufIdx, LoopCtr);
+                    DtDbgOut(ERR, DTU, "Overflow in kernel<>dtapi buffer (%d) (Loop %d)", 
+                                                                     NextBufIdx, LoopCtr);
                     BufHeader->m_Overflow = 1;
                 }
                 DataBufHeaders[NextBufIdx].m_Flags = 0;
@@ -923,21 +609,13 @@ void  Dtu351WorkerThreadReadData(
                 FatalError = TRUE;
                 break;
             }
-#ifdef WINBUILD
-            if (WdfRequestSend(Req->m_WdfRequest, IoTarget, &SendOptions) == FALSE)
+            if (!DT_SUCCESS(DtuSendAsyncRequest(&Requests[i], 
+                                                           &pDvcData->m_Device, Timeout)))
             {
                 DtDbgOut(ERR, DTU, "WdfRequestSend failed");
                 FatalError = TRUE;
                 break;
             }
-#else
-            if (usb_submit_urb(Req->m_pUrb, GFP_ATOMIC) != 0)
-            {
-                DtDbgOut(ERR, DTU, "usb_submit_urb failed");
-                FatalError = TRUE;
-                break;
-            }
-#endif
         }
     }
     pPort->m_DataLoss = FALSE;
@@ -948,30 +626,10 @@ void  Dtu351WorkerThreadReadData(
     pPort->m_AllowRxModeChanges = FALSE;
 
     DtDbgOut(AVG, DTU, "Cleaning up DTU-351 driver thread");
-    // Try to make sure all events are handled.
-    for (i=0; i<NumAsyncRequests; i++)
-    {
-        AsyncRequestDtu351  *Req = &Requests[i];
-        if (!Req->m_IsValid)
-            continue;
-#ifdef WINBUILD
-        //WdfRequestCancelSentRequest(Req->m_WdfRequest);
-        // Wait until request is either cancelled or completed.
-        DtEventWait(&Req->m_EvtRequestDone, -1);
-        WdfObjectDelete(Req->m_WdfRequest);
-        WdfObjectDelete(Req->m_UrbMemory);
-#else
-        if (Req->m_pUrb == NULL)
-            continue;
-        // Wait until request is either cancelled or completed.
-        usb_kill_urb(Req->m_pUrb);
-        usb_free_coherent(Req->m_pUrb->dev, Req->m_pUrb->transfer_buffer_length,
-                                 Req->m_pUrb->transfer_buffer, Req->m_pUrb->transfer_dma);
-        usb_free_urb(Req->m_pUrb);
-        Req->m_pUrb = NULL;
-#endif
-    }
 
+    DtuFreeAsyncRequests(NumAsyncRequests, Requests);
+
+    // Debug code
     {
         UInt16  Regs[2];
         Status = Dtu35xRegRead(pDvcData, DTU_USB3_DEV_FX3, 0x08, &Regs[0]);
@@ -989,37 +647,27 @@ void  Dtu351WorkerThreadReadData(
 
     // Set gennum register RATE_SEL to auto
     Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_GS1661, 0x24, 0x04);
-
-    DtMemFreePool(Requests, DTU_TAG);
-
     DtDbgOut(MAX, DTU, "Exit");
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu315WorkerThreadWriteData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void  Dtu315WorkerThreadWriteData(
-    DtuDeviceData*  pDvcData,
-    DtuNonIpPort*  pPort)
+void  Dtu315WorkerThreadWriteData(DtuDeviceData* pDvcData, DtuNonIpPort* pPort)
 {
-#ifdef WINBUILD // TODOTM: DTU-315 linux implementation
-    NTSTATUS  NtStatus = STATUS_SUCCESS;
     DtStatus  Status = DT_STATUS_OK;
     Int  i;
     Dtu315BufHdr*  pBufHdr;
-    WDF_REQUEST_SEND_OPTIONS  SendOptions;
     UInt8*  pBuf;
     Int  NumAsyncRequests;
-    AsyncRequestDtu315*  Requests;
-    USBD_PIPE_HANDLE wdmhUSBPipe;
-    WDFUSBPIPE  Pipe=NULL;
-    WDFIOTARGET  IoTarget;
-    Int  UrbSize = -1;
+    AsyncRequest*  Requests;
     Bool  FatalError = FALSE;
     Int  SingleDataBufSize;
     Int  NextReq = 0;
     UInt  ReadPtr = 0;                      // Offset of byte to transfer next
     Bool  Started = FALSE;
-
+    Int  Timeout;
+    Int  PipeNumber;
+    
     DtDbgOut(AVG, DTU, "Start");
 
     DT_ASSERT(pPort->m_SharedBuffer.m_Initialised);
@@ -1036,97 +684,37 @@ void  Dtu315WorkerThreadWriteData(
     }
 
     // Initialize send options used for URB timeouts
-    WDF_REQUEST_SEND_OPTIONS_INIT(&SendOptions, WDF_REQUEST_SEND_OPTION_TIMEOUT);
-    // 500ms Timeout in 100ns units
-    WDF_REQUEST_SEND_OPTIONS_SET_TIMEOUT(&SendOptions, -10*1000*500);
-    
-    Requests = DtMemAllocPool(DtPoolNonPaged, sizeof(AsyncRequestDtu315)*NumAsyncRequests,
-                                                                                 DTU_TAG);
+    // 500ms Timeout
+    Timeout = 500;
 
+    Requests = DtuAllocateAsyncRequests(NumAsyncRequests, sizeof(AsyncRequestDtu315));
     if (Requests == NULL)
     {
-        DtDbgOut(ERR, DTU, "Failed to allocate internal buffer");
+        DtDbgOut(ERR, DTU, "Failed to allocate async requests");
         return;
     }
 
-    Pipe = WdfUsbInterfaceGetConfiguredPipe(pDvcData->m_Device.m_UsbInterface, 0, NULL);
-    wdmhUSBPipe = WdfUsbTargetPipeWdmGetPipeHandle(Pipe);
-    IoTarget = WdfUsbTargetDeviceGetIoTarget(pDvcData->m_Device.m_UsbDevice);
-
-    UrbSize = sizeof(struct _URB_BULK_OR_INTERRUPT_TRANSFER);
-
-    // Default-initialize all request, so we can clean up properly later.
-    for (i=0; i<NumAsyncRequests; i++)
-    {
-        AsyncRequestDtu315  *Req = &Requests[i];
-        Req->m_pUrb = NULL;
-        Req->m_IsValid = FALSE;
-    }
+    PipeNumber = pDvcData->m_EzUsb.m_WritePipe;
 
     // First initialize all requests
     for (i=0; i<NumAsyncRequests && !FatalError; i++)
     {
-        AsyncRequestDtu315  *Req = &Requests[i];
-
-        NtStatus = WdfMemoryCreate(WDF_NO_OBJECT_ATTRIBUTES, NonPagedPool, DTU_TAG,
-                                        UrbSize, &Req->m_UrbMemory, (void**)&Req->m_pUrb);
-        if (!NT_SUCCESS(NtStatus))
+        Bool  InitOk = FALSE;
+        AsyncRequestDtu315* pReq;
+        InitOk = DtuInitAsyncRequest(&Requests[i], PipeNumber,  &pDvcData->m_Device, 
+                                    DT_USB_HOST_TO_DEVICE, NULL, SingleDataBufSize, NULL);
+        if (!InitOk)
         {
-            DtDbgOut(ERR, DTU, "WdfMemoryCreate failed");
-            Req->m_pUrb = NULL;
+            FatalError = TRUE;
             break;
         }
-
-        NtStatus = WdfRequestCreate(WDF_NO_OBJECT_ATTRIBUTES, IoTarget, &Req->m_WdfRequest);
-        if (!NT_SUCCESS(NtStatus))
-        {
-            DtDbgOut(ERR, DTU, "WdfRequestCreate failed");
-            WdfObjectDelete(Req->m_UrbMemory);
-            Req->m_pUrb = NULL;
-            break;
-        }
-
-        DtMemZero(Req->m_pUrb, UrbSize);
-        Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Length = (USHORT)UrbSize;
-        Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Function = URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER;
-        Req->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
-        Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferFlags = USBD_TRANSFER_DIRECTION_OUT;
-
-        Req->m_Result = DT_STATUS_OK;
-        Req->m_OffsetStart = 0;
-        Req->m_Size = 0;
-        
-        NtStatus = WdfUsbTargetPipeFormatRequestForUrb(Pipe, Req->m_WdfRequest,
-                                                                  Req->m_UrbMemory, NULL);
-        if (!NT_SUCCESS(NtStatus))
-        {
-            DtDbgOut(ERR, DTU, "WdfUsbTargetPipeFormatRequestForUrb failed");
-            WdfObjectDelete(Req->m_WdfRequest);
-            WdfObjectDelete(Req->m_UrbMemory);
-            Req->m_pUrb = NULL;
-            NtStatus = STATUS_UNSUCCESSFUL;
-            break;
-        }
-        if (!DT_SUCCESS(DtEventInit(&Requests[i].m_EvtRequestDone, TRUE)))
-        {
-            DtDbgOut(ERR, DTU, "DtEventInit failed");
-            WdfObjectDelete(Req->m_WdfRequest);
-            WdfObjectDelete(Req->m_UrbMemory);
-            Req->m_pUrb = NULL;
-            NtStatus = STATUS_UNSUCCESSFUL;
-            break;
-        }
-        WdfRequestSetCompletionRoutine(Req->m_WdfRequest, Dtu315EvtComplete, Req);
-        Req->m_Result = DT_STATUS_OK;
-        DtEventSet(&Req->m_EvtRequestDone);
-        Req->m_IsValid = TRUE;
+        pReq = (AsyncRequestDtu315*)Requests[i].m_pContext;
+        pReq->m_OffsetStart = 0;
+        pReq->m_Size = 0;
     }
     // At this point all m_EvtRequestDone events are in the signalled state
-    if (!NT_SUCCESS(NtStatus))
+    if (!FatalError)
     {
-        DtDbgOut(ERR, DTU, "NtStatus not OK");
-        FatalError = TRUE;
-    } else {
         // Initialization done, set hardware TX mode to SEND
         //TODO: replace 0x80 by offset of FifoMemoryLessUsbDvc block, should come from XML
         Dtu3RegWrite(pDvcData, DTU315_FIFO_BLOCK_OFFSET, 
@@ -1138,33 +726,27 @@ void  Dtu315WorkerThreadWriteData(
     while (DtEventWait(&pPort->m_StateChanged, 0)==DT_STATUS_TIMEOUT && !FatalError)
     {
         Bool  ShouldStop = FALSE;
-        AsyncRequestDtu315  *Req = &Requests[NextReq];
-        WDF_REQUEST_REUSE_PARAMS  ReusePars;
-        WDF_REQUEST_REUSE_PARAMS_INIT(&ReusePars, WDF_REQUEST_REUSE_NO_FLAGS, STATUS_SUCCESS);
+        AsyncRequest*  pReq = &Requests[NextReq];
+        AsyncRequestDtu315*  pReqDtu315 = (AsyncRequestDtu315*)pReq->m_pContext;
         
         do {
-            Status = DtEventWait(&Req->m_EvtRequestDone, 50);
+            Status = DtEventWait(&pReq->m_EvtRequestDone, 50);
             ShouldStop = DT_SUCCESS(DtEventWait(&pPort->m_StateChanged, 0));
         } while (!DT_SUCCESS(Status) && !ShouldStop);
+
         if (ShouldStop)
         {
             // m_EvtRequestDone has been reset by the wait above but code belows
             // expects it to be set.
             if (DT_SUCCESS(Status))
-                DtEventSet(&Req->m_EvtRequestDone);
+                DtEventSet(&pReq->m_EvtRequestDone);
             break;
         }
 
-        if (!DT_SUCCESS(Req->m_Result))
-        {
-            DtDbgOut(ERR, DTU, "Write request failed, DtStatus=0x%08X", Req->m_Result);
-            DtEventSet(&Req->m_EvtRequestDone);
-            break;
-        }
-        if (Req->m_OffsetStart + Req->m_Size == pBufHdr->m_FifoSize)
+        if (pReqDtu315->m_OffsetStart + pReqDtu315->m_Size == pBufHdr->m_FifoSize)
             pBufHdr->m_ReadPtr = 0;
         else
-            pBufHdr->m_ReadPtr = Req->m_OffsetStart + Req->m_Size;
+            pBufHdr->m_ReadPtr = pReqDtu315->m_OffsetStart + pReqDtu315->m_Size;
         
         // Wait for enough data to be available in the shared buffer
         do {
@@ -1180,43 +762,29 @@ void  Dtu315WorkerThreadWriteData(
         } while (DtEventWait(&pPort->m_StateChanged, 5)==DT_STATUS_TIMEOUT);
         if (DT_SUCCESS(DtEventWait(&pPort->m_StateChanged, 0)))
         {
-            DtEventSet(&Req->m_EvtRequestDone);
+            DtEventSet(&pReq->m_EvtRequestDone);
             break;
         }
-        Req->m_OffsetStart = ReadPtr;
-        Req->m_Size = pBufHdr->m_SingleTransferSize;
-        if (Req->m_OffsetStart + Req->m_Size > pBufHdr->m_FifoSize)
-            Req->m_Size = pBufHdr->m_FifoSize - Req->m_OffsetStart;
-        ReadPtr += Req->m_Size;
+        pReqDtu315->m_OffsetStart = ReadPtr;
+        pReqDtu315->m_Size = pBufHdr->m_SingleTransferSize;
+        if (pReqDtu315->m_OffsetStart + pReqDtu315->m_Size > pBufHdr->m_FifoSize)
+            pReqDtu315->m_Size = pBufHdr->m_FifoSize - pReqDtu315->m_OffsetStart;
+        ReadPtr += pReqDtu315->m_Size;
         if (ReadPtr == pBufHdr->m_FifoSize)
             ReadPtr = 0;
 
-        NtStatus = WdfRequestReuse(Req->m_WdfRequest, &ReusePars);
-        if (!NT_SUCCESS(NtStatus))
+        if (!DtuReInitAsyncRequest(pReq, PipeNumber, 
+                                               &pDvcData->m_Device, DT_USB_HOST_TO_DEVICE,
+                                               pBuf+pReqDtu315->m_OffsetStart,
+                                               pReqDtu315->m_Size))
         {
-            DtDbgOut(ERR, DTU, "WdfRequestReuse failed");
+            DtDbgOut(ERR, DTU, "DtuReInitAsyncRequest failed");
             FatalError = TRUE;
             break;
         }
-        Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Length = (USHORT)UrbSize;
-        Req->m_pUrb->UrbBulkOrInterruptTransfer.Hdr.Function = URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER;
-        Req->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
-        Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferFlags = USBD_TRANSFER_DIRECTION_OUT;
-        Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBuffer = pBuf+Req->m_OffsetStart;
-        Req->m_pUrb->UrbBulkOrInterruptTransfer.TransferBufferLength = Req->m_Size;
-
-        NtStatus = WdfUsbTargetPipeFormatRequestForUrb(Pipe, Req->m_WdfRequest,
-                                                                Req->m_UrbMemory, NULL);
-        if (!NT_SUCCESS(NtStatus))
+        if (!DT_SUCCESS(DtuSendAsyncRequest(pReq, &pDvcData->m_Device, Timeout)))
         {
-            DtDbgOut(ERR, DTU, "WdfUsbTargetPipeFormatRequestForUrb failed");
-            FatalError = TRUE;
-            break;
-        }
-        WdfRequestSetCompletionRoutine(Req->m_WdfRequest, Dtu315EvtComplete, Req);
-        if (WdfRequestSend(Req->m_WdfRequest, IoTarget, &SendOptions) == FALSE)
-        {
-            DtDbgOut(ERR, DTU, "WdfRequestSend failed");
+            DtDbgOut(ERR, DTU, "DtuSendAsyncRequest failed");
             FatalError = TRUE;
             break;
         }
@@ -1230,7 +798,8 @@ void  Dtu315WorkerThreadWriteData(
             Started = TRUE;
         }
     }
-    // All m_EvtRequestDone events should still be in the signalled state here
+    // All m_EvtRequestDone events should still be in the signalled state here or
+    // the request is marked as invalid
 
     DtDbgOut(AVG, DTU, "Cleaning up DTU-315 driver thread");
 
@@ -1240,22 +809,8 @@ void  Dtu315WorkerThreadWriteData(
     // Set led control to fade (1)
     Dtu3RegWrite(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.LedCtrl, 1);
 
-    // Try to make sure all callbacks are finished
-    for (i=0; i<NumAsyncRequests && !FatalError; i++)
-    {
-        AsyncRequestDtu315  *Req = &Requests[i];
-        if (!Req->m_IsValid)
-            continue;
-        // Wait until request is completed.
-        DtEventWait(&Req->m_EvtRequestDone, -1);
-        WdfObjectDelete(Req->m_WdfRequest);
-        WdfObjectDelete(Req->m_UrbMemory);
-    }
-
-    DtMemFreePool(Requests, DTU_TAG);
-    
+    DtuFreeAsyncRequests(NumAsyncRequests, Requests);
     DtDbgOut(AVG, DTU, "Exit");
-#endif
 }
 
 
@@ -1368,7 +923,7 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
             if (Watchdog == 1)
             {
                 DtEvtLogReport(&pDvcData->m_Device.m_EvtObject, 
-                                    DTU_LOG_WATCHDOG_TRIGGERED_RESET, NULL, NULL, NULL);
+                                      DTU_LOG_WATCHDOG_TRIGGERED_RESET, NULL, NULL, NULL);
                 DtDbgOut(ERR, DTU, "Reboot was triggered by watchdog timer");
                 // Reset watchdog register
                 Dtu3RegClear(pDvcData, DTU3_FX3_BLOCK_OFFSET, &FwbFx3.WatchDog);
@@ -1497,8 +1052,7 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
         pDvcData->m_DevInfo.m_UsbAddress = (Int)Value;
 
         // Get Firmware version
-        if (pDvcData->m_DevInfo.m_TypeNumber>=300 &&
-                                                     pDvcData->m_DevInfo.m_TypeNumber<400)
+        if (pDvcData->m_DevInfo.m_TypeNumber>=300 && pDvcData->m_DevInfo.m_TypeNumber<400)
         {
             // For DTU-3 devices, the current firmware version is equivalent to the
             // property FIRMWARE_LAST_VER. This removes the need for versioning in the
@@ -1520,7 +1074,7 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
             if (!DT_SUCCESS(Status))
                 return Status;
             pDvcData->m_DevInfo.m_FirmwareVersion = (Value & DT_GENCTRL_FWREV_MSK)  >>
-                                                                    DT_GENCTRL_FWREV_SH;
+                                                                      DT_GENCTRL_FWREV_SH;
         }
 
         // Initialise the number and type of ports the card supports. 
@@ -1595,8 +1149,8 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
             // Hardware revision could not be set (no 'EC' resource and no registry key)
             // Consider this a non-critical error
             DtDbgOut(MIN, DTU, "Hardware revision could not be set (no 'EC' resource "
-                                "and no registry key 'ForcedHardwareRevision'), "
-                                "hence hardware rev set to -1");
+                                         "and no registry key 'ForcedHardwareRevision'), "
+                                         "hence hardware rev set to -1");
             pDvcData->m_DevInfo.m_HardwareRevision = -1;
         }
 
@@ -2155,7 +1709,7 @@ DtStatus  DtuDeviceIoctl(
                 Status = DtPropertiesGetForType("DTU",
                                                  pInBuf->m_GetProperty.m_TypeNumber,
                                                  0, // no USB devs with sub-devices yet
-                                                 pInBuf->m_GetProperty.m_HardwareRevision, 
+                                                 pInBuf->m_GetProperty.m_HardwareRevision,
                                                  pInBuf->m_GetProperty.m_FirmwareVersion,
                                                  -1,
                                                  pInBuf->m_GetProperty.m_Name,
@@ -2211,14 +1765,15 @@ DtStatus  DtuDeviceIoctl(
         case DTU_IOCTL_REG_WRITE_MASKED:
             if (pDvcData->m_DevInfo.m_TypeNumber >= 315)
                 // Only supported for DTU-315 for now
-                Status = Dtu3RegWriteMaskedRaw(pDvcData, pInBuf->m_RegWriteMasked.m_RegAddr,
-                                                     pInBuf->m_RegWriteMasked.m_FieldMask,
-                                                    pInBuf->m_RegWriteMasked.m_FieldShift,
+                Status = Dtu3RegWriteMaskedRaw(pDvcData, 
+                                                   pInBuf->m_RegWriteMasked.m_RegAddr,
+                                                   pInBuf->m_RegWriteMasked.m_FieldMask,
+                                                   pInBuf->m_RegWriteMasked.m_FieldShift,
                                                    pInBuf->m_RegWriteMasked.m_FieldValue);
             else
                 Status = DtuRegWriteMasked(pDvcData, pInBuf->m_RegWriteMasked.m_RegAddr,
-                                                     pInBuf->m_RegWriteMasked.m_FieldMask,
-                                                    pInBuf->m_RegWriteMasked.m_FieldShift,
+                                                   pInBuf->m_RegWriteMasked.m_FieldMask,
+                                                   pInBuf->m_RegWriteMasked.m_FieldShift,
                                                    pInBuf->m_RegWriteMasked.m_FieldValue);
             break;
         case DTU_IOCTL_GET_EVENT:
@@ -2362,7 +1917,7 @@ DtStatus  DtuDeviceIoctl(
             break;
         case DTU_IOCTL_SET_IOCONFIG:
             if (pIoctl->m_InputBufferSize < sizeof(DtuIoctlSetIoConfigInput) +
-                                pInBuf->m_SetIoConfig.m_IoConfigCount*sizeof(DtIoConfigPars))
+                             pInBuf->m_SetIoConfig.m_IoConfigCount*sizeof(DtIoConfigPars))
                 Status = DT_STATUS_INVALID_PARAMETER;
             else
                 Status = DtuIoConfigSet(pDvcData, pFile,
@@ -2556,30 +2111,30 @@ DtStatus  DtuDeviceIoctl(
             if (pIoctl->m_InputBufferSize < InReqSize) 
             {
                 DtDbgOut(ERR, DTU, "%s: In=%d (Rq=%d) Out=%d (Rq=%d) INPUT BUFFER TOO"
-                                            " SMALL!",
-                                            pIoctlStr, pIoctl->m_InputBufferSize, InReqSize,
-                                            pIoctl->m_OutputBufferSize, OutReqSize);
+                                          " SMALL!",
+                                          pIoctlStr, pIoctl->m_InputBufferSize, InReqSize,
+                                          pIoctl->m_OutputBufferSize, OutReqSize);
                 Status = DT_STATUS_INVALID_PARAMETER;
             }
             if (pIoctl->m_OutputBufferSize < OutReqSize) 
             {
                 DtDbgOut(ERR, DTU, "%s: In=%d (Rq=%d) Out=%d (Rq=%d) OUTPUT BUFFER TOO"
-                                            " SMALL!",
-                                            pIoctlStr, pIoctl->m_InputBufferSize, InReqSize,
-                                            pIoctl->m_OutputBufferSize, OutReqSize);
+                                          " SMALL!",
+                                          pIoctlStr, pIoctl->m_InputBufferSize, InReqSize,
+                                          pIoctl->m_OutputBufferSize, OutReqSize);
                 Status = DT_STATUS_INVALID_PARAMETER;
             }
 
             if (DT_SUCCESS(Status))
                 Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL,
-                                                         pInBuf->m_VendorRequest.m_Code,
-                                                         pInBuf->m_VendorRequest.m_Value,
-                                                         pInBuf->m_VendorRequest.m_Index,
-                                                         pInBuf->m_VendorRequest.m_Dir,
-                                                         pBuffer,
-                                                         pInBuf->m_VendorRequest.m_BufLen,
+                                          pInBuf->m_VendorRequest.m_Code,
+                                          pInBuf->m_VendorRequest.m_Value,
+                                          pInBuf->m_VendorRequest.m_Index,
+                                          pInBuf->m_VendorRequest.m_Dir,
+                                          pBuffer,
+                                          pInBuf->m_VendorRequest.m_BufLen,
                                           &pOutBuf->m_VendorRequest.m_NumBytesTransferred,
-                                                         MAX_USB_REQ_TIMEOUT);
+                                          MAX_USB_REQ_TIMEOUT);
         }   break;
         case DTU_IOCTL_GET_STATE_FLAGS:
             if (pInBuf->m_GetStateFlags.m_PortIndex == -1)

@@ -80,10 +80,10 @@ DtStatus  DtuFx3LoadPldFirmware(
     Int  Size)
 {
     DtStatus  Status;
-    Int  Len;
+    UInt  Len;
     Int  Dummy;
     UInt32  TypeNumber;
-    Int  MaxChunkSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
+    UInt  MaxChunkSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
                                                           pDvcData->m_DevInfo.m_UsbSpeed);
 
     Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
@@ -100,7 +100,7 @@ DtStatus  DtuFx3LoadPldFirmware(
         // DTU-351: Expect PLD firmware data through vendor command
         while (Size > 0)
         {
-            Len = Size < MaxChunkSize ? Size : MaxChunkSize;
+            Len = (UInt)Size < MaxChunkSize ? Size : MaxChunkSize;
             if (Len > MaxChunkSize)
                 Len = MaxChunkSize;
             Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_FPGA_UPLOAD, 
@@ -117,8 +117,7 @@ DtStatus  DtuFx3LoadPldFirmware(
         UInt8*  pBuffer = (UInt8*) DtMemAllocPool(DtPoolNonPaged, DTU_BULK_PACKETSIZE, 
                                                                                  DTU_TAG);
         Int  i;
-        Int Temp = 0;
-
+        
         // Clear endpoint buffers
         Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, DTU_USB3_PNP_CMD,
                              DTU_PNP_CMD_RESET, DTU_RESET_DMA_OUT, DT_USB_HOST_TO_DEVICE,
@@ -134,10 +133,10 @@ DtStatus  DtuFx3LoadPldFirmware(
             Int  BitCount = 0;
             UInt32*  pWord = (UInt32*)pBuffer;
             Len = DTU_BULK_PACKETSIZE;
-            if (Len > Size*8*8)
-                Len = Size*8*8;
+            if (Len > (UInt)Size*8*8)
+                Len = (UInt)Size*8*8;
             
-            for (i=0; i<Len/4; i+=2)
+            for (i=0; i<(Int)(Len/4); i+=2)
             {
                 // Satisfy hold time by setting data bit early with respect to the clock
                 // Toggle the clock from low to high, in order to end with a high state, 

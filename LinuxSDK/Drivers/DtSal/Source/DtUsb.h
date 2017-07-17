@@ -34,6 +34,31 @@
 #define  DT_USB_HOST_TO_DEVICE      0
 #define  DT_USB_DEVICE_TO_HOST      1
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- AsyncRequest typedefs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+typedef struct _AsyncRequest  AsyncRequest;
+typedef void (*pDtUsbAsyncComplete)(AsyncRequest* pAsyncRequest, UInt ActualLength);
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct AsyncRequest -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct _AsyncRequest
+{
+#ifdef WINBUILD
+    PURB  m_pUrb;
+    WDFMEMORY  m_UrbMemory;
+    WDFREQUEST  m_WdfRequest;
+#else
+    Int  m_UrbBufLen;
+    struct urb*  m_pUrb;
+    void*  m_pBuf;
+    
+#endif
+    DtEvent  m_EvtRequestDone;
+    Bool  m_IsValid;
+    DtStatus  m_Result;     // Status of URB transfer
+    void*  m_pContext;      // Device specific context
+    pDtUsbAsyncComplete  m_pEvtAsyncComplete;
+};
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public API -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
 DtStatus  DtUsbQueuryString(DtDvcObject* pUsbDevice, DtString* pDtString,
@@ -50,6 +75,12 @@ Int  DtUsbGetBulkPipeNumber(DtDvcObject* pUsbDevice, Int Dir, Int EndPoint);
 void  DtUsbDumpPipeInfo(DtDvcObject* pUsbDevice);
 Int  DtUsbGetCtrlMaxPacketSize(DtDvcObject*  pUsbDevice, Int  UsbSpeed);
 Bool  DtUsbManufNameEq(DtDvcObject*  pDvc, const char*  pManufName);
-
+AsyncRequest*  DtuAllocateAsyncRequests(Int NumAsyncRequests, Int ContextSize);
+void  DtuFreeAsyncRequests(Int NumAsyncRequests, AsyncRequest* pRequests);
+Bool  DtuInitAsyncRequest(AsyncRequest* Req, Int PipeNumber, DtDvcObject* pUsbDevice, 
+                  Int Dir, void* pBuf, Int BufLen, pDtUsbAsyncComplete pEvtAsyncComplete);
+Bool  DtuReInitAsyncRequest(AsyncRequest* Req, Int PipeNumber, DtDvcObject* pUsbDevice, 
+                                                         Int Dir, void* pBuf, Int BufLen);
+DtStatus  DtuSendAsyncRequest(AsyncRequest* Req, DtDvcObject* pUsbDevice, Int Timeout);
 #endif // #ifndef SKIP_USB
 #endif // #ifndef __DT_USB_H

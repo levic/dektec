@@ -5169,6 +5169,8 @@ static __inline UInt8  DtaRegRs422RxDataGet(volatile UInt8* pBase) {
 #define DT_HDMITX_FRAMECTRL_VSINFO_EN_SH      1
 #define DT_HDMITX_FRAMECTRL_AUDINFO_EN_MSK    0x00000004
 #define DT_HDMITX_FRAMECTRL_AUDINFO_EN_SH     2
+#define DT_HDMITX_FRAMECTRL_HDRINFO_EN_MSK    0x00000008
+#define DT_HDMITX_FRAMECTRL_HDRINFO_EN_SH     3
 #define DT_HDMITX_FRAMECTRL_AVIINFO_LAT_MSK   0x00010000
 #define DT_HDMITX_FRAMECTRL_AVIINFO_LAT_SH    16
 #define DT_HDMITX_FRAMECTRL_VSINFO_LAT_MSK    0x00020000
@@ -5395,6 +5397,16 @@ static __inline UInt  DtaRegHdmiTxInfoFrameCtrlGetAudInfoFrameEnable(volatile UI
 static __inline void  DtaRegHdmiTxInfoFrameCtrlSetAudInfoFrameEnable(volatile UInt8* pBase, UInt Enable) {
     WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_INFOFRAMECTRL, 
                DT_HDMITX_FRAMECTRL_AUDINFO_EN_MSK, DT_HDMITX_FRAMECTRL_AUDINFO_EN_SH);
+}
+
+// InfoFrameCtrl: Hdr Info Frame Enable
+static __inline UInt  DtaRegHdmiTxInfoFrameCtrlGetHdrInfoFrameEnable(volatile UInt8* pBase) {
+    return READ_UINT_MASKED(pBase, DT_HDMITX_REG_INFOFRAMECTRL, 
+               DT_HDMITX_FRAMECTRL_HDRINFO_EN_MSK, DT_HDMITX_FRAMECTRL_HDRINFO_EN_SH);
+}
+static __inline void  DtaRegHdmiTxInfoFrameCtrlSetHdrInfoFrameEnable(volatile UInt8* pBase, UInt Enable) {
+    WRITE_UINT_MASKED(Enable, pBase, DT_HDMITX_REG_INFOFRAMECTRL, 
+               DT_HDMITX_FRAMECTRL_HDRINFO_EN_MSK, DT_HDMITX_FRAMECTRL_HDRINFO_EN_SH);
 }
 
 // InfoFrameCtrl: Avi Info Frame Latch

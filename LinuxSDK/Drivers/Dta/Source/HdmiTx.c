@@ -767,6 +767,7 @@ void  DtHdmiResetFeatures(DtaHdmiTx* pHdmiTx)
     pHdmiTx->m_MonSupportedFormats = 0;
     pHdmiTx->m_MonSupportedAudio = 0;
     pHdmiTx->m_SupportHdmi = FALSE;
+    pHdmiTx->m_SupportHdr = FALSE;
     pHdmiTx->m_SupportYCbCr444 = FALSE;
     pHdmiTx->m_SupportYCbCr422 = FALSE;
     pHdmiTx->m_SupportBasicAudio = FALSE;
@@ -1584,6 +1585,15 @@ DtStatus  DtHdmiTxUpdateVideoStd(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, Bool 
     DtHdmiTxUpdateAviInfoFrame(pHdmiTx, UsedVidStd);
     DtHdmiTxUpdateHdmiVsInfoFrame(pHdmiTx, UsedVidStd);
 
+    // HDR info frame
+    if (pHdmiTx->m_SupportHdr || pHdmiTx->m_DisableEdidCheck)
+    {
+        if (!pHdmiTx->m_SupportHdr)
+            DtDbgOut(ERR, HDMI, "HDR Info Frames not supported, but forced by user.");
+        DtaRegHdmiTxInfoFrameCtrlSetHdrInfoFrameEnable(pHdmiTx->m_pHdmiRegs, 1);
+    } else
+        DtaRegHdmiTxInfoFrameCtrlSetHdrInfoFrameEnable(pHdmiTx->m_pHdmiRegs, 0);
+
     // SCDC
     if (pHdmiTx->m_SupportScDc || pHdmiTx->m_DisableEdidCheck)
     {
@@ -2291,9 +2301,31 @@ void  DtHdmiEdidParseCeaShortVideoDescriptors(DtaHdmiTx* pHdmiTx, UInt8* pSVD, U
     }
 }
 
+//.-.-.-.-.-.-.-.-.-.-.- DtHdmiEdidParseHdrStaticMetadataDataBlock -.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtHdmiEdidParseHdrStaticMetadataDataBlock(DtaHdmiTx* pHdmiTx, 
+                                                     UInt8* pHdrStaticMetadata, UInt Size)
+{
+    if ((pHdrStaticMetadata[0] & 0x3f) != 0)
+    {
+        pHdmiTx->m_SupportHdr = TRUE;
+        if ((pHdrStaticMetadata[0] & 0x1) != 0)
+            DtDbgOut(MAX, HDMI, "EOTF: Traditional gamma - SDR Luminance Range");
+        if ((pHdrStaticMetadata[0] & 0x2) != 0)
+            DtDbgOut(MAX, HDMI, "EOTF: Traditional gamma - HDR Luminance Range");
+        if ((pHdrStaticMetadata[0] & 0x4) != 0)
+            DtDbgOut(MAX, HDMI, "EOTF: SMPTE ST 2084");
+        if ((pHdrStaticMetadata[0] & 0x8) != 0)
+            DtDbgOut(MAX, HDMI, "EOTF: Hybrid Log-Gamma (HLG) based on ITU-R BT.2100-0");
+        if ((pHdrStaticMetadata[0] & 0x30) != 0)
+            DtDbgOut(MAX, HDMI, "EOTF: Reserved");
+    }
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.- DtHdmiEdidParseCeaExtendedTagDescriptors -.-.-.-.-.-.-.-.-.-.-.-
 //
-Bool  DtHdmiEdidParseCeaExtendedTagDescriptors(UInt8* pCeaExtendedTag, UInt Size)
+Bool  DtHdmiEdidParseCeaExtendedTagDescriptors(DtaHdmiTx* pHdmiTx, UInt8* pCeaExtendedTag,
+                                                                                UInt Size)
 {
     if (pCeaExtendedTag[0] == 0x0)
         DtDbgOut(MAX, HDMI, "Video Capability Data Block");
@@ -2308,6 +2340,13 @@ Bool  DtHdmiEdidParseCeaExtendedTagDescriptors(UInt8* pCeaExtendedTag, UInt Size
         DtDbgOut(MAX, HDMI, "Reserved for HDMI Video Data Block");
     else if (pCeaExtendedTag[0] == 0x5)
         DtDbgOut(MAX, HDMI, "Colorimetry Data Block");
+    else if (pCeaExtendedTag[0] == 0x6)
+    {
+        DtDbgOut(MAX, HDMI, "HDR Static Metadata Data Block");
+        DtHdmiEdidParseHdrStaticMetadataDataBlock(pHdmiTx, pCeaExtendedTag+1, Size-1);
+    }
+    else if (pCeaExtendedTag[0] == 0x7)
+        DtDbgOut(MAX, HDMI, "HDR Dynamic Metadata Data Block");
     else if (pCeaExtendedTag[0] == 0x10)
         DtDbgOut(MAX, HDMI, "CEA Miscellaneous Audio Fields");
     else if (pCeaExtendedTag[0] == 0x11)
@@ -2479,7 +2518,8 @@ Bool  DtHdmiEdidParseCeaDataBlockCollection(DtaHdmiTx* pHdmiTx, UInt8* pCeaBlock
         else if (BlockType == 7) // Extended tag
         {
             DtDbgOut(MAX, HDMI, "Extended tag detected at offset: %i", Offset);
-            DtHdmiEdidParseCeaExtendedTagDescriptors(&pCeaBlock[Offset+1], BlockLength);
+            DtHdmiEdidParseCeaExtendedTagDescriptors(pHdmiTx, &pCeaBlock[Offset+1], 
+                                                                             BlockLength);
         } else // reserved
             DtDbgOut(MAX, HDMI, "Reserved block type %xh detected at offset: %i", 
                                                                        BlockType, Offset);
@@ -2642,6 +2682,11 @@ DtStatus  DtHdmiTxInitPowerUpPost(DtaNonIpPort* pNonIpPort)
 
     // Set the EDDC enable bit needed for HDMI EDID communication
     DtaRegI2cCtrlSetEddcEn(pNonIpPort->m_I2c.m_pI2cRegs, 1);
+
+    // The HDMI I2C controller does not run on the refclk, but on the sysclk! 
+    // The clock divider should not be programmed by the driver
+    // tt2783 and tt2767
+    DT_ASSERT(pNonIpPort->m_I2c.m_ClockFreq <=0);
 
     // Default no monitor detected. Can be changed in HotplugWorkItem
     pHdmiTx->m_MonDetected = FALSE;

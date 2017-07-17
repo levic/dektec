@@ -203,8 +203,8 @@ DtStatus  DtaLmh1983InitPowerup(DtaLmh1983*  pLmh1983Data)
     Status = DtaLmh1983WriteInitSeq(pLmh1983Data);
     if (Status != DT_STATUS_OK)
         DtDbgOut(ERR, GENL, "Failed to write LMH-1983 init sequence: 0x%x", Status);
-
-    DtThreadStart(&pLmh1983Data->m_ControlThread);
+    else
+        DtThreadStart(&pLmh1983Data->m_ControlThread);
 
     return Status;
 }

@@ -33,6 +33,7 @@ Currently the driver provides support for the following devices:
 - DTU-236	(QAM measurement receiver + ASI input for USB-2)
 - DTU-238	(DVB-T/T2, DVB-C input for USB-2)
 - DTU-245	(ASI/SDI input+output for USB-2)
+- DTU-315	(All-standard all-band modulator for USB-3)
 - DTU-351	(HD-SDI input for USB-3)
  
 --------------------------------------------------------------------------------

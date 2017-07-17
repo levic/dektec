@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        25
+#define DTAPI_VERSION_MINOR        26
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        94
+#define DTAPI_VERSION_BUILD        96
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 

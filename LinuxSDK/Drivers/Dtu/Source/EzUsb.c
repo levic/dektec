@@ -48,6 +48,31 @@ DtStatus  EzUsbInit(DtuDeviceData* pDvcData, Bool* pReEnumerate)
     if (!DT_SUCCESS(Status))
         return Status;
 
+    // Convert endpoint to pipe numbers
+    if (FirmwareEndpoint != -1)
+    {
+        // Convert endpoint to pipe number
+        pDvcData->m_EzUsb.m_FirmwarePipe = DtUsbGetBulkPipeNumber(&pDvcData->m_Device,
+                                                 DT_USB_HOST_TO_DEVICE, FirmwareEndpoint);
+        DT_ASSERT(pDvcData->m_EzUsb.m_FirmwarePipe != -1);
+    }
+    
+    if (ReadEndpoint != -1)
+    {
+        // Convert endpoint to pipe number
+        pDvcData->m_EzUsb.m_ReadPipe = DtUsbGetBulkPipeNumber(&pDvcData->m_Device,
+                                 DT_USB_DEVICE_TO_HOST, ReadEndpoint);
+        DT_ASSERT(pDvcData->m_EzUsb.m_ReadPipe != -1);
+    }
+    
+    if (WriteEndpoint != -1)
+    {
+        // Convert endpoint to pipe number
+        pDvcData->m_EzUsb.m_WritePipe = DtUsbGetBulkPipeNumber(&pDvcData->m_Device,
+                                DT_USB_HOST_TO_DEVICE, WriteEndpoint);
+        DT_ASSERT(pDvcData->m_EzUsb.m_WritePipe != -1);
+    }
+
     // Check if we need to load firmware. NOTE: there are two conditions to load the 
     // firmware namely:
     //   1. EzUsb firmware is not loaded yet
@@ -128,32 +153,6 @@ DtStatus  EzUsbInit(DtuDeviceData* pDvcData, Bool* pReEnumerate)
         if (!IsPldFwLoaded)
             return DT_STATUS_OK;  // In case of cold reboot we are done (will reenumerate)
     }
-
-    // Convert endpoint to pipe numbers
-    if (FirmwareEndpoint != -1)
-    {
-        // Convert endpoint to pipe number
-        pDvcData->m_EzUsb.m_FirmwarePipe = DtUsbGetBulkPipeNumber(&pDvcData->m_Device,
-                                                 DT_USB_HOST_TO_DEVICE, FirmwareEndpoint);
-        DT_ASSERT(pDvcData->m_EzUsb.m_FirmwarePipe != -1);
-    }
-    
-    if (ReadEndpoint != -1)
-    {
-        // Convert endpoint to pipe number
-        pDvcData->m_EzUsb.m_ReadPipe = DtUsbGetBulkPipeNumber(&pDvcData->m_Device,
-                                 DT_USB_DEVICE_TO_HOST, ReadEndpoint);
-        DT_ASSERT(pDvcData->m_EzUsb.m_ReadPipe != -1);
-    }
-    
-    if (WriteEndpoint != -1)
-    {
-        // Convert endpoint to pipe number
-        pDvcData->m_EzUsb.m_WritePipe = DtUsbGetBulkPipeNumber(&pDvcData->m_Device,
-                                DT_USB_HOST_TO_DEVICE, WriteEndpoint);
-        DT_ASSERT(pDvcData->m_EzUsb.m_WritePipe != -1);
-    }
-
     return Status;
 }
 
