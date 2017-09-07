@@ -516,6 +516,11 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
         // Get firmware version
         pDvcData->m_DevInfo.m_FirmwareVersion = 
                                               DtaRegGenCtrlGetFwRev(pDvcData->m_pGenRegs);
+        // Workaround for DTA-2195 Use FW V135 as V1; See TT2815
+        if (pDvcData->m_DevInfo.m_FirmwareVersion==135 
+                                                && pDvcData->m_DevInfo.m_TypeNumber==2195)
+            pDvcData->m_DevInfo.m_FirmwareVersion = 1;
+               
         // Get firmware variant
         pDvcData->m_DevInfo.m_FirmwareVariant = 
                                           DtaRegGenStatGetFwVariant(pDvcData->m_pGenRegs);

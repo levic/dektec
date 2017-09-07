@@ -57,17 +57,17 @@ DtStatus DtaSdiAvRxInitPowerup(DtaNonIpPort*  pNonIpPort)
     DtaSdiAvRxPort*  pSdiAvRx = &pNonIpPort->m_SdiAvRx;
     volatile UInt8* pFwbRegs = pNonIpPort->m_pFwbRegs;
 
-    // Get the audio extractor fwblock version
-    pSdiAvRx->m_AudioExtractorVersion = DtaFwbRegRead(pFwbRegs, 
-                            &FwbSdiAvReceiver.AudioExtract[0].FwbBlockId.BlockId_Version);
+    // Get the audio extractor mode support
+    pSdiAvRx->m_SuppAudioExtMode = 
+                               (pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion >= 2);
 
     for (i=0; i<pSdiAvRx->m_NumAudioExtractors; i++)
     {
         // Initialize the audio channel pair selection
         DtaFwbRegWrite(pFwbRegs, 
                              &FwbSdiAvReceiver.AudioExtract[i].Control_ChanPairSelect, i);
-        // Initialize the audio extraction mode for fwbvers >= 1
-        if (pSdiAvRx->m_AudioExtractorVersion >= 1)
+        // Initialize the audio extraction mode
+        if (pSdiAvRx->m_SuppAudioExtMode)
             DtaFwbRegWrite(pFwbRegs, 
                              &FwbSdiAvReceiver.AudioExtract[i].Control_ChanExtractMode, 
                              DTFWB_AUDEXT_EXTRACT_BOTH);
@@ -112,8 +112,8 @@ DtStatus  DtaNonIpSdiAvRxInit(DtaNonIpPort*  pNonIpPort)
     // Disable timeout
     pSdiAvRx->m_FrameIntTimeoutUs = -1;
 
-    // Initialize version
-    pSdiAvRx->m_AudioExtractorVersion = 0;
+    // Initialize extraction mode support
+    pSdiAvRx->m_SuppAudioExtMode = FALSE;
 
     // Set the maximum number of audio extractors
     pSdiAvRx->m_NumAudioExtractors = DTA_SDIAVRX_MAX_NUM_AUDPAIRS;
@@ -710,8 +710,8 @@ static DtStatus DtaSdiAvRxGetAudSelect2(DtaNonIpPort*  pNonIpPort,
     { 
         pData->m_ChanPairSelect[i] = DtaFwbRegRead(pFwbRegs, 
                                 &FwbSdiAvReceiver.AudioExtract[i].Control_ChanPairSelect);
-        // Get the audio extraction mode for fwbvers >= 1
-        if (pSdiAvRx->m_AudioExtractorVersion >= 1)
+        // Get the audio extraction mode
+        if (pSdiAvRx->m_SuppAudioExtMode)
             pData->m_ChanExtractMode[i] = DtaFwbRegRead(pFwbRegs, 
                                &FwbSdiAvReceiver.AudioExtract[i].Control_ChanExtractMode);
         else
@@ -774,8 +774,8 @@ static DtStatus DtaSdiAvRxSetAudSelect2(DtaNonIpPort*  pNonIpPort,
             DtaSdiAvRxClearAudStatus(pSdiAvRx, i);
         }
 
-        // Set the audio extraction mode for fwbvers >= 1
-        if (pSdiAvRx->m_AudioExtractorVersion >= 1)
+        // Set the audio extraction mode
+        if (pSdiAvRx->m_SuppAudioExtMode)
             DtaFwbRegWrite(pFwbRegs, 
                               &FwbSdiAvReceiver.AudioExtract[i].Control_ChanExtractMode,
                               pData->m_ChanExtractMode[i]);
@@ -793,8 +793,8 @@ static DtStatus DtaSdiAvRxSetAudSelect2(DtaNonIpPort*  pNonIpPort,
             // Clear status
             DtaSdiAvRxClearAudStatus(pSdiAvRx, i);
         }
-        // Set the audio extraction mode for fwbvers >= 1
-        if (pSdiAvRx->m_AudioExtractorVersion >= 1)
+        // Set the audio extraction mode
+        if (pSdiAvRx->m_SuppAudioExtMode)
             DtaFwbRegWrite(pFwbRegs, 
                               &FwbSdiAvReceiver.AudioExtract[i].Control_ChanExtractMode,
                               DTFWB_AUDEXT_EXTRACT_BOTH);
@@ -888,8 +888,8 @@ DtStatus DtaSdiAvRxReadAvStatus(DtaNonIpPort*  pNonIpPort, Int Force)
                                  &FwbSdiAvReceiver.AudioExtract[i].Status_IsAsynchronous);
                 pSdiAvRx->m_AudioStatus[i].m_Rate = DtaFwbRegRead(pFwbRegs, 
                                            &FwbSdiAvReceiver.AudioExtract[i].Status_Rate);
-                // Get the audio extraction content for fwbvers >= 1
-                if (pSdiAvRx->m_AudioExtractorVersion >= 1)
+                // Get the audio extraction content
+                if (pSdiAvRx->m_SuppAudioExtMode)
                     pSdiAvRx->m_AudioStatus[i].m_Content = DtaFwbRegRead(pFwbRegs, 
                                   &FwbSdiAvReceiver.AudioExtract[i].Status_ChanPcmOrData);
                 else 

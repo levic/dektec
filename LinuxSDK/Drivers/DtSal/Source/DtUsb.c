@@ -409,7 +409,7 @@ Int  DtUsbGetBulkPipeNumber(
     // Windows implementation
     Int  i;
     WDF_USB_PIPE_INFORMATION  PipeInfo;
-
+    
     for (i=0; i<WdfUsbInterfaceGetNumConfiguredPipes(pUsbDevice->m_UsbInterface); i++)
     {
         WDF_USB_PIPE_INFORMATION_INIT(&PipeInfo);
@@ -419,6 +419,10 @@ Int  DtUsbGetBulkPipeNumber(
         {
             DT_ASSERT(FALSE);
         } else {
+            DtDbgOut(MAX, SAL_USB, "Index:%i EndpointAddress:%xh Endpoint:%i"
+                   " Type:%xh", i, PipeInfo.EndpointAddress, 
+                   PipeInfo.EndpointAddress&USB_ENDPOINT_ADDRESS_MASK, PipeInfo.PipeType);
+    
             // EndpointAddress includes the direction (bit 8) + reserved fields.
             // Only the lowest 4 bits are used for the EndpointAddress
             if ((PipeInfo.EndpointAddress&USB_ENDPOINT_ADDRESS_MASK) == EndPoint)
@@ -678,7 +682,7 @@ Bool  DtuInitAsyncRequest(AsyncRequest* pReq, Int PipeNumber, DtDvcObject* pUsbD
     pReq->m_pEvtAsyncComplete = pEvtAsyncComplete;
     
 #ifdef WINBUILD
-    Pipe = WdfUsbInterfaceGetConfiguredPipe(pUsbDevice->m_UsbInterface, 0, NULL);
+    Pipe = WdfUsbInterfaceGetConfiguredPipe(pUsbDevice->m_UsbInterface, (UInt8)PipeNumber, NULL);
     wdmhUSBPipe = WdfUsbTargetPipeWdmGetPipeHandle(Pipe);
     IoTarget = WdfUsbTargetDeviceGetIoTarget(pUsbDevice->m_UsbDevice);
     UrbSize = sizeof(struct _URB_BULK_OR_INTERRUPT_TRANSFER);
@@ -705,9 +709,12 @@ Bool  DtuInitAsyncRequest(AsyncRequest* pReq, Int PipeNumber, DtDvcObject* pUsbD
                                                   URB_FUNCTION_BULK_OR_INTERRUPT_TRANSFER;
     pReq->m_pUrb->UrbBulkOrInterruptTransfer.PipeHandle = wdmhUSBPipe;
     if (Dir == DT_USB_DEVICE_TO_HOST)
+    {
         pReq->m_pUrb->UrbBulkOrInterruptTransfer.TransferFlags = 
                                       USBD_TRANSFER_DIRECTION_IN | USBD_SHORT_TRANSFER_OK;
-    else 
+        pReq->m_pUrb->UrbBulkOrInterruptTransfer.TransferBuffer = pBuf;
+        pReq->m_pUrb->UrbBulkOrInterruptTransfer.TransferBufferLength = BufLen;
+    } else 
         pReq->m_pUrb->UrbBulkOrInterruptTransfer.TransferFlags = 
                                                               USBD_TRANSFER_DIRECTION_OUT;
 
@@ -772,7 +779,7 @@ Bool  DtuReInitAsyncRequest(AsyncRequest* pReq, Int PipeNumber, DtDvcObject* pUs
     NTSTATUS  NtStatus;
     WDF_REQUEST_REUSE_PARAMS  ReusePars;
 
-    Pipe = WdfUsbInterfaceGetConfiguredPipe(pUsbDevice->m_UsbInterface, 0, NULL);
+    Pipe = WdfUsbInterfaceGetConfiguredPipe(pUsbDevice->m_UsbInterface, (UInt8)PipeNumber, NULL);
     wdmhUSBPipe = WdfUsbTargetPipeWdmGetPipeHandle(Pipe);
     UrbSize = sizeof(struct _URB_BULK_OR_INTERRUPT_TRANSFER);
 

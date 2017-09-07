@@ -13264,7 +13264,7 @@ static const DtProperty  DtProperties2152_0_00[] =
 };
 static const DtProperty  DtProperties2152_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 4, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N2_0", -1, "Support for DVB-ASI", PROPERTY_VALUE_TYPE_STRING, -1, -1,
                                                 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
@@ -13282,6 +13282,9 @@ static const DtProperty  DtProperties2152_0_03[] =
     { "FIRMWARE_R_N2_2", -1, "Support for PsF standards", PROPERTY_VALUE_TYPE_STRING, -1,
                                             -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N3_1", -1, "Bug fix: illegal codes in video should be clamped",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N4_0", -1,
+      "Bug fix: possible data corruption when both ports receive the same signal",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2152_0_04[] =
@@ -13878,7 +13881,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2152_0[] =
     { DtProperties2152_0_00, 7 },
     { DtProperties2152_0_01, 2 },
     { DtProperties2152_0_02, 2 },
-    { DtProperties2152_0_03, 2 },
+    { DtProperties2152_0_03, 3 },
     { DtProperties2152_0_04, 9 },
     { DtProperties2152_0_05, 1 },
     { DtProperties2152_0_06, 9 },
@@ -13962,7 +13965,7 @@ static const DtProperty  DtProperties2154_0_00[] =
 };
 static const DtProperty  DtProperties2154_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 9, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 10, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N1_1", -1, "Improved DMA performance", PROPERTY_VALUE_TYPE_STRING, -1,
                                             -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -14203,6 +14206,8 @@ static const DtProperty  DtProperties2154_0_16[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 5, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N10_0", -1, "Bug fix: long ASI sync delay on cable connect",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "PCB_MANUF", MANUF_PLANT_ANUBISS, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -14662,7 +14667,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2154_0[] =
     { NULL, 0 },
     { DtProperties2154_0_14, 7 },
     { DtProperties2154_0_15, 3 },
-    { DtProperties2154_0_16, 7 },
+    { DtProperties2154_0_16, 8 },
     { DtProperties2154_0_17, 7 },
     { NULL, 0 },
     { DtProperties2154_0_19, 4 },
@@ -14727,7 +14732,7 @@ static const DtProperty  DtProperties2154_1_00[] =
 };
 static const DtProperty  DtProperties2154_1_01[] =
 {
-    { "FIRMWARE_LAST_VER", 9, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 10, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N1_1", -1, "Improved DMA performance", PROPERTY_VALUE_TYPE_STRING, -1,
                                             -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -14913,6 +14918,8 @@ static const DtProperty  DtProperties2154_1_16[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 5, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N10_0", -1, "Bug fix: long ASI sync delay on cable connect",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "PCB_MANUF", MANUF_PLANT_ANUBISS, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -15267,7 +15274,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2154_1[] =
     { NULL, 0 },
     { DtProperties2154_1_14, 7 },
     { NULL, 0 },
-    { DtProperties2154_1_16, 5 },
+    { DtProperties2154_1_16, 6 },
     { DtProperties2154_1_17, 5 },
     { NULL, 0 },
     { DtProperties2154_1_19, 4 },
@@ -21603,12 +21610,16 @@ static const DtProperty  DtProperties2195_0_00[] =
     { NULL, DT_IOCONFIG_FALSE, NULL, PROPERTY_VALUE_TYPE_INT, 2, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 4, -1, 0, 0, -1,
-                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { "FIRMWARE_R_N1_0", -1, "Support for HDR functionality added",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2195_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N1_1", -1, "Several Bugfixes", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0,
+                                                   0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2195_0_04[] =
 {
@@ -22768,8 +22779,8 @@ static const DtProperty  DtProperties2195_0_63[] =
 };
 static const DtPropertyHashSet  DtPropertyHashSets2195_0[] =
 {
-    { DtProperties2195_0_00, 4 },
-    { DtProperties2195_0_01, 1 },
+    { DtProperties2195_0_00, 5 },
+    { DtProperties2195_0_01, 2 },
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties2195_0_04, 12 },

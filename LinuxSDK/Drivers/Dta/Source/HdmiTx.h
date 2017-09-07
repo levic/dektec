@@ -62,6 +62,8 @@ typedef struct _DtaHdmiTx
     Bool  m_ForceTestPicture;       // TRUE: if user wants to force the test picture
     Bool  m_UsingTestPicture;       // TRUE: if currently using test picture
     Bool  m_ForceMonitorDetected;   // TRUE: if user wants to force monitor detected state
+    Int  m_Colorimetry;             // DEFAULT: 0, can be overruled by user
+    Int  m_ExtendedColorimetry;     // DEFAULT: 0, can be overruled by user
 
     // Supported features
     UInt64  m_MonSupportedFormats;  // From DTD + SVD

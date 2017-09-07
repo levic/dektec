@@ -3452,37 +3452,52 @@ typedef union _DtaIoctlMultiModCmd {
 #define DTA_HDMI_TX_CMD_FORCE_MONITOR_DETECTED 5
 #define DTA_HDMI_TX_CMD_DISABLE_EDID_CHECK     6
 #define DTA_HDMI_TX_CMD_DISABLE_OUTPUT         7
+#define DTA_HDMI_TX_CMD_SET_COLORIMETRY        8
+#define DTA_HDMI_TX_CMD_GET_COLORIMETRY        9
 
 
 // DTA HDMI get vidstd from index
 typedef struct _DtaIoctlHdmiTxCmdGetVidStdInput {
     Int  m_Index;
 } DtaIoctlHdmiTxCmdGetVidStdInput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdGetVidStdInput, 4)
 
 // DTA HDMI set vidmod
 typedef struct _DtaIoctlHdmiTxCmdSetVidModInput {
     Int  m_VidMod;
 } DtaIoctlHdmiTxCmdSetVidModInput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdSetVidModInput, 4)
 
 // DTA HDMI force test picture
 typedef struct _DtaIoctlHdmiTxCmdForceTestPictureInput {
     Int  m_Enable;
 } DtaIoctlHdmiTxCmdForceTestPictureInput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdForceTestPictureInput, 4)
 
 // DTA HDMI force monitor detected
 typedef struct _DtaIoctlHdmiTxCmdForceMonitorDetectedInput {
     Int  m_Enable;
 } DtaIoctlHdmiTxCmdForceMonitorDetectedInput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdForceMonitorDetectedInput, 4)
 
 // DTA HDMI disable edid check
 typedef struct _DtaIoctlHdmiTxCmdDisableEdidCheckInput {
     Int  m_Disable;
 } DtaIoctlHdmiTxCmdDisableEdidCheckInput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdDisableEdidCheckInput, 4)
 
 // DTA HDMI disable edid check
 typedef struct _DtaIoctlHdmiTxCmdDisableOutputInput {
     Int  m_Disable;
 } DtaIoctlHdmiTxCmdDisableOutputInput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdDisableOutputInput, 4)
+
+// DTA HDMI set colorimetry
+typedef struct _DtaIoctlHdmiTxCmdSetColorimetryInput {
+    Int  m_Colorimetry;
+    Int  m_ExtendedColorimetry;
+} DtaIoctlHdmiTxCmdSetColorimetryInput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdSetColorimetryInput, 8)
 
 // Ioctl input data type
 typedef struct _DtaIoctlHdmiTxCmdInput {
@@ -3495,9 +3510,10 @@ typedef struct _DtaIoctlHdmiTxCmdInput {
         DtaIoctlHdmiTxCmdForceMonitorDetectedInput  m_ForceMonitorDetected;
         DtaIoctlHdmiTxCmdDisableEdidCheckInput  m_DisableEdidCheck;
         DtaIoctlHdmiTxCmdDisableOutputInput  m_DisableHdmiOutput;
+        DtaIoctlHdmiTxCmdSetColorimetryInput  m_SetColorimetry;
     } m_Data;
 } DtaIoctlHdmiTxCmdInput;
-ASSERT_SIZE(DtaIoctlHdmiTxCmdInput, 12)
+ASSERT_SIZE(DtaIoctlHdmiTxCmdInput, 16)
 
 // DTA Get HDMI status command output data type
 typedef struct _DtaIoctlHdmiTxCmdGetHdmiStatusOutput {
@@ -3509,6 +3525,8 @@ typedef struct _DtaIoctlHdmiTxCmdGetHdmiStatusOutput {
     Int  m_SupportBasicAudio;
     Int  m_SupportScDc;
     Int  m_SupportMonitorRangeLimits;
+    Int  m_SupportHdr;
+    Int  m_ColorimetryForced;
     Int  m_ForceTestPicture;
     Int  m_UsingTestPicture;
     Int  m_ForceMonitorDetected;
@@ -3520,6 +3538,7 @@ typedef struct _DtaIoctlHdmiTxCmdGetHdmiStatusOutput {
     Int  m_SelectedAspectRatio;
     Int  m_UsedVidMod;
     Int  m_SelectedVidMod;
+    Int  m_Reserved[4];
     UInt  m_MaxPixelClk;
     UInt  m_MinVRate;
     UInt  m_MaxVRate;
@@ -3528,7 +3547,7 @@ typedef struct _DtaIoctlHdmiTxCmdGetHdmiStatusOutput {
     UInt64A  m_MonSupportedFormats;
     UInt64A  m_MonSupportedAudio;
 } DtaIoctlHdmiTxCmdGetHdmiStatusOutput;
-ASSERT_SIZE(DtaIoctlHdmiTxCmdGetHdmiStatusOutput, 112)
+ASSERT_SIZE(DtaIoctlHdmiTxCmdGetHdmiStatusOutput, 136)
 
 // DTA Get vidstd command output data type
 typedef struct _DtaIoctlHdmiTxCmdGetVidStdOutput {
@@ -3537,14 +3556,22 @@ typedef struct _DtaIoctlHdmiTxCmdGetVidStdOutput {
 } DtaIoctlHdmiTxCmdGetVidStdOutput;
 ASSERT_SIZE(DtaIoctlHdmiTxCmdGetVidStdOutput, 8)
 
+// DTA HDMI set colorimetry
+typedef struct _DtaIoctlHdmiTxCmdGetColorimetryOutput {
+    Int  m_Colorimetry;
+    Int  m_ExtendedColorimetry;
+} DtaIoctlHdmiTxCmdGetColorimetryOutput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdGetColorimetryOutput, 8)
+
 // Ioctl output data type
 typedef struct _DtaIoctlHdmiTxCmdOutput {
     union {
         DtaIoctlHdmiTxCmdGetHdmiStatusOutput  m_GetHdmiStatus;
         DtaIoctlHdmiTxCmdGetVidStdOutput  m_GetVidStd;
+        DtaIoctlHdmiTxCmdGetColorimetryOutput  m_GetColorimetry;
     } m_Data;
 } DtaIoctlHdmiTxCmdOutput;
-ASSERT_SIZE(DtaIoctlHdmiTxCmdOutput, 112)
+ASSERT_SIZE(DtaIoctlHdmiTxCmdOutput, 136)
 
 
 #ifdef WINBUILD

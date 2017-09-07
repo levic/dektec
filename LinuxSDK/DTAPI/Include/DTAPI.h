@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        26
+#define DTAPI_VERSION_MINOR        27
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        96
+#define DTAPI_VERSION_BUILD        97
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -9498,6 +9498,112 @@ protected:
     DTAPI_RESULT  DetachUnlock();
     DTAPI_RESULT  ControlAccessLock();
     DTAPI_RESULT  ControlAccessUnlock();
+};
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+ HDMI output port control/status +=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct DtHdmiVidStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Structure specifying the video standard on the HDMI port
+//
+struct DtHdmiVidStd
+{
+    int  m_VidStd;                  // Video standard
+    DtAspectRatio  m_AspectRatio;   // Picture Aspect Ratio
+};
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+//
+struct DtHdmiTxStatus
+{
+    bool  m_MonDetected;                    // True if a monitor is detected
+    bool  m_EdidError;                      // True if an error in the EDID was detected
+    bool  m_SupportHdmi;                    // True if HDMI VSDB (IEEE 0xc03) is available
+    bool  m_SupportYCbCr444;                // True if YCbCr 4:4:4 is supported
+    bool  m_SupportYCbCr422;                // True if YCbCr 4:2:2 is supported
+    bool  m_SupportBasicAudio;              // True if basic audio is supported
+    bool  m_SupportScDc;                    // True if Status and Control Data Channel
+                                            // (SCDC) is supported
+    bool  m_SupportHdr;                     // True if HDR is supported
+    bool  m_ColorimetryForced;              // True if user set the Colorimetry values
+    bool  m_ForceTestPicture;               // True if user forced the test picture
+    bool  m_UsingTestPicture;               // True if test picture is used
+    bool  m_ForceMonitorDetected;           // True if user forced monitor detected
+    bool  m_DisableEdidCheck;               // True if user forced the selected format
+                                            // (ignore EDID check)
+    bool  m_DisableHdmiOutput;              // True if user disabled HDMI output
+    DtHdmiVidStd  m_UsedVidStd;             // Video standard used 
+    DtHdmiVidStd  m_SelectedVidStd;         // Video standard selected
+    int  m_UsedVidMod;                      // DT_HDMI_VIDMOD_xx video mode used  (TODO translate to DTAPI)
+    int  m_SelectedVidMod;                  // DT_HDMI_VIDMOD_xx video mode selected
+    // Monitor range limits
+    bool  m_SupportMonitorRangeLimits;      // True if monitor range limits are set
+    int  m_MaxPixelClk;                     // Maximum pixel rate clock in MHz
+    int  m_MinVRate;                        // Minimum vertical rate; For interlaced = Field rate
+    int  m_MaxVRate;                        // Maximum vertical rate; interlaced = Field rate
+    int  m_MinHRate;                        // Minimum horizontal rate
+    int  m_MaxHRate;                        // Maximum horizontal rate
+    std::vector<DtHdmiVidStd>  m_MonSupportedVidStd;
+                                            // Vector of supported video standards 
+    //__int64  m_MonSupportedAudio;         // Currently not used
+};
+
+#define DTAPI_HDMI_VIDMOD_YCBCR_422     0
+#define DTAPI_HDMI_VIDMOD_YCBCR_444     1
+#define DTAPI_HDMI_VIDMOD_RGB_444       2
+#define DTAPI_HDMI_VIDMOD_UNKNOWN       -1
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtAvOutput -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+//
+
+class AvOutput;
+class DtAvOutput
+{
+public:
+    DtAvOutput();
+    virtual ~DtAvOutput();
+private:
+    // No implementation is provided for the copy constructor
+    DtAvOutput(const DtAvOutput&);
+    DtAvOutput&  operator = (const DtAvOutput&);
+
+public:
+    DtHwFuncDesc  m_HwFuncDesc;     // Hardware function descriptor
+
+                                    // Convenience functions
+public:
+    int  Category()             { return m_HwFuncDesc.m_DvcDesc.m_Category; }
+    int  FirmwareVersion()      { return m_HwFuncDesc.m_DvcDesc.m_FirmwareVersion; }
+    bool  IsAttached()          { return m_pOutp != NULL; }
+    int  TypeNumber()           { return m_HwFuncDesc.m_DvcDesc.m_TypeNumber; }
+    bool  HasCaps(const DtCaps  Caps) const 
+    {
+        return ((m_HwFuncDesc.m_Flags & Caps) == Caps); 
+    }
+
+public:
+    DTAPI_RESULT  AttachToPort(DtDevice* pDtDvc, int Port);
+    DTAPI_RESULT  Detach();
+    DTAPI_RESULT  DisableHdmiEdidCheck(bool Disable);
+    DTAPI_RESULT  DisableHdmiOutput(bool Disable);
+    DTAPI_RESULT  ForceHdmiMonitorDetected(bool Enable);
+    DTAPI_RESULT  ForceHdmiTestPicture(bool Enable);
+    DTAPI_RESULT  GetHdmiStatus(DtHdmiTxStatus& Status);
+    DTAPI_RESULT  SetHdmiVideoMode(int VidMod);
+    DTAPI_RESULT  SetHdmiColorimetry(int Colorimetry, int ExtendedColorimetry);
+    DTAPI_RESULT  GetHdmiColorimetry(int& Colorimetry, int& ExtendedColorimetry);
+
+    // Encapsulated data
+private:
+    void*  m_pDetachLockCount;
+    AvOutput*  m_pOutp;
+
+    // Private helper functions
+private:
+    DTAPI_RESULT  DetachLock();
+    DTAPI_RESULT  DetachUnlock();
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Global DTAPI Functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

@@ -503,7 +503,7 @@ void  DtHdmiTxFillAviInfoFrame(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, AVI_INF
         else
             pInfoFrame->m_PictureAspectRatio = 1; // = 4:3
     }
-    
+
     switch (pHdmiTx->m_UsedVidMode)
     { 
     case DT_HDMI_VIDMOD_RGB_444: pInfoFrame->m_YCbCrIndicator = 0; break;
@@ -514,6 +514,9 @@ void  DtHdmiTxFillAviInfoFrame(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, AVI_INF
             DT_ASSERT(FALSE);
         }
     }
+
+    pInfoFrame->m_Colorimetry = pHdmiTx->m_Colorimetry;
+    pInfoFrame->m_ExtendedColorimetry = pHdmiTx->m_ExtendedColorimetry;
 
     pInfoFrame->m_PictureRepetitionFactor = 
         ((DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_FLAGS]&DT_HDMI_FLAGS_PIXELREP)== 0?0:1);
@@ -2852,7 +2855,6 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObj
     {
     case DTA_HDMI_TX_CMD_GET_HDMI_STATUS:
         pCmdStr = "DTA_HDMI_TX_CMD_GET_HDMI_STATUS";
-        InReqSize = 0;
         OutReqSize += sizeof(DtaIoctlHdmiTxCmdGetHdmiStatusOutput);
         break;
     case DTA_HDMI_TX_CMD_GET_VIDSTD:
@@ -2885,6 +2887,15 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObj
         pCmdStr = "DTA_HDMI_TX_CMD_DISABLE_OUTPUT";
         InReqSize += sizeof(DtaIoctlHdmiTxCmdDisableOutputInput);
         OutReqSize = 0;
+        break;
+    case DTA_HDMI_TX_CMD_SET_COLORIMETRY:
+        pCmdStr = "DTA_HDMI_TX_CMD_SET_COLORIMETRY";
+        InReqSize += sizeof(DtaIoctlHdmiTxCmdSetColorimetryInput);
+        OutReqSize = 0;
+        break;
+    case DTA_HDMI_TX_CMD_GET_COLORIMETRY:
+        pCmdStr = "DTA_HDMI_TX_CMD_GET_COLORIMETRY";
+        OutReqSize += sizeof(DtaIoctlHdmiTxCmdGetColorimetryOutput);
         break;
     default:
         pCmdStr = "??UNKNOWN HDMI_CMD CODE??";
@@ -2931,6 +2942,9 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObj
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportBasicAudio =
                                                              pHdmiTx->m_SupportBasicAudio;
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportScDc = pHdmiTx->m_SupportScDc;
+            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportHdr = pHdmiTx->m_SupportHdr;
+            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_ColorimetryForced =
+              (pHdmiTx->m_Colorimetry != 0 || pHdmiTx->m_ExtendedColorimetry != 0 ? 1 : 0);
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportMonitorRangeLimits =
                                                      pHdmiTx->m_SupportMonitorRangeLimits;
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_ForceTestPicture =
@@ -3049,7 +3063,17 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObj
                 Status = DtHdmiTxUpdateVideoStd(pHdmiTx, pHdmiTx->m_SelVidStd, TRUE);
             DtMutexRelease(&pHdmiTx->m_StateLock);
             break;
-
+        case DTA_HDMI_TX_CMD_SET_COLORIMETRY:
+            pHdmiTx->m_Colorimetry = pHdmiCmdInput->m_Data.m_SetColorimetry.m_Colorimetry;
+            pHdmiTx->m_ExtendedColorimetry = 
+                             pHdmiCmdInput->m_Data.m_SetColorimetry.m_ExtendedColorimetry;
+            break;
+        case DTA_HDMI_TX_CMD_GET_COLORIMETRY:
+            pHdmiCmdOutput->m_Data.m_GetColorimetry.m_Colorimetry = 
+                                                                   pHdmiTx->m_Colorimetry;
+            pHdmiCmdOutput->m_Data.m_GetColorimetry.m_ExtendedColorimetry = 
+                                                           pHdmiTx->m_ExtendedColorimetry;
+            break;
         default:
             Status = DT_STATUS_NOT_SUPPORTED;
         }

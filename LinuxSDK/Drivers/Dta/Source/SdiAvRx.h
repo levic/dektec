@@ -81,7 +81,7 @@ typedef struct _DtaSdiAvRxPort
     Int  m_PerIntItvUs;             // Periodic interrupt interval in micro seconds
     DtaSdiAvRxVidStatus  m_VideoStatus;
     UInt32  m_AudioPresence;
-    Int  m_AudioExtractorVersion;   //  Version number of audio extractor firmware block
+    Bool  m_SuppAudioExtMode;       //  Supporting Audio extractor modes (FW V2)
     Int  m_NumAudioExtractors;
     DtaSdiAvRxAudStatus  m_AudioStatus[DTA_SDIAVRX_MAX_NUM_AUDPAIRS];
     DtaSdiAvRxAncExStatus  m_AncEx; // ANC extractor

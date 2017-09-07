@@ -2242,11 +2242,11 @@ DtStatus  DtuDeviceIoctl(
                         Size = MmGetMdlByteCount(pMdl);
                 }
 #else // LINBUILD
-                Size = pInBuf->m_WriteData.m_NumBytesToWrite;
+                Size = pInBuf->m_UploadFpgaFw.m_NumBytesToWrite;
 #if defined(LIN32)
-                pBuffer = (char*)(UInt32)pInBuf->m_WriteData.m_BufferAddr;
+                pBuffer = (char*)(UInt32)pInBuf->m_UploadFpgaFw.m_BufferAddr;
 #else
-                pBuffer = (char*)(UInt64)pInBuf->m_WriteData.m_BufferAddr;
+                pBuffer = (char*)(UInt64)pInBuf->m_UploadFpgaFw.m_BufferAddr;
 #endif
 #endif
                 if (DT_SUCCESS(Status))
@@ -2402,11 +2402,11 @@ DtStatus  DtuDeviceIoctl(
                         Size = MmGetMdlByteCount(pMdl);
                 }
 #else // LINBUILD
-                Size = pInBuf->m_WriteData.m_NumBytesToWrite;
+                Size = pInBuf->m_RegWriteBulk.m_NumBytesToWrite;
 #if defined(LIN32)
-                pBuffer = (char*)(UInt32)pInBuf->m_WriteData.m_BufferAddr;
+                pBuffer = (char*)(UInt32)pInBuf->m_RegWriteBulk.m_BufferAddr;
 #else
-                pBuffer = (char*)(UInt64)pInBuf->m_WriteData.m_BufferAddr;
+                pBuffer = (char*)(UInt64)pInBuf->m_RegWriteBulk.m_BufferAddr;
 #endif
 #endif
                 if (DT_SUCCESS(Status))
@@ -2420,12 +2420,10 @@ DtStatus  DtuDeviceIoctl(
                     Int  MaxChunkSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
                                                           pDvcData->m_DevInfo.m_UsbSpeed);
                     Int  SizeRemain = Size;
-                    
                     while (SizeRemain > 0)
                     {
                         Int  Len = (SizeRemain<MaxChunkSize) ? SizeRemain : MaxChunkSize;
                         Int  Dummy;
-
                         Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, 
                                          DTU_USB3_WRITE_BULK, 0, 0, DT_USB_HOST_TO_DEVICE, 
                                          pBuffer, Len, &Dummy, MAX_USB_REQ_TIMEOUT);

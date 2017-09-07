@@ -215,7 +215,7 @@ DtStatus  DtuLoadPldFirmware(
     DtStatus  Status;
     UInt8  BitTest;
     Int  i, Total, l, BitNr, Dummy;
-    UInt16  WordBits[1024];
+    UInt16*  pWordBits;
     
     // Get pipe for firmware uploading
     UInt8  Pipe = (UInt8)pDvcData->m_EzUsb.m_FirmwarePipe;
@@ -243,6 +243,11 @@ DtStatus  DtuLoadPldFirmware(
                                            NULL, 0, &Dummy, MAX_USB_REQ_TIMEOUT);
     if (!DT_SUCCESS(Status))
         return Status;
+
+    // Allocate memory
+    pWordBits = DtMemAllocPool(DtPoolNonPaged, sizeof(UInt16) * 1024, DTU_TAG);
+    if (pWordBits == NULL)
+        return DT_STATUS_OUT_OF_MEMORY;
 
     // For parallel programming we must wait at least 1,5 ms before starting actual 
     // programming.
@@ -272,18 +277,18 @@ DtStatus  DtuLoadPldFirmware(
           // Clk1: xxxxxxx1x
           // Clk2: xxxxxxx0x
           // Clk3: xxxxxxx1x
-          WordBits[BitNr] = BitTest;
-          WordBits[BitNr] = WordBits[BitNr] << 1;
-          WordBits[BitNr] &= 0xFFFC;
-          WordBits[BitNr] |= BitTest&1;
+          pWordBits[BitNr] = BitTest;
+          pWordBits[BitNr] = pWordBits[BitNr] << 1;
+          pWordBits[BitNr] &= 0xFFFC;
+          pWordBits[BitNr] |= BitTest&1;
 
-          WordBits[BitNr+1] = WordBits[BitNr];    // same data as previous word
-          WordBits[BitNr+1] |= 2;                 // but with the clock high
+          pWordBits[BitNr+1] = pWordBits[BitNr];   // same data as previous word
+          pWordBits[BitNr+1] |= 2;                 // but with the clock high
 
-          WordBits[BitNr+2] = WordBits[BitNr];    // same data as previous word
+          pWordBits[BitNr+2] = pWordBits[BitNr];   // same data as previous word
 
-          WordBits[BitNr+3] = WordBits[BitNr];    // same data as previous word
-          WordBits[BitNr+3] |= 2;                 // but with the clock high
+          pWordBits[BitNr+3] = pWordBits[BitNr];   // same data as previous word
+          pWordBits[BitNr+3] |= 2;                 // but with the clock high
         
           BitNr+=4;
         } else {
@@ -292,12 +297,12 @@ DtStatus  DtuLoadPldFirmware(
           {
               if (BitTest&0x01)
               {
-                  WordBits[BitNr]=1;
-                  WordBits[BitNr+1]=3;
+                  pWordBits[BitNr]=1;
+                  pWordBits[BitNr+1]=3;
               } else
               {
-                  WordBits[BitNr]=0;
-                  WordBits[BitNr+1]=2;
+                  pWordBits[BitNr]=0;
+                  pWordBits[BitNr+1]=2;
               }
               BitNr+=2;
               BitTest>>=1;
@@ -307,18 +312,24 @@ DtStatus  DtuLoadPldFirmware(
         // Max number of bits (send data to DTU-2xx)
         if (BitNr == 1024)
         {
-            Status = DtUsbPipeWrite(&pDvcData->m_Device, NULL, Pipe, (UInt8*)WordBits, 
+            Status = DtUsbPipeWrite(&pDvcData->m_Device, NULL, Pipe, (UInt8*)pWordBits, 
                                                            (BitNr*2), MAX_USB_RW_TIMEOUT);
             if (!DT_SUCCESS(Status))
+            {
+                DtMemFreePool(pWordBits, DTU_TAG);
                 return Status;
+            }
             BitNr=0;
         }
     } 
     // Write last chunck
-    Status = DtUsbPipeWrite(&pDvcData->m_Device, NULL, Pipe, (UInt8*)WordBits, (BitNr*2),
+    Status = DtUsbPipeWrite(&pDvcData->m_Device, NULL, Pipe, (UInt8*)pWordBits, (BitNr*2),
                                                                       MAX_USB_RW_TIMEOUT);
     if (!DT_SUCCESS(Status))
+    {
+        DtMemFreePool(pWordBits, DTU_TAG);
         return Status;
+    }
 
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Signal end of program -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -326,10 +337,14 @@ DtStatus  DtuLoadPldFirmware(
                                                      1, 0, DT_USB_HOST_TO_DEVICE, NULL, 0,
                                                      &Dummy, MAX_USB_REQ_TIMEOUT);
     if (!DT_SUCCESS(Status))
+    {
+        DtMemFreePool(pWordBits, DTU_TAG);
         return Status;
+    }
 
     // Issue a reset to init ALTERA
     Status = DtuDvcReset(pDvcData);
+    DtMemFreePool(pWordBits, DTU_TAG);
     return Status;
 }
 
