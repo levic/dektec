@@ -4264,6 +4264,11 @@ static __inline void  DtaRegHdCtrl1SetNoVpidProc(volatile UInt8* pBase, UInt  Va
     WRITE_UINT_MASKED(Val, pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_TXNOVPIDREPLACE_MSK,
                                                           DT_HD_CTRL1_TXNOVPIDREPLACE_SH);
 }
+static __inline UInt  DtaRegHdCtrl1GetNoVpidProc(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_TXNOVPIDREPLACE_MSK,
+                                                          DT_HD_CTRL1_TXNOVPIDREPLACE_SH);
+}
 
 // HD-Channel Control1 register:  RX sync error interrupt enable
 static __inline void  DtaRegHdCtrl1SetRxSyncErrIntEn(volatile UInt8* pBase, UInt  Ena)

@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaHdmiTx.c *#*#*#*#*#*#*#*#*# (C) 2015-2016 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* HdmiTx.c *#*#*#*#*#*#*#*#*# (C) 2015-2016 DekTec
 //
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
@@ -482,7 +482,8 @@ Int  DtHdmiTxGetIndexVidStd(DtaHdmiVidStd VidStd)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxFillAviInfoFrame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtHdmiTxFillAviInfoFrame(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, AVI_INFOFRAME* pInfoFrame)
+void  DtHdmiTxFillAviInfoFrame(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, 
+                                                                AVI_INFOFRAME* pInfoFrame)
 {
     Int  Index = DtHdmiTxGetIndexVidStd(VidStd);
     Int  i;
@@ -498,7 +499,8 @@ void  DtHdmiTxFillAviInfoFrame(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, AVI_INF
         if ((DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_FLAGS]&DT_HDMI_FLAGS_HDMI_VIC) == 0)
             pInfoFrame->m_VIC = DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_VIC];
 
-        if ((DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_FLAGS]&DT_HDMI_FLAGS_ASPECT_RATIO_4_3) == 0)
+        if ((DT_HDMI_VIDSTD_2_FORMAT[Index]\
+                                    [HDMI_IDX_FLAGS]&DT_HDMI_FLAGS_ASPECT_RATIO_4_3) == 0)
             pInfoFrame->m_PictureAspectRatio = 2; // = 16:9
         else
             pInfoFrame->m_PictureAspectRatio = 1; // = 4:3
@@ -570,7 +572,6 @@ UInt8  DtHdmiVidStd2HdmiVic(DtaHdmiVidStd VidStd)
 void  DtHdmiTxFillHdmiVsInfoFrame(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, 
                                                              HDMIVS_INFOFRAME* pInfoFrame)
 {
-    Int  Index = DtHdmiTxGetIndexVidStd(VidStd);
     Int  i;
     Int  Checksum;
     UInt8  HdmiVic = 0;
@@ -581,13 +582,9 @@ void  DtHdmiTxFillHdmiVsInfoFrame(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd,
     pInfoFrame->m_Length = 5;
     pInfoFrame->m_IEEE = HDMI_IEEE_LLC_IDENTIFIER;
     
-    DT_ASSERT(Index != -1);
-
     HdmiVic = DtHdmiVidStd2HdmiVic(VidStd);
     if (HdmiVic == 0)
     {
-        DT_ASSERT(Index==-1 || 
-              (DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_FLAGS]&DT_HDMI_FLAGS_HDMI_VIC)==0);
         pInfoFrame->m_HdmiVideoFormat = 0;  // HDMI VIC not present
     }
     else
@@ -610,13 +607,10 @@ void  DtHdmiTxFillHdmiVsInfoFrame(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd,
 void  DtHdmiTxFillAudioInfoFrame(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, Int AudStd, 
                                                                 AUD_INFOFRAME* pInfoFrame)
 {
-    Int  Index = DtHdmiTxGetIndexVidStd(VidStd);
     Int  i;
     Int  Checksum;
     UInt8*  pData;
     DtMemZero(pInfoFrame, sizeof(AUD_INFOFRAME));
-
-    DT_ASSERT(Index != -1);
 
     pInfoFrame->m_CC = 0; // Check stream header
     pInfoFrame->m_CT = 0; // Check stream header
@@ -627,7 +621,6 @@ void  DtHdmiTxFillAudioInfoFrame(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, Int A
     pInfoFrame->m_DM_INH = 0;
     pInfoFrame->m_LFEPBL = 0; // No information
     
-    
     // Calculate Checksum (include the three header bytes)
     Checksum = 0x84 + 0x1 + 0xa; // PacketType + Version + Length
     pData = (UInt8*)&pInfoFrame->m_Data[0];
@@ -635,7 +628,6 @@ void  DtHdmiTxFillAudioInfoFrame(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, Int A
         Checksum += pData[i];
     pInfoFrame->m_Checksum = (UInt8)((UInt)256 - Checksum);
 }
-
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiScdcI2cWrite -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -703,8 +695,10 @@ DtStatus  DtHdmiScdcGetScramblerStatus(DtaHdmiTx* pHdmiTx, Bool* pScramblerEn)
     Status = DtHdmiScdcI2cRead(pHdmiTx, 0x56, &Error[6]);
     Status = DtHdmiScdcI2cRead(pHdmiTx, SCDC_SCRAMBLER_STATUS_OFFSET, &Data);
     *pScramblerEn = (Data & 1) != 0;
-    DtDbgOut(ERR, HDMI, "SCDC config 0x20: %x status 0x21: %x ClkDetect 0x40: %x", Config, Data, ClkDetect);
-    DtDbgOut(ERR, HDMI, "ErrorCounters: 0x50..0x56 %x %x %x %x %x %x %x", Error[0], Error[1], Error[2], Error[3], Error[4], Error[5], Error[6]);
+    DtDbgOut(ERR, HDMI, "SCDC config 0x20: %x status 0x21: %x ClkDetect 0x40: %x", Config,
+                                                                         Data, ClkDetect);
+    DtDbgOut(ERR, HDMI, "ErrorCounters: 0x50..0x56 %x %x %x %x %x %x %x", Error[0], 
+                              Error[1], Error[2], Error[3], Error[4], Error[5], Error[6]);
     DtaI2cUnlock(pDvcData, PortIdx, DT_INVALID_FILE_OBJECT_PTR, FALSE);
     return Status;
 }
@@ -863,7 +857,9 @@ UInt64  DtHdmiGetSupportedFormatsFromDetailedTimeDescriptor(HDMI_EDID_DTD* pDtd,
         else if ((pDtd->m_Flags&DT_HDMI_FLAGS_VSPOL_NEG) != 
                      (DT_HDMI_VIDSTD_2_FORMAT[i][HDMI_IDX_FLAGS]&DT_HDMI_FLAGS_VSPOL_NEG))
         {
-            DtDbgOut(MAX, HDMI, "[%i] VSPOL NEG not supported (%i %i)", i);
+            DtDbgOut(MAX, HDMI, "[%i] VSPOL NEG not supported (%i %i)", i,
+                    (pDtd->m_Flags&DT_HDMI_FLAGS_VSPOL_NEG),
+                    (DT_HDMI_VIDSTD_2_FORMAT[i][HDMI_IDX_FLAGS]&DT_HDMI_FLAGS_VSPOL_NEG));
             Found = FALSE;
         }
         else if ((pDtd->m_Flags&DT_HDMI_FLAGS_INTERLACED) != 
@@ -989,9 +985,12 @@ DtStatus  DtHdmiReadI2cBlock(DtaHdmiTx* pHdmiTx, Int BlockNo, UInt8* pData)
 
     for (i=0; i<128/16;i++)
     {
-        DtDbgOut(ERR, HDMI, "[%02x] %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x", i,
-            pData[i*16+0], pData[i*16+1], pData[i*16+2], pData[i*16+3], pData[i*16+4], pData[i*16+5], pData[i*16+6], pData[i*16+7], pData[i*16+8], pData[i*16+9], 
-            pData[i*16+10], pData[i*16+11], pData[i*16+12], pData[i*16+13], pData[i*16+14], pData[i*16+15]);
+        DtDbgOut(ERR, HDMI, "[%02x] %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x" 
+                " %02x %02x %02x %02x %02x %02x", i,
+                pData[i*16+0], pData[i*16+1], pData[i*16+2], pData[i*16+3], pData[i*16+4],
+                pData[i*16+5], pData[i*16+6], pData[i*16+7], pData[i*16+8], pData[i*16+9],
+                pData[i*16+10], pData[i*16+11], pData[i*16+12], 
+                pData[i*16+13], pData[i*16+14], pData[i*16+15]);
     }
     DtaI2cUnlock(pDvcData, PortIdx, DT_INVALID_FILE_OBJECT_PTR, FALSE);
     return Status;
@@ -1034,7 +1033,7 @@ DtStatus  DtHdmiReadEdid(DtaHdmiTx* pHdmiTx)
     return DT_STATUS_OK;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxHotplugWorkItem -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxHotplugWorkItem -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void  DtHdmiTxHotplugWorkItem(DtWorkItemArgs* pArgs)
 {
@@ -1269,6 +1268,27 @@ void  DtHdmiTxUpdateAudioInfoFrame(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, Int
     DtaRegHdmiTxInfoFrameCtrlSetAudInfoFrameLatch(pHdmiTx->m_pHdmiRegs);
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxUpdateAudioSelection -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtHdmiTxUpdateAudioSelection(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd)
+{
+    UInt  AudioSelect = (pHdmiTx->m_AudioIndexCh2 << 24) | 
+                                                         (pHdmiTx->m_AudioIndexCh1 << 16);
+    
+    // Enable throttling when in testpicture mode
+    if (VidStd.m_VidStd == DT_VIDSTD_480P59_94)
+        AudioSelect |= 0x100;
+    
+    // First disable audio with current selections
+    DtaRegHdmiTxAudioCtrlSet(pHdmiTx->m_pHdmiRegs, AudioSelect);
+
+    if (pHdmiTx->m_AudioIndexCh1!=0 || pHdmiTx->m_AudioIndexCh2!=0)
+    {
+        // Enable audio
+        AudioSelect |= 1;
+        DtaRegHdmiTxAudioCtrlSet(pHdmiTx->m_pHdmiRegs, AudioSelect);
+    }
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxUpdateAudStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -1325,7 +1345,8 @@ DtStatus  DtHdmiTxUpdateAudStd(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd,
     }
 
     // MULTIPLMODE not supported by current firmware
-    DT_ASSERT((DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_FLAGS] & DT_HDMI_FLAGS_MULTIPLMODE) == 0);
+    DT_ASSERT((DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_FLAGS] & DT_HDMI_FLAGS_MULTIPLMODE)
+                                                                                    == 0);
 
     if ((DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_FLAGS] & DT_HDMI_FLAGS_FRACMODE) != 0)
     {
@@ -1341,17 +1362,8 @@ DtStatus  DtHdmiTxUpdateAudStd(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd,
     DtDbgOut(MAX, HDMI, "Setting audio N:%i, CTS:%i", N, CTS);
 
     DtHdmiTxUpdateAudioInfoFrame(pHdmiTx, VidStd, AudStd);
-
-
-    if (VidStd.m_VidStd == DT_VIDSTD_480P59_94) 
-    {
-        // Enable throttling when in testpicture mode and enable audio channel 1+2
-        DtaRegHdmiTxAudioCtrlSet(pHdmiTx->m_pHdmiRegs, 0x02010101);
-    } else {
-        // Enable audo channel 1+2
-        DtaRegHdmiTxAudioCtrlSet(pHdmiTx->m_pHdmiRegs, 0x02010001);
-    }
-
+    DtHdmiTxUpdateAudioSelection(pHdmiTx, VidStd);
+    
     pHdmiTx->m_SelAudStd = AudStd;
     return DT_STATUS_OK;
 }
@@ -1440,7 +1452,7 @@ DtStatus  DtHdmiTxUpdateVideoStd(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, Bool 
             {
                 UsedVidStd = VidStd3g;
                 DtDbgOut(MIN, HDMI, "Use 3G video standard: %i in stead of 6/12G: %i", 
-                                                                      UsedVidStd, VidStd);
+                                                    UsedVidStd.m_VidStd, VidStd.m_VidStd);
             }
         } else
             UseTestPicture = TRUE;
@@ -1565,23 +1577,35 @@ DtStatus  DtHdmiTxUpdateVideoStd(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, Bool 
         DtaRegHdmiTxVideoCtrlSetVSyncPolPositive(pHdmiTx->m_pHdmiRegs, 0);
     
     // Video Timing
-    DtaRegHdmiTxHActWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_H_ACT]);
-    DtaRegHdmiTxHSyncWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_H_SYNC]);
-    DtaRegHdmiTxHFPWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_H_FPORCH]);
-    DtaRegHdmiTxHBPWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_H_BPORCH]);
-
-    DtaRegHdmiTxF1VSyncWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_F1_V_SYNC]);
-    DtaRegHdmiTxF1VFPWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_F1_V_FPORCH]);
-    DtaRegHdmiTxF1VBPWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_F1_V_BPORCH]);
+    DtaRegHdmiTxHActWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                          DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_H_ACT]);
+    DtaRegHdmiTxHSyncWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                         DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_H_SYNC]);
+    DtaRegHdmiTxHFPWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                       DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_H_FPORCH]);
+    DtaRegHdmiTxHBPWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                       DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_H_BPORCH]);
+    DtaRegHdmiTxF1VSyncWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                      DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_F1_V_SYNC]);
+    DtaRegHdmiTxF1VFPWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                    DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_F1_V_FPORCH]);
+    DtaRegHdmiTxF1VBPWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                    DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_F1_V_BPORCH]);
     if ((DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_FLAGS] & DT_HDMI_FLAGS_INTERLACED) == 0)
-        DtaRegHdmiTxF1VActWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_V_ACT]);
+        DtaRegHdmiTxF1VActWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                          DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_V_ACT]);
     else 
     {
-        DtaRegHdmiTxF1VActWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_V_ACT]);
-        DtaRegHdmiTxF2VActWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_V_ACT]);
-        DtaRegHdmiTxF2VSyncWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_F2_V_SYNC]);
-        DtaRegHdmiTxF2VFPWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_F2_V_FPORCH]);
-        DtaRegHdmiTxF2VBPWidthSet(pHdmiTx->m_pHdmiRegs, DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_F2_V_BPORCH]);
+        DtaRegHdmiTxF1VActWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                          DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_V_ACT]);
+        DtaRegHdmiTxF2VActWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                          DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_V_ACT]);
+        DtaRegHdmiTxF2VSyncWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                      DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_F2_V_SYNC]);
+        DtaRegHdmiTxF2VFPWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                    DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_F2_V_FPORCH]);
+        DtaRegHdmiTxF2VBPWidthSet(pHdmiTx->m_pHdmiRegs, 
+                                    DT_HDMI_VIDSTD_2_FORMAT[Index][HDMI_IDX_F2_V_BPORCH]);
     }
 
     // Info frame control
@@ -2236,26 +2260,54 @@ void  DtHdmiEdidParseCeaShortAudioDescriptors(UInt8* pSAD, UInt Size)
     Int  i;
     for (i=0; i<(Int)Size/3; i++)
     {
-        Int  NumChannels = (pSAD[i*3+0]&0x7) + 1;
-    
         switch ((pSAD[i*3+0]>>3) & 0x0f)
         {
-        case 1: DtDbgOut(MAX, HDMI, "%i: Audio format='Linear Pulse Code Modulation' #CH:%i", i, NumChannels);break;
-        case 2: DtDbgOut(MAX, HDMI, "%i: Audio format='AC-3' #CH:%i", i, NumChannels);break;
-        case 3: DtDbgOut(MAX, HDMI, "%i: Audio format='MPEG1 (Layers 1 and 2)' #CH:%i", i, NumChannels);break;
-        case 4: DtDbgOut(MAX, HDMI, "%i: Audio format='MP3' #CH:%i", i, NumChannels);break;
-        case 5: DtDbgOut(MAX, HDMI, "%i: Audio format='MPEG2' #CH:%i", i, NumChannels);break;
-        case 6: DtDbgOut(MAX, HDMI, "%i: Audio format='AAC' #CH:%i", i, NumChannels);break;
-        case 7: DtDbgOut(MAX, HDMI, "%i: Audio format='DTS' #CH:%i", i, NumChannels);break;
-        case 8: DtDbgOut(MAX, HDMI, "%i: Audio format='ATRAC' #CH:%i", i, NumChannels);break;
-        case 9: DtDbgOut(MAX, HDMI, "%i: Audio format='One-bit audio aka SACD' #CH:%i", i, NumChannels);break;
-        case 10: DtDbgOut(MAX, HDMI, "%i: Audio format='DD+' #CH:%i", i, NumChannels);break;
-        case 11: DtDbgOut(MAX, HDMI, "%i: Audio format='DTS-HD' #CH:%i", i, NumChannels);break;
-        case 12: DtDbgOut(MAX, HDMI, "%i: Audio format='MLP/Dolby TrueHD' #CH:%i", i, NumChannels);break;
-        case 13: DtDbgOut(MAX, HDMI, "%i: Audio format='DTS Audio' #CH:%i", i, NumChannels);break;
-        case 14: DtDbgOut(MAX, HDMI, "%i: Audio format='Microsoft WMA Pro' #CH:%i", i, NumChannels);break;
+        case 1: DtDbgOut(MAX, HDMI, "%i: Audio format='Linear Pulse Code Modulation'"
+                                                   " #CH:%i", i, ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 2: DtDbgOut(MAX, HDMI, "%i: Audio format='AC-3' #CH:%i", i, 
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 3: DtDbgOut(MAX, HDMI, "%i: Audio format='MPEG1 (Layers 1 and 2)' #CH:%i", i,
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 4: DtDbgOut(MAX, HDMI, "%i: Audio format='MP3' #CH:%i", i, 
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 5: DtDbgOut(MAX, HDMI, "%i: Audio format='MPEG2' #CH:%i", i, 
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 6: DtDbgOut(MAX, HDMI, "%i: Audio format='AAC' #CH:%i", i, 
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 7: DtDbgOut(MAX, HDMI, "%i: Audio format='DTS' #CH:%i", i, 
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 8: DtDbgOut(MAX, HDMI, "%i: Audio format='ATRAC' #CH:%i", i, 
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 9: DtDbgOut(MAX, HDMI, "%i: Audio format='One-bit audio aka SACD' #CH:%i", i,
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 10: DtDbgOut(MAX, HDMI, "%i: Audio format='DD+' #CH:%i", i, 
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 11: DtDbgOut(MAX, HDMI, "%i: Audio format='DTS-HD' #CH:%i", i, 
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 12: DtDbgOut(MAX, HDMI, "%i: Audio format='MLP/Dolby TrueHD' #CH:%i", i, 
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 13: DtDbgOut(MAX, HDMI, "%i: Audio format='DTS Audio' #CH:%i", i, 
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
+        case 14: DtDbgOut(MAX, HDMI, "%i: Audio format='Microsoft WMA Pro' #CH:%i", i, 
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+            break;
         default:
-             DtDbgOut(MAX, HDMI, "%i: Audio format=RESERVED #CH:%i", i, NumChannels);break;
+             DtDbgOut(MAX, HDMI, "%i: Audio format=RESERVED #CH:%i", i, 
+                                                                 ((pSAD[i*3+0]&0x7) + 1));
+             break;
         }
         DtDbgOut(MAX, HDMI, "%i: Res=%i 192kHz=%i 176khz=%i 96kHz=%i 88kHz=%i 48kHz=%i"
                                 " 44kHz=%i 32kHz=%i", i, 
@@ -2436,7 +2488,8 @@ Bool  DtHdmiEdidParseCeaVendorSpecificDataBlock(DtaHdmiTx* pHdmiTx,
                     // Parse HDMI VIC codes
                     for (i=0; i<HdmiVicLen && (Offset+i)<Size; i++)
                     {
-                        DtaHdmiVidStd  VidStd = DtHdmiHdmiVic2VidStd(pCeaVendorSpecific[Offset]);
+                        DtaHdmiVidStd  VidStd = 
+                                         DtHdmiHdmiVic2VidStd(pCeaVendorSpecific[Offset]);
                         Int  Index;
                         if (VidStd.m_VidStd != DT_VIDSTD_UNKNOWN)
                         {
@@ -2493,7 +2546,8 @@ Bool  DtHdmiEdidParseCeaVendorSpecificDataBlock(DtaHdmiTx* pHdmiTx,
 
 //.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiEdidParseCeaDataBlockCollection -.-.-.-.-.-.-.-.-.-.-.-.-
 //
-Bool  DtHdmiEdidParseCeaDataBlockCollection(DtaHdmiTx* pHdmiTx, UInt8* pCeaBlock, UInt Size)
+Bool  DtHdmiEdidParseCeaDataBlockCollection(DtaHdmiTx* pHdmiTx, UInt8* pCeaBlock, 
+                                                                                UInt Size)
 {
     Int  BlockLength;
     Int  BlockType;
@@ -2614,7 +2668,10 @@ DtStatus  DtHdmiTxInit(DtaNonIpPort* pNonIpPort)
     pHdmiTx->m_UsedVidMode = DT_HDMI_VIDMOD_UNKNOWN;
     pHdmiTx->m_MonDetected = FALSE;
     pHdmiTx->m_DisableHdmiOutput = FALSE;
-        
+    pHdmiTx->m_AudioIndexCh1 = 1;
+    pHdmiTx->m_AudioIndexCh2 = 2;
+    pHdmiTx->m_AudioType = 0;
+
     pHdmiTx->m_HdmiRegsOffset = DtPropertiesGetUInt16(pPropData, "REGISTERS_HDMITX",
                                                                  pNonIpPort->m_PortIndex);
     
@@ -2788,12 +2845,8 @@ Bool  DtHdmiTxInterrupt(DtaNonIpPort*  pNonIpPort)
         // HDMI connect/disconnect interrupt.
         // Fire DPC
         DtDpcArgs  DpcArgs;
-        UInt32  Status1 = DtaRegHdmiTxGenStatGet(pHdmiTx->m_pHdmiRegs);
-        UInt32  Status2;
         DtaRegHdmiTxGenStatClrSinkConInt(pHdmiTx->m_pHdmiRegs);
         DtaRegHdmiTxGenStatClrSinkDisInt(pHdmiTx->m_pHdmiRegs);
-        Status2 = DtaRegHdmiTxGenStatGet(pHdmiTx->m_pHdmiRegs);
-        DtDbgOut(ERR, HDMI, "Status1:%08xh Status2:%08xh HOTPLUG", Status1, Status2);
         DpcArgs.m_pContext = pHdmiTx;
         DpcArgs.m_Data1.m_UInt32_1 = 0;
         DtDpcSchedule(&pHdmiTx->m_HotplugDpc, &DpcArgs);
@@ -2802,11 +2855,7 @@ Bool  DtHdmiTxInterrupt(DtaNonIpPort*  pNonIpPort)
     if (DtaRegHdmiTxGenStatGetUnderflowInt(pHdmiTx->m_pHdmiRegs))
     {
         DtDpcArgs  DpcArgs;
-        UInt32  Status1 = DtaRegHdmiTxGenStatGet(pHdmiTx->m_pHdmiRegs);
-        UInt32  Status2;
         DtaRegHdmiTxGenStatClrUnderflowInt(pHdmiTx->m_pHdmiRegs);
-        Status2 = DtaRegHdmiTxGenStatGet(pHdmiTx->m_pHdmiRegs);
-        DtDbgOut(ERR, HDMI, "Status1:%08xh Status2:%08xh UNDERFLOW", Status1, Status2);
         DpcArgs.m_pContext = pHdmiTx;
         DpcArgs.m_Data1.m_UInt32_1 = 1;
         DtDpcSchedule(&pHdmiTx->m_HotplugDpc, &DpcArgs);
@@ -2817,7 +2866,8 @@ Bool  DtHdmiTxInterrupt(DtaNonIpPort*  pNonIpPort)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxIoctl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObject* pIoctl)
+DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, 
+                                                                    DtIoctlObject* pIoctl)
 {
     DtStatus  Status = DT_STATUS_OK;
     char*  pCmdStr;             // Mnemonic string for Command
@@ -2825,8 +2875,10 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObj
     UInt  OutReqSize = 0;       // Required length of output buffer
     Int  NonIpPortIndex;        // Index in the non ip port struct
 
-    DtaIoctlHdmiTxCmdInput* pHdmiCmdInput = (DtaIoctlHdmiTxCmdInput*)pIoctl->m_pInputBuffer;
-    DtaIoctlHdmiTxCmdOutput* pHdmiCmdOutput =(DtaIoctlHdmiTxCmdOutput*)pIoctl->m_pOutputBuffer;
+    DtaIoctlHdmiTxCmdInput* pHdmiCmdInput = 
+                                          (DtaIoctlHdmiTxCmdInput*)pIoctl->m_pInputBuffer;
+    DtaIoctlHdmiTxCmdOutput* pHdmiCmdOutput =
+                                        (DtaIoctlHdmiTxCmdOutput*)pIoctl->m_pOutputBuffer;
     DtaNonIpPort*  pNonIpPort;
     DtaHdmiTx*  pHdmiTx;
 
@@ -2897,6 +2949,18 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObj
         pCmdStr = "DTA_HDMI_TX_CMD_GET_COLORIMETRY";
         OutReqSize += sizeof(DtaIoctlHdmiTxCmdGetColorimetryOutput);
         break;
+    case DTA_HDMI_TX_CMD_SET_AUDIO_CHANNEL:
+        pCmdStr = "DTA_HDMI_TX_CMD_SET_AUDIO_CHANNEL";
+        InReqSize += sizeof(DtaIoctlHdmiTxCmdSetAudioChannelInput);
+        break;
+    case DTA_HDMI_TX_CMD_GET_AUDIO_CHANNEL:
+        pCmdStr = "DTA_HDMI_TX_CMD_GET_AUDIO_CHANNEL";
+        OutReqSize += sizeof(DtaIoctlHdmiTxCmdGetAudioChannelOutput);
+        break;
+    case DTA_HDMI_TX_CMD_RELEASE_FORCED_STATES:
+        pCmdStr = "DTA_HDMI_TX_CMD_RELEASE_FORCED_STATES";
+        InReqSize += sizeof(DtaIoctlHdmiTxCmdReleaseForcedStatesInput);
+        break;
     default:
         pCmdStr = "??UNKNOWN HDMI_CMD CODE??";
         Status = DT_STATUS_NOT_SUPPORTED;
@@ -2944,7 +3008,7 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObj
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportScDc = pHdmiTx->m_SupportScDc;
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportHdr = pHdmiTx->m_SupportHdr;
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_ColorimetryForced =
-              (pHdmiTx->m_Colorimetry != 0 || pHdmiTx->m_ExtendedColorimetry != 0 ? 1 : 0);
+                     (pHdmiTx->m_Colorimetry!=0 || pHdmiTx->m_ExtendedColorimetry!=0?1:0);
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportMonitorRangeLimits =
                                                      pHdmiTx->m_SupportMonitorRangeLimits;
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_ForceTestPicture =
@@ -2966,7 +3030,8 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObj
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SelectedAspectRatio =
                                                        pHdmiTx->m_SelVidStd.m_AspectRatio;
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_UsedVidMod = pHdmiTx->m_UsedVidMode;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SelectedVidMod= pHdmiTx->m_SelVidMode;
+            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SelectedVidMod = 
+                                                                    pHdmiTx->m_SelVidMode;
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_MaxPixelClk = pHdmiTx->m_MaxPixelClk;
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_MinVRate = pHdmiTx->m_MinVRate;
             pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_MaxVRate = pHdmiTx->m_MaxVRate;
@@ -2978,7 +3043,6 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObj
                                                              pHdmiTx->m_MonSupportedAudio;
             DtMutexRelease(&pHdmiTx->m_StateLock);
             break;
-
         case DTA_HDMI_TX_CMD_GET_VIDSTD:
             if (pHdmiCmdInput->m_Data.m_GetVidStd.m_Index<0 ||
                 pHdmiCmdInput->m_Data.m_GetVidStd.m_Index>=
@@ -3064,15 +3128,54 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObj
             DtMutexRelease(&pHdmiTx->m_StateLock);
             break;
         case DTA_HDMI_TX_CMD_SET_COLORIMETRY:
-            pHdmiTx->m_Colorimetry = pHdmiCmdInput->m_Data.m_SetColorimetry.m_Colorimetry;
-            pHdmiTx->m_ExtendedColorimetry = 
+            if (pHdmiTx->m_Colorimetry != 
+                                     pHdmiCmdInput->m_Data.m_SetColorimetry.m_Colorimetry)
+            {
+                DtMutexAcquire(&pHdmiTx->m_StateLock, -1);
+            
+                pHdmiTx->m_Colorimetry = 
+                                     pHdmiCmdInput->m_Data.m_SetColorimetry.m_Colorimetry;
+                pHdmiTx->m_ExtendedColorimetry = 
                              pHdmiCmdInput->m_Data.m_SetColorimetry.m_ExtendedColorimetry;
+                Status = DtHdmiTxUpdateVideoStd(pHdmiTx, pHdmiTx->m_SelVidStd, TRUE);
+                DtMutexRelease(&pHdmiTx->m_StateLock);
+            }
             break;
         case DTA_HDMI_TX_CMD_GET_COLORIMETRY:
             pHdmiCmdOutput->m_Data.m_GetColorimetry.m_Colorimetry = 
                                                                    pHdmiTx->m_Colorimetry;
             pHdmiCmdOutput->m_Data.m_GetColorimetry.m_ExtendedColorimetry = 
                                                            pHdmiTx->m_ExtendedColorimetry;
+            break;
+        case DTA_HDMI_TX_CMD_SET_AUDIO_CHANNEL:
+            if (pHdmiCmdInput->m_Data.m_SetAudioChannel.m_Type != 0)
+                Status = DT_STATUS_INVALID_PARAMETER;
+            else if (pHdmiTx->m_AudioIndexCh1!=
+                                     pHdmiCmdInput->m_Data.m_SetAudioChannel.m_AudioCh1 ||
+                                     pHdmiTx->m_AudioIndexCh2!=
+                                     pHdmiCmdInput->m_Data.m_SetAudioChannel.m_AudioCh2 ||
+                                     pHdmiTx->m_AudioType != 
+                                     pHdmiCmdInput->m_Data.m_SetAudioChannel.m_Type)
+            {
+                DtMutexAcquire(&pHdmiTx->m_StateLock, -1);
+                pHdmiTx->m_AudioIndexCh1 = 
+                                       pHdmiCmdInput->m_Data.m_SetAudioChannel.m_AudioCh1;
+                pHdmiTx->m_AudioIndexCh2 = 
+                                       pHdmiCmdInput->m_Data.m_SetAudioChannel.m_AudioCh2;
+                pHdmiTx->m_AudioType = pHdmiCmdInput->m_Data.m_SetAudioChannel.m_Type;
+                DtHdmiTxUpdateAudioSelection(pHdmiTx, pHdmiTx->m_UsedVidStd);
+                DtMutexRelease(&pHdmiTx->m_StateLock);
+            }
+            break;
+        case DTA_HDMI_TX_CMD_GET_AUDIO_CHANNEL:
+            pHdmiCmdOutput->m_Data.m_GetAudioChannel.m_AudioCh1 = 
+                                                                 pHdmiTx->m_AudioIndexCh1;
+            pHdmiCmdOutput->m_Data.m_GetAudioChannel.m_AudioCh2 = 
+                                                                 pHdmiTx->m_AudioIndexCh2;
+            pHdmiCmdOutput->m_Data.m_GetAudioChannel.m_Type = pHdmiTx->m_AudioType;
+            break;
+        case DTA_HDMI_TX_CMD_RELEASE_FORCED_STATES:
+            DtHdmiTxReleaseForcedStates(pNonIpPort);
             break;
         default:
             Status = DT_STATUS_NOT_SUPPORTED;
@@ -3088,6 +3191,62 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObj
         else 
             DtDbgOut(MIN, HDMI, "%s: ERROR %xh", pCmdStr, Status);
     }
-
     return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxReleaseForcedStates -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtHdmiTxReleaseForcedStates(DtaNonIpPort* pNonIpPort)
+{
+    DtaHdmiTx*  pHdmiTx = &pNonIpPort->m_HdmiTx;
+    DtWorkItemArgs  DtWorkItemArgs;
+    Bool  Changed = FALSE;
+
+    DtMutexAcquire(&pHdmiTx->m_StateLock, -1);
+
+    if (pHdmiTx->m_SelVidMode != DT_HDMI_VIDMOD_YCBCR_422)
+    {
+        Changed = TRUE;
+        pHdmiTx->m_SelVidMode = DT_HDMI_VIDMOD_YCBCR_422;
+    }
+    if (pHdmiTx->m_DisableHdmiOutput || pHdmiTx->m_DisableEdidCheck)
+    {
+        Changed = TRUE;
+        pHdmiTx->m_DisableHdmiOutput = FALSE;
+        pHdmiTx->m_DisableEdidCheck = FALSE;
+    }
+    if (pHdmiTx->m_ForceTestPicture || pHdmiTx->m_ForceMonitorDetected)
+    {
+        Changed = TRUE;
+        pHdmiTx->m_ForceTestPicture = FALSE;
+        pHdmiTx->m_ForceMonitorDetected = FALSE;
+    }
+    
+    if (pHdmiTx->m_AudioIndexCh1!=1 || pHdmiTx->m_AudioIndexCh2!=2 || 
+                                                                  pHdmiTx->m_AudioType!=0)
+    {
+        Changed = TRUE;
+        pHdmiTx->m_AudioIndexCh1 = 1;
+        pHdmiTx->m_AudioIndexCh2 = 2;
+        pHdmiTx->m_AudioType = 0;
+    }
+
+    if (pHdmiTx->m_Colorimetry!=0 || pHdmiTx->m_ExtendedColorimetry!=0)
+    {
+        Changed = TRUE;
+        pHdmiTx->m_Colorimetry = 0;
+        pHdmiTx->m_ExtendedColorimetry = 0;
+    }
+
+    DtMutexRelease(&pHdmiTx->m_StateLock);
+    if (Changed)
+    {
+        DtDbgOut(ERR, HDMI, "Reset forced states and trigger hotplug");
+    
+        // Trigger hotplug
+        DtWorkItemArgs.m_pContext = pHdmiTx;
+        DtWorkItemArgs.m_Data1.m_UInt32_1 = 0;
+    
+        DtWorkItemSchedule(&pHdmiTx->m_HotplugWorkItem, &DtWorkItemArgs);
+    }
 }

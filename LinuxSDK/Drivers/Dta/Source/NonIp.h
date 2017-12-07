@@ -473,8 +473,8 @@ DtStatus  DtaNonIpMatrixPowerUpPost(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpMatrixAttachToRow(DtaNonIpPort* pNonIpPort, Int  RowIdx);
 DtStatus  DtaNonIpMatrixSetAsiCtrl(DtaNonIpPort* pNonIpPort, Int  AsiCtrl);
 DtStatus  DtaNonIpMatrixSetState(DtaNonIpPort* pNonIpPort, DtaMatrixPortState  NewState);
-DtStatus  DtaNonIpMatrixStart(DtaNonIpPort* pNonIpPort, Int64  StartFrame, Bool  AutoMode,
-                                                                      Bool  ForceRestart);
+DtStatus  DtaNonIpMatrixStart(DtaNonIpPort* pNonIpPort, Int64 StartFrame, Bool AutoMode,
+                                                 Bool ForceRestart, Bool DisableVpidProc);
 DtStatus  DtaNonIpMatrixStop(DtaNonIpPort* pNonIpPort);
 DtStatus  DtaNonIpMatrixGetCurrentFrame(DtaNonIpPort* pNonIpPort, Int64*  pFrame);
 DtStatus  DtaNonIpMatrixSetNextFrame(DtaNonIpPort* pNonIpPort, Int64  NextFrame);

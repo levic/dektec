@@ -592,7 +592,7 @@ DtStatus  DtaMultiModSetRfLevel(DtaDeviceData*  pDvcData, Int PortIdx,
 DtStatus  DtaMultiModUpdateRfLevels(DtaMultiModData* pMultiMod)
 {
     DtStatus  Status = DT_STATUS_OK;
-    volatile UInt8* pModRegs;
+    volatile UInt8* pModRegs = NULL;
     volatile UInt8* pRfRegs;
     Bool AllChanOff = TRUE;
     Int PortIdx, LowAttnPortIdx;

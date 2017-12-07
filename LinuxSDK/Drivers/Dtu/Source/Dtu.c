@@ -2321,7 +2321,7 @@ DtStatus  DtuDeviceIoctl(
                      FirmwareVariant, pDvcData->m_DevInfo.m_HardwareRevision, &PldFwSize);
                 if (pPldFirmware == NULL)
                 {
-                    DtDbgOut(ERR, DTU, "No PLD firmware variant #%s found for DTU-%d", 
+                    DtDbgOut(ERR, DTU, "No PLD firmware variant #%d found for DTU-%d", 
                                        FirmwareVariant, pDvcData->m_DevInfo.m_TypeNumber);
                     Status = DT_STATUS_FAIL;
                     break;

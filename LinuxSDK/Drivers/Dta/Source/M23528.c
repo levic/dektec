@@ -41,8 +41,10 @@
 #define  M23528_REG_LOS_CONTROL          0x31
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+#ifdef _DEBUG
 static DtStatus  DtaM23528ReadRegister(DtaNonIpPort*  pNonIpPort, Int Dev, Int Addr, 
                                                                           UInt32* pValue);
+#endif
 static DtStatus  DtaM23528WriteRegister(DtaNonIpPort*  pNonIpPort, Int Dev, Int Addr, 
                                                                             UInt32 Value);
 
@@ -91,6 +93,7 @@ DtStatus  DtaM23528Init(DtaNonIpPort* pNonIpPort)
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaM23528ReadRegister -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 //
+#ifdef _DEBUG
 DtStatus  DtaM23528ReadRegister(DtaNonIpPort* pNonIpPort, Int Dev, Int Addr, 
                                                                            UInt32* pValue)
 {
@@ -121,6 +124,7 @@ DtStatus  DtaM23528ReadRegister(DtaNonIpPort* pNonIpPort, Int Dev, Int Addr,
     *pValue = (UInt32)((SpiCmd & DT_HD_SPICTRL_DATA_MSK) >> DT_HD_SPICTRL_DATA_SH);
     return DT_STATUS_OK;
 }
+#endif
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaGs296xWriteRegister -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //

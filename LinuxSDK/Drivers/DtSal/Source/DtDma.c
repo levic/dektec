@@ -333,8 +333,8 @@ DtStatus  DtDmaCreateSgList(
     if (pOsSgl->m_pSgList == NULL)
     {
         DtDbgOut(ERR, SAL_DMA, 
-                           "Failed to allocate buffer (%d-bytes) for scatter-gather-list",
-                                      sizeof(struct scatterlist) * pPageList->m_NumPages);
+                         "Failed to allocate buffer (%llu-bytes) for scatter-gather-list",
+                         (UInt64)(sizeof(struct scatterlist) * pPageList->m_NumPages));
         return DT_STATUS_OUT_OF_MEMORY;
     }
 

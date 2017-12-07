@@ -3454,6 +3454,11 @@ DtStatus  DtaNonIpReleaseResourceFromFileObject(
                 pDvcData->m_pNonIpPorts[i].m_ExclAccess = FALSE;
                 DtDbgOut(AVG, DTA, "Release exclusive access for port %i", 
                                                   pDvcData->m_pNonIpPorts[i].m_PortIndex);
+
+                if (pDvcData->m_pNonIpPorts[i].m_CapHdmiTx)
+                {
+                    DtHdmiTxReleaseForcedStates(&pDvcData->m_pNonIpPorts[i]);
+                }
             }
             DtaDeviceReleaseExclAccess(pDvcData);
         }

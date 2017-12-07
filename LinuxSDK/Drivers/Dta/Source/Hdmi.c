@@ -810,7 +810,9 @@ DtStatus  DtaHdmiDoDetectVidStd(DtaHdmiStatus*  pStatus, Int*  pVidStd)
         Int  i;
         Int  Width = pStatus->m_VidWidth;
         Int  Height = pStatus->m_VidHeight1;
-        Int  FieldRate = 105468750 / pStatus->m_StdiFcl; // 105468750=27Mhz*1000/256
+        Int  FieldRate = 0;
+        if (pStatus->m_StdiFcl > 0)
+            FieldRate = 105468750 / pStatus->m_StdiFcl; // 105468750=27Mhz*1000/256
         if (pStatus->m_Interlaced)
             Height += pStatus->m_VidHeight2;
 

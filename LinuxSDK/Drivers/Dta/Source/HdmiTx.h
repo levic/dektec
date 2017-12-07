@@ -64,6 +64,10 @@ typedef struct _DtaHdmiTx
     Bool  m_ForceMonitorDetected;   // TRUE: if user wants to force monitor detected state
     Int  m_Colorimetry;             // DEFAULT: 0, can be overruled by user
     Int  m_ExtendedColorimetry;     // DEFAULT: 0, can be overruled by user
+    Int  m_AudioIndexCh1;           // DEFAULT: 1
+    Int  m_AudioIndexCh2;           // DEFAULT: 2
+    Int  m_AudioType;               // NOT USED, can be used for multichannel or MASK
+
 
     // Supported features
     UInt64  m_MonSupportedFormats;  // From DTD + SVD
@@ -93,3 +97,4 @@ DtStatus  DtHdmiTxInterruptEnable(DtaNonIpPort* pNonIpPort);
 DtStatus  DtHdmiTxPowerDown(DtaNonIpPort* pNonIpPort);
 Bool  DtHdmiTxInterrupt(DtaNonIpPort*  pNonIpPort);
 DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile, DtIoctlObject* pIoctl);
+void  DtHdmiTxReleaseForcedStates(DtaNonIpPort* pNonIpPort);

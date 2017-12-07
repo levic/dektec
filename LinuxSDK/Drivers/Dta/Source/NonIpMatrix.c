@@ -70,9 +70,12 @@ static const char*  DtaNonIpMatrixState2Str(DtaMatrixPortState State);
 #endif
 
 // Configuration modes
-#define  DTA_MATRIX_CMODE_FULL        0         // Full re-configuration
-#define  DTA_MATRIX_CMODE_RESTART     1         // Re-start only (skip black-frame step)
-#define  DTA_MATRIX_CMODE_FORCE       0x8000    // OR with flags above to force re-config
+#define  DTA_MATRIX_CMODE_FULL          0        // Full re-configuration
+#define  DTA_MATRIX_CMODE_RESTART       1        // Re-start only (skip black-frame step)
+#define  DTA_MATRIX_CMODE_FORCE         0x8000  // OR with flags above to force re-config
+#define  DTA_MATRIX_CMODE_VPID_PROC_DIS 0x4000  // OR with flags above to dis. vpid insert
+
+#define  DTA_MATRIX_CMODE_FLAGS_MASK    0xC000  // EXTRA FLAGS MASK
 
 // Table used to convert between video standard and video format
 static const  Int  DTA_NONIP_MATRIX_VIDSTD_2_FORMAT[][4] =
@@ -427,7 +430,7 @@ DtStatus  DtaNonIpMatrixConfigure(DtaNonIpPort* pNonIpPort, Bool  ForceConfig)
         if (DT_SUCCESS(Status) && IsDblBuf &&
                                ((pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2152 &&
                                 pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==2) ||
-								(pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2152 &&
+                                (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2152 &&
                                 pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==3) ||
                                (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2154 &&
                                 pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==5) ||
@@ -963,7 +966,8 @@ DtStatus  DtaNonIpMatrixStart(
     DtaNonIpPort*  pNonIpPort,
     Int64  StartFrame,
     Bool  AutoMode,
-    Bool  ForceRestart)
+    Bool  ForceRestart,
+    Bool  DisableVpidProc)
 {
     DtStatus  Status = DT_STATUS_OK;
     DtaMatrixPort*  pMatrix = NULL;
@@ -1034,6 +1038,9 @@ DtStatus  DtaNonIpMatrixStart(
 
     if (NeedReConfig)
     {
+        if (DisableVpidProc)
+            ConfigMode |= DTA_MATRIX_CMODE_VPID_PROC_DIS; // Disable VPID processing
+        
         ConfigMode |= DTA_MATRIX_CMODE_FORCE;   // Force the reconfig/restart
         Status = DtaNonIpMatrixConfigureForSdi(pNonIpPort, StartFrame, ConfigMode);
         if (!DT_SUCCESS(Status))
@@ -1042,8 +1049,24 @@ DtStatus  DtaNonIpMatrixStart(
             return Status;
         }
     }
-    
+
     DtaNonIpMatrixSetVpidRegs(pNonIpPort);
+
+    //-.-.-.-.-.-.-.-.-.-.-.-.-.- Set VPID processing bit -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+    // Disabled for inputs, enabled for outputs if not disabled by user.
+    // 3G-level B inputs are a special case, we enable the processing for those.
+    {
+        volatile UInt8*  pHdRegs = pNonIpPort->m_pRxRegs;
+        Int  NewVidStd = DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
+                                       pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
+    
+        Bool  EnableVpidProc = IsOutput && !DisableVpidProc;
+        if (!IsOutput && DtaVidStdIs3glvlBSdi(NewVidStd))
+        {
+            EnableVpidProc = TRUE;
+        }
+        DtaRegHdCtrl1SetNoVpidProc(pHdRegs, EnableVpidProc ? 0 : 1);
+    }
 
     // NOTE: A legacy channel is re-configured (see above) and next-frame is set there
     if (!DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort))
@@ -2189,7 +2212,9 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
 
     // Check for forced configuration
     ForceConfig = (ConfigMode & DTA_MATRIX_CMODE_FORCE)!=0 ? TRUE : FALSE;
-    ConfigMode &= ~DTA_MATRIX_CMODE_FORCE;  // Remove force flag, leaving just the mode
+    // Check for disable VPID processing flag
+    EnableVpidProc = (ConfigMode & DTA_MATRIX_CMODE_VPID_PROC_DIS) == 0 ? TRUE : FALSE;
+    ConfigMode &= ~DTA_MATRIX_CMODE_FLAGS_MASK;// Remove extra flag, leaving just the mode
 
     // Check if we have a legacy interface
     IsLegacy = DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort);
@@ -2259,9 +2284,9 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
         return Status;
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- Set VPID processing bit -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-    // Disabled for inputs, enabled for outputs. 3G-level B inputs are a special
-    // case, we enable the processing for those.
-    EnableVpidProc = IsOutput;
+    // Disabled for inputs, enabled for outputs if not disabled by user.
+    // 3G-level B inputs are a special case, we enable the processing for those.
+    EnableVpidProc = IsOutput && EnableVpidProc;
     if (IsInput && DtaVidStdIs3glvlBSdi(NewVidStd))
     {
         EnableVpidProc = TRUE;

@@ -375,7 +375,7 @@ DtStatus  DtaMatrixIoctl(
             pNonIpPort->m_Matrix.m_Vpid2 = 0;
             Status = DtaNonIpMatrixStart(pNonIpPort, 
                                              pMatrixCmdInput->m_Data.m_Start.m_StartFrame,
-                                             TRUE, FALSE);
+                                             TRUE, FALSE, FALSE);
             break;
 
         case DTA_MATRIX_CMD_STOP:
@@ -787,7 +787,7 @@ DtStatus  DtaMatrixIoctl(
             pNonIpPort->m_Matrix.m_Vpid2 = 0;
             Status = DtaNonIpMatrixStart(pNonIpPort, 
                                              pMatrixCmdInput->m_Data.m_Start.m_StartFrame,
-                                             FALSE, FALSE);
+                                             FALSE, FALSE, FALSE);
             break;
 
         case DTA_MATRIX_CMD_SET_NEXT_FRAME:
@@ -824,7 +824,7 @@ DtStatus  DtaMatrixIoctl(
             pNonIpPort->m_Matrix.m_Vpid2 = 0;
             Status = DtaNonIpMatrixStart(pNonIpPort,
                                             pMatrixCmdInput->m_Data.m_Start2.m_StartFrame,
-                                            AutoMode, ForceRestart);
+                                            AutoMode, ForceRestart, FALSE);
             break;
         }
             
@@ -832,13 +832,14 @@ DtStatus  DtaMatrixIoctl(
             Int  Flags = pMatrixCmdInput->m_Data.m_Start3.m_StartFlags;
             Bool  AutoMode = (Flags&DTA_MATRIX_STARTFLAGS_MANUAL)==0;
             Bool  ForceRestart = (Flags&DTA_MATRIX_STARTFLAGS_FORCE_RESTART)!=0;
+            Bool  DisableVpidProc = (Flags&DTA_MATRIX_STARTFLAGS_VPID_PROC_DIS)!=0;
             pNonIpPort->m_Matrix.m_Vpid1 = pMatrixCmdInput->m_Data.m_Start3.m_Vpid;
             pNonIpPort->m_Matrix.m_Vpid2 = pMatrixCmdInput->m_Data.m_Start3.m_Vpid2;
             pNonIpPort->m_Matrix.m_ExtraPixelDelay = 
                                        pMatrixCmdInput->m_Data.m_Start3.m_ExtraPixelDelay;
             Status = DtaNonIpMatrixStart(pNonIpPort,
                                             pMatrixCmdInput->m_Data.m_Start3.m_StartFrame,
-                                            AutoMode, ForceRestart);
+                                            AutoMode, ForceRestart, DisableVpidProc);
             break;
 
         case DTA_MATRIX_CMD_WAIT_FRAME3:

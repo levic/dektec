@@ -8872,6 +8872,11 @@ static const DtProperty  DtProperties2131_0_01[] =
     { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties2131_0_02[] =
+{
+    { "CAP_RX_QAMB", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DTAPI, 5, 27, 4 } 
+};
 static const DtProperty  DtProperties2131_0_03[] =
 {
     { "CAP_RX_QAMC", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
@@ -9123,7 +9128,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2131_0[] =
 {
     { DtProperties2131_0_00, 1 },
     { DtProperties2131_0_01, 3 },
-    { NULL, 0 },
+    { DtProperties2131_0_02, 1 },
     { DtProperties2131_0_03, 1 },
     { DtProperties2131_0_04, 2 },
     { NULL, 0 },
@@ -13264,7 +13269,7 @@ static const DtProperty  DtProperties2152_0_00[] =
 };
 static const DtProperty  DtProperties2152_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 4, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 5, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N2_0", -1, "Support for DVB-ASI", PROPERTY_VALUE_TYPE_STRING, -1, -1,
                                                 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
@@ -13304,6 +13309,8 @@ static const DtProperty  DtProperties2152_0_04[] =
     { "FIRMWARE_R_N2_3", -1, "Support for double-buffering", PROPERTY_VALUE_TYPE_STRING,
                                         -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N3_2", -1, "Bug fix: sometimes no signal due to failing board check",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N5_0", -1, "Bug fix: possible data corruption seen for some boards",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_EXT_CLK_FREQ", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
@@ -13882,7 +13889,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2152_0[] =
     { DtProperties2152_0_01, 2 },
     { DtProperties2152_0_02, 2 },
     { DtProperties2152_0_03, 3 },
-    { DtProperties2152_0_04, 9 },
+    { DtProperties2152_0_04, 10 },
     { DtProperties2152_0_05, 1 },
     { DtProperties2152_0_06, 9 },
     { DtProperties2152_0_07, 9 },
@@ -21616,10 +21623,12 @@ static const DtProperty  DtProperties2195_0_00[] =
 };
 static const DtProperty  DtProperties2195_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N1_1", -1, "Several Bugfixes", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0,
-                                                   0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                                   0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N2_0", -1, "Support for HDMI 192kHz audio for DD+ and ATMOS",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2195_0_04[] =
 {
@@ -22780,7 +22789,7 @@ static const DtProperty  DtProperties2195_0_63[] =
 static const DtPropertyHashSet  DtPropertyHashSets2195_0[] =
 {
     { DtProperties2195_0_00, 5 },
-    { DtProperties2195_0_01, 2 },
+    { DtProperties2195_0_01, 3 },
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties2195_0_04, 12 },
