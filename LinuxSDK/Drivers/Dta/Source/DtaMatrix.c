@@ -108,10 +108,9 @@ DtStatus  DtaMatrixIoctl(
     UInt  OutReqSize = 0;       // Required length of output buffer
     Int  NonIpPortIndex;        // Index in the nonip port struct
     DtaNonIpPort*  pNonIpPort = NULL;
-    DtaIoctlMatrixCmdInput* pMatrixCmdInput = 
-                                         (DtaIoctlMatrixCmdInput*)pIoctl->m_pInputBuffer;
-    DtaIoctlMatrixCmdOutput* pMatrixCmdOutput =
-                                       (DtaIoctlMatrixCmdOutput*)pIoctl->m_pOutputBuffer;
+    DtaIoctlMatrixCmdInput* pCmdInput = (DtaIoctlMatrixCmdInput*)pIoctl->m_pInputBuffer;
+    DtaIoctlMatrixCmdOutput* pCmdOutput =
+                                        (DtaIoctlMatrixCmdOutput*)pIoctl->m_pOutputBuffer;
     
     // Default require at least the size of the header preceding the data
     InReqSize = OFFSETOF(DtaIoctlMatrixCmdInput, m_Data);
@@ -123,16 +122,16 @@ DtStatus  DtaMatrixIoctl(
 
     // Validate port index
     pNonIpPort = NULL;  // Assume a board level request
-    if (pMatrixCmdInput->m_PortIndex == -1)
+    if (pCmdInput->m_PortIndex == -1)
         NonIpPortIndex = -1;    // Is a board level request
-    else if (DT_SUCCESS(DtaGetNonIpPortIndex(pDvcData, pMatrixCmdInput->m_PortIndex,
+    else if (DT_SUCCESS(DtaGetNonIpPortIndex(pDvcData, pCmdInput->m_PortIndex,
                                                                         &NonIpPortIndex)))
         pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
     else
          return DT_STATUS_INVALID_PARAMETER;
            
     // Determine final required output/input sizes
-    switch (pMatrixCmdInput->m_Cmd)
+    switch (pCmdInput->m_Cmd)
     {
     case DTA_MATRIX_CMD_WAIT_FRAME:
         pCmdStr = "DTA_MATRIX_CMD_WAIT_FRAME";
@@ -184,6 +183,16 @@ DtStatus  DtaMatrixIoctl(
 #endif
         break;
 
+    case DTA_MATRIX_CMD_DMA_WRITE2:
+        pCmdStr = "DTA_MATRIX_CMD_DMA_WRITE2";
+        InReqSize += sizeof(DtaIoctlMatrixCmdWriteDma2Input);
+#ifdef WINBUILD
+        OutReqSize = 0; // for write there is no output header
+#else
+        OutReqSize += sizeof(DtaIoctlMatrixCmdWriteDma2Output);
+#endif
+        break;
+
     case DTA_MATRIX_CMD_DMA_READ:
         pCmdStr = "DTA_MATRIX_CMD_DMA_READ";
         InReqSize += sizeof(DtaIoctlMatrixCmdReadDmaInput);
@@ -191,6 +200,16 @@ DtStatus  DtaMatrixIoctl(
         OutReqSize = 0; // for read there is no output header
 #else
         OutReqSize += sizeof(DtaIoctlMatrixCmdReadDmaOutput);
+#endif
+        break;
+
+    case DTA_MATRIX_CMD_DMA_READ2:
+        pCmdStr = "DTA_MATRIX_CMD_DMA_READ2";
+        InReqSize += sizeof(DtaIoctlMatrixCmdReadDma2Input);
+#ifdef WINBUILD
+        OutReqSize = 0; // for read there is no output header
+#else
+        OutReqSize += sizeof(DtaIoctlMatrixCmdReadDma2Output);
 #endif
         break;
 
@@ -314,10 +333,12 @@ DtStatus  DtaMatrixIoctl(
     if (PowerDownPending)
     {
         // Only skip channel specific IOCTL's
-        switch (pMatrixCmdInput->m_Cmd)
+        switch (pCmdInput->m_Cmd)
         {
             case DTA_MATRIX_CMD_DMA_WRITE:
+            case DTA_MATRIX_CMD_DMA_WRITE2:
             case DTA_MATRIX_CMD_DMA_READ:
+            case DTA_MATRIX_CMD_DMA_READ2:
                 DtDbgOut(ERR, DTA, "%s: Matrix cmd because powerdown  occured!", pCmdStr);
                 return DT_STATUS_POWERDOWN;
         } 
@@ -349,32 +370,32 @@ DtStatus  DtaMatrixIoctl(
     if (DT_SUCCESS(Status))
     {
         // Execute cmd
-        switch (pMatrixCmdInput->m_Cmd)
+        switch (pCmdInput->m_Cmd)
         {
         case DTA_MATRIX_CMD_WAIT_FRAME: {
             Int64  RefClkStart, RefClkEnd;
             Int64  FrmIntCnt;
             Status = DtaMatrixWaitFrame(pDvcData, pNonIpPort, 
-                                          pMatrixCmdInput->m_Data.m_WaitFrame.m_FrmIntCnt,
-                                          pMatrixCmdInput->m_Data.m_WaitFrame.m_Timeout,
-                                          &pMatrixCmdOutput->m_Data.m_WaitFrame.m_Frame,
+                                          pCmdInput->m_Data.m_WaitFrame.m_FrmIntCnt,
+                                          pCmdInput->m_Data.m_WaitFrame.m_Timeout,
+                                          &pCmdOutput->m_Data.m_WaitFrame.m_Frame,
                                           &RefClkStart, &RefClkEnd, &FrmIntCnt, NULL);
         }   break;
 
         case DTA_MATRIX_CMD_GET_SYNC_INFO:
-            Status = DtaMatrixSyncInfoGet(pDvcData, &pMatrixCmdOutput->m_Data.m_SyncInfo);
+            Status = DtaMatrixSyncInfoGet(pDvcData, &pCmdOutput->m_Data.m_SyncInfo);
             break;
 
         case DTA_MATRIX_CMD_ATTACH_TO_ROW:
             Status = DtaNonIpMatrixAttachToRow(pNonIpPort,
-                                          pMatrixCmdInput->m_Data.m_AttachToRow.m_RowIdx);
+                                          pCmdInput->m_Data.m_AttachToRow.m_RowIdx);
             break;
             
         case DTA_MATRIX_CMD_START:
             pNonIpPort->m_Matrix.m_Vpid1 = 0;
             pNonIpPort->m_Matrix.m_Vpid2 = 0;
             Status = DtaNonIpMatrixStart(pNonIpPort, 
-                                             pMatrixCmdInput->m_Data.m_Start.m_StartFrame,
+                                             pCmdInput->m_Data.m_Start.m_StartFrame,
                                              TRUE, FALSE, FALSE);
             break;
 
@@ -384,10 +405,11 @@ DtStatus  DtaMatrixIoctl(
 
         case DTA_MATRIX_CMD_GET_CURR_FRAME:
             Status = DtaNonIpMatrixGetCurrentFrame(pNonIpPort, 
-                                    &pMatrixCmdOutput->m_Data.m_GetCurrFrame.m_CurrFrame);
+                                    &pCmdOutput->m_Data.m_GetCurrFrame.m_CurrFrame);
             break;
 
         case DTA_MATRIX_CMD_DMA_WRITE:
+        case DTA_MATRIX_CMD_DMA_WRITE2:
         {
             char*  pBuffer;
             Int  Size;
@@ -396,6 +418,7 @@ DtStatus  DtaMatrixIoctl(
             DmaChannel*  pDmaCh = NULL;
             DtaMatrixDmaContext*  pDmaContext = &pNonIpPort->m_Matrix.m_DmaContext;
             DtaMatrixMemTrSetup*  pMemTrSetup = &pDmaContext->m_MemTrSetup;
+            Int  DmaTimeoutMs = -1;  // Default, is DMA timeout
                 
 #if defined(WINBUILD)
             DtPageList  PageList;
@@ -431,29 +454,58 @@ DtStatus  DtaMatrixIoctl(
                 pPageList->m_pVirtualKernel = NULL;
             }
 #else // LINBUILD
-            Size = pMatrixCmdInput->m_Data.m_DmaWrite.m_NumBytesToWrite;
+            if (pCmdInput->m_Cmd == DTA_MATRIX_CMD_DMA_WRITE2)
+                Size = pCmdInput->m_Data.m_DmaWrite2.m_NumBytesToWrite;
+            else
+                Size = pCmdInput->m_Data.m_DmaWrite.m_NumBytesToWrite;
 #if defined(LIN32)
-            pBuffer = (char*)(UInt32)pMatrixCmdInput->m_Data.m_DmaWrite.m_BufferAddr;
+            if (pCmdInput->m_Cmd == DTA_MATRIX_CMD_DMA_WRITE2)
+                pBuffer = (char*)(UInt32)pCmdInput->m_Data.m_DmaWrite2.m_BufferAddr;
+            else
+                pBuffer = (char*)(UInt32)pCmdInput->m_Data.m_DmaWrite.m_BufferAddr;
 #else
-            pBuffer = (char*)(UInt64)pMatrixCmdInput->m_Data.m_DmaWrite.m_BufferAddr;
+            if (pCmdInput->m_Cmd == DTA_MATRIX_CMD_DMA_WRITE2)
+                pBuffer = (char*)(UInt64)pCmdInput->m_Data.m_DmaWrite2.m_BufferAddr;
+            else
+                pBuffer = (char*)(UInt64)pCmdInput->m_Data.m_DmaWrite.m_BufferAddr;
 #endif
 #endif
             // Prep channel (memory) for DMA
             pMemTrSetup->m_IsWrite = TRUE;
-            pMemTrSetup->m_Frame = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Frame;
-            pMemTrSetup->m_StartLine = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Line;
-            pMemTrSetup->m_NumLines = 
-                                   pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_NumLines;
-            pMemTrSetup->m_TrCmd = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_TrCmd;
-            pMemTrSetup->m_DataFormat = 
-                                 pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_DataFormat;
-            pMemTrSetup->m_RgbMode = 
-                                    pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_RgbMode;
-            pMemTrSetup->m_SymFlt = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_SymFlt;
-            pMemTrSetup->m_Scaling = 
-                                    pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Scaling;
-            pMemTrSetup->m_AncFlt = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_AncFlt;
-            pMemTrSetup->m_Stride = pMatrixCmdInput->m_Data.m_DmaWrite.m_Common.m_Stride;
+             // Do we have the command with or without a timeout parameter?
+            if (pCmdInput->m_Cmd == DTA_MATRIX_CMD_DMA_WRITE2)
+            {
+                pMemTrSetup->m_Frame = pCmdInput->m_Data.m_DmaWrite2.m_Common.m_Frame;
+                pMemTrSetup->m_StartLine = pCmdInput->m_Data.m_DmaWrite2.m_Common.m_Line;
+                pMemTrSetup->m_NumLines = 
+                                        pCmdInput->m_Data.m_DmaWrite2.m_Common.m_NumLines;
+                pMemTrSetup->m_TrCmd = pCmdInput->m_Data.m_DmaWrite2.m_Common.m_TrCmd;
+                pMemTrSetup->m_DataFormat = 
+                                     pCmdInput->m_Data.m_DmaWrite2.m_Common.m_DataFormat;
+                pMemTrSetup->m_RgbMode = pCmdInput->m_Data.m_DmaWrite2.m_Common.m_RgbMode;
+                pMemTrSetup->m_SymFlt = pCmdInput->m_Data.m_DmaWrite2.m_Common.m_SymFlt;
+                pMemTrSetup->m_Scaling = pCmdInput->m_Data.m_DmaWrite2.m_Common.m_Scaling;
+                pMemTrSetup->m_AncFlt = pCmdInput->m_Data.m_DmaWrite2.m_Common.m_AncFlt;
+                pMemTrSetup->m_Stride = pCmdInput->m_Data.m_DmaWrite2.m_Common.m_Stride;
+                DmaTimeoutMs = pCmdInput->m_Data.m_DmaWrite2.m_TimeoutMs;
+            }
+            else
+            {
+                pMemTrSetup->m_Frame = pCmdInput->m_Data.m_DmaWrite.m_Common.m_Frame;
+                pMemTrSetup->m_StartLine = pCmdInput->m_Data.m_DmaWrite.m_Common.m_Line;
+                pMemTrSetup->m_NumLines = 
+                                         pCmdInput->m_Data.m_DmaWrite.m_Common.m_NumLines;
+                pMemTrSetup->m_TrCmd = pCmdInput->m_Data.m_DmaWrite.m_Common.m_TrCmd;
+                pMemTrSetup->m_DataFormat = 
+                                     pCmdInput->m_Data.m_DmaWrite.m_Common.m_DataFormat;
+                pMemTrSetup->m_RgbMode = pCmdInput->m_Data.m_DmaWrite.m_Common.m_RgbMode;
+                pMemTrSetup->m_SymFlt = pCmdInput->m_Data.m_DmaWrite.m_Common.m_SymFlt;
+                pMemTrSetup->m_Scaling = pCmdInput->m_Data.m_DmaWrite.m_Common.m_Scaling;
+                pMemTrSetup->m_AncFlt = pCmdInput->m_Data.m_DmaWrite.m_Common.m_AncFlt;
+                pMemTrSetup->m_Stride = pCmdInput->m_Data.m_DmaWrite.m_Common.m_Stride;
+                DmaTimeoutMs = -1;  // Use an infinite timeout
+            }
+            DT_ASSERT(DmaTimeoutMs >= -1);
             
             if (pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIWR)
             {
@@ -509,9 +561,10 @@ DtStatus  DtaMatrixIoctl(
 
             if (DT_SUCCESS(Status))
             {
-                Status = DtaDmaStartTransfer(pDmaCh, pPageList, DT_BUFTYPE_USER, 
-                                             DT_DMA_DIRECTION_TO_DEVICE, pBuffer, Size, 0,
-                                             pLocalAddress, 0, 0, FALSE, &Size);
+                Status = DtaDmaStartTransferWithTimeout(
+                                         pDmaCh, pPageList, DT_BUFTYPE_USER, 
+                                         DT_DMA_DIRECTION_TO_DEVICE, pBuffer, Size, 0,
+                                         pLocalAddress, 0, 0, FALSE, &Size, DmaTimeoutMs);
             }
 #ifdef WINBUILD
             // Mark the IO request pending, we complete the request in the DMA 
@@ -525,16 +578,28 @@ DtStatus  DtaMatrixIoctl(
             }
 #else
             if (DT_SUCCESS(Status))
-                pMatrixCmdOutput->m_Data.m_DmaWrite.m_NumBytesWritten = 
-                          DtaNonIpMatrixDmaWriteFinished(pNonIpPort,
+            {
+                Int  NumBytesWritten = DtaNonIpMatrixDmaWriteFinished(pNonIpPort,
                                                                     pMemTrSetup->m_TrCmd);
+                if (pCmdInput->m_Cmd == DTA_MATRIX_CMD_DMA_WRITE2)
+                    pCmdOutput->m_Data.m_DmaWrite2.m_NumBytesWritten = NumBytesWritten;
+                else
+                    pCmdOutput->m_Data.m_DmaWrite.m_NumBytesWritten = NumBytesWritten;
+                          
+            }
             else
-                pMatrixCmdOutput->m_Data.m_DmaWrite.m_NumBytesWritten = 0;
+            {
+                if (pCmdInput->m_Cmd == DTA_MATRIX_CMD_DMA_WRITE2)
+                    pCmdOutput->m_Data.m_DmaWrite2.m_NumBytesWritten = 0;
+                else
+                    pCmdOutput->m_Data.m_DmaWrite.m_NumBytesWritten = 0;
+            }
 #endif
             break;
         }
         
         case DTA_MATRIX_CMD_DMA_READ:
+        case DTA_MATRIX_CMD_DMA_READ2:
         {
             char*  pBuffer;
             Int  Size;
@@ -543,6 +608,7 @@ DtStatus  DtaMatrixIoctl(
             DmaChannel*  pDmaCh = NULL;
             DtaMatrixDmaContext*  pDmaContext = &pNonIpPort->m_Matrix.m_DmaContext;
             DtaMatrixMemTrSetup*  pMemTrSetup = &pDmaContext->m_MemTrSetup;
+            Int  DmaTimeoutMs = -1;     // Default, is an INFINITE timeout
 
 #if defined(WINBUILD)
             DtPageList  PageList;
@@ -577,27 +643,60 @@ DtStatus  DtaMatrixIoctl(
                 pPageList->m_pVirtualKernel = NULL;
             }
 #else // LINBUILD
-            Size = pMatrixCmdInput->m_Data.m_DmaRead.m_NumBytesToRead;
+            if (pCmdInput->m_Cmd == DTA_MATRIX_CMD_DMA_READ2)
+                Size = pCmdInput->m_Data.m_DmaRead2.m_NumBytesToRead;
+            else
+                Size = pCmdInput->m_Data.m_DmaRead.m_NumBytesToRead;
+
 #if defined(LIN32)
-            pBuffer = (char*)(UInt32)pMatrixCmdInput->m_Data.m_DmaRead.m_BufferAddr;
+            if (pCmdInput->m_Cmd == DTA_MATRIX_CMD_DMA_READ2)
+                pBuffer = (char*)(UInt32)pCmdInput->m_Data.m_DmaRead2.m_BufferAddr;
+            else
+                pBuffer = (char*)(UInt32)pCmdInput->m_Data.m_DmaRead.m_BufferAddr;
 #else
-            pBuffer = (char*)(UInt64)pMatrixCmdInput->m_Data.m_DmaRead.m_BufferAddr;
+            if (pCmdInput->m_Cmd == DTA_MATRIX_CMD_DMA_READ2)
+                pBuffer = (char*)(UInt64)pCmdInput->m_Data.m_DmaRead2.m_BufferAddr;
+            else
+                pBuffer = (char*)(UInt64)pCmdInput->m_Data.m_DmaRead.m_BufferAddr;
 #endif
 #endif
             // Prep channel (memory) for DMA
             pMemTrSetup->m_IsWrite = FALSE;
-            pMemTrSetup->m_Frame = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Frame;
-            pMemTrSetup->m_StartLine = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Line;
-            pMemTrSetup->m_NumLines = 
-                                    pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_NumLines;
-            pMemTrSetup->m_TrCmd = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_TrCmd;
-            pMemTrSetup->m_DataFormat = 
-                                  pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_DataFormat;
-            pMemTrSetup->m_RgbMode = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_RgbMode;
-            pMemTrSetup->m_SymFlt = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_SymFlt;
-            pMemTrSetup->m_Scaling = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Scaling;
-            pMemTrSetup->m_AncFlt = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_AncFlt;
-            pMemTrSetup->m_Stride = pMatrixCmdInput->m_Data.m_DmaRead.m_Common.m_Stride;
+
+            // Do we have the command with or without a timeout parameter?
+            if (pCmdInput->m_Cmd == DTA_MATRIX_CMD_DMA_READ2)
+            {
+                pMemTrSetup->m_Frame = pCmdInput->m_Data.m_DmaRead2.m_Common.m_Frame;
+                pMemTrSetup->m_StartLine = pCmdInput->m_Data.m_DmaRead2.m_Common.m_Line;
+                pMemTrSetup->m_NumLines = 
+                                         pCmdInput->m_Data.m_DmaRead2.m_Common.m_NumLines;
+                pMemTrSetup->m_TrCmd = pCmdInput->m_Data.m_DmaRead2.m_Common.m_TrCmd;
+                pMemTrSetup->m_DataFormat = 
+                                       pCmdInput->m_Data.m_DmaRead2.m_Common.m_DataFormat;
+                pMemTrSetup->m_RgbMode = pCmdInput->m_Data.m_DmaRead2.m_Common.m_RgbMode;
+                pMemTrSetup->m_SymFlt = pCmdInput->m_Data.m_DmaRead2.m_Common.m_SymFlt;
+                pMemTrSetup->m_Scaling = pCmdInput->m_Data.m_DmaRead2.m_Common.m_Scaling;
+                pMemTrSetup->m_AncFlt = pCmdInput->m_Data.m_DmaRead2.m_Common.m_AncFlt;
+                pMemTrSetup->m_Stride = pCmdInput->m_Data.m_DmaRead2.m_Common.m_Stride;
+                DmaTimeoutMs = pCmdInput->m_Data.m_DmaRead2.m_TimeoutMs;
+            }
+            else
+            {
+                pMemTrSetup->m_Frame = pCmdInput->m_Data.m_DmaRead.m_Common.m_Frame;
+                pMemTrSetup->m_StartLine = pCmdInput->m_Data.m_DmaRead.m_Common.m_Line;
+                pMemTrSetup->m_NumLines = pCmdInput->m_Data.m_DmaRead.m_Common.m_NumLines;
+                pMemTrSetup->m_TrCmd = pCmdInput->m_Data.m_DmaRead.m_Common.m_TrCmd;
+                pMemTrSetup->m_DataFormat = 
+                                        pCmdInput->m_Data.m_DmaRead.m_Common.m_DataFormat;
+                pMemTrSetup->m_RgbMode = pCmdInput->m_Data.m_DmaRead.m_Common.m_RgbMode;
+                pMemTrSetup->m_SymFlt = pCmdInput->m_Data.m_DmaRead.m_Common.m_SymFlt;
+                pMemTrSetup->m_Scaling = pCmdInput->m_Data.m_DmaRead.m_Common.m_Scaling;
+                pMemTrSetup->m_AncFlt = pCmdInput->m_Data.m_DmaRead.m_Common.m_AncFlt;
+                pMemTrSetup->m_Stride = pCmdInput->m_Data.m_DmaRead.m_Common.m_Stride;
+                DmaTimeoutMs = -1;  // Use an infinite timeout
+            }
+            DT_ASSERT(DmaTimeoutMs >= -1);
+
             
             if (pMemTrSetup->m_TrCmd==DT_MEMTR_TRCMD_ASIRD)
             {
@@ -656,9 +755,10 @@ DtStatus  DtaMatrixIoctl(
 
             if (DT_SUCCESS(Status))
             {
-                Status = DtaDmaStartTransfer(pDmaCh, pPageList, DT_BUFTYPE_USER, 
-                                           DT_DMA_DIRECTION_FROM_DEVICE, pBuffer, Size, 0,
-                                           pLocalAddress, 0, 0, FALSE, &Size);
+                Status = DtaDmaStartTransferWithTimeout(
+                                         pDmaCh, pPageList, DT_BUFTYPE_USER, 
+                                         DT_DMA_DIRECTION_FROM_DEVICE, pBuffer, Size, 0,
+                                         pLocalAddress, 0, 0, FALSE, &Size, DmaTimeoutMs);
             }
 #ifdef WINBUILD
             // Mark the IO request pending, we complete the request in the DMA 
@@ -672,11 +772,22 @@ DtStatus  DtaMatrixIoctl(
             }
 #else
             if (DT_SUCCESS(Status))
-                pMatrixCmdOutput->m_Data.m_DmaRead.m_NumBytesRead = 
-                            DtaNonIpMatrixDmaReadFinished(pNonIpPort, 
-                                                           pMemTrSetup->m_TrCmd);
+            {
+                Int  NumBytesRead = DtaNonIpMatrixDmaReadFinished(pNonIpPort, 
+                                                                    pMemTrSetup->m_TrCmd);
+                if (pCmdInput->m_Cmd == DTA_MATRIX_CMD_DMA_READ2)
+                    pCmdOutput->m_Data.m_DmaRead2.m_NumBytesRead = NumBytesRead;
+                else
+                    pCmdOutput->m_Data.m_DmaRead.m_NumBytesRead = NumBytesRead;
+                          
+            }
             else
-                pMatrixCmdOutput->m_Data.m_DmaRead.m_NumBytesRead = 0;
+            {
+                if (pCmdInput->m_Cmd == DTA_MATRIX_CMD_DMA_READ2)
+                    pCmdOutput->m_Data.m_DmaRead2.m_NumBytesRead = 0;
+                else
+                    pCmdOutput->m_Data.m_DmaRead.m_NumBytesRead = 0;
+            }
 #endif
 
             break;
@@ -688,35 +799,35 @@ DtStatus  DtaMatrixIoctl(
             if (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_INPUT)
             {
                 Status = DtaMatrixAsiRxGetFifoLoad(pNonIpPort,
-                                      &pMatrixCmdOutput->m_Data.m_GetFifoLoad.m_FifoLoad);
+                                            &pCmdOutput->m_Data.m_GetFifoLoad.m_FifoLoad);
             }
             else 
             {
                 Int64  NumBytesPlayed = DtaRegHdAsiByteCountGet(pNonIpPort->m_pTxRegs);
-                pMatrixCmdOutput->m_Data.m_GetFifoLoad.m_FifoLoad = 
+                pCmdOutput->m_Data.m_GetFifoLoad.m_FifoLoad = 
                             (Int)(pNonIpPort->m_Matrix.m_AsiDmaNumBytes - NumBytesPlayed);
             }
             break;
 
         case DTA_MATRIX_CMD_GET_FIFOSIZE:
             DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI);
-            pMatrixCmdOutput->m_Data.m_GetFifoSize.m_FifoSize =
+            pCmdOutput->m_Data.m_GetFifoSize.m_FifoSize =
                                                        pNonIpPort->m_Matrix.m_AsiFifoSize;
             break;
 
         case DTA_MATRIX_CMD_GET_FIFOSIZE_MAX:
             DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI);
-            pMatrixCmdOutput->m_Data.m_GetFifoSizeMax.m_FifoSize = 16*1024*1024;
+            pCmdOutput->m_Data.m_GetFifoSizeMax.m_FifoSize = 16*1024*1024;
             break;
 
         case DTA_MATRIX_CMD_SET_FIFOSIZE:
             DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI);
-            if (pMatrixCmdInput->m_Data.m_SetFifoSize.m_FifoSize%32 != 0)
+            if (pCmdInput->m_Data.m_SetFifoSize.m_FifoSize%32 != 0)
                 Status = DT_STATUS_INVALID_PARAMETER;
             else
             {
                 pNonIpPort->m_Matrix.m_AsiFifoSize =
-                                         pMatrixCmdInput->m_Data.m_SetFifoSize.m_FifoSize;
+                                               pCmdInput->m_Data.m_SetFifoSize.m_FifoSize;
                 Status =  DtaNonIpMatrixConfigure(pNonIpPort, FALSE);
             }
             break;
@@ -724,7 +835,7 @@ DtStatus  DtaMatrixIoctl(
         case DTA_MATRIX_CMD_SET_ASI_CTRL:
             DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value == DT_IOCONFIG_ASI);
             Status = DtaNonIpMatrixSetAsiCtrl(pNonIpPort,
-                                          pMatrixCmdInput->m_Data.m_SetAsiCtrl.m_AsiCtrl);
+                                                pCmdInput->m_Data.m_SetAsiCtrl.m_AsiCtrl);
             break;
 
         case DTA_MATRIX_CMD_GET_BUF_CONFIG:
@@ -733,9 +844,9 @@ DtStatus  DtaMatrixIoctl(
                 Status = DT_STATUS_NOT_SUPPORTED;
             else
             {
-                pMatrixCmdOutput->m_Data.m_GetBufConfig.m_VidStd = 
+                pCmdOutput->m_Data.m_GetBufConfig.m_VidStd = 
                                                pNonIpPort->m_Matrix.m_FrameProps.m_VidStd;
-                pMatrixCmdOutput->m_Data.m_GetBufConfig.m_NumFrames = 
+                pCmdOutput->m_Data.m_GetBufConfig.m_NumFrames = 
                                        pNonIpPort->m_Matrix.m_BufConfig.m_NumUsableFrames;
 
                 Status = DT_STATUS_OK;
@@ -749,36 +860,35 @@ DtStatus  DtaMatrixIoctl(
             // If it is an output we are writing
             MemTrSetup.m_IsWrite = 
                    (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_OUTPUT);
-            MemTrSetup.m_Frame = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_Frame;
-            MemTrSetup.m_StartLine = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_Line;
-            MemTrSetup.m_NumLines = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_NumLines;
-            MemTrSetup.m_TrCmd = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_TrCmd;
-            MemTrSetup.m_DataFormat = 
-                                     pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_DataFormat;
-            MemTrSetup.m_RgbMode = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_RgbMode;
-            MemTrSetup.m_SymFlt = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_SymFlt;
-            MemTrSetup.m_Scaling = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_Scaling;
-            MemTrSetup.m_AncFlt = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_AncFlt;
-            MemTrSetup.m_Stride = pMatrixCmdInput->m_Data.m_GetReqDmaSize.m_Stride;
+            MemTrSetup.m_Frame = pCmdInput->m_Data.m_GetReqDmaSize.m_Frame;
+            MemTrSetup.m_StartLine = pCmdInput->m_Data.m_GetReqDmaSize.m_Line;
+            MemTrSetup.m_NumLines = pCmdInput->m_Data.m_GetReqDmaSize.m_NumLines;
+            MemTrSetup.m_TrCmd = pCmdInput->m_Data.m_GetReqDmaSize.m_TrCmd;
+            MemTrSetup.m_DataFormat = pCmdInput->m_Data.m_GetReqDmaSize.m_DataFormat;
+            MemTrSetup.m_RgbMode = pCmdInput->m_Data.m_GetReqDmaSize.m_RgbMode;
+            MemTrSetup.m_SymFlt = pCmdInput->m_Data.m_GetReqDmaSize.m_SymFlt;
+            MemTrSetup.m_Scaling = pCmdInput->m_Data.m_GetReqDmaSize.m_Scaling;
+            MemTrSetup.m_AncFlt = pCmdInput->m_Data.m_GetReqDmaSize.m_AncFlt;
+            MemTrSetup.m_Stride = pCmdInput->m_Data.m_GetReqDmaSize.m_Stride;
 
             Status = DtaNonIpMatrixGetReqDmaSize(pNonIpPort, &MemTrSetup,
-                                     &pMatrixCmdOutput->m_Data.m_GetReqDmaSize.m_ReqSize);
+                                           &pCmdOutput->m_Data.m_GetReqDmaSize.m_ReqSize);
             break;
         }
 
         case DTA_MATRIX_CMD_GET_FRM_INFO:
         {
             Int  FrameIdx = DtaNonIpMatrixFrame2Index(pNonIpPort,
-                                            pMatrixCmdInput->m_Data.m_GetFrmInfo.m_Frame);
-            pMatrixCmdOutput->m_Data.m_GetFrmInfo.m_RfClkLatched =
+                                            pCmdInput->m_Data.m_GetFrmInfo.m_Frame);
+            pCmdOutput->m_Data.m_GetFrmInfo.m_RfClkLatched =
                                  pNonIpPort->m_Matrix.m_FrameInfo[FrameIdx].m_RefClkStart;
             break;
         }
 
         case DTA_MATRIX_CMD_GET_FRM_PROPS:
         {
-            Status = DtAvGetFrameProps(pMatrixCmdInput->m_Data.m_GetFrmProps.m_VidStd,
-                                                 &pMatrixCmdOutput->m_Data.m_GetFrmProps);
+            Status = DtAvGetFrameProps(pCmdInput->m_Data.m_GetFrmProps.m_VidStd,
+                                                       &pCmdOutput->m_Data.m_GetFrmProps);
             break;
         }
 
@@ -786,77 +896,76 @@ DtStatus  DtaMatrixIoctl(
             pNonIpPort->m_Matrix.m_Vpid1 = 0;
             pNonIpPort->m_Matrix.m_Vpid2 = 0;
             Status = DtaNonIpMatrixStart(pNonIpPort, 
-                                             pMatrixCmdInput->m_Data.m_Start.m_StartFrame,
-                                             FALSE, FALSE, FALSE);
+                                                   pCmdInput->m_Data.m_Start.m_StartFrame,
+                                                   FALSE, FALSE, FALSE);
             break;
 
         case DTA_MATRIX_CMD_SET_NEXT_FRAME:
             Status = DtaNonIpMatrixSetNextFrame(pNonIpPort, 
-                                        pMatrixCmdInput->m_Data.m_SetNextFrm.m_NextFrame);
+                                        pCmdInput->m_Data.m_SetNextFrm.m_NextFrame);
             break;
 
         case DTA_MATRIX_CMD_GET_FRM_INFO2:
         {
             Int  FrameIdx = DtaNonIpMatrixFrame2Index(pNonIpPort,
-                                            pMatrixCmdInput->m_Data.m_GetFrmInfo.m_Frame);
-            pMatrixCmdOutput->m_Data.m_GetFrmInfo2.m_RfClkLatchedStart =
+                                            pCmdInput->m_Data.m_GetFrmInfo.m_Frame);
+            pCmdOutput->m_Data.m_GetFrmInfo2.m_RfClkLatchedStart =
                                  pNonIpPort->m_Matrix.m_FrameInfo[FrameIdx].m_RefClkStart;
-            pMatrixCmdOutput->m_Data.m_GetFrmInfo2.m_RfClkLatchedEnd =
+            pCmdOutput->m_Data.m_GetFrmInfo2.m_RfClkLatchedEnd =
                                    pNonIpPort->m_Matrix.m_FrameInfo[FrameIdx].m_RefClkEnd;
             break;
         }
 
         case DTA_MATRIX_CMD_WAIT_FRAME2:
             Status = DtaMatrixWaitFrame(pDvcData, pNonIpPort, 
-                               pMatrixCmdInput->m_Data.m_WaitFrame.m_FrmIntCnt,
-                               pMatrixCmdInput->m_Data.m_WaitFrame.m_Timeout,
-                               &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_Frame,
-                               &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_RfClkLatchedStart,
-                               &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_RfClkLatchedEnd,
-                               &pMatrixCmdOutput->m_Data.m_WaitFrame2.m_FrmIntCnt, NULL);
+                                     pCmdInput->m_Data.m_WaitFrame.m_FrmIntCnt,
+                                     pCmdInput->m_Data.m_WaitFrame.m_Timeout,
+                                     &pCmdOutput->m_Data.m_WaitFrame2.m_Frame,
+                                     &pCmdOutput->m_Data.m_WaitFrame2.m_RfClkLatchedStart,
+                                     &pCmdOutput->m_Data.m_WaitFrame2.m_RfClkLatchedEnd,
+                                     &pCmdOutput->m_Data.m_WaitFrame2.m_FrmIntCnt, NULL);
             break;
             
         case DTA_MATRIX_CMD_START2: {
-            Int  Flags = pMatrixCmdInput->m_Data.m_Start2.m_StartFlags;
+            Int  Flags = pCmdInput->m_Data.m_Start2.m_StartFlags;
             Bool  AutoMode = (Flags&DTA_MATRIX_STARTFLAGS_MANUAL)==0;
             Bool  ForceRestart = (Flags&DTA_MATRIX_STARTFLAGS_FORCE_RESTART)!=0;
-            pNonIpPort->m_Matrix.m_Vpid1 = pMatrixCmdInput->m_Data.m_Start2.m_Vpid;
+            pNonIpPort->m_Matrix.m_Vpid1 = pCmdInput->m_Data.m_Start2.m_Vpid;
             pNonIpPort->m_Matrix.m_Vpid2 = 0;
             Status = DtaNonIpMatrixStart(pNonIpPort,
-                                            pMatrixCmdInput->m_Data.m_Start2.m_StartFrame,
-                                            AutoMode, ForceRestart, FALSE);
+                                                  pCmdInput->m_Data.m_Start2.m_StartFrame,
+                                                  AutoMode, ForceRestart, FALSE);
             break;
         }
             
         case DTA_MATRIX_CMD_START3: {
-            Int  Flags = pMatrixCmdInput->m_Data.m_Start3.m_StartFlags;
+            Int  Flags = pCmdInput->m_Data.m_Start3.m_StartFlags;
             Bool  AutoMode = (Flags&DTA_MATRIX_STARTFLAGS_MANUAL)==0;
             Bool  ForceRestart = (Flags&DTA_MATRIX_STARTFLAGS_FORCE_RESTART)!=0;
             Bool  DisableVpidProc = (Flags&DTA_MATRIX_STARTFLAGS_VPID_PROC_DIS)!=0;
-            pNonIpPort->m_Matrix.m_Vpid1 = pMatrixCmdInput->m_Data.m_Start3.m_Vpid;
-            pNonIpPort->m_Matrix.m_Vpid2 = pMatrixCmdInput->m_Data.m_Start3.m_Vpid2;
+            pNonIpPort->m_Matrix.m_Vpid1 = pCmdInput->m_Data.m_Start3.m_Vpid;
+            pNonIpPort->m_Matrix.m_Vpid2 = pCmdInput->m_Data.m_Start3.m_Vpid2;
             pNonIpPort->m_Matrix.m_ExtraPixelDelay = 
-                                       pMatrixCmdInput->m_Data.m_Start3.m_ExtraPixelDelay;
+                                       pCmdInput->m_Data.m_Start3.m_ExtraPixelDelay;
             Status = DtaNonIpMatrixStart(pNonIpPort,
-                                            pMatrixCmdInput->m_Data.m_Start3.m_StartFrame,
-                                            AutoMode, ForceRestart, DisableVpidProc);
+                                                 pCmdInput->m_Data.m_Start3.m_StartFrame,
+                                                 AutoMode, ForceRestart, DisableVpidProc);
             break;
 
         case DTA_MATRIX_CMD_WAIT_FRAME3:
             Status = DtaMatrixWaitFrame(pDvcData, pNonIpPort, 
-                               pMatrixCmdInput->m_Data.m_WaitFrame.m_FrmIntCnt,
-                               pMatrixCmdInput->m_Data.m_WaitFrame.m_Timeout,
-                               &pMatrixCmdOutput->m_Data.m_WaitFrame3.m_Frame,
-                               &pMatrixCmdOutput->m_Data.m_WaitFrame3.m_RfClkLatchedStart,
-                               &pMatrixCmdOutput->m_Data.m_WaitFrame3.m_RfClkLatchedEnd,
-                               &pMatrixCmdOutput->m_Data.m_WaitFrame3.m_FrmIntCnt,
-                               &pMatrixCmdOutput->m_Data.m_WaitFrame3.m_TopHalf);
+                                     pCmdInput->m_Data.m_WaitFrame.m_FrmIntCnt,
+                                     pCmdInput->m_Data.m_WaitFrame.m_Timeout,
+                                     &pCmdOutput->m_Data.m_WaitFrame3.m_Frame,
+                                     &pCmdOutput->m_Data.m_WaitFrame3.m_RfClkLatchedStart,
+                                     &pCmdOutput->m_Data.m_WaitFrame3.m_RfClkLatchedEnd,
+                                     &pCmdOutput->m_Data.m_WaitFrame3.m_FrmIntCnt,
+                                     &pCmdOutput->m_Data.m_WaitFrame3.m_TopHalf);
             break;
 
         case DTA_MATRIX_CMD_GET_VPID:
-            Status = DtaMatrixGetVpid(pNonIpPort,
-                                             &pMatrixCmdOutput->m_Data.m_GetVpid.m_Vpid,
-                                             &pMatrixCmdOutput->m_Data.m_GetVpid.m_Vpid2);
+            Status = DtaMatrixGetVpid(pNonIpPort, &pCmdOutput->m_Data.m_GetVpid.m_Vpid,
+                                                   &pCmdOutput->m_Data.m_GetVpid.m_Vpid2);
             break;
         }
 
@@ -870,8 +979,7 @@ DtStatus  DtaMatrixIoctl(
     {
         pIoctl->m_OutputBufferBytesWritten = 0;
         if (Status == DT_STATUS_NOT_SUPPORTED)
-            DtDbgOut(MIN, MATRIX, "MatrixCmd=0x%x: NOT SUPPORTED", 
-                                                                 pMatrixCmdInput->m_Cmd);
+            DtDbgOut(MIN, MATRIX, "MatrixCmd=0x%x: NOT SUPPORTED", pCmdInput->m_Cmd);
         else if (Status == DT_STATUS_IO_PENDING)
             DtDbgOut(MAX, MATRIX, "%s: ERROR %xh", pCmdStr, Status); // NOT A REAL ERROR
         else

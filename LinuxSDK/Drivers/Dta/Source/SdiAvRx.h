@@ -87,6 +87,8 @@ typedef struct _DtaSdiAvRxPort
     DtaSdiAvRxAncExStatus  m_AncEx; // ANC extractor
     pDtaEnDecNewInputVidStd  m_NewVidStdCb;
     DtaNonIpPort* m_pPortCb;
+    pDtaEnDecNewInputVidStd  m_NewVidStdCb2;
+    DtaNonIpPort* m_pPortCb2;
 } DtaSdiAvRxPort;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -107,4 +109,6 @@ DtStatus  DtaNonIpSdiAvRxSetNewVidStdCb(DtaNonIpPort* pNonIpPort,
                                        pDtaEnDecNewInputVidStd Cb, DtaNonIpPort* pPortCb);
 void  DtaNonIpSdiAvRxCopyStatus2Old(DtaIoctlNonIpCmdGetAudioStatus2Output* pSrc,
                                               DtaIoctlNonIpCmdGetAudioStatusOutput* pDst);
+DtStatus  DtaNonIpSdiAvRxSetNewVidStdCb2(DtaNonIpPort* pNonIpPort,
+                                       pDtaEnDecNewInputVidStd Cb, DtaNonIpPort* pPortCb);
 #endif // __SDIAVRX_H

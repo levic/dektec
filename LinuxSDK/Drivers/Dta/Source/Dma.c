@@ -44,8 +44,10 @@ static DtStatus  DtaDmaInitTransfer(DmaChannel* pDmaCh, DtPageList* pPageList,
                                     UInt BufType, UInt Direction, void* pBuffer, 
                                     UInt TransferSize, UInt TransferOffset, 
                                     UInt8* pLocalAddress, UInt LocalAddressBufStart, 
-                                    UInt LocalAddressBufEnd, Bool ReUseDataBuffer);
+                                    UInt LocalAddressBufEnd, Bool ReUseDataBuffer, 
+                                    Int  TimeoutMs);
 static DtStatus  DtaDmaProgramTransfer(DmaChannel* pDmaCh);
+static DtStatus  DtaDmaAbortDmaImpl(DmaChannel* pDmaCh, Bool  SkipWaitForHardware);
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //
@@ -258,6 +260,7 @@ DtStatus  DtaDmaInitCh(
     pDmaCh->m_pDmaPrepContext = pDmaPrepContext;
     pDmaCh->m_pDmaProgramTrFunc = pDmaProgramTrFunc;
     pDmaCh->m_pDmaProgramTrContext = pDmaProgramTrContext;
+    pDmaCh->m_TimeoutToAbort = -1;
 
     // If not specified default to 32-bit aligment
     if (DmaMemAlign == (UInt16)-1)
@@ -518,7 +521,9 @@ static DtStatus  DtaDmaInitTransfer(
                                 // or memory (slice-)buffer pointer address otherwise
     UInt  LocalAddressBufStart, // Only used if pDmaCh->m_FixedLocalAddress==FALSE
     UInt  LocalAddressBufEnd,   // Only used if pDmaCh->m_FixedLocalAddress==FALSE
-    Bool  ReUseDataBuffer)
+    Bool  ReUseDataBuffer,
+    Int  TimeoutMs)             // Optional timeout (in ms). If DMA is not completed,
+                                // before the timeout the DMA will be aborted. -1=INIFITE
 {
     DtStatus  Status = DT_STATUS_OK;
     Int  OldState;
@@ -568,6 +573,8 @@ static DtStatus  DtaDmaInitTransfer(
     pDmaCh->m_TransferSize = TransferSize;
     pDmaCh->m_TransferOffet = TransferOffset;
     pDmaCh->m_ReUseDataBuffer = ReUseDataBuffer;
+    DT_ASSERT(TimeoutMs >= -1);
+    pDmaCh->m_TimeoutToAbort = TimeoutMs;
     
     DtDbgOutDma(MAX, DMA, pDmaCh, "DMA Start");
 
@@ -599,6 +606,12 @@ static DtStatus  DtaDmaInitTransfer(
                         Status = DT_STATUS_CANCELLED;   // Mark as cancelled
                 }
                 // We attempted to abort, so now we clear the abort flag unconditionally
+                DtaDmaClearAbortFlag(pDmaCh);
+            }
+            else if (DtaDmaIsAbortActive(pDmaCh))
+            {
+                Status = DT_STATUS_CANCELLED;   // DMA was completed through an abort
+                // Clear the abort flag
                 DtaDmaClearAbortFlag(pDmaCh);
             }
         }
@@ -1009,16 +1022,34 @@ DtStatus  DtaDmaStartTransfer(
     Bool  ReuseDataBuffer,
     Int*  pNumBytesRead)
 {    
+    // Let version with timeout do the heavy liftning (timeout is set to INFINITE)
+    return DtaDmaStartTransferWithTimeout(
+                                  pDmaCh, pPageList, BufType, Direction,
+                                  pBuffer, TransferSize, TransferOffset,
+                                  pLocalAddress, LocalAddressBufStart, LocalAddressBufEnd,
+                                  ReuseDataBuffer, pNumBytesRead, -1);
+}
+// Starts a DMA transfer with an optional timeout
+DtStatus  DtaDmaStartTransferWithTimeout(DmaChannel* pDmaCh, DtPageList* pPageList, 
+                                         Int BufType, UInt Direction, UInt8* pBuffer, 
+                                         Int TransferSize, Int TransferOffset,
+                                         UInt8* pLocalAddress, UInt LocalAddressBufStart, 
+                                         UInt LocalAddressBufEnd, Bool ReuseDataBuffer,
+                                         Int* pNumBytesRead, Int  TimeoutMs)
+{
     DtStatus  Status = DT_STATUS_OK;
     DT_ASSERT((ReuseDataBuffer && pPageList==NULL) || !ReuseDataBuffer);
+    DT_ASSERT(TimeoutMs >= -1);
     
-    DtDbgOutDma(MAX, DMA, pDmaCh, "pVirtualAddress: %p TransferOffset: %d, TransferSize: %d",
-                                                   pBuffer, TransferOffset, TransferSize);
+    DtDbgOutDma(MAX, DMA, pDmaCh, "pVirtualAddress: %p TransferOffset: %d, "
+                                        "TransferSize: %d Timeout: %dms",
+                                        pBuffer, TransferOffset, TransferSize, TimeoutMs);
     
     Status = DtaDmaInitTransfer(pDmaCh, pPageList, BufType, Direction, pBuffer,
-                                                     TransferSize, TransferOffset,
-                                                     pLocalAddress, LocalAddressBufStart,
-                                                     LocalAddressBufEnd, ReuseDataBuffer);
+                                                      TransferSize, TransferOffset,
+                                                      pLocalAddress, LocalAddressBufStart,
+                                                      LocalAddressBufEnd, ReuseDataBuffer,
+                                                      TimeoutMs);
     if (pNumBytesRead != NULL)
     {
         if (DT_SUCCESS(Status))
@@ -1309,6 +1340,15 @@ UInt  DtaDmaGetBytesReceived(
 DtStatus  DtaDmaAbortDma(
     DmaChannel*  pDmaCh)
 {
+    // Let implemention do actual work (Do not skip the wait for hardware checks)
+    return DtaDmaAbortDmaImpl(pDmaCh, FALSE);
+}
+// Implemenation with option to skip the wait for hardware check
+DtStatus  DtaDmaAbortDmaImpl(
+    DmaChannel*  pDmaCh, 
+    Bool  SkipWaitForHardware)      // TRUE, means we will skip the abort if the DMA has 
+                                    // not really started
+{
     DtStatus  Status = DT_STATUS_OK;
     Int  OldState = pDmaCh->m_State;
     Bool  UsesDmaInFpga = pDmaCh->m_pDvcData->m_DmaOptions.m_UseDmaInFpga;
@@ -1335,16 +1375,27 @@ DtStatus  DtaDmaAbortDma(
     {
         UInt32  CmdStat = 0;
         UInt  TimeoutCount = 0;
-            
+        
+        CmdStat = (UsesDmaInFpga) ? READ_UINT32(pDmaCh->m_pRegCmdStat, 0) : 
+                                                     READ_UINT8(pDmaCh->m_pRegCmdStat, 0);
+        
         while (TimeoutCount<10 && (CmdStat&PCI905X_DMACSR_ENABLE)==0)
         {
-            if (UsesDmaInFpga)
-                CmdStat = READ_UINT32(pDmaCh->m_pRegCmdStat, 0);
-            else
-                CmdStat = READ_UINT8(pDmaCh->m_pRegCmdStat, 0);
-        
+            if (SkipWaitForHardware)
+            {
+                DtDbgOutDma(MIN, DMA, pDmaCh, "WARNING: skipping DMA abort, because "
+                                                       "the DMA is not actually started");
+                return DT_STATUS_NOT_STARTED;
+            }
+        #ifdef WINBUILD
+            // Cannot use a sleep at the DPC level
+            DT_ASSERT(KeGetCurrentIrql() < DISPATCH_LEVEL);
+        #endif
             DtSleep(1);
             TimeoutCount++;
+
+            CmdStat = (UsesDmaInFpga) ? READ_UINT32(pDmaCh->m_pRegCmdStat, 0) : 
+                                                     READ_UINT8(pDmaCh->m_pRegCmdStat, 0);
         }
         DT_ASSERT(TimeoutCount < 10);
     }
@@ -1387,7 +1438,8 @@ DtStatus  DtaDmaAbortDma(
                     DtaRegHdMemTrControlSetAbort(pNonIpPort->m_pRxRegs, 1);
             }
         }
-    } else 
+    }
+    else 
     {
         DtDbgOutDma(MAX, DMA, pDmaCh, "DMA channel not started (Offset:%x)", 
                                                                     pDmaCh->m_RegsOffset);
@@ -1436,3 +1488,42 @@ void  DtaDmaReInitCallback(
     pDmaCh->m_pDmaFinishFunc = pDmaFinishFunc;
     pDmaCh->m_pDmaFinishContext = pDmaFinishContext;
 }
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDmaCheckForDmaTimeout -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtaDmaCheckForDmaTimeout(DmaChannel* pDmaCh)
+{
+    Bool  WasAborted=FALSE;
+    Bool  UsesDmaInFpga = FALSE;
+    DtStatus  Status = DT_STATUS_OK;
+    UInt32  CmdStat = 0;
+    UInt64  CurrTimeInUs=0, DmaTimeInMs=0;
+    DT_ASSERT(pDmaCh != NULL);
+
+    // Check a DMA is in progress AND if there has been set a timeout
+    if (pDmaCh->m_State!=DTA_DMA_STATE_STARTED || pDmaCh->m_TimeoutToAbort<=-1)
+        return DT_STATUS_OK;    // No DMA running or timeout set => no further action
+
+    // One final check make sure DMA is actually started on the hardware
+    UsesDmaInFpga = pDmaCh->m_pDvcData->m_DmaOptions.m_UseDmaInFpga;
+    CmdStat = (UsesDmaInFpga) ? READ_UINT32(pDmaCh->m_pRegCmdStat, 0) : 
+                                                     READ_UINT8(pDmaCh->m_pRegCmdStat, 0);
+    if ((CmdStat&PCI905X_DMACSR_ENABLE)==0)
+        return DT_STATUS_OK;    // No actual DMA running => no further action required
+
+    // Check for how long the DMA is pending and if the abort timeout has been reached
+    CurrTimeInUs = DtGetTickCountUSec();
+    DmaTimeInMs = DtDivide64((CurrTimeInUs - pDmaCh->m_StartTime),1000,NULL);
+    if ((DmaTimeInMs>pDmaCh->m_TimeoutToAbort) && (CurrTimeInUs>pDmaCh->m_StartTime))
+    {
+        // Issue an abort
+        DtDbgOutDma(ERR, DMA, pDmaCh, "DMA TIMEOUT (%lld>%dms) => ABORTING DMA", 
+                                                   DmaTimeInMs, pDmaCh->m_TimeoutToAbort);
+        // Since we already checked the hardware DMA status, we can skip the hw check
+        Status = DtaDmaAbortDmaImpl(pDmaCh, TRUE);
+        if (DT_SUCCESS(Status))
+            WasAborted = TRUE;
+    }
+    return WasAborted ? DT_STATUS_TIMEOUT : DT_STATUS_OK;
+}
+

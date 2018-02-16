@@ -2315,6 +2315,7 @@ void  DtHdmiEdidParseCeaShortAudioDescriptors(UInt8* pSAD, UInt Size)
                                 ((pSAD[i*3+1]&0x20)!=0?1:0), ((pSAD[i*3+1]&0x10)!=0?1:0),
                                 ((pSAD[i*3+1]&0x08)!=0?1:0), ((pSAD[i*3+1]&0x04)!=0?1:0), 
                                 ((pSAD[i*3+1]&0x02)!=0?1:0), ((pSAD[i*3+1]&0x01)!=0?1:0));
+        DtDbgOut(MAX, HDMI, "%i: DolbyAtmosCapable=%i", i, ((pSAD[i*3+2] & 0x01) != 0 ? 1 : 0));
         if (((pSAD[i*3+0]>>3) & 0x0f) == 1)
         {
             // LPCM

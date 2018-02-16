@@ -2502,6 +2502,8 @@ ASSERT_SIZE(DtaIoctlGetStrPropertyOutput, 100)
 #define  DTA_MATRIX_CMD_WAIT_FRAME3       25    // Waits for a specific or simple the
                                                 // next frame to be received/transmitted
 #define  DTA_MATRIX_CMD_GET_VPID          26    // Get detected VPID
+#define  DTA_MATRIX_CMD_DMA_WRITE2        27    // Write DMA with optional timeout
+#define  DTA_MATRIX_CMD_DMA_READ2         28    // Read DMA with optional timeout
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_WAIT_FRAME -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -2580,9 +2582,30 @@ ASSERT_SIZE(DtaIoctlMatrixCmdWriteDmaInput, 48)
 #endif
 
 #ifdef LINBUILD
-typedef struct _DtaIoctlMatrixCmdWriteDmaOutput {
+typedef struct  {
     Int  m_NumBytesWritten;
 } DtaIoctlMatrixCmdWriteDmaOutput;
+#endif
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_DMA_WRITE2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+// Adds optional timeout for DMA
+typedef struct _DtaIoctlMatrixCmdWriteDma2Input {
+    DtaIoctlMatrixCmdDmaCommonPars  m_Common;
+    Int  m_TimeoutMs;           // Optional timeout for the DMA (in ms). -1=INFINITE
+#ifdef LINBUILD
+    UInt64A  m_BufferAddr;
+    Int  m_NumBytesToWrite;
+#endif
+} DtaIoctlMatrixCmdWriteDma2Input;
+#ifdef LINBUILD
+ASSERT_SIZE(DtaIoctlMatrixCmdWriteDma2Input, 72)
+#else
+ASSERT_SIZE(DtaIoctlMatrixCmdWriteDma2Input, 56)
+#endif
+
+#ifdef LINBUILD
+typedef DtaIoctlMatrixCmdWriteDmaOutput  DtaIoctlMatrixCmdWriteDma2Output;
 #endif
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_DMA_READ -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -2605,6 +2628,28 @@ typedef struct _DtaIoctlMatrixCmdReadDmaOutput {
     Int  m_NumBytesRead;
 } DtaIoctlMatrixCmdReadDmaOutput;
 #endif
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_DMA_READ2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+// Adds optional timeout for DMA
+typedef struct _DtaIoctlMatrixCmdReadDma2Input {
+    DtaIoctlMatrixCmdDmaCommonPars  m_Common;
+    Int  m_TimeoutMs;           // Optional timeout for the DMA (in ms). -1=INFINITE
+#ifdef LINBUILD
+    UInt64A  m_BufferAddr;
+    Int  m_NumBytesToRead;
+#endif
+} DtaIoctlMatrixCmdReadDma2Input;
+#ifdef LINBUILD
+ASSERT_SIZE(DtaIoctlMatrixCmdReadDma2Input, 72)
+#else
+ASSERT_SIZE(DtaIoctlMatrixCmdReadDma2Input, 56)
+#endif
+
+#ifdef LINBUILD
+typedef DtaIoctlMatrixCmdReadDmaOutput  DtaIoctlMatrixCmdReadDma2Output;
+#endif
+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_MATRIX_CMD_ATTACH_TO_ROW -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -2790,7 +2835,9 @@ typedef struct _DtaIoctlMatrixCmdInput {
         DtaIoctlMatrixCmdWaitFrameInput  m_WaitFrame;
         DtaIoctlMatrixCmdStartInput  m_Start;
         DtaIoctlMatrixCmdWriteDmaInput  m_DmaWrite;
+        DtaIoctlMatrixCmdWriteDma2Input  m_DmaWrite2;
         DtaIoctlMatrixCmdReadDmaInput  m_DmaRead;
+        DtaIoctlMatrixCmdReadDma2Input  m_DmaRead2;
         DtaIoctlMatrixCmdAttachToRowInput  m_AttachToRow;
         DtaIoctlMatrixCmdSetFifoSizeInput  m_SetFifoSize;
         DtaIoctlMatrixCmdSetAsiCtrlInput  m_SetAsiCtrl;
@@ -2803,9 +2850,9 @@ typedef struct _DtaIoctlMatrixCmdInput {
     } m_Data;
 } DtaIoctlMatrixCmdInput;
 #ifdef LINBUILD
-ASSERT_SIZE(DtaIoctlMatrixCmdInput, 72)
+ASSERT_SIZE(DtaIoctlMatrixCmdInput, 80)
 #else
-ASSERT_SIZE(DtaIoctlMatrixCmdInput, 56)
+ASSERT_SIZE(DtaIoctlMatrixCmdInput, 64)
 #endif
 
 // Ioctl output data type
@@ -2817,7 +2864,9 @@ typedef struct _DtaIoctlMatrixCmdOutput {
         DtaIoctlMatrixCmdDetectVidStdOutput  m_DetVidStd;
 #ifdef LINBUILD
         DtaIoctlMatrixCmdWriteDmaOutput  m_DmaWrite;
+        DtaIoctlMatrixCmdWriteDma2Output  m_DmaWrite2;
         DtaIoctlMatrixCmdReadDmaOutput  m_DmaRead;
+        DtaIoctlMatrixCmdReadDma2Output  m_DmaRead2;
 #endif
         DtaIoctlMatrixCmdGetFifoLoadOutput  m_GetFifoLoad;
         DtaIoctlMatrixCmdGetFifoSizeOutput  m_GetFifoSize;
@@ -3158,10 +3207,7 @@ typedef struct _DtaIoctlEnDecCmdOutput {
 #endif
 
 
-//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ FUNC_DTA_D7PRO_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-//
-// Wrapper for all D7Pro related commands
-//
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DTA_D7PRO +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 // Command definitions
 #define  DTA_D7PRO_CMD_SEND_COMMAND      0 // Send command to the control interface
@@ -3169,13 +3215,13 @@ typedef struct _DtaIoctlEnDecCmdOutput {
 #define  DTA_D7PRO_CMD_STATUS_GET        2 // Get current status of encoder
 #define  DTA_D7PRO_CMD_REBOOT            3 // Force a reboot of the D7Pro
 
-// Status codes for D7Pro device
-#define DTA_D7PRO_STATE_INIT          0 // Initial state, power not checked nor enabled
-#define DTA_D7PRO_STATE_FLASH_PROG    1 // Flash programming in progress
-#define DTA_D7PRO_STATE_NO_12V        2 // External 12V is not present
-#define DTA_D7PRO_STATE_FAN_FAIL      3 // Power has been disabled due to a fan error
-#define DTA_D7PRO_STATE_BOOTING       4 // D7Pro is booting, handshake not done yet
-#define DTA_D7PRO_STATE_OK            5 // Boot complete, device ready for use
+// Operational States
+#define  DTA_D7PRO_STATE_INIT            0 // Initial state, power not checked nor enabled
+#define  DTA_D7PRO_STATE_FLASH_PROG      1 // Flash programming in progress
+#define  DTA_D7PRO_STATE_NO_12V          2 // External 12V is not present
+#define  DTA_D7PRO_STATE_FAN_FAIL        3 // Power has been disabled due to a fan error
+#define  DTA_D7PRO_STATE_BOOTING         4 // Booting handshake
+#define  DTA_D7PRO_STATE_OPERATIONAL     5 // Available for use
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_D7PRO_CMD_SEND_COMMAND -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //

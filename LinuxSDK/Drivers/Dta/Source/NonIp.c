@@ -125,7 +125,11 @@ void  DtaNonIpDmaCompletedWindows(DmaChannel* pDmaCh, void* pContext)
     
     WdfRequestUnmarkCancelable(WdfRequest);
     if (DtaDmaIsAbortActive(pDmaCh))
+    {
         Status = DT_STATUS_CANCELLED;
+        // Clear the abort flag
+        DtaDmaClearAbortFlag(pDmaCh);
+    }
     
     if (DT_SUCCESS(Status))
     {

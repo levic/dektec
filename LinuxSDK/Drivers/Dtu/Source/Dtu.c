@@ -253,6 +253,38 @@ DtStatus  DtuDeviceOpen(DtuDeviceData* pDvcData, DtFileObject* pFile)
     return DT_STATUS_OK;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu3WriteBulkData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  Dtu3WriteBulkData(DtuDeviceData*  pDvcData, UInt8*  pBuffer, Int  Size)
+{
+    DtStatus  Status;
+    // Clear endpoint buffers
+    Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, 
+                               DTU_USB3_PNP_CMD, DTU_PNP_CMD_RESET, DTU_RESET_DMA_OUT, 
+                               DT_USB_HOST_TO_DEVICE, NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
+    if (DT_SUCCESS(Status))
+    {
+        // Transmit bulk write vendor request
+        Int  MaxChunkSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
+                                                          pDvcData->m_DevInfo.m_UsbSpeed);
+        Int  SizeRemain = Size;
+        while (SizeRemain > 0)
+        {
+            Int  Len = (SizeRemain<MaxChunkSize) ? SizeRemain : MaxChunkSize;
+            Int  Dummy;
+            Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, 
+                                         DTU_USB3_WRITE_BULK, 0, 0, DT_USB_HOST_TO_DEVICE,
+                                         pBuffer, Len, &Dummy, MAX_USB_REQ_TIMEOUT);
+            if (!DT_SUCCESS(Status))
+                break;
+
+            pBuffer += Len;
+            SizeRemain -= Len;
+        }
+    }
+    return Status;
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Dtu3WorkerThread -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void  Dtu3WorkerThread(DtThread* pThread, void* pContext)
@@ -1793,37 +1825,13 @@ DtStatus  DtuDeviceIoctl(
                 UInt8*  pBuffer = NULL;
                 Int  ReqSize = 0;
                 Int  NumRead = 0;
-#if defined(WINBUILD)
-                PMDL  pMdl;
-                NTSTATUS  NtStatus;
-                // Retrieve MDL and buffer from request object
-                NtStatus = WdfRequestRetrieveOutputWdmMdl(pIoctl->m_WdfRequest, &pMdl);
-                if (NtStatus != STATUS_SUCCESS)
-                {
-                    DtDbgOut(ERR, DTU, "WdfRequestRetrieveOutputWdmMdl error: %08x", 
-                                                                                NtStatus);
-                    Status = DT_STATUS_OUT_OF_RESOURCES;
-                }
+                Status = DtGetUserBuffer(pIoctl, &pBuffer, &ReqSize, TRUE);
                 if (DT_SUCCESS(Status))
                 {
-                    pBuffer = MmGetSystemAddressForMdlSafe(pMdl, NormalPagePriority);
-                    if (pBuffer == NULL)
-                        Status = DT_STATUS_OUT_OF_MEMORY;
-                    else
-                        ReqSize = MmGetMdlByteCount(pMdl);
-                }
-#else  // LINBUILD
-                ReqSize = pInBuf->m_ReadData.m_NumBytesToRead;
-#if defined(LIN32)
-                pBuffer = (char*)(UInt32)pInBuf->m_ReadData.m_BufferAddr;
-#else
-                pBuffer = (char*)(UInt64)pInBuf->m_ReadData.m_BufferAddr;
-#endif
-#endif
-                if (DT_SUCCESS(Status))
-                    Status = DtuRead(pDvcData, pInBuf->m_ReadData.m_PortIndex,
+                    Status = DtuRead(pDvcData, pInBuf->m_ReadData.m_UsrBuffer.m_PortIndex,
                                                               pBuffer, ReqSize, &NumRead);
-                
+                    DtReleaseUserBuffer(pIoctl, pBuffer);
+                }
 #if defined(WINBUILD)
                 if (DT_SUCCESS(Status))
                     pIoctl->m_OutputBufferBytesWritten = NumRead;
@@ -1843,36 +1851,14 @@ DtStatus  DtuDeviceIoctl(
             {
                 UInt8*  pBuffer = NULL;
                 Int  Size = 0;
-#if defined(WINBUILD)
-                PMDL  pMdl;
-                NTSTATUS  NtStatus;
-                // Retrieve MDL and buffer from request object
-                NtStatus = WdfRequestRetrieveOutputWdmMdl(pIoctl->m_WdfRequest, &pMdl);
-                if (NtStatus != STATUS_SUCCESS)
-                {
-                    DtDbgOut(ERR, DTU, "WdfRequestRetrieveOutputWdmMdl error: %08x", 
-                                                                                NtStatus);
-                    Status = DT_STATUS_OUT_OF_RESOURCES;
-                }
+                Status = DtGetUserBuffer(pIoctl, &pBuffer, &Size, TRUE);
                 if (DT_SUCCESS(Status))
                 {
-                    pBuffer = MmGetSystemAddressForMdlSafe(pMdl, NormalPagePriority);
-                    if (pBuffer == NULL)
-                        Status = DT_STATUS_OUT_OF_MEMORY;
-                    else
-                        Size = MmGetMdlByteCount(pMdl);
+                    Status = DtuWrite(pDvcData, 
+                                              pInBuf->m_WriteData.m_UsrBuffer.m_PortIndex,
+                                              pBuffer, Size);
+                    DtReleaseUserBuffer(pIoctl, pBuffer);
                 }
-#else // LINBUILD
-                Size = pInBuf->m_WriteData.m_NumBytesToWrite;
-#if defined(LIN32)
-                pBuffer = (char*)(UInt32)pInBuf->m_WriteData.m_BufferAddr;
-#else
-                pBuffer = (char*)(UInt64)pInBuf->m_WriteData.m_BufferAddr;
-#endif
-#endif
-                if (DT_SUCCESS(Status))
-                    Status = DtuWrite(pDvcData, pInBuf->m_WriteData.m_PortIndex, 
-                                                                           pBuffer, Size);
             }
             break;
 
@@ -2222,33 +2208,7 @@ DtStatus  DtuDeviceIoctl(
             {
                 UInt8*  pBuffer = NULL;
                 Int  Size = 0;
-#if defined(WINBUILD)
-                PMDL  pMdl;
-                NTSTATUS  NtStatus;
-                // Retrieve MDL and buffer from request object
-                NtStatus = WdfRequestRetrieveOutputWdmMdl(pIoctl->m_WdfRequest, &pMdl);
-                if (NtStatus != STATUS_SUCCESS)
-                {
-                    DtDbgOut(ERR, DTU, "WdfRequestRetrieveOutputWdmMdl error: %08x", 
-                                                                                NtStatus);
-                    Status = DT_STATUS_OUT_OF_RESOURCES;
-                }
-                if (DT_SUCCESS(Status))
-                {
-                    pBuffer = MmGetSystemAddressForMdlSafe(pMdl, NormalPagePriority);
-                    if (pBuffer == NULL)
-                        Status = DT_STATUS_OUT_OF_MEMORY;
-                    else
-                        Size = MmGetMdlByteCount(pMdl);
-                }
-#else // LINBUILD
-                Size = pInBuf->m_UploadFpgaFw.m_NumBytesToWrite;
-#if defined(LIN32)
-                pBuffer = (char*)(UInt32)pInBuf->m_UploadFpgaFw.m_BufferAddr;
-#else
-                pBuffer = (char*)(UInt64)pInBuf->m_UploadFpgaFw.m_BufferAddr;
-#endif
-#endif
+                Status = DtGetUserBuffer(pIoctl, &pBuffer, &Size, FALSE);
                 if (DT_SUCCESS(Status))
                 {
                     if (pDvcData->m_DevInfo.m_TypeNumber>=300
@@ -2256,6 +2216,7 @@ DtStatus  DtuDeviceIoctl(
                         Status = DtuFx3LoadPldFirmware(pDvcData, pBuffer, Size);
                     else
                         Status = DtuLoadPldFirmware(pDvcData, pBuffer, Size);
+                    DtReleaseUserBuffer(pIoctl, pBuffer);
                 }
             }
             break;
@@ -2382,58 +2343,13 @@ DtStatus  DtuDeviceIoctl(
             {
                 UInt8*  pBuffer = NULL;
                 Int  Size = 0;
-#if defined(WINBUILD)
-                PMDL  pMdl;
-                NTSTATUS  NtStatus;
-                // Retrieve MDL and buffer from request object
-                NtStatus = WdfRequestRetrieveOutputWdmMdl(pIoctl->m_WdfRequest, &pMdl);
-                if (NtStatus != STATUS_SUCCESS)
+                Status = DtGetUserBuffer(pIoctl, &pBuffer, &Size, FALSE);
+                if (DT_SUCCESS(Status))
                 {
-                    DtDbgOut(ERR, DTU, "WdfRequestRetrieveOutputWdmMdl error: %08x", 
-                                                                                NtStatus);
-                    Status = DT_STATUS_OUT_OF_RESOURCES;
+                    Status = Dtu3WriteBulkData(pDvcData, pBuffer, Size);
+                    DtReleaseUserBuffer(pIoctl, pBuffer);
                 }
-                if (DT_SUCCESS(Status))
-                {
-                    pBuffer = MmGetSystemAddressForMdlSafe(pMdl, NormalPagePriority);
-                    if (pBuffer == NULL)
-                        Status = DT_STATUS_OUT_OF_MEMORY;
-                    else
-                        Size = MmGetMdlByteCount(pMdl);
-                }
-#else // LINBUILD
-                Size = pInBuf->m_RegWriteBulk.m_NumBytesToWrite;
-#if defined(LIN32)
-                pBuffer = (char*)(UInt32)pInBuf->m_RegWriteBulk.m_BufferAddr;
-#else
-                pBuffer = (char*)(UInt64)pInBuf->m_RegWriteBulk.m_BufferAddr;
-#endif
-#endif
-                if (DT_SUCCESS(Status))
-                    // Clear endpoint buffers
-                    Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, 
-                               DTU_USB3_PNP_CMD, DTU_PNP_CMD_RESET, DTU_RESET_DMA_OUT, 
-                               DT_USB_HOST_TO_DEVICE, NULL, 0, NULL, MAX_USB_REQ_TIMEOUT);
-                if (DT_SUCCESS(Status))
-                {
-                    // Transmit bulk write vendor request
-                    Int  MaxChunkSize = DtUsbGetCtrlMaxPacketSize(&pDvcData->m_Device,
-                                                          pDvcData->m_DevInfo.m_UsbSpeed);
-                    Int  SizeRemain = Size;
-                    while (SizeRemain > 0)
-                    {
-                        Int  Len = (SizeRemain<MaxChunkSize) ? SizeRemain : MaxChunkSize;
-                        Int  Dummy;
-                        Status = DtUsbVendorRequest(&pDvcData->m_Device, NULL, 
-                                         DTU_USB3_WRITE_BULK, 0, 0, DT_USB_HOST_TO_DEVICE, 
-                                         pBuffer, Len, &Dummy, MAX_USB_REQ_TIMEOUT);
-                        if (!DT_SUCCESS(Status))
-                            break;
 
-                        pBuffer += Len;
-                        SizeRemain -= Len;
-                    }
-                }
             }
             break;
         default:

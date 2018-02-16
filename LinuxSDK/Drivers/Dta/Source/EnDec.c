@@ -46,6 +46,18 @@ DtStatus  DtaEncoderInit(DtaDeviceData*  pDvcData)
         DtaNonIpHdmiSetNewVidStdCb(&pDvcData->m_pNonIpPorts[1],
                                   DtaEncD7ProNewInputVidStd, &pDvcData->m_pNonIpPorts[3]);
     }
+    if (pDvcData->m_DevInfo.m_TypeNumber == 2182)
+    {
+        DtaNonIpSdiAvRxSetNewVidStdCb(&pDvcData->m_pNonIpPorts[0],
+                                  DtaEncD7ProNewInputVidStd, &pDvcData->m_pNonIpPorts[4]);
+        DtaNonIpSdiAvRxSetNewVidStdCb(&pDvcData->m_pNonIpPorts[1],
+                                  DtaEncD7ProNewInputVidStd, &pDvcData->m_pNonIpPorts[4]);
+
+        DtaNonIpSdiAvRxSetNewVidStdCb2(&pDvcData->m_pNonIpPorts[0],
+                                  DtaEncD7ProNewInputVidStd, &pDvcData->m_pNonIpPorts[5]);
+        DtaNonIpSdiAvRxSetNewVidStdCb2(&pDvcData->m_pNonIpPorts[1],
+                                  DtaEncD7ProNewInputVidStd, &pDvcData->m_pNonIpPorts[5]);
+    }
 
     return DT_STATUS_OK;
 }
@@ -198,7 +210,8 @@ DtStatus  DtaEnDecIoctl(
 //
 DtStatus  DtaEnDecInitPowerup(DtaNonIpPort* pNonIpPort)
 {
-    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180)
+    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180 ||
+                                   pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2182)
         return DtaEncD7ProInitPowerup(pNonIpPort);
 
     return DT_STATUS_NOT_SUPPORTED;
@@ -215,7 +228,8 @@ DtStatus  DtaEnDecInit(DtaNonIpPort* pNonIpPort)
     DtSpinLockInit(&pEnDec->m_ExclAccessLock);
 
     // Defer to encoder/decoder specific implementation
-    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180)
+    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180 ||
+                                   pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2182)
         return DtaEncD7ProInit(pNonIpPort, DtaEnDecExclusiveAccess);
 
     return DT_STATUS_NOT_SUPPORTED;
@@ -275,7 +289,8 @@ DtStatus  DtaEnDecExclusiveAccess(
 DtStatus  DtaEnDecGetVidStd(DtaNonIpPort* pNonIpPort, Int* pVidStd)
 {
     // Defer to encoder/decoder specific implementation
-    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180)
+    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180 ||
+                                   pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2182)
         return DtaEncD7ProGetVidStd(pNonIpPort, pVidStd);
 
     return DT_STATUS_NOT_SUPPORTED;
@@ -286,7 +301,8 @@ DtStatus  DtaEnDecGetVidStd(DtaNonIpPort* pNonIpPort, Int* pVidStd)
 DtStatus  DtaEnDecSetVidStd(DtaNonIpPort* pNonIpPort, Int VidStd)
 {
     // Defer to encoder/decoder specific implementation
-    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180)
+    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180 ||
+                                   pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2182)
         return DtaEncD7ProSetVidStd(pNonIpPort, VidStd);
 
     return DT_STATUS_NOT_SUPPORTED;
@@ -297,7 +313,8 @@ DtStatus  DtaEnDecSetVidStd(DtaNonIpPort* pNonIpPort, Int VidStd)
 DtStatus  DtaEnDecGetSourcePort(DtaNonIpPort* pNonIpPort, Int* pPortIndex)
 {
     // Defer to encoder/decoder specific implementation
-    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180)
+    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180 ||
+                                   pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2182)
         return DtaEncD7ProGetSourcePort(pNonIpPort, pPortIndex);
 
     return DT_STATUS_NOT_SUPPORTED;
@@ -308,12 +325,12 @@ DtStatus  DtaEnDecGetSourcePort(DtaNonIpPort* pNonIpPort, Int* pPortIndex)
 DtStatus  DtaEnDecSetSourcePort(DtaNonIpPort* pNonIpPort, Int PortIndex)
 {
     // Defer to encoder/decoder specific implementation
-    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180)
+    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180 ||
+                                   pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2182)
         return DtaEncD7ProSetSourcePort(pNonIpPort, PortIndex);
 
     return DT_STATUS_NOT_SUPPORTED;
 }
-
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEnDecClose -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -329,7 +346,8 @@ DtStatus  DtaEnDecClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile)
         return DT_STATUS_OK;
     }
     
-    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180)
+    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180 ||
+                                   pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2182)
         DtaEncD7ProUncleanDetach(pNonIpPort);
 
     pEnDec->m_ExclAccess = FALSE;
@@ -343,7 +361,8 @@ DtStatus  DtaEnDecClose(DtaNonIpPort* pNonIpPort, DtFileObject* pFile)
 //
 DtStatus  DtaEnDecPowerdownPre(DtaNonIpPort* pNonIpPort)
 {
-    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180)
+    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180 ||
+                                   pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2182)
         return DtaEncD7ProPowerdownPre(pNonIpPort);
 
     return DT_STATUS_NOT_SUPPORTED;
@@ -353,7 +372,8 @@ DtStatus  DtaEnDecPowerdownPre(DtaNonIpPort* pNonIpPort)
 //
 DtStatus  DtaEnDecPowerUpPost(DtaNonIpPort* pNonIpPort)
 {
-    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180)
+    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180 ||
+                                   pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2182)
         return DtaEncD7ProPowerUpPost(pNonIpPort);
 
     return DT_STATUS_NOT_SUPPORTED;

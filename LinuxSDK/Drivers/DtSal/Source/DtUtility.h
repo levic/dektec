@@ -226,6 +226,11 @@ void  DtFreePagesUserBuffer(DtPageList* pPageList);
 UInt  DtGetPagesKernelBuffer(void* pBuffer, DtPageList* pPageList);
 #endif
 
+DtStatus  DtGetUserBuffer(DtIoctlObject* pIoctl, UInt8** pBuffer, Int* pSize, 
+                                                                        Bool UseCopyFunc);
+void  DtReleaseUserBuffer(DtIoctlObject* pIoctl, UInt8* pBuffer);
+
+
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ General utility functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 

@@ -139,6 +139,8 @@ struct _DmaChannel {
     Bool  m_ReUseDataBuffer;            // true if the databuffer is prepared for DMA and
                                         // and SGL list is not cleaned up after the DMA
                                         // transfer is done.
+    Int  m_TimeoutToAbort;              // Timeout period (in ms) after which a DMA 
+                                        // should be aborted. -1=INFINITE
     
     // DMA status
     volatile Int  m_State;              // DTA_DMA_STATE_
@@ -147,8 +149,8 @@ struct _DmaChannel {
     UInt  m_TransferNumber;
     UInt  m_CurrentTransferLength;
     UInt  m_NumBytesRead;
-    UInt64  m_StartTime;
-    UInt64  m_EndTime;
+    UInt64  m_StartTime;                // DMA start time (in us)
+    UInt64  m_EndTime;                  // DMA end time (in us)
     
     // User function arguments
     UInt8*  m_pBuffer;    
@@ -210,6 +212,12 @@ DtStatus  DtaDmaStartTransfer(DmaChannel* pDmaCh, DtPageList* pPageList, Int Buf
                                          UInt8* pLocalAddress, UInt LocalAddressBufStart, 
                                          UInt LocalAddressBufEnd, Bool ReuseDataBuffer,
                                          Int* pNumBytesRead);
+DtStatus  DtaDmaStartTransferWithTimeout(DmaChannel* pDmaCh, DtPageList* pPageList, 
+                                         Int BufType, UInt Direction, UInt8* pBuffer, 
+                                         Int TransferSize, Int TransferOffset,
+                                         UInt8* pLocalAddress, UInt LocalAddressBufStart, 
+                                         UInt LocalAddressBufEnd, Bool ReuseDataBuffer,
+                                         Int* pNumBytesRead, Int  TimeoutMs);
 DtStatus  DtaDmaStartKernelBufTransfer(DmaChannel* pDmaCh, UInt8* pBuffer, 
                                       Int TransferSize,
                                       Int TransferOffset, UInt8* pLocalAddress, 
@@ -225,5 +233,8 @@ void  DtaDmaClearAbortFlag(DmaChannel* pDmaCh);
 void  DtaDmaReInitCallback(DmaChannel* pDmaCh, DmaCallbackFunc pDmaFinishFunc, 
                                                                            void* pDmaFinishContext);
 void  ExecuteDmaCompletedFromDpc(DmaChannel* pDmaChannel);
+
+DtStatus  DtaDmaCheckForDmaTimeout(DmaChannel* pDmaChannel);
+
 #endif  //  __DMA_H
 

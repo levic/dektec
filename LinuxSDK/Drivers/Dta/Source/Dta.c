@@ -3289,6 +3289,10 @@ static void  DtaGeneralPeriodicIntDpc(DtDpcArgs* pArgs)
     DtaIoConfigValue  CfgValue;
     for (i=0; i<pDvcData->m_NumNonIpPorts; i++)
     {
+        // Check if any ongoing DMA's have timed-out and should be aborted
+        if (!pDvcData->m_pNonIpPorts[i].m_IsNonFuntional)
+            DtaDmaCheckForDmaTimeout(&pDvcData->m_pNonIpPorts[i].m_DmaChannel);
+
         // Skip ports with Matrix-API interface; below code does not apply to them
         if (pDvcData->m_pNonIpPorts[i].m_CapMatrix)
         {

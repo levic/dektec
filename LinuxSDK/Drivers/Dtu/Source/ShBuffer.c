@@ -151,11 +151,11 @@ DtStatus  DtuShBufferIoctl(
                     pPageList->m_pVirtualKernel = NULL;
                 }
 #else // LINBUILD
-                Size = (UInt)pShBufCmdInput->m_Data.m_Init.m_BufferSize;
+                Size = (UInt)pShBufCmdInput->m_Data.m_Init.m_UsrBuffer.m_NumBytes;
 #if defined(LIN32)
-                pBuffer = (char*)(UInt32)pShBufCmdInput->m_Data.m_Init.m_BufferAddr;
+                pBuffer = (char*)(UInt32)pShBufCmdInput->m_Data.m_Init.m_UsrBuffer.m_BufferAddr;
 #else
-                pBuffer = (char*)(UInt64)pShBufCmdInput->m_Data.m_Init.m_BufferAddr;
+                pBuffer = (char*)(UInt64)pShBufCmdInput->m_Data.m_Init.m_UsrBuffer.m_BufferAddr;
 #endif
 #endif
                 if (DT_SUCCESS(Status))

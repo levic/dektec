@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2017 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2018 DekTec
 //
 // CapParser - Property Store - Tables storing device properties
 //
@@ -2123,11 +2123,13 @@ static const DtPropertyHashSet  DtPropertyHashSets238_0[] =
 static const DtProperty  DtProperties245_0_00[] =
 {
     { "CAP_ASIPOL", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N1_0", -1, "Bug fix: Loopthrough mode", PROPERTY_VALUE_TYPE_STRING, -1,
+                                          -1, 0, 600, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties245_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 600, -1,
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 600, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 9, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, 600,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
@@ -2271,7 +2273,7 @@ static const DtProperty  DtProperties245_0_23[] =
 };
 static const DtProperty  DtProperties245_0_25[] =
 {
-    { "PCB_LAST_REV", 600, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "PCB_LAST_REV", 700, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties245_0_26[] =
@@ -2433,7 +2435,7 @@ static const DtProperty  DtProperties245_0_63[] =
 };
 static const DtPropertyHashSet  DtPropertyHashSets245_0[] =
 {
-    { DtProperties245_0_00, 1 },
+    { DtProperties245_0_00, 2 },
     { DtProperties245_0_01, 2 },
     { DtProperties245_0_02, 1 },
     { NULL, 0 },

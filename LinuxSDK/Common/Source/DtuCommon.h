@@ -559,11 +559,7 @@ ASSERT_SIZE(DtuIoctlRegWriteMaskedInput, 16)
 // Read data from device to user buffer
 
 typedef struct _DtuIoctlReadDataInput {
-    Int  m_PortIndex;           // Port index
-#ifdef LINBUILD
-    UInt64A  m_BufferAddr;
-    Int  m_NumBytesToRead;
-#endif
+    DtUserBufferPort  m_UsrBuffer;
 } DtuIoctlReadDataInput;
 #ifdef LINBUILD
 ASSERT_SIZE(DtuIoctlReadDataInput, 24)
@@ -594,11 +590,7 @@ ASSERT_SIZE(DtuIoctlReadDataOutput, 4)
 // Write data from user buffer to device
 
 typedef struct _DtuIoctlWriteDataInput {
-    Int  m_PortIndex;           // Port index
-#ifdef LINBUILD
-    UInt64A  m_BufferAddr;
-    Int  m_NumBytesToWrite;
-#endif
+    DtUserBufferPort  m_UsrBuffer;
 } DtuIoctlWriteDataInput;
 #ifdef LINBUILD
 ASSERT_SIZE(DtuIoctlWriteDataInput, 24)
@@ -629,12 +621,7 @@ ASSERT_SIZE(DtuIoctlWriteDataInput, 4)
 
 // DTU shared Buf init command input data type
 typedef struct _DtUIoctlShBufCmdInitInput {
-#ifdef LINBUILD
-    UInt64A  m_BufferAddr;
-    Int  m_BufferSize;
-#else
-    Int  m_Dummy;
-#endif
+    DtUserBuffer  m_UsrBuffer;
 } DtuIoctlShBufCmdInitInput;
 #ifdef LINBUILD
 ASSERT_SIZE(DtuIoctlShBufCmdInitInput, 16)
@@ -1111,12 +1098,7 @@ ASSERT_SIZE(DtuIoctlSetRxModeOutput, 4)
 //
 
 typedef struct _DtuIoctlUploadFpgaFwInput {
-#ifdef LINBUILD
-    UInt64A  m_BufferAddr;
-    Int  m_NumBytesToWrite;
-#else
-    Int  m_Dummy;
-#endif
+    DtUserBuffer  m_UsrBuffer;
 } DtuIoctlUploadFpgaFwInput;
 #ifdef LINBUILD
 ASSERT_SIZE(DtuIoctlUploadFpgaFwInput, 16)
@@ -1232,12 +1214,7 @@ ASSERT_SIZE(DtuIoctlPowerCtrlInput, 8)
 //
 
 typedef struct _DtuIoctlRegWriteBulkInput {
-#ifdef LINBUILD
-    UInt64A  m_BufferAddr;
-    Int  m_NumBytesToWrite;
-#else
-    Int  m_Dummy;
-#endif
+    DtUserBuffer  m_UsrBuffer;
 } DtuIoctlRegWriteBulkInput;
 #ifdef LINBUILD
 ASSERT_SIZE(DtuIoctlRegWriteBulkInput, 16)

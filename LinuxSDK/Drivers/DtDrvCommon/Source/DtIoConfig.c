@@ -305,7 +305,11 @@ DtStatus  DtIoConfigReadFromIniFile(
     if(!IS_ERR(File))
     {
         // Read data and parse it
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+        Err = kernel_read(File, FileBuf, CONFIG_MAX_FILE_SIZE-1, &Offset);
+#else
         Err = vfs_read(File, FileBuf, CONFIG_MAX_FILE_SIZE-1, &Offset);
+#endif
         if (Err >= 0)
         {
             DtDbgOut(AVG, IOCONFIG, "Succesfully read file %s. Filesize %d bytes",
@@ -325,7 +329,11 @@ DtStatus  DtIoConfigReadFromIniFile(
     {
         Int  Size = CONFIG_MAX_FILE_SIZE;
         // Read data and parse it
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+        Err = kernel_read(File, FileBuf, Size, &Offset);
+#else
         Err = vfs_read(File, FileBuf, Size, &Offset);
+#endif
         if (Err >= 0)
         {
             DtDbgOut(AVG, IOCONFIG, "Succesfully read file %s. Filesize %d bytes",

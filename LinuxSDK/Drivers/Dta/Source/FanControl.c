@@ -47,8 +47,9 @@ DtStatus  DtaFanControlInit(DtaDeviceData* pDvcData)
     // Get fan type.
     // Do not set an error if not defined (not supported)
     pDvcData->m_FanControl.m_FanType = DtPropertiesGetInt(pPropData, "FAN_TYPE", -1);
-    if (pDvcData->m_FanControl.m_FanType!=FAN_TYPE_MAX6639 && 
-                                        pDvcData->m_FanControl.m_FanType != FAN_TYPE_FANM)
+    if (pDvcData->m_FanControl.m_FanType!=FAN_TYPE_MAX6639
+                                     && pDvcData->m_FanControl.m_FanType != FAN_TYPE_FANM
+                                     && pDvcData->m_FanControl.m_FanType != FAN_TYPE_FANC)
     {     
         pPropData->m_PropertyNotFoundCounter = OldPropertyNotFoundCounter;      
         return DT_STATUS_OK;
@@ -85,8 +86,9 @@ DtStatus  DtaFanControlPowerUp(DtaDeviceData* pDvcData)
     DtPropertyData*  pPropData = &pDvcData->m_PropData;
 
     // Execute fan specific initialization
-    if (pDvcData->m_FanControl.m_FanType == FAN_TYPE_FANM)
-        pDvcData->m_FanControl.m_pFanmRegs = pDvcData->m_pGenRegs 
+    if (pDvcData->m_FanControl.m_FanType==FAN_TYPE_FANM 
+                                       || pDvcData->m_FanControl.m_FanType==FAN_TYPE_FANC)
+        pDvcData->m_FanControl.m_pFwbFanRegs = pDvcData->m_pGenRegs 
                                        + DtPropertiesGetUInt16(pPropData, "FAN_ADDR", -1);
 
     return DT_STATUS_OK;

@@ -198,7 +198,7 @@ Int  DtaNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
     Bool  EnUdpChecksumGen = FALSE;
     Bool  EnTcpChecksumGen = FALSE;
     Bool  EnIpChecksumGen = FALSE;
-    
+
     // Check if it's our own dummy generated packet
     if ((pSkb->len <= 200) && (pSkb->len >= (sizeof(EthernetIIHeader) + 
                                         sizeof(IpHeaderV4) - 5 + sizeof(UdpHeader) + 10)))
@@ -211,7 +211,7 @@ Int  DtaNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
         UInt8*  pData;
         Int  EthType;
         Int  EthHeaderSize;
-    
+
         if (pEthernetIIHeader->m_Type == ETH_TYPE_VLAN_BE)
         {
             EthType = pEthernetIIHeaderVlan->m_Type;
@@ -220,7 +220,7 @@ Int  DtaNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
             EthType = pEthernetIIHeader->m_Type;
             EthHeaderSize = sizeof(EthernetIIHeader);
         }
-    
+
         if (EthType == ETH_TYPE_IPV4_BE) 
             pIpHeaderV4 = (IpHeaderV4*)(pSkb->data + EthHeaderSize);
         else if (EthType == ETH_TYPE_IPV6_BE)
@@ -264,7 +264,7 @@ Int  DtaNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
     PacketLength = pSkb->len;
     if (PacketLength < DT_IP_MIN_ETH_PAYLOAD) 
         PacketLength = DT_IP_MIN_ETH_PAYLOAD;   // padding
-    
+
     // Get pointer to destination buffer
     Status = DtaNwTxGetPointerNewPacket(pDvcData, PacketLength, &pPacket, &WriteOffset);
     if (!DT_SUCCESS(Status))
@@ -291,12 +291,21 @@ Int  DtaNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
         pDvcData->m_IalData.m_NetStats.tx_errors++;
         return 1;
     }
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 7, 0)
+
+    // Just to be save we take kernel version less then v3.1.0
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 1, 0)
     pDevice->trans_start = jiffies;
 #else
-    netif_trans_update(pDevice);
+    // trans_start is removed from the net_device struct starting from kernel v4.7.0
+    // netif_trans_update function is introduced for legacy drivers
+    // Some distribution (CentOs/RedHat 7.4) have backported above removal in kernel version v3.10
+    // netdev_get_tx_queue function available starting from v2.6.27 kernel
+    {
+        struct netdev_queue *txq = netdev_get_tx_queue(pDevice, 0);
+        if (txq->trans_start != jiffies)
+            txq->trans_start = jiffies;
+    }
 #endif
-
     dev_kfree_skb(pSkb);
     return 0;
 }
@@ -324,7 +333,7 @@ static struct net_device_stats*  DtaNwEvtGetStats(struct net_device* pDevice)
     UInt64  MoreCollisions = 0;
     UInt64  Counter;
     struct net_device_stats*  pNetStats = &pDvcData->m_IalData.m_NetStats;
-    
+
     Status = DtaNwGetStatisticCounter(pDvcData, DTA_MAC_CNT_GEN_XMIT_OK, &Counter);
     if (DT_SUCCESS(Status)) 
         pNetStats->tx_packets = (unsigned long)Counter;
@@ -449,6 +458,7 @@ Int  DtaNwEvtGetPermAddr(
     return 0;
 }
 #endif
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwEvtGetDriverInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 static void  DtaNwEvtGetDriverInfo(
@@ -495,7 +505,7 @@ static Int  DtaNwEvtGetSettings(struct net_device* pDevice, struct ethtool_cmd* 
         return -EFAULT;
 
     pCmd->autoneg = (pDvcData->m_IalData.m_AutoNegEn ? AUTONEG_ENABLE : AUTONEG_DISABLE);
-    
+
     switch (Speed) 
     {
     case DTA_PHY_SPEED_10_HALF:
@@ -522,7 +532,7 @@ static Int  DtaNwEvtGetSettings(struct net_device* pDevice, struct ethtool_cmd* 
     default:
         pCmd->speed = 0;
     }
-    
+
     DtDbgOut(MAX, IAL, "Exit");
     return 0;
 }
@@ -536,7 +546,7 @@ static Int  DtaNwEvtSetSettings(struct net_device* pDevice, struct ethtool_cmd* 
     UInt  Speed;
     
     DtDbgOut(MAX, IAL, "Start");
-    
+
     if (pCmd->autoneg == AUTONEG_ENABLE)
     {
         Speed = DTA_PHY_SPEED_AUTO_DETECT;

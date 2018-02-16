@@ -28,7 +28,7 @@
 #include <DtaIncludes.h>
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-#define  POLL_LOOP_SLEEP        100               // Power control poll loop speed (ms)
+#define  POLL_LOOP_SLEEP        100               // Power control poll interval (ms)
 #define  WAIT_POWER_ENABLE      3*POLL_LOOP_SLEEP // Time-out powergood after power enable
 #define  MIN_FAN_GOOD_CNT       5                 // Threshold before going to init state
 #define  MIN_POWER_PRESENT_CNT  5                 // Threshold before going to init state
@@ -94,20 +94,30 @@ DtStatus  DtaEncD7ProInit(DtaNonIpPort*  pNonIpPort, pDtaNonIpExclusiveAccess
     pEncD7Pro->m_PowerFailCnt = 0;
 
     pEncD7Pro->m_VidStd = DT_VIDSTD_UNKNOWN;
-    pEncD7Pro->m_InputSource = 0;
+
+    // Select InputSource based on TypeNumber and PortIndex
+    {
+        Int  TypeNumber = pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber;
+        Int  PortIndex = pNonIpPort->m_PortIndex;
+
+        if(TypeNumber == 2180 || TypeNumber == 2182 && PortIndex == 4)
+            pEncD7Pro->m_InputSource = 0;
+        else if(TypeNumber == 2182 && PortIndex == 5)
+            pEncD7Pro->m_InputSource = 1;
+        else
+            return DT_STATUS_FAIL;
+    }
+
+    // Both the 2180 and 2182 have two source ports
+    pEncD7Pro->m_SourcePortIndex[0] = 0;
+    pEncD7Pro->m_SourcePortIndex[1] = 1;
+    pEncD7Pro->m_SourcePortIndex[2] = -1;
+
     pEncD7Pro->m_DetVidStd[0] = DT_VIDSTD_UNKNOWN;
     pEncD7Pro->m_DetVidStd[1] = DT_VIDSTD_UNKNOWN;
     pEncD7Pro->m_DetVidStd[2] = DT_VIDSTD_UNKNOWN;
-    pEncD7Pro->m_pFuncExclAccess = pFuncExclAccess;
 
-    if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2180)
-    {
-        pEncD7Pro->m_SourcePortIndex[0] = 0;
-        pEncD7Pro->m_SourcePortIndex[1] = 1;
-        pEncD7Pro->m_SourcePortIndex[2] = -1;
-    } else {
-        return DT_STATUS_FAIL;
-    }
+    pEncD7Pro->m_pFuncExclAccess = pFuncExclAccess;
 
     DT_RETURN_ON_ERROR(DtaUartInit(&pEncD7Pro->m_CtrlUart, &FwbEncD7ProSerCtrl.Uarts[0]));
     DT_RETURN_ON_ERROR(DtaUartInit(&pEncD7Pro->m_DbgUart, &FwbEncD7ProSerCtrl.Uarts[1]));
@@ -157,7 +167,9 @@ DtStatus  DtaEncD7ProIoctl(
          return DT_STATUS_INVALID_PARAMETER;
     pNonIpPort = &pDvcData->m_pNonIpPorts[NonIpPortIndex];
 
-    if (pDvcData->m_DevInfo.m_TypeNumber != 2180)
+    if (pDvcData->m_DevInfo.m_TypeNumber!=2180 && pDvcData->m_DevInfo.m_TypeNumber!=2182)
+        return DT_STATUS_NOT_SUPPORTED;
+    if (!pNonIpPort->m_CapAvEnc)
         return DT_STATUS_NOT_SUPPORTED;
     
     // Determine final required output/input sizes
@@ -305,7 +317,7 @@ DtStatus  DtaEncD7ProSendCommand(
     State = pD7Pro->m_State;
     DtMutexRelease(&pNonIpPort->m_EncD7Pro.m_StatusLock);
 
-    if (State != DTA_D7PRO_STATE_OK)
+    if (State != DTA_D7PRO_STATE_OPERATIONAL)
         return DT_STATUS_FAIL;
 
     DT_RETURN_ON_ERROR(DtaUartWrite(&pD7Pro->m_CtrlUart, pBufOut, BytesToWrite,&Timeout));
@@ -325,7 +337,7 @@ DtStatus  DtaEncD7ProDebugRead(
     return DtaUartRead(&pD7Pro->m_DbgUart, pBuf, NumBytesToRead, Timeout, pBytesRead);
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEncD7ProAttach -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaEncD7ProAckBoot .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Pre-conditions: D7Pro is powered, currently booting, but not yet not booted
 //
@@ -487,15 +499,46 @@ void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext)
     DtaNonIpPort*  pNonIpPort = (DtaNonIpPort*)pContext;
     DtaEncD7ProPort*  pD7Pro = &pNonIpPort->m_EncD7Pro;
     Int  IsExt12VPresent, IsPowerGood, FanFail, Ext12VAbsent, PowerFail;
-    Int  Ext12PresCnt=0, FanGoodCnt=0;
-    Int  CurrentFanRotation;
-    Int  MinFanRotation;
+    Int  Ext12PresCnt = 0, FanGoodCnt = 0;
+    UInt32  MeasuredRotationRate;
+    UInt32  MinFanRotation;
     volatile UInt8* pFwbRegs = pNonIpPort->m_pFwbRegs;
-    volatile UInt8* pFanMRegs = pNonIpPort->m_pDvcData->m_FanControl.m_pFanmRegs;
+    Int FanType = pNonIpPort->m_pDvcData->m_FanControl.m_FanType;
+    volatile UInt8* pFanRegs = pNonIpPort->m_pDvcData->m_FanControl.m_pFwbFanRegs;
 
-    // Get minimum fan rotation from hardware once
-    MinFanRotation = DtaFwbRegRead(pFanMRegs, &FwbFanMonitor.Control_MinimumRotationRate);
+    // Initialize Fan variables / Fan controller
+    DtMutexAcquire(&pNonIpPort->m_EncD7Pro.m_StatusLock, -1);
+    if (FanType == FAN_TYPE_FANM)       // Monitored Fan (e.g. Dta 2180)
+    {
+        // The minimum acceptable observed fan rotation rpm is specified in firmware.
+        //
+        MinFanRotation =
+            DtaFwbRegRead(pFanRegs, &FwbFanMonitor.Control_MinimumRotationRate);
+    }
+    else if (FanType == FAN_TYPE_FANC)  // Controlled Fan (e.g. Dta 2182)
+    {
+        // The controllable fan rotation rate is specified in software.  0x100 should
+        // result in a MeasuredRotationRate of roughly 0x13E0.
+        //
+        const UInt32 CurrentFanRate = 0x350;
 
+        // The minimum acceptable observed fan rotation rpm is specified in software.  The
+        // firmware monitors the fan speed and considers an observed rotation rate below
+        // this threshold to be a failure and cuts power after a period of time.  The
+        // driver also monitors the rotation rate and decides failure more quickly than
+        // the firmware (perhaps 5 seconds) in an attempt to shut down gracefully.
+        //
+        MinFanRotation = 0x1000;
+
+        DtaFwbRegWrite(pFanRegs, &FwbFanController.Control_CurrentFanRate,
+                       CurrentFanRate);
+        DtaFwbRegWrite(pFanRegs, &FwbFanController.Control_MinimumRotationRate,
+                       MinFanRotation);
+    }
+    else
+        DT_ASSERT(0);
+    DtMutexRelease(&pNonIpPort->m_EncD7Pro.m_StatusLock);
+    
     // Power control state machine
     while (!pThread->m_StopThread)
     {
@@ -510,6 +553,66 @@ void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext)
 
         switch (pD7Pro->m_State)
         {
+        case DTA_D7PRO_STATE_INIT:
+            // Assert Magnum reset
+            DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 1);
+
+            // Get status from hardware
+            IsExt12VPresent = DtaFwbRegRead(pFwbRegs,
+                                                 &FwbEncD7ProSerCtrl.Status_Is12VPresent);
+            IsPowerGood = DtaFwbRegRead(pFwbRegs, &FwbEncD7ProSerCtrl.Status_IsPowerGood);
+            if (FanType == FAN_TYPE_FANM)
+                MeasuredRotationRate = DtaFwbRegRead(pFanRegs, 
+                                              &FwbFanMonitor.Status_MeasuredRotationRate);
+            else
+                MeasuredRotationRate = DtaFwbRegRead(pFanRegs, 
+                                           &FwbFanController.Status_MeasuredRotationRate);
+
+            // Is 12V absent? Wait for 12V presence in EXT_12_FAIL state
+            if (!IsExt12VPresent)
+            {
+                // Increase error counter
+                pD7Pro->m_Ext12FailCnt++;
+
+                // Disable Magnum power
+                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 0);
+
+                // Goto EXT_12_FAIL state
+                Ext12PresCnt = 0;
+                pD7Pro->m_State = DTA_D7PRO_STATE_NO_12V;
+            }
+            else if (MeasuredRotationRate < MinFanRotation)
+            {
+                // Increase error counter
+                pD7Pro->m_FanFailCnt++;
+
+                // Disable Magnum power
+                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 0);
+
+                // Goto FAN_FAIL state
+                FanGoodCnt = 0;
+                pD7Pro->m_State = DTA_D7PRO_STATE_FAN_FAIL;
+            } else {
+                // Enable Magnum power
+                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 1);
+                
+                // Clear status bits
+                DtaFwbRegClear(pFwbRegs, &FwbEncD7ProSerCtrl.Status_FanFail);
+                DtaFwbRegClear(pFwbRegs, &FwbEncD7ProSerCtrl.Status_Ext12VAbsent);
+                DtaFwbRegClear(pFwbRegs, &FwbEncD7ProSerCtrl.Status_PowerFail);
+
+                // Wait for the power good signal to assert before going to init state
+                if (IsPowerGood)
+                {
+                    // De-assert Magnum reset
+                    DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 0);
+
+                    // Goto booting state
+                    pD7Pro->m_State = DTA_D7PRO_STATE_BOOTING;
+                }
+            }
+            break;
+
         case DTA_D7PRO_STATE_FLASH_PROG:
             // Flash programming in progress: Assert Magnum reset, enable power and 
             // wait for finish
@@ -523,8 +626,45 @@ void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext)
 
             break;
 
-        case DTA_D7PRO_STATE_OK:
+        case DTA_D7PRO_STATE_NO_12V:
+            // Get status from hardware
+            IsExt12VPresent = DtaFwbRegRead(pFwbRegs,&FwbEncD7ProSerCtrl.Status_Is12VPresent);
+
+            // Check power present and count up to threshold before going to init state
+            if (IsExt12VPresent)
+                Ext12PresCnt += 1;
+            else
+                Ext12PresCnt = 0;
+            if (Ext12PresCnt > MIN_POWER_PRESENT_CNT)
+                pD7Pro->m_State = DTA_D7PRO_STATE_INIT;
+
+            break;
+
+            // Although the firmware has its own failure detector, the driver detects more
+            // quickly in an attempt to preemptively enter this safe state before the
+            // D7PRO is powered down by the firmware.
+            //
+        case DTA_D7PRO_STATE_FAN_FAIL:
+            // Read fan rotation from hardware
+            if (FanType == FAN_TYPE_FANM)
+                MeasuredRotationRate = DtaFwbRegRead(pFanRegs, 
+                                              &FwbFanMonitor.Status_MeasuredRotationRate);
+            else
+                MeasuredRotationRate = DtaFwbRegRead(pFanRegs, 
+                                           &FwbFanController.Status_MeasuredRotationRate);
+
+            // Check fan speed and count up to threshold before going to init state
+            if (MeasuredRotationRate >= MinFanRotation)
+                FanGoodCnt += 1;
+            else
+                FanGoodCnt = 0;
+            if (FanGoodCnt > MIN_FAN_GOOD_CNT)
+                pD7Pro->m_State = DTA_D7PRO_STATE_INIT;
+
+            break;
+
         case DTA_D7PRO_STATE_BOOTING:
+        case DTA_D7PRO_STATE_OPERATIONAL:
             // Get status from hardware
             FanFail = DtaFwbRegRead(pFwbRegs, &FwbEncD7ProSerCtrl.Status_FanFail);
             Ext12VAbsent = DtaFwbRegRead(pFwbRegs, 
@@ -582,95 +722,12 @@ void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext)
                 DtMutexAcquire(&pNonIpPort->m_EncD7Pro.m_StatusLock, -1);
 
                 if (IsBooted)
-                    pD7Pro->m_State = DTA_D7PRO_STATE_OK;
+                    pD7Pro->m_State = DTA_D7PRO_STATE_OPERATIONAL;
             }
-            break;
-
-        case DTA_D7PRO_STATE_FAN_FAIL:
-            // Read fan rotation from hardware
-            CurrentFanRotation = DtaFwbRegRead(pFanMRegs, 
-                                              &FwbFanMonitor.Status_MeasuredRotationRate);
-
-            // Check fan speed and count up to threshold before going to init state
-            if (CurrentFanRotation >= MinFanRotation)
-                FanGoodCnt += 1;
-            else
-                FanGoodCnt = 0;
-            if (FanGoodCnt > MIN_FAN_GOOD_CNT)
-                pD7Pro->m_State = DTA_D7PRO_STATE_INIT;
-
-            break;
-
-        case DTA_D7PRO_STATE_NO_12V:
-            // Get status from hardware
-            IsExt12VPresent = DtaFwbRegRead(pFwbRegs,&FwbEncD7ProSerCtrl.Status_Is12VPresent);
-
-            // Check power present and count up to threshold before going to init state
-            if (IsExt12VPresent)
-                Ext12PresCnt += 1;
-            else
-                Ext12PresCnt = 0;
-            if (Ext12PresCnt > MIN_POWER_PRESENT_CNT)
-                pD7Pro->m_State = DTA_D7PRO_STATE_INIT;
-
             break;
 
         default:
-        case DTA_D7PRO_STATE_INIT:
-            // Assert Magnum reset
-            DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 1);
-
-            // Get status from hardware
-            IsExt12VPresent = DtaFwbRegRead(pFwbRegs,
-                                                 &FwbEncD7ProSerCtrl.Status_Is12VPresent);
-            IsPowerGood = DtaFwbRegRead(pFwbRegs, &FwbEncD7ProSerCtrl.Status_IsPowerGood);
-            CurrentFanRotation = DtaFwbRegRead(pFanMRegs, 
-                                              &FwbFanMonitor.Status_MeasuredRotationRate);
-
-            // Is 12V absent? Wait for 12V presence in EXT_12_FAIL state
-            if (!IsExt12VPresent)
-            {
-                // Increase error counter
-                pD7Pro->m_Ext12FailCnt++;
-
-                // Disable Magnum power
-                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 0);
-
-                // Goto EXT_12_FAIL state
-                Ext12PresCnt = 0;
-                pD7Pro->m_State = DTA_D7PRO_STATE_NO_12V;
-            }
-            else if (CurrentFanRotation < MinFanRotation)
-            {
-                // Increase error counter
-                pD7Pro->m_FanFailCnt++;
-
-                // Disable Magnum power
-                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 0);
-
-                // Goto FAN_FAIL state
-                FanGoodCnt = 0;
-                pD7Pro->m_State = DTA_D7PRO_STATE_FAN_FAIL;
-            } else {
-                // Enable Magnum power
-                DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_PowerEnable, 1);
-                
-                // Clear status bits
-                DtaFwbRegClear(pFwbRegs, &FwbEncD7ProSerCtrl.Status_FanFail);
-                DtaFwbRegClear(pFwbRegs, &FwbEncD7ProSerCtrl.Status_Ext12VAbsent);
-                DtaFwbRegClear(pFwbRegs, &FwbEncD7ProSerCtrl.Status_PowerFail);
-
-                // Wait for the power good signal to assert before going to init state
-                if (IsPowerGood)
-                {
-                    // De-assert Magnum reset
-                    DtaFwbRegWrite(pFwbRegs, &FwbEncD7ProSerCtrl.Control_Reset, 0);
-
-                    // Goto booting state
-                    pD7Pro->m_State = DTA_D7PRO_STATE_BOOTING;
-                }
-            }
-            break;
+            DT_ASSERT(0);
         }
 
         // Release the mutex

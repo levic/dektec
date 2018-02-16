@@ -66,6 +66,38 @@ typedef struct _DtCustomEvent
     UInt  m_EventType;              // Event type
 } DtCustomEvent;
 
+// User buffer to driver with port - Structure 
+// For windows, the buffer will be set in the output parameter
+
+typedef struct _DtUserBufferPort
+{
+    Int  m_PortIndex;
+} DtUserBufferPort;
+
+// User buffer to driver - Structure 
+// For windows, nothing needed. A dummy value is used.
+typedef struct _DtUserBuffer
+{
+    Int  m_Dummy;
+} DtUserBuffer;
+
+#else  // LINBUILD
+
+// User buffer to driver with port - Structure 
+typedef struct _DtUserBufferPort
+{
+    Int  m_PortIndex;
+    UInt64A  m_BufferAddr;
+    Int  m_NumBytes;
+} DtUserBufferPort;
+
+// User buffer to driver - Structure 
+typedef struct _DtUserBuffer
+{
+    UInt64A  m_BufferAddr;
+    Int  m_NumBytes;
+} DtUserBuffer;
+
 #endif  // WINBUILD
 
 
@@ -258,6 +290,7 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 // Fan controller types
 #define FAN_TYPE_MAX6639             0           // Maxim 6639 controller
 #define FAN_TYPE_FANM                1           // FANM firmware block
+#define FAN_TYPE_FANC                2           // FANC firmware block 
 
 // Temperature sensor types
 #define TEMP_SENS_TYPE_MAX6639       0           // Maxim 6639 controller

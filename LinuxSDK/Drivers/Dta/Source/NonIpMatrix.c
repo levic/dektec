@@ -325,7 +325,11 @@ void  DtaNonIpMatrixDmaCompletedWindows(DmaChannel* pDmaCh, void* pContext)
     WdfRequestUnmarkCancelable(WdfRequest);
 
     if (DtaDmaIsAbortActive(pDmaCh))
+    {
         Status = DT_STATUS_CANCELLED;
+        // Clear the abort flag
+        DtaDmaClearAbortFlag(pDmaCh);
+    }
     
     pNonIpPort = (DtaNonIpPort*)pRequestContext->m_pData;
     TrCmd = pRequestContext->m_Value;
@@ -3420,7 +3424,7 @@ DtStatus  DtaNonIpMatrixDmaProgramTrCallback(DmaChannel*  pDmaCh, void*  pContex
     DtaNonIpPort*  pNonIpPort = (DtaNonIpPort*)pContext;
     DtaMatrixDmaContext*  pDmaContext = NULL;
     volatile UInt8*  pHdRegs = NULL;
-
+    
     DT_ASSERT(pDmaCh!=NULL && pNonIpPort!=NULL);
     DT_ASSERT(pNonIpPort->m_CapMatrix);
 

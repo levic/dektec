@@ -1170,4 +1170,29 @@ const DtFwbFanMonitor FwbFanMonitor =
 extern const DtFwbFanMonitor FwbFanMonitor;
 #endif
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- FwbFanController -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+typedef struct _DtFwbFanController
+{
+    const DtFwbBlockId FwbBlockId;          // Block ID ('FANC')
+    const DtFwField  Correction_CorrectionFactorP;  // Correction factor P
+    const DtFwField  Correction_CorrectionFactorQ;  // Correction factor Q
+    const DtFwField  Control_MinimumRotationRate;   // Minimum Fan Rotation Rate
+    const DtFwField  Control_CurrentFanRate;        // Current Requested Fan Rate
+    const DtFwField  Status_MeasuredRotationRate;   // Measured Fan Rotation Rate
+} DtFwbFanController;
+
+#ifdef DEFINE_FWFIELDS
+const DtFwbFanController FwbFanController = 
+{
+    DT_FWB_BLOCK_ID(0),                     // Block ID
+    {0x004, 0, 10, FALSE, FWFIELDOP_R},     // Correction factor P
+    {0x004, 10, 10, FALSE, FWFIELDOP_R},    // Correction factor Q
+    {0x008, 0, 16, FALSE, FWFIELDOP_RW},    // Minimum Fan Rotation Rate
+    {0x008, 16, 11, FALSE, FWFIELDOP_RW},   // Current Requested Fan Rate
+    {0x00C, 0, 16, TRUE, FWFIELDOP_R},      // Measured Fan Rotation Rate
+};
+#else
+extern const DtFwbFanController FwbFanController;
+#endif
+
 #endif // #ifndef __DTFWBREGS_H

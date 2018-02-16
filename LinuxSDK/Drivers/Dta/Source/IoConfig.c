@@ -728,10 +728,17 @@ static DtStatus  DtaIoConfigUpdateValidateIoDir(
         if (pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].m_SubValue != DT_IOCONFIG_MONITOR)
             return DT_STATUS_CONFIG_ERROR;
         Buddy = (Int)pPortUpdate->m_CfgValue[DT_IOCONFIG_IODIR].m_ParXtra[0];
-        // No property to check which buddy port index is valid. 
-        // Hardcode based on typenumber for now.
-        if (   (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2180 && Buddy!=3)
-            || (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2195 && Buddy!=1))
+        // No property to check which buddy port is valid. Hardcode based on typenumber
+        // for now.
+        if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2180 && Buddy!=3)
+            return DT_STATUS_CONFIG_ERROR;
+        if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2182 &&
+                                                   pNonIpPort->m_PortIndex==2 && Buddy!=4)
+            return DT_STATUS_CONFIG_ERROR;
+        if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2182 &&
+                                                   pNonIpPort->m_PortIndex==3 && Buddy!=5)
+            return DT_STATUS_CONFIG_ERROR;
+        if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2195 && Buddy!=1)
             return DT_STATUS_CONFIG_ERROR;
         break;
     case DT_IOCONFIG_INPUT:

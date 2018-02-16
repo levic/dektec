@@ -830,6 +830,106 @@ DtStatus  DtDeletePageList(
     return DT_STATUS_OK;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtGetUserBuffer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Pre: pIoctl->m_pInputBuffer must be of type DtUserBufferPort or DtUserBuffer
+//
+// UseCopyFunc: TRUE: DtMemCopyToUserBuf/DtMemCopyFromUserBuf must be used to copy the
+//                    data to/from user buffer
+//             FALSE: Buffer can be accesses directly
+//
+DtStatus  DtGetUserBuffer(DtIoctlObject* pIoctl, UInt8** pBuffer, Int* pSize,
+                                                                         Bool UseCopyFunc)
+{
+#ifdef WINBUILD
+#ifdef  USES_KMDF
+    PMDL  pMdl;
+    NTSTATUS  NtStatus;
+    // Retrieve MDL and buffer from request object
+    NtStatus = WdfRequestRetrieveOutputWdmMdl(pIoctl->m_WdfRequest, &pMdl);
+    if (NtStatus != STATUS_SUCCESS)
+    {
+        DtDbgOut(ERR, SAL, "WdfRequestRetrieveOutputWdmMdl error: %08x", NtStatus);
+        return DT_STATUS_OUT_OF_RESOURCES;
+    }
+    *pBuffer = MmGetSystemAddressForMdlSafe(pMdl, NormalPagePriority);
+    if (*pBuffer == NULL)
+        return DT_STATUS_OUT_OF_MEMORY;
+    *pSize = MmGetMdlByteCount(pMdl);
+    return DT_STATUS_OK;
+#else
+    return DT_STATUS_NOT_SUPPORTED;
+#endif // USES_KMDF
+#else  // LINBUILD
+    pIoctl->m_pContext = NULL;
+    if (pIoctl->m_InputBufferSize == sizeof(DtUserBufferPort))
+    {
+        DtUserBufferPort*  pUserBuf = (DtUserBufferPort*)pIoctl->m_pInputBuffer;
+        *pSize = pUserBuf->m_NumBytes;
+#if defined(LIN32)
+        *pBuffer = (void*)(UInt32)pUserBuf->m_BufferAddr;
+#else
+        *pBuffer = (void*)(UInt64)pUserBuf->m_BufferAddr;
+#endif
+    }
+    else if (pIoctl->m_InputBufferSize == sizeof(DtUserBuffer))
+    {
+        DtUserBuffer*  pUserBuf = (DtUserBuffer*)pIoctl->m_pInputBuffer;
+        *pSize = pUserBuf->m_NumBytes;
+#if defined(LIN32)
+        *pBuffer = (void*)(UInt32)pUserBuf->m_BufferAddr;
+#else
+        *pBuffer = (void*)(UInt64)pUserBuf->m_BufferAddr;
+#endif
+    }
+    else
+        return DT_STATUS_INVALID_PARAMETER;
+    if (!UseCopyFunc)
+    {
+        DtStatus  Status;
+        DtPageList*  pPageList = DtMemAllocPool(DtPoolNonPaged, sizeof(DtPageList), SAL_TAG);
+        if (pPageList == NULL)
+            return DT_STATUS_OUT_OF_MEMORY;
+        Status = DtCreatePageList(*pBuffer, *pSize, DT_BUFTYPE_USER, pPageList);
+        if (!DT_SUCCESS(Status))
+        {
+            DtMemFreePool(pPageList, SAL_TAG);
+            return Status;
+        }
+        // Lock buffer into kernel memory
+        Status = DtLockUserBuffer(pPageList, *pBuffer);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDeletePageList(pPageList);
+            DtMemFreePool(pPageList, SAL_TAG);
+            return Status;
+        }
+        *pBuffer = pPageList->m_pVirtualKernel;
+        pIoctl->m_pContext = pPageList;
+    }
+    return DT_STATUS_OK;
+#endif
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtReleaseUserBuffer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtReleaseUserBuffer(DtIoctlObject* pIoctl, UInt8* pBuffer)
+{
+#ifdef WINBUILD
+    // Nothing to do at this moment
+    // Will be done automatically when request object is released
+#else
+    if (pIoctl->m_pContext != NULL)
+    {
+        DtPageList*  pPageList = (DtPageList*)pIoctl->m_pContext;
+        DtUnlockUserBuffer(pPageList);
+        DtDeletePageList(pPageList);
+        DtMemFreePool(pPageList, SAL_TAG);
+        pIoctl->m_pContext = NULL;
+    }
+#endif
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtMacAddress2DtString -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtMacAddress2DtString(UInt8* pMacAddress, DtString* pDtString)

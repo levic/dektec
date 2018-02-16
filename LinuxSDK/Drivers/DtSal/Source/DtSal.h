@@ -134,7 +134,7 @@
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Generic type definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 typedef struct _DtDvcObject  DtDvcObject;
 typedef struct _DtPageList  DtPageList;
-
+typedef struct _DtIoctlObject  DtIoctlObject;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DekTec basic SAL Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -263,7 +263,7 @@ typedef struct _DtQueueObject
 //
 // Wrapper struct for generic and OS specific IO control params
 //
-typedef struct _DtIoctlObject
+struct _DtIoctlObject
 {
     UInt32  m_IoctlCode;
     UInt  m_InputBufferSize;
@@ -278,8 +278,9 @@ typedef struct _DtIoctlObject
     IRP*  m_pIrp;
 #endif
 #else
+    void*  m_pContext; // Can be used to store application specific data
 #endif
-} DtIoctlObject;
+};
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtFileObject -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //

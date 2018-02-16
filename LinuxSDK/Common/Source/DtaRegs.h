@@ -221,14 +221,12 @@ static __inline UInt32  DtaRegRefClkCntLGetH(volatile UInt8* pBase) {
 }
 
 static __inline UInt64  DtaRegRefClkCntLGet64(volatile UInt8* pBase) {
-    UInt32 RefClkH = DtaRegRefClkCntLGetH(pBase);
+    UInt32 RefClkH1 = DtaRegRefClkCntLGetH(pBase);
     UInt32 RefClkL = DtaRegRefClkCntLGet(pBase);
-
-    if (RefClkH != DtaRegRefClkCntLGetH(pBase)) {
-        RefClkH++;
+    UInt32 RefClkH2 = DtaRegRefClkCntLGetH(pBase);
+    if (RefClkH1 != RefClkH2) 
         RefClkL = DtaRegRefClkCntLGet(pBase);
-    }
-    return ((UInt64) RefClkH << 32) + RefClkL;
+    return ((UInt64) RefClkH2 << 32) + RefClkL;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.- EPCS Control Register: Access Functions -.-.-.-.-.-.-.-.-.-.-.-.
@@ -4419,16 +4417,17 @@ static __inline void  DtaRegHdCurrentFrameSet(volatile UInt8* pBase, Int64  Val)
 
 static __inline Int64 DtaRegHdAsiByteCountGet(volatile UInt8* pBase)
 {
-    UInt32 CountH = READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_MSB);
+    UInt32 CountH1 = READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_MSB);
     UInt32 CountL = READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_LSB);
-
+    UInt32 CountH2 = READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_MSB);
     // Read again in case the LSB part has wrapped
-    if (CountH != READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_MSB)) 
-    {
-        CountH++;
+    if (CountH1 != CountH2) 
+    { 
         CountL = READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_LSB);
+        // Read MSB again to be 100% sure that it works for latched registers
+        CountH2 = READ_UINT(pBase, DT_HD_REG_ASIBYTECNT_MSB);
     }
-    return (Int64)(((UInt64) CountH << 32) + CountL);
+    return (Int64)(((UInt64) CountH2 << 32) + CountL);
 }
 static __inline void  DtaRegHdAsiByteCountSet(volatile UInt8* pBase, Int64  Val)
 {

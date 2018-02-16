@@ -131,6 +131,8 @@ DtStatus  DtaNonIpSdiAvRxInit(DtaNonIpPort*  pNonIpPort)
     DtSpinLockInit(&pSdiAvRx->m_StateLock);
     DtDpcInit(&pSdiAvRx->m_IntDpc, DtaNonIpSdiAvRxIntDpc, TRUE);
 
+    pSdiAvRx->m_NewVidStdCb2 = NULL;
+
     DtSpinLockInit(&pSdiAvRx->m_AncEx.m_Lock);
 
     return DT_STATUS_OK;
@@ -225,8 +227,13 @@ DtStatus  DtaNonIpSdiAvRxPeriodicInt(DtaNonIpPort* pNonIpPort)
             DtaNonIpSdiAvRxDoDetectVidStd(pSdiAvRx, &NewVidStd, NULL, NULL);
 
             if (OldVidStd != NewVidStd)
+            {
                 pSdiAvRx->m_NewVidStdCb(pSdiAvRx->m_pPortCb, pNonIpPort->m_PortIndex,
                                                                                NewVidStd);
+                if (pSdiAvRx->m_NewVidStdCb2 != NULL)
+                    pSdiAvRx->m_NewVidStdCb2(pSdiAvRx->m_pPortCb2, pNonIpPort->m_PortIndex,
+                                                                               NewVidStd);
+            }
 
             DtDbgOut(MAX, SDIAVRX, "Frame interrupt timeout");
         }
@@ -259,6 +266,8 @@ void  DtaNonIpSdiAvRxIntDpc(DtDpcArgs* pArgs)
     DtaNonIpSdiAvRxDoDetectVidStd(pSdiAvRx, &NewVidStd, NULL, NULL);
     DtSpinLockReleaseFromDpc(&pSdiAvRx->m_StateLock);
     pSdiAvRx->m_NewVidStdCb(pSdiAvRx->m_pPortCb, pNonIpPort->m_PortIndex, NewVidStd);
+    if (pSdiAvRx->m_NewVidStdCb2 != NULL)
+        pSdiAvRx->m_NewVidStdCb2(pSdiAvRx->m_pPortCb2, pNonIpPort->m_PortIndex, NewVidStd);
     
     // Read ANC extract FIFO
     DtSpinLockAcquireAtDpc(&pSdiAvRx->m_AncEx.m_Lock);
@@ -1016,5 +1025,16 @@ void  DtaNonIpSdiAvRxCopyStatus2Old(DtaIoctlNonIpCmdGetAudioStatus2Output* pSrc,
                                      sizeof(pDst->m_AudioChanStatus[i].m_ChanStatusData));
 
     }
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpSdiAvRxSetNewVidStdCb2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtaNonIpSdiAvRxSetNewVidStdCb2(DtaNonIpPort* pNonIpPort,
+                                        pDtaEnDecNewInputVidStd Cb, DtaNonIpPort* pPortCb)
+{
+    DtaSdiAvRxPort*  pSdiAvRx = &pNonIpPort->m_SdiAvRx;
+    pSdiAvRx->m_NewVidStdCb2 = Cb;
+    pSdiAvRx->m_pPortCb2 = pPortCb;
+    return DT_STATUS_OK;
 }
 
