@@ -9,8 +9,11 @@ This repository is simply a periodic commit of DekTec source downloaded from htt
 
 
 Incomplete list of previous LinuxSDK download URLs
+- https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2018.02.0.tar.gz
+- https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2017.11.0.tar.gz
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2017.08.0.tar.gz
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2017.06.0.tar.gz
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2017.04.0.tar.gz
+- Prior to this files were all given the name (LinuxSDK.tar.gz) and previous versions were overwritten
 
 There appear to be no copies of previous DtPlay versions
