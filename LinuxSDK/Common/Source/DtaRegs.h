@@ -3583,6 +3583,9 @@ static __inline UInt32  DtaNwRxInvCntGet(volatile UInt8* pBase) {
 #define DTA_ADDR_MATCH_CTRL_PROM_DIS     (1<<1)
 #define DTA_ADDR_MATCH_CTRL_LUTUPD       (1<<2)
 #define DTA_ADDR_MATCH_CTRL_DELFILT      (1<<4)
+#define DTA_ADDR_MATCH_CTRL_DISSSM_IPV4  (1<<8)
+#define DTA_ADDR_MATCH_CTRL_DISSSM_IPV6  (1<<9)
+
 #define DTA_ADDR_MATCH_CTRL_IPRXOVERL_EN (1<<20)
 
 static __inline void  DtaAddrMatchCtrlSet(volatile UInt8* pBase, UInt Val) {
@@ -3597,6 +3600,20 @@ static __inline void  DtaAddrMatchPromDis(volatile UInt8* pBase, UInt Dis) {
     UInt32  Val = DtaAddrMatchCtrlGet(pBase);
     if (Dis) Val |= DTA_ADDR_MATCH_CTRL_PROM_DIS;
     else    Val &= ~DTA_ADDR_MATCH_CTRL_PROM_DIS;
+    DtaAddrMatchCtrlSet(pBase, Val);
+}
+
+static __inline void  DtaAddrMatchSSmIpV4Dis(volatile UInt8* pBase, UInt Dis) {
+    UInt32  Val = DtaAddrMatchCtrlGet(pBase);
+    if (Dis) Val |= DTA_ADDR_MATCH_CTRL_DISSSM_IPV4;
+    else    Val &= ~DTA_ADDR_MATCH_CTRL_DISSSM_IPV4;
+    DtaAddrMatchCtrlSet(pBase, Val);
+}
+
+static __inline void  DtaAddrMatchSSmIpV6Dis(volatile UInt8* pBase, UInt Dis) {
+    UInt32  Val = DtaAddrMatchCtrlGet(pBase);
+    if (Dis) Val |= DTA_ADDR_MATCH_CTRL_DISSSM_IPV6;
+    else    Val &= ~DTA_ADDR_MATCH_CTRL_DISSSM_IPV6;
     DtaAddrMatchCtrlSet(pBase, Val);
 }
 

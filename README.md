@@ -9,6 +9,7 @@ This repository is simply a periodic commit of DekTec source downloaded from htt
 
 
 Incomplete list of previous LinuxSDK download URLs
+- https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2018.05.0.tar.gz
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2018.02.0.tar.gz
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2017.11.0.tar.gz
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2017.08.0.tar.gz

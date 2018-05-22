@@ -1107,8 +1107,11 @@ DtStatus IpRxAddSrcFilterToHwFilterType2(IpRxSrcFilter* pSrcFilter, int FilterIn
     {
         // Check if pDstIp is not in the SSM range and pSrcFilter not is 0.0.0.0
         // If so, we have to check the pSrcFilter in our receive thread. The FW does not
-        // support it.
-        if (DtaIpNeedDriverSSMCheckType2(IpV6, pSrcFilter->m_IPAddress, pDstIp))
+        // support it. If we have firmware that supports disabling SSM checks, we always
+        // do the source IP check in software because the firmware does not support
+        // no SSM in SSM range.
+        if (DtaIpNeedDriverSSMCheckType2(IpV6, pSrcFilter->m_IPAddress, pDstIp) || 
+                                                            IS_SSMFW_DISABLEABLE(pIpPort))
             pIpRxChannel->m_DoSSMCheckSw[pIpPort->m_IpPortIndex&0x1] = TRUE;
         else 
             pSrcIp = pSrcFilter->m_IPAddress;

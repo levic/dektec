@@ -3107,7 +3107,9 @@ static const DtProperty  DtProperties315_0_10[] =
 static const DtProperty  DtProperties315_0_11[] =
 {
     { "CAP_SNR", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
-                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_TX_ISDBS3", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DTAPI, 5, 29, 2 } 
 };
 static const DtProperty  DtProperties315_0_12[] =
 {
@@ -3504,7 +3506,7 @@ static const DtPropertyHashSet  DtPropertyHashSets315_0[] =
     { DtProperties315_0_08, 6 },
     { DtProperties315_0_09, 3 },
     { DtProperties315_0_10, 6 },
-    { DtProperties315_0_11, 1 },
+    { DtProperties315_0_11, 2 },
     { DtProperties315_0_12, 1 },
     { NULL, 0 },
     { DtProperties315_0_14, 1 },

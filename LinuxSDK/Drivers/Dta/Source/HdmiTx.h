@@ -36,6 +36,43 @@ typedef struct _DtaHdmiVidStd
     Int  m_AspectRatio;
 } DtaHdmiVidStd;
 
+// Init errors
+#define DT_HDMITX_E_NOT_INITIALISED       0x00000000  // No error state
+#define DT_HDMITX_E_STATE_RESET           0x00000001  // No error state
+#define DT_HDMITX_E_SCDC_INIT             0x00000002
+#define DT_HDMITX_E_READ_EDID             0x00000004
+#define DT_HDMITX_E_UPD_VIDSTD            0x00000008
+#define DT_HDMITX_E_DISCONNECTED          0x00000010
+#define DT_HDMITX_E_HPD_FORCE_DETECTED    0x00000020
+
+// Error switching vid std
+#define DT_HDMITX_E_PLL_LOCKED_TIMEOUT    0x00000100
+#define DT_HDMITX_E_SCDC_SET_TMDS_CONFIG  0x00000200
+#define DT_HDMITX_E_SN65DP159_INIT        0x00000400
+
+// Force states
+#define DT_HDMITX_E_FORCE_MON_DETECTED    0x00010000
+#define DT_HDMITX_E_FORCE_TEST_PICTURE    0x00020000
+#define DT_HDMITX_E_VIDSTD_FORCED         0x00040000
+#define DT_HDMITX_E_YCBCR_422_FORCED      0x00080000
+#define DT_HDMITX_E_YCBCR_444_FORCED      0x00100000
+#define DT_HDMITX_E_HDR_FORCED            0x00200000
+
+// Warnings
+#define DT_HDMITX_E_VIDSTD_NOT_FOUND      0x01000000
+#define DT_HDMITX_E_MON_NOT_DETECTED      0x02000000
+#define DT_HDMITX_E_USE_SD_SDI_4_3        0x04000000
+#define DT_HDMITX_E_VIDSTD_NOT_SUPP       0x08000000
+#define DT_HDMITX_E_USE_3G                0x10000000
+#define DT_HDMITX_E_VIDSTD_UNKNOWN        0x20000000
+#define DT_HDMITX_E_HDR_ENABLED           0x40000000
+#define DT_HDMITX_E_O_DISABLED            0x80000000
+
+#define DT_HDMITX_E_MASK_HOTPLUG          0x000000FF    // Init Errors
+#define DT_HDMITX_E_MASK_UPDVIDSTD        0x0000FF00    // VidStd Errors
+#define DT_HDMITX_E_MASK_FORCE_NSUPPORT   0x00FF0000    // Forced States
+#define DT_HDMITX_E_MASK_WARNING          0xFF000000    // Warning
+
 typedef struct _DtaHdmiTx
 {
     DtaDeviceData*  m_pDvcData;
@@ -68,6 +105,8 @@ typedef struct _DtaHdmiTx
     Int  m_AudioIndexCh2;           // DEFAULT: 2
     Int  m_AudioType;               // NOT USED, can be used for multichannel or MASK
 
+    UInt32  m_HdmiErrorState;       // HDMI INIT ERROR STATE
+
 
     // Supported features
     UInt64  m_MonSupportedFormats;  // From DTD + SVD
@@ -79,6 +118,7 @@ typedef struct _DtaHdmiTx
     Bool  m_SupportBasicAudio;      // From CEA Extension byte3
     Bool  m_SupportScDc;            // From HF VSDB
     Bool  m_SupportMonitorRangeLimits; // Monitor Descriptor Block
+    UInt  m_SupportedHdrFormats;    // From extented data block 0x6: HDR static metadata
     
     // Monitor range limits: If forcing formats, always check this before enabling
     UInt  m_MaxPixelClk;            // From Monitor Descriptor Block (Monitor Range Limits)

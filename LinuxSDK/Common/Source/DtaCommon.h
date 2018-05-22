@@ -3504,6 +3504,8 @@ typedef union _DtaIoctlMultiModCmd {
 #define DTA_HDMI_TX_CMD_SET_AUDIO_CHANNEL      10
 #define DTA_HDMI_TX_CMD_GET_AUDIO_CHANNEL      11
 #define DTA_HDMI_TX_CMD_RELEASE_FORCED_STATES  12
+#define DTA_HDMI_TX_CMD_GET_EDID_DATA          13
+#define DTA_HDMI_TX_CMD_SET_EDID_DATA          14
 
 // DTA HDMI get vidstd from index
 typedef struct _DtaIoctlHdmiTxCmdGetVidStdInput {
@@ -3556,11 +3558,25 @@ typedef struct _DtaIoctlHdmiTxCmdSetAudioChannelInput {
 } DtaIoctlHdmiTxCmdSetAudioChannelInput;
 ASSERT_SIZE(DtaIoctlHdmiTxCmdSetAudioChannelInput, 12)
 
-// DTA HDMI set audio channel
+// DTA HDMI Release forced states
 typedef struct _DtaIoctlHdmiTxCmdReleaseForcedStatesInput {
     UInt  m_Reserved[4];
 } DtaIoctlHdmiTxCmdReleaseForcedStatesInput;
 ASSERT_SIZE(DtaIoctlHdmiTxCmdReleaseForcedStatesInput, 16)
+
+// DTA HDMI Get EDID data
+typedef struct _DtaIoctlHdmiTxCmdGetEdidDataInput {
+    UInt  m_BlockNo;
+} DtaIoctlHdmiTxCmdGetEdidDataInput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdGetEdidDataInput, 4)
+
+// DTA HDMI Set EDID data
+typedef struct _DtaIoctlHdmiTxCmdSetEdidDataInput {
+    UInt  m_BlockNo;
+    Int  m_Last;
+    UInt8  m_Data[128];
+} DtaIoctlHdmiTxCmdSetEdidDataInput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdGetEdidDataInput, 4)
 
 // Ioctl input data type
 typedef struct _DtaIoctlHdmiTxCmdInput {
@@ -3576,9 +3592,11 @@ typedef struct _DtaIoctlHdmiTxCmdInput {
         DtaIoctlHdmiTxCmdSetColorimetryInput  m_SetColorimetry;
         DtaIoctlHdmiTxCmdSetAudioChannelInput  m_SetAudioChannel;
         DtaIoctlHdmiTxCmdReleaseForcedStatesInput  m_ReleaseForcedStatesInput;
+        DtaIoctlHdmiTxCmdGetEdidDataInput  m_GetEdidDataInput;
+        DtaIoctlHdmiTxCmdSetEdidDataInput  m_SetEdidDataInput;
     } m_Data;
 } DtaIoctlHdmiTxCmdInput;
-ASSERT_SIZE(DtaIoctlHdmiTxCmdInput, 24)
+ASSERT_SIZE(DtaIoctlHdmiTxCmdInput, 144)
 
 // DTA Get HDMI status command output data type
 typedef struct _DtaIoctlHdmiTxCmdGetHdmiStatusOutput {
@@ -3603,7 +3621,11 @@ typedef struct _DtaIoctlHdmiTxCmdGetHdmiStatusOutput {
     Int  m_SelectedAspectRatio;
     Int  m_UsedVidMod;
     Int  m_SelectedVidMod;
-    Int  m_Reserved[4];
+    Int  m_Reserved[2];
+    UInt  m_HdmiErrStat;            // DT_HDMITX_E_....
+    UInt  m_SupportedHdrFormats;    // 0..7: EOTF
+                                    // 8..15: Static MetaData Descriptor, 
+                                    // 16..31: Reserved
     UInt  m_MaxPixelClk;
     UInt  m_MinVRate;
     UInt  m_MaxVRate;
@@ -3636,6 +3658,12 @@ typedef struct _DtaIoctlHdmiTxCmdGetAudioChannelOutput {
 } DtaIoctlHdmiTxCmdGetAudioChannelOutput;
 ASSERT_SIZE(DtaIoctlHdmiTxCmdGetAudioChannelOutput, 12)
 
+// DTA HDMI Get EDID data
+typedef struct _DtaIoctlHdmiTxCmdGetEdidDtaOutput {
+    UInt8  m_Data[128];
+} DtaIoctlHdmiTxCmdGetEdidDataOutput;
+ASSERT_SIZE(DtaIoctlHdmiTxCmdGetEdidDataOutput, 128)
+
 // Ioctl output data type
 typedef struct _DtaIoctlHdmiTxCmdOutput {
     union {
@@ -3643,6 +3671,7 @@ typedef struct _DtaIoctlHdmiTxCmdOutput {
         DtaIoctlHdmiTxCmdGetVidStdOutput  m_GetVidStd;
         DtaIoctlHdmiTxCmdGetColorimetryOutput  m_GetColorimetry;
         DtaIoctlHdmiTxCmdGetAudioChannelOutput  m_GetAudioChannel;
+        DtaIoctlHdmiTxCmdGetEdidDataOutput  m_GetEdidData;
     } m_Data;
 } DtaIoctlHdmiTxCmdOutput;
 ASSERT_SIZE(DtaIoctlHdmiTxCmdOutput, 136)
@@ -3660,6 +3689,7 @@ ASSERT_SIZE(DtaIoctlHdmiTxCmdOutput, 136)
     #define DTA_IOCTL_HDMI_TX_CMD  _IOWR(DTA_IOCTL_MAGIC, FUNC_DTA_HDMI_TX_CMD, \
                                                                        DtaIoctlHdmiTxCmdData)
 #endif
+
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlInputData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //

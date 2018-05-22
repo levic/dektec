@@ -37,6 +37,11 @@
 
 #define DTA_MAX_ADDR_MATCHER_ENTRIES    4096
 
+#define IS_SSMFW_DISABLEABLE(pIpPort)  \
+                               ((pIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==131 ||\
+                               pIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==3) &&   \
+                               pIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2162)
+
 // Forward declarations 
 typedef struct _UserIpRxChannel  UserIpRxChannel;
 typedef struct _UserIpTxChannel  UserIpTxChannel;

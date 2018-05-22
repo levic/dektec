@@ -7670,7 +7670,9 @@ static const DtProperty  DtProperties2115_0_10[] =
 static const DtProperty  DtProperties2115_0_11[] =
 {
     { "CAP_SNR", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1, PROPERTY_SCOPE_DTAPI,
-                                                                                0, 0, 0 } 
+                                                                                0, 0, 0 },
+    { "CAP_TX_ISDBS3", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DTAPI, 5, 29, 2 } 
 };
 static const DtProperty  DtProperties2115_0_12[] =
 {
@@ -8799,7 +8801,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2115_0[] =
     { DtProperties2115_0_08, 48 },
     { DtProperties2115_0_09, 11 },
     { DtProperties2115_0_10, 12 },
-    { DtProperties2115_0_11, 1 },
+    { DtProperties2115_0_11, 2 },
     { DtProperties2115_0_12, 9 },
     { NULL, 0 },
     { DtProperties2115_0_14, 20 },
@@ -8867,15 +8869,22 @@ static const DtProperty  DtProperties2131_0_01[] =
 {
     { "CAP_DEMOD", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_RX_ADV_T2", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_RX_QAMA", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DTAPI, 5, 23, 0 },
-    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "FIRMWARE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_R_N2_0", -1,
+      "DTAPI_E_NO_SUCH_DEVICE seen for specific setup; interrupts not working",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2131_0_02[] =
 {
     { "CAP_RX_QAMB", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
-                                                         PROPERTY_SCOPE_DTAPI, 5, 27, 4 } 
+                                                         PROPERTY_SCOPE_DTAPI, 5, 27, 4 },
+    { "FIRMWARE_R_N2_1", -1, "Several other minor bug fixes", PROPERTY_VALUE_TYPE_STRING,
+                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2131_0_03[] =
 {
@@ -8929,6 +8938,11 @@ static const DtProperty  DtProperties2131_0_14[] =
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "REGISTERS_DMA", 0x200, NULL, PROPERTY_VALUE_TYPE_UINT16, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2131_0_15[] =
+{
+    { "CAP_RX_ADV_A3", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2131_0_16[] =
 {
@@ -9114,6 +9128,8 @@ static const DtProperty  DtProperties2131_0_60[] =
 };
 static const DtProperty  DtProperties2131_0_61[] =
 {
+    { "CAP_RX_ADV_BASIC", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "PROGRAMMING_SUPPORTS_FW_REBOOT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -9127,8 +9143,8 @@ static const DtProperty  DtProperties2131_0_63[] =
 static const DtPropertyHashSet  DtPropertyHashSets2131_0[] =
 {
     { DtProperties2131_0_00, 1 },
-    { DtProperties2131_0_01, 3 },
-    { DtProperties2131_0_02, 1 },
+    { DtProperties2131_0_01, 5 },
+    { DtProperties2131_0_02, 2 },
     { DtProperties2131_0_03, 1 },
     { DtProperties2131_0_04, 2 },
     { NULL, 0 },
@@ -9141,7 +9157,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2131_0[] =
     { DtProperties2131_0_12, 1 },
     { NULL, 0 },
     { DtProperties2131_0_14, 2 },
-    { NULL, 0 },
+    { DtProperties2131_0_15, 1 },
     { DtProperties2131_0_16, 1 },
     { DtProperties2131_0_17, 3 },
     { NULL, 0 },
@@ -9187,7 +9203,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2131_0[] =
     { NULL, 0 },
     { DtProperties2131_0_59, 4 },
     { DtProperties2131_0_60, 2 },
-    { DtProperties2131_0_61, 1 },
+    { DtProperties2131_0_61, 2 },
     { NULL, 0 },
     { DtProperties2131_0_63, 2 }
 };
@@ -15875,7 +15891,7 @@ static const DtProperty  DtProperties2162_0_00[] =
 };
 static const DtProperty  DtProperties2162_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N1_1", -1, "Bug fix: Possible hang on full bandwidth(960Mbps)",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -15884,6 +15900,9 @@ static const DtProperty  DtProperties2162_0_01[] =
 };
 static const DtProperty  DtProperties2162_0_02[] =
 {
+    { "FIRMWARE_R_N3_0", -1,
+      "Multicast without source specified is now possible for SSM IP address range",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "NW_REGISTERS_RT_TX_DMA", 0xD80, NULL, PROPERTY_VALUE_TYPE_UINT16, 0, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, 0xD80, NULL, PROPERTY_VALUE_TYPE_UINT16, 1, -1, 0, 0, -1,
@@ -16140,7 +16159,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2162_0[] =
 {
     { DtProperties2162_0_00, 4 },
     { DtProperties2162_0_01, 3 },
-    { DtProperties2162_0_02, 2 },
+    { DtProperties2162_0_02, 3 },
     { NULL, 0 },
     { DtProperties2162_0_04, 1 },
     { NULL, 0 },

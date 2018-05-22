@@ -31,6 +31,7 @@
 // IP Tag
 #define  IP_TAG         0x20207049  // '  pI'
 
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtaIpGetMacAddress(DtaIpPort* pIpPort, UInt8* pAddress);
 DtStatus  DtaIpGetSpeed(DtaIpPort* pIpPort, Int* pSpeed, Int* pEnableForceSpeed);
@@ -620,7 +621,14 @@ DtStatus  DtaIpPowerupType2(DtaIpPort* pIpPort)
     //DtaNwRxCtrlSetRxFifoOvfIntEn(pFdoExt->m_IpMqRx[i]->m_pRegBase, 1);
     
     // Disable address matcher promiscious mode
-    DtaAddrMatchPromDis(pIpPort->m_IpPortType2.m_pAddrMatcherRegs ,1);
+    DtaAddrMatchPromDis(pIpPort->m_IpPortType2.m_pAddrMatcherRegs, 1);
+
+    // Disable SSM IPv4/IPv6 in firmware
+    if (IS_SSMFW_DISABLEABLE(pIpPort))
+    {
+        DtaAddrMatchSSmIpV4Dis(pIpPort->m_IpPortType2.m_pAddrMatcherRegs, 1);
+        DtaAddrMatchSSmIpV6Dis(pIpPort->m_IpPortType2.m_pAddrMatcherRegs, 1);
+    }
 
     // Enable MAC address filter so NRT packets are filtered
     DtaMacAddrFilterEnable(pIpPort->m_IpPortType2.m_pAddrMatcherRegs, 1);
