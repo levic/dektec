@@ -1474,21 +1474,22 @@ DtStatus  DtaIpRxSetIpPars(DtaIpUserChannels* pIpUserChannels, Int ChannelIndex,
         pIpRxChannel->m_DoSSMCheckSw[0] = TRUE;
         NumListeners = DtaIpRxCalculateNumIpRxListenersType1(pIpPort, IpV6, 
                                             VlanId, pSrcIp, pDstIp, SrcPort, DstPort);
-        Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners);
+        // Add 1 for current item because it is not included in count
+        Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners+1);
         if (!DT_SUCCESS(Status))
             return Status;
         if (FecMode != DTA_FEC_DISABLE)
         {
-           NumListeners = DtaIpRxCalculateNumIpRxListenersType1(pIpPort, IpV6, 
+            NumListeners = DtaIpRxCalculateNumIpRxListenersType1(pIpPort, IpV6, 
                                                           VlanId, pSrcIp, pDstIp, SrcPort,
                                                           DstPort+FEC_INC_COLUMN_PORT);
-            Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners);
+            Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners+1);
             if (!DT_SUCCESS(Status))
                 return Status;
             NumListeners = DtaIpRxCalculateNumIpRxListenersType1(pIpPort, IpV6, 
                                                           VlanId, pSrcIp, pDstIp, SrcPort,
                                                           DstPort+FEC_INC_ROW_PORT);
-            Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners);
+            Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners+1);
             if (!DT_SUCCESS(Status))
                 return Status;
         }
@@ -1645,21 +1646,22 @@ DtStatus  DtaIpRxAddSrcFilter(DtaIpPort* pIpPort, UserIpRxChannel* pIpRxChannel,
         NumListeners = DtaIpRxCalculateNumIpRxListenersType1(pIpPort, IpV6, 
                       pIpRxChannel->m_VlanId[0], pSrcIpAddr, pIpRxChannel->m_DstIPAddress,
                       SrcPort, pIpRxChannel->m_DstPort[0]);
-        Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners);
+        Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners+1);
         if (!DT_SUCCESS(Status))
             return Status;
         if (pIpRxChannel->m_FecMode != DTA_FEC_DISABLE)
         {
-           NumListeners = DtaIpRxCalculateNumIpRxListenersType1(pIpPort, IpV6, 
+            NumListeners = DtaIpRxCalculateNumIpRxListenersType1(pIpPort, IpV6, 
                       pIpRxChannel->m_VlanId[0], pSrcIpAddr, pIpRxChannel->m_DstIPAddress,
                       SrcPort, pIpRxChannel->m_DstPort[0]+FEC_INC_COLUMN_PORT);
-            Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners);
+            // Add 1 for current item because it is not included in count
+            Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners+1);
             if (!DT_SUCCESS(Status))
                 return Status;
             NumListeners = DtaIpRxCalculateNumIpRxListenersType1(pIpPort, IpV6, 
                       pIpRxChannel->m_VlanId[0], pSrcIpAddr, pIpRxChannel->m_DstIPAddress,
                       SrcPort, pIpRxChannel->m_DstPort[0]+FEC_INC_ROW_PORT);
-            Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners);
+            Status = DtaIpReAllocIpRxNumListeners(pIpPort, NumListeners+1);
             if (!DT_SUCCESS(Status))
                 return Status;
         }

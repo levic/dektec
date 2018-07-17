@@ -772,7 +772,13 @@ void  DtaNwEvtNewPacketRxCallback(
 
     // Give packet to the network layer. Network layer will cleanup the packet
     netif_rx_ni(pSkb);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+
+#if defined(RHEL_RELEASE_CODE)
+#if RHEL_RELEASE_CODE>=RHEL_RELEASE_VERSION(7,5)
+#define SKIP_LAST_RX_FOR_RHEL
+#endif
+#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0) && !defined(SKIP_LAST_RX_FOR_RHEL)
     // last_rx is removed from the net_device struct starting from Linux 
     // kernel version >=4.11 and is not replaced by something else. 
     pDvcData->m_IalData.m_pNwDevice->last_rx = jiffies;

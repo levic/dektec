@@ -22082,11 +22082,16 @@ static const DtProperty  DtProperties2195_0_00[] =
 };
 static const DtProperty  DtProperties2195_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N1_1", -1, "Several Bugfixes", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0,
                                                    0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_R_N2_0", -1, "Support for HDMI 192kHz audio for DD+ and ATMOS",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2195_0_02[] =
+{
+    { "FIRMWARE_R_N3_0", -1, "Bug fix: Boot issue seen with C610 series/X99 chipset",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2195_0_04[] =
@@ -23249,7 +23254,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2195_0[] =
 {
     { DtProperties2195_0_00, 5 },
     { DtProperties2195_0_01, 3 },
-    { NULL, 0 },
+    { DtProperties2195_0_02, 1 },
     { NULL, 0 },
     { DtProperties2195_0_04, 12 },
     { NULL, 0 },
