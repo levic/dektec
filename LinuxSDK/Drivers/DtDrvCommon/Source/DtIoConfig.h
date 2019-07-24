@@ -35,6 +35,16 @@ typedef struct _DtIoConfigValueDriver {
     Int64  m_ParXtra[DT_MAX_PARXTRA_COUNT];
 } DtIoConfigValueDriver;
 
+// 
+typedef struct  _DtIoConfig
+{
+    Int  m_PortIndex;               // Port index the io-config applies to
+    Int  m_Group;                   // Config group, linked to I/O capability groups
+    Int  m_Value;                   // Config value, linked to I/O capabilities
+    Int  m_SubValue;                // Config sub value, linked to I/O sub capabilities
+    Int64  m_ParXtra[DT_MAX_PARXTRA_COUNT];  // Extra parameters, e.g. source port number
+}  DtIoConfig;
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #ifdef WINBUILD
 DtStatus  DtIoConfigReadFromNonVolatileStorage(DtDrvObject*  pSalDrvObj, UInt64  Serial,

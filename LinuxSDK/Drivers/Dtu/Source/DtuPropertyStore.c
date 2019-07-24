@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2018 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2019 DekTec
 //
 // CapParser - Property Store - Tables storing device properties
 //
@@ -15,58 +15,22 @@
 static const DtProperty  DtProperties205_0_00[] =
 {
     { "CAP_ASIPOL", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 500, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N1_0", -1, "Bug fix: PC-reboot failure when unit is connected",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties205_0_01[] =
 {
     { "FIRMWARE_LAST_VER", 9, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N1_1", -1, "Bug fix: errorneous status-LED indication",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N2_0", -1, "Prepares the DTU-205 for SDI", PROPERTY_VALUE_TYPE_STRING,
-                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
-static const DtProperty  DtProperties205_0_02[] =
-{
-    { "FIRMWARE_R_N1_2", -1, "Performance improvements", PROPERTY_VALUE_TYPE_STRING, -1,
-                                            -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties205_0_04[] =
 {
-    { "FIRMWARE_R_N5_0", -1, "Support for transmission of 10-bit SDI",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_EXT_CLK_FREQ", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 500, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
-static const DtProperty  DtProperties205_0_05[] =
-{
-    { "FIRMWARE_R_N5_1", -1, "Support for Huffman-coded SDI data",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N6_0", -1, "Internal maintenance update, no functional changes",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
-static const DtProperty  DtProperties205_0_06[] =
-{
-    { "FIRMWARE_R_N5_2", -1,
-      "Bug fix: potential occasional generation of unwanted extra bytes",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N7_0", -1,
-      "Bug fix: Not all bytes in tx-FIFO were reported in FIFO load",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
-static const DtProperty  DtProperties205_0_07[] =
-{
-    { "FIRMWARE_R_N8_0", -1, "Internal maintenance update, no functional changes",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
 static const DtProperty  DtProperties205_0_08[] =
 {
-    { "FIRMWARE_R_N9_0", -1, "Internal maintenance update, no functional changes",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_SUPPORTS_TXNULL", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_FREQ", 54000000, NULL, PROPERTY_VALUE_TYPE_UINT, -1, -1, 0, 0, -1,
@@ -202,20 +166,71 @@ static const DtProperty  DtProperties205_0_43[] =
 };
 static const DtProperty  DtProperties205_0_46[] =
 {
+    { "FIRMWARE_RELEASE_N0_0", DT_PVE, "First firmware version released to the field",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_PQNCO", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties205_0_47[] =
+{
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Bug fix: PC-reboot failure when unit is connected", PROPERTY_VALUE_TYPE_STRING, -1,
+                                            -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties205_0_48[] =
+{
+    { "FIRMWARE_RELEASE_N1_1", DT_PVE, "Bug fix: errorneous status-LED indication",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N2_0", DT_PVE, "Prepares the DTU-205 for SDI",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties205_0_49[] =
+{
+    { "FIRMWARE_RELEASE_N1_2", DT_PVE, "Performance improvements",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties205_0_50[] =
 {
     { "PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties205_0_51[] =
+{
+    { "FIRMWARE_RELEASE_N5_0", DT_PVE, "Support for transmission of 10-bit SDI",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties205_0_52[] =
+{
+    { "FIRMWARE_RELEASE_N5_1", DT_PVE, "Support for Huffman-coded SDI data",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N6_0", DT_PVE,
+      "Internal maintenance update, no functional changes", PROPERTY_VALUE_TYPE_STRING,
+                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties205_0_53[] =
+{
+    { "FIRMWARE_RELEASE_N5_2", DT_PVE,
+      "Bug fix: potential occasional generation of unwanted extra bytes",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N7_0", DT_PVE,
+      "Bug fix: Not all bytes in tx-FIFO were reported in FIFO load",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties205_0_54[] =
 {
+    { "FIRMWARE_RELEASE_N8_0", DT_PVE,
+      "Internal maintenance update, no functional changes", PROPERTY_VALUE_TYPE_STRING,
+                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MAIN_PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties205_0_55[] =
+{
+    { "FIRMWARE_RELEASE_N9_0", DT_PVE,
+      "Internal maintenance update, no functional changes", PROPERTY_VALUE_TYPE_STRING,
+                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties205_0_56[] =
 {
@@ -226,7 +241,7 @@ static const DtProperty  DtProperties205_0_56[] =
 };
 static const DtProperty  DtProperties205_0_59[] =
 {
-    { "VPD_ID", -1, "ASI/SDI output", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
+    { "VPD_ID", DT_PVE, "ASI/SDI output", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties205_0_61[] =
@@ -237,21 +252,19 @@ static const DtProperty  DtProperties205_0_61[] =
 static const DtProperty  DtProperties205_0_63[] =
 {
     { "CAP_TS", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N0_0", -1, "First firmware version released to the field",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets205_0[] =
 {
-    { DtProperties205_0_00, 2 },
-    { DtProperties205_0_01, 3 },
-    { DtProperties205_0_02, 1 },
+    { DtProperties205_0_00, 1 },
+    { DtProperties205_0_01, 1 },
     { NULL, 0 },
-    { DtProperties205_0_04, 3 },
-    { DtProperties205_0_05, 2 },
-    { DtProperties205_0_06, 2 },
-    { DtProperties205_0_07, 1 },
-    { DtProperties205_0_08, 4 },
+    { NULL, 0 },
+    { DtProperties205_0_04, 2 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { DtProperties205_0_08, 3 },
     { DtProperties205_0_09, 3 },
     { DtProperties205_0_10, 3 },
     { NULL, 0 },
@@ -289,16 +302,16 @@ static const DtPropertyHashSet  DtPropertyHashSets205_0[] =
     { DtProperties205_0_43, 2 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties205_0_46, 2 },
-    { NULL, 0 },
-    { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties205_0_46, 3 },
+    { DtProperties205_0_47, 1 },
+    { DtProperties205_0_48, 2 },
+    { DtProperties205_0_49, 1 },
     { DtProperties205_0_50, 1 },
-    { NULL, 0 },
-    { NULL, 0 },
-    { NULL, 0 },
-    { DtProperties205_0_54, 1 },
-    { NULL, 0 },
+    { DtProperties205_0_51, 1 },
+    { DtProperties205_0_52, 2 },
+    { DtProperties205_0_53, 2 },
+    { DtProperties205_0_54, 2 },
+    { DtProperties205_0_55, 1 },
     { DtProperties205_0_56, 2 },
     { NULL, 0 },
     { NULL, 0 },
@@ -306,19 +319,13 @@ static const DtPropertyHashSet  DtPropertyHashSets205_0[] =
     { NULL, 0 },
     { DtProperties205_0_61, 1 },
     { NULL, 0 },
-    { DtProperties205_0_63, 2 }
+    { DtProperties205_0_63, 1 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-215; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // VHF/UHF modulator
 // 
-static const DtProperty  DtProperties215_0_00[] =
-{
-    { "FIRMWARE_R_N1_0", -1,
-      "Bug fix: Error in firmware which results in data duplication",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
 static const DtProperty  DtProperties215_0_01[] =
 {
     { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -542,6 +549,8 @@ static const DtProperty  DtProperties215_0_45[] =
 };
 static const DtProperty  DtProperties215_0_46[] =
 {
+    { "FIRMWARE_RELEASE_N0_0", DT_PVE, "First firmware version released to the field",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_PQNCO", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
@@ -549,6 +558,9 @@ static const DtProperty  DtProperties215_0_46[] =
 };
 static const DtProperty  DtProperties215_0_47[] =
 {
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Bug fix: Error in firmware which results in data duplication",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MOD_HW_SAMP_PACKING", 10, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -606,8 +618,8 @@ static const DtProperty  DtProperties215_0_59[] =
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MOD_HW_HAS_SYMIQ_MAPPING", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "VPD_ID", -1, "VHF/UHF modulator", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
-                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "VPD_ID", DT_PVE, "VHF/UHF modulator", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0,
+                                                      -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties215_0_60[] =
 {
@@ -622,13 +634,11 @@ static const DtProperty  DtProperties215_0_61[] =
 static const DtProperty  DtProperties215_0_63[] =
 {
     { "CAP_TS", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N0_0", -1, "First firmware version released to the field",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets215_0[] =
 {
-    { DtProperties215_0_00, 1 },
+    { NULL, 0 },
     { DtProperties215_0_01, 2 },
     { DtProperties215_0_02, 2 },
     { DtProperties215_0_03, 2 },
@@ -674,8 +684,8 @@ static const DtPropertyHashSet  DtPropertyHashSets215_0[] =
     { DtProperties215_0_43, 3 },
     { NULL, 0 },
     { DtProperties215_0_45, 2 },
-    { DtProperties215_0_46, 2 },
-    { DtProperties215_0_47, 1 },
+    { DtProperties215_0_46, 3 },
+    { DtProperties215_0_47, 2 },
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties215_0_50, 1 },
@@ -691,82 +701,34 @@ static const DtPropertyHashSet  DtPropertyHashSets215_0[] =
     { DtProperties215_0_60, 1 },
     { DtProperties215_0_61, 1 },
     { NULL, 0 },
-    { DtProperties215_0_63, 2 }
+    { DtProperties215_0_63, 1 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-225; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // ASI/SDI input
 // 
-static const DtProperty  DtProperties225_0_00[] =
-{
-    { "FIRMWARE_R_N1_0", -1, "First firmware version released to the field",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
 static const DtProperty  DtProperties225_0_01[] =
 {
     { "FIRMWARE_LAST_VER", 9, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N2_0", -1, "New driver interface; no functional changes",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
-static const DtProperty  DtProperties225_0_02[] =
-{
-    { "FIRMWARE_R_N3_0", -1, "Bug fix: PC-reboot failure when unit is connected",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
-static const DtProperty  DtProperties225_0_03[] =
-{
-    { "FIRMWARE_R_N3_1", -1, "Bug fix: FIFO load can increase above FIFO size",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N4_0", -1, "Add support for receiving SDI in 8-bit mode",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties225_0_04[] =
 {
-    { "FIRMWARE_R_N5_0", -1, "Support for reception of 10-bit SDI",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_EXT_CLK_FREQ", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 500, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
-static const DtProperty  DtProperties225_0_05[] =
-{
-    { "FIRMWARE_R_N5_1", -1, "Support for Huffman-coded SDI data",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N6_0", -1, "Internal maintenance update, no functional changes",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
 static const DtProperty  DtProperties225_0_06[] =
 {
-    { "FIRMWARE_R_N5_2", -1,
-      "Bug fix: potential occasional reception of unwanted extra bytes",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N7_0", -1,
-      "Bug fix: sometimes fails to lock-on to input signal after a channel reset",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REGISTERS_RX", 0x100, NULL, PROPERTY_VALUE_TYPE_UINT16, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
-static const DtProperty  DtProperties225_0_07[] =
-{
-    { "FIRMWARE_R_N7_1", -1,
-      "Bug fix: 32nd bit of clock-reference-counter was stuck to zero",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N8_0", -1, "Support transparent-packet receive mode",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties225_0_08[] =
 {
     { "CAP_INPUT", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N8_1", -1,
-      "Fixes issue with DVB-ASI streams that have a bitrate >= 108Mbps",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N9_0", -1,
-      "Fixes issue with stability of arrival timestamps assigned to packets",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_SUPPORTS_TXNULL", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_FREQ", 54000000, NULL, PROPERTY_VALUE_TYPE_UINT, -1, -1, 0, 0, -1,
@@ -893,20 +855,73 @@ static const DtProperty  DtProperties225_0_46[] =
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties225_0_47[] =
+{
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE, "First firmware version released to the field",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties225_0_48[] =
+{
+    { "FIRMWARE_RELEASE_N2_0", DT_PVE, "New driver interface; no functional changes",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties225_0_49[] =
+{
+    { "FIRMWARE_RELEASE_N3_0", DT_PVE,
+      "Bug fix: PC-reboot failure when unit is connected", PROPERTY_VALUE_TYPE_STRING, -1,
+                                            -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties225_0_50[] =
 {
+    { "FIRMWARE_RELEASE_N3_1", DT_PVE, "Bug fix: FIFO load can increase above FIFO size",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N4_0", DT_PVE, "Add support for receiving SDI in 8-bit mode",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties225_0_51[] =
 {
     { "ASI_SDI_HW_DESER_ITF", ASI_SDI_DESER_ITF_FPGA_BASED, NULL,
-               PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+               PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N5_0", DT_PVE, "Support for reception of 10-bit SDI",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties225_0_52[] =
+{
+    { "FIRMWARE_RELEASE_N5_1", DT_PVE, "Support for Huffman-coded SDI data",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N6_0", DT_PVE,
+      "Internal maintenance update, no functional changes", PROPERTY_VALUE_TYPE_STRING,
+                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties225_0_53[] =
+{
+    { "FIRMWARE_RELEASE_N5_2", DT_PVE,
+      "Bug fix: potential occasional reception of unwanted extra bytes",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N7_0", DT_PVE,
+      "Bug fix: sometimes fails to lock-on to input signal after a channel reset",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties225_0_54[] =
 {
+    { "FIRMWARE_RELEASE_N7_1", DT_PVE,
+      "Bug fix: 32nd bit of clock-reference-counter was stuck to zero",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N8_0", DT_PVE, "Support transparent-packet receive mode",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MAIN_PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties225_0_55[] =
+{
+    { "FIRMWARE_RELEASE_N8_1", DT_PVE,
+      "Fixes issue with DVB-ASI streams that have a bitrate >= 108Mbps",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N9_0", DT_PVE,
+      "Fixes issue with stability of arrival timestamps assigned to packets",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties225_0_56[] =
 {
@@ -919,7 +934,7 @@ static const DtProperty  DtProperties225_0_59[] =
 {
     { "TESTING_LOOP_BACK_32B_RX", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "VPD_ID", -1, "ASI/SDI input", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
+    { "VPD_ID", DT_PVE, "ASI/SDI input", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties225_0_63[] =
@@ -929,15 +944,15 @@ static const DtProperty  DtProperties225_0_63[] =
 };
 static const DtPropertyHashSet  DtPropertyHashSets225_0[] =
 {
-    { DtProperties225_0_00, 1 },
-    { DtProperties225_0_01, 2 },
-    { DtProperties225_0_02, 1 },
-    { DtProperties225_0_03, 2 },
-    { DtProperties225_0_04, 3 },
-    { DtProperties225_0_05, 2 },
-    { DtProperties225_0_06, 3 },
-    { DtProperties225_0_07, 2 },
-    { DtProperties225_0_08, 5 },
+    { NULL, 0 },
+    { DtProperties225_0_01, 1 },
+    { NULL, 0 },
+    { NULL, 0 },
+    { DtProperties225_0_04, 2 },
+    { NULL, 0 },
+    { DtProperties225_0_06, 1 },
+    { NULL, 0 },
+    { DtProperties225_0_08, 3 },
     { DtProperties225_0_09, 2 },
     { DtProperties225_0_10, 2 },
     { NULL, 0 },
@@ -976,15 +991,15 @@ static const DtPropertyHashSet  DtPropertyHashSets225_0[] =
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties225_0_46, 2 },
-    { NULL, 0 },
-    { NULL, 0 },
-    { NULL, 0 },
-    { DtProperties225_0_50, 1 },
-    { DtProperties225_0_51, 1 },
-    { NULL, 0 },
-    { NULL, 0 },
-    { DtProperties225_0_54, 1 },
-    { NULL, 0 },
+    { DtProperties225_0_47, 1 },
+    { DtProperties225_0_48, 1 },
+    { DtProperties225_0_49, 1 },
+    { DtProperties225_0_50, 3 },
+    { DtProperties225_0_51, 2 },
+    { DtProperties225_0_52, 2 },
+    { DtProperties225_0_53, 2 },
+    { DtProperties225_0_54, 3 },
+    { DtProperties225_0_55, 2 },
     { DtProperties225_0_56, 2 },
     { NULL, 0 },
     { NULL, 0 },
@@ -999,11 +1014,6 @@ static const DtPropertyHashSet  DtPropertyHashSets225_0[] =
 //
 // VSB/QAM-B receiver
 // 
-static const DtProperty  DtProperties234_0_00[] =
-{
-    { "FIRMWARE_R_N1_0", -1, "First firmware version released to the field",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
 static const DtProperty  DtProperties234_0_01[] =
 {
     { "CAP_DEMOD", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
@@ -1139,6 +1149,11 @@ static const DtProperty  DtProperties234_0_46[] =
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties234_0_47[] =
+{
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE, "First firmware version released to the field",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties234_0_50[] =
 {
     { "PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -1170,8 +1185,8 @@ static const DtProperty  DtProperties234_0_59[] =
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "TESTING_LOOP_BACK_32B_RX", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "VPD_ID", -1, "VSB/QAM-B receiver", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
-                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "VPD_ID", DT_PVE, "VSB/QAM-B receiver", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0,
+                                                      -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties234_0_60[] =
 {
@@ -1185,7 +1200,7 @@ static const DtProperty  DtProperties234_0_63[] =
 };
 static const DtPropertyHashSet  DtPropertyHashSets234_0[] =
 {
-    { DtProperties234_0_00, 1 },
+    { NULL, 0 },
     { DtProperties234_0_01, 2 },
     { DtProperties234_0_02, 1 },
     { NULL, 0 },
@@ -1232,7 +1247,7 @@ static const DtPropertyHashSet  DtPropertyHashSets234_0[] =
     { NULL, 0 },
     { DtProperties234_0_45, 1 },
     { DtProperties234_0_46, 2 },
-    { NULL, 0 },
+    { DtProperties234_0_47, 1 },
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties234_0_50, 1 },
@@ -1255,12 +1270,6 @@ static const DtPropertyHashSet  DtPropertyHashSets234_0[] =
 //
 // DVB-T measurement receiver
 // 
-static const DtProperty  DtProperties235_0_00[] =
-{
-    { "FIRMWARE_R_N1_0", -1,
-      "Bug fix: failure to acquire data-lock => cannot read transport-stream",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
 static const DtProperty  DtProperties235_0_01[] =
 {
     { "CAP_DEMOD", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
@@ -1383,10 +1392,18 @@ static const DtProperty  DtProperties235_0_45[] =
 };
 static const DtProperty  DtProperties235_0_46[] =
 {
+    { "FIRMWARE_RELEASE_N0_0", DT_PVE, "First firmware version released to the field",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_PQNCO", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties235_0_47[] =
+{
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Bug fix: failure to acquire data-lock => cannot read transport-stream",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties235_0_50[] =
 {
@@ -1419,8 +1436,8 @@ static const DtProperty  DtProperties235_0_59[] =
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "TESTING_LOOP_BACK_32B_RX", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "VPD_ID", -1, "DVB-T measurement receiver", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0,
-                                                   0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "VPD_ID", DT_PVE, "DVB-T measurement receiver", PROPERTY_VALUE_TYPE_STRING, -1, -1,
+                                                0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties235_0_60[] =
 {
@@ -1430,13 +1447,11 @@ static const DtProperty  DtProperties235_0_60[] =
 static const DtProperty  DtProperties235_0_63[] =
 {
     { "CAP_TS", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N0_0", -1, "First firmware version released to the field",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets235_0[] =
 {
-    { DtProperties235_0_00, 1 },
+    { NULL, 0 },
     { DtProperties235_0_01, 2 },
     { NULL, 0 },
     { NULL, 0 },
@@ -1482,8 +1497,8 @@ static const DtPropertyHashSet  DtPropertyHashSets235_0[] =
     { DtProperties235_0_43, 2 },
     { NULL, 0 },
     { DtProperties235_0_45, 1 },
-    { DtProperties235_0_46, 2 },
-    { NULL, 0 },
+    { DtProperties235_0_46, 3 },
+    { DtProperties235_0_47, 1 },
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties235_0_50, 1 },
@@ -1499,7 +1514,7 @@ static const DtPropertyHashSet  DtPropertyHashSets235_0[] =
     { DtProperties235_0_60, 1 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties235_0_63, 2 }
+    { DtProperties235_0_63, 1 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-236; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1680,6 +1695,8 @@ static const DtProperty  DtProperties236_0_45[] =
 };
 static const DtProperty  DtProperties236_0_46[] =
 {
+    { "FIRMWARE_RELEASE_N0_0", DT_PVE, "First firmware version released to the field",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_PQNCO", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
@@ -1729,8 +1746,8 @@ static const DtProperty  DtProperties236_0_59[] =
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
                                                                                    0, 0 },
-    { "VPD_ID", -1, "QAM measurement receiver + ASI input", PROPERTY_VALUE_TYPE_STRING,
-                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "VPD_ID", DT_PVE, "QAM measurement receiver + ASI input",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties236_0_60[] =
 {
@@ -1742,9 +1759,7 @@ static const DtProperty  DtProperties236_0_63[] =
     { "CAP_TS", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N0_0", -1, "First firmware version released to the field",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets236_0[] =
 {
@@ -1794,7 +1809,7 @@ static const DtPropertyHashSet  DtPropertyHashSets236_0[] =
     { DtProperties236_0_43, 3 },
     { NULL, 0 },
     { DtProperties236_0_45, 2 },
-    { DtProperties236_0_46, 3 },
+    { DtProperties236_0_46, 4 },
     { NULL, 0 },
     { NULL, 0 },
     { NULL, 0 },
@@ -1811,7 +1826,7 @@ static const DtPropertyHashSet  DtPropertyHashSets236_0[] =
     { DtProperties236_0_60, 1 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties236_0_63, 3 }
+    { DtProperties236_0_63, 2 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-238; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1984,6 +1999,8 @@ static const DtProperty  DtProperties238_0_45[] =
 };
 static const DtProperty  DtProperties238_0_46[] =
 {
+    { "FIRMWARE_RELEASE_N0_0", DT_PVE, "First firmware version released to the field",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_PQNCO", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
@@ -2031,7 +2048,7 @@ static const DtProperty  DtProperties238_0_59[] =
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
                                                                                    0, 0 },
-    { "VPD_ID", -1, "DVB-C2/T2 receiver measurement receiver + ASI input",
+    { "VPD_ID", DT_PVE, "DVB-C2/T2 receiver measurement receiver + ASI input",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties238_0_60[] =
@@ -2044,9 +2061,7 @@ static const DtProperty  DtProperties238_0_63[] =
     { "CAP_TS", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N0_0", -1, "First firmware version released to the field",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets238_0[] =
 {
@@ -2096,7 +2111,7 @@ static const DtPropertyHashSet  DtPropertyHashSets238_0[] =
     { DtProperties238_0_43, 2 },
     { NULL, 0 },
     { DtProperties238_0_45, 1 },
-    { DtProperties238_0_46, 3 },
+    { DtProperties238_0_46, 4 },
     { NULL, 0 },
     { NULL, 0 },
     { NULL, 0 },
@@ -2113,7 +2128,7 @@ static const DtPropertyHashSet  DtPropertyHashSets238_0[] =
     { DtProperties238_0_60, 1 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties238_0_63, 3 }
+    { DtProperties238_0_63, 2 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-245; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2123,9 +2138,7 @@ static const DtPropertyHashSet  DtPropertyHashSets238_0[] =
 static const DtProperty  DtProperties245_0_00[] =
 {
     { "CAP_ASIPOL", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N1_0", -1, "Bug fix: Loopthrough mode", PROPERTY_VALUE_TYPE_STRING, -1,
-                                          -1, 0, 600, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties245_0_01[] =
 {
@@ -2141,28 +2154,13 @@ static const DtProperty  DtProperties245_0_02[] =
 };
 static const DtProperty  DtProperties245_0_04[] =
 {
-    { "FIRMWARE_R_N5_0", -1, "Support for reception of 10-bit SDI",
-           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_EXT_CLK_FREQ", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 500, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
-static const DtProperty  DtProperties245_0_05[] =
-{
-    { "FIRMWARE_R_N5_1", -1, "Support for Huffman-coded SDI data",
-           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N6_0", -1, "Internal maintenance update, no functional changes",
-           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
 static const DtProperty  DtProperties245_0_06[] =
 {
-    { "FIRMWARE_R_N5_2", -1,
-      "Bug fix: potential reception/generation of unwanted extra bytes",
-           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N7_0", -1,
-      "Bug fix: sometimes fails to lock-on to input signal after a channel reset",
-           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REGISTERS_RX", 0x200, NULL, PROPERTY_VALUE_TYPE_UINT16, 0, -1, 0, 600, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0x100, NULL, PROPERTY_VALUE_TYPE_UINT16, 0, -1, 0, 0, 600,
@@ -2171,26 +2169,12 @@ static const DtProperty  DtProperties245_0_06[] =
 static const DtProperty  DtProperties245_0_07[] =
 {
     { "CAP_SDITIME", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 600, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N7_1", -1,
-      "Bug fix: 32nd bit of clock-reference-counter was stuck to zero",
-           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N8_0", -1, "Support transparent-packet receive mode",
-           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties245_0_08[] =
 {
     { "CAP_INPUT", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N7_2", -1,
-      "Bug fix: not all bytes in tx-FIFO were reported in FIFO load",
-           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N8_1", -1,
-      "Fixes issue with DVB-ASI streams that have a bitrate >= 108Mbps",
-           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N9_0", -1,
-      "Fixes issue with stability of arrival timestamps assigned to packets",
-           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_SUPPORTS_TXNULL", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
@@ -2377,12 +2361,21 @@ static const DtProperty  DtProperties245_0_43[] =
 };
 static const DtProperty  DtProperties245_0_46[] =
 {
+    { "FIRMWARE_RELEASE_N0_0", DT_PVE, "First firmware version released to the field",
+          PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 600, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, DT_PVE, "First firmware version released to the field",
+           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_PQNCO", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties245_0_47[] =
+{
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE, "Bug fix: Loopthrough mode",
+          PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 600, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties245_0_50[] =
 {
@@ -2392,12 +2385,48 @@ static const DtProperty  DtProperties245_0_50[] =
 static const DtProperty  DtProperties245_0_51[] =
 {
     { "ASI_SDI_HW_DESER_ITF", ASI_SDI_DESER_ITF_FPGA_BASED, NULL,
-               PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+               PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N5_0", DT_PVE, "Support for reception of 10-bit SDI",
+           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties245_0_52[] =
+{
+    { "FIRMWARE_RELEASE_N5_1", DT_PVE, "Support for Huffman-coded SDI data",
+           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N6_0", DT_PVE,
+      "Internal maintenance update, no functional changes", PROPERTY_VALUE_TYPE_STRING,
+                                       -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties245_0_53[] =
+{
+    { "FIRMWARE_RELEASE_N5_2", DT_PVE,
+      "Bug fix: potential reception/generation of unwanted extra bytes",
+           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N7_0", DT_PVE,
+      "Bug fix: sometimes fails to lock-on to input signal after a channel reset",
+           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties245_0_54[] =
 {
+    { "FIRMWARE_RELEASE_N7_1", DT_PVE,
+      "Bug fix: 32nd bit of clock-reference-counter was stuck to zero",
+           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N8_0", DT_PVE, "Support transparent-packet receive mode",
+           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MAIN_PORT_COUNT", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties245_0_55[] =
+{
+    { "FIRMWARE_RELEASE_N7_2", DT_PVE,
+      "Bug fix: not all bytes in tx-FIFO were reported in FIFO load",
+           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N8_1", DT_PVE,
+      "Fixes issue with DVB-ASI streams that have a bitrate >= 108Mbps",
+           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N9_0", DT_PVE,
+      "Fixes issue with stability of arrival timestamps assigned to packets",
+           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties245_0_56[] =
 {
@@ -2412,8 +2441,8 @@ static const DtProperty  DtProperties245_0_59[] =
 {
     { "TESTING_LOOP_BACK_32B_RX", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "VPD_ID", -1, "ASI/SDI input+output", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
-                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "VPD_ID", DT_PVE, "ASI/SDI input+output", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0,
+                                                      -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties245_0_61[] =
 {
@@ -2427,23 +2456,19 @@ static const DtProperty  DtProperties245_0_63[] =
     { "CAP_TS", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N0_0", -1, "First firmware version released to the field",
-          PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 600, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, -1, "First firmware version released to the field",
-           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, 600, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets245_0[] =
 {
-    { DtProperties245_0_00, 2 },
+    { DtProperties245_0_00, 1 },
     { DtProperties245_0_01, 2 },
     { DtProperties245_0_02, 1 },
     { NULL, 0 },
-    { DtProperties245_0_04, 3 },
-    { DtProperties245_0_05, 2 },
-    { DtProperties245_0_06, 4 },
-    { DtProperties245_0_07, 3 },
-    { DtProperties245_0_08, 9 },
+    { DtProperties245_0_04, 2 },
+    { NULL, 0 },
+    { DtProperties245_0_06, 2 },
+    { DtProperties245_0_07, 1 },
+    { DtProperties245_0_08, 6 },
     { DtProperties245_0_09, 4 },
     { DtProperties245_0_10, 4 },
     { NULL, 0 },
@@ -2481,16 +2506,16 @@ static const DtPropertyHashSet  DtPropertyHashSets245_0[] =
     { DtProperties245_0_43, 2 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties245_0_46, 3 },
-    { NULL, 0 },
+    { DtProperties245_0_46, 5 },
+    { DtProperties245_0_47, 1 },
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties245_0_50, 1 },
-    { DtProperties245_0_51, 1 },
-    { NULL, 0 },
-    { NULL, 0 },
-    { DtProperties245_0_54, 1 },
-    { NULL, 0 },
+    { DtProperties245_0_51, 2 },
+    { DtProperties245_0_52, 2 },
+    { DtProperties245_0_53, 2 },
+    { DtProperties245_0_54, 3 },
+    { DtProperties245_0_55, 3 },
     { DtProperties245_0_56, 3 },
     { NULL, 0 },
     { NULL, 0 },
@@ -2498,7 +2523,7 @@ static const DtPropertyHashSet  DtPropertyHashSets245_0[] =
     { NULL, 0 },
     { DtProperties245_0_61, 2 },
     { NULL, 0 },
-    { DtProperties245_0_63, 4 }
+    { DtProperties245_0_63, 2 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-255; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2529,8 +2554,6 @@ static const DtProperty  DtProperties255_0_08[] =
 {
     { "CAP_INPUT", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N9_0", -1, "See release notes for DTU-245", PROPERTY_VALUE_TYPE_STRING,
-                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_SUPPORTS_TXNULL", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
@@ -2689,6 +2712,11 @@ static const DtProperty  DtProperties255_0_54[] =
     { "MAIN_PORT_COUNT", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties255_0_55[] =
+{
+    { "FIRMWARE_RELEASE_N9_0", DT_PVE, "See release notes for DTU-245",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties255_0_56[] =
 {
     { "CAP_SDI", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
@@ -2702,8 +2730,8 @@ static const DtProperty  DtProperties255_0_59[] =
 {
     { "TESTING_LOOP_BACK_32B_RX", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "VPD_ID", -1, "DTU-2X5 in manufacturing mode", PROPERTY_VALUE_TYPE_STRING, -1, -1,
-                                                0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "VPD_ID", DT_PVE, "DTU-2X5 in manufacturing mode", PROPERTY_VALUE_TYPE_STRING, -1,
+                                            -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties255_0_61[] =
 {
@@ -2727,7 +2755,7 @@ static const DtPropertyHashSet  DtPropertyHashSets255_0[] =
     { NULL, 0 },
     { DtProperties255_0_06, 1 },
     { NULL, 0 },
-    { DtProperties255_0_08, 6 },
+    { DtProperties255_0_08, 5 },
     { DtProperties255_0_09, 3 },
     { DtProperties255_0_10, 3 },
     { NULL, 0 },
@@ -2774,7 +2802,7 @@ static const DtPropertyHashSet  DtPropertyHashSets255_0[] =
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties255_0_54, 1 },
-    { NULL, 0 },
+    { DtProperties255_0_55, 1 },
     { DtProperties255_0_56, 3 },
     { NULL, 0 },
     { NULL, 0 },
@@ -2893,6 +2921,8 @@ static const DtProperty  DtProperties299_0_43[] =
 };
 static const DtProperty  DtProperties299_0_46[] =
 {
+    { "FIRMWARE_RELEASE_N0_0", DT_PVE, "First firmware version released to the field",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -2913,13 +2943,8 @@ static const DtProperty  DtProperties299_0_56[] =
 };
 static const DtProperty  DtProperties299_0_59[] =
 {
-    { "VPD_ID", -1, "DTU-2X5 in manufacturing mode", PROPERTY_VALUE_TYPE_STRING, -1, -1,
-                                                0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
-static const DtProperty  DtProperties299_0_63[] =
-{
-    { "FIRMWARE_R_N0_0", -1, "First firmware version released to the field",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "VPD_ID", DT_PVE, "DTU-2X5 in manufacturing mode", PROPERTY_VALUE_TYPE_STRING, -1,
+                                            -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets299_0[] =
 {
@@ -2969,7 +2994,7 @@ static const DtPropertyHashSet  DtPropertyHashSets299_0[] =
     { DtProperties299_0_43, 1 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties299_0_46, 1 },
+    { DtProperties299_0_46, 2 },
     { NULL, 0 },
     { NULL, 0 },
     { NULL, 0 },
@@ -2986,27 +3011,19 @@ static const DtPropertyHashSet  DtPropertyHashSets299_0[] =
     { NULL, 0 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties299_0_63, 1 }
+    { NULL, 0 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-315; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Universal modulator
 // 
-static const DtProperty  DtProperties315_0_00[] =
-{
-    { "FIRMWARE_R_N1_0", -1,
-      "Bug fix: Power-level 6dB too low for symbol rates > 47MBaud",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
 static const DtProperty  DtProperties315_0_01[] =
 {
     { "CAP_TX_ATSC3", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N1_1", -1, "Bug fix: Occasionally SetTxControl reported driver error",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MOD_LEVEL_NUM_ATTN", 1, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -3345,6 +3362,8 @@ static const DtProperty  DtProperties315_0_45[] =
 };
 static const DtProperty  DtProperties315_0_46[] =
 {
+    { "FIRMWARE_RELEASE_N0_0", DT_PVE, "First firmware version released to the field",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_PQNCO", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
@@ -3352,6 +3371,9 @@ static const DtProperty  DtProperties315_0_46[] =
 };
 static const DtProperty  DtProperties315_0_47[] =
 {
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Bug fix: Power-level 6dB too low for symbol rates > 47MBaud",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MOD_HW_SAMP_PACKING", 315, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 315, NULL, PROPERTY_VALUE_TYPE_INT, 0, 1, 0, 0, -1,
@@ -3360,6 +3382,12 @@ static const DtProperty  DtProperties315_0_47[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 315, NULL, PROPERTY_VALUE_TYPE_INT, 0, 3, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties315_0_48[] =
+{
+    { "FIRMWARE_RELEASE_N1_1", DT_PVE,
+      "Bug fix: Occasionally SetTxControl reported driver error",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties315_0_49[] =
 {
@@ -3473,8 +3501,8 @@ static const DtProperty  DtProperties315_0_59[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 3, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "VPD_ID", -1, "Universal modulator", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
-                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "VPD_ID", DT_PVE, "Universal modulator", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0,
+                                                      -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties315_0_60[] =
 {
@@ -3489,14 +3517,12 @@ static const DtProperty  DtProperties315_0_61[] =
 static const DtProperty  DtProperties315_0_63[] =
 {
     { "CAP_TS", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N0_0", -1, "First firmware version released to the field",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets315_0[] =
 {
-    { DtProperties315_0_00, 1 },
-    { DtProperties315_0_01, 4 },
+    { NULL, 0 },
+    { DtProperties315_0_01, 3 },
     { DtProperties315_0_02, 5 },
     { DtProperties315_0_03, 6 },
     { DtProperties315_0_04, 7 },
@@ -3541,9 +3567,9 @@ static const DtPropertyHashSet  DtPropertyHashSets315_0[] =
     { DtProperties315_0_43, 9 },
     { DtProperties315_0_44, 1 },
     { DtProperties315_0_45, 8 },
-    { DtProperties315_0_46, 2 },
-    { DtProperties315_0_47, 4 },
-    { NULL, 0 },
+    { DtProperties315_0_46, 3 },
+    { DtProperties315_0_47, 5 },
+    { DtProperties315_0_48, 1 },
     { DtProperties315_0_49, 1 },
     { DtProperties315_0_50, 5 },
     { DtProperties315_0_51, 1 },
@@ -3558,7 +3584,7 @@ static const DtPropertyHashSet  DtPropertyHashSets315_0[] =
     { DtProperties315_0_60, 1 },
     { DtProperties315_0_61, 1 },
     { NULL, 0 },
-    { DtProperties315_0_63, 2 }
+    { DtProperties315_0_63, 1 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-350; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -3727,6 +3753,8 @@ static const DtProperty  DtProperties350_0_45[] =
 };
 static const DtProperty  DtProperties350_0_46[] =
 {
+    { "FIRMWARE_RELEASE_N0_0", DT_PVE, "See release notes for DTU-350",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_PQNCO", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
@@ -3767,18 +3795,13 @@ static const DtProperty  DtProperties350_0_59[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_720P59_94", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "VPD_ID", -1, "HD-SDI output", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
+    { "VPD_ID", DT_PVE, "HD-SDI output", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties350_0_61[] =
 {
     { "TESTING_LOOP_BACK_32B_TX", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
-static const DtProperty  DtProperties350_0_63[] =
-{
-    { "FIRMWARE_R_N0_0", -1, "See release notes for DTU-350", PROPERTY_VALUE_TYPE_STRING,
-                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets350_0[] =
 {
@@ -3828,7 +3851,7 @@ static const DtPropertyHashSet  DtPropertyHashSets350_0[] =
     { DtProperties350_0_43, 1 },
     { NULL, 0 },
     { DtProperties350_0_45, 1 },
-    { DtProperties350_0_46, 2 },
+    { DtProperties350_0_46, 3 },
     { DtProperties350_0_47, 1 },
     { NULL, 0 },
     { NULL, 0 },
@@ -3845,19 +3868,13 @@ static const DtPropertyHashSet  DtPropertyHashSets350_0[] =
     { NULL, 0 },
     { DtProperties350_0_61, 1 },
     { NULL, 0 },
-    { DtProperties350_0_63, 1 }
+    { NULL, 0 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-351; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // HD-SDI input
 // 
-static const DtProperty  DtProperties351_0_00[] =
-{
-    { "FIRMWARE_R_N1_0", -1,
-      "Serveral performance improvements fixing possible dropped frames issue",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
 static const DtProperty  DtProperties351_0_01[] =
 {
     { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -4034,6 +4051,8 @@ static const DtProperty  DtProperties351_0_45[] =
 };
 static const DtProperty  DtProperties351_0_46[] =
 {
+    { "FIRMWARE_RELEASE_N0_0", DT_PVE, "See release notes for DTU-351",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "HARDWARE_HAS_PQNCO", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
@@ -4042,7 +4061,10 @@ static const DtProperty  DtProperties351_0_46[] =
 static const DtProperty  DtProperties351_0_47[] =
 {
     { "CAP_1080I50", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Serveral performance improvements fixing possible dropped frames issue",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties351_0_49[] =
 {
@@ -4084,7 +4106,7 @@ static const DtProperty  DtProperties351_0_59[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_720P59_94", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "VPD_ID", -1, "HD-SDI input", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
+    { "VPD_ID", DT_PVE, "HD-SDI input", PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties351_0_61[] =
@@ -4095,13 +4117,11 @@ static const DtProperty  DtProperties351_0_61[] =
 static const DtProperty  DtProperties351_0_63[] =
 {
     { "CAP_MATRIX2", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_R_N0_0", -1, "See release notes for DTU-351", PROPERTY_VALUE_TYPE_STRING,
-                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets351_0[] =
 {
-    { DtProperties351_0_00, 1 },
+    { NULL, 0 },
     { DtProperties351_0_01, 1 },
     { NULL, 0 },
     { NULL, 0 },
@@ -4147,8 +4167,8 @@ static const DtPropertyHashSet  DtPropertyHashSets351_0[] =
     { DtProperties351_0_43, 1 },
     { NULL, 0 },
     { DtProperties351_0_45, 2 },
-    { DtProperties351_0_46, 2 },
-    { DtProperties351_0_47, 1 },
+    { DtProperties351_0_46, 3 },
+    { DtProperties351_0_47, 2 },
     { NULL, 0 },
     { DtProperties351_0_49, 1 },
     { DtProperties351_0_50, 1 },
@@ -4164,7 +4184,7 @@ static const DtPropertyHashSet  DtPropertyHashSets351_0[] =
     { NULL, 0 },
     { DtProperties351_0_61, 1 },
     { NULL, 0 },
-    { DtProperties351_0_63, 2 }
+    { DtProperties351_0_63, 1 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTU-399; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -4261,6 +4281,8 @@ static const DtProperty  DtProperties399_0_43[] =
 };
 static const DtProperty  DtProperties399_0_46[] =
 {
+    { "FIRMWARE_RELEASE_N0_0", DT_PVE, "First firmware version released to the field",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -4281,13 +4303,8 @@ static const DtProperty  DtProperties399_0_56[] =
 };
 static const DtProperty  DtProperties399_0_59[] =
 {
-    { "VPD_ID", -1, "DTU-3XX with uninitialized EEPROM", PROPERTY_VALUE_TYPE_STRING, -1,
-                                            -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
-};
-static const DtProperty  DtProperties399_0_63[] =
-{
-    { "FIRMWARE_R_N0_0", -1, "First firmware version released to the field",
-            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+    { "VPD_ID", DT_PVE, "DTU-3XX with uninitialized EEPROM", PROPERTY_VALUE_TYPE_STRING,
+                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtPropertyHashSet  DtPropertyHashSets399_0[] =
 {
@@ -4337,7 +4354,7 @@ static const DtPropertyHashSet  DtPropertyHashSets399_0[] =
     { DtProperties399_0_43, 1 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties399_0_46, 1 },
+    { DtProperties399_0_46, 2 },
     { NULL, 0 },
     { NULL, 0 },
     { NULL, 0 },
@@ -4354,7 +4371,7 @@ static const DtPropertyHashSet  DtPropertyHashSets399_0[] =
     { NULL, 0 },
     { NULL, 0 },
     { NULL, 0 },
-    { DtProperties399_0_63, 1 }
+    { NULL, 0 }
 };
 
 
@@ -4396,102 +4413,104 @@ const char*  IoConfigCodeStrings[] =
 /*  6 */ "SPISTD",
 /*  7 */ "TSRATESEL",
 /*  8 */ "BW",
-/*  9 */ "FAILSAFE",
-/* 10 */ "FRACMODE",
-/* 11 */ "GENLOCKED",
-/* 12 */ "GENREF",
-/* 13 */ "SWS2APSK",
-/* 14 */ "TRUE",
-/* 15 */ "FALSE",
-/* 16 */ "DISABLED",
-/* 17 */ "INPUT",
-/* 18 */ "INTINPUT",
-/* 19 */ "MONITOR",
-/* 20 */ "OUTPUT",
-/* 21 */ "SHAREDANT",
-/* 22 */ "DBLBUF",
-/* 23 */ "LOOPS2L3",
-/* 24 */ "LOOPS2TS",
-/* 25 */ "LOOPTHR",
-/* 26 */ "12GSDI",
-/* 27 */ "3GSDI",
-/* 28 */ "6GSDI",
-/* 29 */ "ASI",
-/* 30 */ "AVENC",
-/* 31 */ "DEMOD",
-/* 32 */ "GPSTIME",
-/* 33 */ "HDMI",
-/* 34 */ "HDSDI",
-/* 35 */ "IFADC",
-/* 36 */ "IP",
-/* 37 */ "MOD",
-/* 38 */ "PHASENOISE",
-/* 39 */ "RS422",
-/* 40 */ "SDIRX",
-/* 41 */ "SDI",
-/* 42 */ "SPI",
-/* 43 */ "SPISDI",
-/* 44 */ "2160P50",
-/* 45 */ "2160P50B",
-/* 46 */ "2160P59_94",
-/* 47 */ "2160P59_94B",
-/* 48 */ "2160P60",
-/* 49 */ "2160P60B",
-/* 50 */ "1080P50",
-/* 51 */ "1080P50B",
-/* 52 */ "1080P59_94",
-/* 53 */ "1080P59_94B",
-/* 54 */ "1080P60",
-/* 55 */ "1080P60B",
-/* 56 */ "2160P23_98",
-/* 57 */ "2160P24",
-/* 58 */ "2160P25",
-/* 59 */ "2160P29_97",
-/* 60 */ "2160P30",
-/* 61 */ "1080I50",
-/* 62 */ "1080I59_94",
-/* 63 */ "1080I60",
-/* 64 */ "1080P23_98",
-/* 65 */ "1080P24",
-/* 66 */ "1080P25",
-/* 67 */ "1080P29_97",
-/* 68 */ "1080P30",
-/* 69 */ "1080PSF23_98",
-/* 70 */ "1080PSF24",
-/* 71 */ "1080PSF25",
-/* 72 */ "1080PSF29_97",
-/* 73 */ "1080PSF30",
-/* 74 */ "720P23_98",
-/* 75 */ "720P24",
-/* 76 */ "720P25",
-/* 77 */ "720P29_97",
-/* 78 */ "720P30",
-/* 79 */ "720P50",
-/* 80 */ "720P59_94",
-/* 81 */ "720P60",
-/* 82 */ "525I59_94",
-/* 83 */ "625I50",
-/* 84 */ "SPI525I59_94",
-/* 85 */ "SPI625I50",
-/* 86 */ "MODHQ",
-/* 87 */ "LOWPWR",
-/* 88 */ "RFCLKEXT",
-/* 89 */ "RFCLKINT",
-/* 90 */ "SPICLKEXT",
-/* 91 */ "SPICLKINT",
-/* 92 */ "SPIFIXEDCLK",
-/* 93 */ "SPIDVBMODE",
-/* 94 */ "SPISER8B",
-/* 95 */ "SPISER10B",
-/* 96 */ "SPILVDS1",
-/* 97 */ "SPILVDS2",
-/* 98 */ "SPILVTTL",
-/* 99 */ "EXTTSRATE",
-/* 100 */ "EXTRATIO",
-/* 101 */ "INTTSRATE",
-/* 102 */ "LOCK2INP"
+/*  9 */ "DMATESTMODE",
+/* 10 */ "FAILSAFE",
+/* 11 */ "FRACMODE",
+/* 12 */ "GENLOCKED",
+/* 13 */ "GENREF",
+/* 14 */ "SWS2APSK",
+/* 15 */ "TRUE",
+/* 16 */ "FALSE",
+/* 17 */ "DISABLED",
+/* 18 */ "INPUT",
+/* 19 */ "INTINPUT",
+/* 20 */ "MONITOR",
+/* 21 */ "OUTPUT",
+/* 22 */ "SHAREDANT",
+/* 23 */ "DBLBUF",
+/* 24 */ "LOOPS2L3",
+/* 25 */ "LOOPS2TS",
+/* 26 */ "LOOPTHR",
+/* 27 */ "12GSDI",
+/* 28 */ "3GSDI",
+/* 29 */ "6GSDI",
+/* 30 */ "ASI",
+/* 31 */ "AVENC",
+/* 32 */ "DEKTECST",
+/* 33 */ "DEMOD",
+/* 34 */ "GPSTIME",
+/* 35 */ "HDMI",
+/* 36 */ "HDSDI",
+/* 37 */ "IFADC",
+/* 38 */ "IP",
+/* 39 */ "MOD",
+/* 40 */ "PHASENOISE",
+/* 41 */ "RS422",
+/* 42 */ "SDIRX",
+/* 43 */ "SDI",
+/* 44 */ "SPI",
+/* 45 */ "SPISDI",
+/* 46 */ "2160P50",
+/* 47 */ "2160P50B",
+/* 48 */ "2160P59_94",
+/* 49 */ "2160P59_94B",
+/* 50 */ "2160P60",
+/* 51 */ "2160P60B",
+/* 52 */ "1080P50",
+/* 53 */ "1080P50B",
+/* 54 */ "1080P59_94",
+/* 55 */ "1080P59_94B",
+/* 56 */ "1080P60",
+/* 57 */ "1080P60B",
+/* 58 */ "2160P23_98",
+/* 59 */ "2160P24",
+/* 60 */ "2160P25",
+/* 61 */ "2160P29_97",
+/* 62 */ "2160P30",
+/* 63 */ "1080I50",
+/* 64 */ "1080I59_94",
+/* 65 */ "1080I60",
+/* 66 */ "1080P23_98",
+/* 67 */ "1080P24",
+/* 68 */ "1080P25",
+/* 69 */ "1080P29_97",
+/* 70 */ "1080P30",
+/* 71 */ "1080PSF23_98",
+/* 72 */ "1080PSF24",
+/* 73 */ "1080PSF25",
+/* 74 */ "1080PSF29_97",
+/* 75 */ "1080PSF30",
+/* 76 */ "720P23_98",
+/* 77 */ "720P24",
+/* 78 */ "720P25",
+/* 79 */ "720P29_97",
+/* 80 */ "720P30",
+/* 81 */ "720P50",
+/* 82 */ "720P59_94",
+/* 83 */ "720P60",
+/* 84 */ "525I59_94",
+/* 85 */ "625I50",
+/* 86 */ "SPI525I59_94",
+/* 87 */ "SPI625I50",
+/* 88 */ "MODHQ",
+/* 89 */ "LOWPWR",
+/* 90 */ "RFCLKEXT",
+/* 91 */ "RFCLKINT",
+/* 92 */ "SPICLKEXT",
+/* 93 */ "SPICLKINT",
+/* 94 */ "SPIFIXEDCLK",
+/* 95 */ "SPIDVBMODE",
+/* 96 */ "SPISER8B",
+/* 97 */ "SPISER10B",
+/* 98 */ "SPILVDS1",
+/* 99 */ "SPILVDS2",
+/* 100 */ "SPILVTTL",
+/* 101 */ "EXTTSRATE",
+/* 102 */ "EXTRATIO",
+/* 103 */ "INTTSRATE",
+/* 104 */ "LOCK2INP"
 };
-const Int  IoConfigCodeStringCount = 103;
+const Int  IoConfigCodeStringCount = 105;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IoConfigCodes_XX[] -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -4500,256 +4519,258 @@ const Int  IoConfigCodeStringCount = 103;
 //
 static const IoConfigCode  IoConfigCodes_0[] =
 {
-    { "FAILSAFE", 9 },
-    { "INTINPUT", 18 }
+    { "FAILSAFE", 10 },
+    { "INTINPUT", 19 }
 };
 static const IoConfigCode  IoConfigCodes_1[] =
 {
-    { "1080P30", 68 }
+    { "1080P30", 70 }
 };
 static const IoConfigCode  IoConfigCodes_2[] =
 {
-    { "RS422", 39 }
+    { "RS422", 41 }
 };
 static const IoConfigCode  IoConfigCodes_3[] =
 {
     { "PWRMODE", 2 },
-    { "LOOPS2L3", 23 },
-    { "1080P50", 50 },
-    { "720P23_98", 74 }
+    { "LOOPS2L3", 24 },
+    { "1080P50", 52 },
+    { "720P23_98", 76 }
 };
 static const IoConfigCode  IoConfigCodes_4[] =
 {
-    { "2160P60", 48 },
-    { "2160P24", 57 }
+    { "2160P60", 50 },
+    { "2160P24", 59 }
 };
 static const IoConfigCode  IoConfigCodes_5[] =
 {
-    { "SDI", 41 },
-    { "2160P50B", 45 },
-    { "2160P25", 58 }
+    { "SDI", 43 },
+    { "2160P50B", 47 },
+    { "2160P25", 60 }
 };
 static const IoConfigCode  IoConfigCodes_6[] =
 {
-    { "FRACMODE", 10 },
-    { "2160P60B", 49 }
+    { "FRACMODE", 11 },
+    { "2160P60B", 51 }
 };
 static const IoConfigCode  IoConfigCodes_7[] =
 {
-    { "HDMI", 33 },
-    { "SPILVTTL", 98 }
+    { "HDMI", 35 },
+    { "SPILVTTL", 100 }
 };
 static const IoConfigCode  IoConfigCodes_8[] =
 {
     { "IOSTD", 1 },
-    { "720P29_97", 77 },
-    { "720P59_94", 80 }
+    { "720P29_97", 79 },
+    { "720P59_94", 82 }
 };
 static const IoConfigCode  IoConfigCodes_12[] =
 {
-    { "1080PSF23_98", 69 }
+    { "1080PSF23_98", 71 }
 };
 static const IoConfigCode  IoConfigCodes_14[] =
 {
-    { "DEMOD", 31 }
+    { "DEMOD", 33 }
 };
 static const IoConfigCode  IoConfigCodes_15[] =
 {
-    { "12GSDI", 26 }
+    { "12GSDI", 27 }
 };
 static const IoConfigCode  IoConfigCodes_16[] =
 {
-    { "FALSE", 15 },
-    { "625I50", 83 }
+    { "FALSE", 16 },
+    { "625I50", 85 }
 };
 static const IoConfigCode  IoConfigCodes_17[] =
 {
-    { "GENLOCKED", 11 },
-    { "HDSDI", 34 },
-    { "SPI", 42 },
-    { "SPISDI", 43 },
-    { "1080I59_94", 62 },
-    { "1080PSF29_97", 72 },
-    { "720P30", 78 }
+    { "GENLOCKED", 12 },
+    { "HDSDI", 36 },
+    { "SPI", 44 },
+    { "SPISDI", 45 },
+    { "1080I59_94", 64 },
+    { "1080PSF29_97", 74 },
+    { "720P30", 80 }
 };
 static const IoConfigCode  IoConfigCodes_18[] =
 {
-    { "AVENC", 30 },
-    { "SPIDVBMODE", 93 }
+    { "AVENC", 31 },
+    { "SPIDVBMODE", 95 }
 };
 static const IoConfigCode  IoConfigCodes_19[] =
 {
-    { "2160P23_98", 56 },
-    { "720P50", 79 }
+    { "2160P23_98", 58 },
+    { "720P50", 81 }
 };
 static const IoConfigCode  IoConfigCodes_20[] =
 {
-    { "DBLBUF", 22 }
+    { "DBLBUF", 23 }
 };
 static const IoConfigCode  IoConfigCodes_21[] =
 {
-    { "INPUT", 17 },
-    { "EXTRATIO", 100 }
+    { "INPUT", 18 },
+    { "EXTRATIO", 102 }
 };
 static const IoConfigCode  IoConfigCodes_22[] =
 {
     { "SPIMODE", 5 },
-    { "SPICLKINT", 91 }
+    { "SPICLKINT", 93 }
 };
 static const IoConfigCode  IoConfigCodes_24[] =
 {
-    { "2160P59_94", 46 },
-    { "2160P29_97", 59 }
+    { "2160P59_94", 48 },
+    { "2160P29_97", 61 }
 };
 static const IoConfigCode  IoConfigCodes_26[] =
 {
-    { "2160P59_94B", 47 }
+    { "2160P59_94B", 49 }
 };
 static const IoConfigCode  IoConfigCodes_27[] =
 {
-    { "SPIFIXEDCLK", 92 }
+    { "SPIFIXEDCLK", 94 }
 };
 static const IoConfigCode  IoConfigCodes_28[] =
 {
     { "IODIR", 0 },
     { "SPISTD", 6 },
     { "TSRATESEL", 7 },
-    { "SPI625I50", 85 },
-    { "SPICLKEXT", 90 }
+    { "SPI625I50", 87 },
+    { "SPICLKEXT", 92 }
 };
 static const IoConfigCode  IoConfigCodes_29[] =
 {
-    { "1080I60", 63 },
-    { "1080PSF24", 70 }
+    { "1080I60", 65 },
+    { "1080PSF24", 72 }
 };
 static const IoConfigCode  IoConfigCodes_30[] =
 {
     { "BW", 8 },
-    { "GPSTIME", 32 },
-    { "1080PSF25", 71 }
+    { "GPSTIME", 34 },
+    { "1080PSF25", 73 }
 };
 static const IoConfigCode  IoConfigCodes_31[] =
 {
-    { "3GSDI", 27 }
+    { "3GSDI", 28 }
 };
 static const IoConfigCode  IoConfigCodes_33[] =
 {
-    { "2160P30", 60 }
+    { "2160P30", 62 }
 };
 static const IoConfigCode  IoConfigCodes_34[] =
 {
-    { "6GSDI", 28 },
-    { "ASI", 29 },
-    { "RFCLKINT", 89 }
+    { "6GSDI", 29 },
+    { "ASI", 30 },
+    { "RFCLKINT", 91 }
 };
 static const IoConfigCode  IoConfigCodes_35[] =
 {
-    { "SWS2APSK", 13 },
-    { "2160P50", 44 },
-    { "INTTSRATE", 101 }
+    { "SWS2APSK", 14 },
+    { "2160P50", 46 },
+    { "INTTSRATE", 103 }
 };
 static const IoConfigCode  IoConfigCodes_36[] =
 {
-    { "1080P60", 54 },
-    { "1080P24", 65 },
-    { "525I59_94", 82 }
+    { "1080P60", 56 },
+    { "1080P24", 67 },
+    { "525I59_94", 84 }
 };
 static const IoConfigCode  IoConfigCodes_37[] =
 {
-    { "TRUE", 14 },
-    { "MOD", 37 },
-    { "1080P50B", 51 },
-    { "1080P25", 66 }
+    { "TRUE", 15 },
+    { "MOD", 39 },
+    { "1080P50B", 53 },
+    { "1080P25", 68 }
 };
 static const IoConfigCode  IoConfigCodes_38[] =
 {
-    { "1080P60B", 55 }
+    { "1080P60B", 57 }
 };
 static const IoConfigCode  IoConfigCodes_39[] =
 {
-    { "LOCK2INP", 102 }
+    { "LOCK2INP", 104 }
 };
 static const IoConfigCode  IoConfigCodes_40[] =
 {
-    { "RFCLKEXT", 88 }
+    { "RFCLKEXT", 90 }
 };
 static const IoConfigCode  IoConfigCodes_41[] =
 {
-    { "EXTTSRATE", 99 }
+    { "EXTTSRATE", 101 }
 };
 static const IoConfigCode  IoConfigCodes_43[] =
 {
-    { "LOOPS2TS", 24 }
+    { "LOOPS2TS", 25 }
 };
 static const IoConfigCode  IoConfigCodes_45[] =
 {
-    { "MONITOR", 19 },
-    { "LOOPTHR", 25 }
+    { "MONITOR", 20 },
+    { "LOOPTHR", 26 }
 };
 static const IoConfigCode  IoConfigCodes_47[] =
 {
     { "SPICLKSEL", 4 },
-    { "SDIRX", 40 }
+    { "SDIRX", 42 }
 };
 static const IoConfigCode  IoConfigCodes_48[] =
 {
-    { "SPI525I59_94", 84 },
-    { "LOWPWR", 87 }
+    { "SPI525I59_94", 86 },
+    { "LOWPWR", 89 }
 };
 static const IoConfigCode  IoConfigCodes_51[] =
 {
-    { "1080P23_98", 64 }
+    { "1080P23_98", 66 }
 };
 static const IoConfigCode  IoConfigCodes_52[] =
 {
-    { "PHASENOISE", 38 },
-    { "720P24", 75 },
-    { "720P60", 81 }
+    { "PHASENOISE", 40 },
+    { "720P24", 77 },
+    { "720P60", 83 }
 };
 static const IoConfigCode  IoConfigCodes_53[] =
 {
-    { "720P25", 76 },
-    { "SPISER8B", 94 }
+    { "720P25", 78 },
+    { "SPISER8B", 96 }
 };
 static const IoConfigCode  IoConfigCodes_54[] =
 {
-    { "OUTPUT", 20 }
+    { "OUTPUT", 21 }
 };
 static const IoConfigCode  IoConfigCodes_56[] =
 {
-    { "1080P59_94", 52 },
-    { "1080P29_97", 67 }
+    { "1080P59_94", 54 },
+    { "1080P29_97", 69 }
 };
 static const IoConfigCode  IoConfigCodes_58[] =
 {
-    { "1080P59_94B", 53 },
-    { "1080PSF30", 73 }
+    { "1080P59_94B", 55 },
+    { "1080PSF30", 75 }
 };
 static const IoConfigCode  IoConfigCodes_59[] =
 {
     { "RFCLKSEL", 3 },
-    { "SPILVDS1", 96 }
+    { "SPILVDS1", 98 }
 };
 static const IoConfigCode  IoConfigCodes_60[] =
 {
-    { "GENREF", 12 },
-    { "IFADC", 35 },
-    { "1080I50", 61 },
-    { "SPILVDS2", 97 }
+    { "DMATESTMODE", 9 },
+    { "GENREF", 13 },
+    { "DEKTECST", 32 },
+    { "IFADC", 37 },
+    { "1080I50", 63 },
+    { "SPILVDS2", 99 }
 };
 static const IoConfigCode  IoConfigCodes_61[] =
 {
-    { "DISABLED", 16 }
+    { "DISABLED", 17 }
 };
 static const IoConfigCode  IoConfigCodes_62[] =
 {
-    { "IP", 36 },
-    { "MODHQ", 86 },
-    { "SPISER10B", 95 }
+    { "IP", 38 },
+    { "MODHQ", 88 },
+    { "SPISER10B", 97 }
 };
 static const IoConfigCode  IoConfigCodes_63[] =
 {
-    { "SHAREDANT", 21 }
+    { "SHAREDANT", 22 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IoConfigCodeHashSets[] -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -4818,7 +4839,7 @@ const IoConfigCodeHashSet  IoConfigCodeHashSets[] =
     { NULL, 0 },
     { IoConfigCodes_58, 2 },
     { IoConfigCodes_59, 2 },
-    { IoConfigCodes_60, 4 },
+    { IoConfigCodes_60, 6 },
     { IoConfigCodes_61, 1 },
     { IoConfigCodes_62, 3 },
     { IoConfigCodes_63, 1 }

@@ -100,7 +100,7 @@ DtStatus  DtaEncD7ProInit(DtaNonIpPort*  pNonIpPort, pDtaNonIpExclusiveAccess
         Int  TypeNumber = pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber;
         Int  PortIndex = pNonIpPort->m_PortIndex;
 
-        if(TypeNumber == 2180 || TypeNumber == 2182 && PortIndex == 4)
+        if(TypeNumber == 2180 || (TypeNumber == 2182 && PortIndex == 4))
             pEncD7Pro->m_InputSource = 0;
         else if(TypeNumber == 2182 && PortIndex == 5)
             pEncD7Pro->m_InputSource = 1;

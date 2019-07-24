@@ -276,8 +276,6 @@ static void  DtaIoConfigParseIniFile(
     }
 }
 
-#define DRVCOMMON_TAG  0x544e4d43 // 'TNMC'
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoConfigReadFromIniFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtIoConfigReadFromIniFile(
@@ -295,7 +293,7 @@ DtStatus  DtIoConfigReadFromIniFile(
     char*  FileBuf = NULL;
     loff_t  Offset = 0;
 
-    FileBuf = DtMemAllocPool(DtPoolNonPaged, CONFIG_MAX_FILE_SIZE, DRVCOMMON_TAG);
+    FileBuf = DtMemAllocPool(DtPoolNonPaged, CONFIG_MAX_FILE_SIZE, COMMON_TAG);
 
     OldFs = get_fs();
     set_fs(get_ds());
@@ -347,7 +345,7 @@ DtStatus  DtIoConfigReadFromIniFile(
         filp_close(File, NULL);
     }
     set_fs(OldFs);
-    DtMemFreePool(FileBuf, DRVCOMMON_TAG);
+    DtMemFreePool(FileBuf, COMMON_TAG);
     return DT_STATUS_OK;
 }
 #endif

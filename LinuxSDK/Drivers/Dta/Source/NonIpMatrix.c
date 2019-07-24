@@ -428,7 +428,7 @@ DtStatus  DtaNonIpMatrixConfigure(DtaNonIpPort* pNonIpPort, Bool  ForceConfig)
     if (IoStdValue == DT_IOCONFIG_ASI)
     {
         Status = DtaNonIpMatrixConfigureForAsi(pNonIpPort, ConfigMode);
-        // DTA-2152 FW2/FW3, DTA-2154 FW5 and DTA-2174 FW2 have a firmware bug:
+        // DTA-2152 FW2/FW3/FW4/FW5, DTA-2154 FW5 and DTA-2174 FW2 have a firmware bug:
         // double-buffering for ASI depends on the TxCtrl register. We set it to SEND 
         // immediately. In this mode applications cannot attach to the port and change it.
         if (DT_SUCCESS(Status) && IsDblBuf &&
@@ -436,6 +436,10 @@ DtStatus  DtaNonIpMatrixConfigure(DtaNonIpPort* pNonIpPort, Bool  ForceConfig)
                                 pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==2) ||
                                 (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2152 &&
                                 pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==3) ||
+                                (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2152 &&
+                                pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==4) ||
+                                (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2152 &&
+                                pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==5) ||
                                (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2154 &&
                                 pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==5) ||
                                (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2174 &&
@@ -522,6 +526,14 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
                 *pVidStd = DT_VIDSTD_1080PSF29_97;
             else if (*pVidStd==DT_VIDSTD_1080I60 && ((Vpid&0x0000CFFF) == 0x00004785))
                 *pVidStd = DT_VIDSTD_1080PSF30;
+            // Do we have a partial match for 1080i?
+            else if (*pVidStd==DT_VIDSTD_UNKNOWN && VideoId==0x85 && Progressive==0)
+            {
+                if ((Vpid&0x0000CFFF) == 0x00004385)
+                    *pVidStd = DT_VIDSTD_1080PSF24;
+                else if ((Vpid&0x0000CFFF) == 0x00004285)
+                    *pVidStd = DT_VIDSTD_1080PSF23_98;
+            }
         }
         
         // HW, WITHOUT THE MATRIX2 CAP, cannot detect fractional formats while 

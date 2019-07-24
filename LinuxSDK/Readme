@@ -13,6 +13,7 @@ The Linux SDK consists of:
                   DTA-2136, DTA-2137, DTA-2138, DTA-2139, DTA-2142,
                   DTA-2144, DTA-2145, DTA-2152, DTA-2154, DTA-2160,
                   DTA-2162, DTA-2174, DTA-2179, DTA-2180 and DTA-2195;
+ - DtPcie:        DTA-2132, DTA-2139B, DTA-2175;
  - DtaNw:         Network driver for DTA-160, DTA-2160 and DTA-2162;
  - Dtu:           Linux driver for DTU-205, DTU-215, DTU-225, DTU-234, DTU-235,
                   DTU-236, DTU-238, DTU-245 and DTU-351;
@@ -43,6 +44,10 @@ Extracting LinuxSDK.tar.gz will lead to the following directory structure:
    |  |  |- Source
    |  |  |  |- Linux       (Contains Dta driver makefile)
    |  |
+   |  |- DtPcie            (Driver for DTA-series PCIe cards)
+   |  |  |- Source
+   |  |  |  |- Linux       (Contains DtPcie driver makefile) 
+   |  |  
    |  |- DtaNw             (Network driver for DTA-series PCI/PCIe cards)
    |  |  |- Source          
    |  |  |  |- Linux       (Contains DtaNw driver makefile)
@@ -68,11 +73,11 @@ Extracting LinuxSDK.tar.gz will lead to the following directory structure:
    |  |- Doc               (Documentation)
    |  |- Include           (DTAPI.h include file)
    |  |- Lib
-   |    |- GCC4.1.2        (Contains DTAPI object file compiled with GCC 4.1.2)
+   |    |- GCC4.8          (Contains DTAPI object file compiled with GCC 4.8.5)
    |    |  |- DTAPI.o      (32-bit version)
    |    |  |- DTAPI64.o    (64-bit version)
    |    |
-   |    |- GCC4.4.6        (Contains DTAPI object file compiled with GCC 4.4.6)
+   |    |- GCC5.1          (Contains DTAPI object file compiled with GCC 5.1.0)
    |       |- DTAPI.o      (32-bit version)
    |       |- DTAPI64.o    (64-bit version)
 

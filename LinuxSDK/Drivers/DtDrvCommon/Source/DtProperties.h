@@ -48,6 +48,34 @@ typedef struct _DtProperty
     Int  m_MinDtapiBugfix;          // Minimum DTAPI bugfix version
 } DtProperty;
 
+typedef struct  _DtPropertyFilterCriteria
+{
+    Int  m_PortIndex;               // Port index the property should apply to
+    Int  m_HwRev;                   // Hardware revision the property should apply to
+    Int  m_FwVersion;               // Firmware version the property should apply to
+    Int  m_FwVariant;               // Firmware variant the property should apply to
+    Int  m_DtapiMaj;                // Major DTAPI version the property should apply to
+    Int  m_DtapiMin;                // Minor DTAPI version the property should apply to
+    Int  m_DtapiBugfix;             // Bugfix DTAPI version the property should apply to
+}  DtPropertyFilterCriteria;
+// Init filter criteria to 'safe' initial values
+#define DT_PROPERTY_FILTER_CRITERIA_INIT(F, PORT_INDEX)                     \
+    do                                                                      \
+    {                                                                       \
+        DtMemZero(&F, sizeof(F));                                           \
+        DT_ASSERT(PORT_INDEX >= -1);                                        \
+        F.m_PortIndex = PORT_INDEX;                                         \
+        F.m_DtapiMaj = F.m_DtapiMin = F.m_DtapiBugfix = 0;                  \
+    } while(0)
+#define DT_PROPERTY_FILTER_CRITERIA_INIT_FROM_PROPDATA(F, PD, PORT_INDEX)   \
+    do                                                                      \
+    {                                                                       \
+        DT_PROPERTY_FILTER_CRITERIA_INIT(F, PORT_INDEX);                    \
+        F.m_HwRev = PD.m_HardwareRevision;                                  \
+        F.m_FwVersion = PD.m_FirmwareVersion;                               \
+        F.m_FwVariant = PD.m_FirmwareVariant;                               \
+    } while(0)
+
 // Type to store a set of properties whos names result in the same hash
 typedef struct _DtPropertyHashSet
 {
@@ -67,7 +95,7 @@ typedef struct _DtPropertyStore
 // Type to store property data
 typedef struct _DtPropertyData
 {
-    char* m_TypeName;           // DTA- or DTU-
+    const char* m_TypeName;     // DTA- or DTU-
     Int  m_TypeNumber;
     Int  m_SubDvc;
     Int  m_HardwareRevision;    // Hardware revision (e.g. 302 = 3.2)
@@ -112,13 +140,13 @@ DtStatus  DtPropertiesStrGetForType(const char*  pTypeName, Int  TypeNumber, Int
 DtStatus  DtPropertiesReportDriverErrors(DtPropertyData* pPropData);
 void  DtResetPropertiesNotFoundCounter(DtPropertyData* pPropData);
 
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Driver property get functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesDriverGet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-DtPropertyValue  DtPropertiesDriverGet(DtPropertyData* pPropData, const char* pName,
-                                                Int Port, DtPropertyValueType ValueType);
+DtPropertyValue  DtPropertiesDriverGet(DtPropertyData* pPropData, 
+                                                  const char* pName,
+                                                  Int Port, DtPropertyValueType ValueType,
+                                                  Bool  IsOptionalProp,
+                                                  DtPropertyValue  Default);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGetBool -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -128,7 +156,21 @@ static __inline Bool  DtPropertiesGetBool(
     Int  PortIndex)
 {
     DtPropertyValue  Value = DtPropertiesDriverGet(pPropData, pName, PortIndex,
-                                                            PROPERTY_VALUE_TYPE_BOOL);
+                                                     PROPERTY_VALUE_TYPE_BOOL, FALSE, -1);
+    return (Value != 0);
+}
+// Gets an optional Bool property (returns specified default if prop was not found)
+static __inline Bool  DtPropertiesGetBoolWithDefault(
+    DtPropertyData*  pPropData,
+    const char*  pName,
+    Int  PortIndex,
+    Bool  Default)
+{
+    // Get as optional property (i.e. no error if it does not exist)
+    DtPropertyValue Value = DtPropertiesDriverGet(pPropData, pName, PortIndex, 
+                                                                 PROPERTY_VALUE_TYPE_BOOL,
+                                                                 TRUE, // Is optional
+                                                                 ((Default) ? 1 : 0));
     return (Value != 0);
 }
 
@@ -140,7 +182,19 @@ static __inline UInt  DtPropertiesGetUInt(
     Int  PortIndex)
 {
     return (UInt)DtPropertiesDriverGet(pPropData, pName, PortIndex,
-                                                            PROPERTY_VALUE_TYPE_UINT);
+                                                     PROPERTY_VALUE_TYPE_UINT, FALSE, -1);
+}
+// Gets an optional UInt property (returns specified default if prop was not found)
+static __inline UInt  DtPropertiesGetUIntWithDefault(
+    DtPropertyData*  pPropData,
+    const char*  pName,
+    Int  PortIndex,
+    UInt  Default)
+{
+    // Get as optional property (i.e. no error if it does not exist)
+    return (UInt)DtPropertiesDriverGet(pPropData, pName, PortIndex, 
+                                                                 PROPERTY_VALUE_TYPE_UINT,
+                                                                 TRUE, Default);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGetUInt8 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -151,7 +205,19 @@ static __inline UInt8  DtPropertiesGetUInt8(
     Int  PortIndex)
 {
     return (UInt8)DtPropertiesDriverGet(pPropData, pName, PortIndex,
-                                                           PROPERTY_VALUE_TYPE_UINT8);
+                                                    PROPERTY_VALUE_TYPE_UINT8, FALSE, -1);
+}
+// Gets an optional UInt8 property (returns specified default if prop was not found)
+static __inline UInt8  DtPropertiesGetUInt8WithDefault(
+    DtPropertyData*  pPropData,
+    const char*  pName,
+    Int  PortIndex,
+    UInt8  Default)
+{
+    // Get as optional property (i.e. no error if it does not exist)
+    return (UInt8)DtPropertiesDriverGet(pPropData, pName, PortIndex, 
+                                                                PROPERTY_VALUE_TYPE_UINT8,
+                                                                TRUE, Default);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGetUInt16 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -162,7 +228,19 @@ static __inline UInt16  DtPropertiesGetUInt16(
     Int  PortIndex)
 {
     return (UInt16)DtPropertiesDriverGet(pPropData, pName, PortIndex,
-                                                          PROPERTY_VALUE_TYPE_UINT16);
+                                                   PROPERTY_VALUE_TYPE_UINT16, FALSE, -1);
+}
+// Gets an optional UInt16 property (returns specified default if prop was not found)
+static __inline UInt16  DtPropertiesGetUInt16WithDefault(
+    DtPropertyData*  pPropData,
+    const char*  pName,
+    Int  PortIndex,
+    UInt16  Default)
+{
+    // Get as optional property (i.e. no error if it does not exist)
+    return (UInt16)DtPropertiesDriverGet(pPropData, pName, PortIndex, 
+                                                               PROPERTY_VALUE_TYPE_UINT16,
+                                                               TRUE, Default);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGetUInt32 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -173,7 +251,19 @@ static __inline UInt32  DtPropertiesGetUInt32(
     Int  PortIndex)
 {
     return (UInt32)DtPropertiesDriverGet(pPropData, pName, PortIndex,
-                                                          PROPERTY_VALUE_TYPE_UINT32);
+                                                   PROPERTY_VALUE_TYPE_UINT32, FALSE, -1);
+}
+// Gets an optional UInt32 property (returns specified default if prop was not found)
+static __inline UInt32  DtPropertiesGetUInt32WithDefault(
+    DtPropertyData*  pPropData,
+    const char*  pName,
+    Int  PortIndex,
+    UInt32  Default)
+{
+    // Get as optional property (i.e. no error if it does not exist)
+    return (UInt32)DtPropertiesDriverGet(pPropData, pName, PortIndex, 
+                                                               PROPERTY_VALUE_TYPE_UINT32,
+                                                               TRUE, Default);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGetUInt64 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -184,7 +274,19 @@ static __inline UInt64  DtPropertiesGetUInt64(
     Int  PortIndex)
 {
     return (UInt64)DtPropertiesDriverGet(pPropData, pName, PortIndex,
-                                                          PROPERTY_VALUE_TYPE_UINT64);
+                                                   PROPERTY_VALUE_TYPE_UINT64, FALSE, -1);
+}
+// Gets an optional UInt64 property (returns specified default if prop was not found)
+static __inline UInt64  DtPropertiesGetUInt64WithDefault(
+    DtPropertyData*  pPropData,
+    const char*  pName,
+    Int  PortIndex,
+    UInt64  Default)
+{
+    // Get as optional property (i.e. no error if it does not exist)
+    return (UInt64)DtPropertiesDriverGet(pPropData, pName, PortIndex, 
+                                                               PROPERTY_VALUE_TYPE_UINT64,
+                                                               TRUE, Default);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGetInt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -195,7 +297,18 @@ static __inline Int  DtPropertiesGetInt(
     Int  PortIndex)
 {
     return (Int)DtPropertiesDriverGet(pPropData, pName, PortIndex,
-                                                             PROPERTY_VALUE_TYPE_INT);
+                                                      PROPERTY_VALUE_TYPE_INT, FALSE, -1);
+}
+// Gets an optional Int property (returns specified default if prop was not found)
+static __inline Int  DtPropertiesGetIntWithDefault(
+    DtPropertyData*  pPropData,
+    const char*  pName,
+    Int  PortIndex,
+    Int  Default)
+{
+    // Get as optional property (i.e. no error if it does not exist)
+    return (Int)DtPropertiesDriverGet(pPropData, pName, PortIndex,
+                                                  PROPERTY_VALUE_TYPE_INT, TRUE, Default);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGetInt8 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -206,7 +319,18 @@ static __inline Int8  DtPropertiesGetInt8(
     Int   PortIndex)
 {
     return (Int8)DtPropertiesDriverGet(pPropData, pName, PortIndex,
-                                                            PROPERTY_VALUE_TYPE_INT8);
+                                                     PROPERTY_VALUE_TYPE_INT8, FALSE, -1);
+}
+// Gets an optional Int8 property (returns specified default if prop was not found)
+static __inline Int8  DtPropertiesGetInt8WithDefault(
+    DtPropertyData*  pPropData,
+    const char*  pName,
+    Int  PortIndex,
+    Int8  Default)
+{
+    // Get as optional property (i.e. no error if it does not exist)
+    return (Int8)DtPropertiesDriverGet(pPropData, pName, PortIndex,
+                                                 PROPERTY_VALUE_TYPE_INT8, TRUE, Default);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGetInt16 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -217,7 +341,18 @@ static __inline Int16  DtPropertiesGetInt16(
     Int  PortIndex)
 {
     return (Int16)DtPropertiesDriverGet(pPropData, pName, PortIndex,
-                                                           PROPERTY_VALUE_TYPE_INT16);
+                                                    PROPERTY_VALUE_TYPE_INT16, FALSE, -1);
+}
+// Gets an optional Int16 property (returns specified default if prop was not found)
+static __inline Int16  DtPropertiesGetInt16WithDefault(
+    DtPropertyData*  pPropData,
+    const char*  pName,
+    Int  PortIndex,
+    Int16  Default)
+{
+    // Get as optional property (i.e. no error if it does not exist)
+    return (Int16)DtPropertiesDriverGet(pPropData, pName, PortIndex,
+                                                PROPERTY_VALUE_TYPE_INT16, TRUE, Default);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGetInt32 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -228,7 +363,18 @@ static __inline Int32  DtPropertiesGetInt32(
     Int  PortIndex)
 {
     return (Int32)DtPropertiesDriverGet(pPropData, pName, PortIndex,
-                                                           PROPERTY_VALUE_TYPE_INT32);
+                                                    PROPERTY_VALUE_TYPE_INT32, FALSE, -1);
+}
+// Gets an optional Int32 property (returns specified default if prop was not found)
+static __inline Int32  DtPropertiesGetInt32WithDefault(
+    DtPropertyData*  pPropData,
+    const char*  pName,
+    Int  PortIndex,
+    Int32  Default)
+{
+    // Get as optional property (i.e. no error if it does not exist)
+    return (Int32)DtPropertiesDriverGet(pPropData, pName, PortIndex,
+                                                PROPERTY_VALUE_TYPE_INT32, TRUE, Default);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPropertiesGetInt64 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -239,7 +385,18 @@ static __inline Int64  DtPropertiesGetInt64(
     Int  PortIndex)
 {
     return (Int64)DtPropertiesDriverGet(pPropData, pName, PortIndex,
-                                                           PROPERTY_VALUE_TYPE_INT64);
+                                                    PROPERTY_VALUE_TYPE_INT64, FALSE, -1);
+}
+// Gets an optional Int64 property (returns specified default if prop was not found)
+static __inline Int64  DtPropertiesGetInt64WithDefault(
+    DtPropertyData*  pPropData,
+    const char*  pName,
+    Int  PortIndex,
+    Int64  Default)
+{
+    // Get as optional property (i.e. no error if it does not exist)
+    return (Int64)DtPropertiesDriverGet(pPropData, pName, PortIndex,
+                                                PROPERTY_VALUE_TYPE_INT64, TRUE, Default);
 }
 
 #endif // __DT_PROPERTIES_H

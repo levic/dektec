@@ -61,12 +61,12 @@ BOOLEAN  DtDmaSgListCreated(
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Scatter/Gather helpers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //
-// Kernel 2.6.24 provides an updated struct scatterlist API. We use inline functions as
+// Kernel 2.6.24 provides an updated struct scatterlist API. We use __inline functions as
 // wrapper for kernel dependant scatter-gather code
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtSgInitTable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-static inline void  DtDmaSgInitTable(
+static __inline void  DtDmaSgInitTable(
     struct scatterlist*  pSGL,
     Int  NumEntries)
 {
@@ -81,7 +81,7 @@ static inline void  DtDmaSgInitTable(
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtSgSetPage -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-static inline void  DtDmaSgSetPage(
+static __inline void  DtDmaSgSetPage(
     struct scatterlist*  pSGL,
     struct page*  pPage,
     Int  Size,

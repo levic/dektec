@@ -63,7 +63,7 @@ void  DtSpinLockAcquire(DtSpinLock* pSpinLock)
 void  DtSpinLockAcquireAtDpc(DtSpinLock* pSpinLock)
 {
 #ifdef WINBUILD
-    DT_ASSERT(KeGetCurrentIrql() == DISPATCH_LEVEL);
+    DT_ASSERT(KeGetCurrentIrql() >= DISPATCH_LEVEL);
 #ifdef USES_NDIS
     NdisAcquireSpinLock(&pSpinLock->m_SpinLock);
 #else
@@ -94,7 +94,7 @@ void  DtSpinLockRelease(DtSpinLock* pSpinLock)
 void  DtSpinLockReleaseFromDpc(DtSpinLock* pSpinLock)
 {
 #ifdef WINBUILD
-    DT_ASSERT(KeGetCurrentIrql() == DISPATCH_LEVEL);
+    DT_ASSERT(KeGetCurrentIrql() >= DISPATCH_LEVEL);
 #ifdef USES_NDIS
     NdisReleaseSpinLock(&pSpinLock->m_SpinLock);
 #else

@@ -1572,6 +1572,10 @@ DtStatus  DtuNonIpRxReset( DtuDeviceData*  pDvcData, DtuNonIpPort*  pNonIpPort,
     if ( ResetMode!=DTU_RST_CHANNEL && ResetMode!=DTU_RST_CLEARFIFO )
         return DT_STATUS_INVALID_PARAMETER;
 
+    // TT#2896: Set device to IDLE before clearing the fifo.
+    DtuNonIpRxRegWriteMasked(pNonIpPort, DT_RX_REG_RXCTRL, 
+                               DT_RXCTRL_RXCTRL_MSK, DT_RXCTRL_RXCTRL_SH, DT_RXCTRL_IDLE);
+
     if (ResetMode == DTU_RST_CLEARFIFO)
         VendCmd = DTU_USB_RX_CLEAR_FIFO;
     else

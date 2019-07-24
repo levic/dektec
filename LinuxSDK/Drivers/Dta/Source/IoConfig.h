@@ -31,6 +31,11 @@
 // IoConfigValue
 typedef DtIoConfigValueDriver  DtaIoConfigValue;
 
+// New common types
+typedef DtIoctlIoConfigId   DtIoConfigId;
+typedef DtIoctlIoConfigValue  DtIoConfigValue;
+typedef DtIoctlIoConfig  DtIoConfigPars;
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtaIoConfigInit(DtaDeviceData* pDvcData);
 DtStatus  DtaIoConfigGet(DtaDeviceData*  pDvcData, DtFileObject*  pFile, 

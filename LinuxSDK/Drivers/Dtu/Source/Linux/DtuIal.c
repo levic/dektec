@@ -441,6 +441,8 @@ static long  DtuIoctl(
     UInt  InputSizeParam = 0;
     UInt  OutputSizeParam = 0;
     UInt  ReservedForSizeParam = 0;
+    DtPageList*  pPageListIn = NULL;
+    DtPageList*  pPageListOut = NULL;
 
     DtDbgOut(MAX, IAL, "Start");
 
@@ -512,10 +514,16 @@ static long  DtuIoctl(
             // Allocate memory for the output data
             if (ReservedForSizeParam != 0)
             {
-                pIoctlOutputData = kmalloc(Ioctl.m_OutputBufferSize, GFP_KERNEL);
-                Ioctl.m_pOutputBuffer = pIoctlOutputData;
-                if (pIoctlOutputData == NULL)
-                    Result = -EFAULT;
+                if (Ioctl.m_OutputBufferSize != 0)
+                {
+                    pIoctlOutputData = DtMemAllocPoolLarge(DtPoolNonPaged,
+                        Ioctl.m_OutputBufferSize, 0, &pPageListOut);
+                    Ioctl.m_pOutputBuffer = pIoctlOutputData;
+                    if (pIoctlOutputData == NULL)
+                        Result = -EFAULT;
+                }
+                else
+                    Ioctl.m_pOutputBuffer = NULL;
             } else
                 Ioctl.m_pOutputBuffer = &IoctlOutputData;
         }
@@ -537,10 +545,16 @@ static long  DtuIoctl(
             // Allocate memory for the input data
             if (ReservedForSizeParam != 0)
             {
-                pIoctlInputData = kmalloc(Ioctl.m_InputBufferSize, GFP_KERNEL);
-                Ioctl.m_pInputBuffer = pIoctlInputData;
-                if (pIoctlInputData == NULL)
-                    Result = -EFAULT;
+                if (Ioctl.m_InputBufferSize != 0)
+                {
+                    pIoctlInputData = DtMemAllocPoolLarge(DtPoolNonPaged,
+                        Ioctl.m_InputBufferSize, 0, &pPageListIn);
+                    Ioctl.m_pInputBuffer = pIoctlInputData;
+                    if (pIoctlInputData == NULL)
+                        Result = -EFAULT;
+                }
+                else
+                    Ioctl.m_pInputBuffer = NULL;
             } else
                 Ioctl.m_pInputBuffer = &IoctlInputData;
         }
@@ -591,10 +605,9 @@ static long  DtuIoctl(
     }
 
     if (pIoctlInputData != NULL)
-        kfree(pIoctlInputData);
+        DtMemFreePoolLarge(pIoctlInputData, 0, pPageListIn);
     if (pIoctlOutputData != NULL)
-        kfree(pIoctlOutputData);
-
+        DtMemFreePoolLarge(pIoctlOutputData, 0, pPageListOut);
 
     DtDbgOut(MAX, IAL, "Exit");
 

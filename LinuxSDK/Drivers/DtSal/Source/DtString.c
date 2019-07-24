@@ -30,7 +30,7 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtStringAlloc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtStringAlloc(DtString* pDtString, UInt16 DtStringCharCount)
+DtStatus  DtStringAlloc(DtString* pDtString, Int DtStringCharCount)
 {
     if (pDtString == NULL)
         return DT_STATUS_INVALID_PARAMETER;
@@ -339,11 +339,114 @@ Bool  DtStringCompare(DtString* pDtString1, DtString* pDtString2)
 #endif
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtStringErase -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtStringErase(DtString* pDtString, Int Pos, Int Len)
+{
+    Int  StrLength = 0;
+
+    DT_ASSERT(pDtString != NULL);
+    DT_ASSERT(Pos>=0 && Len>=-1);
+
+    // Get the string length
+    StrLength = DtStringGetStringLength(pDtString);
+    
+    // Should we erase all chars upto the end of the string
+    if (Len == -1)
+        Len = StrLength - Pos;
+    // Check we stay within bounds
+    if (Pos>=StrLength || (Pos+Len)>StrLength)
+        return DT_STATUS_BUFFER_OVERFLOW;
+
+    // The erase is simple a question of setting the NULL-terminating at the specified 
+    // position and updating the string length
+#ifdef WINBUILD
+    DT_ASSERT(Pos*sizeof(DtStringChar) < pDtString->MaximumLength);
+    pDtString->Buffer[Pos*sizeof(DtStringChar)] = L'\0';
+    pDtString->Length = (Pos+1)*sizeof(DtStringChar);
+#else
+    DT_ASSERT(Pos*sizeof(DtStringChar) < pDtString->m_MaximumLength);
+    pDtString->m_Buffer[Pos*sizeof(DtStringChar)] = '\0';
+    pDtString->m_Length = (Pos+1)*sizeof(DtStringChar);
+#endif
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtStringFind -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Find first occurance of a sub-string in the string.
+// Starts searching at the specified postion.
+//
+Int  DtStringFind(const DtString* pSrc, const DtString* pFindStr, Int StartPos)
+{
+    Int  Pos=0, i=0, SrcLen=0, FindLen=0;
+    const DtStringChar*  pSrcChar = NULL;
+       
+    DT_ASSERT(pSrc!=NULL && pFindStr!=NULL);
+
+    // Get string length
+    SrcLen = DtStringGetStringLength(pSrc);
+    FindLen = DtStringGetStringLength(pFindStr);
+    
+    // Must stay within bounds
+    if (Pos<0 || Pos>=SrcLen || FindLen==0)
+        return -1;
+
+#ifdef WINBUILD
+    pSrcChar = (const DtStringChar*)pSrc->Buffer;
+#else
+    pSrcChar = (const DtStringChar*)pSrc->m_Buffer;
+#endif // #ifdef WINBUILD
+
+    // Search the for a position containing the sub-string
+    for (Pos=StartPos; Pos<=(SrcLen-FindLen); Pos++)
+    {
+    #ifdef WINBUILD
+        const DtStringChar*  pFindChar = (const DtStringChar*)pFindStr->Buffer;
+    #else
+        const DtStringChar*  pFindChar = (const DtStringChar*)pFindStr->m_Buffer;
+    #endif // #ifdef WINBUILD
+        
+        // Check for match at this position
+        for (i=0; i<FindLen; i++)
+        {
+            DT_ASSERT((Pos+i) < SrcLen);
+            if (pSrcChar[Pos+i] != pFindChar[i])
+                break;  // No 100% match
+        }
+        // Did we reach the end of search string
+        if (i == FindLen)
+            return Pos;       // Found match
+    }
+    return -1;
+}
+// OVERLOAD: find a char-string sub-string in a DtString-string
+Int  DtStringFindChars(const DtString* pSrcString, const Char* pFindString, Int StartPos)
+{
+    Int  Pos = -1;
+    DtString  TempString;
+    DT_ASSERT(pSrcString!=NULL && pFindString!=NULL);
+
+    // Create a tempory string buffer and convert Char string to DtString
+    DtStringAlloc(&TempString, DtStringGetStringLength(pSrcString));
+    if (DtStringAppendChars(&TempString, pFindString) != DT_STATUS_OK)
+    {
+        DT_ASSERT(FALSE);
+        // Do not forget to free the temp-string
+        DtStringFree(&TempString);
+        return -1;
+    }
+    Pos = DtStringFind(pSrcString, &TempString, StartPos);
+    // Do not forget to free the temp-string
+    DtStringFree(&TempString);
+    return Pos;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtStringGetMaxStringLength -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Returns the maximal string length. (Not the buffer length)
 //
-UInt  DtStringGetMaxStringLength(DtString* pDtString)
+UInt  DtStringGetMaxStringLength(const DtString* pDtString)
 {
 #ifdef WINBUILD
     return pDtString->MaximumLength / sizeof(DtStringChar);
@@ -356,7 +459,7 @@ UInt  DtStringGetMaxStringLength(DtString* pDtString)
 //
 // Returns the string length. (Not the occupied buffer length)
 //
-UInt  DtStringGetStringLength(DtString* pDtString)
+UInt  DtStringGetStringLength(const DtString* pDtString)
 {
 #ifdef WINBUILD
     return pDtString->Length / sizeof(DtStringChar);
@@ -365,10 +468,65 @@ UInt  DtStringGetStringLength(DtString* pDtString)
 #endif
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtStringSubstr -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Get a sub-string from the string
+//
+DtStatus  DtStringSubstr(const DtString*  pSrcString, 
+                                                DtString*  pDstString, Int  Pos, Int  Len)
+{
+    Int  i=0, SrcLen=0, DstMaxLen=0;
+    const DtStringChar*  pSrc = NULL;
+    DtStringChar*  pDst = NULL;
+
+    DT_ASSERT(pSrcString!=NULL && pDstString!=NULL);
+
+
+    // Check parameters
+    if (Pos<0 || (Len!=-1 && Len<0))
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Get string length
+    SrcLen = DtStringGetStringLength(pSrcString);
+    DstMaxLen = DtStringGetMaxStringLength(pDstString);
+
+    if (Len == -1)
+        Len = SrcLen - Pos;
+    // Check we stay within bounds
+    if (Pos>=SrcLen || (Pos+Len)>SrcLen)
+        return DT_STATUS_BUFFER_OVERFLOW;
+    // Must fit in destination
+    else if (Len > DstMaxLen)
+        return DT_STATUS_BUF_TOO_SMALL;
+
+#ifdef WINBUILD
+    pSrc = (const DtStringChar*)pSrcString->Buffer;
+    pDst = (DtStringChar*)pDstString->Buffer;
+#else
+    pSrc = (const DtStringChar*)pSrcString->m_Buffer;
+    pDst = (DtStringChar*)pDstString->m_Buffer;
+#endif
+
+    // Copy chars
+    DT_ASSERT(Len<=SrcLen && Len<=DstMaxLen);
+    for (i=0; i<Len; i++)
+        pDst[i] = pSrc[Pos+i];
+    // Add NULL-termination and set length
+#ifdef WINBUILD
+    pDst[i] = L'\0';
+    pDstString->Length = i*sizeof(DtStringChar);
+#else
+    pDst[i] = '\0';
+    pDstString->m_Length = i*sizeof(DtStringChar);
+#endif
+
+    return DT_STATUS_OK;
+}
+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtStringToCharString -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtStringToCharString(DtString* pDtString, Char* pStringDest, UInt Size)
+DtStatus  DtStringToCharString(DtString* pDtString, Char* pStringDest, Int Size)
 {
     Int i;
     DtStatus  Status = DT_STATUS_OK;

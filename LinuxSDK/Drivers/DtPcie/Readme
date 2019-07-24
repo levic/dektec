@@ -1,0 +1,73 @@
+--------------------------------------------------------------------------------
+- Readme for DtPcie Linux device driver
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+- Table of Contents
+--------------------------------------------------------------------------------
+
+ 1. Version History
+ 2. Introduction
+ 3. Installation Instructions
+ 4. Usage Instructions
+ 5. Contact Information
+
+--------------------------------------------------------------------------------
+- 1. Version History
+--------------------------------------------------------------------------------
+
+Refer to the "SDK - Revision History.pdf" document for an overview of the 
+changes included in the release.
+						
+--------------------------------------------------------------------------------
+- 2. Introduction
+--------------------------------------------------------------------------------
+
+The DtPcie driver is a char driver for DekTec's DTA-series of PCIe cards.
+Currently the driver provides support for the following cards:
+- DTA-2132	(High-End Satellite Receiver for PCIe)
+- DTA-2139B	(12-Channel Cable/Terrestrial Receiver for PCIe)
+- DTA-2175	(HD-SDI/ASI Input+Output with Relay Bypass for PCIe)
+
+ 
+--------------------------------------------------------------------------------
+- 3. Installation Instructions
+--------------------------------------------------------------------------------
+
+To install the driver, perform the following steps:
+ - Compile the driver (type "make" in the directory containing the makefile);
+ - Install the driver (type "make install" in the directory containing the
+   makefile).
+
+NOTE: MAKE SURE THE 'KERNEL_DIR' DEFINE IN THE MAKEFILE SPECIFIES THE CORRECT
+      PATH TO THE KERNEL SOURCES.  IF THE SPECIFIED PATH DOES NOT INCLUDE THE
+      KERNEL SOURCES, BUT ONLY THE 'USER' SOURCES THE COMPILER MIGHT GENERATE
+      THE FOLLOWING MESSAGE: "#warning Using kernel headers in userspace"
+
+--------------------------------------------------------------------------------
+- 4. Usage Instructions
+--------------------------------------------------------------------------------
+
+The DtPcie driver has the following system requirements:
+ - Kernel version 2.6.32 or higher   
+ - Linux hotplug should be installed
+ 
+For easy usage of the driver, DekTec provides the DTAPI wrapper library.
+The DTAPI hides the complexities of using the driver in a few easy-to-use
+classes. The DTAPI is included in the Linux SDK.
+
+--------------------------------------------------------------------------------
+- 5. Contact Information
+--------------------------------------------------------------------------------
+
+Please find our contact information below:
+
+DekTec Digital Video B.V.
+Godelindeweg 4
+1217 HR Hilversum
+The Netherlands
+
+Tel:		+31 (0)35 2030 100
+email: 		support@dektec.com / info@dektec.com
+website:	www.dektec.com

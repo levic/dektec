@@ -418,7 +418,7 @@ UInt  DtAnsiCharToUInt(char Char)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAnsiCharArrayToUInt64 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-UInt64  DtAnsiCharArrayToUInt64(char* pUIntString, UInt StrLen, UInt Base)
+UInt64  DtAnsiCharArrayToUInt64(const char* pUIntString, UInt StrLen, UInt Base)
 {
     Int  Index;
     UInt64  Multiplier = 1;
@@ -445,7 +445,7 @@ UInt64  DtAnsiCharArrayToUInt64(char* pUIntString, UInt StrLen, UInt Base)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAnsiCharArrayToUInt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-UInt  DtAnsiCharArrayToUInt(char* pUIntString, UInt StrLen, UInt Base)
+UInt  DtAnsiCharArrayToUInt(const char* pUIntString, UInt StrLen, UInt Base)
 {
     Int  Index;
     UInt  Multiplier = 1;
@@ -474,7 +474,9 @@ UInt  DtAnsiCharArrayToUInt(char* pUIntString, UInt StrLen, UInt Base)
 //
 Bool  DtAnsiCharArrayIsEqual(const char* pStr1, const char* pStr2)
 {
-    if (pStr1==NULL || pStr2==NULL)
+    if (pStr1 == pStr2)
+        return TRUE;
+    else if (pStr1==NULL || pStr2==NULL)
         return FALSE;
 
     while(TRUE)
@@ -526,6 +528,23 @@ Bool  DtAnsiCharArrayStartsWith(const char* pStr, const char* pStart)
         pStart++;
     }
     return TRUE;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAnsiCharArrayStrLength -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtAnsiCharArrayStrLength(const char* pStr, Int  MaxLength)
+{
+    Int  Len = 0;
+    if (pStr == NULL)
+        return -1;
+
+    for (Len=0; Len<MaxLength; Len++)
+    {
+        // Reach end of string? 
+        if (pStr[Len] == '\0')
+            return Len;
+    }
+    return  -1;
 }
 
 

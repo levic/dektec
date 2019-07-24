@@ -30,14 +30,14 @@ typedef struct {
     union {
         struct {
             UInt32  m_Checksum:8;
-            UInt32  m_ScanInfo:2;
-            UInt32  m_BarInfoDataValid:2;
-            UInt32  m_ActiveInfoPresent:1;
-            UInt32  m_YCbCrIndicator:2;
-            UInt32  m_Reserved1:1;
-            UInt32  m_ActiveFormatAspectRatio:4;
-            UInt32  m_PictureAspectRatio:2;
-            UInt32  m_Colorimetry:2;
+            UInt32  m_ScanInfo:2;                   // S0,S1
+            UInt32  m_BarInfoDataValid:2;           // B0,B1
+            UInt32  m_ActiveInfoPresent:1;          // A0
+            UInt32  m_YCbCrIndicator:2;             // Y0,Y1
+            UInt32  m_Reserved1:1;                  // Y2??
+            UInt32  m_ActiveFormatAspectRatio:4;    // R0,R1,R2,R3
+            UInt32  m_PictureAspectRatio:2;         // M0, M1
+            UInt32  m_Colorimetry:2;                // C
             UInt32  m_NonUniformPictureScaling:2;
             UInt32  m_QuantizationRange:2;
             UInt32  m_ExtendedColorimetry:3;
@@ -2094,7 +2094,7 @@ void  DtHdmiEdidDecodeDisplayRangeLimits(DtaHdmiTx* pHdmiTx, UInt8* pDisplayRL)
                                                                            " not offset");
         MaxHOffset = 255;
     }
-    else if ((pDisplayRL[0] & 0x03) == 0xC)
+    else if ((pDisplayRL[0] & 0x0C) == 0xC)
     {
         DtDbgOut(MAX, HDMI, "Max. Horitontal Rate+255Hz offset; Min. Horizontal"
                                                                     " Rate+255Hz offset");

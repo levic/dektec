@@ -99,7 +99,7 @@
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
-DtStatus  DtStringAlloc(DtString* pDtString, UInt16 DtStringCharCount);
+DtStatus  DtStringAlloc(DtString* pDtString, Int DtStringCharCount);
 DtStatus  DtStringFree(DtString* pDtString);
 DtStatus  DtStringClear(DtString* pDtString);
 DtStatus  DtStringAppendChars(DtString* pDtStringDest, const Char* pStringSrc);
@@ -107,9 +107,14 @@ DtStatus  DtStringAppendDtString(DtString* pDtStringDest, DtString* pDtStringSrc
 DtStatus  DtStringAppendSubstring(DtString* pDtStringDest, DtString* pDtStringSrc,
                                                   Int SubStringCount, char DelimiterChar);
 Bool  DtStringCompare(DtString* pDtString1, DtString* pDtString2);
-UInt  DtStringGetMaxStringLength(DtString* pDtString);
-UInt  DtStringGetStringLength(DtString* pDtString);
-DtStatus  DtStringToCharString(DtString* pDtString, Char* pStringDest, UInt Size);
+DtStatus  DtStringErase(DtString* pDtString, Int Pos, Int Len);
+Int  DtStringFind(const DtString* pSrcString, const DtString* pFindString, Int StartPos);
+Int  DtStringFindChars(const DtString* pSrcString, const Char* pFindString, Int StartPos);
+UInt  DtStringGetMaxStringLength(const DtString* pDtString);
+UInt  DtStringGetStringLength(const DtString* pDtString);
+DtStatus  DtStringSubstr(const DtString* pSrcString, DtString* pDstString, 
+                                                                        Int Pos, Int Len);
+DtStatus  DtStringToCharString(DtString* pDtString, Char* pStringDest, Int Size);
 DtStatus  DtStringUIntegerToDtString(DtString* pDtString, UInt8 Base, UInt Value);
 DtStatus  DtStringUIntegerToDtStringAppend(DtString* pDtString, UInt8 Base, UInt Value);
 DtStatus  DtStringUInt64ToDtString(DtString* pDtString, UInt8 Base, UInt64 Value);

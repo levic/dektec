@@ -28,10 +28,22 @@
 #ifndef __DT_UTILITIES_H
 #define __DT_UTILITIES_H
 
+// MACRO to determine size of and array (i.e. #elements in an array)
+#ifndef DT_SIZEOF_ARRAY
+#define  DT_SIZEOF_ARRAY(ARRAY)   (sizeof(ARRAY)/sizeof(ARRAY[0]))
+#endif // #ifndef DT_SIZEOF_ARRAY
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtUtilitiesDeduceHardwareRevision(char* Buffer, UInt BufLen, 
                                                                   Int* pHardwareRevision);
 DtStatus  DtUtilitiesDeriveSubType(DtPropertyData* pPropData, Int HardwareRevision, 
                                                                            Int* pSubType);
+
+DtStatus  DtUtilitiesCamelCaseToUpper(const char* pStrIn, char*  pStrOut, Int  MaxLength);
+
+DtStatus  DtUtilitiesSplitInstanceId(const char*  pInstanceId, const  char*  pPrefix, 
+                                                         char*  pName, Int  MaxLengthName,
+                                                         Int*  pInstanceNum);
 
 #endif // __DT_UTILITIES_H

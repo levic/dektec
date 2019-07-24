@@ -29,6 +29,14 @@
 
 #define  OFFSETOF(Type, Field)  ((UInt32)(size_t)&(((Type*)0)->Field))
 
+// Use to mark a function or variable as potentially unused. Suppresses warnings about
+// unsused variables or functions
+#ifdef WINBUILD
+#define DT_UNUSED
+#else
+#define DT_UNUSED  __attribute__  ((unused))
+#endif
+
 #ifdef WINBUILD
 #define  DT_ASSERT  ASSERT
 #else
@@ -89,6 +97,13 @@
 #define DtDbgOut(Level, Module, Msg, ...) do { } while (0)
 #endif
 
+// Use when the Module name must be prefixed. For example all block-controller module 
+// names have the BC_ prefix (e.g. BC_SPIMF, BC_VVI)
+#define DtDbgOut_Prefix(Level, Prefix, Module, Msg, ...)                                 \
+                DtDbgOut(Level, Prefix##Module, Msg, ##__VA_ARGS__)
+
+
+// Dta driver specific DtDbgOut 
 #define DtDbgOutPort(Level, Module, pPort, Msg, ...)                                     \
                         DtDbgOut(Level, Module, "[%d:%d:%d] " Msg,                       \
                                               pPort->m_pDvcData->m_DevInfo.m_TypeNumber, \
@@ -191,11 +206,11 @@ static __inline UInt32  DtUInt32ByteSwap(UInt32 Dword)
 }
 
 UInt  DtAnsiCharToUInt(char Char);
-UInt  DtAnsiCharArrayToUInt(char* pUIntString, UInt StrLen, UInt Base);
-UInt64  DtAnsiCharArrayToUInt64(char* pUIntString, UInt StrLen, UInt Base);
+UInt  DtAnsiCharArrayToUInt(const char* pUIntString, UInt StrLen, UInt Base);
+UInt64  DtAnsiCharArrayToUInt64(const char* pUIntString, UInt StrLen, UInt Base);
 Bool  DtAnsiCharArrayIsEqual(const char* pStr1, const char* pStr2);
 Bool  DtAnsiCharArrayStartsWith(const char* pStr, const char* pStart);
-
+Int  DtAnsiCharArrayStrLength(const char* pStr, Int  MaxLength);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Timing functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 

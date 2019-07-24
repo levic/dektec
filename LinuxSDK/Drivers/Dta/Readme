@@ -59,7 +59,11 @@ Currently the driver provides support for the following cards:
 - DTA-2160	(GigE + 3x ASI ports for PCI Express)
 - DTA-2162	(Dual GigE TS-over-IP for PCI Express)
 - DTA-2174	(Quad 3G/HD-SDI In+Out Adapter for PCI Express)
+- DTA-2179	(Twelve channel 3G/HD-SDI In+Out Adapter for PCI Express)
 - DTA-2180	(H.264 HD Contribution Encoder for PCI Express)
+- DTA-2182	(Dual H.264 HD Contribution Encoder for PCI Express)
+- DTA-2195	(12G-SDI inp+out with HDMI 2.0 for PCI Express)
+
  
 NOTE: The DTA-110T is not supported
  

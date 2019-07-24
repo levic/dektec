@@ -1,0 +1,2 @@
+# Set character device file mode to read/write for all
+KERNEL=="DtPcie*", MODE="0666"

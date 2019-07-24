@@ -55,17 +55,25 @@ else
 	EXTRA_CFLAGS += -DSKIP_USB
 endif
 
+ifeq ("$(DRIVER_NAME)", "DtPcie")
+	EXTRA_CFLAGS += -DUSE_DF_EXCL_ACCESS
+endif
+
 # ========================================================================================
 # Source definitions
 
 SRCDIR := ..
-SRC     = $(SRCDIR)/DtAudioVideo.o      \
-          $(SRCDIR)/DtProperties.o      \
-		  $(SRCDIR)/DtIoConfig.o        \
-		  $(SRCDIR)/IoConfigCodes.o     \
-		  $(SRCDIR)/DtTables.o          \
-		  $(SRCDIR)/VpdCommon.o         \
-		  $(SRCDIR)/DtUtilities.o
+SRC     = $(SRCDIR)/DtAudioVideo.o          \
+          $(SRCDIR)/DtObject.o              \
+          $(SRCDIR)/DtProperties.o          \
+          $(SRCDIR)/DtIoCaps.o              \
+          $(SRCDIR)/DtIoConfig.o            \
+          $(SRCDIR)/IoConfigCodes.o         \
+          $(SRCDIR)/DtTables.o              \
+          $(SRCDIR)/DtVector.o              \
+          $(SRCDIR)/VpdCommon.o             \
+          $(SRCDIR)/DtExclAccessObject.o    \
+          $(SRCDIR)/DtUtilities.o
 		  
 EXTRA_CFLAGS += -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR) -I$(MYPWD)/$(SALSRCDIR)
 

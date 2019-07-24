@@ -365,8 +365,18 @@ DtStatus  DtPropertiesStrGet(
     if (DT_SUCCESS(Status) && pProperty!=NULL)
     {
         // Copy string
-        for (i=0; i<PROPERTY_STR_MAX_SIZE; i++)
-            pStr[i] = pProperty->m_pStr[i];
+        if (pProperty->m_pStr != NULL)
+        {
+            for (i=0; i<PROPERTY_STR_MAX_SIZE; i++)
+            {
+                pStr[i] = pProperty->m_pStr[i];
+                // Check for end of string
+                if (pProperty->m_pStr[i] == '\0')
+                    break;
+            }
+        }
+        else
+            pStr[0] = '\0';
         *pScope = pProperty->m_Scope;
 
         DtDbgOut(MAX, PROP, "Found property %s for %s-%d, FW %d, HW %d. Value: %s, "
@@ -472,16 +482,18 @@ DtStatus  DtPropertiesStrGetForType(
 //
 // Macro used in the driver only to get a property from the store, validates its type,
 // casts the value to the correct requested type and increments the not-found counter if
-// the requested property was not found.
+// the requested property was not found is not optional.
 //
 DtPropertyValue  DtPropertiesDriverGet(
     DtPropertyData*  pPropData,
     const char*  pName,
     Int  Port,
-    DtPropertyValueType  ValueType)
+    DtPropertyValueType  ValueType,
+    Bool  IsOptionalProp,
+    DtPropertyValue  Default)
 {
     DtStatus  Status;
-    DtPropertyValue  Value = (DtPropertyValue)-1;
+    DtPropertyValue  Value = Default;
     DtPropertyValueType  Type;
     DtPropertyScope  Scope;
 
@@ -490,7 +502,7 @@ DtPropertyValue  DtPropertiesDriverGet(
     if (DT_SUCCESS(Status))
     {
         if(Type!=ValueType || (Scope&PROPERTY_SCOPE_DRIVER)!=PROPERTY_SCOPE_DRIVER)
-            DtDbgOut(ERR, PROP, "Get property failure %s for %s-%d, FW %d, HW %d", pName,                                                  
+            DtDbgOut(ERR, PROP, "Get property failure %s for %s-%d, FW %d, HW %d", pName,
                                                   pPropData->m_TypeName,
                                                   pPropData->m_TypeNumber,
                                                   pPropData->m_FirmwareVersion,
@@ -501,9 +513,13 @@ DtPropertyValue  DtPropertiesDriverGet(
         /* Check if property type satisfies the expected type */
         DT_ASSERT(Type == ValueType);
 
-    } else {
-        // Increment property not found count and construct string
-        pPropData->m_PropertyNotFoundCounter++;
+    }
+    else
+    {
+        // If optional set to default
+        if (IsOptionalProp)
+            Value = Default;
+
         DtStringClear(&pPropData->m_PropertyNotFoundString);
         DtStringAppendChars(&pPropData->m_PropertyNotFoundString, pName);
         DtStringAppendChars(&pPropData->m_PropertyNotFoundString, "(MinFw: ");
@@ -514,13 +530,29 @@ DtPropertyValue  DtPropertiesDriverGet(
                                                            pPropData->m_HardwareRevision);
         DtStringAppendChars(&pPropData->m_PropertyNotFoundString, ")");
 
-        DtDbgOut(AVG, PROP, "Failed to get property %s for %s-%d, FW %d, HW %d", pName,
-                                                  pPropData->m_TypeName,
-                                                  pPropData->m_TypeNumber,
-                                                  pPropData->m_FirmwareVersion,
-                                                  pPropData->m_HardwareRevision);
+        // Do not count as an error if the property was not found but was optional
+        if(IsOptionalProp && Status==DT_STATUS_NOT_FOUND)
+        {
+            DtDbgOut(AVG, PROP, "Optional property %s for %s-%d, FW %d, HW %d not found", 
+                                                           pName,
+                                                           pPropData->m_TypeName,
+                                                           pPropData->m_TypeNumber,
+                                                           pPropData->m_FirmwareVersion,
+                                                           pPropData->m_HardwareRevision);
+        }
+        else
+        {
+            // Count as an error when non-optional or when the error is another error
+            // than not found
+            pPropData->m_PropertyNotFoundCounter++;
+            DtDbgOut(AVG, PROP, "Failed to get property %s for %s-%d, FW %d, HW %d", 
+                                                           pName,
+                                                           pPropData->m_TypeName,
+                                                           pPropData->m_TypeNumber,
+                                                           pPropData->m_FirmwareVersion,
+                                                           pPropData->m_HardwareRevision);
+        }
     }
-
     return Value;
 }
 

@@ -124,7 +124,7 @@
 #define SAL_TAG         0x546C6153  // 'TlaS'
 
 // SAL related logging
-#define LOG_LEVEL_SAL         LOG_OFF
+#define LOG_LEVEL_SAL         LOG_MIN
 #define LOG_LEVEL_SAL_DMA     LOG_AVG
 #define LOG_LEVEL_SAL_DPC     LOG_AVG
 #define LOG_LEVEL_SAL_THREAD  LOG_AVG
@@ -320,7 +320,8 @@ static __inline void*  DtFileGetHandle(DtFileObject* pFileObj)
 #endif
 }
 
-static __inline Bool DtFileCompare(DtFileObject* pFileObj1, DtFileObject* pFileObj2)
+static __inline Bool DtFileCompare(const DtFileObject* pFileObj1,
+                                                            const DtFileObject* pFileObj2)
 {
 #ifdef WINBUILD
 #ifdef USES_KMDF
@@ -371,6 +372,7 @@ struct _DtPageList
 #include <DtNonVolatileSettings.h>
 #include <DtMutex.h>
 #include <DtSpinLock.h>
+#include <DtFile.h>
 #include <DtEvent.h>
 #include <DtDpc.h>
 #include <DtWorkItem.h>

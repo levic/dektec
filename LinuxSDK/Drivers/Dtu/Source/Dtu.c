@@ -699,6 +699,15 @@ void  Dtu315WorkerThreadWriteData(DtuDeviceData* pDvcData, DtuNonIpPort* pPort)
     Bool  Started = FALSE;
     Int  Timeout;
     Int  PipeNumber;
+
+#ifdef WINBUILD
+    {
+        // Set a high priority for this thread to prevent underflow
+        Int  OldPriority;
+        OldPriority = KeSetPriorityThread(KeGetCurrentThread(), 30);
+        DtDbgOut(ERR, DTU, "Old priority: %d", OldPriority);
+    }
+#endif
     
     DtDbgOut(AVG, DTU, "Start");
 

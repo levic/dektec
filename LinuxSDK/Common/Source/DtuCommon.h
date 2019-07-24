@@ -666,13 +666,13 @@ ASSERT_SIZE(DtuIoctlShBufCmdInput, 16)
 // DtuIoctlGetIoConfigInput
 typedef struct _DtuIoctlGetIoConfigInput {
     int  m_IoConfigCount;
-    DtIoConfigId m_IoCfgId[0];
+    DtIoctlIoConfigId m_IoCfgId[0];
 } DtuIoctlGetIoConfigInput;
 ASSERT_SIZE(DtuIoctlGetIoConfigInput, 4)
 
 // DtuIoctlGetIoConfigOutput
 typedef struct _DtuIoctlGetIoConfigOutput {
-    DtIoConfigValue m_IoCfgValue[0];
+    DtIoctlIoConfigValue m_IoCfgValue[0];
 } DtuIoctlGetIoConfigOutput;
 
 #ifdef WINBUILD
@@ -695,7 +695,7 @@ typedef struct _DtuIoctlGetIoConfigOutput {
 
 typedef struct _DtuIoctlSetIoConfigInput {
     Int  m_IoConfigCount;
-    DtIoConfigPars  m_IoConfig[0];
+    DtIoctlIoConfig  m_IoConfig[0];
 } DtuIoctlSetIoConfigInput;
 ASSERT_SIZE(DtuIoctlSetIoConfigInput, 8)
 

@@ -73,6 +73,8 @@ static DtStatus  DtaIoConfigUpdateValidateTsRateSel(DtaNonIpPort* pNonIpPort,
                                          DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
 static DtStatus  DtaIoConfigUpdateValidateSwS2Apsk(DtaNonIpPort* pNonIpPort,
                                          DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
+static DtStatus  DtaIoConfigUpdateValidateDmaTestMode(DtaNonIpPort* pNonIpPort,
+                                         DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
 static DtStatus  DtaIoConfigUpdateValidateFailSafe(DtaNonIpPort* pNonIpPort,
                                          DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
 static DtStatus  DtaIoConfigUpdateValidateGenLocked(DtaNonIpPort* pNonIpPort,
@@ -656,6 +658,11 @@ static DtStatus  DtaIoConfigUpdateValidate(
 
         // Validate DT_IOCONFIG_TSRATESEL
         Result = DtaIoConfigUpdateValidateTsRateSel(pNonIpPort, pPortUpdate, pUpdate);
+        if (!DT_SUCCESS(Result))
+            return Result;
+
+        // Validate DT_IOCONFIG_DMATESTMODE
+        Result = DtaIoConfigUpdateValidateDmaTestMode(pNonIpPort, pPortUpdate, pUpdate);
         if (!DT_SUCCESS(Result))
             return Result;
 
@@ -1458,6 +1465,30 @@ static DtStatus  DtaIoConfigUpdateValidateSwS2Apsk(
     default:
         return DT_STATUS_CONFIG_ERROR;
     }    
+    return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigUpdateValidateDmaTestMode -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static DtStatus  DtaIoConfigUpdateValidateDmaTestMode(
+    DtaNonIpPort* pNonIpPort, 
+    DtaIoConfigNonIpPortUpdate*  pPortUpdate,
+    DtaIoConfigUpdate* pUpdate)
+{
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort,
+                            "Configuration DMATESTMODE Value: %d SubValue: %d",
+                            pPortUpdate->m_CfgValue[DT_IOCONFIG_DMATESTMODE].m_Value,
+                            pPortUpdate->m_CfgValue[DT_IOCONFIG_DMATESTMODE].m_SubValue);
+
+    switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_DMATESTMODE].m_Value)
+    {
+    case DT_IOCONFIG_NONE:
+        break;
+    default:
+        // Only supported for BB 2.0
+        return DT_STATUS_CONFIG_ERROR;
+    }
+
     return DT_STATUS_OK;
 }
 
