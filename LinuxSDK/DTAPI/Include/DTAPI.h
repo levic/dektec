@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        32
+#define DTAPI_VERSION_MINOR        33
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        115
+#define DTAPI_VERSION_BUILD        117
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -1508,16 +1508,22 @@ private:
 };
 
 // Integer parameters
-#define DTAPI_PAR_DEMOD_THREADS     0x001        // Number of Threads/CPU cores used for
-                                                 // software demodulation: default 4
-#define DTAPI_PAR_DEMOD_LDPC_MAX    0x002        // LDPC maximum iterations: default 50
-#define DTAPI_PAR_DEMOD_LDPC_AVG    0x003        // LDPC average iterations limit, used
-                                                 // to limit CPU load; default 16
+#define DTAPI_PAR_DEMOD_THREADS         1       // Number of Threads/CPU cores used for
+                                                // software demodulation: default 4
+#define DTAPI_PAR_DEMOD_LDPC_MAX        2       // LDPC maximum iterations: default 50
+#define DTAPI_PAR_DEMOD_LDPC_AVG        3       // LDPC average iterations limit, used
+                                                // to limit CPU load; default 16
+#define DTAPI_PAR_DEMOD_ATSC_FFE_TAPS   4       // Number of Feed Forward Equalizer taps
+                                                // Range:16-128, multiple of 8, default=96
+#define DTAPI_PAR_DEMOD_ATSC_DFE_TAPS   5       // Number Decision Feedback Equalizer taps
+                                                // Range:16-128, multiple of 8, default=24
+
 // Boolean parameters
-#define DTAPI_PAR_DEMOD_MER_ENA     0x004        // Enable MER calculation; default on
-#define DTAPI_PAR_DEMOD_QAM_SPECINV 0x005        // Enable spectral inversion; default off
+#define DTAPI_PAR_DEMOD_MER_ENA         6        // Enable MER calculation; default on
+#define DTAPI_PAR_DEMOD_QAM_SPECINV     7        // Enable spectral inversion; default off
+
 // Undefined parameter
-#define DTAPI_PAR_UNDEFINED         0x000        // Value is not defined yet
+#define DTAPI_PAR_UNDEFINED             0        // Value is not defined yet
 
 // Unsported item values
 #define DTAPI_PAR_UNSUP_INTITEM     0x80000000   // Unsupported integer item
@@ -5465,7 +5471,9 @@ public:
     DTAPI_RESULT  CheckValidity(void);
     DTAPI_RESULT  CheckValidity(int& SubframeIdx, int& PlpIdx);
     DTAPI_RESULT  CheckValidity(int& SubframeIdx, int& PlpIdx1, int& PlpIdx2);
-    DTAPI_RESULT  GetParamInfo(struct DtAtsc3ParamInfo& Atsc3Info);
+    DTAPI_RESULT  CheckValidity(std::string& ParName, int& SubframeIdx, int& PlpIdx1,
+                                                                            int& PlpIdx2);
+     DTAPI_RESULT  GetParamInfo(struct DtAtsc3ParamInfo& Atsc3Info);
     void Init();
     void  SetDefaultPars(void);
     bool  IsEqual(DtAtsc3Pars& Atsc3Pars);

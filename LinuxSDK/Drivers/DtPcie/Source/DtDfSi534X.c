@@ -41,12 +41,14 @@
 #define DF_SI534X_DEFAULT_PRECONDITIONS(pDf)      \
     DT_ASSERT(pDf!=NULL && pDf->m_Size==sizeof(DtDfSi534X))
 
-
-// Helper macro to cast a DtDf* to a DtDfSi534X*
-#define DF_SI534X      ((DtDfSi534X*)pDf)
-
-
+// MACRO that checks the function has been enbled, if NOT return DT_STATUS_NOT_ENABLED
+#define DF_SI534X_MUST_BE_ENABLED(pDf)    DF_MUST_BE_ENABLED_IMPL(SI534X, pDf)
+static DtStatus  DtDfSi534X_SetConfigInt(DtDfSi534X*, DtDfSi534XConfig);
 static DtStatus  DtDfSi534X_Init(DtDf*);
+static DtStatus  DtDfSi534X_CleanUp(DtDfSi534X*);
+static DtStatus  DtDfSi534X_FindSdiTxPll(DtDfSi534X*, Int PllId, DtBcSDITXPLL**);
+static DtStatus  DtDfSi534X_InitSdiTxPllLookupTable(DtDfSi534X*);
+static DtStatus  DtDfSi534X_ResetSdiTxPlls(DtDfSi534X*);
 static DtStatus  DtDfSi534X_FindConfigData(DtDfSi534X*, DtDfSi534XConfig, 
                                             const DtDfSi534XConfigItem**, Int* pNumItems);
 static DtStatus  DtDfSi534X_LoadParameters(DtDf*);
@@ -66,6 +68,8 @@ void  DtDfSi534X_Close(DtDf*  pDf)
 {
     DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
 
+    // Clean-up
+    DtDfSi534X_CleanUp((DtDfSi534X*)pDf);
     // Let base function perform final clean-up
     DtDf_Close(pDf);
 }
@@ -104,6 +108,7 @@ DtStatus DtDfSi534X_GetNumClocks(DtDfSi534X*  pDf, Int* pNumClocks)
   // Sanity checks
     DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
 
+    DF_SI534X_MUST_BE_ENABLED(pDf);
     if (pNumClocks == NULL)
         return DT_STATUS_INVALID_PARAMETER;
 
@@ -115,7 +120,17 @@ DtStatus DtDfSi534X_GetNumClocks(DtDfSi534X*  pDf, Int* pNumClocks)
 //
 DtStatus DtDfSi534X_SetConfig(DtDfSi534X*  pDf, DtDfSi534XConfig  Config)
 {
-
+    // Sanity checks
+    DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
+    DF_SI534X_MUST_BE_ENABLED(pDf);
+    return DtDfSi534X_SetConfigInt(pDf, Config);
+}
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_SetConfigInt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Set Config for internal use (without is enabled check)
+// 
+DtStatus DtDfSi534X_SetConfigInt(DtDfSi534X*  pDf, DtDfSi534XConfig  Config)
+{
     DtStatus  Status = DT_STATUS_OK;
     const DtDfSi534XConfigItem*  pConfigItems = NULL;
     Int  NumItems = 0;
@@ -176,36 +191,152 @@ DtStatus DtDfSi534X_SetConfig(DtDfSi534X*  pDf, DtDfSi534XConfig  Config)
     return Status;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_IsPllLocked -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSi534X_IsPllLocked(DtDfSi534X* pDf, Int PllId, Bool* pLocked)
+{
+    DtBcSDITXPLL*  pBcSdiTxPll = NULL;
+    // Sanity checks
+    DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
+    DF_SI534X_MUST_BE_ENABLED(pDf);
+    if (pLocked == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+    // Find the SDITXPLL
+    DT_RETURN_ON_ERROR(DtDfSi534X_FindSdiTxPll(pDf, PllId, &pBcSdiTxPll));
+    // Get the locked status
+    return DtBcSDITXPLL_IsPllLocked(pBcSdiTxPll, pLocked);
+}
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfSi534X - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtDfSi534X_Init(DtDf*  pDf)
+DtStatus  DtDfSi534X_Init(DtDf*  pDfBase)
 {
+    DtDfSi534X*  pDf = (DtDfSi534X*)pDfBase;
     DtStatus  Status = DT_STATUS_OK;
 
     // Sanity checks
     DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
 
     // Initialize SI-534X mutex against concurrent access
-    DtFastMutexInit(&DF_SI534X->m_AccessMutex);
-
+    DtFastMutexInit(&pDf->m_AccessMutex);
     // Set defaults
-    DF_SI534X->m_CurConfig = DT_DF_SI534X_CFG_UNDEFINED;
-    DF_SI534X->m_pCurConfigItems = NULL;
-    DF_SI534X->m_CurConfigNumItems = 0;
-
+    pDf->m_CurConfig = DT_DF_SI534X_CFG_UNDEFINED;
+    pDf->m_pCurConfigItems = NULL;
+    pDf->m_CurConfigNumItems = 0;
+    // Create list for the SDITXPLLs
+    DT_ASSERT(pDf->m_pBcSdiTxPlls == NULL);
+    pDf->m_pBcSdiTxPlls = DtVectorBc_Create(4, 4);
+    DT_ASSERT(pDf->m_pBcSdiTxPlls != NULL);
+    // Create SDITXPLL look-up table
+    DT_ASSERT(pDf->m_pSdiTxPllTable == NULL);
+    pDf->m_pSdiTxPllTable = DtVector_Create(4, sizeof(DtDfSi534XSdiTxPll), 4);
+    DT_ASSERT(pDf->m_pSdiTxPllTable != NULL);
     // Check paramaters have been loaded succesfully
-    DT_ASSERT(DF_SI534X->m_Si534XAddress >= 0);
-    DT_ASSERT(DF_SI534X->m_NumClockOutputs==1 || DF_SI534X->m_NumClockOutputs==2);
+    DT_ASSERT(pDf->m_Si534XAddress >= 0);
+    DT_ASSERT(pDf->m_NumClockOutputs==1 || pDf->m_NumClockOutputs==2);
+    DT_ASSERT(pDf->m_DeviceType==DVC_TYPE_SI5342 || pDf->m_DeviceType==DVC_TYPE_SI5344);
 
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Open children -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-    Status = DtDfSi534X_OpenChildren(DF_SI534X);
+    Status = DtDfSi534X_OpenChildren(pDf);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOutDf(ERR, SI534X, pDf, "ERROR: failed to open children");
+        DtDfSi534X_CleanUp(pDf);
         return DT_STATUS_FAIL;
     }
+    return DT_STATUS_OK;
+}
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_CleanUp -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSi534X_CleanUp(DtDfSi534X* pDf)
+{
+    // Sanity checks
+    DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
+    // Clean-up SDITXPLLs
+    if (pDf->m_pBcSdiTxPlls != NULL)
+    {
+        DtVectorBc_Cleanup(pDf->m_pBcSdiTxPlls);
+        pDf->m_pBcSdiTxPlls = NULL;
+    }
+    // Clean-up SDITXPLL look-up table
+    if (pDf->m_pSdiTxPllTable != NULL)
+    {
+        DtVector_Cleanup(pDf->m_pSdiTxPllTable);
+        pDf->m_pSdiTxPllTable = NULL;
+    }
+    return DT_STATUS_OK;
+}
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_FindSdiTxPll -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtDfSi534X_FindSdiTxPll(DtDfSi534X* pDf, Int PllId, DtBcSDITXPLL** pSdiTxPll)
+{
+    Int i;
+    // Sanity checks
+    DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
+    // Parameter check
+    if (pSdiTxPll == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+    // Find the SDITXPLL
+    *pSdiTxPll = NULL;
+    if (pDf->m_pSdiTxPllTable==NULL || PllId==-1)
+        return DT_STATUS_NOT_FOUND;
+    for (i=0; i<DtVector_Size(pDf->m_pSdiTxPllTable); i++)
+    {
+        DtDfSi534XSdiTxPll* pItem;
+        pItem = (DtDfSi534XSdiTxPll*)DtVector_At(pDf->m_pSdiTxPllTable, i);
+        if (pItem->m_PllId == PllId)
+        {
+            // Found
+            *pSdiTxPll = pItem->m_pSdiTxPll;
+            return DT_STATUS_OK;
+        }
+    }
+    return DT_STATUS_NOT_FOUND;
+}
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_InitSdiTxPllLookupTable -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSi534X_InitSdiTxPllLookupTable(DtDfSi534X* pDf)
+{
+    Int i;
+    // Sanity checks
+    DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
+    DT_ASSERT(pDf->m_pBcSdiTxPlls!=NULL && pDf->m_pSdiTxPllTable!=NULL);
+    // Resize look-up table
+    DT_RETURN_ON_ERROR(DtVector_Resize(pDf->m_pSdiTxPllTable,
+                                                   DtVectorBc_Size(pDf->m_pBcSdiTxPlls)));
+    // Fill the look-up table
+    for (i=0; i<DtVectorBc_Size(pDf->m_pBcSdiTxPlls); i++)
+    {
+        DtDfSi534XSdiTxPll  Item;
+        Item.m_pSdiTxPll = (DtBcSDITXPLL*)DtVectorBc_At(pDf->m_pBcSdiTxPlls, i);
+        if (Item.m_pSdiTxPll != NULL)
+            DT_RETURN_ON_ERROR(DtBcSDITXPLL_GetPllId(Item.m_pSdiTxPll, &Item.m_PllId));
+        else
+            Item.m_PllId= -1;
+        DT_RETURN_ON_ERROR(DtVector_Set(pDf->m_pSdiTxPllTable, i, &Item));
+    }
+    return DT_STATUS_OK;
+}
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_ResetSdiTxPlls -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSi534X_ResetSdiTxPlls(DtDfSi534X* pDf)
+{
+    Int i;
+    // Sanity checks
+    DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
+    DT_ASSERT(pDf->m_pBcSdiTxPlls!=NULL && pDf->m_pSdiTxPllTable!=NULL);
+    // Issue reset to all SDITXPLL
+    for (i=0; i<DtVectorBc_Size(pDf->m_pBcSdiTxPlls); i++)
+    {
+        DtBcSDITXPLL* pSdiTxPll = (DtBcSDITXPLL*)DtVectorBc_At(pDf->m_pBcSdiTxPlls, i);
+        if (pSdiTxPll != NULL)
+            DT_RETURN_ON_ERROR(DtBcSDITXPLL_ResetClock(pSdiTxPll));
+    }
+    // TODOTD
+    // Sleep
+    // Check result
+    // Redo if necessary
     return DT_STATUS_OK;
 }
 
@@ -227,8 +358,17 @@ DtStatus  DtDfSi534X_FindConfigData(DtDfSi534X*  pDf, DtDfSi534XConfig  Config,
     case DT_DF_SI534X_CFG_FREE_RUN_DUAL_CLOCK:
         if (pDf->m_NumClockOutputs != 2)
             return DT_STATUS_INVALID_PARAMETER;
-        *pConfigItems = SI534X_CONFIG_FREE_RUN_DUAL_CLOCK;
-        *pNumItems = DT_SIZEOF_ARRAY(SI534X_CONFIG_FREE_RUN_DUAL_CLOCK);
+        if (pDf->m_DeviceType == DVC_TYPE_SI5342)
+        { 
+            *pConfigItems = SI5342_CONFIG_FREE_RUN_DUAL_CLOCK;
+            *pNumItems = DT_SIZEOF_ARRAY(SI5342_CONFIG_FREE_RUN_DUAL_CLOCK);
+        } else if (pDf->m_DeviceType == DVC_TYPE_SI5344)
+        {
+            *pConfigItems = SI5344_CONFIG_FREE_RUN_DUAL_CLOCK;
+            *pNumItems = DT_SIZEOF_ARRAY(SI5344_CONFIG_FREE_RUN_DUAL_CLOCK);
+        } 
+        else
+            DT_ASSERT(FALSE);
         break;
     case DT_DF_SI534X_CFG_FREE_RUN_NONFRAC_CLOCK:
         *pConfigItems = SI534X_CONFIG_FREE_RUN_148_5MHZ;
@@ -257,15 +397,16 @@ DtStatus  DtDfSi534X_LoadParameters(DtDf*  pDfBase)
         // Name,  Value Type,  Value*
         { "I2C_ADDR", PROPERTY_VALUE_TYPE_INT, &(pDf->m_Si534XAddress) },
         { "NUM_CLOCKS", PROPERTY_VALUE_TYPE_INT, &(pDf->m_NumClockOutputs) },
+        { "DEVICE_TYPE", PROPERTY_VALUE_TYPE_INT, &(pDf->m_DeviceType) },
     };
 
     // Sanity checks
     DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
-
  
     // Init parameters to their defaults
     pDf->m_Si534XAddress = -1;
     pDf->m_NumClockOutputs = 0;
+    pDf->m_DeviceType = DVC_TYPE_SI5342;
 
     // Load parameters from property store
     Status = DtDf_LoadParameters(pDfBase, DT_SIZEOF_ARRAY(DFSI534X_PARS), DFSI534X_PARS);
@@ -275,9 +416,9 @@ DtStatus  DtDfSi534X_LoadParameters(DtDf*  pDfBase)
     // Check paramaters have been loaded succesfully
     DT_ASSERT(pDf->m_Si534XAddress >= 0);
     DT_ASSERT(pDf->m_NumClockOutputs==1 || pDf->m_NumClockOutputs==2);
+    DT_ASSERT(pDf->m_DeviceType==DVC_TYPE_SI5342 || pDf->m_DeviceType==DVC_TYPE_SI5344);
     return DT_STATUS_OK;
 }
- 
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -287,7 +428,6 @@ static DtStatus  DtDfSi534X_OnCloseFile(DtDf* pDf, const DtFileObject* pFile)
     
     // Sanity checks
     DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
-
 
     // Use base function to release exclusive access
     return DtDf_OnCloseFile(pDf, pFile);
@@ -306,7 +446,10 @@ DtStatus  DtDfSi534X_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
     // If enable, reset the SI-534X
     if (Enable)
     {
+        // Init SDITXPLL look-up table
+         Status = DtDfSi534X_InitSdiTxPllLookupTable(pDf);
         // Perform hard reset
+        if (DT_SUCCESS(Status))
         Status = DtDfSi534X_HardReset(pDf);
         if (DT_SUCCESS(Status))
         {
@@ -315,11 +458,14 @@ DtStatus  DtDfSi534X_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
 
             // Configure free-running
             if (pDf->m_NumClockOutputs == 1)
-                Status = DtDfSi534X_SetConfig(pDf, 
+                Status = DtDfSi534X_SetConfigInt(pDf, 
                                                  DT_DF_SI534X_CFG_FREE_RUN_NONFRAC_CLOCK);
             else
-                Status = DtDfSi534X_SetConfig(pDf, DT_DF_SI534X_CFG_FREE_RUN_DUAL_CLOCK);
+                Status = DtDfSi534X_SetConfigInt(pDf, 
+                                                    DT_DF_SI534X_CFG_FREE_RUN_DUAL_CLOCK);
         }
+        if (DT_SUCCESS(Status))
+            Status = DtDfSi534X_ResetSdiTxPlls(pDf);
     }
     return Status;
 }
@@ -346,6 +492,14 @@ DtStatus  DtDfSi534X_OpenChildren(DtDfSi534X*  pDf)
      if (!DT_SUCCESS(Status))
         return Status;
 
+    // Get the temperature sensors
+    Status = DtDf_OpenChildrenOfBcType((DtDf*)pDf, DT_BLOCK_TYPE_SDITXPLL, 
+                                                                     pDf->m_pBcSdiTxPlls);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOutDf(ERR, SI534X, pDf, "ERROR: failed to open children");
+        return DT_STATUS_FAIL;
+    }
     // Check mandatory children have been loaded (i.e. shortcut is valid)
     DT_ASSERT(pDf->m_pBcI2Cm != NULL);
     return DT_STATUS_OK;

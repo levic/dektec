@@ -87,7 +87,9 @@ typedef struct  _DtDfSdiTxPhy
     Int  m_TxMode;              // ASI or SDI
     Int  m_SdiRate;             // SDI-rate
     Bool  m_FractionalClock;    // Fractional clock
-    Int  m_NumClocks;           // Number of clocks for the PHY (1 or 2)
+    Int  m_PhyNumClocks;        // Number of clocks for the PHY (1 or 2)
+    Int  m_PhyDeviceFamily;     // TxPhy device family
+    Int  m_PhyMaxSdiRate;       // TxPhy maximum SDI-rate
 }  DtDfSdiTxPhy;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

@@ -1105,7 +1105,8 @@ static DtStatus  DtIoStubBcCDMAC_OnCmdSetTestMode(const DtIoStubBcCDMAC*,
                                                   const DtIoctlCDmaCCmdSetTestModeInput*);
 static DtStatus  DtIoStubBcCDMAC_OnCmdSetTxWriteOffset(const DtIoStubBcCDMAC*, 
                                                 const DtIoctlCDmaCCmdSetTxWrOffsetInput*);
-
+static DtStatus  DtIoStubBcCDMAC_OnExclAccessCmd(const DtIoStub*, DtIoStubIoParams*,
+                                                                          Int*  pOutSize);
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- List of supported IOCTL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // First declare IOCTL commands
 DECL_DT_IOCTL_CMD_PROPS_EXCL_ACCESS;
@@ -1114,7 +1115,7 @@ DECL_DT_IOCTL_CMD_PROPS_CDMAC;
 static const DtIoctlProperties  IOSTUB_BC_CDMAC_IOCTLS[] = 
 {
     DT_IOCTL_PROPS_EXCL_ACCESS_CMD(
-        DtIoStubBc_OnExclAccessCmd,     // Use default handler
+        DtIoStubBcCDMAC_OnExclAccessCmd,
         NULL, NULL),
     DT_IOCTL_PROPS_CDMAC_CMD(
         DtIoStubBcCDMAC_OnCmd,
@@ -1590,4 +1591,42 @@ DtStatus DtIoStubBcCDMAC_OnCmdSetTxWriteOffset(
     Status = DtBcCDMAC_SetTxWriteOffset(CDMAC_BC, pInData->m_TxWriteOffset);
 
     return  Status;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcCDMAC_OnExclAccessCmd -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtIoStubBcCDMAC_OnExclAccessCmd(
+    const DtIoStub*  pStub,
+    DtIoStubIoParams*  pIoParams,
+    Int*  pOutSize)
+{
+    DtStatus Status = DT_STATUS_OK;
+
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcCDMAC));
+    DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
+    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_EXCL_ACCESS_CMD);
+
+    // Only handle the release of exclusive access command
+    if (pIoParams->m_Cmd == DT_EXCLUSIVE_ACCESS_CMD_RELEASE)
+    {
+        // Check if the owner releases exclusive access
+        Status = DtBc_ExclAccessCheck((DtBc*)CDMAC_BC, &pIoParams->m_ExclAccessObj);
+        if (DT_SUCCESS(Status) && DtBc_IsEnabled((DtBc*)CDMAC_BC))
+        {
+            // To be sure clean-up allocated resources
+            DtDbgOutBc(AVG, CDMAC, CDMAC_BC, "Before releasing exclusive access; "
+                                                           "go to IDLE and free buffers");
+            // Go to IDLE
+            Status = DtBcCDMAC_SetOperationalMode(CDMAC_BC, DT_BLOCK_OPMODE_IDLE);
+            if (!DT_SUCCESS(Status))
+                DtDbgOutBc(ERR, CDMAC, CDMAC_BC, "ERROR: failed to set operational mode");
+            // And free allocated buffers
+            Status = DtBcCDMAC_FreeBuffer(CDMAC_BC);
+            if (!DT_SUCCESS(Status))
+                DtDbgOutBc(ERR, CDMAC, CDMAC_BC, "ERROR: failed to free buffers");
+        }
+    }
+
+    // Use base function to handle the  exclusive access commands
+    return DtIoStubBc_OnExclAccessCmd(pStub, pIoParams, pOutSize);
 }

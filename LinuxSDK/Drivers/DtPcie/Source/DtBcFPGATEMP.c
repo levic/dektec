@@ -42,6 +42,17 @@
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcFPGATEMP - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcFPGATEMP_Close -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtBcFPGATEMP_Close(DtBc*  pBc)
+{
+    // Sanity check
+    BC_FPGATEMP_DEFAULT_PRECONDITIONS(pBc);
+
+    // Let base function perform final clean-up
+    DtBc_Close(pBc);
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcFPGATEMP_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtBcFPGATEMP*  DtBcFPGATEMP_Open(Int  Address, DtCore* pCore, DtPt*  pPt, 
@@ -56,6 +67,9 @@ DtBcFPGATEMP*  DtBcFPGATEMP_Open(Int  Address, DtCore* pCore, DtPt*  pPt,
     DT_BC_FPGATEMP_INIT_ID(Id, pRole, Instance, Uuid);
     DT_BC_INIT_OPEN_PARAMS(OpenParams, DtBcFPGATEMP, Id, DT_BLOCK_TYPE_FPGATEMP,
                                                               Address, pPt, FALSE, pCore);
+
+    // Register the callbacks
+    OpenParams.m_CloseFunc = DtBcFPGATEMP_Close;
 
     // Use base function to allocate and perform standard initialisation of block data
     return (DtBcFPGATEMP*)DtBc_Open(&OpenParams);

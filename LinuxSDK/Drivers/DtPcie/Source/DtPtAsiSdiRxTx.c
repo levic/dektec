@@ -82,19 +82,20 @@ static DtStatus DtPtAsiSdiRxTx_SetIoConfigFinish(DtPt*, const DtExclAccessObject
 static Bool DtPtAsiSdiRxTx_VidFmtUsesFractionalClock(Int VidFormat);
 static Bool DtPtAsiSdiRxTx_VidFmtIsLevelB(Int VidFormat);
 
-static DtStatus DtPtAsiSdiRxTx_SetIoConfigFailSafe(DtPtAsiSdiRxTx*, 
-                                                                const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetRxIoConfigIoStd(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetRxIoConfigDmaTestMode(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
+static DtStatus DtPtAsiSdiRxTx_SetRxIoConfigFailSafe(DtPtAsiSdiRxTx*, 
+                                                                const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigDmaTestMode(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
-
+static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigFailSafe(DtPtAsiSdiRxTx*, 
+                                                                const DtCfIoConfigValue*);
 //=+=+=+=+=+=+=+=+=+=+=+=+=+DtPtAsiSdiRxTx - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 
@@ -197,17 +198,15 @@ DtStatus DtPtAsiSdiRxTx_Init(DtPt* pPtBase)
     pPt->m_pBcCDmaC = (DtBcCDMAC*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_CDMAC, NULL);
     pPt->m_pBcBURSTFIFO = (DtBcBURSTFIFO*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_BURSTFIFO,
                                                                                     NULL);
-    
+
+    // Find the RX/TX driver functions
+    pPt->m_pDfSpiCableDrvEq = (DtDfSpiCableDrvEq*)DtPt_FindDf(pPtBase, 
+                                                        DT_FUNC_TYPE_SPICABLEDRVEQ, NULL);
+
     // Check the driver functions and blockcontrollers that were found
     DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_CheckRxPrerequisites(pPt));
     DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_CheckTxPrerequisites(pPt));
 
-
-    // If the Port has input and output capability check the RX blocks/functions
-    if (InpCap && OutpCap)
-    {
-        // TODO
-    }
     return DT_STATUS_OK;
 }
 
@@ -461,8 +460,8 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
     // Perform IO-Config setting IODIR
     if (DT_IOCONFIG_IODIR >= NumIoCfgs)
         return DT_STATUS_INVALID_PARAMETER;
-    DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetIoConfigIoDir(pPt, 
-                                                            &pIoCfgs[DT_IOCONFIG_IODIR]));
+    DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetIoConfigIoDir(pPt, &pIoCfgs[DT_IOCONFIG_IODIR]));
+
     // Determine direction; input or output
     DT_ASSERT(pIoCfgs[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_INPUT
                                || pIoCfgs[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_OUTPUT);
@@ -490,7 +489,11 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
     // Perform IO-Config setting FAILSAFE
     if (DT_IOCONFIG_FAILSAFE >= NumIoCfgs)
         return DT_STATUS_INVALID_PARAMETER;
-    DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetIoConfigFailSafe(pPt, 
+    if (IsInput)
+        DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetRxIoConfigFailSafe(pPt, 
+                                                         &pIoCfgs[DT_IOCONFIG_FAILSAFE]));
+    else
+        DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetTxIoConfigFailSafe(pPt, 
                                                          &pIoCfgs[DT_IOCONFIG_FAILSAFE]));
     return DT_STATUS_OK;
 }
@@ -526,6 +529,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
         // Enable TX-driver functions/blocks that do not dependent on IOSTD or other
         // IO configs
         ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiTxPhy, TRUE);
+        ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSpiCableDrvEq, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchFrontEndTx, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchBackEndTx, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchTestModeTx, TRUE);
@@ -536,6 +540,9 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
         // Set direction
         DT_RETURN_ON_ERROR(DtBcBURSTFIFO_SetDirection(pPt->m_pBcBURSTFIFO, 
                                                                     DT_BURSTFIFO_DIR_TX));
+        if (pPt->m_pDfSpiCableDrvEq != NULL)
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetDirection(pPt->m_pDfSpiCableDrvEq, 
+                                                             DT_DF_SPICABLEDRVEQ_DIR_TX));
     }
     else if (pIoCfg->m_Value == DT_IOCONFIG_INPUT)
     {
@@ -558,6 +565,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
         // Enable RX-driver functions/blocks that do not dependent on IOSTD or other
         // IO configs
         ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiRx, TRUE);
+        ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSpiCableDrvEq, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchFrontEndRx, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchBackEndRx, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchTestModeRx, TRUE);
@@ -566,36 +574,11 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
         // Set direction
         DT_RETURN_ON_ERROR(DtBcBURSTFIFO_SetDirection(pPt->m_pBcBURSTFIFO, 
                                                                     DT_BURSTFIFO_DIR_RX));
+        if (pPt->m_pDfSpiCableDrvEq != NULL)
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetDirection(pPt->m_pDfSpiCableDrvEq, 
+                                                             DT_DF_SPICABLEDRVEQ_DIR_RX));
     }
     return DT_STATUS_OK;
-}
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetIoConfigFailSafe -.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-DtStatus DtPtAsiSdiRxTx_SetIoConfigFailSafe(DtPtAsiSdiRxTx* pPt, 
-                                                          const DtCfIoConfigValue* pIoCfg)
-{
-    DT_ASSERT(pIoCfg != NULL);
-
-    // Nothing to configure?
-    if (pIoCfg->m_Value == DT_IOCONFIG_NONE)
-    {
-        DT_ASSERT(pPt->m_pBcKeepAlive == NULL);
-        return DT_STATUS_OK;
-    }
-
-    DT_ASSERT(pPt->m_pBcKeepAlive != NULL);
-    // If failsafe is enabled, disable the automatic keep-alive
-    if (pIoCfg->m_Value == DT_IOCONFIG_TRUE)
-        return DtBcKA_SetAutoKeepAlive(pPt->m_pBcKeepAlive, FALSE,
-                                                               (Int)pIoCfg->m_ParXtra[0]);
-    else if (pIoCfg->m_Value == DT_IOCONFIG_FALSE)
-        return DtBcKA_SetAutoKeepAlive(pPt->m_pBcKeepAlive, TRUE, 0);
-    else
-    { 
-        DT_ASSERT(FALSE);
-        return DT_STATUS_INVALID_PARAMETER;
-    }
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetRxIoConfigIoStd -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -677,6 +660,12 @@ DtStatus DtPtAsiSdiRxTx_SetRxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
         DT_RETURN_ON_ERROR(DtDfSdiRx_SetSdiRate(pPt->m_pDfSdiRx, SdiRate));
         DT_RETURN_ON_ERROR(DtDfSdiRx_SetOperationalMode(pPt->m_pDfSdiRx, CurOpMode));
     }
+
+    // Cable equalizer is configured for auto rate detection. This is much faster than the
+    // manual rate since it will try to relock after each change.
+    if (pPt->m_pDfSpiCableDrvEq != NULL)
+        DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetSdiRate(pPt->m_pDfSpiCableDrvEq, 
+                                                                 DT_DRV_SDIRATE_UNKNOWN));
     return DT_STATUS_OK;
 }
 
@@ -721,6 +710,21 @@ DtStatus DtPtAsiSdiRxTx_SetRxIoConfigDmaTestMode(DtPtAsiSdiRxTx* pPt,
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetRxIoConfigFailSafe -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtPtAsiSdiRxTx_SetRxIoConfigFailSafe(DtPtAsiSdiRxTx* pPt, 
+                                                          const DtCfIoConfigValue* pIoCfg)
+{
+    DT_ASSERT(pIoCfg != NULL);
+
+    // Failsafe cannot be configured for input
+    if (pIoCfg->m_Value != DT_IOCONFIG_NONE)
+    {
+        DT_ASSERT(FALSE);
+        return DT_STATUS_INVALID_PARAMETER;
+    }
+    return DT_STATUS_OK;
+}
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetTxIoConfigIoStd -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -774,17 +778,18 @@ DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
                                                                               CurOpMode));
         }
 
-        // If we have GS2988 set it for SD operation now
+        // If we have GS2988 cable driver, set it for SD operation now
         if (pPt->m_pBcGs2988 != NULL)
-        {
             DT_RETURN_ON_ERROR(DtBcGS2988_SetSdiMode(pPt->m_pBcGs2988, 
                                                                    DT_GS2988_SDIMODE_SD));
-        }
+        // If we have SPI-cable driver, set SDI-rate to SD
+        if (pPt->m_pDfSpiCableDrvEq != NULL)
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetSdiRate(pPt->m_pDfSpiCableDrvEq, 
+                                                                      DT_DRV_SDIRATE_SD));
     } 
     else
     {
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SDI -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-
         // Disable ASI TX Gate block controller
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcAsiTxG, FALSE);
         // Disable ASI TX Serializer
@@ -850,13 +855,17 @@ DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
         DT_RETURN_ON_ERROR(DtBcSDITXP_SetSdiRateAndLvlA2BEna(pPt->m_pBcSdiTxP,
                                                            SdiRate, (Int)LevelA2BEnable));
 
-        // If we have GS2988 set it for SD or HD/3G mode
+        // If we have GS2988 cable driver, set it for SD or HD/3G mode
         if (pPt->m_pBcGs2988 != NULL)
         {
             Int  Mode = (pIoCfg->m_Value==DT_IOCONFIG_SDI) ? 
                                            DT_GS2988_SDIMODE_SD : DT_GS2988_SDIMODE_HD_3G;
             DT_RETURN_ON_ERROR(DtBcGS2988_SetSdiMode(pPt->m_pBcGs2988, Mode));
         }
+        // If we have SPI-cable driver, set SDI-rate
+        if (pPt->m_pDfSpiCableDrvEq != NULL)
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetSdiRate(pPt->m_pDfSpiCableDrvEq, 
+                                                                                SdiRate));
     }
     return DT_STATUS_OK;
 }
@@ -1010,6 +1019,33 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigPrepare(DtPt* pPtBase,
     return Status;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetTxIoConfigFailSafe -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtPtAsiSdiRxTx_SetTxIoConfigFailSafe(DtPtAsiSdiRxTx* pPt, 
+                                                          const DtCfIoConfigValue* pIoCfg)
+{
+    DT_ASSERT(pIoCfg != NULL);
+
+    // Nothing to configure?
+    if (pIoCfg->m_Value == DT_IOCONFIG_NONE)
+    {
+        DT_ASSERT(pPt->m_pBcKeepAlive == NULL);
+        return DT_STATUS_OK;
+    }
+
+    DT_ASSERT(pPt->m_pBcKeepAlive != NULL);
+    // If failsafe is enabled, disable the automatic keep-alive
+    if (pIoCfg->m_Value == DT_IOCONFIG_TRUE)
+        return DtBcKA_SetAutoKeepAlive(pPt->m_pBcKeepAlive, FALSE,
+                                                               (Int)pIoCfg->m_ParXtra[0]);
+    else if (pIoCfg->m_Value == DT_IOCONFIG_FALSE)
+        return DtBcKA_SetAutoKeepAlive(pPt->m_pBcKeepAlive, TRUE, 0);
+    else
+    { 
+        DT_ASSERT(FALSE);
+        return DT_STATUS_INVALID_PARAMETER;
+    }
+}
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetIoConfigFinish -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtPtAsiSdiRxTx_SetIoConfigFinish(DtPt* pPt, const DtExclAccessObject* pObject)

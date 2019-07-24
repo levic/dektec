@@ -35,27 +35,36 @@
 //
 Int  DtPcieDeviceId2TypeNumber(Int DeviceId)
 {
-    return DeviceId - (DeviceId < 0xD100 ? 0 : (0xD100-100));
+    return DeviceId & 0xFFF;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieDeviceId2SubDvcNumber -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieDeviceId2SubType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-Int  DtPcieDeviceId2SubDvcNumber(Int TypeNumber, Int  DeviceId)
+Int  DtPcieDeviceId2SubType(Int DeviceId)
 {
-    // Can only deduce type number from device ID if type number is encoded in bottom
-    // 12-bits of the DeviceId
-    if ((DeviceId&0X0FFF) == TypeNumber)
-    {
-        // Sub device number is encoded in bits 12..13 of device ID
-        // and the DTA-2179 it is encoded in bits 12..14
-        // NOTE: 0=master, 1=slave1, 2=slavee, etc, etc
-        if (TypeNumber == 2179)
-            return (DeviceId>>12 & 0x0007);
-        else
-            return (DeviceId>>12 & 0x0003);
-    }   
-    return 0;   // assume this is the one and only sub-device
+    Int  SubType =((DeviceId & 0xF000) >> 12);
+    SubType = (SubType<=9) ? 0 : (SubType - 9); // 0x0 = SubType 0; 0xA = SubType 1; etc
+    return SubType;
 }
+
+////-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieDeviceId2SubDvcNumber -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+////
+//Int  DtPcieDeviceId2SubDvcNumber(Int TypeNumber, Int  DeviceId)
+//{
+//    // Can only deduce type number from device ID if type number is encoded in bottom
+//    // 12-bits of the DeviceId
+//    if ((DeviceId&0X0FFF) == TypeNumber)
+//    {
+//        // Sub device number is encoded in bits 12..13 of device ID
+//        // and the DTA-2179 it is encoded in bits 12..14
+//        // NOTE: 0=master, 1=slave1, 2=slavee, etc, etc
+//        if (TypeNumber == 2179)
+//            return (DeviceId>>12 & 0x0007);
+//        else
+//            return (DeviceId>>12 & 0x0003);
+//    }   
+//    return 0;   // assume this is the one and only sub-device
+//}
 
 ////.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieWatchdogToggle -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 ////

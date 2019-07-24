@@ -487,7 +487,7 @@ void  DtDfTempFanMgr_PeriodicIntervalHandler(DtObject* pObj, DtTodTime  Time)
     DtSpinLockReleaseFromDpc(&pDf->m_FanCtrlStateSpinLock);
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfTempFanMgr_UpdateFanSpeed -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfTempFanMgr_UpdateFanSpeed -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Called from DPC
 //

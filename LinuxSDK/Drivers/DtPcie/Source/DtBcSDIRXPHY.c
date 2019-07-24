@@ -46,6 +46,7 @@
 static DtStatus  DtBcSDIRXPHY_Init(DtBc*);
 static DtStatus  DtBcSDIRXPHY_OnEnable(DtBc*, Bool);
 static DtStatus  DtBcSDIRXPHY_OnCloseFile(DtBc*, const DtFileObject*);
+static DtStatus  DtBcSDIRXPHY_CheckSdiRate(DtBcSDIRXPHY*, Int SdiRate);
 static void  DtBcSDIRXPHY_SetControlRegs(DtBcSDIRXPHY*, Bool BlkEnable, 
                                               Int OpMode, Bool RxClkReset,  Bool PllReset,
                                               Int LockMode, Bool  DownsamplerEnable);
@@ -108,6 +109,46 @@ DtStatus DtBcSDIRXPHY_GetClockReset(DtBcSDIRXPHY * pBc, Bool* pClkReset)
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_GetDeviceFamily -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_GetDeviceFamily(DtBcSDIRXPHY * pBc, Int * pDeviceFamily)
+{
+    // Sanity check
+    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check parameters
+    if (pDeviceFamily == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
+
+    // Return cached device family
+    *pDeviceFamily = pBc->m_DeviceFamily;
+
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_GetMaxSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_GetMaxSdiRate(DtBcSDIRXPHY * pBc, Int* pMaxSdiRate)
+{
+    // Sanity check
+    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check parameters
+    if (pMaxSdiRate == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
+
+    // Return cached maximum SDI-rate
+    *pMaxSdiRate = pBc->m_MaxSdiRate;
+
+    return DT_STATUS_OK;
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_GetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcSDIRXPHY_GetOperationalMode(DtBcSDIRXPHY* pBc, Int * pOpMode)
@@ -152,6 +193,7 @@ DtStatus DtBcSDIRXPHY_GetLockMode(DtBcSDIRXPHY* pBc, Int* pLockMode)
 //
 DtStatus DtBcSDIRXPHY_IsCarrierDetect(DtBcSDIRXPHY* pBc, Bool* pCarrier)
 {
+    UInt32  RegStatus;
     // Sanity check
     BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
 
@@ -163,7 +205,9 @@ DtStatus DtBcSDIRXPHY_IsCarrierDetect(DtBcSDIRXPHY* pBc, Bool* pCarrier)
     BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
 
     // Return carrier detect status
-    *pCarrier =  (SDIRXPHY_Status_READ_CarrierDetect(pBc) != 0);
+    RegStatus = SDIRXPHY_Status_READ(pBc);
+    *pCarrier =  (SDIRXPHY_Status_GET_CarrierDetect(RegStatus)!=0)
+                                   && (SDIRXPHY_Status_GET_ResetInProgress(RegStatus)==0);
 
     return DT_STATUS_OK;
 }
@@ -172,6 +216,8 @@ DtStatus DtBcSDIRXPHY_IsCarrierDetect(DtBcSDIRXPHY* pBc, Bool* pCarrier)
 //
 DtStatus DtBcSDIRXPHY_IsLockedToData(DtBcSDIRXPHY* pBc, Bool* pLocked)
 {
+    UInt32  RegStatus;
+
     // Sanity check
     BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
 
@@ -190,8 +236,9 @@ DtStatus DtBcSDIRXPHY_IsLockedToData(DtBcSDIRXPHY* pBc, Bool* pLocked)
     }
 
     // Return locked to data
-    *pLocked = (SDIRXPHY_Status_READ_LockedToData(pBc) != 0);
-
+    RegStatus = SDIRXPHY_Status_READ(pBc);
+    *pLocked =  (SDIRXPHY_Status_GET_LockedToData(RegStatus)!=0)
+                                   && (SDIRXPHY_Status_GET_ResetInProgress(RegStatus)==0);
     return DT_STATUS_OK;
 }
 
@@ -199,6 +246,8 @@ DtStatus DtBcSDIRXPHY_IsLockedToData(DtBcSDIRXPHY* pBc, Bool* pLocked)
 //
 DtStatus DtBcSDIRXPHY_IsLockedToRef(DtBcSDIRXPHY* pBc, Bool* pLocked)
 {
+    UInt32  RegStatus;
+
     // Sanity check
     BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
 
@@ -217,8 +266,9 @@ DtStatus DtBcSDIRXPHY_IsLockedToRef(DtBcSDIRXPHY* pBc, Bool* pLocked)
     }
 
     // Return locked to reference
-    *pLocked = (SDIRXPHY_Status_READ_LockedToRef(pBc) != 0);
-
+    RegStatus = SDIRXPHY_Status_READ(pBc);
+    *pLocked =  (SDIRXPHY_Status_GET_LockedToRef(RegStatus)!=0)
+                                   && (SDIRXPHY_Status_GET_ResetInProgress(RegStatus)==0);
     return DT_STATUS_OK;
 }
 
@@ -369,34 +419,147 @@ DtStatus DtBcSDIRXPHY_SetLockMode(DtBcSDIRXPHY* pBc, Int LockMode)
     return DT_STATUS_OK;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_C10A10_GetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_C10A10_GetSdiRate(DtBcSDIRXPHY* pBc, Int* pSdiRate)
+{
+    // Sanity check
+    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Parameter check
+    if (pSdiRate == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
+    
+    // Check device family
+    if (pBc->m_DeviceFamily!=DT_BC_SDIRXPHY_FAMILY_A10 
+                                        && pBc->m_DeviceFamily!=DT_BC_SDIRXPHY_FAMILY_C10)
+    { 
+        DtDbgOutBc(ERR, SDIRXPHY, pBc, "ERROR: Not supported for this device family");
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
+    // Return cached value
+    *pSdiRate = pBc->m_C10A10SdiRate;
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_C10A10_SetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_C10A10_SetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
+{
+    UInt32  RegCdrPllSettings4, RegCdrPllSettings9;
+
+    // Sanity check
+    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Parameter check
+    DT_RETURN_ON_ERROR(DtBcSDIRXPHY_CheckSdiRate(pBc, SdiRate));
+
+    // Must be enabled
+    BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
+    
+    // Check device family
+    if (pBc->m_DeviceFamily!=DT_BC_SDIRXPHY_FAMILY_A10 
+                                        && pBc->m_DeviceFamily!=DT_BC_SDIRXPHY_FAMILY_C10)
+    { 
+        DtDbgOutBc(ERR, SDIRXPHY, pBc, "ERROR: Not supported for this device family");
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+    RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_READ(pBc);
+    RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_READ(pBc);
+    if (SdiRate==DT_DRV_SDIRATE_SD || SdiRate==DT_DRV_SDIRATE_3G)
+    { 
+        // Set loop filter and dividers for 3Gbps operation
+        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_CdrPllLfResistorPd(
+                                             RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_3);
+        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_CdrPllPdLCounter(
+                                          RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_4);
+    }
+    else
+    { 
+        // Set loop filter and dividers for HD operation
+        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_CdrPllLfResistorPd(
+                                             RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_0);
+        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_CdrPllPdLCounter(
+                                          RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_8);
+    }
+    SDIRXPHY_C10A10_CdrPllSettings4_WRITE(pBc, RegCdrPllSettings4);
+    SDIRXPHY_C10A10_CdrPllSettings9_WRITE(pBc, RegCdrPllSettings9);
+
+    // Update cached value
+    pBc->m_C10A10SdiRate = SdiRate;
+    return DT_STATUS_OK;
+}
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDIRXPHY - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtBcSDIRXPHY_Init(DtBc*  pBc)
+DtStatus  DtBcSDIRXPHY_Init(DtBc*  pBcBase)
 {
     DtStatus  Status=DT_STATUS_OK;
+    DtBcSDIRXPHY* pBc = (DtBcSDIRXPHY*) pBcBase;
+    UInt32  FwMaxSdiRate, FwDeviceFamily;
 
     // Sanity checks
     BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
 
+    // Get device family
+    FwDeviceFamily = SDIRXPHY_Config_READ_DeviceFamily(pBc);
+    switch (FwDeviceFamily)
+    {
+    case SDIRXPHY_FAMILY_A10:  pBc->m_DeviceFamily = DT_BC_SDIRXPHY_FAMILY_A10; break;
+    case SDIRXPHY_FAMILY_C10:  pBc->m_DeviceFamily = DT_BC_SDIRXPHY_FAMILY_C10; break;
+    case SDIRXPHY_FAMILY_CV:   pBc->m_DeviceFamily = DT_BC_SDIRXPHY_FAMILY_CV;  break;
+    default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+    }
+
+    // Get maximum supported rate
+    FwMaxSdiRate = SDIRXPHY_Config_READ_MaxSdiRate(pBc);
+    switch (FwMaxSdiRate)
+    {
+    case SDIRXPHY_SDIMODE_SD:  pBc->m_MaxSdiRate = DT_DRV_SDIRATE_SD; break;
+    case SDIRXPHY_SDIMODE_HD:  pBc->m_MaxSdiRate = DT_DRV_SDIRATE_HD; break;
+    case SDIRXPHY_SDIMODE_3G:  pBc->m_MaxSdiRate = DT_DRV_SDIRATE_3G; break;
+    case SDIRXPHY_SDIMODE_6G:  pBc->m_MaxSdiRate = DT_DRV_SDIRATE_6G; break;
+    case SDIRXPHY_SDIMODE_12G: pBc->m_MaxSdiRate = DT_DRV_SDIRATE_12G; break;
+    default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+    }
+
     // Clear overflow
-    SDIRXPHY_CdcFifoStatus_CLEAR_Overflow(BC_SDIRXPHY);
+    SDIRXPHY_CdcFifoStatus_CLEAR_Overflow(pBc);
 
     // Set defaults
-    BC_SDIRXPHY->m_BlockEnabled = FALSE;
-    BC_SDIRXPHY->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
-    BC_SDIRXPHY->m_ClockReset = TRUE;
-    BC_SDIRXPHY->m_LockMode = DT_BC_SDIRXPHY_LOCKMODE_LOCK_TO_REF;
-    BC_SDIRXPHY->m_DownsamplerEnable = FALSE;
+    pBc->m_BlockEnabled = FALSE;
+    pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
+    pBc->m_ClockReset = TRUE;
+    pBc->m_LockMode = DT_BC_SDIRXPHY_LOCKMODE_LOCK_TO_REF;
+    pBc->m_DownsamplerEnable = FALSE;
+    pBc->m_C10A10SdiRate = DT_DRV_SDIRATE_UNKNOWN;
 
     // Make settings in register
-    DtBcSDIRXPHY_SetControlRegs(BC_SDIRXPHY, BC_SDIRXPHY->m_BlockEnabled,
-                                                 BC_SDIRXPHY->m_OperationalMode,
-                                                 BC_SDIRXPHY->m_ClockReset,
-                                                 FALSE,
-                                                 BC_SDIRXPHY->m_LockMode,
-                                                 BC_SDIRXPHY->m_DownsamplerEnable);
+    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
+                                               pBc->m_ClockReset, FALSE,
+                                               pBc->m_LockMode, pBc->m_DownsamplerEnable);
+
+    // Device family specific initialisation
+    if (pBc->m_DeviceFamily==SDIRXPHY_FAMILY_A10
+                                              || pBc->m_DeviceFamily==SDIRXPHY_FAMILY_C10)
+    {
+        // Set loop filter and dividers for HD operation
+        UInt32  RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_READ(pBc);
+        UInt32  RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_READ(pBc);
+        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_CdrPllLfResistorPd(
+                                             RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_0);
+        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_CdrPllPdLCounter(
+                                          RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_8);
+        SDIRXPHY_C10A10_CdrPllSettings4_WRITE(pBc, RegCdrPllSettings4);
+        SDIRXPHY_C10A10_CdrPllSettings9_WRITE(pBc, RegCdrPllSettings9);
+        pBc->m_C10A10SdiRate = DT_DRV_SDIRATE_HD;
+    }
     return Status;
 }
 
@@ -457,8 +620,7 @@ DtStatus  DtBcSDIRXPHY_OnCloseFile(DtBc*  pBc, const DtFileObject* pFile)
         DtDbgOutBc(AVG, SDIRXPHY, pBc, "Set operational mode to IDLE");
 
         // Set operational mode to IDLE
-        Status = DtBcSDIRXPHY_SetOperationalMode(BC_SDIRXPHY,
-                                                                    DT_BLOCK_OPMODE_IDLE);
+        Status = DtBcSDIRXPHY_SetOperationalMode(BC_SDIRXPHY, DT_BLOCK_OPMODE_IDLE);
         if (!DT_SUCCESS(Status))
         {
             DtDbgOutBc(ERR, SDIRXPHY, pBc, "ERROR: failed to set opmode");
@@ -468,6 +630,28 @@ DtStatus  DtBcSDIRXPHY_OnCloseFile(DtBc*  pBc, const DtFileObject* pFile)
     return DtBc_OnCloseFile(pBc, pFile);
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_CheckSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_CheckSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
+{
+    // Check whether it is a valid SDI-rate
+    if (   SdiRate!=DT_DRV_SDIRATE_SD && SdiRate!=DT_DRV_SDIRATE_HD 
+        && SdiRate!=DT_DRV_SDIRATE_3G && SdiRate!=DT_DRV_SDIRATE_6G 
+        && SdiRate!=DT_DRV_SDIRATE_12G)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Assumption we can keep the comparison simple
+    DT_ASSERT(DT_DRV_SDIRATE_SD<DT_DRV_SDIRATE_HD 
+              && DT_DRV_SDIRATE_HD<DT_DRV_SDIRATE_3G
+              && DT_DRV_SDIRATE_3G<DT_DRV_SDIRATE_6G
+              && DT_DRV_SDIRATE_6G<DT_DRV_SDIRATE_12G);
+    
+    // Check whether the SDI-rate is supported
+    if (SdiRate > pBc->m_MaxSdiRate)
+        return DT_STATUS_NOT_SUPPORTED;
+
+    return DT_STATUS_OK;
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //

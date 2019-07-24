@@ -496,6 +496,8 @@ DtStatus  DtCore_DEVICE_PowerUpPost(DtCore* pCore)
             continue;
         Status = pDf->m_EnableFunc(pDf, TRUE);
         DT_ASSERT(DT_SUCCESS(Status));
+        if (!DT_SUCCESS(Status))
+            return Status;
     }
 
     // Enable all device BCs
@@ -507,6 +509,8 @@ DtStatus  DtCore_DEVICE_PowerUpPost(DtCore* pCore)
             continue;
         Status = pBc->m_EnableFunc(pBc, TRUE);
         DT_ASSERT(DT_SUCCESS(Status));
+        if (!DT_SUCCESS(Status))
+            return Status;
     }
     
     // First enable all PTs
@@ -518,6 +522,8 @@ DtStatus  DtCore_DEVICE_PowerUpPost(DtCore* pCore)
             continue;
         Status = pPt->m_EnableFunc(pPt, TRUE);
         DT_ASSERT(DT_SUCCESS(Status));
+        if (!DT_SUCCESS(Status))
+            return Status;
     }
     // Finally restore the IO-configuratoin
     Status = DtCore_IOCONFIG_Restore(pCore);

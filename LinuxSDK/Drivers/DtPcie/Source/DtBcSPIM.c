@@ -84,6 +84,30 @@ DtBcSPIM*  DtBcSPIM_Open(Int  Address, DtCore*  pCore, DtPt* pPt,
     return (DtBcSPIM*)DtBc_Open(&OpenParams);
 }
 
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSPIM_GetProperties -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSPIM_GetProperties(DtBcSPIM* pBc, Int * pDeviceId, Int* pDuplexMode,
+                                                      Int* pMaxTfTime, Int* pSpiClockRate)
+{
+    // Sanity check    
+    BC_SPIM_DEFAULT_PRECONDITIONS(pBc);
+
+    // Parameter check
+    if (pDeviceId==NULL || pDuplexMode==NULL || pMaxTfTime==NULL || pSpiClockRate==NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+    
+    // Doesn't have to be enabled
+
+    // Copy cached properties
+    *pDeviceId = pBc->m_DeviceId;
+    *pDuplexMode = pBc->m_DuplexMode;
+    *pMaxTfTime = pBc->m_MaxTransferTime;
+    *pSpiClockRate = pBc->m_SpiClockRate;
+
+    return DT_STATUS_OK;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSPIM_Read -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcSPIM_Read(DtBcSPIM* pBc, Int Length, UInt8* pBuffer)
@@ -93,6 +117,7 @@ DtStatus DtBcSPIM_Read(DtBcSPIM* pBc, Int Length, UInt8* pBuffer)
     // Sanity check    
     BC_SPIM_DEFAULT_PRECONDITIONS(pBc);
 
+    // Doesn't have to be enabled
 
     DtDbgOutBc(MAX, SPIM, pBc, "Read Length: %d", Length);
 
@@ -148,6 +173,7 @@ DtStatus DtBcSPIM_Write(DtBcSPIM* pBc, Int Length, const UInt8* pBuffer)
     // Sanity check    
     BC_SPIM_DEFAULT_PRECONDITIONS(pBc);
 
+    // Doesn't have to be enabled
 
     DtDbgOutBc(MAX, SPIM, pBc, "Write Length: %d", Length);
 
@@ -203,6 +229,7 @@ DtStatus DtBcSPIM_WriteRead(DtBcSPIM* pBc, Int WriteLength, const UInt8* pWriteB
     // Sanity check    
     BC_SPIM_DEFAULT_PRECONDITIONS(pBc);
 
+    // Doesn't have to be enabled
 
     DtDbgOutBc(MAX, SPIM, pBc, "Write Length: %d  Read Length: %d", 
                                                                  WriteLength, ReadLength);
@@ -288,6 +315,7 @@ DtStatus DtBcSPIM_WriteWrite(DtBcSPIM* pBc, Int WriteLength1, const UInt8* pWrit
     // Sanity check    
     BC_SPIM_DEFAULT_PRECONDITIONS(pBc);
 
+    // Doesn't have to be enabled
 
     DtDbgOutBc(MAX, SPIM, pBc, "Write Length1: %d  Write Length2: %d", 
                                                               WriteLength1, WriteLength2);
@@ -356,10 +384,12 @@ DtStatus  DtBcSPIM_Init(DtBc*  pBc)
     switch (RegConfig)
     {
     case SPIM_SPIDVC_25AA160C:  BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_25AA160C; break;
+    case SPIM_SPIDVC_25AA640A:  BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_25AA640A; break;
     case SPIM_SPIDVC_AD9642:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_AD9642; break;
     case SPIM_SPIDVC_ADS4246:   BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_ADS4246; break;
     case SPIM_SPIDVC_GS1661:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_GS1661; break;
     case SPIM_SPIDVC_LMH0394:   BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_LMH0394; break;
+    case SPIM_SPIDVC_GS3590:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_GS3590; break;
     default: DT_ASSERT(FALSE); return DT_STATUS_FAIL; 
     }
 
@@ -470,9 +500,11 @@ const char*  DtBcSPIM_DeviceIdToString(Int  Id)
     switch (Id)
     {
     case DT_SPIM_SPIDVC_25AA160C:   return "25AA160C";
+    case DT_SPIM_SPIDVC_25AA640A:   return "25AA640A";
     case DT_SPIM_SPIDVC_AD9642:     return "AD9642";
     case DT_SPIM_SPIDVC_ADS4246:    return "ADS4246";
     case DT_SPIM_SPIDVC_GS1661:     return "GS1661";
+    case DT_SPIM_SPIDVC_GS3590:     return "GS3590";
     case DT_SPIM_SPIDVC_LMH0394:    return "LMH0394";
     }
     DT_ASSERT(FALSE);
@@ -690,13 +722,10 @@ DtStatus  DtIoStubBcSPIM_OnCmdGetProperties(
 {
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcSPIM));
     DT_ASSERT(pOutData != NULL);
-
-    pOutData->m_SpiDeviceId = SPIM_BC->m_DeviceId;
-    pOutData->m_DuplexMode = SPIM_BC->m_DuplexMode;
-    pOutData->m_MaxTransferTime = SPIM_BC->m_MaxTransferTime;
-    pOutData->m_SpiClockRate = SPIM_BC->m_SpiClockRate;
-
-    return DT_STATUS_OK;
+    
+    return DtBcSPIM_GetProperties(SPIM_BC, &pOutData->m_SpiDeviceId,
+                                    &pOutData->m_DuplexMode, &pOutData->m_MaxTransferTime,
+                                    &pOutData->m_SpiClockRate);
 }
 
 

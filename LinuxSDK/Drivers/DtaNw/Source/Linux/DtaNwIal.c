@@ -79,8 +79,15 @@ Int  DtaNwEvtGetPermAddr(struct net_device* pDevice, struct ethtool_perm_addr* p
 #endif
 static void  DtaNwEvtGetDriverInfo(struct net_device* pDevice, 
                                                            struct ethtool_drvinfo* pInfo);
+#ifdef GS_SETTINGS_SUPPORT
 static Int  DtaNwEvtGetSettings(struct net_device* pDevice, struct ethtool_cmd* pCmd);
 static Int  DtaNwEvtSetSettings(struct net_device* pDevice, struct ethtool_cmd* pCmd);
+#else
+static Int  DtaNwEvtGetLinkKSettings(struct net_device* pDevice, 
+                                           struct ethtool_link_ksettings* pLinkKSettings);
+static Int  DtaNwEvtSetLinkKSettings(struct net_device* pDevice, 
+                                     const struct ethtool_link_ksettings* pLinkKSettings);
+#endif
 UInt32  DtaNwEvtGetLink(struct net_device* pDevice);
 #ifdef NO_HW_FEATURE_SUPPORT
 static UInt32  DtaNwEvtGetRxCsum(struct net_device* pDevice);
@@ -105,8 +112,13 @@ static void  DtaNwModuleExit(void);
 static const struct ethtool_ops  EthToolOps = 
 {
     .get_drvinfo = DtaNwEvtGetDriverInfo,
+#ifdef GS_SETTINGS_SUPPORT
     .get_settings = DtaNwEvtGetSettings,
     .set_settings = DtaNwEvtSetSettings,
+#else
+    .get_link_ksettings = DtaNwEvtGetLinkKSettings,
+    .set_link_ksettings = DtaNwEvtSetLinkKSettings,
+#endif
     .get_link = DtaNwEvtGetLink,
 #ifdef PERM_ADDR_SUPPORT
     .get_perm_addr = DtaNwEvtGetPermAddr,
@@ -475,66 +487,140 @@ static void  DtaNwEvtGetDriverInfo(
     DtDbgOut(MAX, IAL, "Exit");
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwEvtGetSettings -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwGetSettings -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-static Int  DtaNwEvtGetSettings(struct net_device* pDevice, struct ethtool_cmd* pCmd)
+static Int  DtaNwGetSettings(DtaNwDeviceData*  pDvcData, Int* pAutoNeg, Int* pSpeed,
+                                          Int* pDuplex, Int* pAdvertised, Int* pSupported)
 {
-    DtaNwDeviceData*  pDvcData = netdev_priv(pDevice);
-    UInt  Speed;
     DtStatus  Status;
+    UInt  Speed = 0;
     
-    DtDbgOut(MAX, IAL, "Start");
-    
-    memset(pCmd, 0, sizeof(struct ethtool_cmd));
-    pCmd->supported = SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full |
+    *pSupported = SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full |
                                SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
                                SUPPORTED_1000baseT_Full |SUPPORTED_Autoneg | SUPPORTED_TP;
-    pCmd->advertising = ADVERTISED_TP;
+    *pAdvertised = ADVERTISED_TP;
     if (pDvcData->m_IalData.m_AutoNegEn)
     {
-        pCmd->advertising |= ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full |
+        *pAdvertised |= ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full |
                                      ADVERTISED_100baseT_Half | ADVERTISED_100baseT_Full |
                                      ADVERTISED_1000baseT_Full; 
     }
-    pCmd->port = PORT_TP;
-    pCmd->transceiver = XCVR_INTERNAL;
     
     // Get phy speed
     Status = DtaNwGetPhySpeed(pDvcData, &Speed);
     if (!DT_SUCCESS(Status)) 
         return -EFAULT;
 
-    pCmd->autoneg = (pDvcData->m_IalData.m_AutoNegEn ? AUTONEG_ENABLE : AUTONEG_DISABLE);
+    *pAutoNeg = (pDvcData->m_IalData.m_AutoNegEn ? AUTONEG_ENABLE : AUTONEG_DISABLE);
 
     switch (Speed) 
     {
     case DTA_PHY_SPEED_10_HALF:
-        pCmd->speed = SPEED_10;
-        pCmd->duplex = DUPLEX_HALF;
+        *pSpeed = SPEED_10;
+        *pDuplex = DUPLEX_HALF;
         break;
     case DTA_PHY_SPEED_10_FULL:
-        pCmd->speed = SPEED_10;
-        pCmd->duplex = DUPLEX_FULL;
+        *pSpeed = SPEED_10;
+        *pDuplex = DUPLEX_FULL;
         break;
     case DTA_PHY_SPEED_100_HALF:
-        pCmd->speed = SPEED_100;
-        pCmd->duplex = DUPLEX_HALF;
+        *pSpeed = SPEED_100;
+        *pDuplex = DUPLEX_HALF;
         break;
     case DTA_PHY_SPEED_100_FULL:
-        pCmd->speed = SPEED_100;
-        pCmd->duplex = DUPLEX_FULL;
+        *pSpeed = SPEED_100;
+        *pDuplex = DUPLEX_FULL;
         break;
     case DTA_PHY_SPEED_1000_MASTER:
     case DTA_PHY_SPEED_1000_SLAVE:
-        pCmd->speed = SPEED_1000;
-        pCmd->duplex = DUPLEX_FULL;
+        *pSpeed = SPEED_1000;
+        *pDuplex = DUPLEX_FULL;
         break;
     default:
-        pCmd->speed = 0;
+        *pSpeed = 0;
+        *pDuplex = 0;
     }
 
-    DtDbgOut(MAX, IAL, "Exit");
     return 0;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwSetSettings -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtaNwSetSettings(DtaNwDeviceData* pDvcData, Int AutoNegSet, Int SpeedSet, 
+                                                                            Int DuplexSet)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    UInt  Speed;
+
+    if (AutoNegSet == AUTONEG_ENABLE)
+    {
+        Speed = DTA_PHY_SPEED_AUTO_DETECT;
+        pDvcData->m_IalData.m_AutoNegEn = TRUE;
+    }
+    else if (SpeedSet == SPEED_10)
+    {
+        if (DuplexSet == DUPLEX_HALF)
+            Speed = DTA_PHY_SPEED_10_HALF;
+        else
+            Speed = DTA_PHY_SPEED_10_FULL;
+        pDvcData->m_IalData.m_AutoNegEn = FALSE;
+    }
+    else if (SpeedSet == SPEED_100)
+    {
+        if (DuplexSet == DUPLEX_HALF)
+            Speed = DTA_PHY_SPEED_100_HALF;
+        else
+            Speed = DTA_PHY_SPEED_100_FULL;
+        pDvcData->m_IalData.m_AutoNegEn = FALSE;
+    }
+    else if (SpeedSet == SPEED_1000)
+    {
+        if (DuplexSet == DUPLEX_HALF)
+            return -EINVAL;
+        // Note: We set the 1Gb speed select to master here. But MASTER/SLAVE configuration
+        // is automatically detected by phy.
+        Speed = DTA_PHY_SPEED_1000_MASTER;
+        pDvcData->m_IalData.m_AutoNegEn = FALSE;
+    }
+    else
+        return -EINVAL;
+
+    Status = DtaNwSetPhySpeed(pDvcData, Speed);
+
+    if (!DT_SUCCESS(Status))
+        return -EFAULT;
+    return 0;
+}
+
+#ifdef GS_SETTINGS_SUPPORT
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwEvtGetSettings -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static Int  DtaNwEvtGetSettings(struct net_device* pDevice, struct ethtool_cmd* pCmd)
+{
+    DtaNwDeviceData*  pDvcData = netdev_priv(pDevice);
+    Int AutoNeg = 0;
+    Int Speed = 0;
+    Int Duplex = 0;
+    Int Supported = 0;
+    Int Advertised = 0;
+    Int Return;
+    DtDbgOut(MAX, IAL, "Start");
+
+
+    memset(pCmd, 0, sizeof(struct ethtool_cmd));
+    pCmd->port = PORT_TP;
+    pCmd->transceiver = XCVR_INTERNAL;
+    
+    Return = DtaNwGetSettings(pDvcData, &AutoNeg, &Speed, &Duplex, &Advertised,
+                                                                              &Supported);
+    pCmd->supported = Supported;
+    pCmd->advertising = Advertised;
+    pCmd->autoneg = AutoNeg;
+    pCmd->speed = Speed;
+    pCmd->duplex = Duplex;
+
+    DtDbgOut(MAX, IAL, "Exit");
+    return Return;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwEvtSetSettings -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -542,48 +628,52 @@ static Int  DtaNwEvtGetSettings(struct net_device* pDevice, struct ethtool_cmd* 
 static Int  DtaNwEvtSetSettings(struct net_device* pDevice, struct ethtool_cmd* pCmd)
 {
     DtaNwDeviceData*  pDvcData = netdev_priv(pDevice);
-    DtStatus  Status = DT_STATUS_OK;
-    UInt  Speed;
-    
-    DtDbgOut(MAX, IAL, "Start");
-
-    if (pCmd->autoneg == AUTONEG_ENABLE)
-    {
-        Speed = DTA_PHY_SPEED_AUTO_DETECT;
-        pDvcData->m_IalData.m_AutoNegEn = TRUE;
-    }else if (pCmd->speed == SPEED_10)
-    {
-        if (pCmd->duplex == DUPLEX_HALF)
-            Speed = DTA_PHY_SPEED_10_HALF;
-        else
-            Speed = DTA_PHY_SPEED_10_FULL;
-        pDvcData->m_IalData.m_AutoNegEn = FALSE;
-    } else if (pCmd->speed == SPEED_100)
-    {
-        if (pCmd->duplex == DUPLEX_HALF) 
-            Speed = DTA_PHY_SPEED_100_HALF;
-        else
-            Speed = DTA_PHY_SPEED_100_FULL;
-        pDvcData->m_IalData.m_AutoNegEn = FALSE;
-    } else if (pCmd->speed == SPEED_1000)
-    {
-        if (pCmd->duplex == DUPLEX_HALF) 
-            return -EINVAL;
-        // Note: We set the 1Gb speed select to master here. But MASTER/SLAVE configuration
-        // is automatically detected by phy.
-        Speed = DTA_PHY_SPEED_1000_MASTER;
-        pDvcData->m_IalData.m_AutoNegEn = FALSE;
-    } else
-        return -EINVAL;
-
-    Status = DtaNwSetPhySpeed(pDvcData, Speed);
-
-    if (!DT_SUCCESS(Status)) 
-        return -EFAULT;
-    DtDbgOut(MAX, IAL, "Exit");
-
-    return 0;
+    return DtaNwSetSettings(pDvcData, pCmd->autoneg, pCmd->speed, pCmd->duplex);
 }
+#else
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwEvtSetLinkKSettings -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static Int  DtaNwEvtSetLinkKSettings(struct net_device*pDevice,
+                                      const struct ethtool_link_ksettings* pLinkKSettings)
+{
+    DtaNwDeviceData*  pDvcData = netdev_priv(pDevice);
+    Int  Speed = pLinkKSettings->base.speed;
+    Int  AutoNeg = pLinkKSettings->base.autoneg;
+    Int  Duplex = pLinkKSettings->base.duplex;
+    return DtaNwSetSettings(pDvcData, AutoNeg, Speed, Duplex);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwEvtGetLinkKSettings -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static Int  DtaNwEvtGetLinkKSettings(struct net_device*pDevice,
+                                      struct ethtool_link_ksettings* pLinkKSettings)
+{
+    DtaNwDeviceData*  pDvcData = netdev_priv(pDevice);
+    Int AutoNeg = 0;
+    Int Speed = 0;
+    Int Duplex = 0;
+    Int Supported = 0;
+    Int Advertised = 0;
+    Int Return;
+    DtDbgOut(MAX, IAL, "Start");
+    Return = DtaNwGetSettings(pDvcData, &AutoNeg, &Speed, &Duplex, &Advertised,
+                                                                              &Supported);
+    pLinkKSettings->base.port = PORT_TP;
+    pLinkKSettings->base.transceiver = XCVR_INTERNAL;
+    pLinkKSettings->base.autoneg = AutoNeg;
+    pLinkKSettings->base.speed = Speed;
+    pLinkKSettings->base.duplex = Duplex;
+    ethtool_convert_legacy_u32_to_link_mode(pLinkKSettings->link_modes.supported,
+                                                                               Supported);
+    ethtool_convert_legacy_u32_to_link_mode(pLinkKSettings->link_modes.advertising,
+                                                                              Advertised);
+
+    DtDbgOut(MAX, IAL, "Exit");
+    return Return;
+}
+#endif
+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNwEvtGetLink -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //

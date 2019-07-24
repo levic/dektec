@@ -74,7 +74,8 @@ typedef struct _PPBuffer
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 Int  DtPcieDeviceId2TypeNumber(Int DeviceId);
-Int  DtPcieDeviceId2SubDvcNumber(Int TypeNumber, Int  DeviceId);
+Int  DtPcieDeviceId2SubType(Int DeviceId);
+//Int  DtPcieDeviceId2SubDvcNumber(Int TypeNumber, Int  DeviceId);
 //void DtPcieWatchdogToggle(volatile UInt8* pBase);
 //void DtPcieWatchdogPulse(volatile UInt8* pBase);
 //UInt32 DtPcieGetPerIntItvUS(DtCorePcie* pCore);

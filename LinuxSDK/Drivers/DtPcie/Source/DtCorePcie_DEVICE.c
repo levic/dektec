@@ -65,12 +65,12 @@ DtStatus  DtCorePcie_DEVICE_Init(DtCorePcie* pCore)
 
     // Type number is derived from DeviceId
     pCore->m_DevInfo.m_TypeNumber = DtPcieDeviceId2TypeNumber(
-                                                (pCore->m_DevInfo.m_DeviceId & 0xFFF));
+                                                             pCore->m_DevInfo.m_DeviceId);
+    // Sub type number is derived from DeviceId
+    pCore->m_DevInfo.m_SubType = DtPcieDeviceId2SubType(pCore->m_DevInfo.m_DeviceId);
 
-    // Deduce sub-device number
-    pCore->m_DevInfo.m_SubDvc = DtPcieDeviceId2SubDvcNumber(
-                                                            pCore->m_DevInfo.m_TypeNumber,
-                                                            pCore->m_DevInfo.m_DeviceId);
+    // Subdevices are not yet supported
+    pCore->m_DevInfo.m_SubDvc =  0;
 
     // Perform base initialisation
     Status = DtCore_DEVICE_Init((DtCore*)pCore, DtIoStubCorePcie_Open);

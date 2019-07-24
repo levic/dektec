@@ -36,6 +36,7 @@
 #include "DtBcCDMAC.h"
 #include "DtBcCONSTSINK.h"
 #include "DtBcCONSTSOURCE.h"
+#include "DtBcSDIRXF.h"
 #include "DtBcSDITXF.h"
 #include "DtBcSDITXP.h"
 #include "DtBcSWITCH.h"
@@ -43,8 +44,7 @@
 #include "DtBcGS2988.h"
 #include "DtDfAsiRx.h"
 #include "DtDfSdiRx.h"
-#include "DtBcSDIRXF.h"
-#include "DtDfAsiRx.h"
+#include "DtDfSpiCableDrvEq.h"
 
 // Name for the AsiSdiRxTx port.
 #define DT_DF_ASISDIRXTX_NAME   "ASISDIRXTX"
@@ -88,8 +88,11 @@ typedef struct  _DtPTAsiSdiRxTx
     DtBcCONSTSOURCE*  m_pBcConstSource;   // Constant rate source block controller
 
     // RX TX Block controllers
-    DtBcCDMAC*  m_pBcCDmaC;             // DMA-controller
-    DtBcBURSTFIFO*  m_pBcBURSTFIFO;     // Burst FIFO
+    DtBcCDMAC*  m_pBcCDmaC;               // DMA-controller
+    DtBcBURSTFIFO*  m_pBcBURSTFIFO;       // Burst FIFO
+
+    // RX TX Driver functions
+    DtDfSpiCableDrvEq*  m_pDfSpiCableDrvEq; // Cable driver/equalizer
 } DtPtAsiSdiRxTx;
 
 

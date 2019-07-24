@@ -47,9 +47,10 @@
 static DtStatus  DtBcSDITXPHY_Init(DtBc*);
 static DtStatus  DtBcSDITXPHY_OnEnable(DtBc*, Bool);
 static DtStatus  DtBcSDITXPHY_OnCloseFile(DtBc*, const DtFileObject*);
-static DtStatus  DtBcSDITXPHY_IsSdiRateValid(DtBcSDITXPHY* pBc, Int SdiRate);
+static DtStatus  DtBcSDITXPHY_CheckSdiRate(DtBcSDITXPHY* pBc, Int SdiRate);
 static void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY*, Bool BlkEnable, Int OpMode,
                                    Bool TxClkReset, Bool Arm, Int SrcFactor, Int SdiRate);
+static DtStatus DtBcSDITXPHY_C10A10_SetPllSelect(DtBcSDITXPHY*, Int ClockIdx);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDITXPHY - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -183,6 +184,26 @@ DtStatus DtBcSDITXPHY_GetClockReset(DtBcSDITXPHY * pBc, Bool* pClkReset)
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_GetDeviceFamily -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDITXPHY_GetDeviceFamily(DtBcSDITXPHY * pBc, Int* pDeviceFamily)
+{
+    // Sanity check
+    BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check parameters
+    if (pDeviceFamily == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDITXPHY_MUST_BE_ENABLED(pBc);
+
+    // Return cached device family
+    *pDeviceFamily = pBc->m_DeviceFamily;
+
+    return DT_STATUS_OK;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_GetMaxSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcSDITXPHY_GetMaxSdiRate(DtBcSDITXPHY * pBc, Int * pMaxSdiRate)
@@ -250,6 +271,32 @@ DtStatus DtBcSDITXPHY_GetOperationalStatus(DtBcSDITXPHY* pBc, Int* pOpStatus)
     default: DT_ASSERT(FALSE); return DT_STATUS_FAIL;
     }
 
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_GetTxPllId -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDITXPHY_GetTxPllId(DtBcSDITXPHY* pBc, Int* pTxPllId)
+{
+    // Sanity check
+    BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check parameters
+    if (pTxPllId == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDITXPHY_MUST_BE_ENABLED(pBc);
+
+    // Return the ID of the TXPLL that is currently used
+    if (pBc->m_NumClocks == 1)
+        *pTxPllId = pBc->m_PllIdClk1;
+    else
+    { 
+        DT_ASSERT(pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10 
+                                       || pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_C10);
+        *pTxPllId = pBc->m_C10A10FractClock ? pBc->m_PllIdClk2 : pBc->m_PllIdClk1;
+    }
     return DT_STATUS_OK;
 }
 
@@ -399,6 +446,64 @@ DtStatus DtBcSDITXPHY_SetUpsampleFactor(DtBcSDITXPHY * pBc, Int SrcFactor)
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_C10A10_GetSdiFractionalClock -.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDITXPHY_C10A10_GetSdiFractionalClock(DtBcSDITXPHY* pBc, Bool* pFracClk)
+{
+    // Sanity check
+    BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Parameter check
+    if (pFracClk == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDITXPHY_MUST_BE_ENABLED(pBc);
+    
+    // Check device family
+    if (pBc->m_DeviceFamily!=DT_BC_SDITXPHY_FAMILY_A10 
+                                        && pBc->m_DeviceFamily!=DT_BC_SDITXPHY_FAMILY_C10)
+    { 
+        DtDbgOutBc(ERR, SDITXPHY, pBc, "ERROR: Not supported for this device family");
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
+    // Return cached value
+    *pFracClk = pBc->m_C10A10FractClock;
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_C10A10_SetSdiFractionalClock -.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDITXPHY_C10A10_SetSdiFractionalClock(DtBcSDITXPHY* pBc, Bool FracClk)
+{
+    // Sanity check
+    BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Must be enabled
+    BC_SDITXPHY_MUST_BE_ENABLED(pBc);
+    
+    // Check device family
+    if (pBc->m_DeviceFamily!=DT_BC_SDITXPHY_FAMILY_A10 
+                                        && pBc->m_DeviceFamily!=DT_BC_SDITXPHY_FAMILY_C10)
+    { 
+        DtDbgOutBc(ERR, SDITXPHY, pBc, "ERROR: Not supported for this device family");
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
+    // No change?
+    if (pBc->m_C10A10FractClock == FracClk)
+        return DT_STATUS_OK;
+
+    // Make PLL selection
+    DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_SetPllSelect(pBc, FracClk ? 1 : 0));
+
+    // Update cached value
+    pBc->m_C10A10FractClock = FracClk;
+    return DT_STATUS_OK;
+}
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcSDITXPHY_SetOperationalMode(DtBcSDITXPHY * pBc, Int OpMode)
@@ -443,7 +548,7 @@ DtStatus DtBcSDITXPHY_SetSdiRate(DtBcSDITXPHY* pBc, Int SdiRate)
     BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
 
     // Check parameters
-    DT_RETURN_ON_ERROR(DtBcSDITXPHY_IsSdiRateValid(pBc, SdiRate));
+    DT_RETURN_ON_ERROR(DtBcSDITXPHY_CheckSdiRate(pBc, SdiRate));
 
     // Must be enabled
     BC_SDITXPHY_MUST_BE_ENABLED(pBc);
@@ -476,7 +581,7 @@ DtStatus  DtBcSDITXPHY_Init(DtBc*  pBcBase)
 {
     DtStatus  Status=DT_STATUS_OK;
     DtBcSDITXPHY* pBc = (DtBcSDITXPHY*)pBcBase;
-    UInt32  FwMaxSdiRate;
+    UInt32  FwMaxSdiRate, FwDeviceFamily;
 
     // Sanity checks
     BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
@@ -484,17 +589,38 @@ DtStatus  DtBcSDITXPHY_Init(DtBc*  pBcBase)
     // Clear underflow
     SDITXPHY_CdcFifoStatus_CLEAR_Underflow(pBc);
 
-    // Get the number of clocks from the config register
-    pBc->m_NumClocks = SDITXPHY_Config_READ_NumClocks(pBc);
-
     // Set defaults
     pBc->m_BlockEnabled = FALSE;
     pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
     pBc->m_ClockReset = TRUE;
     pBc->m_UpsampleFactor = 1;
     pBc->m_SdiRate = DT_DRV_SDIRATE_HD;
+    pBc->m_C10A10FractClock = FALSE;
 
-    
+    // Get the number of clocks from the config register
+    pBc->m_NumClocks = SDITXPHY_Config_READ_NumClocks(pBc);
+
+    // Get PLL-IDs
+    pBc->m_PllIdClk1 = SDITXPHY_Config_READ_PllIdClk1(pBc);
+    pBc->m_PllIdClk2 = SDITXPHY_Config_READ_PllIdClk2(pBc);
+
+    // Get device family
+    FwDeviceFamily = SDITXPHY_Config_READ_DeviceFamily(pBc);
+    switch (FwDeviceFamily)
+    {
+    case SDITXPHY_FAMILY_A10:  pBc->m_DeviceFamily = DT_BC_SDITXPHY_FAMILY_A10; break;
+    case SDITXPHY_FAMILY_C10:  pBc->m_DeviceFamily = DT_BC_SDITXPHY_FAMILY_C10; break;
+    case SDITXPHY_FAMILY_CV:   pBc->m_DeviceFamily = DT_BC_SDITXPHY_FAMILY_CV;  break;
+    default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+    }
+
+    // Device family specific initialization
+    if (pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10 
+                                        || pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10)
+        // Select clock
+        DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_SetPllSelect(pBc, 
+                                                        pBc->m_C10A10FractClock ? 1 : 0));
+
     // Get maximum supported rate
     FwMaxSdiRate = SDITXPHY_Config_READ_MaxSdiRate(pBc);
     switch (FwMaxSdiRate)
@@ -580,9 +706,9 @@ DtStatus  DtBcSDITXPHY_OnCloseFile(DtBc*  pBc, const DtFileObject* pFile)
     return DtBc_OnCloseFile(pBc, pFile);
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_IsSdiRateValid -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_CheckSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus DtBcSDITXPHY_IsSdiRateValid(DtBcSDITXPHY* pBc, Int SdiRate)
+DtStatus DtBcSDITXPHY_CheckSdiRate(DtBcSDITXPHY* pBc, Int SdiRate)
 {
     // Check whether it is a valid SDI-rate
     if (   SdiRate!=DT_DRV_SDIRATE_SD && SdiRate!=DT_DRV_SDIRATE_HD 
@@ -665,3 +791,28 @@ void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,
         SDITXPHY_InhibitFifo_WRITE(pBc, 0);
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_C10A10_SetPllSelect -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDITXPHY_C10A10_SetPllSelect(DtBcSDITXPHY* pBc, Int ClockIdx)
+{
+    UInt32 PllId, PllSeqNum, PllSelect;
+
+    // Parameter check
+    if (ClockIdx!=0 && ClockIdx!=1)
+        return DT_STATUS_INVALID_PARAMETER;
+    
+    // Determine PLL-sequence number
+    PllSeqNum  = (ClockIdx==0) ? (pBc->m_PllIdClk1&0xF) : (pBc->m_PllIdClk2&0xF);
+    switch (PllSeqNum-1)
+    {
+        case 0: PllId = SDITXPHY_C10A10_PllLookup_READ_Pll0(pBc); break;
+        case 1: PllId = SDITXPHY_C10A10_PllLookup_READ_Pll1(pBc); break;
+        case 2: PllId = SDITXPHY_C10A10_PllLookup_READ_Pll2(pBc); break;
+        case 3: PllId = SDITXPHY_C10A10_PllLookup_READ_Pll3(pBc); break;
+        default:  return DT_STATUS_FAIL;
+    }
+    PllSelect =  (((PllId&8)^8)<<4) | ((PllId&3)<<5) | ((PllId&8)<<1) | (PllId&0xF);
+
+    SDITXPHY_C10A10_PllSelectionMux_WRITE(pBc, PllSelect);
+    return DT_STATUS_OK;
+}

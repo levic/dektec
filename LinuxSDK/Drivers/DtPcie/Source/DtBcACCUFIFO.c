@@ -277,7 +277,7 @@ DtStatus  DtBcACCUFIFO_Init(DtBc* pBcBase)
     DtBcACCUFIFO* pBc = (DtBcACCUFIFO*)pBcBase;
 
     // Read Configuration into Cache
-    pBc->m_ClockFrequency = 125000000; // TODOTD (Int64)ACCUFIFO_Config2_READ_ClkFreq(pBc);
+    pBc->m_ClockFrequency = (Int64)ACCUFIFO_Config2_READ_ClkFreq(pBc);
     pBc->m_MaxNumMeasurements = (Int)ACCUFIFO_Config1_READ_FifoDepth(pBc);
     
     // Set defaults

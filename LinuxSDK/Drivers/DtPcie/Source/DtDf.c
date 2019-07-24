@@ -47,9 +47,10 @@ const DtDfId  DT_DF_KNOWN[] =
     { DT_DF_SDITXPHY_NAME,        DT_DF_SDITXPHY_SHORTNAME,       NULL, -1, -1 },
     { DT_DF_SDIRX_NAME,           DT_DF_SDIRX_SHORTNAME,          NULL, -1, -1 },
     { DT_DF_SDIXCFGMGR_NAME,      DT_DF_SDIXCFGMGR_SHORTNAME,     NULL, -1, -1 },
+    { DT_DF_SENSTEMP_NAME,        DT_DF_SENSTEMP_SHORTNAME,       NULL, -1, -1 },
     { DT_DF_SI534X_NAME,          DT_DF_SI534X_SHORTNAME,         NULL, -1, -1 },
     { DT_DF_SPIPROM_NAME,         DT_DF_SPIPROM_SHORTNAME,        NULL, -1, -1 },
-    { DT_DF_SENSTEMP_NAME,        DT_DF_SENSTEMP_SHORTNAME,       NULL, -1, -1 },
+    { DT_DF_SPICABLEDRVEQ_NAME,   DT_DF_SPICABLEDRVEQ_SHORTNAME,  NULL, -1, -1 },
     { DT_DF_TEMPFANMGR_NAME,      DT_DF_TEMPFANMGR_SHORTNAME,     NULL, -1, -1 },
     { DT_DF_VPD_NAME,             DT_DF_VPD_SHORTNAME,            NULL, -1, -1 },
     { DT_DF_S2CRDEMOD_2132_NAME,  DT_DF_S2CRDEMOD_2132_SHORTNAME, NULL, -1, -1 },
@@ -909,6 +910,9 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
     case DT_FUNC_TYPE_SI534X:
         return (DtDf*)DtDfSi534X_Open(pCore, pPt, pId->m_pRole, 
+                                                pId->m_Instance, pId->m_Uuid, CreateStub);
+    case DT_FUNC_TYPE_SPICABLEDRVEQ:
+        return (DtDf*)DtDfSpiCableDrvEq_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
     case DT_FUNC_TYPE_SPIMF:
         break;

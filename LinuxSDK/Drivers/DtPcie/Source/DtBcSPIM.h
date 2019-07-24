@@ -66,6 +66,8 @@ typedef  struct _DtBcSPIMProperties
 void  DtBcSPIM_Close(DtBc*);
 DtBcSPIM * DtBcSPIM_Open(Int Address, DtCore* pCore, DtPt* pPt, const char* pRole, 
                                                 Int Instance, Int Uuid, Bool CreateStub);
+DtStatus  DtBcSPIM_GetProperties(DtBcSPIM*, Int* pDeviceId, Int* pDuplexMode, 
+                                                     Int* pMaxTfTime, Int* pSpiClockRate);
 DtStatus  DtBcSPIM_Read(DtBcSPIM*, Int Length, UInt8* pBuffer);
 DtStatus  DtBcSPIM_Write(DtBcSPIM*,  Int Length, const UInt8* pBuffer);
 DtStatus  DtBcSPIM_WriteRead(DtBcSPIM*, Int WriteLength, const UInt8* pWriteBuffer,

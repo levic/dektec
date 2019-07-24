@@ -28,6 +28,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtDf.h"
 #include "DtBcI2CM.h"
+#include "DtBcSDITXPLL.h"
 
 // Name + short-name for the SI534X function. NOTE: must match names in 
 // FunctionDescriptionsXxx.xml
@@ -64,6 +65,12 @@ typedef enum _DtDfSi534XConfig
     DT_DF_SI534X_CFG_FREE_RUN_FRAC_CLOCK,
 } DtDfSi534XConfig;
 
+// Structure that stores the SDITXPLL block controller and the PLL-Id
+typedef struct  _DtDfSi534XSdiTxPll
+{
+    DtBcSDITXPLL*  m_pSdiTxPll;
+    Int  m_PllId;
+}DtDfSi534XSdiTxPll;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 typedef struct  _DtDfSi534X
@@ -73,13 +80,15 @@ typedef struct  _DtDfSi534X
 
     DtBcI2CM*  m_pBcI2Cm;               // I2C master block controller
     DtFastMutex  m_AccessMutex;         // Access protection for SI-534X
+    Int  m_DeviceType;                  // Device type 5342/5344
     Int  m_Si534XAddress;               // Address of  the SI-534X device
     Int  m_NumClockOutputs;             // Number of clock outputs
     Int  m_PrevBank;                    // Previous selected bank
     DtDfSi534XConfig  m_CurConfig;      // Current loaded configuration
     const DtDfSi534XConfigItem*  m_pCurConfigItems; // Current configured items
     Int  m_CurConfigNumItems;           // Number of configured items
-
+    DtVectorBc*  m_pBcSdiTxPlls;         // SDITXPLL block controllers
+    DtVector*  m_pSdiTxPllTable;         // SDITXPLL look-up table
 }  DtDfSi534X;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -89,6 +98,7 @@ DtDfSi534X*  DtDfSi534X_Open(DtCore*, DtPt*  pPt, const char*  pRole, Int  Insta
 DtStatus  DtDfSi534X_GetNumClocks(DtDfSi534X*, Int*);
 DtStatus  DtDfSi534X_SetConfig(DtDfSi534X*, DtDfSi534XConfig);
 
+DtStatus  DtDfSi534X_IsPllLocked(DtDfSi534X*, Int PllId, Bool* pLocked);
 
 #endif  // #ifndef __DT_DF_SI534X_H
 

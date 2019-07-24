@@ -48,6 +48,12 @@ while (0)
 #define DT_BC_SDITXPHY_ARMSTATUS_ARMED      2   // Armed and awaiting GenlockSoF before
                                                 // starting transmission
 
+// Device family
+#define DT_BC_SDITXPHY_FAMILY_UNKNOWN      -1  // Unknown
+#define DT_BC_SDITXPHY_FAMILY_CV            0  // Intel Cyclone V
+#define DT_BC_SDITXPHY_FAMILY_C10           1  // Intel Cyclone 10
+#define DT_BC_SDITXPHY_FAMILY_A10           2  // Intel Arria 10
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDITXPHY definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -62,10 +68,14 @@ typedef  struct _DtBcSDITXPHY
     Bool  m_BlockEnabled;      // Block enabled
     Int  m_OperationalMode;    // Current operational mode
     Int  m_NumClocks;          // Number of clock signals
+    Int  m_PllIdClk1;          // PllId clock 1
+    Int  m_PllIdClk2;          // PllId clock 2
+    Int  m_DeviceFamily;       // Device family
     Bool  m_ClockReset;        // Clock reset
     Int  m_UpsampleFactor;     // Up-sample factor
     Int  m_SdiRate;            // Configured SDI-rate
     Int  m_MaxSdiRate;         // Maximum SDI-rate
+    Bool  m_C10A10FractClock;  // A10/C10 fractional clock
 }  DtBcSDITXPHY;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -76,9 +86,11 @@ DtStatus  DtBcSDITXPHY_ArmForSof(DtBcSDITXPHY* pBc);
 DtStatus  DtBcSDITXPHY_ClearUnderflowFlag(DtBcSDITXPHY* pBc);
 DtStatus  DtBcSDITXPHY_GetArmStatus(DtBcSDITXPHY* pBc,  Int*  pArmStatus);
 DtStatus  DtBcSDITXPHY_GetClockReset(DtBcSDITXPHY* pBc,  Bool*  pClkReset);
+DtStatus  DtBcSDITXPHY_GetDeviceFamily(DtBcSDITXPHY* pBc,  Int* pDeviceFamily);
 DtStatus  DtBcSDITXPHY_GetMaxSdiRate(DtBcSDITXPHY* pBc,  Int* pMaxSdiRate);
 DtStatus  DtBcSDITXPHY_GetNumClocks(DtBcSDITXPHY* pBc,  Int* pNumClocks);
 DtStatus  DtBcSDITXPHY_GetOperationalStatus(DtBcSDITXPHY* pBc,  Int* pOpStatus);
+DtStatus  DtBcSDITXPHY_GetTxPllId(DtBcSDITXPHY* pBc,  Int* pTxPllId);
 DtStatus  DtBcSDITXPHY_GetSdiRate(DtBcSDITXPHY* pBc,  Int* pSdiRate);
 DtStatus  DtBcSDITXPHY_GetUnderflowFlag(DtBcSDITXPHY* pBc, Bool* pUnderflow);
 DtStatus  DtBcSDITXPHY_GetUpsampleFactor(DtBcSDITXPHY* pBc, Int* pSrcFactor);
@@ -87,4 +99,9 @@ DtStatus  DtBcSDITXPHY_SetClockReset(DtBcSDITXPHY* pBc,  Bool ClkReset);
 DtStatus  DtBcSDITXPHY_SetOperationalMode(DtBcSDITXPHY* pBc,  Int OpMode);
 DtStatus  DtBcSDITXPHY_SetSdiRate(DtBcSDITXPHY* pBc,  Int SdiRate);
 DtStatus  DtBcSDITXPHY_SetUpsampleFactor(DtBcSDITXPHY* pBc, Int  SrcFactor);
+
+// Aria 10/ Cyclone 10 specific functions
+DtStatus  DtBcSDITXPHY_C10A10_GetSdiFractionalClock(DtBcSDITXPHY* pBc, Bool*  pFracClk);
+DtStatus  DtBcSDITXPHY_C10A10_SetSdiFractionalClock(DtBcSDITXPHY* pBc, Bool  FracClk);
+
 #endif  // #ifndef __DT_BC_SDITXPHY_H

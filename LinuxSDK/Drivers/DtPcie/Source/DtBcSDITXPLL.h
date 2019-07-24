@@ -53,13 +53,15 @@ typedef  struct _DtBcSDITXPLL
     // NOTE: common block data must be the first members to allow casting to DtBc
     DT_BC_COMMON_DATA;
     // Cached settings
-    Bool  m_BlockEnabled;      // Block enabled
+    Bool  m_BlockEnabled;       // Block enabled
+    Int  m_PllId;               // PLL-Id
 }  DtBcSDITXPLL;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPLL public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void  DtBcSDITXPLL_Close(DtBc*);
 DtBcSDITXPLL*  DtBcSDITXPLL_Open(Int  Address, DtCore*, DtPt*  pPt, 
                                             const char*  pRole, Int  Instance, Int  Uuid);
+DtStatus  DtBcSDITXPLL_GetPllId(DtBcSDITXPLL* pBc, Int* pPllId);
 DtStatus  DtBcSDITXPLL_IsPllLocked(DtBcSDITXPLL* pBc, Bool* pLocked);
 DtStatus  DtBcSDITXPLL_ResetClock(DtBcSDITXPLL* pBc);
 #endif  // #ifndef __DT_BC_SDITXPLL_H

@@ -97,6 +97,40 @@ const struct DtDfSpiPromCommand SPI_25AA160C_Cmds[SPI_PROM_CMD_COUNT] =
 };
 
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- 25AA640A EEPROM -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+#define CFG_25AA640A_SIZE    8192    // 8K byte Eeprom
+#define CFG_25AA640A_PAGE    32      // 32 byte pages
+#define CFG_25AA640A_WR_TIMEOUT  5   // Write timeout 5 milli seconds
+#define STAT_25AA640A_WRIP_FLAG 0x01 // Write in progress flag
+
+#define CMD_25AA640A_READ    0x03   // Read data from memory beginning at selected address
+#define CMD_25AA640A_WRITE   0x02   // Write data to memory beginning at selected address
+#define CMD_25AA640A_WRDI    0x04   // Disable write operations
+#define CMD_25AA640A_WREN    0x06   // Enable write operations 
+#define CMD_25AA640A_RDSR    0x05   // Read status register
+#define CMD_25AA640A_WRSR    0x01   // Write status register 
+
+// 25AA640A EEPROM properties
+const struct DtDfSpiPromProperties SPI_25AA640A_Props =
+{
+    CFG_25AA640A_SIZE,              // Prom memory size
+    CFG_25AA640A_PAGE,              // Prom page size
+    CFG_25AA640A_WR_TIMEOUT,        // Write timeout
+    STAT_25AA640A_WRIP_FLAG         // Write in progress flag
+};
+
+// 25AA640A EEPROM commands
+const struct DtDfSpiPromCommand SPI_25AA640A_Cmds[SPI_PROM_CMD_COUNT] =
+{
+    { 3, 1, { CMD_25AA640A_READ } },           // Read command
+    { 3, 1, { CMD_25AA640A_WRITE } },          // Write command
+    { 2, 2, { CMD_25AA640A_WRSR, 0X0C } },     // Lock command
+    { 2, 2, { CMD_25AA640A_WRSR, 0X00 } },     // Unlock command
+    { 1, 1, { CMD_25AA640A_WREN } },           // Write enable command
+    { 1, 1, { CMD_25AA640A_WRDI } },           // Write disable command
+    { 1, 1, { CMD_25AA640A_RDSR } },           // Read status register 
+};
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfSpiProm implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -423,6 +457,10 @@ DtStatus  DtDfSpiProm_Init(DtDf*  pDf)
     case DT_SPIM_SPIDVC_25AA160C:
         DF_SPIPROM->m_pSpiPromProperties = &SPI_25AA160C_Props;
         DF_SPIPROM->m_pSpiPromCommands = SPI_25AA160C_Cmds;
+        break;
+    case DT_SPIM_SPIDVC_25AA640A:
+        DF_SPIPROM->m_pSpiPromProperties = &SPI_25AA640A_Props;
+        DF_SPIPROM->m_pSpiPromCommands = SPI_25AA640A_Cmds;
         break;
     default:
         DT_ASSERT(FALSE);

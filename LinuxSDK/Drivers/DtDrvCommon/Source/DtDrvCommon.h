@@ -89,6 +89,7 @@
 #define  LOG_LEVEL_BC_IPSECG        LOG_MAX
 #define  LOG_LEVEL_BC_KA            LOG_MIN
 #define  LOG_LEVEL_BC_LEDB          LOG_MIN
+#define  LOG_LEVEL_BC_LMH1981       LOG_MIN
 #define  LOG_LEVEL_BC_MSIX          LOG_MIN
 #define  LOG_LEVEL_BC_REBOOT        LOG_MAX
 #define  LOG_LEVEL_BC_SDIXCFG       LOG_MAX
@@ -136,6 +137,7 @@
 #define  LOG_LEVEL_DF_SI534X        LOG_MAX
 #define  LOG_LEVEL_DF_SETTINGS      LOG_MAX
 #define  LOG_LEVEL_DF_SPIPROM       LOG_MAX
+#define  LOG_LEVEL_DF_SPICABLEDRVEQ LOG_MAX
 #define  LOG_LEVEL_DF_TEMPFANMGR    LOG_MAX
 #define  LOG_LEVEL_DF_VPD           LOG_MAX
 

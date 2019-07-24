@@ -303,7 +303,7 @@ DtStatus DtDfTemplate_OnEnablePreChildren(DtDf* pDfBase, Bool Enable)
 }
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfTemplate_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-static DtStatus  DtDfTemplate_OnCloseFile(DtDf* pDf, const DtFileObject* pFile)
+static DtStatus  DtDfTemplate_OnCloseFile(DtDf* pDfBase, const DtFileObject* pFile)
 {
     DtStatus  Status = DT_STATUS_OK;
     DtDfTemplate* pDf = (DtDfTemplate*)pDfBase;

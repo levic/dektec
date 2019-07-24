@@ -50,13 +50,15 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 static DtStatus  DtDfSdiRx_ConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next);
+static DtStatus  DtDfSdiRx_ConfigureRateC10A10(DtDfSdiRx* pDf, Int SdiRate);
+static DtStatus  DtDfSdiRx_ConfigureRateCV(DtDfSdiRx* pDf, Int SdiRate);
 static DtStatus  DtDfSdiRx_Init(DtDf*);
 static DtStatus  DtDfSdiRx_OnCloseFile(DtDf*, const DtFileObject*);
 static DtStatus  DtDfSdiRx_OnEnablePostChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfSdiRx_OnEnablePreChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfSdiRx_LoadParameters(DtDf*);
 static DtStatus  DtDfSdiRx_OpenChildren(DtDfSdiRx*);
-static DtStatus  DtDfSdiRx_IsSdiRateValid(DtDfSdiRx*, Int SdiRate);
+static DtStatus  DtDfSdiRx_CheckSdiRate(DtDfSdiRx*, Int SdiRate);
 static void  DtDfSdiRx_PeriodicIntervalHandler(DtObject*, DtTodTime  Time);
 static void  DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*,  DtTodTime  Time);
 static Int64  DtDfSdiRx_TimeDiff(DtTodTime  Time1, DtTodTime  Time2);
@@ -118,7 +120,7 @@ DtStatus DtDfSdiRx_GetMaxSdiRate(DtDfSdiRx* pDf, Int* pMaxSdiRate)
     DF_SDIRX_MUST_BE_ENABLED(pDf);
 
     // Return cached value
-    *pMaxSdiRate = pDf->m_MaxSdiRate;
+    *pMaxSdiRate = pDf->m_PhyMaxSdiRate;
 
     return DT_STATUS_OK;
 }
@@ -376,7 +378,7 @@ DtStatus DtDfSdiRx_SetSdiRate(DtDfSdiRx* pDf, Int SdiRate)
     DF_SDIRX_MUST_BE_ENABLED(pDf);
 
     // Check parameters
-    DT_RETURN_ON_ERROR(DtDfSdiRx_IsSdiRateValid(pDf, SdiRate));
+    DT_RETURN_ON_ERROR(DtDfSdiRx_CheckSdiRate(pDf, SdiRate));
 
     // Must be in IDLE
     if (pDf->m_OperationalMode != DT_FUNC_OPMODE_IDLE)
@@ -425,38 +427,124 @@ DtStatus DtDfSdiRx_SetSdiRate(DtDfSdiRx* pDf, Int SdiRate)
 //
 DtStatus DtDfSdiRx_ConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next)
 {
-    DtStatus  Status=DT_STATUS_OK;
-    Int  SdiRate = *pSdiRate;
-    Int  BcReconfig;
-    Bool DownsamplerEnable = FALSE;
-
     // Sanity checks
     DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
 
     // Check parameters
-    if (SdiRate!=DT_DRV_SDIRATE_SD && SdiRate!=DT_DRV_SDIRATE_HD
-                                                          && SdiRate!=DT_DRV_SDIRATE_3G)
-    {
-        DtDbgOutDf(ERR, SDIRX, pDf, "Invalid SDI-rate");
+    if (pSdiRate == NULL)
         return DT_STATUS_INVALID_PARAMETER;
-    }
+    DT_RETURN_ON_ERROR(DtDfSdiRx_CheckSdiRate(pDf, *pSdiRate));
 
     // Select next SDI-rate?
     if (Next)
     {
-        if (SdiRate == pDf->m_MaxSdiRate)
-            SdiRate = DT_DRV_SDIRATE_SD;
+        if (*pSdiRate == pDf->m_PhyMaxSdiRate)
+            *pSdiRate = DT_DRV_SDIRATE_SD;
         else
-            switch(SdiRate)
+            switch(*pSdiRate)
             {
-                case DT_DRV_SDIRATE_SD:  SdiRate = DT_DRV_SDIRATE_HD; break;
-                case DT_DRV_SDIRATE_HD:  SdiRate = DT_DRV_SDIRATE_3G; break;
-                case DT_DRV_SDIRATE_3G:  SdiRate = DT_DRV_SDIRATE_6G; break;
-                case DT_DRV_SDIRATE_6G:  SdiRate = DT_DRV_SDIRATE_12G; break;
-                case DT_DRV_SDIRATE_12G: SdiRate = DT_DRV_SDIRATE_SD; break;
+                case DT_DRV_SDIRATE_SD:  *pSdiRate = DT_DRV_SDIRATE_HD; break;
+                case DT_DRV_SDIRATE_HD:  *pSdiRate = DT_DRV_SDIRATE_3G; break;
+                case DT_DRV_SDIRATE_3G:  *pSdiRate = DT_DRV_SDIRATE_6G; break;
+                case DT_DRV_SDIRATE_6G:  *pSdiRate = DT_DRV_SDIRATE_12G; break;
+                default:
+                case DT_DRV_SDIRATE_12G: *pSdiRate = DT_DRV_SDIRATE_SD; break;
             }
     }
-    
+
+    // Call device family specific configure function
+    switch (pDf->m_PhyDeviceFamily)
+    {
+    case DT_BC_SDIRXPHY_FAMILY_A10:
+    case DT_BC_SDIRXPHY_FAMILY_C10:
+        return DtDfSdiRx_ConfigureRateC10A10(pDf, *pSdiRate);
+    case DT_BC_SDIRXPHY_FAMILY_CV:
+        return DtDfSdiRx_ConfigureRateCV(pDf, *pSdiRate);
+    default:
+        DT_ASSERT(FALSE);
+        DtDbgOutDf(ERR, SDIRX, pDf, "Unsupported device family");
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_ConfigureRateC10A10 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSdiRx_ConfigureRateC10A10(DtDfSdiRx* pDf, Int SdiRate)
+{
+    DtStatus  Status=DT_STATUS_OK;
+    Bool DownsamplerEnable = FALSE;
+    // DT_ASSERT(FALSE);  //  Must be completed
+    // Convert parameter for the block controllers
+    switch (SdiRate)
+    {
+    case DT_DRV_SDIRATE_SD:
+        DownsamplerEnable = TRUE;
+        break;
+    case DT_DRV_SDIRATE_HD:
+        DownsamplerEnable = FALSE;
+        break;
+    case DT_DRV_SDIRATE_3G:
+        DownsamplerEnable = FALSE;
+        break;
+    case DT_DRV_SDIRATE_6G:
+        DownsamplerEnable = FALSE;
+        break;
+    case DT_DRV_SDIRATE_12G:
+        DownsamplerEnable = FALSE;
+        break;
+    }   
+
+    // Change the operational mode such that PHY and transceiver can be configured
+    if (DT_SUCCESS(Status))
+        Status =  DtBcSDIRXPHY_SetOperationalMode(pDf->m_pBcSdiRxPhy,
+                                                                 DT_BLOCK_OPMODE_STANDBY);
+    // Select new rate
+    if (DT_SUCCESS(Status))
+        Status = DtBcSDIRXPHY_C10A10_SetSdiRate(pDf->m_pBcSdiRxPhy, SdiRate);
+
+    // Restart locking
+    // Reset PLL
+    if (DT_SUCCESS(Status))
+        Status = DtBcSDIRXPHY_ResetPll(pDf->m_pBcSdiRxPhy);
+    // Reset clock
+    if (DT_SUCCESS(Status))
+        Status = DtBcSDIRXPHY_SetClockReset(pDf->m_pBcSdiRxPhy, TRUE);
+    // Lock to reference
+    if (DT_SUCCESS(Status))
+        Status = DtBcSDIRXPHY_SetLockMode(pDf->m_pBcSdiRxPhy,
+                                                     DT_BC_SDIRXPHY_LOCKMODE_LOCK_TO_REF);
+    // Set downsampling
+    if (DT_SUCCESS(Status))
+        Status = DtBcSDIRXPHY_SetDownsamplerEnable(pDf->m_pBcSdiRxPhy, DownsamplerEnable);
+    // SDIRXP is only configured when in SDI-mode
+    if (pDf->m_RxMode == DT_SDIRX_RXMODE_SDI)
+    { 
+        DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
+        // Change the operational mode of SDIRXP in idle such that it can be configured
+        if (DT_SUCCESS(Status))
+            Status = DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt,
+                                                                    DT_BLOCK_OPMODE_IDLE);
+        // Set SDI-rate in SDIRXP
+        if (DT_SUCCESS(Status))
+            Status = DtBcSDIRXP_SetSdiRate(pDf->m_pBcSdiRxProt, SdiRate);
+
+        // Set the SDIRXP in standby
+        if (DT_SUCCESS(Status))
+            Status = DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt,
+                                                                 DT_BLOCK_OPMODE_STANDBY);
+    }
+    return Status;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_ConfigureRateCV -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSdiRx_ConfigureRateCV(DtDfSdiRx* pDf, Int SdiRate)
+{
+    DtStatus  Status=DT_STATUS_OK;
+    Int  BcReconfig;
+    Bool DownsamplerEnable = FALSE;
+
     // Convert parameter for the block controllers
     switch (SdiRate)
     {
@@ -505,8 +593,7 @@ DtStatus DtDfSdiRx_ConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next)
                                                      DT_BC_SDIRXPHY_LOCKMODE_LOCK_TO_REF);
     // Set downsampling
     if (DT_SUCCESS(Status))
-        Status = DtBcSDIRXPHY_SetDownsamplerEnable(pDf->m_pBcSdiRxPhy,
-                                                                       DownsamplerEnable);
+        Status = DtBcSDIRXPHY_SetDownsamplerEnable(pDf->m_pBcSdiRxPhy, DownsamplerEnable);
     // SDIRXP3G is only configured in SDI-mode
     if (pDf->m_RxMode == DT_SDIRX_RXMODE_SDI)
     { 
@@ -524,16 +611,14 @@ DtStatus DtDfSdiRx_ConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next)
             Status = DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt,
                                                                  DT_BLOCK_OPMODE_STANDBY);
     }
-
-    // Return new SDI-rate
-    *pSdiRate = SdiRate;
-
     return Status;
 }
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtDfSdiRx_Init(DtDf*  pDf)
+DtStatus  DtDfSdiRx_Init(DtDf*  pDfBase)
 {
+    DtDfSdiRx*  pDf = (DtDfSdiRx*)pDfBase;
     DtStatus  Status = DT_STATUS_OK;
     DtOnPeriodicIntervalRegData  RegData;
 
@@ -541,20 +626,22 @@ DtStatus  DtDfSdiRx_Init(DtDf*  pDf)
     DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
 
     // Initialize the spin lock
-    DtSpinLockInit(&DF_SDIRX->m_SpinLock);
+    DtSpinLockInit(&pDf->m_SpinLock);
 
     // Set defaults
-    DF_SDIRX->m_LockState = SDIRX_STATE_INIT_XCVR;
-    DF_SDIRX->m_StateTime.m_Seconds = 0;
-    DF_SDIRX->m_StateTime.m_Nanoseconds = 0;
-    DF_SDIRX->m_OperationalMode = DT_FUNC_OPMODE_IDLE;
-    DF_SDIRX->m_CurrentSdiRate = DT_DRV_SDIRATE_HD;
-    DF_SDIRX->m_ConfigSdiRate = DT_DRV_SDIRATE_HD;
-    DF_SDIRX->m_LastLockedSdiRate = DT_DRV_SDIRATE_HD;
-    DF_SDIRX->m_MaxSdiRate = DT_DRV_SDIRATE_3G;
+    pDf->m_LockState = SDIRX_STATE_INIT_XCVR;
+    pDf->m_StateTime.m_Seconds = 0;
+    pDf->m_StateTime.m_Nanoseconds = 0;
+    pDf->m_OperationalMode = DT_FUNC_OPMODE_IDLE;
+    pDf->m_CurrentSdiRate = DT_DRV_SDIRATE_HD;
+    pDf->m_ConfigSdiRate = DT_DRV_SDIRATE_HD;
+    pDf->m_LastLockedSdiRate = DT_DRV_SDIRATE_HD;
+    // Set default PHY configuration
+    pDf->m_PhyMaxSdiRate = DT_DRV_SDIRATE_HD;
+    pDf->m_PhyDeviceFamily = DT_BC_SDIRXPHY_FAMILY_UNKNOWN;
 
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Open children -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-    Status = DtDfSdiRx_OpenChildren(DF_SDIRX);
+    Status = DtDfSdiRx_OpenChildren(pDf);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: failed to open children");
@@ -562,14 +649,14 @@ DtStatus  DtDfSdiRx_Init(DtDf*  pDf)
     }
 
     // Determine default for RX-mode
-    if (DF_SDIRX->m_pBcSdiRxProt == NULL)
-        DF_SDIRX->m_RxMode = DT_SDIRX_RXMODE_ASI;
+    if (pDf->m_pBcSdiRxProt == NULL)
+        pDf->m_RxMode = DT_SDIRX_RXMODE_ASI;
     else
-        DF_SDIRX->m_RxMode = DT_SDIRX_RXMODE_SDI;
+        pDf->m_RxMode = DT_SDIRX_RXMODE_SDI;
     
     // Init periodic interval handler enable flag and spinlock
-    DtSpinLockInit(&DF_SDIRX->m_PerItvSpinLock);
-    DF_SDIRX->m_PerItvEnable = FALSE;
+    DtSpinLockInit(&pDf->m_PerItvSpinLock);
+    pDf->m_PerItvEnable = FALSE;
 
     // Register periodic interval handler
     RegData.m_OnPeriodicFunc = DtDfSdiRx_PeriodicIntervalHandler;
@@ -619,11 +706,19 @@ DtStatus  DtDfSdiRx_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
     DtDfSdiRx*  pDf = (DtDfSdiRx*)pDfBase;
     // Sanity checks
     DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
-
+    
     if (Enable)
     {
         // DISABLE -> ENABLE
         DtDbgOutDf(AVG, SDIRX, pDf, "Function enable from disable -> enable");
+
+        // Get RXPHY configuration
+        // Phy's device family
+        DT_RETURN_ON_ERROR(DtBcSDIRXPHY_GetDeviceFamily(pDf->m_pBcSdiRxPhy, 
+                                                                &pDf->m_PhyDeviceFamily));
+        // Maximum SDI-rate
+        DT_RETURN_ON_ERROR(DtBcSDIRXPHY_GetMaxSdiRate(pDf->m_pBcSdiRxPhy, 
+                                                                  &pDf->m_PhyMaxSdiRate));
 
         // Operational mode must be IDLE
         DT_ASSERT(pDf->m_OperationalMode == DT_FUNC_OPMODE_IDLE);
@@ -707,14 +802,9 @@ DtStatus  DtDfSdiRx_OpenChildren(DtDfSdiRx*  pDf)
     if (!DT_SUCCESS(Status))
         return Status;
 
-    // Find the shared device level SdiXcvrReconfig manager function
+    // Find the shared device level SdiXcvrReconfig manager function (optional)
     pDf->m_pDfSdiXCfgMgr = (DtDfSdiXCfgMgr*)DtCore_DF_Find(pDf->m_pCore, NULL,
                                            DT_FUNC_TYPE_SDIXCFGMGR, SDIXCFGMGR_ROLE_NONE);
-    if (pDf->m_pDfSdiXCfgMgr == NULL)
-    {
-        DtDbgOutDf(ERR, SDIRX, pDf, "ERROR : SDIXCFGMGR DF not found");
-        return DT_STATUS_CONFIG_ERROR;
-    }
 
     // Check mandatory children have been loaded (i.e. shortcut is valid)
     DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
@@ -722,9 +812,9 @@ DtStatus  DtDfSdiRx_OpenChildren(DtDfSdiRx*  pDf)
     return DT_STATUS_OK;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_IsSdiRateValid -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_CheckSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus DtDfSdiRx_IsSdiRateValid(DtDfSdiRx* pDf, Int SdiRate)
+DtStatus DtDfSdiRx_CheckSdiRate(DtDfSdiRx* pDf, Int SdiRate)
 {
     // Check whether it is a valid SDI-rate
     if (   SdiRate!=DT_DRV_SDIRATE_SD && SdiRate!=DT_DRV_SDIRATE_HD 
@@ -739,7 +829,7 @@ DtStatus DtDfSdiRx_IsSdiRateValid(DtDfSdiRx* pDf, Int SdiRate)
               && DT_DRV_SDIRATE_6G<DT_DRV_SDIRATE_12G);
     
     // Check whether the SDI-rate is supported
-    if (SdiRate > pDf->m_MaxSdiRate)
+    if (SdiRate > pDf->m_PhyMaxSdiRate)
         return DT_STATUS_NOT_SUPPORTED;
 
     return DT_STATUS_OK;

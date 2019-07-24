@@ -254,9 +254,6 @@ DtStatus  DtCore_OpenChildren(DtCore*  pCore)
     Status = DtCore_InitSerialAndHwRev(pCore);
     DT_ASSERT(DT_SUCCESS(Status));
 
-    Status = DtCore_InitSubType(pCore);
-    DT_ASSERT(DT_SUCCESS(Status));
-
     // Re-init property store to update it with hardware revision
     Status = DtCore_PROPS_ReInit(pCore);
     DT_ASSERT(DT_SUCCESS(Status));
@@ -456,8 +453,8 @@ DtStatus  DtCore_InitSerialAndHwRev(DtCore*  pCore)
     if (DT_SUCCESS(Status))
     {
         DtDbgOut(MIN, CORE, "HwRev read from VPD is '%s'", (const char*)ItemBuf);
-        pCore->m_pDevInfo->m_HardwareRevision = (Int)DtAnsiCharArrayToUInt(
-                                                       (const char*)ItemBuf, NumRead, 10);
+        Status = DtUtilitiesDeduceHardwareRevision((char*)ItemBuf, NumRead,
+                                                  &pCore->m_pDevInfo->m_HardwareRevision);
     }
 
     //.-.-.-.-.-.-.-.-.-.-.-.- Read HwRev from VPD from registry -.-.-.-.-.-.-.-.-.-.-.-.-
@@ -470,34 +467,6 @@ DtStatus  DtCore_InitSerialAndHwRev(DtCore*  pCore)
             DtDbgOut(MIN, CORE, "Hardware revision set to %d from registry key "
                                       "'ForcedHardwareRevision'", ForcedHardwareRevision);
             pCore->m_pDevInfo->m_HardwareRevision = (Int)ForcedHardwareRevision;
-        }
-    }
-    return DT_STATUS_OK;
-}
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_InitSubType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-DtStatus  DtCore_InitSubType(DtCore* pCore)
-{
-    char  SubTypePropName[64];
-    Int i;
-    pCore->m_pDevInfo->m_SubType = 0;   // Default no subtype
-    DtMemCopy(SubTypePropName, "SUBTYPE#", 9);
-    for (i = 1; i < 10; i++)
-    {
-        Int  HwRev, SubType, IntProp;
-        SubTypePropName[7] = '0' + i;
-        IntProp = DtCore_PROPS_GetInt(pCore, SubTypePropName, -1, 0);
-        if (IntProp == 0)
-            break;
-
-        // Split SUBTYPE property value into hardware revision and subtype
-        HwRev = (IntProp >> 16) & 0xFFFF;
-        SubType = IntProp & 0xFFFF;
-        if (pCore->m_pDevInfo->m_HardwareRevision >= HwRev)
-        {
-            pCore->m_pDevInfo->m_SubType = SubType;
-            break;
         }
     }
     return DT_STATUS_OK;

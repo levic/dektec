@@ -252,7 +252,7 @@ DtStatus  DtCore_CloseChildren(DtCore*);
 DtStatus  DtCore_OpenChildren(DtCore*);
 DtStatus  DtCore_Ioctl(DtCore*, DtFileObject*, DtIoctlObject*);
 DtStatus  DtCore_InitSerialAndHwRev(DtCore*);
-DtStatus  DtCore_InitSubType(DtCore *);
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_DEBUG - Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
 // NONE AT THE MOMENT
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_DEVICE - Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-

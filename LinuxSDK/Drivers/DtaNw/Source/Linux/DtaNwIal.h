@@ -40,6 +40,12 @@
     #define PERM_ADDR_SUPPORT
 #endif
 
+// The GET/SET settings functions are removed from kernel version 4.20
+// But for backports, we set the version lower
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(4,10,0)
+    #define GS_SETTINGS_SUPPORT
+#endif
+
 // Linux version < 2.6.19 had a CHECKSUM_HW define
 #ifndef CHECKSUM_PARTIAL
     #define  CHECKSUM_PARTIAL  CHECKSUM_HW

@@ -93,7 +93,8 @@ typedef struct  _DtDfSdiRx
     Int  m_LastLockedSdiRate;   // Last locked SDI-rate
     Int  m_RxMode;              // ASI or SDI
     Int  m_ConfigSdiRate;       // Configured SDI-rate
-    Int  m_MaxSdiRate;          // Maximum SDI-rate
+    Int  m_PhyMaxSdiRate;       // Phy maximum SDI-rate
+    Int  m_PhyDeviceFamily;     // Phy device family
 }  DtDfSdiRx;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

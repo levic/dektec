@@ -362,6 +362,7 @@ typedef enum  _DtBcType
     DT_BLOCK_TYPE_CONSTSOURCE,  // ConstRateSource
     DT_BLOCK_TYPE_ACCUFIFO,     // AccuFifo
     DT_BLOCK_TYPE_BURSTFIFO,    // BurstFifo
+    DT_BLOCK_TYPE_LMH1981,      // Lmh1981Ctrl
 
     // Local DTA-2132 blocks. DONOT RENUMBER!!
     DT_BLOCK_TYPE_AD5320_2132   = LTYPE_SEQNUM(2132, 1),
@@ -434,6 +435,7 @@ typedef enum  _DtFunctionType
     DT_FUNC_TYPE_TSTRPRX,
     DT_FUNC_TYPE_VPD,
     DT_FUNC_TYPE_DMAPERFACCU,
+    DT_FUNC_TYPE_SPICABLEDRVEQ,     // Cable driver/equalizer driver function
 
     // Local DTA-2132 functions. DONOT RENUMBER!!
     DT_FUNC_TYPE_SPIM_2132 = LTYPE_SEQNUM(2132, 1),
@@ -544,6 +546,7 @@ enum {
     FUNC_CONSTSOURCE_CMD,
     FUNC_ACCUFIFO_CMD,
     FUNC_BURSTFIFO_CMD,
+    FUNC_LMH1981_CMD,
 };
 
 // NOP command
@@ -1755,7 +1758,7 @@ typedef struct _DtIoctlGetDriverVersionOutput
 ASSERT_SIZE(DtIoctlGetDriverVersionOutput, 16)
 
 #ifdef WINBUILD
-    #define DT_IOCTL_GET_DRIVER_VERSION  CTL_CODE(DT_DEVICE_TYPE, \
+    #define DT_IOCTL_GET_DRIVER_VERSION  CTL_CODE(DT_DEVICE_TYPE,                        \
                                                         FUNC_GET_DRIVER_VERSION,         \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
@@ -1765,8 +1768,8 @@ ASSERT_SIZE(DtIoctlGetDriverVersionOutput, 16)
         DtIoctlGetDriverVersionOutput  m_Output;
     }  DtIoctlGetDriverVersionInOut;
 
-    #define DT_IOCTL_GET_DRIVER_VERSION  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_GET_DRIVER_VERSION,  \
-                                                             DtIoctlGetDriverVersionInOut)
+    #define DT_IOCTL_GET_DRIVER_VERSION  _IOWR(DT_IOCTL_MAGIC_SIZE,                      \
+                                    FUNC_GET_DRIVER_VERSION, DtIoctlGetDriverVersionInOut)
 #endif
 
 
@@ -1784,7 +1787,7 @@ typedef enum _DtIoctlI2cMCmd
 }  DtIoctlI2cMCmd;
 
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- I2CM - Read Command  -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- I2CM - Read Command  -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef struct _DtIoctlI2cMCmdReadInput
 {
@@ -1801,7 +1804,7 @@ typedef struct _DtIoctlI2cMCmdReadOutput
 }  DtIoctlI2cMCmdReadOutput;
 ASSERT_SIZE(DtIoctlI2cMCmdReadOutput, 4)
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- I2CM - Write Command  -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- I2CM - Write Command  -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef struct _DtIoctlI2cMCmdWriteInput
 {
@@ -2161,8 +2164,69 @@ typedef union _DtIoctlLedBCmdOutput
         DtIoctlLedBCmdInput  m_Input;
         DtIoctlLedBCmdOutput  m_Output;
     }  DtIoctlLedBCmdInOut;
-    #define DT_IOCTL_LEDB_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_LEDB_CMD, DtIoctlLedBCmdInOut)
+    #define DT_IOCTL_LEDB_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_LEDB_CMD,                 \
+                                                                      DtIoctlLedBCmdInOut)
 #endif
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_LMH1981_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Lmh1981 Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlLmh1981Cmd
+{
+    DT_LMH1981_CMD_GET_INPUT_STATUS = 0,
+}  DtIoctlLmh1981Cmd;
+
+// Video Formats
+#define  DT_LMH1981_FORMAT_UNKNOWN  0       // Unknow format
+#define  DT_LMH1981_FORMAT_525I_F1  1       // 525i (NTSC) Field 1
+#define  DT_LMH1981_FORMAT_525I_F2  2       // 525i (NTSC) Field 2
+#define  DT_LMH1981_FORMAT_625I_F1  3       // 625i (PAL) Field 1
+#define  DT_LMH1981_FORMAT_625I_F2  4       // 625i (PAL) Field 2
+#define  DT_LMH1981_FORMAT_480P     5       // 480p
+#define  DT_LMH1981_FORMAT_576P     6       // 576p
+#define  DT_LMH1981_FORMAT_720P     7       // 720p
+#define  DT_LMH1981_FORMAT_1080I_F1 8       // 1080i Field 1
+#define  DT_LMH1981_FORMAT_1080I_F2 9       // 1080i Field 2
+#define  DT_LMH1981_FORMAT_1080P    10      // 1080p
+
+// -.-.-.-.-.-.-.-.-.-.- LMH1981 Command - Get Input Status Command -.-.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlLmh1981CmdGetInputStatusInput;
+ASSERT_SIZE(DtIoctlLmh1981CmdGetInputStatusInput, 16)
+typedef struct _DtIoctlLmh1981CmdGetInputStatusOutput
+{
+    Int  m_Valid;          // Valid; only if TRUE other fields are valid
+    Int  m_LinePeriod;      // Line period in nano seconds
+    Int  m_FieldPeriod;     // Field period in nano seconds
+    Int  m_NumLinesF1;      // Number of lines in Field 1
+    Int  m_NumLinesF2;      // Number of lines in Field 2
+    Int  m_VideoFormat;     // Video format
+}  DtIoctlLmh1981CmdGetInputStatusOutput;
+ASSERT_SIZE(DtIoctlLmh1981CmdGetInputStatusOutput, 24)
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- LMH1981 Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-
+// LMH1981 command - IOCTL input data
+
+// LMH1981 command - IOCTL output data
+typedef union _DtIoctlLmh1981CmdOutput
+{
+    DtIoctlLmh1981CmdGetInputStatusOutput  m_GetInpStatus;  // Lmh1981 - Get input status
+}  DtIoctlLmh1981CmdOutput;
+#ifdef WINBUILD
+    #define DT_IOCTL_LMH1981_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_LMH1981_CMD,             \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlLmh1981CmdInOut
+    {
+        DtIoctlLmh1981CmdOutput  m_Output;
+    }  DtIoctlLmh1981CmdInOut;
+    #define DT_IOCTL_LMH1981_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_LMH1981_CMD,           \
+                                                                   DtIoctlLmh1981CmdInOut)
+#endif
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPERTY_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -3257,6 +3321,7 @@ typedef enum _DtIoctlSpiMCmd
 }  DtIoctlSpiMCmd;
 
 // SPIM device IDs
+#define DT_SPIM_SPIDVC_UNDEFINED (-1) // Undefined
 #define DT_SPIM_SPIDVC_25AA160C  0  // Microchip 25AA160C 16K SPI bus serial EEPROM
 #define DT_SPIM_SPIDVC_AD9642    1  // Analog Devices AD9642 14-bit 170/210/250-MSPS
                                     // Analog to Digital Converter
@@ -3264,7 +3329,8 @@ typedef enum _DtIoctlSpiMCmd
                                     // 160-MSPS ADC
 #define DT_SPIM_SPIDVC_GS1661    3  // Gennum GS1661 HD-SDI/ASI receiver
 #define DT_SPIM_SPIDVC_LMH0394   4  // Texas Instruments LMH0394 3G-SDI/ASI receiver
-
+#define DT_SPIM_SPIDVC_GS3590    5  // Gennum GS3590 3G-SDI/ASI Cable Driver/Equalizer
+#define DT_SPIM_SPIDVC_25AA640A  6  // Microchip 25AA640 64K SPI bus serial EEPROM
 
 // SPIM duplex Mode
 #define DT_SPIM_DPX_FULL_DUPLEX  0x0    // Send and receive simultaneously
@@ -4562,7 +4628,7 @@ typedef union _DtIoctlIqCGrabCmdOutput_2132
         DtIoctlIqCGrabCmdInput_2132  m_Input;
         DtIoctlIqCGrabCmdOutput_2132  m_Output;
     }  DtIoctlIqCGrabCmd_2132InOut;
-    #define DT_IOCTL_IQCGRAB_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_IQCGRAB_CMD_2132,      \
+    #define DT_IOCTL_IQCGRAB_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_IQCGRAB_CMD_2132, \
                                                               DtIoctlIqCGrabCmd_2132InOut)
 #endif
  
@@ -4639,7 +4705,7 @@ typedef union _DtIoctlIqFirCmdOutput_2132
         DtIoctlIqFirCmdInput_2132  m_Input;
         DtIoctlIqFirCmdOutput_2132  m_Output;
     }  DtIoctlIqFirCmd_2132InOut;
-    #define DT_IOCTL_IQFIR_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_IQFIR_CMD_2132,          \
+    #define DT_IOCTL_IQFIR_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_IQFIR_CMD_2132,     \
                                                                 DtIoctlIqFirCmd_2132InOut)
 #endif
 
@@ -4773,8 +4839,8 @@ typedef union _DtIoctlIqSrc2132CmdOutput_2132
         DtIoctlIqSrc2132CmdInput_2132  m_Input;
         DtIoctlIqSrc2132CmdOutput_2132  m_Output;
     }  DtIoctlIqSrc2132Cmd_2132InOut;
-    #define DT_IOCTL_IQSRC2132_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_IQSRC2132_CMD_2132,  \
-                                                            DtIoctlIqSrc2132Cmd_2132InOut)
+    #define DT_IOCTL_IQSRC2132_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE,                      \
+                                   FUNC_IQSRC2132_CMD_2132, DtIoctlIqSrc2132Cmd_2132InOut)
 #endif
 
 
@@ -5037,16 +5103,16 @@ typedef union _DtIoctlS2CrDemodCmdOutput_2132
     DtIoctlS2CrDemodCmd_2132GetSymbolRateOutput  m_GetSymRate;    // Get symbol rate
 }  DtIoctlS2CrDemodCmdOutput_2132;
 #ifdef WINBUILD
-    #define DT_IOCTL_S2CRDEMOD_CMD_2132  CTL_CODE(DT_DEVICE_TYPE, FUNC_S2CRDEMOD_CMD_2132,\
-                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+    #define DT_IOCTL_S2CRDEMOD_CMD_2132  CTL_CODE(DT_DEVICE_TYPE,                        \
+                               FUNC_S2CRDEMOD_CMD_2132, METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlS2CrDemodCmd_2132InOut
     {
         DtIoctlS2CrDemodCmdInput_2132  m_Input;
         DtIoctlS2CrDemodCmdOutput_2132  m_Output;
     }  DtIoctlS2CrDemodCmd_2132InOut;
-    #define DT_IOCTL_S2CRDEMOD_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_S2CRDEMOD_CMD_2132,  \
-                                                            DtIoctlS2CrDemodCmd_2132InOut)
+    #define DT_IOCTL_S2CRDEMOD_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE,                      \
+                                   FUNC_S2CRDEMOD_CMD_2132, DtIoctlS2CrDemodCmd_2132InOut)
 #endif
    
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -5632,6 +5698,7 @@ typedef union _DtIoctlInputData
     DtIoctlIoConfigCmdOutput  m_IoConfig;                                                \
     DtIoctlKaCmdOutput  m_KaCmd;                                                         \
     DtIoctlLedBCmdOutput  m_LedBCmd;                                                     \
+    DtIoctlLmh1981CmdOutput  m_Lmh1981Cmd;                                               \
     DtIoctlPropCmdOutput  m_PropCmd;                                                     \
     DtIoctlSdiXCfgCmdOutput  m_SdiXCfgCmd;                                               \
     DtIoctlSdiRxCmdOutput  m_SdiRxCmd;                                                   \

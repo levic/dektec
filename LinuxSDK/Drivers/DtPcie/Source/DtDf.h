@@ -366,12 +366,13 @@ DtStatus  DtIoStubDf_OnExclAccessCmd(const DtIoStub*, DtIoStubIoParams*, Int*  p
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Function includes +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 #ifdef DT_DF_ADD_FUNCTION_INCLUDES
-#include "DtDfAsiRx.h"        // ASI transport stream receiver driver function
+#include "DtDfAsiRx.h"          // ASI transport stream receiver driver function
 #include "DtDfMxDs75Temp.h"     // MAXIM DS75 digital thermometer controller function
 #include "DtDfSdiTxPhy.h"       // SDI-PHY transmitter driver function
 #include "DtDfSdiRx.h"          // SDI-receiver function
 #include "DtDfSdiXCfgMgr.h"     // SDI-tranceiver reconfiguration manager function
 #include "DtDfSi534X.h"         // SI-5342/5344/5345 controller function
+#include "DtDfSpiCableDrvEq.h"  // SPI-cable driver/equalizer controller function
 #include "DtDfSpiProm.h"        // SPI-prom driver function
 #include "DtDfSensTemp.h"       // Sensor temperature-function
 #include "DtDfTempFanMgr.h"     // Temperature and fanspeed manager-function

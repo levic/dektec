@@ -85,6 +85,26 @@ DtBcSDITXPLL*  DtBcSDITXPLL_Open(Int  Address, DtCore* pCore, DtPt*  pPt,
     return (DtBcSDITXPLL*)DtBc_Open(&OpenParams);
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPLL_GetPllId -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDITXPLL_GetPllId(DtBcSDITXPLL* pBc, Int * pPllId)
+{
+    // Sanity check
+    BC_SDITXPLL_DEFAULT_PRECONDITIONS(pBc);
+
+    // Parameter check
+    if (pPllId == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDITXPLL_MUST_BE_ENABLED(pBc);
+
+    // Return cached PLL-Id
+    *pPllId = pBc->m_PllId;
+
+    return DT_STATUS_OK;
+}
+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPLL_IsPllLocked -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -126,18 +146,22 @@ DtStatus DtBcSDITXPLL_ResetClock(DtBcSDITXPLL* pBc)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPLL_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtBcSDITXPLL_Init(DtBc*  pBc)
+DtStatus  DtBcSDITXPLL_Init(DtBc*  pBcBase)
 {
+    DtBcSDITXPLL* pBc = (DtBcSDITXPLL*)pBcBase;
     DtStatus  Status=DT_STATUS_OK;
 
     // Sanity checks
     BC_SDITXPLL_DEFAULT_PRECONDITIONS(pBc);
 
-    // Set defaults
-    BC_SDITXPLL->m_BlockEnabled = FALSE;
+    // Get PLL-Id
+    pBc->m_PllId = (Int)SDITXPLL_Config_READ_PllId(pBc);
+
+   // Set defaults
+    pBc->m_BlockEnabled = FALSE;
 
     // Make settings in register
-    DtBcSDITXPLL_SetControlRegs(BC_SDITXPLL, BC_SDITXPLL->m_BlockEnabled, FALSE);
+    DtBcSDITXPLL_SetControlRegs(pBc, pBc->m_BlockEnabled, FALSE);
 
     return Status;
 }

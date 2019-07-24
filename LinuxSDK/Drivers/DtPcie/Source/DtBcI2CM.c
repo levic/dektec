@@ -37,6 +37,9 @@
 #define BC_I2CM_DEFAULT_PRECONDITIONS(pBc)      \
     DT_ASSERT(pBc!=NULL && pBc->m_Size==sizeof(DtBcI2CM))
 
+// MACRO that checks the BC has been enabled, if NOT return DT_STATUS_NOT_ENABLED
+#define BC_I2CM_MUST_BE_ENABLED(pBc)    BC_MUST_BE_ENABLED_IMPL(I2CM, pBc)
+
 // Helper macro to cast a DtBc* to a DtBcI2CM*
 #define BC_I2CM         ((DtBcI2CM*)pBc)
 

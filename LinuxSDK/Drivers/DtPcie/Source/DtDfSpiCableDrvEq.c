@@ -64,6 +64,7 @@ static DtStatus  DtDfSpiCableDrvEq_WriteGs3590(DtDfSpiCableDrvEq*, Int StartAddr
 //
 void  DtDfSpiCableDrvEq_Close(DtDf*  pDf)
 {
+    DtStatus  Status = DT_STATUS_OK;
 
     DF_SPICABLEDRVEQ_DEFAULT_PRECONDITIONS(pDf);
 
@@ -299,6 +300,7 @@ DtStatus DtDfSpiCableDrvEq_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
 DtStatus DtDfSpiCableDrvEq_OnEnablePreChildren(DtDf* pDfBase, Bool Enable)
 {
     DtDfSpiCableDrvEq* pDf = (DtDfSpiCableDrvEq*)pDfBase;
+    DtStatus  Status = DT_STATUS_OK;
     // Sanity check
     DF_SPICABLEDRVEQ_DEFAULT_PRECONDITIONS(pDf);
     if (!Enable)

@@ -1165,6 +1165,34 @@ typedef struct  _DtIoctlProperties
     )
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_LMH1981_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_LMH1981_GET_INPUT_STATUS                                      \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_LMH1981_CMD_GET_INPUT_STATUS,                                                 \
+        "GET_LED_CONTROL",                                                               \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlLmh1981CmdGetInputStatusInput),                                    \
+        sizeof(DtIoctlLmh1981CmdGetInputStatusOutput))
+
+
+#define DECL_DT_IOCTL_CMD_PROPS_LMH1981                                                  \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_LMH1981[] =                    \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_LMH1981_GET_INPUT_STATUS,                                     \
+    }
+
+#define DT_IOCTL_PROPS_LMH1981_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)               \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_LMH1981_CMD,                                                            \
+        "DT_IOCTL_LMH1981_CMD",                                                          \
+        DT_IOCTL_CMD_PROPS_LMH1981,                                                      \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_PROPERTY_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
