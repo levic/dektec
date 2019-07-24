@@ -54,6 +54,7 @@ have installed the following shared library versions.
  - libpthread.so.0
  - libm.so.6
  - libc.so.6
+ - libdl.so.2
 
 To install the DtapiService, execute the self-extracting binary 
 DtapiService.bin. This should be done as super user, for example: 
@@ -66,10 +67,12 @@ DtapiServiceInit script located in your init directory.
 Type "DtapiServiceInit start" to start the daemon and "DtapiServiceInit stop"
 to stop it.
 
-IMPORTANT: For the DtapiService to properly work the Dta driver must be
+IMPORTANT: 
+* For the DtapiService to properly work the Dta driver must be
 running. Please refer to the Dta readme file for instructions on how to
-compile and install the driver. The DtapiService also needs write-access to
-the /tmp directory.
+compile and install the driver. 
+* The DtapiService also needs write-access to the /tmp directory and the 
+/dev/shm directory.
 
 --------------------------------------------------------------------------------
 - 4. Contact Information

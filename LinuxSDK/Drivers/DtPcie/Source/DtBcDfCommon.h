@@ -52,7 +52,7 @@ typedef struct  _DtBcOrDfId
 // The struct
 struct _DtObjectBcOrDf
 {
-    DT_OBJECT_COMMON_DATA;
+    DT_OBJECT_BC_OR_DF_COMMON_DATA;
 };
 
 

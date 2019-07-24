@@ -33,6 +33,10 @@
 #define DVC_TYPE_SI5342       5342
 #define DVC_TYPE_SI5344       5344
 
+// Si534X Frequency offset range
+#define SI5354X_MIN_OFFSET_PPT  (-200*1000*1000)     // -200 ppm
+#define SI5354X_MAX_OFFSET_PPT  (200*1000*1000)      // +200 ppm
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfSi534X implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -49,8 +53,11 @@ static DtStatus  DtDfSi534X_CleanUp(DtDfSi534X*);
 static DtStatus  DtDfSi534X_FindSdiTxPll(DtDfSi534X*, Int PllId, DtBcSDITXPLL**);
 static DtStatus  DtDfSi534X_InitSdiTxPllLookupTable(DtDfSi534X*);
 static DtStatus  DtDfSi534X_ResetSdiTxPlls(DtDfSi534X*);
-static DtStatus  DtDfSi534X_FindConfigData(DtDfSi534X*, DtDfSi534XConfig, 
+static DtStatus  DtDfSi534X_CheckSdiTxPllsLocked(DtDfSi534X*, Bool* pLocked);
+static DtStatus  DtDfSi534X_FindConfigData(DtDfSi534X*, DtDfSi534XConfig,
                                             const DtDfSi534XConfigItem**, Int* pNumItems);
+static void  DtDfSi534X_InitNxNumerators(DtDfSi534X * pDf);
+static DtStatus  DtDfSi534X_SetNxNumerator(DtDfSi534X * pDf, Int ClockIdx, Int64 NxNum);
 static DtStatus  DtDfSi534X_LoadParameters(DtDf*);
 static DtStatus  DtDfSi534X_OnCloseFile(DtDf*, const DtFileObject*);
 static DtStatus  DtDfSi534X_OnEnablePostChildren(DtDf*, Bool  Enable);
@@ -101,21 +108,6 @@ DtDfSi534X*  DtDfSi534X_Open(DtCore*  pCore, DtPt*  pPt,
     return (DtDfSi534X*)DtDf_Open(&OpenParams);
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_GetNumClocks -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-DtStatus DtDfSi534X_GetNumClocks(DtDfSi534X*  pDf, Int* pNumClocks)
-{
-  // Sanity checks
-    DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
-
-    DF_SI534X_MUST_BE_ENABLED(pDf);
-    if (pNumClocks == NULL)
-        return DT_STATUS_INVALID_PARAMETER;
-
-    *pNumClocks = pDf->m_NumClockOutputs;
-    return DT_STATUS_OK;
-}
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_SetConfig -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtDfSi534X_SetConfig(DtDfSi534X*  pDf, DtDfSi534XConfig  Config)
@@ -125,6 +117,51 @@ DtStatus DtDfSi534X_SetConfig(DtDfSi534X*  pDf, DtDfSi534XConfig  Config)
     DF_SI534X_MUST_BE_ENABLED(pDf);
     return DtDfSi534X_SetConfigInt(pDf, Config);
 }
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_SetFreqOffsetPpt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtDfSi534X_SetFreqOffsetPpt(DtDfSi534X* pDf, Int OffsetPpt, Bool FracClk)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    Int  ClockIdx = 0;
+    Int64  InitNxNum, NewNxNum, MaxMult;
+    static const Int64  VALUE_1E12 = 1000LL*1000LL*1000LL*1000LL;
+
+    // Sanity checks
+    DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
+    DF_SI534X_MUST_BE_ENABLED(pDf);
+
+    // Check parameters
+    if (OffsetPpt<SI5354X_MIN_OFFSET_PPT || OffsetPpt>SI5354X_MAX_OFFSET_PPT)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Protect SI-534X against concurrent access
+    DtFastMutexAcquire(&pDf->m_AccessMutex);
+
+    // Convert Clock into ClockIdx
+    ClockIdx = FracClk ? pDf->m_FracClkIdx : pDf->m_NonFracClkIdx;
+
+    // Compute new Nx Numerator
+    // NewNxNum = InitNxNum + (-OffsetPpt*InitNxNum)/(VALUE_1E12 - OffsetPpt)
+    // To prevent Int64 overflow using MaxMult (this gives less than 0.01Hz error)
+    InitNxNum = pDf->m_InitNxNum[ClockIdx];
+    DT_ASSERT(InitNxNum > 0);
+    if (InitNxNum <= 0)
+    {
+        DtFastMutexRelease(&pDf->m_AccessMutex);
+        return DT_STATUS_FAIL;
+    }
+    MaxMult = (Int64)((1ULL<<63) - 1)/InitNxNum;
+    NewNxNum = InitNxNum + (((InitNxNum * MaxMult)/(VALUE_1E12 - OffsetPpt)) * -OffsetPpt)
+                                                                                / MaxMult;
+    // Set new Nx Numerator
+    Status =  DtDfSi534X_SetNxNumerator(pDf, ClockIdx, NewNxNum);
+
+    // Release SI-534X mutex
+    DtFastMutexRelease(&pDf->m_AccessMutex);
+    return Status;
+}
+
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_SetConfigInt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Set Config for internal use (without is enabled check)
@@ -182,6 +219,9 @@ DtStatus DtDfSi534X_SetConfigInt(DtDfSi534X*  pDf, DtDfSi534XConfig  Config)
     pDf->m_pCurConfigItems = pConfigItems;
     pDf->m_CurConfigNumItems = NumItems;
 
+    // Initialize the NX Numerators
+    DtDfSi534X_InitNxNumerators(pDf);
+
     // Wait for clock to become stable
     DtSleep(50);
 
@@ -206,6 +246,7 @@ DtStatus DtDfSi534X_IsPllLocked(DtDfSi534X* pDf, Int PllId, Bool* pLocked)
     // Get the locked status
     return DtBcSDITXPLL_IsPllLocked(pBcSdiTxPll, pLocked);
 }
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfSi534X - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -234,8 +275,14 @@ DtStatus  DtDfSi534X_Init(DtDf*  pDfBase)
     DT_ASSERT(pDf->m_pSdiTxPllTable != NULL);
     // Check paramaters have been loaded succesfully
     DT_ASSERT(pDf->m_Si534XAddress >= 0);
-    DT_ASSERT(pDf->m_NumClockOutputs==1 || pDf->m_NumClockOutputs==2);
-    DT_ASSERT(pDf->m_DeviceType==DVC_TYPE_SI5342 || pDf->m_DeviceType==DVC_TYPE_SI5344);
+    switch (pDf->m_DeviceType)
+    {
+        case DVC_TYPE_SI5342:       pDf->m_NumClockOutputs = 2; break;
+        case DVC_TYPE_SI5344:       pDf->m_NumClockOutputs = 4; break;
+        default: DT_ASSERT(FALSE);  pDf->m_NumClockOutputs = 0; break;
+    }
+    DT_ASSERT( pDf->m_FracClkIdx<pDf->m_NumClockOutputs);
+    DT_ASSERT( pDf->m_NonFracClkIdx<pDf->m_NumClockOutputs);
 
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Open children -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
     Status = DtDfSi534X_OpenChildren(pDf);
@@ -333,10 +380,28 @@ DtStatus DtDfSi534X_ResetSdiTxPlls(DtDfSi534X* pDf)
         if (pSdiTxPll != NULL)
             DT_RETURN_ON_ERROR(DtBcSDITXPLL_ResetClock(pSdiTxPll));
     }
-    // TODOTD
-    // Sleep
-    // Check result
-    // Redo if necessary
+    return DT_STATUS_OK;
+}
+
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_CheckSdiTxPllsLocked -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtDfSi534X_CheckSdiTxPllsLocked(DtDfSi534X* pDf, Bool* pLocked)
+{
+    Int i;
+    Bool IsLocked = TRUE;
+    *pLocked = FALSE;
+    // Sanity checks
+    DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
+    DT_ASSERT(pDf->m_pBcSdiTxPlls!=NULL && pDf->m_pSdiTxPllTable!=NULL);
+    // Issue reset to all SDITXPLL
+    for (i=0; i<DtVectorBc_Size(pDf->m_pBcSdiTxPlls) && IsLocked; i++)
+    {
+        DtBcSDITXPLL* pSdiTxPll = (DtBcSDITXPLL*)DtVectorBc_At(pDf->m_pBcSdiTxPlls, i);
+        if (pSdiTxPll != NULL)
+            DT_RETURN_ON_ERROR(DtBcSDITXPLL_IsPllLocked(pSdiTxPll, &IsLocked));
+    }
+    *pLocked = IsLocked;
     return DT_STATUS_OK;
 }
 
@@ -356,7 +421,7 @@ DtStatus  DtDfSi534X_FindConfigData(DtDfSi534X*  pDf, DtDfSi534XConfig  Config,
     switch (Config)
     {
     case DT_DF_SI534X_CFG_FREE_RUN_DUAL_CLOCK:
-        if (pDf->m_NumClockOutputs != 2)
+        if (pDf->m_FracClkIdx == pDf->m_NonFracClkIdx)
             return DT_STATUS_INVALID_PARAMETER;
         if (pDf->m_DeviceType == DVC_TYPE_SI5342)
         { 
@@ -384,6 +449,87 @@ DtStatus  DtDfSi534X_FindConfigData(DtDfSi534X*  pDf, DtDfSi534XConfig  Config,
     return DT_STATUS_OK;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_InitNxNumerators -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Assumption: called when having exclusive access
+//
+void  DtDfSi534X_InitNxNumerators(DtDfSi534X* pDf)
+{
+    Int ClockIdx, i, j;
+
+    // Save configured Nx Numerators
+    for (ClockIdx=0; ClockIdx<pDf->m_NumClockOutputs; ClockIdx++)
+    { 
+        Int64  NxNum;
+        const DtDfSi534XConfigItem* pCurConf = pDf->m_pCurConfigItems;
+        // Nx Numerator registers
+        DtDfSi534XConfigItem SI5344_CONFIG_NX_NUMERATOR[] =
+        {
+            { 0x0302+ClockIdx*0xB, 0},{ 0x0303+ClockIdx*0xB, 0},{ 0x0304+ClockIdx*0xB, 0},
+            { 0x0305+ClockIdx*0xB, 0},{ 0x0306+ClockIdx*0xB, 0},{ 0x0307+ClockIdx*0xB, 0},
+        };
+        // Get current configured Nx Numerator values
+        for (i=0; i<pDf->m_CurConfigNumItems; i++)
+            for (j=0; j<DT_SIZEOF_ARRAY(SI5344_CONFIG_NX_NUMERATOR); j++)
+                if (pCurConf[i].m_BankData0 == SI5344_CONFIG_NX_NUMERATOR[j].m_BankData0)
+                    SI5344_CONFIG_NX_NUMERATOR[j].m_Data1 = pCurConf[i].m_Data1;
+
+        NxNum = SI5344_CONFIG_NX_NUMERATOR[0].m_Data1 
+                + ((Int64)(SI5344_CONFIG_NX_NUMERATOR[1].m_Data1) << 8)
+                + ((Int64)(SI5344_CONFIG_NX_NUMERATOR[2].m_Data1) << 16)
+                + ((Int64)(SI5344_CONFIG_NX_NUMERATOR[3].m_Data1) << 24)
+                + ((Int64)(SI5344_CONFIG_NX_NUMERATOR[4].m_Data1) << 32)
+                + ((Int64)(SI5344_CONFIG_NX_NUMERATOR[5].m_Data1&0x0F) << 40);
+        // Set initial value
+        pDf->m_InitNxNum[ClockIdx] = NxNum;
+        // Set cached current value
+        pDf->m_CurNxNum[ClockIdx] = NxNum;
+
+    }
+}
+
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_SetNxNumerator -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSi534X_SetNxNumerator(DtDfSi534X* pDf, Int ClockIdx, Int64 NxNum)
+{
+    Int i;
+    Bool UpdateNeeded = FALSE;
+    // Nx Numerator registers
+    DtDfSi534XConfigItem SI5344_CONFIG_NX_NUM[] =
+    {
+        { 0x0302+ClockIdx*0xB, 0},{ 0x0303+ClockIdx*0xB, 0},{ 0x0304+ClockIdx*0xB, 0},
+        { 0x0305+ClockIdx*0xB, 0},{ 0x0306+ClockIdx*0xB, 0},{ 0x0307+ClockIdx*0xB, 0},
+    };
+    // Nx Update register
+    DtDfSi534XConfigItem SI5344_CONFIG_NX_NUM_UPDATE = { 0x030C+ClockIdx*0xB, 1};
+    Int64  CachedNxNum = pDf->m_CurNxNum[ClockIdx];
+
+    SI5344_CONFIG_NX_NUM[0].m_Data1 = (UInt8)(NxNum&0xFF);
+    SI5344_CONFIG_NX_NUM[1].m_Data1 = (UInt8)((NxNum>>8)&0xFF);
+    SI5344_CONFIG_NX_NUM[2].m_Data1 = (UInt8)((NxNum>>16)&0xFF);
+    SI5344_CONFIG_NX_NUM[3].m_Data1 = (UInt8)((NxNum>>24)&0xFF);
+    SI5344_CONFIG_NX_NUM[4].m_Data1 = (UInt8)((NxNum>>32)&0xFF);
+    SI5344_CONFIG_NX_NUM[5].m_Data1 = (UInt8)((NxNum>>40)&0xFF);
+
+    for (i = 0; i<DT_SIZEOF_ARRAY(SI5344_CONFIG_NX_NUM); i++)
+    {
+        Int64 Mask = 0xFFLL << (8*i);
+        if ((NxNum&Mask) != (CachedNxNum&Mask))
+        {
+            DT_RETURN_ON_ERROR(DtDfSi534X_WriteConfigItem(pDf, &SI5344_CONFIG_NX_NUM[i]));
+            UpdateNeeded = TRUE;
+        }
+    }
+    if (UpdateNeeded)
+        DT_RETURN_ON_ERROR(DtDfSi534X_WriteConfigItem(pDf, &SI5344_CONFIG_NX_NUM_UPDATE));
+
+    // Update cached value
+    pDf->m_CurNxNum[ClockIdx] = NxNum;
+
+    return DT_STATUS_OK;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_LoadParameters -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtDfSi534X_LoadParameters(DtDf*  pDfBase)
@@ -396,7 +542,8 @@ DtStatus  DtDfSi534X_LoadParameters(DtDf*  pDfBase)
     {
         // Name,  Value Type,  Value*
         { "I2C_ADDR", PROPERTY_VALUE_TYPE_INT, &(pDf->m_Si534XAddress) },
-        { "NUM_CLOCKS", PROPERTY_VALUE_TYPE_INT, &(pDf->m_NumClockOutputs) },
+        { "NON_FRAC_CLK_IDX", PROPERTY_VALUE_TYPE_INT, &(pDf->m_NonFracClkIdx) },
+        { "FRAC_CLK_IDX", PROPERTY_VALUE_TYPE_INT, &(pDf->m_FracClkIdx) },
         { "DEVICE_TYPE", PROPERTY_VALUE_TYPE_INT, &(pDf->m_DeviceType) },
     };
 
@@ -405,7 +552,8 @@ DtStatus  DtDfSi534X_LoadParameters(DtDf*  pDfBase)
  
     // Init parameters to their defaults
     pDf->m_Si534XAddress = -1;
-    pDf->m_NumClockOutputs = 0;
+    pDf->m_NonFracClkIdx = -1;
+    pDf->m_FracClkIdx = -1;
     pDf->m_DeviceType = DVC_TYPE_SI5342;
 
     // Load parameters from property store
@@ -415,7 +563,7 @@ DtStatus  DtDfSi534X_LoadParameters(DtDf*  pDfBase)
  
     // Check paramaters have been loaded succesfully
     DT_ASSERT(pDf->m_Si534XAddress >= 0);
-    DT_ASSERT(pDf->m_NumClockOutputs==1 || pDf->m_NumClockOutputs==2);
+    DT_ASSERT(pDf->m_FracClkIdx>=0 && pDf->m_NonFracClkIdx>=0);
     DT_ASSERT(pDf->m_DeviceType==DVC_TYPE_SI5342 || pDf->m_DeviceType==DVC_TYPE_SI5344);
     return DT_STATUS_OK;
 }
@@ -456,8 +604,8 @@ DtStatus  DtDfSi534X_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
             // Sleep 100ms
             DtSleep(100);
 
-            // Configure free-running
-            if (pDf->m_NumClockOutputs == 1)
+            // Configure free-running clock(s)
+            if (pDf->m_NonFracClkIdx == pDf->m_FracClkIdx)
                 Status = DtDfSi534X_SetConfigInt(pDf, 
                                                  DT_DF_SI534X_CFG_FREE_RUN_NONFRAC_CLOCK);
             else
@@ -465,7 +613,25 @@ DtStatus  DtDfSi534X_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
                                                     DT_DF_SI534X_CFG_FREE_RUN_DUAL_CLOCK);
         }
         if (DT_SUCCESS(Status))
-            Status = DtDfSi534X_ResetSdiTxPlls(pDf);
+        { 
+            // In case the TXPLLs are children of the Si534X driver function,
+            // reset/recalibrate the TXPLLs and check lock. Maximum retry this 3 times.
+            Bool PllsAreLocked = FALSE;
+            Int  RetryCount = 3;
+            for (; RetryCount>0 && !PllsAreLocked; RetryCount--)
+            {
+                Int  MaxLockTime = 100;
+                Status = DtDfSi534X_ResetSdiTxPlls(pDf);
+                for (; DT_SUCCESS(Status) && MaxLockTime>0 && !PllsAreLocked; 
+                                                                            MaxLockTime--)
+                {
+                    DtSleep(1);
+                    Status = DtDfSi534X_CheckSdiTxPllsLocked(pDf, &PllsAreLocked);
+                }
+            }
+            if (!PllsAreLocked && DT_SUCCESS(Status))
+                Status = DT_STATUS_FAIL;
+        }
     }
     return Status;
 }

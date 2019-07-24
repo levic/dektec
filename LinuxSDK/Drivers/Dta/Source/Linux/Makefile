@@ -18,7 +18,7 @@ DTSAL = $(SALBUILDDIR)/DtSal$(DRIVER_NAME).o
 DRVCOMMONDIR := ../../../DtDrvCommon
 DRVCOMMONSRCDIR = $(DRVCOMMONDIR)/Source
 DRVCOMMONBUILDDIR = $(DRVCOMMONDIR)/Source/Linux
-DTDRVCOMMON = $(DRVCOMMONBUILDDIR)/DtDrvCommon.o
+DTDRVCOMMON = $(DRVCOMMONBUILDDIR)/DtDrvCommon$(DRIVER_NAME).o
 
 NUMLBITS = $(shell getconf LONG_BIT)
 
@@ -173,9 +173,11 @@ PREREQ:
 	@if [ -f MakefilePrereq ]; then make -f MakefilePrereq ; fi
 
 $(DTSAL):
+	make MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 	make -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
 	
 $(DTDRVCOMMON):
+	make MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 	make -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
 # ========================================================================================
 # Clean all option
@@ -184,7 +186,7 @@ clean:
 	@if [ -f MakefilePrereq ]; then make -f MakefilePrereq clean ; fi 
 	make MYPWD=$(PWD) -C $(KERNELDIR) SUBDIRS=$(PWD) clean
 	make MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	make MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) clean
+	make MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 	
 # ========================================================================================
 endif

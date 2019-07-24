@@ -88,6 +88,7 @@ DtStatus  DtBcIPSECG_Challenge(
     UInt32  Response[3])
 {
     Int  Timeout=0;
+    UInt32  RegControl=0;
     // Sanity checks
     BC_IPSECG_DEFAULT_PRECONDITIONS(pBc);
     DT_ASSERT(Challenge!=NULL && Response!=NULL);
@@ -108,7 +109,10 @@ DtStatus  DtBcIPSECG_Challenge(
     IPSECG_Challenge2_WRITE(pBc, Challenge[2]);
 
     // Issue command
-    IPSECG_Command_WRITE(pBc, IPSECG_CMD_EncryptChallenge);
+    RegControl = IPSECG_Control_READ(pBc);
+    RegControl = IPSECG_Control_SET_Command(RegControl, IPSECG_CMD_EncryptChallenge);
+    IPSECG_Control_WRITE(pBc, RegControl);
+
     // Wait for command to complete (wait maximal 10ms)
     Timeout = 10;
     while (IPSECG_Status_READ_IsAlgoBusy(pBc)!=0 && Timeout>0)
@@ -135,7 +139,8 @@ DtStatus  DtBcIPSECG_Challenge(
 //
 DtStatus  DtBcIPSECG_Check(DtBcIPSECG*  pBc, const UInt32*  pData, Int  NumWords)
 {
-    Int  i=0, Timeout = 0;
+    Int  i=0, Timeout=0;
+    UInt32  RegControl=0;
 
     // Sanity checks
     BC_IPSECG_DEFAULT_PRECONDITIONS(pBc);
@@ -152,8 +157,10 @@ DtStatus  DtBcIPSECG_Check(DtBcIPSECG*  pBc, const UInt32*  pData, Int  NumWords
     }
 
     // Issue command
-    IPSECG_Command_WRITE(pBc, IPSECG_CMD_CheckBoardId);
-    
+    RegControl = IPSECG_Control_READ(pBc);
+    RegControl = IPSECG_Control_SET_Command(RegControl, IPSECG_CMD_CheckBoardId);
+    IPSECG_Control_WRITE(pBc, RegControl);
+
     // Write data
     for (i=0; i<NumWords; i++)
         IPSECG_EncryptedStr_WRITE(pBc, pData[i]);

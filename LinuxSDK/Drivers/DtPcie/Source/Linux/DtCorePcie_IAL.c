@@ -1021,41 +1021,19 @@ static Int  DtCorePcie_IAL_Close(struct inode* pInode, struct file* pFile)
 //
 static UInt  DtCorePcie_IAL_Poll(struct file* pFile, poll_table* pPollTable)
 {
-    //DtFileObject  File;
+    DtFileObject  File;
     UInt  Mask = 0;
-    //DtCorePcie_IAL_Events*  pDtCorePcie_IAL_Events = NULL;
-    //Int  NumPending = 0;
-    //DtCorePcie*  pCore = (DtCorePcie*)pFile->private_data;
-
-    DtDbgOut(MAX, IAL, "Start");
+    DtCorePcie*  pCore = (DtCorePcie*)pFile->private_data;
 
     // Init File object
-    //File.m_pFile = pFile;
+    File.m_pFile = pFile;
 
-    //DtSpinLockAcquire(&pCore->m_EventsSpinlock);
-    //    
-    //// Add events wait_queue to poll table and get number of pending events
-    //pDtCorePcie_IAL_Events = pCore->m_pEvents;
-    //while (pDtCorePcie_IAL_Events != NULL)
-    //{
-    //    if (DtFileCompare(&pDtCorePcie_IAL_Events->m_File, &File))
-    //    {
-    //        poll_wait(pFile, &pDtCorePcie_IAL_Events->m_PendingEvent.m_WaitQueueHead, pPollTable);
-    //        NumPending = pDtCorePcie_IAL_Events->m_NumPendingEvents;
-    //        break;
-    //    }
-    //    pDtCorePcie_IAL_Events = pDtCorePcie_IAL_Events->m_pNext;
-    //}
-    //
-    //// Check if events are pending
-    //if (NumPending > 0)
-    //{
-    //    DtDbgOut(MAX, IAL, "Pending Events found.");
-    //    Mask |= POLLIN | POLLRDNORM;
-    //} else
-    //    DtDbgOut(MAX, IAL, "No pending Events found.");
-    //
-    //DtSpinLockRelease(&pCore->m_EventsSpinlock);
+    DtDbgOut(MAX, IAL, "Start");
+    
+    if (pCore != NULL)
+    {
+        Mask = DtCore_EVENTS_Poll((DtCore*)pCore, &File, pPollTable);
+    }
     DtDbgOut(MAX, IAL, "Exit");
 
     return Mask;

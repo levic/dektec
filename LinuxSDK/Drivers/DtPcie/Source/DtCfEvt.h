@@ -75,20 +75,21 @@ struct _DtCfEvt
 {
     // NOTE: common func data must be the first members to allow casting to DtDf
     DT_DF_COMMON_DATA;
-
-    DtSpinLock  m_EventsSpinlock;
-    DtDriverEvents*  m_pEvents;
-
+    DtCfEvtData*  m_pEvtData;    // Reference to the event data; Do not free!!
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfEvt - Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 void  DtCfEvt_Close(DtDf*);
 DtCfEvt*  DtCfEvt_Open(DtCore*, const char*  pRole, Int  Instance, 
                                                              Int  Uuid, Bool  CreateStub);
+void  DtCfEvt_CleanupEventsData(DtCfEvtData* pEvtData);
+DtCfEvtData*  DtCfEvt_CreateEventsData(void);
+
 DtStatus  DtCfEvt_Set(DtCfEvt*, DtDriverEvent, Bool AddIfExists);
 #ifdef LINBUILD
 UInt      DtCfEvt_Poll(DtCfEvt*, DtFileObject*, poll_table*);
 #endif
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubCfEvt definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

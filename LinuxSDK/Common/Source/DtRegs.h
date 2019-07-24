@@ -1277,57 +1277,6 @@ typedef union _DT_RFDAC_CONTROL
 #define  DT_HD_STATUS_LASTFRMINT_MSK    0x80000000
 #define  DT_HD_STATUS_LASTFRMINT_SH     31
 
-// HD-Channel Status register: detected video standard values 
-#define  DT_VIDSTD_UNKNOWN              0x0000
-#define  DT_VIDSTD_525I59_94            0x01D6
-#define  DT_VIDSTD_625I50               0x0158
-#define  DT_VIDSTD_720P23_98            0x0188
-#define  DT_VIDSTD_720P24               0x0108
-#define  DT_VIDSTD_720P25               0x0106
-#define  DT_VIDSTD_720P29_97            0x0182
-#define  DT_VIDSTD_720P30               0x0102
-#define  DT_VIDSTD_720P50               0x0104
-#define  DT_VIDSTD_720P59_94            0x0180
-#define  DT_VIDSTD_720P60               0x0100
-#define  DT_VIDSTD_1080P23_98           0x0190
-#define  DT_VIDSTD_1080P24              0x0110
-#define  DT_VIDSTD_1080P25              0x010D
-#define  DT_VIDSTD_1080P29_97           0x018B
-#define  DT_VIDSTD_1080P30              0x010B
-#define  DT_VIDSTD_1080I50              0x014C
-#define  DT_VIDSTD_1080I59_94           0x01CA
-#define  DT_VIDSTD_1080I60              0x014A
-#define  DT_VIDSTD_1080P50              0x010C
-#define  DT_VIDSTD_1080P59_94           0x018A
-#define  DT_VIDSTD_1080P60              0x010A
-#define  DT_VIDSTD_1080P50B             0x030C
-#define  DT_VIDSTD_1080P59_94B          0x038A
-#define  DT_VIDSTD_1080P60B             0x030A
-#define  DT_VIDSTD_1080PSF23_98         0x0001
-#define  DT_VIDSTD_1080PSF24            0x0002
-#define  DT_VIDSTD_1080PSF25            0x0003
-#define  DT_VIDSTD_1080PSF29_97         0x0004
-#define  DT_VIDSTD_1080PSF30            0x0005
-#define  DT_VIDSTD_480P59_94            0x0006
-#define  DT_VIDSTD_525P59_94            0x0007
-#define  DT_VIDSTD_625P50               0x0008
-// 6G 2160 formats
-#define  DT_VIDSTD_2160P23_98           0x1001
-#define  DT_VIDSTD_2160P24              0x1002
-#define  DT_VIDSTD_2160P25              0x1003
-#define  DT_VIDSTD_2160P29_97           0x1004
-#define  DT_VIDSTD_2160P30              0x1005
-// 12G 2160 formats
-#define  DT_VIDSTD_2160P50              0x1006
-#define  DT_VIDSTD_2160P59_94           0x1007
-#define  DT_VIDSTD_2160P60              0x1008
-#define  DT_VIDSTD_2160P50B             0x1009
-#define  DT_VIDSTD_2160P59_94B          0x100A
-#define  DT_VIDSTD_2160P60B             0x100B
-
-#define  DT_VIDSTD_TS                   -1      // Special case
-
-
 //-.-.-.-.-.-.-.-.-.-.- HD-Channel LED Control register: Bit Fields -.-.-.-.-.-.-.-.-.-.-.
 
 #define DT_HD_LEDCTRL_LEDCTRL_MSK       0x00000001

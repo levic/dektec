@@ -88,9 +88,9 @@ DtPt*  DtCore_PT_Find(DtCore*  pCore, Int  PortIndex)
     return DtVectorPt_FindByPort(pCore->m_pPtList, PortIndex);
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_PT_GetIoCaps -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_PT_GetPortIoCaps -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtCore_PT_GetIoCaps(DtCore* pCore, Int PortIndex, DtIoCaps* pIoCaps)
+DtStatus DtCore_PT_GetPortIoCaps(DtCore* pCore, Int PortIndex, DtIoCaps* pIoCaps)
 {
     DtPt*  pPt = NULL;
 
@@ -106,6 +106,18 @@ DtStatus DtCore_PT_GetIoCaps(DtCore* pCore, Int PortIndex, DtIoCaps* pIoCaps)
     // return the IO-caps
     *pIoCaps = pPt->m_IoCaps;
 
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_PT_GetPortIoCaps -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtCore_PT_GetIoCaps(DtPt*  pPt, DtIoCaps* pIoCaps)
+{
+    if (pPt == NULL)
+        return DT_STATUS_NOT_FOUND;
+
+    // return the IO-caps
+    *pIoCaps = pPt->m_IoCaps;
     return DT_STATUS_OK;
 }
 

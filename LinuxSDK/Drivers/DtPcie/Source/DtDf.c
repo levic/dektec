@@ -43,6 +43,7 @@ const DtDfId  DT_DF_KNOWN[] =
 {
     // Name,                      ShortName,                      Role, Instance, Uuid
     { DT_DF_ASIRX_NAME,           DT_DF_ASIRX_SHORTNAME,          NULL, -1, -1 },
+    { DT_DF_GENLOCKCTRL_NAME,     DT_DF_GENLOCKCTRL_SHORTNAME,    NULL, -1, -1 },
     { DT_DF_MXDS75TEMP_NAME,      DT_DF_MXDS75TEMP_SHORTNAME,     NULL, -1, -1 },
     { DT_DF_SDITXPHY_NAME,        DT_DF_SDITXPHY_SHORTNAME,       NULL, -1, -1 },
     { DT_DF_SDIRX_NAME,           DT_DF_SDIRX_SHORTNAME,          NULL, -1, -1 },
@@ -52,6 +53,7 @@ const DtDfId  DT_DF_KNOWN[] =
     { DT_DF_SPIPROM_NAME,         DT_DF_SPIPROM_SHORTNAME,        NULL, -1, -1 },
     { DT_DF_SPICABLEDRVEQ_NAME,   DT_DF_SPICABLEDRVEQ_SHORTNAME,  NULL, -1, -1 },
     { DT_DF_TEMPFANMGR_NAME,      DT_DF_TEMPFANMGR_SHORTNAME,     NULL, -1, -1 },
+    { DT_DF_VIRTGENREF_NAME,      DT_DF_VIRTGENREF_SHORTNAME,     NULL, -1, -1 },
     { DT_DF_VPD_NAME,             DT_DF_VPD_SHORTNAME,            NULL, -1, -1 },
     { DT_DF_S2CRDEMOD_2132_NAME,  DT_DF_S2CRDEMOD_2132_SHORTNAME, NULL, -1, -1 },
 };
@@ -592,7 +594,8 @@ DtStatus  DtDf_OpenChildren(DtDf*  pDf, const DtDfSupportedChild*  pSupported,
         if (!FoundChild)
         {
             DtDbgOutDf(ERR, COMMON, pDf, 
-                                    "ERROR: could not find child '%s' (type=%d, role=%s)",
+                                    "%s: could not find child '%s' (type=%d, role=%s)",
+                                    pSuppChild->m_IsMandatory ? "ERROR" : "WARNING",
                                     pSuppChild->m_pName,
                                     pSuppChild->m_Type,
                                     pSuppChild->m_pRole!=NULL ? pSuppChild->m_pRole : "");
@@ -893,6 +896,9 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
     case DT_FUNC_TYPE_ASIRX:
         return (DtDf*)DtDfAsiRx_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
+    case DT_FUNC_TYPE_GENLOCKCTRL:
+        return (DtDf*)DtDfGenLockCtrl_Open(pCore, pPt, pId->m_pRole, 
+                                                pId->m_Instance, pId->m_Uuid, CreateStub);
     case DT_FUNC_TYPE_MXDS75TEMP:
         return (DtDf*)DtDfMxDs75Temp_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
@@ -922,6 +928,9 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
      case DT_FUNC_TYPE_TEMPFANMGR:
         return (DtDf*)DtDfTempFanMgr_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
+     case DT_FUNC_TYPE_VIRTGENREF:
+        return (DtDf*)DtDfVirtGenRef_Open(pCore, pPt, pId->m_pRole, 
+                                                     pId->m_Instance, pId->m_Uuid, FALSE);
      case DT_FUNC_TYPE_VPD:
         return (DtDf*)DtDfVpd_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
@@ -1701,6 +1710,8 @@ DtIoStubDf*  DtIoStubDf_OpenType(DtDf*  pDf)
     {
     case DT_FUNC_TYPE_ASIRX:
         return (DtIoStubDf*)DtIoStubDfAsiRx_Open(pDf);
+    case DT_FUNC_TYPE_GENLOCKCTRL:
+        return (DtIoStubDf*)DtIoStubDfGenLockCtrl_Open(pDf);
     case DT_FUNC_TYPE_SDITXPHY:
         return (DtIoStubDf*)DtIoStubDfSdiTxPhy_Open(pDf);
     case DT_FUNC_TYPE_SDIRX:

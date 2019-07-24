@@ -260,6 +260,56 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define ASI_SDI_SER_ITF_FPGA_M23145_23528 7      // FPGA serialiser + M23145G reclocker +
                                                  // MACD23145 line driver
 
+// HD-Channel Status register: detected video standard values 
+#define  DT_VIDSTD_UNKNOWN              0x0000
+#define  DT_VIDSTD_525I59_94            0x01D6
+#define  DT_VIDSTD_625I50               0x0158
+#define  DT_VIDSTD_720P23_98            0x0188
+#define  DT_VIDSTD_720P24               0x0108
+#define  DT_VIDSTD_720P25               0x0106
+#define  DT_VIDSTD_720P29_97            0x0182
+#define  DT_VIDSTD_720P30               0x0102
+#define  DT_VIDSTD_720P50               0x0104
+#define  DT_VIDSTD_720P59_94            0x0180
+#define  DT_VIDSTD_720P60               0x0100
+#define  DT_VIDSTD_1080P23_98           0x0190
+#define  DT_VIDSTD_1080P24              0x0110
+#define  DT_VIDSTD_1080P25              0x010D
+#define  DT_VIDSTD_1080P29_97           0x018B
+#define  DT_VIDSTD_1080P30              0x010B
+#define  DT_VIDSTD_1080I50              0x014C
+#define  DT_VIDSTD_1080I59_94           0x01CA
+#define  DT_VIDSTD_1080I60              0x014A
+#define  DT_VIDSTD_1080P50              0x010C
+#define  DT_VIDSTD_1080P59_94           0x018A
+#define  DT_VIDSTD_1080P60              0x010A
+#define  DT_VIDSTD_1080P50B             0x030C
+#define  DT_VIDSTD_1080P59_94B          0x038A
+#define  DT_VIDSTD_1080P60B             0x030A
+#define  DT_VIDSTD_1080PSF23_98         0x0001
+#define  DT_VIDSTD_1080PSF24            0x0002
+#define  DT_VIDSTD_1080PSF25            0x0003
+#define  DT_VIDSTD_1080PSF29_97         0x0004
+#define  DT_VIDSTD_1080PSF30            0x0005
+#define  DT_VIDSTD_480P59_94            0x0006
+#define  DT_VIDSTD_525P59_94            0x0007
+#define  DT_VIDSTD_625P50               0x0008
+// 6G 2160 formats
+#define  DT_VIDSTD_2160P23_98           0x1001
+#define  DT_VIDSTD_2160P24              0x1002
+#define  DT_VIDSTD_2160P25              0x1003
+#define  DT_VIDSTD_2160P29_97           0x1004
+#define  DT_VIDSTD_2160P30              0x1005
+// 12G 2160 formats
+#define  DT_VIDSTD_2160P50              0x1006
+#define  DT_VIDSTD_2160P59_94           0x1007
+#define  DT_VIDSTD_2160P60              0x1008
+#define  DT_VIDSTD_2160P50B             0x1009
+#define  DT_VIDSTD_2160P59_94B          0x100A
+#define  DT_VIDSTD_2160P60B             0x100B
+
+#define  DT_VIDSTD_TS                   -1      // Special case
+
 // Genlock: architecture
 #define GENLOCK_ARCH_NONE           0            // No genlock logic present
 #define GENLOCK_ARCH_145            1            // FPGA based arch, like a DTA-145
@@ -363,6 +413,7 @@ typedef enum  _DtBcType
     DT_BLOCK_TYPE_ACCUFIFO,     // AccuFifo
     DT_BLOCK_TYPE_BURSTFIFO,    // BurstFifo
     DT_BLOCK_TYPE_LMH1981,      // Lmh1981Ctrl
+    DT_BLOCK_TYPE_GENL,         // GenLock
 
     // Local DTA-2132 blocks. DONOT RENUMBER!!
     DT_BLOCK_TYPE_AD5320_2132   = LTYPE_SEQNUM(2132, 1),
@@ -436,6 +487,10 @@ typedef enum  _DtFunctionType
     DT_FUNC_TYPE_VPD,
     DT_FUNC_TYPE_DMAPERFACCU,
     DT_FUNC_TYPE_SPICABLEDRVEQ,     // Cable driver/equalizer driver function
+    DT_FUNC_TYPE_GENLOCKCTRL,       // Genlock control driver function
+    DT_FUNC_TYPE_GENLOCKCTRL_AF,    // Genlock control API function
+    DT_FUNC_TYPE_SDIGENREF,         // SDI genref API function
+    DT_FUNC_TYPE_VIRTGENREF,        // SDI virtual genref driver function
 
     // Local DTA-2132 functions. DONOT RENUMBER!!
     DT_FUNC_TYPE_SPIM_2132 = LTYPE_SEQNUM(2132, 1),
@@ -467,6 +522,7 @@ typedef enum  _DtPortType
     DT_PORT_TYPE_ASISDIRX,      // ASI/SDI receiver port
     DT_PORT_TYPE_ASISDIRXTX,    // ASI/SDI receiver/transmitter port
     DT_PORT_TYPE_ASISDITX,      // ASI/SDI transmitter port
+    DT_PORT_TYPE_SDIGENREF,     // SDI genref port
 }  DtPortType;
 
 
@@ -547,6 +603,7 @@ enum {
     FUNC_ACCUFIFO_CMD,
     FUNC_BURSTFIFO_CMD,
     FUNC_LMH1981_CMD,
+    FUNC_GENLOCKCTRL_CMD,
 };
 
 // NOP command
@@ -1566,13 +1623,15 @@ typedef union _DtIoctlEventCmdOutput
     #define DT_IOCTL_EVENT_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_EVENT_CMD,           \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
+// Since EVENT-IOCTL are treated in a special way in DTAPI, we cannot use
+// DT_IOCTL_MAGIC_SIZE here, 
     typedef union _DtIoctlEventCmdInOut
     {
         DtIoctlEventCmdInput  m_Input;
         DtIoctlEventCmdOutput  m_Output;
     }  DtIoctlEventCmdInOut;
-    #define DT_IOCTL_EVENT_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_EVENT_CMD,               \
-                                                                     DtIoctlEventCmdInOut)
+    #define DT_IOCTL_EVENT_CMD  _IOWR(DT_IOCTL_MAGIC, \
+                                                     FUNC_EVENT_CMD, DtIoctlEventCmdInOut)
 #endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DRIVER EVENTS +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -1626,6 +1685,76 @@ ASSERT_SIZE(DtIoctlExclAccessCmdInput, 16)
 
     #define DT_IOCTL_EXCL_ACCESS_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_EXCL_ACCESS_CMD,   \
                                                                 DtIoctlExclAccessCmdInOut)
+#endif
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_GENLOCKCTRL_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlGenLockCtrlCmd
+{
+    DT_GENLOCKCTRL_CMD_GET_STATUS        = 0,  // Get status
+    DT_GENLOCKCTRL_CMD_RELOCK            = 1,  // Re-lock
+}  DtIoctlGenLockCtrlCmd;
+
+// GenLock states
+#define  DT_GENLOCKCTRL_STATUS_NO_REF        0
+#define  DT_GENLOCKCTRL_STATUS_INVALID_REF   1
+#define  DT_GENLOCKCTRL_STATUS_LOCKING       2
+#define  DT_GENLOCKCTRL_STATUS_LOCKED        3
+#define  DT_GENLOCKCTRL_STATUS_FREE_RUN      4
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL - Get Status Command -.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+typedef struct _DtIoctlGenLockCtrlCmdGetStatusInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+}  DtIoctlGenLockCtrlCmdGetStatusInput;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetStatusInput, 16)
+
+typedef struct _DtIoctlGenLockCtrlCmdGetStatusOutput
+{
+    Int  m_GenLockStatus;   // GenLock status
+    Int  m_RefVidStd;       // Reference video standard
+    Int  m_DetVidStd;       // Detected video standard
+}  DtIoctlGenLockCtrlCmdGetStatusOutput;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetStatusOutput, 12)
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL - Re-Lock Command -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlGenLockCtrlCmdReLockInput;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdReLockInput, 16)
+
+
+// -.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-
+// GENLOCKCTRL command - Input data
+typedef union _DtIoctlGenLockCtrlCmdInput
+{
+    DtIoctlGenLockCtrlCmdGetStatusInput  m_GetState;
+} DtIoctlGenLockCtrlCmdInput;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdInput, 16)
+
+// GENLOCKCTRL command - Output data
+typedef union _DtIoctlGenLockCtrlCmdOutput
+{
+    DtIoctlGenLockCtrlCmdGetStatusOutput  m_GetStatus;
+}  DtIoctlGenLockCtrlCmdOutput;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdOutput, 12)
+
+
+#ifdef WINBUILD
+    #define DT_IOCTL_GENLOCKCTRL_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_GENLOCKCTRL_CMD,    \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtaIoctlGenLockCtrlCmdInOut {
+        DtIoctlGenLockCtrlCmdInput  m_Input;
+        DtIoctlGenLockCtrlCmdOutput  m_Output;
+    } DtaIoctlGenLockCtrlCmdInOut;
+
+    #define DT_IOCTL_GENLOCKCTRL_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_GENLOCKCTRL_CMD,   \
+                                                              DtaIoctlGenLockCtrlCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -1771,7 +1900,6 @@ ASSERT_SIZE(DtIoctlGetDriverVersionOutput, 16)
     #define DT_IOCTL_GET_DRIVER_VERSION  _IOWR(DT_IOCTL_MAGIC_SIZE,                      \
                                     FUNC_GET_DRIVER_VERSION, DtIoctlGetDriverVersionInOut)
 #endif
-
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_I2CM_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -2200,7 +2328,7 @@ typedef struct _DtIoctlLmh1981CmdGetInputStatusOutput
 {
     Int  m_Valid;          // Valid; only if TRUE other fields are valid
     Int  m_LinePeriod;      // Line period in nano seconds
-    Int  m_FieldPeriod;     // Field period in nano seconds
+    Int  m_FramePeriod;     // Frame period in nano seconds
     Int  m_NumLinesF1;      // Number of lines in Field 1
     Int  m_NumLinesF2;      // Number of lines in Field 2
     Int  m_VideoFormat;     // Video format
@@ -3031,16 +3159,32 @@ typedef enum _DtIoctlSdiTxPhyCmd
     DT_SDITXPHY_CMD_SET_TXMODE = 6,
     DT_SDITXPHY_CMD_CLEAR_UNDERFLOW_FLAG = 7,
     DT_SDITXPHY_CMD_GET_UNDERFLOW_FLAG = 8,
+    DT_SDITXPHY_CMD_GET_GENLOCK_STATUS = 9,
 }  DtIoctlSdiTxPhyCmd;
 
 // DT SDITXPHY  TX-mode
 #define DT_SDITXPHY_TXMODE_ASI       0   // ASI
 #define DT_SDITXPHY_TXMODE_SDI       1   // SDI
 
+// DT SDITXPHY  GenLock status
+#define DT_SDITXPHY_GENLOCK_LOCKED  0   // PHY is genlocked
+#define DT_SDITXPHY_GENLOCK_NO_LOCK 1   // PHY is not genlocked
+
 // -.-.-.-.-.-.-.-.-.-.-.- SDITXPHY Command - Clear Undeflow Flag -.-.-.-.-.-.-.-.-.-.-.-.
 //
 typedef DtIoctlInputDataHdr DtIoctlSdiTxPhyCmdClearUnderflowFlagInput;
 ASSERT_SIZE(DtIoctlSdiTxPhyCmdClearUnderflowFlagInput, 16)
+
+// .-.-.-.-.-.-.-.-.-.- SDITXPHY Command - Get GenLock Status Command -.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlSdiTxPhyCmdGetGenLockStatusInput;
+ASSERT_SIZE(DtIoctlSdiTxPhyCmdGetGenLockStatusInput, 16)
+typedef struct _DtIoctlSdiTxPhyCmdGetGenLockStatusOutput
+{
+    Int  m_GenLockStatus;              // GenLock status
+}  DtIoctlSdiTxPhyCmdGetGenLockStatusOutput;
+ASSERT_SIZE(DtIoctlSdiTxPhyCmdGetGenLockStatusOutput, 4)
+
 
 //-.-.-.-.-.-.-.-.-.- SDITXPHY Command - Get Operational Mode Command -.-.-.-.-.-.-.-.-.-.
 //
@@ -3134,6 +3278,7 @@ typedef union _DtIoctlSdiTxPhyCmdInput
 typedef union _DtIoctlSdiTxPhyCmdOutput
 {
     DtIoctlSdiTxPhyCmdGetOpModeOutput  m_GetOpMode;             // Get operational mode
+    DtIoctlSdiTxPhyCmdGetGenLockStatusOutput  m_GetGenLockStatus;  // Get GenLock status
     DtIoctlSdiTxPhyCmdGetSdiRateOutput  m_GetSdiRate;           // Get SDI rate
     DtIoctlSdiTxPhyCmdGetSdiStatusOutput  m_GetSdiStatus;       // Get SDI-status
     DtIoctlSdiTxPhyCmdGetTxModeOutput  m_GetTxMode;             // Get TX mode
@@ -4935,7 +5080,11 @@ typedef enum _DtIoctlS2CrDemodCmd_2132
     DT_S2CRDEMOD_CMD_2132_SET_SYMBOL_RATE = 8,
     DT_S2CRDEMOD_CMD_2132_SOFT_RESET = 9,
     DT_S2CRDEMOD_CMD_2132_GET_COUNTERS = 10,
-    DT_S2CRDEMOD_CMD_2132_GET_FREQ_OFFSET = 11
+    DT_S2CRDEMOD_CMD_2132_GET_FREQ_OFFSET = 11,
+    DT_S2CRDEMOD_CMD_2132_DEMOD_RESET = 12,
+    DT_S2CRDEMOD_CMD_2132_GET_PL_INFORMATION = 13,
+    DT_S2CRDEMOD_CMD_2132_SET_PL_INFORMATION = 14
+
 }  DtIoctlS2CrDemodCmd_2132;
 
 // Roll-off factor
@@ -4951,6 +5100,17 @@ typedef enum _DtIoctlS2CrDemodCmd_2132
 #define DT_S2CRDEMOD_2132_SPECINV_AUTO    0        // Auto spectrum inversion detection
 #define DT_S2CRDEMOD_2132_SPECINV_NORMAL  1        // Normal spectrum
 #define DT_S2CRDEMOD_2132_SPECINV_INVERT  2        // Inverted spectrum
+
+// Coding and modulation type
+#define DT_S2CRDEMOD_2132_PLMODE_ACM  0   // Coding and modulation type ACM
+#define DT_S2CRDEMOD_2132_PLMODE_CCM  1   // Coding and modulation type VCM
+#define DT_S2CRDEMOD_2132_PLMODE_VCM  2   // Coding and modulation type CCM
+
+
+//.-.-.-.-.-.-.-.-.-.- S2CRDEMOD_2132 Command - Execute Demod Reset  -.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlS2CrDemodCmd_2132DemodResetInput;
+ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132DemodResetInput, 16)
 
 //.-.-.-.-.-.-.-.-.-.-.-.- S2CRDEMOD_2132 Command - Get Counters -.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -4987,6 +5147,17 @@ typedef struct _DtIoctlS2CrDemodCmd_2132GetOpModeOutput
     Int  m_OpMode;              // Operational mode
 }  DtIoctlS2CrDemodCmd_2132GetOpModeOutput;
 ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132GetOpModeOutput, 4)
+
+//-.-.-.-.-.-.-.-.-.-.- S2CRDEMOD_2132 Command - Get PL information -.-.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlS2CrDemodCmd_2132GetPlInformationInput;
+ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132GetPlInformationInput, 16)
+typedef struct _DtIoctlS2CrDemodCmd_2132GetPlInformationOutput
+{
+    Int  m_PlsValue;           // Pls value
+    Int  m_PlMode;             // ACM/VCM/CCM mode
+}  DtIoctlS2CrDemodCmd_2132GetPlInformationOutput;
+ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132GetPlInformationOutput, 8)
 
 //.-.-.-.-.-.-.-.-.-.-.-.- S2CRDEMOD_2132 Command - Get Roll Off -.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -5054,6 +5225,16 @@ typedef struct _DtIoctlS2CrDemodCmd_2132SetOpModeInput
 }  DtIoctlS2CrDemodCmd_2132SetOpModeInput;
 ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132SetOpModeInput, 20)
 
+//-.-.-.-.-.-.-.-.-.-.- S2CRDEMOD_2132 Command - Set  PL information -.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlS2CrDemodCmd_2132SetPlInformationInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_PlMode;             // CCM/ACM/VCM
+    Int  m_PlsValue;           // Pls value
+}DtIoctlS2CrDemodCmd_2132SetPlInformationInput;
+ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132SetPlInformationInput, 24)
+
 //-.-.-.-.-.-.-.-.-.- S2CRDEMOD_2132 Command - Set Spectrum Inversion -.-.-.-.-.-.-.-.-.-.
 //
 typedef struct _DtIoctlS2CrDemodCmd_2132SetSpectrumInvInput
@@ -5083,19 +5264,22 @@ ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132SoftResetInput, 16)
 // S2CRDEMOD_2132 command - IOCTL input data
 typedef union _DtIoctlS2CrDemodCmdInput_2132
 {
+    DtIoctlS2CrDemodCmd_2132DemodResetInput m_DemodReset;       // Execute a hard reset
     DtIoctlS2CrDemodCmd_2132GetCountersInput  m_GetCounters;     // Get counters
     DtIoctlS2CrDemodCmd_2132GetFreqOffsetInput  m_GetFreqOffset; // Get frequency offset
     DtIoctlS2CrDemodCmd_2132SetOpModeInput  m_SetOpMode;         // Set operational. mode
     DtIoctlS2CrDemodCmd_2132SetSpectrumInvInput  m_SetSpectrumInv;  // Set spectrum inv
     DtIoctlS2CrDemodCmd_2132SetSymbolRateInput  m_SetSymRate;    // Set symbol rate
+    DtIoctlS2CrDemodCmd_2132SetPlInformationInput  m_SetPlInfo;  // Set Pl information
     DtIoctlS2CrDemodCmd_2132SoftResetInput  m_SoftReset;         // Execute a soft reset
-}  DtIoctlS2CrDemodCmdInput_2132;
+ }  DtIoctlS2CrDemodCmdInput_2132;
 // S2CRDEMOD_2132 command - IOCTL output data
 typedef union _DtIoctlS2CrDemodCmdOutput_2132
 {
     DtIoctlS2CrDemodCmd_2132GetCountersOutput  m_GetCounters;     // Get counters
     DtIoctlS2CrDemodCmd_2132GetFreqOffsetOutput  m_GetFreqOffset; // Get frequency offset
     DtIoctlS2CrDemodCmd_2132GetOpModeOutput  m_GetOpMode;         // Get operational. mode
+    DtIoctlS2CrDemodCmd_2132GetPlInformationOutput  m_GetPlInfo;  // Get Pl information
     DtIoctlS2CrDemodCmd_2132GetRollOffOutput  m_GetRollOff;       // Get roll off
     DtIoctlS2CrDemodCmd_2132GetSnrInfoOutput  m_GetSnrInfo;       // Get SNR info
     DtIoctlS2CrDemodCmd_2132GetSpectrumInvOutput  m_GetSpectrumInv; // Get spectrum inv
@@ -5118,7 +5302,7 @@ typedef union _DtIoctlS2CrDemodCmdOutput_2132
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_S2STATS_CMD_2132 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- ADC S2STATS Interface Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- S2STATS Interface Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
 typedef enum _DtIoctlS2StatsCmd_2132
 {
@@ -5129,6 +5313,11 @@ typedef enum _DtIoctlS2StatsCmd_2132
     DT_S2STATS_CMD_2132_SET_OPERATIONAL_MODE = 4,
 }  DtIoctlS2StatsCmd_2132;
 
+// GainStatus
+#define DT_S2STATS_2132_ACM  0x0  // BBFrame ACM/CCM bit is clear
+#define DT_S2STATS_2132_CCM  0x1  // BBFrame ACM/CCM bit is set
+
+
 // DVB-S2-frame status
 typedef  struct _DtS2Stats_2132_FrameStatus
 {
@@ -5136,6 +5325,7 @@ typedef  struct _DtS2Stats_2132_FrameStatus
     UInt8  m_InputStreamId;     // Input stream ID
     UInt8  m_IsBchOk;           // BCH is OK; TRUE/FALSE
     UInt8  m_IsLdpcOk;          // LDPC is OK; TRUE/FALSE
+    UInt8  m_CcmAcm;            // BBHeader CCM/ACM bit state
     Int  m_Mer;                 // MER
 } DtS2Stats_2132_FrameStatus;
 
@@ -5637,6 +5827,7 @@ ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
     DtIoctlDebugCmdInput  m_DebugCmd;                                                    \
     DtIoctlExclAccessCmdInput  m_ExclAccessCmd;                                          \
     DtIoctlEventCmdInput  m_Event;                                                       \
+    DtIoctlGenLockCtrlCmdInput  m_GenLockCtrlCmd;                                        \
     DtIoctlGetDriverVersionInput  m_GetDriverVersion;                                    \
     DtIoctlGetDevInfoInput  m_GetDevInfo;                                                \
     DtIoctlI2cMCmdInput  m_I2cMCmd;                                                      \
@@ -5691,6 +5882,7 @@ typedef union _DtIoctlInputData
     DtIoctlCDmaCCmdOutput  m_CDmaCCmd;                                                   \
     DtIoctlDebugCmdOutput  m_DebugCmd;                                                   \
     DtIoctlEventCmdOutput  m_Event;                                                      \
+    DtIoctlGenLockCtrlCmdOutput  m_GenLockCtrlCmd;                                       \
     DtIoctlGetDriverVersionOutput  m_GetDriverVersion;                                   \
     DtIoctlGetDevInfoOutput  m_GetDevInfo;                                               \
     DtIoctlI2cMCmdOutput  m_I2cMCmd;                                                     \

@@ -208,6 +208,7 @@ DtStatus  DtBcKA_Init(DtBc*  pBc)
 void DtBcKA_PeriodicIntervalHandler(DtObject* pObj, DtTodTime Time)
 {
     DtBcKA*  pBc = (DtBcKA*)pObj;
+    UInt32  RegControl;
 
     // Sanity checks
     BC_KA_DEFAULT_PRECONDITIONS(pBc);
@@ -222,14 +223,18 @@ void DtBcKA_PeriodicIntervalHandler(DtObject* pObj, DtTodTime Time)
         if (pBc->m_FailSafeEnabled && pBc->m_AliveCnt<pBc->m_AliveTimeoutCnt)
         {
             pBc->m_AliveCnt++;
-            KA_Control_PULSE_Keepalive(pBc);
+            RegControl = KA_Control_READ(pBc);
+            RegControl = KA_Control_SET_Keepalive(RegControl, 1);
+            KA_Control_WRITE(pBc,RegControl);
         }
         // else: keep-alive disabled or application did not respond within time 
     }
     else
     {
         // Automatic keep-alive, pulse always
-        KA_Control_PULSE_Keepalive(pBc);
+        RegControl = KA_Control_READ(pBc);
+        RegControl = KA_Control_SET_Keepalive(RegControl, 1);
+        KA_Control_WRITE(pBc, RegControl);
     }
     DtSpinLockReleaseFromDpc(&pBc->m_KaLock);
 }

@@ -49,7 +49,7 @@ static DtStatus  DtBcSDITXPHY_OnEnable(DtBc*, Bool);
 static DtStatus  DtBcSDITXPHY_OnCloseFile(DtBc*, const DtFileObject*);
 static DtStatus  DtBcSDITXPHY_CheckSdiRate(DtBcSDITXPHY* pBc, Int SdiRate);
 static void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY*, Bool BlkEnable, Int OpMode,
-                                   Bool TxClkReset, Bool Arm, Int SrcFactor, Int SdiRate);
+                                  Bool TxClkReset, Bool Arm, Int SofDelay, Int SrcFactor);
 static DtStatus DtBcSDITXPHY_C10A10_SetPllSelect(DtBcSDITXPHY*, Int ClockIdx);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDITXPHY - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -99,6 +99,13 @@ DtStatus DtBcSDITXPHY_ArmForSof(DtBcSDITXPHY * pBc)
     // Must be enabled
     BC_SDITXPHY_MUST_BE_ENABLED(pBc);
     
+    // Must be supported
+    if (!pBc->m_SupportsStartOnSof)
+    { 
+        DtDbgOutBc(ERR, SDITXPHY, pBc, "Arm for Sof not supported");
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
     // Operational mode must be STANDBY
     if (pBc->m_OperationalMode != DT_BLOCK_OPMODE_STANDBY)
     { 
@@ -108,7 +115,8 @@ DtStatus DtBcSDITXPHY_ArmForSof(DtBcSDITXPHY * pBc)
 
     // Make settings in register
     DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                          pBc->m_ClockReset, TRUE, pBc->m_UpsampleFactor, pBc->m_SdiRate);
+                                                  pBc->m_ClockReset, TRUE, 
+                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
 
     return DT_STATUS_OK;
 }
@@ -300,22 +308,22 @@ DtStatus DtBcSDITXPHY_GetTxPllId(DtBcSDITXPHY* pBc, Int* pTxPllId)
     return DT_STATUS_OK;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_GetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_GetSofDelay -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtBcSDITXPHY_GetSdiRate(DtBcSDITXPHY * pBc, Int * pSdiRate)
+DtStatus DtBcSDITXPHY_GetSofDelay(DtBcSDITXPHY* pBc, Int* pSofDelay)
 {
     // Sanity check
     BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
 
     // Check parameters
-    if (pSdiRate == NULL)
+    if (pSofDelay == NULL)
         return DT_STATUS_INVALID_PARAMETER;
 
     // Must be enabled
     BC_SDITXPHY_MUST_BE_ENABLED(pBc);
 
-    // Return cached SDI-rate
-    *pSdiRate = pBc->m_SdiRate;
+    // Return cached SoF delay
+    *pSofDelay = pBc->m_SofDelay;
 
     return DT_STATUS_OK;
 }
@@ -402,11 +410,14 @@ DtStatus DtBcSDITXPHY_SetClockReset(DtBcSDITXPHY* pBc, Bool ClkReset)
     if (pBc->m_ClockReset == ClkReset)
         return DT_STATUS_OK;
 
-    // Make settings in register
-    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                  ClkReset, FALSE, pBc->m_UpsampleFactor, pBc->m_SdiRate);
     // Update cache
     pBc->m_ClockReset = ClkReset;
+
+    // Make settings in register
+    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
+                                                  pBc->m_ClockReset, FALSE, 
+                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
+
     return DT_STATUS_OK;
 }
 
@@ -438,11 +449,13 @@ DtStatus DtBcSDITXPHY_SetUpsampleFactor(DtBcSDITXPHY * pBc, Int SrcFactor)
     if (pBc->m_UpsampleFactor == SrcFactor)
         return DT_STATUS_OK;
 
-    // Make settings in register
-    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                     pBc->m_ClockReset, FALSE, SrcFactor, pBc->m_SdiRate);
     // Update cache
     pBc->m_UpsampleFactor = SrcFactor;
+
+    // Make settings in register
+    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
+                                                  pBc->m_ClockReset, FALSE, 
+                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
     return DT_STATUS_OK;
 }
 
@@ -530,25 +543,27 @@ DtStatus DtBcSDITXPHY_SetOperationalMode(DtBcSDITXPHY * pBc, Int OpMode)
     if (OpMode == DT_BLOCK_OPMODE_RUN)
         SDITXPHY_CdcFifoStatus_CLEAR_Underflow(pBc);
 
-    // Make setting in control register
-    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, OpMode, pBc->m_ClockReset,
-                                            FALSE, pBc->m_UpsampleFactor, pBc->m_SdiRate);
     // Save operational mode
     pBc->m_OperationalMode = OpMode;
 
+    // Make setting in control register
+    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
+                                                  pBc->m_ClockReset, FALSE, 
+                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
     return DT_STATUS_OK;
 
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetSofDelay -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtBcSDITXPHY_SetSdiRate(DtBcSDITXPHY* pBc, Int SdiRate)
+DtStatus DtBcSDITXPHY_SetSofDelay(DtBcSDITXPHY* pBc, Int SofDelay)
 {
     // Sanity check
     BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
 
     // Check parameters
-    DT_RETURN_ON_ERROR(DtBcSDITXPHY_CheckSdiRate(pBc, SdiRate));
+    if (SofDelay<0 || SofDelay>=(1<<16))
+        return DT_STATUS_INVALID_PARAMETER;
 
     // Must be enabled
     BC_SDITXPHY_MUST_BE_ENABLED(pBc);
@@ -561,17 +576,19 @@ DtStatus DtBcSDITXPHY_SetSdiRate(DtBcSDITXPHY* pBc, Int SdiRate)
     }
 
     // No change?
-    if (pBc->m_SdiRate == SdiRate)
+    if (pBc->m_SofDelay == SofDelay)
         return DT_STATUS_OK;
 
-    // Make settings in register
-    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode, 
-                                pBc->m_ClockReset, FALSE, pBc->m_UpsampleFactor, SdiRate);
-
     // Update cache
-    pBc->m_SdiRate = SdiRate;
+    pBc->m_SofDelay = SofDelay;
+
+    // Make settings in register
+    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
+                                                  pBc->m_ClockReset, FALSE, 
+                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
     return DT_STATUS_OK;
 }
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDITXPHY - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -594,8 +611,11 @@ DtStatus  DtBcSDITXPHY_Init(DtBc*  pBcBase)
     pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
     pBc->m_ClockReset = TRUE;
     pBc->m_UpsampleFactor = 1;
-    pBc->m_SdiRate = DT_DRV_SDIRATE_HD;
+    pBc->m_SofDelay = 0;
     pBc->m_C10A10FractClock = FALSE;
+
+    // Start-on-SoF is supported from version 1
+    pBc->m_SupportsStartOnSof = pBc->m_Version>=1;
 
     // Get the number of clocks from the config register
     pBc->m_NumClocks = SDITXPHY_Config_READ_NumClocks(pBc);
@@ -634,8 +654,9 @@ DtStatus  DtBcSDITXPHY_Init(DtBc*  pBcBase)
     }
 
     // Make settings in register
-    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode, 
-                         pBc->m_ClockReset, FALSE, pBc->m_UpsampleFactor, pBc->m_SdiRate);
+    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
+                                                  pBc->m_ClockReset, FALSE, 
+                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
     return Status;
 }
 
@@ -655,8 +676,7 @@ DtStatus DtBcSDITXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
         // Set defaults
         pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
         pBc->m_ClockReset = TRUE;
-        pBc->m_UpsampleFactor = 1;
-        pBc->m_SdiRate = DT_DRV_SDIRATE_HD;
+        pBc->m_SofDelay = 0;
     }
     else
     {
@@ -670,13 +690,13 @@ DtStatus DtBcSDITXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
         }
     }
 
-    // Make setting in control register
-    DtBcSDITXPHY_SetControlRegs(pBc, Enable, pBc->m_OperationalMode, pBc->m_ClockReset,
-                                            FALSE, pBc->m_UpsampleFactor, pBc->m_SdiRate);
-
     // Save block enable
     pBc->m_BlockEnabled = Enable;
 
+    // Make setting in control register
+    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
+                                                  pBc->m_ClockReset, FALSE, 
+                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
     return DT_STATUS_OK;
 }
 
@@ -731,9 +751,9 @@ DtStatus DtBcSDITXPHY_CheckSdiRate(DtBcSDITXPHY* pBc, Int SdiRate)
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,
-                                  Bool TxClkReset,  Bool Arm, Int SrcFactor, Int  SdiRate)
+                                  Bool TxClkReset,  Bool Arm, Int SofDelay, Int SrcFactor)
 {
-    UInt RegData=0, FldOpMode=0, FldBlkEnable=0, FldSrcFactor=0, FldSdiRate=0;
+    UInt RegData=0, FldOpMode=0, FldBlkEnable=0, FldSrcFactor=0;
 
     // Convert block enable to BB-type
     FldBlkEnable = BlkEnable ? SDITXPHY_BLKENA_ENABLED : SDITXPHY_BLKENA_DISABLED;
@@ -756,17 +776,6 @@ void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,
     default: DT_ASSERT(FALSE);
     }
 
-    // Convert SDI-rate to BB-type
-    switch (SdiRate)
-    {
-    case DT_DRV_SDIRATE_SD:   FldSdiRate = SDITXPHY_SDIMODE_SD; break;
-    case DT_DRV_SDIRATE_HD:   FldSdiRate = SDITXPHY_SDIMODE_HD; break;
-    case DT_DRV_SDIRATE_3G:   FldSdiRate = SDITXPHY_SDIMODE_3G; break;
-    case DT_DRV_SDIRATE_6G:   FldSdiRate = SDITXPHY_SDIMODE_6G; break;
-    case DT_DRV_SDIRATE_12G:  FldSdiRate = SDITXPHY_SDIMODE_12G; break;
-    default: DT_ASSERT(FALSE);
-    }
-
     // Invalid combinations?
     DT_ASSERT(BlkEnable || OpMode==DT_BLOCK_OPMODE_IDLE);
     DT_ASSERT(!TxClkReset || OpMode==DT_BLOCK_OPMODE_IDLE);
@@ -774,7 +783,11 @@ void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,
 
     // Set FIFO inhibit first?
     if (!BlkEnable || OpMode==DT_BLOCK_OPMODE_IDLE || TxClkReset)
-        SDITXPHY_InhibitFifo_WRITE(pBc, 1);
+    { 
+        RegData = SDITXPHY_CdcFifoControl_READ(pBc);
+        RegData = SDITXPHY_CdcFifoControl_SET_InhibitFifo(RegData, 1);
+        SDITXPHY_CdcFifoControl_WRITE(pBc, RegData);
+    }
 
     // Update SDITXPHY control register
     RegData = SDITXPHY_Control_READ(pBc);
@@ -783,27 +796,30 @@ void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,
     RegData = SDITXPHY_Control_SET_TxClkReset(RegData, TxClkReset ?  1 : 0);
     RegData = SDITXPHY_Control_SET_Arm(RegData, Arm ?  1 : 0);
     RegData = SDITXPHY_Control_SET_SrcFactor(RegData, FldSrcFactor);
-    RegData = SDITXPHY_Control_SET_SdiRate(RegData, FldSdiRate);
+    RegData = SDITXPHY_Control_SET_GenlockSofDelay(RegData, (UInt32)SofDelay);
     SDITXPHY_Control_WRITE(BC_SDITXPHY, RegData);
 
     // Can FIFO inhibit be cleared?
     if (BlkEnable && OpMode!=DT_BLOCK_OPMODE_IDLE && !TxClkReset)
-        SDITXPHY_InhibitFifo_WRITE(pBc, 0);
+    { 
+        RegData = SDITXPHY_CdcFifoControl_READ(pBc);
+        RegData = SDITXPHY_CdcFifoControl_SET_InhibitFifo(RegData, 0);
+        SDITXPHY_CdcFifoControl_WRITE(pBc, RegData);
+    }
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_C10A10_SetPllSelect -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcSDITXPHY_C10A10_SetPllSelect(DtBcSDITXPHY* pBc, Int ClockIdx)
 {
-    UInt32 PllId, PllSeqNum, PllSelect;
+    UInt32 PllId, PllSelect;
 
     // Parameter check
     if (ClockIdx!=0 && ClockIdx!=1)
         return DT_STATUS_INVALID_PARAMETER;
     
-    // Determine PLL-sequence number
-    PllSeqNum  = (ClockIdx==0) ? (pBc->m_PllIdClk1&0xF) : (pBc->m_PllIdClk2&0xF);
-    switch (PllSeqNum-1)
+    // Determine the PllId
+    switch (ClockIdx)
     {
         case 0: PllId = SDITXPHY_C10A10_PllLookup_READ_Pll0(pBc); break;
         case 1: PllId = SDITXPHY_C10A10_PllLookup_READ_Pll1(pBc); break;

@@ -248,6 +248,8 @@ DtStatus DtBcACCUFIFO_SetAccuPeriod(DtBcACCUFIFO* pBc, Int PeriodNs)
 //
 DtStatus DtBcACCUFIFO_SetNumMeasurements(DtBcACCUFIFO* pBc, Int NumMeasm)
 {
+    UInt32 RegControl;
+
     // Sanity check
     BC_ACCUFIFO_DEFAULT_PRECONDITIONS(pBc);
 
@@ -262,7 +264,9 @@ DtStatus DtBcACCUFIFO_SetNumMeasurements(DtBcACCUFIFO* pBc, Int NumMeasm)
     pBc->m_NumMeasurements = NumMeasm;
     
     // Update register
-    ACCUFIFO_NumMeasurements_WRITE(pBc, (UInt32)NumMeasm);
+    RegControl = ACCUFIFO_Control2_READ(pBc);
+    RegControl = ACCUFIFO_Control2_SET_NumMeasurements(RegControl, (UInt32)NumMeasm);
+    ACCUFIFO_Control2_WRITE(pBc, RegControl);
 
     return DT_STATUS_OK;
 }
@@ -274,7 +278,8 @@ DtStatus DtBcACCUFIFO_SetNumMeasurements(DtBcACCUFIFO* pBc, Int NumMeasm)
 //
 DtStatus  DtBcACCUFIFO_Init(DtBc* pBcBase)
 {
-    DtBcACCUFIFO* pBc = (DtBcACCUFIFO*)pBcBase;
+    DtBcACCUFIFO*  pBc = (DtBcACCUFIFO*)pBcBase;
+    UInt32  RegControl2;
 
     // Read Configuration into Cache
     pBc->m_ClockFrequency = (Int64)ACCUFIFO_Config2_READ_ClkFreq(pBc);
@@ -286,7 +291,10 @@ DtStatus  DtBcACCUFIFO_Init(DtBc* pBcBase)
 
     // Set control registers
     DtBcACCUFIFO_SetControlRegs(pBc, FALSE, pBc->m_AccuPeriodNumClks);
-    ACCUFIFO_NumMeasurements_WRITE(pBc, (UInt32)pBc->m_NumMeasurements);
+    RegControl2 = ACCUFIFO_Control2_READ(pBc);
+    RegControl2 = ACCUFIFO_Control2_SET_NumMeasurements(RegControl2,
+                                                          (UInt32)pBc->m_NumMeasurements);
+    ACCUFIFO_Control2_WRITE(pBc, RegControl2);
 
     return DT_STATUS_OK;
 }

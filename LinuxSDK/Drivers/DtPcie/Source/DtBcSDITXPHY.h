@@ -66,6 +66,8 @@ typedef  struct _DtBcSDITXPHY
     DT_BC_COMMON_DATA;
     // Cached settings
     Bool  m_BlockEnabled;      // Block enabled
+    Bool  m_SupportsStartOnSof;  // Support start-on-SoF
+    Int  m_SofDelay;           // Start-on-Frame delay in clock ticks
     Int  m_OperationalMode;    // Current operational mode
     Int  m_NumClocks;          // Number of clock signals
     Int  m_PllIdClk1;          // PllId clock 1
@@ -73,7 +75,6 @@ typedef  struct _DtBcSDITXPHY
     Int  m_DeviceFamily;       // Device family
     Bool  m_ClockReset;        // Clock reset
     Int  m_UpsampleFactor;     // Up-sample factor
-    Int  m_SdiRate;            // Configured SDI-rate
     Int  m_MaxSdiRate;         // Maximum SDI-rate
     Bool  m_C10A10FractClock;  // A10/C10 fractional clock
 }  DtBcSDITXPHY;
@@ -91,13 +92,13 @@ DtStatus  DtBcSDITXPHY_GetMaxSdiRate(DtBcSDITXPHY* pBc,  Int* pMaxSdiRate);
 DtStatus  DtBcSDITXPHY_GetNumClocks(DtBcSDITXPHY* pBc,  Int* pNumClocks);
 DtStatus  DtBcSDITXPHY_GetOperationalStatus(DtBcSDITXPHY* pBc,  Int* pOpStatus);
 DtStatus  DtBcSDITXPHY_GetTxPllId(DtBcSDITXPHY* pBc,  Int* pTxPllId);
-DtStatus  DtBcSDITXPHY_GetSdiRate(DtBcSDITXPHY* pBc,  Int* pSdiRate);
+DtStatus  DtBcSDITXPHY_GetSofDelay(DtBcSDITXPHY* pBc,  Int* pSofDelay);
 DtStatus  DtBcSDITXPHY_GetUnderflowFlag(DtBcSDITXPHY* pBc, Bool* pUnderflow);
 DtStatus  DtBcSDITXPHY_GetUpsampleFactor(DtBcSDITXPHY* pBc, Int* pSrcFactor);
 DtStatus  DtBcSDITXPHY_IsResetInProgress(DtBcSDITXPHY* pBc, Bool* pInProgress);
 DtStatus  DtBcSDITXPHY_SetClockReset(DtBcSDITXPHY* pBc,  Bool ClkReset);
 DtStatus  DtBcSDITXPHY_SetOperationalMode(DtBcSDITXPHY* pBc,  Int OpMode);
-DtStatus  DtBcSDITXPHY_SetSdiRate(DtBcSDITXPHY* pBc,  Int SdiRate);
+DtStatus  DtBcSDITXPHY_SetSofDelay(DtBcSDITXPHY* pBc,  Int SofDelay);
 DtStatus  DtBcSDITXPHY_SetUpsampleFactor(DtBcSDITXPHY* pBc, Int  SrcFactor);
 
 // Aria 10/ Cyclone 10 specific functions

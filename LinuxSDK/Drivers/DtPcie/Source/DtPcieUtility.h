@@ -24,8 +24,8 @@
 // TORT, IN NEGLIGENCE, OR OTHERWISE, ARISING FROM THE USE OF, OR INABILITY TO USE THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
-#ifndef __DTA_UTILITY_H
-#define __DTA_UTILITY_H
+#ifndef __DTPCIE_UTILITY_H
+#define __DTPCIE_UTILITY_H
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Macros +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -98,16 +98,18 @@ Int  DtPcieDeviceId2SubType(Int DeviceId);
 DtStatus  DtPciePropertiesInit(DtCorePcie* pCore);
 DtStatus  DtPciePropertiesReportDriverErrors(DtCorePcie* pCore);
 
-// Video-standard helepers
-//Int  DtPcieIoStd2VidStd(Int  Value, Int  SubValue);
-//Int  DtPcieVidStd2Fps(Int  VidStd);
-//Bool  DtPcieVidStdIsFractional(Int  VidStd);
-//Bool  DtPcieVidStdIsInterlaced(Int  VidStd);
-//Bool  DtPcieVidStdIsPsf(Int  VidStd);
-//Bool  DtPcieVidStdIs3gSdi(Int  VidStd);
-//Bool  DtPcieVidStdIs3glvlBSdi(Int  VidStd);
-//Bool  DtPcieVidStdIsHdSdi(Int  VidStd);
-//Bool  DtPcieVidStdIsSdSdi(Int  VidStd);
+// Video-standard helpers
+Int  DtPcieIoStd2VidStd(Int  Value, Int  SubValue);
+Int  DtPcieVidStd2Fps(Int  VidStd);
+Int  DtPcieVidStd2FrameLength(Int  VidStd);
+Bool  DtPcieVidStdUsesFractionalClock(Int  VidStd);
+Bool  DtPcieVidStdIsFractional(Int  VidStd);
+Bool  DtPcieVidStdIsInterlaced(Int  VidStd);
+Bool  DtPcieVidStdIsPsf(Int  VidStd);
+Bool  DtPcieVidStdIs3gSdi(Int  VidStd);
+Bool  DtPcieVidStdIs3glvlBSdi(Int  VidStd);
+Bool  DtPcieVidStdIsHdSdi(Int  VidStd);
+Bool  DtPcieVidStdIsSdSdi(Int  VidStd);
 
 
 #endif // __DTPCIE_UTILITY_H

@@ -215,7 +215,7 @@ DtStatus  DtBcADS4246_2132_OnCloseFile(DtBc*  pBc, const DtFileObject* pFile)
 //
 void DtBcADS4246_2132_SetControlRegs(DtBcADS4246_2132* pBc, Bool BlkEnable, Int OpMode)
 {
-    UInt FldOpMode, FldBlkEnable;
+    UInt32 RegControl, FldOpMode, FldBlkEnable;
 
     // Convert block enable to BB-type
     if (BlkEnable)
@@ -236,11 +236,10 @@ void DtBcADS4246_2132_SetControlRegs(DtBcADS4246_2132* pBc, Bool BlkEnable, Int 
     DT_ASSERT(BlkEnable || OpMode==DT_BLOCK_OPMODE_IDLE);
 
     // Update ADS4246_2132 control register
-    // RegData = ADS4246_Control_READ(pBc);
-    // RegData = ADS4246_2132_Control_SET_BlockEnable(RegData, FldBlkEnable);
-    // RegData = ADS4246_Control_SET_OperationalMode(RegData, FldOpMode);
-    // ADS4246_Control_WRITE(BC_ADS4246_2132, RegData);
-    ADS4246_OperationalMode_WRITE(pBc, FldOpMode);
+    RegControl = ADS4246_Control_READ(pBc);
+    // RegControl = ADS4246_2132_Control_SET_BlockEnable(RegControl, FldBlkEnable);
+    RegControl = ADS4246_Control_SET_OperationalMode(RegControl, FldOpMode);
+    ADS4246_Control_WRITE(pBc, RegControl);
 }
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

@@ -25,6 +25,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtPt.h"
 #include "DtPtAsiSdiRxTx.h"
+#include "DtPtSdiGenRef.h"
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtPt implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -658,6 +659,9 @@ DtPt*  DtPt_OpenType(DtPortType  Type, DtCore*  pCore, Int  PortIndex)
     case DT_PORT_TYPE_ASISDIRXTX:
     case DT_PORT_TYPE_ASISDITX:
         return (DtPt*)DtPtAsiSdiRxTx_Open(pCore, PortIndex, Type);
+
+    case DT_PORT_TYPE_SDIGENREF:
+        return (DtPt*)DtPtSdiGenRef_Open(pCore, PortIndex, Type);
 
     default:
         DT_ASSERT(FALSE);

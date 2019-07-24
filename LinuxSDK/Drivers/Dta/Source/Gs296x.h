@@ -58,7 +58,7 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtaGs2961Enable(DtaNonIpPort*  pNonIpPort, Bool  EnaAsiMode, Bool  EnaSdiProc);
 DtStatus  DtaGs2961GetVideoStd(DtaNonIpPort*  pNonIpPort, Int*  pVidStd);
-DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort);
+DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort, Bool  EnableVpidProc);
 DtStatus  DtaGs2962SetVpid(DtaNonIpPort*  pNonIpPort, UInt  Vpid);
 
 #endif //#ifndef __GS296X_H

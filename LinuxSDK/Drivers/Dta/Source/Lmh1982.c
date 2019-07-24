@@ -406,7 +406,7 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
     // Keep Tx clock in reset while switching clock
     DtaRegControl0SetTxClkRstEnable(pLmh1982Data->m_pDvcData->m_pGenRegs, 1);
 
-    if (DtaVidStdIsFractional(OutVidStd))
+    if (DtAvVidStdIsFractional(OutVidStd))
     {
         DtDbgOut(MIN, GENL, "Switching to DTA_LMH1982_IIC_HD_FREQ_148_35");
 
@@ -601,8 +601,8 @@ DtStatus  DtaLmh1982InitChip(DtaLmh1982* pLmh1982Data)
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- Step 4: TOF timing registers -.-.-.-.-.-.-.-.-.-.-.-.-.-
 
     // Select a video standard with matching frame rate to the desired output standard
-    Fps = DtaVidStd2Fps(OutVidStd);
-    IsFrac = DtaVidStdIsFractional(OutVidStd);
+    Fps = DtAvVidStd2Fps(OutVidStd);
+    IsFrac = DtAvVidStdIsFractional(OutVidStd);
     TofVidStd = OutVidStd;
 
     switch(Fps)
@@ -884,7 +884,7 @@ DtStatus  DtaLmh1982SetupRefSource(
     DtaRegHdGenlClkConfSetRefSrc(pGenlRegs, ClkSrc);
 
     // Set interlaced flags
-    if (DtaVidStdIsInterlaced(*pRefVidStd))
+    if (DtAvVidStdIsInterlaced(*pRefVidStd))
         DtaRegHdGenlClkConfSetInterlaced(pGenlRegs, 1);
     else
         DtaRegHdGenlClkConfSetInterlaced(pGenlRegs, 0);

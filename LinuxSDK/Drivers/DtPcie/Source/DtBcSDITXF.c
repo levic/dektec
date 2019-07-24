@@ -137,6 +137,8 @@ DtStatus DtBcSDITXF_GetOperationalMode(DtBcSDITXF* pBc, Int* pOpMode)
 DtStatus DtBcSDITXF_SetFmtEventSetting(DtBcSDITXF*  pBc,  Int NumLinesPerEvent,
                                                              Int  NumSofsBetweenTimestamp)
 {
+    UInt32 RegFmtEvent;
+
     // Sanity check
     BC_SDITXF_DEFAULT_PRECONDITIONS(pBc);
 
@@ -152,8 +154,10 @@ DtStatus DtBcSDITXF_SetFmtEventSetting(DtBcSDITXF*  pBc,  Int NumLinesPerEvent,
         return DT_STATUS_INVALID_IN_OPMODE;
 
     // Set new Format-Event Setting
-    SDITXF_NumLines_WRITE(pBc, (UInt32)NumLinesPerEvent);
-    
+    RegFmtEvent = SDITXF_FmtEvent_READ(pBc);
+    RegFmtEvent = SDITXF_FmtEvent_SET_NumLines(RegFmtEvent, (UInt32)NumLinesPerEvent);
+    SDITXF_FmtEvent_WRITE(pBc, RegFmtEvent);
+
     // Update cached format event setting
     pBc->m_NumLinesPerEvent = NumLinesPerEvent;
     pBc->m_NumSofsBetweenTod = NumSofsBetweenTimestamp;
@@ -282,32 +286,37 @@ DtStatus DtBcSDITXF_WaitForFmtEvent(DtBcSDITXF* pBc, Int Timeout, Int* pFrameId,
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXF_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtBcSDITXF_Init(DtBc*  pBc)
+DtStatus  DtBcSDITXF_Init(DtBc*  pBcBase)
 {
     DtStatus  Status = DT_STATUS_OK;
+    DtBcSDITXF* pBc = (DtBcSDITXF*)pBcBase;
+    UInt32  RegFmtEvent;
 
     // Set defaults
-    BC_SDITXF->m_BlockEnabled = FALSE;
-    BC_SDITXF->m_UlfEnabled = FALSE;
-    BC_SDITXF->m_UnderflowLatched = FALSE;
-    BC_SDITXF->m_Underflow = FALSE;
-    BC_SDITXF->m_UlfEnableDelayCount = 0;
-    BC_SDITXF->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
-    DtBcSDITXF_SetControlRegs(BC_SDITXF, BC_SDITXF->m_BlockEnabled,
-                               BC_SDITXF->m_OperationalMode, BC_SDITXF->m_UlfEnabled);
+    pBc->m_BlockEnabled = FALSE;
+    pBc->m_UlfEnabled = FALSE;
+    pBc->m_UnderflowLatched = FALSE;
+    pBc->m_Underflow = FALSE;
+    pBc->m_UlfEnableDelayCount = 0;
+    pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
+    DtBcSDITXF_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
+                                                                       pBc->m_UlfEnabled);
 
     // Default an interrupt at SOF only
-    BC_SDITXF->m_NumLinesPerEvent = 0;
-    SDITXF_NumLines_WRITE(BC_SDITXF, (UInt32)BC_SDITXF->m_NumLinesPerEvent);
+    pBc->m_NumLinesPerEvent = 0;
+    RegFmtEvent = SDITXF_FmtEvent_READ(pBc);
+    RegFmtEvent = SDITXF_FmtEvent_SET_NumLines(RegFmtEvent, 
+                                                         (UInt32)pBc->m_NumLinesPerEvent);
+    SDITXF_FmtEvent_WRITE(pBc, RegFmtEvent);
 
     // Format event interrupts are disabled
-    BC_SDITXF->m_FmtIntEnabled = FALSE;
+    pBc->m_FmtIntEnabled = FALSE;
 
     // Initialize SpinLock
-    DtSpinLockInit(&BC_SDITXF->m_IntDataSpinLock);
+    DtSpinLockInit(&pBc->m_IntDataSpinLock);
 
     // Initialize formatter event
-    Status = DtEventInit(&BC_SDITXF->m_FmtEvent, TRUE);
+    Status = DtEventInit(&pBc->m_FmtEvent, TRUE);
     if(!DT_SUCCESS(Status))
     {
         DtDbgOutBc(ERR, SDITXF, pBc, 
@@ -316,7 +325,7 @@ DtStatus  DtBcSDITXF_Init(DtBc*  pBc)
     }
     
     // Init interrupt DPC
-    Status = DtDpcInit(&BC_SDITXF->m_IntDpc, DtBcSDITXF_InterruptDpcFmtEvent, TRUE);
+    Status = DtDpcInit(&pBc->m_IntDpc, DtBcSDITXF_InterruptDpcFmtEvent, TRUE);
     if(!DT_SUCCESS(Status))
     {
         DtDbgOutBc(ERR, SDITXF, pBc, "ERROR: failed to init DPC (Status=0x%08X)", Status);
@@ -324,7 +333,7 @@ DtStatus  DtBcSDITXF_Init(DtBc*  pBc)
     }
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- Register interrupt handlers -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-    Status = DtBcSDITXF_RegisterIntHandlers(BC_SDITXF);
+    Status = DtBcSDITXF_RegisterIntHandlers(pBc);
     if(!DT_SUCCESS(Status))
     {
         DtDbgOutBc(ERR, SDITXF, pBc, "ERROR: failed to register interrupt handlers");
@@ -339,7 +348,8 @@ DtStatus  DtBcSDITXF_Init(DtBc*  pBc)
 DtStatus DtBcSDITXF_OnEnable(DtBc* pBcBase, Bool Enable)
 {
     DtStatus  Status=DT_STATUS_OK;
-    DtBcSDITXF* pBc = (DtBcSDITXF*)pBcBase;
+    DtBcSDITXF*  pBc = (DtBcSDITXF*)pBcBase;
+    UInt32  RegFmtEvent;
 
     // Sanity check
     BC_SDITXF_DEFAULT_PRECONDITIONS(pBc);
@@ -364,8 +374,11 @@ DtStatus DtBcSDITXF_OnEnable(DtBc* pBcBase, Bool Enable)
         // Reset SOF timestamp and counter
         pBc->m_SofCount = 0;
         pBc->m_SofTimeValid = FALSE;
+        RegFmtEvent = SDITXF_FmtEvent_READ(pBc);
+        RegFmtEvent = SDITXF_FmtEvent_SET_NumLines(RegFmtEvent, 
+                                                         (UInt32)pBc->m_NumLinesPerEvent);
+        SDITXF_FmtEvent_WRITE(pBc, RegFmtEvent);
 
-        SDITXF_NumLines_WRITE(pBc, (UInt32)pBc->m_NumLinesPerEvent);
     }
     else
     {

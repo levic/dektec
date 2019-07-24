@@ -3591,9 +3591,9 @@ typedef struct _DtaIoctlHdmiTxCmdInput {
         DtaIoctlHdmiTxCmdDisableOutputInput  m_DisableHdmiOutput;
         DtaIoctlHdmiTxCmdSetColorimetryInput  m_SetColorimetry;
         DtaIoctlHdmiTxCmdSetAudioChannelInput  m_SetAudioChannel;
-        DtaIoctlHdmiTxCmdReleaseForcedStatesInput  m_ReleaseForcedStatesInput;
-        DtaIoctlHdmiTxCmdGetEdidDataInput  m_GetEdidDataInput;
-        DtaIoctlHdmiTxCmdSetEdidDataInput  m_SetEdidDataInput;
+        DtaIoctlHdmiTxCmdReleaseForcedStatesInput  m_ReleaseForcedStates;
+        DtaIoctlHdmiTxCmdGetEdidDataInput  m_GetEdidData;
+        DtaIoctlHdmiTxCmdSetEdidDataInput  m_SetEdidData;
     } m_Data;
 } DtaIoctlHdmiTxCmdInput;
 ASSERT_SIZE(DtaIoctlHdmiTxCmdInput, 144)
@@ -3621,7 +3621,8 @@ typedef struct _DtaIoctlHdmiTxCmdGetHdmiStatusOutput {
     Int  m_SelectedAspectRatio;
     Int  m_UsedVidMod;
     Int  m_SelectedVidMod;
-    Int  m_Reserved[2];
+    Int  m_Reserved;
+    Int  m_NumberOfEdidExtensions;
     UInt  m_HdmiErrStat;            // DT_HDMITX_E_....
     UInt  m_SupportedHdrFormats;    // 0..7: EOTF
                                     // 8..15: Static MetaData Descriptor, 
@@ -3659,7 +3660,7 @@ typedef struct _DtaIoctlHdmiTxCmdGetAudioChannelOutput {
 ASSERT_SIZE(DtaIoctlHdmiTxCmdGetAudioChannelOutput, 12)
 
 // DTA HDMI Get EDID data
-typedef struct _DtaIoctlHdmiTxCmdGetEdidDtaOutput {
+typedef struct _DtaIoctlHdmiTxCmdGetEdidDataOutput {
     UInt8  m_Data[128];
 } DtaIoctlHdmiTxCmdGetEdidDataOutput;
 ASSERT_SIZE(DtaIoctlHdmiTxCmdGetEdidDataOutput, 128)

@@ -761,6 +761,7 @@ DtStatus  DtHdmiScdcInit(DtaHdmiTx* pHdmiTx)
 //
 void  DtHdmiResetFeatures(DtaHdmiTx* pHdmiTx)
 {
+    pHdmiTx->m_NumberOfEdidExtensions = 0;
     pHdmiTx->m_MonSupportedFormats = 0;
     pHdmiTx->m_MonSupportedAudio = 0;
     pHdmiTx->m_SupportHdmi = FALSE;
@@ -1003,7 +1004,6 @@ DtStatus  DtHdmiReadEdid(DtaHdmiTx* pHdmiTx)
 {
     UInt8  Data[128];
     DtStatus  Status;
-    Int  NumberOfExtensions = 0;
     Int  i;
     DtDbgOut(MAX, HDMI, "Start");
         
@@ -1015,10 +1015,10 @@ DtStatus  DtHdmiReadEdid(DtaHdmiTx* pHdmiTx)
         return DT_STATUS_OK;
     }
 
-    NumberOfExtensions = DtHdmiEdidParseEedid(pHdmiTx, Data);
-    if (NumberOfExtensions > 0)
+    pHdmiTx->m_NumberOfEdidExtensions = DtHdmiEdidParseEedid(pHdmiTx, Data);
+    if (pHdmiTx->m_NumberOfEdidExtensions > 0)
     {
-        for (i=0; i<NumberOfExtensions; i++)
+        for (i=0; i<pHdmiTx->m_NumberOfEdidExtensions; i++)
         {
             Status = DtHdmiReadI2cBlock(pHdmiTx, i+1, Data);
             if (DT_SUCCESS(Status))
@@ -1034,6 +1034,101 @@ DtStatus  DtHdmiReadEdid(DtaHdmiTx* pHdmiTx)
     return DT_STATUS_OK;
 }
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiWriteEdid -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtHdmiWriteEdid(DtaHdmiTx* pHdmiTx, UInt BlockNo, UInt8* pData, Int Last)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtDbgOut(MAX, HDMI, "Start");
+    DtMutexAcquire(&pHdmiTx->m_StateLock, -1);
+
+    if (Last == -1)
+    {
+        // Special case: Release lock, reset EDID and schedule a hotplug
+        DtWorkItemArgs  DtWorkItemArgs;
+
+        // Reset features. It does not reset the ErrorState
+        DtHdmiResetFeatures(pHdmiTx);
+
+        pHdmiTx->m_HdmiErrorState &= ~DT_HDMITX_E_LOCKED_FORCED;
+        DtMutexRelease(&pHdmiTx->m_StateLock);
+        DtWorkItemArgs.m_pContext = pHdmiTx;
+        DtWorkItemArgs.m_Data1.m_UInt32_1 = 0;
+        DtWorkItemSchedule(&pHdmiTx->m_HotplugWorkItem, &DtWorkItemArgs);
+
+        DtDbgOut(MAX, HDMI, "End");
+        return DT_STATUS_OK;
+    }
+
+    if (BlockNo == 0)
+    {
+        pHdmiTx->m_HdmiErrorState = DT_HDMITX_E_STATE_RESET | DT_HDMITX_E_LOCKED_FORCED;
+        pHdmiTx->m_NumberOfEdidExtensions = DtHdmiEdidParseEedid(pHdmiTx, pData);
+    }
+    else if ((pHdmiTx->m_HdmiErrorState & DT_HDMITX_E_LOCKED_FORCED) == 0)
+    {
+        DtMutexRelease(&pHdmiTx->m_StateLock);
+
+        DtDbgOut(MAX, HDMI, "End");
+        return DT_STATUS_NOT_STARTED;
+    }
+    else
+        Status = DtHdmiEdidParseExtension(pHdmiTx, pData);
+
+    if (!DT_SUCCESS(Status))
+        pHdmiTx->m_HdmiErrorState |= DT_HDMITX_E_READ_EDID;
+    else if (Last!=0 && DT_SUCCESS(Status))
+    {
+        // Last block, initialize HdmiTx
+        DtaHdmiVidStd VidStdUnknown = { DT_VIDSTD_UNKNOWN, DTA_AR_UNKNOWN };
+        Int  RetryCount = 0;
+
+        DtHdmiTxEnableHdmiOutputDriver(pHdmiTx, TRUE);
+
+        while ((!DT_SUCCESS(Status) || RetryCount == 0) && RetryCount < 10)
+        {
+            RetryCount++;
+            Status = DtHdmiScdcInit(pHdmiTx);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOut(ERR, HDMI, "Error initializing SCDC. Retry %i",
+                    RetryCount);
+                DtSleep(200);
+            }
+        }
+        if (!DT_SUCCESS(Status))
+            pHdmiTx->m_HdmiErrorState |= DT_HDMITX_E_SCDC_INIT;
+        else
+        {
+            Status = DtHdmiTxUpdateVideoStd(pHdmiTx, VidStdUnknown, TRUE);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOut(ERR, HDMI, "Error updating video standard");
+                pHdmiTx->m_HdmiErrorState |= DT_HDMITX_E_UPD_VIDSTD;
+            }
+        }
+        if (!DT_SUCCESS(Status))
+        {
+            // Disable HDMI output
+            DtDbgOut(ERR, HDMI, "Error initializing HDMI.");
+            DtaRegHdmiTxGenCtrlSetEnable(pHdmiTx->m_pHdmiRegs, 0);
+            DtHdmiTxEnableHdmiOutputDriver(pHdmiTx, FALSE);
+        }
+        // Do not fail for HDMI initialization errors. 
+        // The HDMI init state can be retrieved by getting the HDMI status
+        Status = DT_STATUS_OK;
+    }
+    // Always release lock in case of error or last block
+    if (!DT_SUCCESS(Status) || Last!=0)
+    {
+        pHdmiTx->m_HdmiErrorState &= ~DT_HDMITX_E_LOCKED_FORCED;
+        
+    }
+    DtMutexRelease(&pHdmiTx->m_StateLock);
+    DtDbgOut(MAX, HDMI, "End");
+    return Status;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxHotplugWorkItem -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void  DtHdmiTxHotplugWorkItem(DtWorkItemArgs* pArgs)
@@ -1046,6 +1141,12 @@ void  DtHdmiTxHotplugWorkItem(DtWorkItemArgs* pArgs)
     if (pHdmiTx->m_ForceMonitorDetected)
     {
         DtMutexAcquire(&pHdmiTx->m_StateLock, -1);
+        if ((pHdmiTx->m_HdmiErrorState & DT_HDMITX_E_LOCKED_FORCED) != 0)
+        {
+            // Skip we are updating EDID
+            DtMutexRelease(&pHdmiTx->m_StateLock);
+            return;
+        }
         DtDbgOut(ERR, HDMI, "FORCE Monitor connected");
         pHdmiTx->m_HdmiErrorState |= DT_HDMITX_E_HPD_FORCE_DETECTED;
 
@@ -1062,6 +1163,14 @@ void  DtHdmiTxHotplugWorkItem(DtWorkItemArgs* pArgs)
     }
     
     DtMutexAcquire(&pHdmiTx->m_StateLock, -1);
+    
+    if ((pHdmiTx->m_HdmiErrorState & DT_HDMITX_E_LOCKED_FORCED) != 0)
+    {
+        // Skip we are updating EDID
+        DtMutexRelease(&pHdmiTx->m_StateLock);
+        return;
+    }
+
     if (pHdmiTx->m_MonDetected)
     {
         DtDbgOut(ERR, HDMI, "HW power up");
@@ -1118,7 +1227,6 @@ void  DtHdmiTxHotplugWorkItem(DtWorkItemArgs* pArgs)
             DtaRegHdmiTxGenCtrlSetEnable(pHdmiTx->m_pHdmiRegs, 0);
             DtHdmiTxEnableHdmiOutputDriver(pHdmiTx, FALSE);
         }
-        
     }
     DtMutexRelease(&pHdmiTx->m_StateLock);
 }
@@ -1430,6 +1538,7 @@ DtStatus  DtHdmiTxUpdateVideoStd(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, Bool 
     
     UsedVidStd = VidStd;
 
+    // Reset all states except the hotplug states
     pHdmiTx->m_HdmiErrorState &= DT_HDMITX_E_MASK_HOTPLUG;
     
     if (!pHdmiTx->m_MonDetected)
@@ -1464,7 +1573,7 @@ DtStatus  DtHdmiTxUpdateVideoStd(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, Bool 
                                                              !pHdmiTx->m_DisableEdidCheck)
     {
         // Check if we can use another format supported by display.
-        if (DtaVidStdIsSdSdi(UsedVidStd.m_VidStd) 
+        if (DtAvVidStdIsSdSdi(UsedVidStd.m_VidStd) 
                                                  && UsedVidStd.m_AspectRatio==DTA_AR_16_9)
         {
             // Check if 4:3 format is supported
@@ -1481,8 +1590,8 @@ DtStatus  DtHdmiTxUpdateVideoStd(DtaHdmiTx* pHdmiTx, DtaHdmiVidStd VidStd, Bool 
                 DtDbgOut(MIN, HDMI, "Use SD-SDI 4:3 mode");
                 pHdmiTx->m_HdmiErrorState |= DT_HDMITX_E_USE_SD_SDI_4_3;
             }
-        } else if (DtaVidStdIs6gSdi(UsedVidStd.m_VidStd) 
-                                                || DtaVidStdIs12gSdi(UsedVidStd.m_VidStd))
+        } else if (DtAvVidStdIs6gSdi(UsedVidStd.m_VidStd) 
+                                               || DtAvVidStdIs12gSdi(UsedVidStd.m_VidStd))
         {
             DtaHdmiVidStd  VidStd3g;
             // Check if we can do one subimage in case we have a 6G or 12G image
@@ -2725,6 +2834,47 @@ DtStatus  DtHdmiEdidParseExtension(DtaHdmiTx* pHdmiTx, UInt8* pBlockX)
     return DT_STATUS_OK;
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxGetHdmiStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtHdmiTxGetHdmiStatus(DtaHdmiTx* pHdmiTx, 
+                                  DtaIoctlHdmiTxCmdGetHdmiStatusOutput* pHdmiStatusOutput)
+{
+    pHdmiStatusOutput->m_MonDetected = pHdmiTx->m_MonDetected;
+    pHdmiStatusOutput->m_EdidError = pHdmiTx->m_EdidError;
+    pHdmiStatusOutput->m_SupportHdmi = pHdmiTx->m_SupportHdmi;
+    pHdmiStatusOutput->m_SupportYCbCr444 = pHdmiTx->m_SupportYCbCr444;
+    pHdmiStatusOutput->m_SupportYCbCr422 = pHdmiTx->m_SupportYCbCr422;
+    pHdmiStatusOutput->m_SupportBasicAudio = pHdmiTx->m_SupportBasicAudio;
+    pHdmiStatusOutput->m_SupportScDc = pHdmiTx->m_SupportScDc;
+    pHdmiStatusOutput->m_SupportHdr = pHdmiTx->m_SupportHdr;
+    pHdmiStatusOutput->m_SupportedHdrFormats = pHdmiTx->m_SupportedHdrFormats;
+    pHdmiStatusOutput->m_ColorimetryForced =
+             (pHdmiTx->m_Colorimetry != 0 || pHdmiTx->m_ExtendedColorimetry != 0 ? 1 : 0);
+    pHdmiStatusOutput->m_SupportMonitorRangeLimits = pHdmiTx->m_SupportMonitorRangeLimits;
+    pHdmiStatusOutput->m_ForceTestPicture = pHdmiTx->m_ForceTestPicture;
+    pHdmiStatusOutput->m_UsingTestPicture = pHdmiTx->m_UsingTestPicture;
+    pHdmiStatusOutput->m_ForceMonitorDetected = pHdmiTx->m_ForceMonitorDetected;
+    pHdmiStatusOutput->m_DisableEdidCheck = pHdmiTx->m_DisableEdidCheck;
+    pHdmiStatusOutput->m_DisableHdmiOutput = pHdmiTx->m_DisableHdmiOutput;
+    pHdmiStatusOutput->m_UsedVidStd = pHdmiTx->m_UsedVidStd.m_VidStd;
+    pHdmiStatusOutput->m_UsedAspectRatio = pHdmiTx->m_UsedVidStd.m_AspectRatio;
+    pHdmiStatusOutput->m_SelectedVidStd = pHdmiTx->m_SelVidStd.m_VidStd;
+    pHdmiStatusOutput->m_SelectedAspectRatio = pHdmiTx->m_SelVidStd.m_AspectRatio;
+    pHdmiStatusOutput->m_UsedVidMod = pHdmiTx->m_UsedVidMode;
+    pHdmiStatusOutput->m_SelectedVidMod = pHdmiTx->m_SelVidMode;
+    pHdmiStatusOutput->m_MaxPixelClk = pHdmiTx->m_MaxPixelClk;
+    pHdmiStatusOutput->m_MinVRate = pHdmiTx->m_MinVRate;
+    pHdmiStatusOutput->m_MaxVRate = pHdmiTx->m_MaxVRate;
+    pHdmiStatusOutput->m_MinHRate = pHdmiTx->m_MinHRate;
+    pHdmiStatusOutput->m_MaxHRate = pHdmiTx->m_MaxHRate;
+    pHdmiStatusOutput->m_MonSupportedFormats = pHdmiTx->m_MonSupportedFormats;
+    pHdmiStatusOutput->m_MonSupportedAudio = pHdmiTx->m_MonSupportedAudio;
+    pHdmiStatusOutput->m_HdmiErrStat = pHdmiTx->m_HdmiErrorState;
+    pHdmiStatusOutput->m_NumberOfEdidExtensions = pHdmiTx->m_NumberOfEdidExtensions;
+    pHdmiStatusOutput->m_Reserved = 0;
+    return DT_STATUS_OK;
+}
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtHdmiTxInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -3047,6 +3197,7 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
     case DTA_HDMI_TX_CMD_SET_EDID_DATA:
         pCmdStr = "DTA_HDMI_TX_CMD_SET_EDID_DATA";
         InReqSize += sizeof(DtaIoctlHdmiTxCmdSetEdidDataInput);
+        OutReqSize = 0;
         break;
     default:
         pCmdStr = "??UNKNOWN HDMI_CMD CODE??";
@@ -3083,58 +3234,8 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
         {
         case DTA_HDMI_TX_CMD_GET_HDMI_STATUS:
             DtMutexAcquire(&pHdmiTx->m_StateLock, -1);
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_MonDetected = pHdmiTx->m_MonDetected;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_EdidError = pHdmiTx->m_EdidError;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportHdmi = pHdmiTx->m_SupportHdmi;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportYCbCr444 = 
-                                                               pHdmiTx->m_SupportYCbCr444;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportYCbCr422 = 
-                                                               pHdmiTx->m_SupportYCbCr422;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportBasicAudio =
-                                                             pHdmiTx->m_SupportBasicAudio;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportScDc = pHdmiTx->m_SupportScDc;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportHdr = pHdmiTx->m_SupportHdr;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportedHdrFormats =
-                                                           pHdmiTx->m_SupportedHdrFormats;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_ColorimetryForced =
-                     (pHdmiTx->m_Colorimetry!=0 || pHdmiTx->m_ExtendedColorimetry!=0?1:0);
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SupportMonitorRangeLimits =
-                                                     pHdmiTx->m_SupportMonitorRangeLimits;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_ForceTestPicture =
-                                                              pHdmiTx->m_ForceTestPicture;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_UsingTestPicture = 
-                                                              pHdmiTx->m_UsingTestPicture;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_ForceMonitorDetected =
-                                                          pHdmiTx->m_ForceMonitorDetected;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_DisableEdidCheck = 
-                                                              pHdmiTx->m_DisableEdidCheck;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_DisableHdmiOutput = 
-                                                             pHdmiTx->m_DisableHdmiOutput;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_UsedVidStd = 
-                                                           pHdmiTx->m_UsedVidStd.m_VidStd;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_UsedAspectRatio =
-                                                      pHdmiTx->m_UsedVidStd.m_AspectRatio;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SelectedVidStd =
-                                                            pHdmiTx->m_SelVidStd.m_VidStd;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SelectedAspectRatio =
-                                                       pHdmiTx->m_SelVidStd.m_AspectRatio;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_UsedVidMod = pHdmiTx->m_UsedVidMode;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_SelectedVidMod = 
-                                                                    pHdmiTx->m_SelVidMode;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_MaxPixelClk = pHdmiTx->m_MaxPixelClk;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_MinVRate = pHdmiTx->m_MinVRate;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_MaxVRate = pHdmiTx->m_MaxVRate;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_MinHRate = pHdmiTx->m_MinHRate;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_MaxHRate = pHdmiTx->m_MaxHRate;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_MonSupportedFormats =
-                                                           pHdmiTx->m_MonSupportedFormats;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_MonSupportedAudio = 
-                                                             pHdmiTx->m_MonSupportedAudio;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_HdmiErrStat = 
-                                                                pHdmiTx->m_HdmiErrorState;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_Reserved[0] = 0;
-            pHdmiCmdOutput->m_Data.m_GetHdmiStatus.m_Reserved[1] = 0;
-            
+            Status = DtHdmiTxGetHdmiStatus(pHdmiTx,
+                                                 &pHdmiCmdOutput->m_Data.m_GetHdmiStatus);
             DtMutexRelease(&pHdmiTx->m_StateLock);
             break;
         case DTA_HDMI_TX_CMD_GET_VIDSTD:
@@ -3275,11 +3376,15 @@ DtStatus  DtHdmiTxIoctl(DtaDeviceData* pDvcData, DtFileObject* pFile,
             break;
         case DTA_HDMI_TX_CMD_GET_EDID_DATA:
             Status = DtHdmiReadI2cBlock(pHdmiTx, 
-                                       pHdmiCmdInput->m_Data.m_GetEdidDataInput.m_BlockNo,
-                                       &pHdmiCmdOutput->m_Data.m_GetEdidData.m_Data[0]);
+                                         pHdmiCmdInput->m_Data.m_GetEdidData.m_BlockNo,
+                                         &pHdmiCmdOutput->m_Data.m_GetEdidData.m_Data[0]);
             break;
-        //case DTA_HDMI_TX_CMD_SET_EDID_DATA:
-        //    break;
+        case DTA_HDMI_TX_CMD_SET_EDID_DATA:
+            Status = DtHdmiWriteEdid(pHdmiTx,
+                                           pHdmiCmdInput->m_Data.m_SetEdidData.m_BlockNo,
+                                           &pHdmiCmdInput->m_Data.m_SetEdidData.m_Data[0],
+                                           pHdmiCmdInput->m_Data.m_SetEdidData.m_Last);
+            break;
         default:
             Status = DT_STATUS_NOT_SUPPORTED;
         }

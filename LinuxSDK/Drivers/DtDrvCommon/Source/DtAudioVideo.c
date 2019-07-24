@@ -75,6 +75,21 @@ static const Int  g_VidStds[] = {
     DT_VIDSTD_625P50,
 };
 
+
+static const Int64  Exp12 = 1000LL*1000LL*1000LL*1000LL; 
+static const Int64  Exp11 = 100LL*1000LL*1000LL*1000LL; 
+static const Int64  Exp10 = 10LL*1000LL*1000LL*1000LL;  
+static const Int64  Exp9 = 1000LL*1000*1000; 
+static const Int  Exp8 = 100*1000*1000; 
+static const Int  Exp7 = 10*1000*1000; 
+static const Int  Exp6 = 1000*1000; 
+static const Int  Exp5 = 100*1000; 
+static const Int  Exp4 = 10*1000; 
+static const Int  Exp3 = 1000; 
+
+
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvGetNumVidStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 Int  DtAvGetNumVidStd()
@@ -511,4 +526,450 @@ Int  DtAvGetNumPixelsPerLine(Int VidStd)
     // NOTE: there are two symbols in one pixel => divide by 2 
     return (AvProps.m_EavNumS + AvProps.m_HancNumS + AvProps.m_SavNumS 
                                                                 + AvProps.m_VancNumS) / 2;
+}
+
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Video Standard helpers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvIoStd2VidStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtAvIoStd2VidStd(Int  Value, Int  SubValue)
+{
+    switch (SubValue)
+    {
+    case DT_IOCONFIG_1080P50:       return DT_VIDSTD_1080P50;
+    case DT_IOCONFIG_1080P50B:      return DT_VIDSTD_1080P50B;
+    case DT_IOCONFIG_1080P59_94:    return DT_VIDSTD_1080P59_94;
+    case DT_IOCONFIG_1080P59_94B:   return DT_VIDSTD_1080P59_94B;
+    case DT_IOCONFIG_1080P60:       return DT_VIDSTD_1080P60;
+    case DT_IOCONFIG_1080P60B:      return DT_VIDSTD_1080P60B;
+    case DT_IOCONFIG_1080I50:       return DT_VIDSTD_1080I50;
+    case DT_IOCONFIG_1080I59_94:    return DT_VIDSTD_1080I59_94;
+    case DT_IOCONFIG_1080I60:       return DT_VIDSTD_1080I60;
+    case DT_IOCONFIG_1080P23_98:    return DT_VIDSTD_1080P23_98;
+    case DT_IOCONFIG_1080P24:       return DT_VIDSTD_1080P24;
+    case DT_IOCONFIG_1080P25:       return DT_VIDSTD_1080P25;
+    case DT_IOCONFIG_1080P29_97:    return DT_VIDSTD_1080P29_97;
+    case DT_IOCONFIG_1080P30:       return DT_VIDSTD_1080P30;
+    case DT_IOCONFIG_1080PSF23_98:  return DT_VIDSTD_1080PSF23_98;
+    case DT_IOCONFIG_1080PSF24:     return DT_VIDSTD_1080PSF24;
+    case DT_IOCONFIG_1080PSF25:     return DT_VIDSTD_1080PSF25;
+    case DT_IOCONFIG_1080PSF29_97:  return DT_VIDSTD_1080PSF29_97;
+    case DT_IOCONFIG_1080PSF30:     return DT_VIDSTD_1080PSF30;
+    case DT_IOCONFIG_2160P23_98:    return DT_VIDSTD_2160P23_98;
+    case DT_IOCONFIG_2160P24:       return DT_VIDSTD_2160P24;
+    case DT_IOCONFIG_2160P25:       return DT_VIDSTD_2160P25;
+    case DT_IOCONFIG_2160P29_97:    return DT_VIDSTD_2160P29_97;
+    case DT_IOCONFIG_2160P30:       return DT_VIDSTD_2160P30;
+    case DT_IOCONFIG_2160P50:       return DT_VIDSTD_2160P50;
+    case DT_IOCONFIG_2160P50B:      return DT_VIDSTD_2160P50B;
+    case DT_IOCONFIG_2160P59_94:    return DT_VIDSTD_2160P59_94;
+    case DT_IOCONFIG_2160P59_94B:   return DT_VIDSTD_2160P59_94B;
+    case DT_IOCONFIG_2160P60:       return DT_VIDSTD_2160P60;
+    case DT_IOCONFIG_2160P60B:      return DT_VIDSTD_2160P60B;
+    case DT_IOCONFIG_720P23_98:     return DT_VIDSTD_720P23_98;
+    case DT_IOCONFIG_720P24:        return DT_VIDSTD_720P24;
+    case DT_IOCONFIG_720P25:        return DT_VIDSTD_720P25;
+    case DT_IOCONFIG_720P29_97:     return DT_VIDSTD_720P29_97;
+    case DT_IOCONFIG_720P30:        return DT_VIDSTD_720P30;
+    case DT_IOCONFIG_720P50:        return DT_VIDSTD_720P50;
+    case DT_IOCONFIG_720P59_94:     return DT_VIDSTD_720P59_94;
+    case DT_IOCONFIG_720P60:        return DT_VIDSTD_720P60;
+    case DT_IOCONFIG_525I59_94:     return DT_VIDSTD_525I59_94;
+    case DT_IOCONFIG_625I50:        return DT_VIDSTD_625I50;
+    }
+    return DT_VIDSTD_UNKNOWN;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStd2Fps -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int  DtAvVidStd2Fps(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_720P59_94:
+    case DT_VIDSTD_720P60:
+    case DT_VIDSTD_1080P59_94:
+    case DT_VIDSTD_1080P59_94B:
+    case DT_VIDSTD_1080P60:
+    case DT_VIDSTD_1080P60B:
+    case DT_VIDSTD_2160P59_94:
+    case DT_VIDSTD_2160P59_94B:
+    case DT_VIDSTD_2160P60:
+    case DT_VIDSTD_2160P60B:
+    case DT_VIDSTD_480P59_94:
+    case DT_VIDSTD_525P59_94:
+        return 60;
+
+    case DT_VIDSTD_720P50:
+    case DT_VIDSTD_1080P50:
+    case DT_VIDSTD_1080P50B:
+    case DT_VIDSTD_2160P50:
+    case DT_VIDSTD_2160P50B:
+    case DT_VIDSTD_625P50:
+        return 50;
+
+    case DT_VIDSTD_525I59_94:
+    case DT_VIDSTD_720P29_97:
+    case DT_VIDSTD_720P30:
+    case DT_VIDSTD_1080P30:
+    case DT_VIDSTD_1080P29_97:
+    case DT_VIDSTD_1080PSF30:
+    case DT_VIDSTD_1080PSF29_97:
+    case DT_VIDSTD_1080I59_94:
+    case DT_VIDSTD_1080I60: 
+    case DT_VIDSTD_2160P29_97:
+    case DT_VIDSTD_2160P30:
+        return 30;
+
+    case DT_VIDSTD_625I50:
+    case DT_VIDSTD_720P25:
+    case DT_VIDSTD_1080P25:
+    case DT_VIDSTD_1080PSF25:
+    case DT_VIDSTD_1080I50:
+    case DT_VIDSTD_2160P25:
+        return 25;
+    
+    case DT_VIDSTD_720P23_98:
+    case DT_VIDSTD_720P24:
+    case DT_VIDSTD_1080P24:
+    case DT_VIDSTD_1080P23_98:
+    case DT_VIDSTD_1080PSF24:
+    case DT_VIDSTD_1080PSF23_98:
+    case DT_VIDSTD_2160P23_98:
+    case DT_VIDSTD_2160P24:
+        return 24;
+
+   default:
+        break;
+    }
+    return -1;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStdIsFractional -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtAvVidStdIsFractional(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_720P59_94:
+    case DT_VIDSTD_1080P59_94:
+    case DT_VIDSTD_1080P59_94B:
+    case DT_VIDSTD_525I59_94:
+    case DT_VIDSTD_720P29_97:
+    case DT_VIDSTD_1080P29_97:
+    case DT_VIDSTD_1080PSF29_97:
+    case DT_VIDSTD_1080I59_94:
+    case DT_VIDSTD_720P23_98:
+    case DT_VIDSTD_1080P23_98:
+    case DT_VIDSTD_1080PSF23_98:
+    case DT_VIDSTD_480P59_94:
+    case DT_VIDSTD_525P59_94:
+    case DT_VIDSTD_2160P23_98:
+    case DT_VIDSTD_2160P29_97:
+    case DT_VIDSTD_2160P59_94:
+    case DT_VIDSTD_2160P59_94B:
+        return TRUE;
+    }
+    return FALSE;
+
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStdIsInterlaced -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtAvVidStdIsInterlaced(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_525I59_94:
+    case DT_VIDSTD_625I50:
+    case DT_VIDSTD_1080I50:
+    case DT_VIDSTD_1080I59_94:
+    case DT_VIDSTD_1080I60:
+    case DT_VIDSTD_1080PSF23_98:
+    case DT_VIDSTD_1080PSF24:
+    case DT_VIDSTD_1080PSF25:
+    case DT_VIDSTD_1080PSF29_97:
+    case DT_VIDSTD_1080PSF30:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStdIsPsf -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtAvVidStdIsPsf(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_1080PSF30:
+    case DT_VIDSTD_1080PSF29_97:
+    case DT_VIDSTD_1080PSF25:
+    case DT_VIDSTD_1080PSF24:
+    case DT_VIDSTD_1080PSF23_98:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStdIs3gSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtAvVidStdIs3gSdi(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_1080P50:
+    case DT_VIDSTD_1080P50B:
+    case DT_VIDSTD_1080P59_94:
+    case DT_VIDSTD_1080P59_94B:
+    case DT_VIDSTD_1080P60:
+    case DT_VIDSTD_1080P60B:
+        return TRUE;
+    }
+    return FALSE;
+}
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStdIs6gSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtAvVidStdIs6gSdi(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_2160P23_98:
+    case DT_VIDSTD_2160P24:
+    case DT_VIDSTD_2160P25:
+    case DT_VIDSTD_2160P29_97:
+    case DT_VIDSTD_2160P30:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStdIs12gSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtAvVidStdIs12gSdi(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_2160P50:
+    case DT_VIDSTD_2160P50B:
+    case DT_VIDSTD_2160P59_94:
+    case DT_VIDSTD_2160P59_94B:
+    case DT_VIDSTD_2160P60:
+    case DT_VIDSTD_2160P60B:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStdIs3glvlBSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtAvVidStdIs3glvlBSdi(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_1080P50B:
+    case DT_VIDSTD_1080P59_94B:
+    case DT_VIDSTD_1080P60B:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStdIsHdSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtAvVidStdIsHdSdi(Int  VidStd)
+{
+    // Not 3G/6G/12G-SDI and also not SD-SDI, than it must be HD-SDI
+    return (!DtAvVidStdIs12gSdi(VidStd) && !DtAvVidStdIs6gSdi(VidStd) && 
+                                !DtAvVidStdIs3gSdi(VidStd) && !DtAvVidStdIsSdSdi(VidStd));
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStdIsSdSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtAvVidStdIsSdSdi(Int  VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_525I59_94:
+    case DT_VIDSTD_625I50:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- VidStdName -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+char*  VidStdName(Int VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_1080P50:       return "1080P50";
+    case DT_VIDSTD_1080P50B:      return "1080P50B";
+    case DT_VIDSTD_1080P59_94:    return "1080P59.94";
+    case DT_VIDSTD_1080P59_94B:   return "1080P59.94B";
+    case DT_VIDSTD_1080P60:       return "1080P60";
+    case DT_VIDSTD_1080P60B:      return "1080P60B";
+    case DT_VIDSTD_1080I50:       return "1080I50";
+    case DT_VIDSTD_1080I59_94:    return "1080I59.94";
+    case DT_VIDSTD_1080I60:       return "1080I60";
+    case DT_VIDSTD_1080P23_98:    return "1080P23.98";
+    case DT_VIDSTD_1080P24:       return "1080P24";
+    case DT_VIDSTD_1080P25:       return "1080P25";
+    case DT_VIDSTD_1080P29_97:    return "1080P29.97";
+    case DT_VIDSTD_1080P30:       return "1080P30";
+    case DT_VIDSTD_1080PSF23_98:  return "1080PSF23.98";
+    case DT_VIDSTD_1080PSF24:     return "1080PSF24";
+    case DT_VIDSTD_1080PSF25:     return "1080PSF25";
+    case DT_VIDSTD_1080PSF29_97:  return "1080PSF29.97";
+    case DT_VIDSTD_1080PSF30:     return "1080PSF30";
+    case DT_VIDSTD_2160P23_98:    return "2160P23.98";
+    case DT_VIDSTD_2160P24:       return "2160P24";
+    case DT_VIDSTD_2160P25:       return "2160P25";
+    case DT_VIDSTD_2160P29_97:    return "2160P29.97";
+    case DT_VIDSTD_2160P30:       return "2160P30";
+    case DT_VIDSTD_2160P50:       return "2160P50";
+    case DT_VIDSTD_2160P50B:      return "2160P50B";
+    case DT_VIDSTD_2160P59_94:    return "2160P59.94";
+    case DT_VIDSTD_2160P59_94B:   return "2160P59.94B";
+    case DT_VIDSTD_2160P60:       return "2160P60";
+    case DT_VIDSTD_2160P60B:      return "2160P60B";
+    case DT_VIDSTD_720P23_98:     return "720P23.98";
+    case DT_VIDSTD_720P24:        return "720P24";
+    case DT_VIDSTD_720P25:        return "720P25";
+    case DT_VIDSTD_720P29_97:     return "720P29.97";
+    case DT_VIDSTD_720P30:        return "720P30";
+    case DT_VIDSTD_720P50:        return "720P50";
+    case DT_VIDSTD_720P59_94:     return "720P59.94";
+    case DT_VIDSTD_720P60:        return "720P60";
+    case DT_VIDSTD_525I59_94:     return "525I59.94";
+    case DT_VIDSTD_625I50:        return "625I50";
+    }
+    return "Unknown";
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStd2FrameLength -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Return the number of clock ticks in a frame
+//
+Int DtAvVidStd2FrameLength(Int VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_720P59_94:
+    case DT_VIDSTD_720P60:
+    case DT_VIDSTD_1080P59_94:
+    case DT_VIDSTD_1080P59_94B:
+    case DT_VIDSTD_1080P60:
+    case DT_VIDSTD_1080P60B:
+        return 2475000;     // 60fps
+
+    case DT_VIDSTD_720P50:
+    case DT_VIDSTD_1080P50:
+    case DT_VIDSTD_1080P50B:
+        return 2970000;     // 50 fps
+
+    case DT_VIDSTD_720P29_97:
+    case DT_VIDSTD_720P30:
+    case DT_VIDSTD_1080P30:
+    case DT_VIDSTD_1080P29_97:
+    case DT_VIDSTD_1080PSF30:
+    case DT_VIDSTD_1080PSF29_97:
+    case DT_VIDSTD_1080I59_94:
+    case DT_VIDSTD_1080I60: 
+        return 4950000;     // 30 fps
+
+    case DT_VIDSTD_525I59_94:
+        return 4954950;     // 29.97fps (based on non-fractional clock)
+
+    case DT_VIDSTD_625I50:
+    case DT_VIDSTD_720P25:
+    case DT_VIDSTD_1080P25:
+    case DT_VIDSTD_1080PSF25:
+    case DT_VIDSTD_1080I50:
+        return 5940000;     // 25 fps
+    
+    case DT_VIDSTD_720P23_98:
+    case DT_VIDSTD_720P24:
+    case DT_VIDSTD_1080P24:
+    case DT_VIDSTD_1080P23_98:
+    case DT_VIDSTD_1080PSF24:
+    case DT_VIDSTD_1080PSF23_98:
+        return 6187500;     // 24 fps
+
+   default:
+        break;
+    }
+    return -1;
+}
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStd2FramePeriod -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Return the frame period in nanoseconds
+//
+Int DtAvVidStd2FramePeriod(Int VidStd)
+{
+    Int Fps = DtAvVidStd2Fps(VidStd); 
+    Bool  IsFract = DtAvVidStdIsFractional(VidStd);
+    UInt64  Period;
+    if (Fps <= 0)
+        return -1;
+    if (IsFract)
+        Period = DtDivide64((UInt64)(1001LL*1*Exp9 + (1000*Fps/2)), (UInt64)(1000*Fps),
+                                                                                    NULL);
+    else
+        Period = DtDivide64((UInt64)(1*Exp9 + Fps/2), (UInt64)Fps, NULL);
+    return (Int)Period;
+}
+
+
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStdSymbOffset2TimeOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+//  Returns time offset in nano seconds
+//
+Int DtAvVidStdSymbOffset2TimeOffset(Int VidStd, Int SymbolOffset)
+{
+    UInt64 OffsetNs = 0;
+
+    // Determine sample clock
+    UInt  SampleClock;
+    if (DtAvVidStdIs3gSdi(VidStd))
+        SampleClock = 2*1485*100*1000;
+    else  if (DtAvVidStdIsHdSdi(VidStd))
+        SampleClock = 2*1485*100*1000/2;
+    else if (DtAvVidStdIsSdSdi(VidStd))
+        SampleClock = 2*1485*100*1000/11;
+    else
+    {
+        DT_ASSERT(FALSE);
+        return 0;
+    }
+
+    // Compute time offet in nano seconds
+    OffsetNs = DtDivide64((UInt64)(SymbolOffset*Exp9 + SampleClock/2), SampleClock, NULL);
+    if (DtAvVidStdUsesFractionalClock(VidStd))
+        OffsetNs = DtDivide64(OffsetNs*1001, 1000, NULL);
+
+    return (Int)OffsetNs;
+}
+
+
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAvVidStdUsesFractionalClock -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool DtAvVidStdUsesFractionalClock(Int VidStd)
+{
+    switch (VidStd)
+    {
+    case DT_VIDSTD_720P59_94:
+    case DT_VIDSTD_1080P59_94:
+    case DT_VIDSTD_1080P59_94B:
+    case DT_VIDSTD_720P29_97:
+    case DT_VIDSTD_1080P29_97:
+    case DT_VIDSTD_1080PSF29_97:
+    case DT_VIDSTD_1080I59_94:
+    case DT_VIDSTD_720P23_98:
+    case DT_VIDSTD_1080P23_98:
+    case DT_VIDSTD_1080PSF23_98:
+        return TRUE;
+    }
+    return FALSE;
 }

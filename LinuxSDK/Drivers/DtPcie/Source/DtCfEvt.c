@@ -36,6 +36,13 @@
 // Helper macro to cast a DtDf* to a DtCfEvt*
 #define CF_EVT      ((DtCfEvt*)pCf)
 
+// Structure for storing driver events
+typedef  struct _DtCfEvtData 
+{
+    DtSpinLock  m_EventsSpinlock;
+    DtDriverEvents*  m_pEvents;
+} DtCfEvtData;
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 static DtStatus  DtCfEvt_Init(DtDf*);
 static DtDriverEvents*  DtCfEvt_AllocEventsObject(DtCfEvt*, DtFileObject*, UInt);
@@ -43,9 +50,10 @@ DT_UNUSED  static DtStatus  DtCfEvt_Dequeue(DtCfEvt*, DtDriverEvents*);
 static DtStatus  DtCfEvt_Get(DtCfEvt*, DtFileObject*, DtDriverEvents*, DtDriverEvent*);
 static DtStatus  DtCfEvt_GetCancel(DtCfEvt*, DtDriverEvents*  pDrvEvents);
 static DtDriverEvents*  DtCfEvt_GetEventsObject(DtCfEvt*, DtFileObject*);
+static DtStatus  DtCfEvt_OnCloseFile(DtDf*, const DtFileObject*);
 static DtStatus  DtCfEvt_Register(DtCfEvt*, DtFileObject*, UInt EventType);
 static DtStatus  DtCfEvt_SetEvent(DtCfEvt*, DtDriverEvents*, DtDriverEvent, Bool);
-static DtStatus  DtCfEvt_Unregister(DtCfEvt*, DtFileObject*);
+static DtStatus  DtCfEvt_Unregister(DtCfEvt*, const DtFileObject*);
 static DtStatus  DtCfEvt_UnrefEventsObject(DtCfEvt*, DtDriverEvents*);
 
 // DtIoStubCfEvt
@@ -65,26 +73,9 @@ static Int  DtVectorEvent_Size(const DtVectorEvent*);
 //
 void  DtCfEvt_Close(DtDf*  pCf)
 {
-    DtDriverEvents*  pDrvEvents = NULL;
-    DtDriverEvents*  pTmpEvents = NULL;
 
     // Sanity checks
     CF_EVT_DEFAULT_PRECONDITIONS(pCf);
-
-    if (CF_EVT != NULL)
-    {
-        pDrvEvents = CF_EVT->m_pEvents;
-        while (pDrvEvents != NULL)
-        {
-            pTmpEvents = pDrvEvents;
-            pDrvEvents = pDrvEvents->m_pNext;
-
-            // Free the vector
-            DtVectorEvent_Cleanup(pTmpEvents->m_PendingEvents);
-         
-            DtMemFreePool(pTmpEvents, DF_TAG);
-        }
-    }
 
     // Let base function perform final clean-up
     DtDf_Close(pCf);
@@ -108,9 +99,52 @@ DtCfEvt*  DtCfEvt_Open(DtCore*  pCore, const char*  pRole, Int  Instance,
     // Register the callbacks
     OpenParams.m_CloseFunc = DtCfEvt_Close;
     OpenParams.m_InitFunc = DtCfEvt_Init;
+    OpenParams.m_OnCloseFileFunc = DtCfEvt_OnCloseFile;
 
     // Use base function to allocate and perform standard initialisation of function data
     return (DtCfEvt*)DtDf_Open(&OpenParams);
+}
+
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfEvt_CleanupEventsData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtCfEvt_CleanupEventsData(DtCfEvtData* pEvtData)
+{
+    DtDriverEvents*  pDrvEvents = NULL;
+    DtDriverEvents*  pTmpEvents = NULL;
+
+    if (pEvtData == NULL)
+        return;
+
+    pDrvEvents = pEvtData->m_pEvents;
+    while (pDrvEvents != NULL)
+    {
+        pTmpEvents = pDrvEvents;
+        pDrvEvents = pDrvEvents->m_pNext;
+
+        // Free the vector
+        DtVectorEvent_Cleanup(pTmpEvents->m_PendingEvents);
+
+        DtMemFreePool(pTmpEvents, DF_TAG);
+    }
+
+    // Free the event data structure
+    DtMemFreePool(pEvtData, DF_TAG);
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfEvt_CreateEventsData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtCfEvtData*  DtCfEvt_CreateEventsData()
+{
+    DtCfEvtData*  pEvtData = (DtCfEvtData*)DtMemAllocPool(
+                                          DtPoolNonPaged, sizeof(DtCfEvtData), DF_TAG);
+    if (pEvtData == NULL)
+        return NULL;
+
+    DtSpinLockInit(&pEvtData->m_EventsSpinlock);
+    pEvtData->m_pEvents = NULL;
+
+    return pEvtData;
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfEvt_Set -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -119,18 +153,20 @@ DtStatus  DtCfEvt_Set(DtCfEvt*  pCf, DtDriverEvent  Event, Bool AddIfExists)
 {
     DtStatus  Status = DT_STATUS_OK;
     DtDriverEvents*  pDrvEvents = NULL;
+    DtCfEvtData* pEvtData = pCf->m_pEvtData;
 
     // Sanity check
     CF_EVT_DEFAULT_PRECONDITIONS(pCf);
+    DT_ASSERT(pEvtData != NULL);
     
     DtDbgOutCf(MAX, EVT, pCf, "Start");
     DtDbgOutCf(MAX, EVT, pCf, "EventType: %i, Value1: %i, Value2: %i", 
                               Event.m_EventType, Event.m_EventValue1,Event.m_EventValue2);
 
     // Set event for all file handles
-    DtSpinLockAcquire(&pCf->m_EventsSpinlock);
+    DtSpinLockAcquire(&pEvtData->m_EventsSpinlock);
 
-    pDrvEvents = pCf->m_pEvents;
+    pDrvEvents = pEvtData->m_pEvents;
     while (pDrvEvents != NULL)
     {
         // Set event
@@ -144,13 +180,57 @@ DtStatus  DtCfEvt_Set(DtCfEvt*  pCf, DtDriverEvent  Event, Bool AddIfExists)
 #endif
         pDrvEvents = pDrvEvents->m_pNext;
     }
-    DtSpinLockRelease(&pCf->m_EventsSpinlock);
+    DtSpinLockRelease(&pEvtData->m_EventsSpinlock);
     
     DtDbgOutCf(MAX, EVT, pCf, "Exit");
 
     return Status;
 }
 
+#ifdef LINBUILD
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfEvt_Poll -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+UInt DtCfEvt_Poll(DtCfEvt* pCf, DtFileObject* pFile, poll_table* pPollTable)
+{
+    UInt  Mask = 0;
+    DtDriverEvents*  pDrvEvents = NULL;
+    DtCfEvtData* pEvtData = pCf->m_pEvtData;
+    Int  NumPending = 0;
+
+    // Sanity check
+    CF_EVT_DEFAULT_PRECONDITIONS(pCf);
+
+    // No event data?
+    if (pCf->m_pEvtData == NULL)
+        return Mask;
+
+    DtSpinLockAcquire(&pEvtData->m_EventsSpinlock);
+        
+    // Add events wait_queue to poll table and get number of pending events
+    pDrvEvents = pEvtData->m_pEvents;
+    while (pDrvEvents != NULL)
+    {
+        if (DtFileCompare(&pDrvEvents->m_File, pFile))
+        {
+            poll_wait(pFile->m_pFile, &pDrvEvents->m_PendingEvent.m_WaitQueueHead,
+                                                                              pPollTable);
+            NumPending = DtVectorEvent_Size(pDrvEvents->m_PendingEvents);
+            break;
+        }
+        pDrvEvents = pDrvEvents->m_pNext;
+    }
+    
+    // Check if events are pending
+    if (NumPending > 0)
+    {
+        Mask |= POLLIN | POLLRDNORM;
+    }    
+    DtSpinLockRelease(&pEvtData->m_EventsSpinlock);
+
+    return Mask;
+}
+
+#endif
 
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtCfEvt - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -162,9 +242,11 @@ DtDriverEvents*  DtCfEvt_AllocEventsObject(
     UInt  EventTypeMask)
 {
     DtDriverEvents*  pDrvEvents;
+    DtCfEvtData* pEvtData = pCf->m_pEvtData;
 
     // Sanity check
     CF_EVT_DEFAULT_PRECONDITIONS(pCf);
+    DT_ASSERT(pEvtData != NULL);
 
     pDrvEvents = (DtDriverEvents*)DtMemAllocPool(
                                           DtPoolNonPaged, sizeof(DtDriverEvents), DF_TAG);
@@ -191,17 +273,17 @@ DtDriverEvents*  DtCfEvt_AllocEventsObject(
     }
 
     // Insert at start of list
-    DtSpinLockAcquire(&pCf->m_EventsSpinlock);
+    DtSpinLockAcquire(&pEvtData->m_EventsSpinlock);
 
     pDrvEvents->m_pPrev = NULL;
     pDrvEvents->m_pNext = NULL;
-    if (pCf->m_pEvents != NULL)
+    if (pEvtData->m_pEvents != NULL)
     {
-        pDrvEvents->m_pNext = pCf->m_pEvents;
+        pDrvEvents->m_pNext = pEvtData->m_pEvents;
         pDrvEvents->m_pNext->m_pPrev = pDrvEvents;
     }
-    pCf->m_pEvents = pDrvEvents;
-    DtSpinLockRelease(&pCf->m_EventsSpinlock);
+    pEvtData->m_pEvents = pDrvEvents;
+    DtSpinLockRelease(&pEvtData->m_EventsSpinlock);
 
     return pDrvEvents;
 }
@@ -323,12 +405,14 @@ DtStatus  DtCfEvt_GetCancel(DtCfEvt*  pCf, DtDriverEvents*  pDrvEvents)
 DtDriverEvents*  DtCfEvt_GetEventsObject(DtCfEvt*  pCf, DtFileObject*  pFile)
 {
     DtDriverEvents*  pDrvEvents = NULL;
+    DtCfEvtData* pEvtData = pCf->m_pEvtData;
 
     // Sanity check
     CF_EVT_DEFAULT_PRECONDITIONS(pCf);
+    DT_ASSERT(pEvtData != NULL);
 
-    DtSpinLockAcquire(&pCf->m_EventsSpinlock);
-    pDrvEvents = pCf->m_pEvents;
+    DtSpinLockAcquire(&pEvtData->m_EventsSpinlock);
+    pDrvEvents = pEvtData->m_pEvents;
 
     while (pDrvEvents != NULL)
     {
@@ -340,7 +424,7 @@ DtDriverEvents*  DtCfEvt_GetEventsObject(DtCfEvt*  pCf, DtFileObject*  pFile)
         }
         pDrvEvents = pDrvEvents->m_pNext;
     }
-    DtSpinLockRelease(&pCf->m_EventsSpinlock);
+    DtSpinLockRelease(&pEvtData->m_EventsSpinlock);
     return pDrvEvents;
 }
 
@@ -379,11 +463,26 @@ DtStatus  DtCfEvt_Init(DtDf*  pCf)
 {
     // Sanity checks
     CF_EVT_DEFAULT_PRECONDITIONS(pCf);
-
-    DtSpinLockInit(&CF_EVT->m_EventsSpinlock);
-    CF_EVT->m_pEvents = NULL;
     
+    DT_ASSERT(pCf->m_pCore->m_pCfEvtData != NULL);
+    if (pCf->m_pCore->m_pCfEvtData == NULL)
+        return DT_STATUS_FAIL;
+
+    // Copy reference to the event data
+    CF_EVT->m_pEvtData = pCf->m_pCore->m_pCfEvtData;
+
     return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfEvt_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtCfEvt_OnCloseFile(DtDf* pCf, const DtFileObject* pFile)
+{
+    if (CF_EVT->m_pEvtData != NULL)
+        DtCfEvt_Unregister(CF_EVT, pFile);
+
+    // Use base function to release exclusive access
+    return DtDf_OnCloseFile(pCf, pFile);
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfEvt_SetEvent -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -445,16 +544,18 @@ DtStatus  DtCfEvt_SetEvent(DtCfEvt*  pCf, DtDriverEvents* pDrvEvents,
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfEvt_Unregister -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtCfEvt_Unregister(DtCfEvt*  pCf, DtFileObject* pFile)
+DtStatus  DtCfEvt_Unregister(DtCfEvt*  pCf, const DtFileObject* pFile)
 {
     DtDriverEvents*  pDrvEvents = NULL;
+    DtCfEvtData* pEvtData = pCf->m_pEvtData;
 
     // Sanity check
     CF_EVT_DEFAULT_PRECONDITIONS(pCf);
+    DT_ASSERT(pEvtData != NULL);
     DT_ASSERT(pFile!=NULL);
     
-    DtSpinLockAcquire(&pCf->m_EventsSpinlock);
-    pDrvEvents = pCf->m_pEvents;
+    DtSpinLockAcquire(&pEvtData->m_EventsSpinlock);
+    pDrvEvents = pEvtData->m_pEvents;
 
     while (pDrvEvents != NULL)
     {
@@ -464,7 +565,7 @@ DtStatus  DtCfEvt_Unregister(DtCfEvt*  pCf, DtFileObject* pFile)
     }
     if (pDrvEvents == NULL)
     {
-        DtSpinLockRelease(&pCf->m_EventsSpinlock);
+        DtSpinLockRelease(&pEvtData->m_EventsSpinlock);
         return DT_STATUS_NOT_FOUND;
     }
 
@@ -480,14 +581,14 @@ DtStatus  DtCfEvt_Unregister(DtCfEvt*  pCf, DtFileObject* pFile)
     if (pDrvEvents->m_pPrev != NULL)
         pDrvEvents->m_pPrev->m_pNext = pDrvEvents->m_pNext;
     else
-        pCf->m_pEvents = pDrvEvents->m_pNext;
+        pEvtData->m_pEvents = pDrvEvents->m_pNext;
     if (pDrvEvents->m_pNext != NULL)
         pDrvEvents->m_pNext->m_pPrev = pDrvEvents->m_pPrev;
 
     pDrvEvents->m_pPrev = NULL;
     pDrvEvents->m_pNext = NULL;
 
-    DtSpinLockRelease(&pCf->m_EventsSpinlock);
+    DtSpinLockRelease(&pEvtData->m_EventsSpinlock);
         
     // Decrement refcount to free object as soon as it's no longer in use
     DtCfEvt_UnrefEventsObject(pCf, pDrvEvents);

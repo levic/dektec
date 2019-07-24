@@ -2,7 +2,7 @@
 # Makefile for DtDrvCommon Linux device driver library
 # ========================================================================================
 
-TARGET := DtDrvCommon
+TARGET := DtDrvCommon$(DRIVER_NAME)
 
 SALDIR := ../../../DtSal
 SALSRCDIR = $(SALDIR)/Source

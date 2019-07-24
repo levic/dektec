@@ -46,7 +46,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards of private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 static DtStatus  DtBcFANC_Init(DtBc*);
 static Bool  DtBcFANC_IsFanLess(DtBcFANC*);
-void  DtBcFANC_SetControlReg(DtBcFANC * pBc, Int OpState, Int FanSpeed);
+void  DtBcFANC_SetControlReg(DtBcFANC * pBc, Int OpState, Bool WdEnable, Int FanSpeed);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcFANC - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -56,6 +56,8 @@ void  DtBcFANC_Close(DtBc*  pBc)
 {
     BC_FANC_DEFAULT_PRECONDITIONS(pBc);
 
+    // Go back to IDLE
+    DtBcFANC_SetControlReg(BC_FANC, FANC_OPSTATE_IDLE, FALSE, 0);
     // Let base function perform final clean-up
     DtBc_Close(pBc);
 }
@@ -85,22 +87,22 @@ DtBcFANC*  DtBcFANC_Open(Int  Address, DtCore* pCore, DtPt*  pPt,
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcFANC_GetConfig -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcFANC_GetConfig(DtBcFANC* pBc, Bool *pHasNoFan, Int* pMeasPeriod,
-                                                                          Int* pWdTimeout)
+                                                         Int* pWdTimeout, Int* pInitSpeed)
 {
     // Sanity check
     BC_FANC_DEFAULT_PRECONDITIONS(pBc);
 
     // Check parameters
-    if (pHasNoFan==NULL || pMeasPeriod==NULL || pWdTimeout==NULL)
+    if (pHasNoFan==NULL || pMeasPeriod==NULL || pWdTimeout==NULL || pInitSpeed==NULL)
         return DT_STATUS_INVALID_PARAMETER;
 
     // Return cached configuration
     *pHasNoFan = pBc->m_HasNoFan;
     *pMeasPeriod = pBc->m_MeasurementPeriod;
     *pWdTimeout = pBc->m_WatchdogTimeout;
+    *pInitSpeed = pBc->m_InitialFanSpeed;
     return DT_STATUS_OK;
 }
-
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcFANC_GetFanSpeed -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -134,7 +136,7 @@ DtStatus DtBcFANC_GetStatus(DtBcFANC* pBc, Int* pFanSpeedRpm, Bool* pIsWdTimeout
 
     // Get current status
     StatusReg = FANC_Status_READ(pBc);
-    *pFanSpeedRpm = (Int)FANC_Status_GET_MeasuredFanSpeed(StatusReg);
+    *pFanSpeedRpm = (Int)FANC_Status_GET_MeasuredFanSpeedRpm(StatusReg);
     *pIsWdTimeout = (FANC_Status_GET_IsWatchdogTimeOut(StatusReg) != 0);
     *pIsFanStuck = (FANC_Status_GET_IsWatchdogTimeOut(StatusReg) != 0);
     return DT_STATUS_OK;
@@ -152,7 +154,7 @@ DtStatus DtBcFANC_SetFanSpeed(DtBcFANC* pBc, Int FanSpeed)
         return DT_STATUS_INVALID_PARAMETER;
 
     // Set new fan speed
-    DtBcFANC_SetControlReg(pBc, FANC_OPSTATE_NORMAL, FanSpeed);
+    DtBcFANC_SetControlReg(pBc, FANC_OPSTATE_NORMAL, TRUE, FanSpeed);
     pBc->m_FanSpeed = FanSpeed;
     return DT_STATUS_OK;
 }
@@ -173,15 +175,19 @@ DtStatus  DtBcFANC_Init(DtBc*  pBcBase)
     pBc->m_HasNoFan = DtBcFANC_IsFanLess(pBc);
     pBc->m_MeasurementPeriod = FANC_Config_READ_MeasurementPeriod(pBc);
     pBc->m_WatchdogTimeout = FANC_Config_READ_WatchdogTimeOut(pBc);
-
-    // Set default fan speed
+    // From version 1 the initial fan speed can be read from the configuration
+    if (pBc->m_Version >= 1)
+        pBc->m_InitialFanSpeed = FANC_Config_READ_InitialFanSpeed(pBc);
+    else
+        pBc->m_InitialFanSpeed = DT_BC_FANC_DEFAULT_SPEED;
+    // Set initial fan speed
     if (!pBc->m_HasNoFan)
     { 
-         pBc->m_FanSpeed = DT_BC_FANC_DEFAULT_SPEED;
-         DtBcFANC_SetControlReg(pBc, FANC_OPSTATE_NORMAL, pBc->m_FanSpeed);
+         pBc->m_FanSpeed = pBc->m_InitialFanSpeed;
+         DtBcFANC_SetControlReg(pBc, FANC_OPSTATE_NORMAL, TRUE, pBc->m_FanSpeed);
     }
     else
-         DtBcFANC_SetControlReg(pBc, FANC_OPSTATE_NO_FAN, 0);
+         DtBcFANC_SetControlReg(pBc, FANC_OPSTATE_NO_FAN, FALSE, 0);
 
     return DT_STATUS_OK;
 }
@@ -197,7 +203,7 @@ Bool  DtBcFANC_IsFanLess(DtBcFANC* pBc)
     // Sanity checks
     DT_ASSERT(pBc->m_pCore->m_pDfVpd != NULL);
 
-    // TODOTD what is written to VPD if no-fan
+    // Check for fanless variant ("NF" keyword with value "1" in VPD)
     NumRead = 0;
     Status = DtCore_VPD_ReadItemRo(pBc->m_pCore,"NF", ItemBuf, DT_SIZEOF_ARRAY(ItemBuf),
                                                                                 &NumRead);
@@ -212,9 +218,10 @@ Bool  DtBcFANC_IsFanLess(DtBcFANC* pBc)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcFANC_SetControlReg -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void  DtBcFANC_SetControlReg(DtBcFANC* pBc, Int OpState, Int FanSpeed)
+void  DtBcFANC_SetControlReg(DtBcFANC* pBc, Int OpState, Bool WdEnable, Int FanSpeed)
 {
-    UInt32  RegData = 0;
+    UInt32  RegData = FANC_Control_READ(pBc);
+    RegData = FANC_Control_SET_EnableWatchdog(RegData, WdEnable);
     RegData = FANC_Control_SET_OperationalState(RegData, OpState);
     RegData = FANC_Control_SET_FanSpeed(RegData, FanSpeed);
     FANC_Control_WRITE(pBc, RegData);

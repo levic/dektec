@@ -26,6 +26,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtPtAsiSdiRxTx.h"
 #include "IoConfigCodes.h"
+#include "DtAudioVideo.h"
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Types -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -79,8 +80,6 @@ static DtStatus DtPtAsiSdiRxTx_Enable(DtPt*, Bool Enable);
 static DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt*, const DtCfIoConfigValue*, Int Num);
 static DtStatus DtPtAsiSdiRxTx_SetIoConfigPrepare(DtPt*, const DtExclAccessObject*);
 static DtStatus DtPtAsiSdiRxTx_SetIoConfigFinish(DtPt*, const DtExclAccessObject*);
-static Bool DtPtAsiSdiRxTx_VidFmtUsesFractionalClock(Int VidFormat);
-static Bool DtPtAsiSdiRxTx_VidFmtIsLevelB(Int VidFormat);
 
 static DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
@@ -90,11 +89,15 @@ static DtStatus DtPtAsiSdiRxTx_SetRxIoConfigDmaTestMode(DtPtAsiSdiRxTx*,
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetRxIoConfigFailSafe(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
+static DtStatus DtPtAsiSdiRxTx_SetRxIoConfigGenLock(DtPtAsiSdiRxTx*, 
+                                                                const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigDmaTestMode(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigFailSafe(DtPtAsiSdiRxTx*, 
+                                                                const DtCfIoConfigValue*);
+static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigGenLock(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
 //=+=+=+=+=+=+=+=+=+=+=+=+=+DtPtAsiSdiRxTx - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -142,8 +145,6 @@ DtPtAsiSdiRxTx* DtPtAsiSdiRxTx_Open(DtCore* pCore, Int PortIndex, DtPortType Typ
 DtStatus DtPtAsiSdiRxTx_Init(DtPt* pPtBase)
 {
    DtPtAsiSdiRxTx* pPt = (DtPtAsiSdiRxTx*)pPtBase;
-   Bool InpCap  = DtIoCapsHasCap(&pPtBase->m_IoCaps, DT_IOCAP_INPUT);
-   Bool OutpCap  = DtIoCapsHasCap(&pPtBase->m_IoCaps, DT_IOCAP_OUTPUT);
 
    const char* FrontEndTxRoleName = "TX_FRONT_END";
    const char* BackEndTxRoleName =  "TX_BACK_END";
@@ -438,6 +439,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
             break;
         case DT_IOCONFIG_DMATESTMODE:
         case DT_IOCONFIG_FAILSAFE:
+        case DT_IOCONFIG_GENLOCKED:
             // Optional IO-configs; will be tested later
             break;
 
@@ -495,6 +497,16 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
     else
         DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetTxIoConfigFailSafe(pPt, 
                                                          &pIoCfgs[DT_IOCONFIG_FAILSAFE]));
+    // Perform IO-Config setting GENLOCKED
+    if (DT_IOCONFIG_GENLOCKED >= NumIoCfgs)
+        return DT_STATUS_INVALID_PARAMETER;
+    if (IsInput)
+        DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetRxIoConfigGenLock(pPt, 
+                                                        &pIoCfgs[DT_IOCONFIG_GENLOCKED]));
+    else
+        DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetTxIoConfigGenLock(pPt, 
+                                                        &pIoCfgs[DT_IOCONFIG_GENLOCKED]));
+
     return DT_STATUS_OK;
 }
 
@@ -726,14 +738,30 @@ DtStatus DtPtAsiSdiRxTx_SetRxIoConfigFailSafe(DtPtAsiSdiRxTx* pPt,
     return DT_STATUS_OK;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetRxIoConfigGenLock -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtPtAsiSdiRxTx_SetRxIoConfigGenLock(DtPtAsiSdiRxTx* pPt, 
+                                                          const DtCfIoConfigValue* pIoCfg)
+{
+    // Nothing to configure?
+    if (pIoCfg->m_Value == DT_IOCONFIG_NONE)
+    {
+        DT_ASSERT(!DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_GENLOCKED));
+        return DT_STATUS_OK;
+    }
+
+    DT_ASSERT(DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_GENLOCKED));
+
+    // For inputs GenLocked must be switched off; but just ignore the setting
+    return DT_STATUS_OK;
+}
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetTxIoConfigIoStd -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
                                                           const DtCfIoConfigValue* pIoCfg)
 {
-    Bool  UsesFracClk = FALSE;
     Bool  LevelA2BEnable = FALSE;
-    Int  SdiRate;
+    Int  SdiRate, VidStd;
     Int  CurOpMode;
     DT_ASSERT(pIoCfg != NULL);
 
@@ -790,6 +818,21 @@ DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
     else
     {
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SDI -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+        // Determine video standard
+        VidStd = DtAvIoStd2VidStd(pIoCfg->m_Value, pIoCfg->m_SubValue);
+        DT_ASSERT(VidStd != DT_VIDSTD_UNKNOWN);
+        
+        // Determine SDI-rate
+        switch (pIoCfg->m_Value)
+        {
+        case DT_IOCONFIG_SDI:    SdiRate = DT_DRV_SDIRATE_SD; break;
+        case DT_IOCONFIG_HDSDI:  SdiRate = DT_DRV_SDIRATE_HD; break;
+        case DT_IOCONFIG_3GSDI:  SdiRate = DT_DRV_SDIRATE_3G; break;
+        case DT_IOCONFIG_6GSDI:  SdiRate = DT_DRV_SDIRATE_6G; break;
+        case DT_IOCONFIG_12GSDI: SdiRate = DT_DRV_SDIRATE_12G; break;
+        default: DT_ASSERT(FALSE); return DT_STATUS_FAIL;
+        }
+
         // Disable ASI TX Gate block controller
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcAsiTxG, FALSE);
         // Disable ASI TX Serializer
@@ -814,9 +857,6 @@ DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
                                                                     DT_BLOCK_OPMODE_RUN));
         }
 
-        //  Determine whether video standard uses fractional clock
-        UsesFracClk = DtPtAsiSdiRxTx_VidFmtUsesFractionalClock(pIoCfg->m_SubValue);
-
         // Save current opmode
         DT_RETURN_ON_ERROR(DtDfSdiTxPhy_GetOperationalMode(pPt->m_pDfSdiTxPhy,
                                                                              &CurOpMode));
@@ -824,34 +864,15 @@ DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
                                                                     DT_FUNC_OPMODE_IDLE));
         // Set the transmitter in SDI transmitter mode
         DT_RETURN_ON_ERROR(DtDfSdiTxPhy_SetTxMode(pPt->m_pDfSdiTxPhy,
-                                                               DT_SDITXPHY_TXMODE_SDI));
+                                                                 DT_SDITXPHY_TXMODE_SDI));
+        // Set the new video standard
+        DT_RETURN_ON_ERROR(DtDfSdiTxPhy_SetVidStd(pPt->m_pDfSdiTxPhy, VidStd));
 
-        // Set the SDI protocol SDI-rate  and enable/disable the  Level A to B convertor
-        switch (pIoCfg->m_Value)
-        {
-        case DT_IOCONFIG_SDI:    SdiRate = DT_DRV_SDIRATE_SD; break;
-        case DT_IOCONFIG_HDSDI:  SdiRate = DT_DRV_SDIRATE_HD; break;
-        case DT_IOCONFIG_3GSDI:  SdiRate = DT_DRV_SDIRATE_3G; break;
-        case DT_IOCONFIG_6GSDI:  SdiRate = DT_DRV_SDIRATE_6G; break;
-        case DT_IOCONFIG_12GSDI: SdiRate = DT_DRV_SDIRATE_12G; break;
-        default: DT_ASSERT(FALSE); return DT_STATUS_FAIL;
-        }
-        DT_RETURN_ON_ERROR(DtDfSdiTxPhy_SetSdiRate(pPt->m_pDfSdiTxPhy,
-                                                                   SdiRate, UsesFracClk));
         DT_RETURN_ON_ERROR(DtDfSdiTxPhy_SetOperationalMode(pPt->m_pDfSdiTxPhy,
                                                                               CurOpMode));
 
-        // Set the SDI protocol SDI-rate  and enable/disable the  Level A to B convertor
-        switch (pIoCfg->m_Value)
-        {
-        case DT_IOCONFIG_SDI:    SdiRate = DT_DRV_SDIRATE_SD; break;
-        case DT_IOCONFIG_HDSDI:  SdiRate = DT_DRV_SDIRATE_HD; break;
-        case DT_IOCONFIG_3GSDI:  SdiRate = DT_DRV_SDIRATE_3G; break;
-        case DT_IOCONFIG_6GSDI:  SdiRate = DT_DRV_SDIRATE_6G; break;
-        case DT_IOCONFIG_12GSDI: SdiRate = DT_DRV_SDIRATE_12G; break;
-        default: DT_ASSERT(FALSE); return DT_STATUS_FAIL;
-        }
-        LevelA2BEnable =DtPtAsiSdiRxTx_VidFmtIsLevelB(pIoCfg->m_SubValue);
+        //  Determine whether video standard is level-B
+        LevelA2BEnable = DtAvVidStdIs3glvlBSdi(VidStd);
         DT_RETURN_ON_ERROR(DtBcSDITXP_SetSdiRateAndLvlA2BEna(pPt->m_pBcSdiTxP,
                                                            SdiRate, (Int)LevelA2BEnable));
 
@@ -862,6 +883,7 @@ DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
                                            DT_GS2988_SDIMODE_SD : DT_GS2988_SDIMODE_HD_3G;
             DT_RETURN_ON_ERROR(DtBcGS2988_SetSdiMode(pPt->m_pBcGs2988, Mode));
         }
+
         // If we have SPI-cable driver, set SDI-rate
         if (pPt->m_pDfSpiCableDrvEq != NULL)
             DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetSdiRate(pPt->m_pDfSpiCableDrvEq, 
@@ -912,7 +934,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigPrepare(DtPt* pPtBase,
                                                         const DtExclAccessObject* pObject)
 {
     DtStatus  Status=DT_STATUS_OK, TempStatus=DT_STATUS_OK;
-   DtPtAsiSdiRxTx* pPt = (DtPtAsiSdiRxTx*)pPtBase;
+    DtPtAsiSdiRxTx* pPt = (DtPtAsiSdiRxTx*)pPtBase;
     Int  OpStatus, OpMode;
 
     // Sanity check
@@ -1046,6 +1068,31 @@ DtStatus DtPtAsiSdiRxTx_SetTxIoConfigFailSafe(DtPtAsiSdiRxTx* pPt,
         return DT_STATUS_INVALID_PARAMETER;
     }
 }
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetTxIoConfigGenLock -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtPtAsiSdiRxTx_SetTxIoConfigGenLock(DtPtAsiSdiRxTx* pPt, 
+                                                          const DtCfIoConfigValue* pIoCfg)
+{
+    // Nothing to configure?
+    if (pIoCfg->m_Value==DT_IOCONFIG_NONE)
+    {
+        DT_ASSERT(!DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_GENLOCKED));
+        return DT_STATUS_OK;
+    }
+
+    DT_ASSERT(DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_GENLOCKED));
+
+    // Check genlocked values; no action is needed
+    if (pIoCfg->m_Value==DT_IOCONFIG_TRUE || pIoCfg->m_Value==DT_IOCONFIG_FALSE)
+        return DT_STATUS_OK;
+    else
+    { 
+        DT_ASSERT(FALSE);
+        return DT_STATUS_INVALID_PARAMETER;
+    }
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetIoConfigFinish -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtPtAsiSdiRxTx_SetIoConfigFinish(DtPt* pPt, const DtExclAccessObject* pObject)
@@ -1058,47 +1105,4 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigFinish(DtPt* pPt, const DtExclAccessObject* p
     // Release exclusive access to children
     Status = DtPt_ReleaseExclAccessChildren(pPt, pObject);
     return Status;
-}
-
-//-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_VidFmtUsesFractionalClock -.-.-.-.-.-.-.-.-.-.-.-
-//
-Bool DtPtAsiSdiRxTx_VidFmtUsesFractionalClock(Int  VidFormat)
-{
-    switch (VidFormat)
-    {
-    case DT_IOCONFIG_720P59_94:
-    case DT_IOCONFIG_1080P59_94:
-    case DT_IOCONFIG_1080P59_94B:
-    case DT_IOCONFIG_720P29_97:
-    case DT_IOCONFIG_1080P29_97:
-    case DT_IOCONFIG_1080PSF29_97:
-    case DT_IOCONFIG_1080I59_94:
-    case DT_IOCONFIG_720P23_98:
-    case DT_IOCONFIG_1080P23_98:
-    case DT_IOCONFIG_1080PSF23_98:
-    case DT_IOCONFIG_2160P23_98:
-    case DT_IOCONFIG_2160P29_97:
-    case DT_IOCONFIG_2160P59_94:
-    case DT_IOCONFIG_2160P59_94B:
-        return TRUE;
-    }
-    // Note that DT_IOCONFIG_525I59_94 uses the non-fractional clock
-    return FALSE;
-}
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_VidFmtIsLevelB -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Bool DtPtAsiSdiRxTx_VidFmtIsLevelB(Int  VidFormat)
-{
-    switch (VidFormat)
-    {
-    case DT_IOCONFIG_1080P50B:
-    case DT_IOCONFIG_1080P59_94B:
-    case DT_IOCONFIG_1080P60B:
-    case DT_IOCONFIG_2160P50B:
-    case DT_IOCONFIG_2160P59_94B:
-    case DT_IOCONFIG_2160P60B:
-        return TRUE;
-    }
-    return FALSE;
 }

@@ -214,17 +214,18 @@ DtStatus  DtBcSDIXCFG_Init(DtBc*  pBc)
     for (Idx=0; Idx<NumChannels  && DT_SUCCESS(Status); Idx++)
     { 
         Int ChType;
- //       UInt i;
+        //UInt i;
 
         // Read config 
-        UInt32  RegConfig = SDIXCFG_Config_READ(BC_SDIXCFG, Idx);
+        UInt32  RegConfig = SDIXCFG_Config_Indexed_READ(BC_SDIXCFG, Idx);
 
         // Set Logical channel number
         BC_SDIXCFG->m_ChanConfig[Idx].m_LogChanNum = Idx;
         // Get associated port-index
-        BC_SDIXCFG->m_ChanConfig[Idx].m_PortIndex = SDIXCFG_Config_GET_PortIdx(RegConfig);
+        BC_SDIXCFG->m_ChanConfig[Idx].m_PortIndex = 
+                                            SDIXCFG_Config_Indexed_GET_PortIdx(RegConfig);
         // Get channel type
-        switch (SDIXCFG_Config_GET_ChannelType(RegConfig))
+        switch (SDIXCFG_Config_Indexed_GET_ChannelType(RegConfig))
         {
         default:
         case SDIXCFG_CHANTYPE_NOT_USED: ChType = DT_SDIXCFG_CHANTYPE_NOT_USED; break;

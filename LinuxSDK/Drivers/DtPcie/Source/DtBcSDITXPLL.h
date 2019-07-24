@@ -46,6 +46,17 @@ while (0)
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDITXPLL definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+// Device family
+#define DT_BC_SDITXPLL_FAMILY_UNKNOWN      -1  // Unknown
+#define DT_BC_SDITXPLL_FAMILY_CV            0  // Intel Cyclone V
+#define DT_BC_SDITXPLL_FAMILY_C10           1  // Intel Cyclone 10
+#define DT_BC_SDITXPLL_FAMILY_A10           2  // Intel Arria 10
+
+// PLL-type
+#define DT_BC_SDITXPLL_PLLTYPE_UNKNOWN     -1  // Unknown
+#define DT_BC_SDITXPLL_PLLTYPE_CMU          0  // Clock Multiplier Unit PLL or Channel PLL
+#define DT_BC_SDITXPLL_PLLTYPE_FPLL         1  // Fractional PLL
+#define DT_BC_SDITXPLL_PLLTYPE_ATX          2  // Advanced Transmit PLL
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPLL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 typedef  struct _DtBcSDITXPLL
@@ -55,6 +66,8 @@ typedef  struct _DtBcSDITXPLL
     // Cached settings
     Bool  m_BlockEnabled;       // Block enabled
     Int  m_PllId;               // PLL-Id
+    Int  m_DeviceFamily;        // Device family
+    Int  m_PllType;             // PLL-type
 }  DtBcSDITXPLL;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPLL public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-

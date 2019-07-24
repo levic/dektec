@@ -1253,10 +1253,10 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
     CF_IOCFG_DEFAULT_PRECONDITIONS(pCf);
     
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIdx, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIdx, &IoCaps);
     if (!DT_SUCCESS(Status))
     {
-        DtDbgOutDf(ERR, IOCONFIG, pCf, "ERROR: DtCore_PT_GetIoCaps failed");
+        DtDbgOutDf(ERR, IOCONFIG, pCf, "ERROR: DtCore_PT_GetPortIoCaps failed");
         return Status;
     }
 
@@ -2007,7 +2007,7 @@ DtStatus  DtCfIoCfg_ValidateIoDir(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
     
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
     
@@ -2197,7 +2197,7 @@ DtStatus  DtCfIoCfg_ValidateIoStd(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
     
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -2521,7 +2521,7 @@ DtStatus  DtCfIoCfg_ValidateRfClkSel(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
     
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -2564,7 +2564,7 @@ DtStatus  DtCfIoCfg_ValidateSpiClkSel(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
 
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -2607,7 +2607,7 @@ DtStatus  DtCfIoCfg_ValidateSpiMode(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
 
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
     
@@ -2656,7 +2656,7 @@ DtStatus  DtCfIoCfg_ValidateSpiStd(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
     
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -2701,7 +2701,7 @@ DtStatus  DtCfIoCfg_ValidateTsRateSel(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
 
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
     
@@ -2749,7 +2749,7 @@ DtStatus  DtCfIoCfg_ValidateSwS2Apsk(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
 
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
     
@@ -2782,7 +2782,7 @@ DtStatus  DtCfIoCfg_ValidateSwS2Apsk(
             {
                 DtIoCaps  BuddyPortCaps;
                 // Get the IO-capability of the buddy port
-                Status = DtCore_PT_GetIoCaps(pCf->m_pCore, i, &BuddyPortCaps);
+                Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, i, &BuddyPortCaps);
                 if (!DT_SUCCESS(Status))
                     return Status;
 
@@ -2816,7 +2816,7 @@ DtStatus DtCfIoCfg_ValidateDmaTestMode(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
 
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -2859,7 +2859,7 @@ DtStatus  DtCfIoCfg_ValidateFailSafe(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
 
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -2901,7 +2901,7 @@ DtStatus  DtCfIoCfg_ValidateGenLocked(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
     
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -2945,7 +2945,7 @@ DtStatus  DtCfIoCfg_ValidateGenRef(
 
     
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -3016,7 +3016,7 @@ DtStatus  DtCfIoCfg_ValidateFracMode(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
     
     // Get the IO-capability of the port
-    Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -3043,7 +3043,7 @@ DtStatus  DtCfIoCfg_ValidateFracMode(
             if (i == PortIndex)
                 continue;   // Skip ourselves
             // Get the IO-capability of the port
-            Status = DtCore_PT_GetIoCaps(pCf->m_pCore, i, &OtherPortCaps);
+            Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, i, &OtherPortCaps);
             if (!DT_SUCCESS(Status))
                 return Status;
             if (!DtIoCapsHasCap(&OtherPortCaps, DT_IOCAP_FRACMODE))
@@ -3079,7 +3079,7 @@ DtStatus  DtCfIoCfg_ValidateGenRefBoard(
         DtCfIoConfigValue*  pPortIoCfg;
         DtIoCaps  IoCaps;
         // Get the IO-capability of the port
-        DtStatus  Status = DtCore_PT_GetIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+        DtStatus  Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
         if (!DT_SUCCESS(Status))
             return Status;
 

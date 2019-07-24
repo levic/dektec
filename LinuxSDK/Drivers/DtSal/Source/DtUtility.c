@@ -588,7 +588,7 @@ UInt64  DtGetTickCount()
    return (UInt64)((TickCount.QuadPart * KeQueryTimeIncrement()) / 10000LL);
 #else
     struct timespec  TickCount;
-    getnstimeofday(&TickCount);
+    ktime_get_ts(&TickCount);
     return (UInt64)DtDivide64(((TickCount.tv_sec)*1000000000LL + (TickCount.tv_nsec)),
                                                                            1000000, NULL);
 #endif
@@ -610,7 +610,7 @@ UInt64  DtGetTickCountUSec()
     //return (UInt64)((TickCount.QuadPart * KeQueryTimeIncrement()) / 10LL);
 #else
     struct timespec  TickCount;
-    getnstimeofday(&TickCount);
+    ktime_get_ts(&TickCount);
     return (UInt64)DtDivide64(((TickCount.tv_sec)*1000000000LL + (TickCount.tv_nsec)),
                                                                               1000, NULL);
 #endif

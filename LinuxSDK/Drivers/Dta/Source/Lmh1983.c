@@ -563,7 +563,7 @@ DtStatus  DtaLmh1983SetupRefSource(
     if (!HasCapMatrix2)
     {
         // Set interlaced flags
-        if (DtaVidStdIsInterlaced(*pRefVidStd))
+        if (DtAvVidStdIsInterlaced(*pRefVidStd))
             DtaRegHdGenlClkConfSetInterlaced(pGenlRegs, 1);
         else
             DtaRegHdGenlClkConfSetInterlaced(pGenlRegs, 0);

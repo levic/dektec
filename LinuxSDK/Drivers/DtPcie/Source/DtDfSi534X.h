@@ -49,6 +49,8 @@ while (0)
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfSi534X definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+#define  DT_DF_SI534X_MAX_NUM_CLOCKS    4   // Maximum 4 configurable clocks
+
 // Structure for storing a configuration item
 typedef struct  _DtDfSi534XConfigItem
 {
@@ -83,22 +85,25 @@ typedef struct  _DtDfSi534X
     Int  m_DeviceType;                  // Device type 5342/5344
     Int  m_Si534XAddress;               // Address of  the SI-534X device
     Int  m_NumClockOutputs;             // Number of clock outputs
+    Int  m_NonFracClkIdx;               // Clock output index for non-fractional clock
+    Int  m_FracClkIdx;                  // Clock output index for fractional clock
     Int  m_PrevBank;                    // Previous selected bank
     DtDfSi534XConfig  m_CurConfig;      // Current loaded configuration
     const DtDfSi534XConfigItem*  m_pCurConfigItems; // Current configured items
     Int  m_CurConfigNumItems;           // Number of configured items
     DtVectorBc*  m_pBcSdiTxPlls;         // SDITXPLL block controllers
     DtVector*  m_pSdiTxPllTable;         // SDITXPLL look-up table
+    Int64  m_InitNxNum[DT_DF_SI534X_MAX_NUM_CLOCKS];  //Initial Nx Numerator value
+    Int64  m_CurNxNum[DT_DF_SI534X_MAX_NUM_CLOCKS];   //Current Nx Numerator value
 }  DtDfSi534X;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void  DtDfSi534X_Close(DtDf*);
 DtDfSi534X*  DtDfSi534X_Open(DtCore*, DtPt*  pPt, const char*  pRole, Int  Instance, 
                                                              Int  Uuid, Bool  CreateStub);
-DtStatus  DtDfSi534X_GetNumClocks(DtDfSi534X*, Int*);
-DtStatus  DtDfSi534X_SetConfig(DtDfSi534X*, DtDfSi534XConfig);
-
 DtStatus  DtDfSi534X_IsPllLocked(DtDfSi534X*, Int PllId, Bool* pLocked);
+DtStatus  DtDfSi534X_SetConfig(DtDfSi534X*, DtDfSi534XConfig);
+DtStatus  DtDfSi534X_SetFreqOffsetPpt(DtDfSi534X*, Int OffsetPpt,  Bool FracClk);
 
 #endif  // #ifndef __DT_DF_SI534X_H
 

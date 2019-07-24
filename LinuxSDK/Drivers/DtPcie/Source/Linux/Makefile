@@ -18,7 +18,7 @@ DTSAL = $(SALBUILDDIR)/DtSal$(DRIVER_NAME).o
 DRVCOMMONDIR := ../../../DtDrvCommon
 DRVCOMMONSRCDIR = $(DRVCOMMONDIR)/Source
 DRVCOMMONBUILDDIR = $(DRVCOMMONDIR)/Source/Linux
-DTDRVCOMMON = $(DRVCOMMONBUILDDIR)/DtDrvCommon.o
+DTDRVCOMMON = $(DRVCOMMONBUILDDIR)/DtDrvCommon$(DRIVER_NAME).o
 
 NUMLBITS = $(shell getconf LONG_BIT)
 
@@ -100,6 +100,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcCONSTSOURCE.o          \
          $(SRCDIR)/DtBcFANC.o                 \
          $(SRCDIR)/DtBcFPGATEMP.o             \
+         $(SRCDIR)/DtBcGENL.o                 \
          $(SRCDIR)/DtBcGS2988.o               \
          $(SRCDIR)/DtBcI2CM.o                 \
          $(SRCDIR)/DtBcIPSECG.o               \
@@ -129,6 +130,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtCfTod.o                  \
          $(SRCDIR)/DtDf.o                     \
          $(SRCDIR)/DtDfAsiRx.o                \
+         $(SRCDIR)/DtDfGenLockCtrl.o          \
          $(SRCDIR)/DtDfMxDs75Temp.o           \
          $(SRCDIR)/DtDfSdiRx.o                \
          $(SRCDIR)/DtDfSdiTxPhy.o             \
@@ -138,9 +140,11 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtDfSpiCableDrvEq.o        \
          $(SRCDIR)/DtDfSpiProm.o              \
          $(SRCDIR)/DtDfTempFanMgr.o           \
+         $(SRCDIR)/DtDfVirtGenRef.o           \
          $(SRCDIR)/DtDfVpd.o                  \
          $(SRCDIR)/DtPt.o                     \
          $(SRCDIR)/DtPtAsiSdiRxTx.o           \
+         $(SRCDIR)/DtPtSdiGenRef.o            \
          $(SRCDIR)/DtIoStub.o                 \
          $(SRCDIR)/DtVectorBc.o               \
          $(SRCDIR)/DtVectorDf.o               \
@@ -220,9 +224,11 @@ PREREQ:
 	@if [ -f MakefilePrereq ]; then make -f MakefilePrereq ; fi
 
 $(DTSAL):
+	make MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 	make -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
 
 $(DTDRVCOMMON):
+	make MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 	make -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
 # ========================================================================================
 # Clean all option
@@ -231,7 +237,7 @@ clean:
 	@if [ -f MakefilePrereq ]; then make -f MakefilePrereq clean ; fi 
 	make MYPWD=$(PWD) -C $(KERNELDIR) SUBDIRS=$(PWD) clean
 	make MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	make MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) clean
+	make MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 
 # ========================================================================================
 endif

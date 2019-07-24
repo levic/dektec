@@ -66,6 +66,7 @@ typedef struct  _DtDfS2CrDemod_2132
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void  DtDfS2CrDemod_2132_Close(DtDf*);
+DtStatus  DtDfS2CrDemod_2132_DemodReset(DtDfS2CrDemod_2132* pDf);
 DtDfS2CrDemod_2132*  DtDfS2CrDemod_2132_Open(DtCore*, DtPt*  pPt, const char*  pRole, 
                                               Int  Instance, Int  Uuid, Bool  CreateStub);
 DtStatus  DtDfS2CrDemod_2132_GetCounters(DtDfS2CrDemod_2132* pBc, UInt* pFrameCount, 

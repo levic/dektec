@@ -180,6 +180,8 @@ DtStatus DtBcS2STATS_2132_SetOperationalMode(DtBcS2STATS_2132* pBc, Int OpMode)
 //
 DtStatus DtBcS2STATS_2132_ClearStatistics(DtBcS2STATS_2132* pBc)
 {
+    UInt32 RegControl;
+
     // Sanity check
     BC_S2STATS_2132_DEFAULT_PRECONDITIONS(pBc);
 
@@ -193,7 +195,9 @@ DtStatus DtBcS2STATS_2132_ClearStatistics(DtBcS2STATS_2132* pBc)
     DtBcS2STATS_2132_FrameStatusBuffer_Clear(&pBc->m_FrameStatusBuffer);
 
     // Clear hardware FIFO
-    S2STATS_Control_PULSE_ClearFifo(pBc);
+    RegControl = S2STATS_Control_READ(pBc);
+    RegControl = S2STATS_Control_SET_ClearFifo(RegControl, 1);
+    S2STATS_Control_WRITE(pBc, RegControl);
 
     // Release spinlock
     DtSpinLockRelease(&pBc->m_Lock);
@@ -284,31 +288,35 @@ DtStatus DtBcS2STATS_2132_ReadStatistics(DtBcS2STATS_2132* pBc,
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcS2STATS_2132_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtBcS2STATS_2132_Init(DtBc*  pBc)
+DtStatus  DtBcS2STATS_2132_Init(DtBc*  pBcBase)
 {
+    DtBcS2STATS_2132* pBc = (DtBcS2STATS_2132*)pBcBase;
     DtStatus  Status=DT_STATUS_OK;
+    UInt32 RegControl;
 
     // Sanity checks
     BC_S2STATS_2132_DEFAULT_PRECONDITIONS(pBc);
 
     // Set defaults
-    BC_S2STATS_2132->m_BlockEnabled = FALSE;
-    BC_S2STATS_2132->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
+    pBc->m_BlockEnabled = FALSE;
+    pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
 
     // Get configuration
-    BC_S2STATS_2132->m_FifoSize = S2STATS_Configuration_READ_FifoSize(BC_S2STATS_2132);
+    pBc->m_FifoSize = S2STATS_Configuration_READ_FifoSize(pBc);
 
     // Initialize the spin lock
-    DtSpinLockInit(&BC_S2STATS_2132->m_Lock);
+    DtSpinLockInit(&pBc->m_Lock);
 
     // Clear frame status buffer
-    DtBcS2STATS_2132_FrameStatusBuffer_Clear(&BC_S2STATS_2132->m_FrameStatusBuffer);
+    DtBcS2STATS_2132_FrameStatusBuffer_Clear(&pBc->m_FrameStatusBuffer);
 
     // Clear hardware FIFO
-    S2STATS_Control_PULSE_ClearFifo(BC_S2STATS_2132);
+    RegControl = S2STATS_Control_READ(pBc);
+    RegControl = S2STATS_Control_SET_ClearFifo(RegControl, 1);
+    S2STATS_Control_WRITE(pBc, RegControl);
 
     // Init interrupt DPC
-    Status = DtDpcInit(&BC_S2STATS_2132->m_IntDpc, DtBcS2STATS_2132_InterruptDpc, TRUE);
+    Status = DtDpcInit(&pBc->m_IntDpc, DtBcS2STATS_2132_InterruptDpc, TRUE);
     if(!DT_SUCCESS(Status))
     {
         DtDbgOutBc(ERR, S2STATS_2132, pBc, "ERROR: failed to init DPC (Status=0x%08X)", 
@@ -317,7 +325,7 @@ DtStatus  DtBcS2STATS_2132_Init(DtBc*  pBc)
     }
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- Register interrupt handlers -.-.-.-.-.-.-.-.-.-.-.-.-.-. 
-    Status = DtBcS2STATS_2132_RegisterIntHandlers(BC_S2STATS_2132);
+    Status = DtBcS2STATS_2132_RegisterIntHandlers(pBc);
     if(!DT_SUCCESS(Status))
     {
         DtDbgOutBc(ERR, S2STATS_2132, pBc, "Failed to register interrupt handlers");
@@ -333,6 +341,7 @@ DtStatus DtBcS2STATS_2132_OnEnable(DtBc* pBcBase, Bool Enable)
 {
     DtStatus  Status=DT_STATUS_OK;
     DtBcS2STATS_2132* pBc = (DtBcS2STATS_2132*)pBcBase;
+    UInt32  RegControl;
 
     // Sanity check
     BC_S2STATS_2132_DEFAULT_PRECONDITIONS(pBc);
@@ -345,7 +354,9 @@ DtStatus DtBcS2STATS_2132_OnEnable(DtBc* pBcBase, Bool Enable)
         // Clear frame status buffer
         DtBcS2STATS_2132_FrameStatusBuffer_Clear(&BC_S2STATS_2132->m_FrameStatusBuffer);
         // Clear hardware FIFO
-        S2STATS_Control_PULSE_ClearFifo(pBc);
+        RegControl = S2STATS_Control_READ(pBc);
+        RegControl = S2STATS_Control_SET_ClearFifo(RegControl, 1);
+        S2STATS_Control_WRITE(pBc, RegControl);
     }
     else
     {
@@ -528,6 +539,8 @@ void DtBcS2STATS_2132_UpdateFrameStatus(DtBcS2STATS_2132* pBc)
                                                                            ? TRUE : FALSE;
         FrameStatus.m_IsLdpcOk = S2STATS_FrameStatus_GET_IsLdpcOk(RegData)==S2STATS_CMD_OK
                                                                            ? TRUE : FALSE;
+        FrameStatus.m_CcmAcm = S2STATS_FrameStatus_GET_CcmAcm(RegData)==S2STATS_CMD_CCM ?
+                                                DT_S2STATS_2132_CCM : DT_S2STATS_2132_ACM;
 
         // Add status to the frame status buffer
         DtBcS2STATS_2132_FrameStatusBuffer_PushBack(pStatsBuf, &FrameStatus);

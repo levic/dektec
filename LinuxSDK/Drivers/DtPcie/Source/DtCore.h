@@ -52,11 +52,11 @@ typedef struct _DtDfVpd  DtDfVpd;
 typedef struct _DtDfSettings  DtDfSettings;
 typedef struct _DtDfIoConfig  DtDfIoConfig;
 typedef struct _DtCfEvt  DtCfEvt;
+typedef struct _DtCfEvtData  DtCfEvtData;
 typedef struct _DtCfInt  DtCfInt;
 typedef struct _DtCfIoCfg  DtCfIoCfg;
 typedef struct _DtCfProps  DtCfProps;
 typedef struct _DtCfTod  DtCfTod;
-
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Defines / Constants +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -219,6 +219,7 @@ typedef void  (*DtCoreCloseChildrenFunc)(DtCore*);
     /* File handles  */                                                                  \
     DtFastMutex  m_FileHandleInfoMutex;                                                  \
     DtFileHandleInfo*  m_pFileHandleInfo;                                                \
+    DtCfEvtData*  m_pCfEvtData;     /* Events data*/                                     \
     /* Shortcuts to core driver-functions and block-controllers */                       \
     DtBcVVI*  m_pBcVvi;             /* Shortcut to the one and only VVI BC */            \
     DtCfEvt*  m_pCfEvt;             /* Shortcut to the one and only EVT-CF */            \
@@ -289,12 +290,15 @@ DtStatus  DtCore_PT_Close(DtPt*);
 DtPt*     DtCore_PT_Open(DtCore*, DtPortType, Int PortIndex);
 DtStatus  DtCore_PT_OpenAll(DtCore*, Int NumPorts);
 DtPt*     DtCore_PT_Find(DtCore*, Int PortIndex);
-DtStatus  DtCore_PT_GetIoCaps(DtCore*, Int PortIndex, DtIoCaps*  pIoCaps);
+DtStatus  DtCore_PT_GetPortIoCaps(DtCore*, Int PortIndex, DtIoCaps*  pIoCaps);
+DtStatus  DtCore_PT_GetIoCaps(DtPt*, DtIoCaps*  pIoCaps);
 Int  DtCore_PT_GetPortIndex(DtPt*);
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_EVENTS - public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
+void  DtCore_EVENTS_CleanupEvtData(DtCfEvtData*);
+DtCfEvtData*  DtCore_EVENTS_CreateEvtData(void);
 DtStatus  DtCore_EVENTS_Set(DtCore*, DtDriverEvent, Bool AddIfExists);
 #ifdef LINBUILD
-UInt      DtCore_EVENTS_Poll(DtCore*, DtFileObject*, poll_table*);
+UInt  DtCore_EVENTS_Poll(DtCore*, DtFileObject*, poll_table*);
 #endif
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_IOCONFIG - public functions -.-.-.-.-.-.-.-.-.-.-.-.-.
 DtStatus  DtCore_IOCONFIG_Restore(DtCore*  pCore);
@@ -337,6 +341,8 @@ DtStatus  DtCore_TOD_GetPeriodicItv(const DtCore*, Int* pIntervalMs);
 DtStatus  DtCore_TOD_GetTime(const DtCore*, DtTodTime*);
 DtStatus  DtCore_TOD_PeriodicItvRegister(DtCore*, const DtOnPeriodicIntervalRegData*);
 DtStatus  DtCore_TOD_PeriodicItvUnregister(DtCore*, const DtObject*);
+DtTodTime DtCore_TOD_Add(DtTodTime Time, Int64 Offset);
+Int64  DtCore_TOD_TimeDiff(DtTodTime Time1, DtTodTime Time2);
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_VPD - public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtCore_VPD_ReadItemRo(const DtCore*, const char* pKeyword,
                                             UInt8* pItemBuf, Int BufSize, Int*  pNumRead);

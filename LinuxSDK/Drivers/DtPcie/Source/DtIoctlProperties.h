@@ -789,7 +789,7 @@ typedef struct  _DtIoctlProperties
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
          DT_EVENT_CMD_GET_EVENT,                                                         \
         "GET",                                                                           \
-        TRUE,                                                                            \
+        FALSE,                                                                            \
         FALSE,                                                                           \
         sizeof(DtIoctlEventCmdGetEventInput),                                            \
         sizeof(DtIoctlEventCmdGetEventOutput))
@@ -798,7 +798,7 @@ typedef struct  _DtIoctlProperties
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_EVENT_CMD_REGISTER,                                                           \
         "REGISTER",                                                                      \
-        TRUE,                                                                            \
+        FALSE,                                                                            \
         FALSE,                                                                           \
         sizeof(DtIoctlEventCmdRegisterEventInput),                                       \
         0)
@@ -807,7 +807,7 @@ typedef struct  _DtIoctlProperties
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_EVENT_CMD_SET_EVENT,                                                          \
         "GET",                                                                           \
-        TRUE,                                                                            \
+        FALSE,                                                                            \
         FALSE,                                                                           \
         sizeof(DtIoctlEventCmdSetEventInput),                                            \
         0)
@@ -816,7 +816,7 @@ typedef struct  _DtIoctlProperties
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_EVENT_CMD_UNREGISTER,                                                         \
         "UNREGISTER",                                                                    \
-        TRUE,                                                                            \
+        FALSE,                                                                            \
         FALSE,                                                                           \
         sizeof(DtIoctlEventCmdUnregisterEventInput),                                     \
         0)
@@ -892,6 +892,45 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_EXCL_ACCESS_CMD,                                                        \
         "DT_IOCTL_EXCL_ACCESS_CMD",                                                      \
         DT_IOCTL_CMD_PROPS_EXCL_ACCESS,                                                  \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_GENLOCKCTRL_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_STATUS                                        \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_GENLOCKCTRL_CMD_GET_STATUS,                                                   \
+        "GET_STATUS",                                                                    \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlGenLockCtrlCmdGetStatusInput),                                     \
+        sizeof(DtIoctlGenLockCtrlCmdGetStatusOutput))
+
+#define DT_IOCTL_CMD_PROPS_GENLOCKCTRL_RELOCK                                            \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_GENLOCKCTRL_CMD_RELOCK,                                                       \
+        "RELOCK",                                                                        \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        DT_IOCTL_DYNAMIC_SIZEOF(DtIoctlGenLockCtrlCmdReLockInput),                       \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_GENLOCKCTRL                                              \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_GENLOCKCTRL[] =                \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_STATUS,                                       \
+        DT_IOCTL_CMD_PROPS_GENLOCKCTRL_RELOCK,                                           \
+    }
+
+#define DT_IOCTL_PROPS_GENLOCKCTRL_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)           \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_GENLOCKCTRL_CMD,                                                        \
+        "DT_IOCTL_GENLOCKCTRL_CMD",                                                      \
+        DT_IOCTL_CMD_PROPS_GENLOCKCTRL,                                                  \
         ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
     )
 
@@ -1766,6 +1805,14 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlSdiTxPhyCmdClearUnderflowFlagInput),                               \
         0)
 
+#define DT_IOCTL_CMD_PROPS_SDITXPHY_GET_GENLOCK_STATUS                                   \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDITXPHY_CMD_GET_GENLOCK_STATUS,                                              \
+        "GET_GENLOCK_STATUS",                                                            \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSdiTxPhyCmdGetGenLockStatusInput),                                 \
+        sizeof(DtIoctlSdiTxPhyCmdGetGenLockStatusOutput))
 
 #define DT_IOCTL_CMD_PROPS_SDITXPHY_GET_OPERATIONAL_MODE                                 \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
@@ -1846,6 +1893,7 @@ typedef struct  _DtIoctlProperties
     static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_SDITXPHY[] =                   \
     {                                                                                    \
         DT_IOCTL_CMD_PROPS_SDITXPHY_CLEAR_UNDERFLOW_FLAG,                                \
+        DT_IOCTL_CMD_PROPS_SDITXPHY_GET_GENLOCK_STATUS,                                  \
         DT_IOCTL_CMD_PROPS_SDITXPHY_GET_OPERATIONAL_MODE,                                \
         DT_IOCTL_CMD_PROPS_SDITXPHY_GET_SDIRATE,                                         \
         DT_IOCTL_CMD_PROPS_SDITXPHY_GET_SDI_STATUS,                                      \
@@ -2924,6 +2972,23 @@ typedef struct  _DtIoctlProperties
 //=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_S2CRDEMOD_CMD_2132 +=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+#define DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_DEMOD_RESET                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_S2CRDEMOD_CMD_2132_DEMOD_RESET,                                               \
+        "DEMOD_RESET",                                                                   \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlS2CrDemodCmd_2132DemodResetInput),                                 \
+        0)
+
+#define DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_PL_INFORMATION                             \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_S2CRDEMOD_CMD_2132_GET_PL_INFORMATION,                                        \
+        "GET_PL_INFORMATION",                                                            \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlS2CrDemodCmd_2132GetPlInformationInput),                           \
+        sizeof(DtIoctlS2CrDemodCmd_2132GetPlInformationOutput))
 
 #define DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_OPERATIONAL_MODE                           \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
@@ -2988,6 +3053,15 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlS2CrDemodCmd_2132SetOpModeInput),                                  \
         0)
 
+#define DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_PL_INFORMATION                             \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_S2CRDEMOD_CMD_2132_SET_PL_INFORMATION,                                        \
+        "GET_PL_INFORMATION",                                                            \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlS2CrDemodCmd_2132SetPlInformationInput),                           \
+        0)
+
 #define DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_SPECTRUM_INV                               \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_S2CRDEMOD_CMD_2132_SET_SPECTRUM_INV,                                          \
@@ -3036,13 +3110,16 @@ typedef struct  _DtIoctlProperties
 #define DECL_DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132                                           \
     static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132[] =             \
     {                                                                                    \
+        DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_DEMOD_RESET,                                   \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_OPERATIONAL_MODE,                          \
+        DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_PL_INFORMATION,                            \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_ROLL_OFF,                                  \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_SNR_INFO,                                  \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_SPECTRUM_INV,                              \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_STATUS,                                    \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_SYMBOL_RATE,                               \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_OPERATIONAL_MODE,                          \
+        DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_PL_INFORMATION,                            \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_SPECTRUM_INV,                              \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_SYMBOL_RATE,                               \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SOFT_RESET,                                    \

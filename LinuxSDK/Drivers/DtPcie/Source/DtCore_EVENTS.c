@@ -39,6 +39,37 @@
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtCore_EVENTS - Public fuctions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_EVENTS_CleanupEvtData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtCore_EVENTS_CleanupEvtData(DtCfEvtData* pEvtData)
+{
+    DT_ASSERT(pEvtData != NULL);
+    DtCfEvt_CleanupEventsData(pEvtData);
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_EVENTS_CreateEvtData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtCfEvtData*  DtCore_EVENTS_CreateEvtData()
+{
+    return DtCfEvt_CreateEventsData();
+}
+
+#ifdef LINBUILD
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_EVENTS_Poll -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+UInt  DtCore_EVENTS_Poll(DtCore* pCore, DtFileObject* pFile, poll_table*  pPollTable)
+{
+    // Sanity checks
+    CORE_CFEVT_DEFAULT_PRECONDITIONS(pCore);
+
+    // Check we have an events core-fuction
+    if (CF_EVT(pCore) == NULL)
+        return 0;
+
+    return DtCfEvt_Poll(CF_EVT(pCore), pFile, pPollTable);
+}
+#endif
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_EVENTS_Set -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtCore_EVENTS_Set(DtCore*  pCore, DtDriverEvent Event, Bool AddIfExists)
@@ -47,8 +78,10 @@ DtStatus  DtCore_EVENTS_Set(DtCore*  pCore, DtDriverEvent Event, Bool AddIfExist
     CORE_CFEVT_DEFAULT_PRECONDITIONS(pCore);
 
     // Check we have an events core-fuction
-    if (CF_EVT(pCore) != NULL)
+    if (CF_EVT(pCore) == NULL)
         return DT_STATUS_FAIL;
+
     // Let the EVT-CF do the heavy lifting
     return DtCfEvt_Set(CF_EVT(pCore), Event, AddIfExists);
 }
+

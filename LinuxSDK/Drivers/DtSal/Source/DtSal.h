@@ -80,6 +80,7 @@
 #include <asm/segment.h>
 #include <asm/uaccess.h>
 #include <linux/buffer_head.h>
+#include <linux/time.h>
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,4)
     #define NO_KTHREAD_SUPPORT
     #include <linux/sched.h>        // task_struct

@@ -27,6 +27,7 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtBc.h"
+#include "DtDfGenLockCtrl_CallbackFunction.h"
 
 // Name and short-name of the Lmh1981 block (must match block ID)
 #define DT_BC_LMH1981_NAME        "Lmh1981Ctrl"
@@ -49,17 +50,29 @@ typedef  struct _DtBcLMH1981_Status
 {
     Bool  m_Valid;          // If true other fields are valid
     Int  m_LinePeriod;      // Line period in ns
-    Int  m_FieldPeriod;     // Field period in ns
+    Int  m_FramePeriod;     // Frame period in ns
     Int  m_NumLinesF1;      // Number of lines in Field 1
     Int  m_NumLinesF2;      // Number of lines in Field 2
     Int  m_VideoFormat;     // Video format
 }  DtBcLMH1981_Status;
+
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcLMH1981 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 typedef  struct _DtBcLMH1981
 {
     // NOTE: common block data must be the first members to allow casting to DtBc
     DT_BC_COMMON_DATA;
+
+    // Cached  
+    Int  m_PortIndex;                   // Port index
+    Bool  m_GenRefEnabled;              // GenRef is enabled. Timestamps will be sent to
+                                        // GenLockCtrl.
+    Int  m_GenRefVidStd;                // GenRef video standard
+
+    // Interrupts related
+    DtDpc  m_IntDpc;
+    DtDfGenLockCtrl*  m_pDfGenLockCtrl;   // Genlock controllers
+    DtSpinLock  m_Lock;                   // Spinlock to Sof-handlers and operational mode
 }  DtBcLMH1981;
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcLMH1981 public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -68,7 +81,11 @@ void  DtBcLMH1981_Close(DtBc*);
 DtBcLMH1981*  DtBcLMH1981_Open(Int  Address, DtCore*, DtPt*  pPt, 
                                              const char*  pRole, Int  Instance, Int  Uuid,
                                              Bool  CreateStub);
-DtStatus DtBcLMH1981_GetInputStatus(DtBcLMH1981* pBc, DtBcLMH1981_Status* pStatus);
+DtStatus  DtBcLMH1981_GetInputStatus(DtBcLMH1981* pBc, DtBcLMH1981_Status* pStatus);
+DtStatus DtBcLMH1981_GetGenRefEnable(DtBcLMH1981* pBc, Bool* pEnable);
+DtStatus DtBcLMH1981_GetGenRefVidStd(DtBcLMH1981* pBc, Int* pVidStd);
+DtStatus DtBcLMH1981_SetGenRefEnable(DtBcLMH1981* pBc, Bool Enable);
+DtStatus DtBcLMH1981_SetGenRefVidStd(DtBcLMH1981* pBc, Int VidStd);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubBcLMH1981 definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=

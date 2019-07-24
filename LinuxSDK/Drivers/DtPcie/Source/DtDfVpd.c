@@ -167,10 +167,9 @@ DtStatus  DtDfVpd_Format(DtDfVpd* pDf, Int SectionFlags, Int Flags)
     if ((SectionFlags&DT_VPD_SECT_RO) != 0)
         Status = DtDfVpd_FormatSection(pDf, DT_VPD_SECT_RO, Flags);
 
-    if (DT_SUCCESS(Status))
+    if (DT_SUCCESS(Status) && (SectionFlags&DT_VPD_SECT_RW)!=0)
     {
         // Format RW-section?
-        if ((SectionFlags&DT_VPD_SECT_RW)!=0)
             Status = DtDfVpd_FormatSection(pDf, DT_VPD_SECT_RW, Flags);
     }
 
@@ -206,7 +205,7 @@ DtStatus  DtDfVpd_ItemDelete(
     const char*  pKeyword,
     Int  Flags)
 {
-    DtStatus  Status = DT_STATUS_OK;
+    DtStatus  Status = DT_STATUS_FAIL;
 
     // Sanity checks
     DF_VPD_DEFAULT_PRECONDITIONS(pDf);
@@ -227,10 +226,9 @@ DtStatus  DtDfVpd_ItemDelete(
         Status = DtDfVpd_ItemDeleteInSection(pDf,  DT_VPD_SECT_RO, KeyLen,
                                                                          pKeyword, Flags);
     // Not yet deleted?  
-    if (!DT_SUCCESS(Status))
+    if ((SectionFlags&DT_VPD_SECT_RW)!=0 && !DT_SUCCESS(Status))
     { 
-        // Delete item in RW-section?
-        if ((SectionFlags&DT_VPD_SECT_RW) != 0)
+        // Delete item in RW-section
             Status = DtDfVpd_ItemDeleteInSection(pDf, DT_VPD_SECT_RW, KeyLen,
                                                                          pKeyword, Flags);
     }
@@ -255,7 +253,7 @@ DtStatus  DtDfVpd_ItemRead(
     const UInt8*  pBuf, 
     Int*  pNumRead)
 {
-    DtStatus  Status = DT_STATUS_OK;
+    DtStatus  Status = DT_STATUS_FAIL;
 
     // Sanity checks
     DF_VPD_DEFAULT_PRECONDITIONS(pDf);
@@ -276,10 +274,9 @@ DtStatus  DtDfVpd_ItemRead(
         Status = DtDfVpd_ItemReadFromSection(pDf, DT_VPD_SECT_RO, KeyLen, pKeyword,
                                                                  BufSize, pBuf, pNumRead);
     // Not found?    
-    if (!DT_SUCCESS(Status))
+    if ((SectionFlags&DT_VPD_SECT_RW)!=0 && !DT_SUCCESS(Status))
     {
-        // Read item from RW-section?
-        if ((SectionFlags&DT_VPD_SECT_RW) != 0)
+        // Read item from RW-section
             Status = DtDfVpd_ItemReadFromSection(pDf, DT_VPD_SECT_RW, KeyLen, pKeyword,
                                                                  BufSize, pBuf, pNumRead);
     }

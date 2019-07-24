@@ -33,6 +33,7 @@
 #include "DtBcSDITXP.h"
 #include "DtDfSdiXCfgMgr.h"
 #include "DtDfSi534X.h"
+#include "DtDfGenLockCtrl.h"
 
 // Name + short-name for the SDITXPHY function. NOTE: must match names in 
 // FunctionDescriptionsXxx.xml
@@ -73,6 +74,7 @@ typedef struct  _DtDfSdiTxPhy
     DtBcSDITXPLL*    m_pBcSdiTxPll;     // SdiTxPll block-controller
     DtDfSdiXCfgMgr*  m_pDfSdiXCfgMgr;   // SDI Transceiver Reconfig Manager
     DtDfSi534X*  m_pDfSi534X;           // Silabs SI534X clock controller
+    DtDfGenLockCtrl*  m_pDfGenLockCtrl; // GenLock control device driver
 
     DtSpinLock  m_SpinLock;             // Lock to protect against mutual access of 
                                         // m_LockState and m_SdiMode
@@ -84,12 +86,23 @@ typedef struct  _DtDfSdiTxPhy
                                     
     // Cached values
     Int  m_OperationalMode;     // Operational mode
+    Bool  m_CapGenLocked;       // GenLocked IO-capability
+    Bool  m_PhyIsGenLocked;     // TxPhy GenLock lock status
+    Bool  m_GenLockIsLocked;    // Global GenLock lock status 
     Int  m_TxMode;              // ASI or SDI
-    Int  m_SdiRate;             // SDI-rate
-    Bool  m_FractionalClock;    // Fractional clock
+    Int  m_VidStd;              // Video standard;
+    Int  m_SdiRate;             // SDI-rate cached and derived from m_VidStd
+    Bool  m_FractionalClock;    // Fractional clock cached and derived from m_VidStd
     Int  m_PhyNumClocks;        // Number of clocks for the PHY (1 or 2)
     Int  m_PhyDeviceFamily;     // TxPhy device family
     Int  m_PhyMaxSdiRate;       // TxPhy maximum SDI-rate
+    Int  m_PhyDelayNsSd, m_PhyDelayNsHd, m_PhyDelayNs3g;
+    Int  m_PhyDelayNs6g, m_PhyDelayNs12g;
+                                // Specifies the pipeline delay (in ns) of the serial 
+                                // interface for SDI signals. This delay must be 
+                                // compensated for by the genlock logic to properly align
+                                // to the genlock reference signal.
+
 }  DtDfSdiTxPhy;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -97,13 +110,14 @@ void  DtDfSdiTxPhy_Close(DtDf*);
 DtDfSdiTxPhy*  DtDfSdiTxPhy_Open(DtCore*, DtPt*  pPt, const char*  pRole,
                                              Int  Instance,  Int  Uuid, Bool  CreateStub);
 DtStatus  DtDfSdiTxPhy_ClearUnderflowFlag(DtDfSdiTxPhy*);
+DtStatus  DtDfSdiTxPhy_GetGenLockStatus(DtDfSdiTxPhy*, Int*  pGenLockStatus);
 DtStatus  DtDfSdiTxPhy_GetOperationalMode(DtDfSdiTxPhy*, Int*  pOpMode);
-DtStatus  DtDfSdiTxPhy_GetSdiRate(DtDfSdiTxPhy*,Int* pSdiRate,  Bool*  pFractional);
+DtStatus  DtDfSdiTxPhy_GetVidStd(DtDfSdiTxPhy*,Int* pVidStd);
 DtStatus  DtDfSdiTxPhy_GetSdiStatus(DtDfSdiTxPhy*, Int*  pTxLock);
 DtStatus  DtDfSdiTxPhy_GetTxMode(DtDfSdiTxPhy*, Int*  pTxMode);
 DtStatus  DtDfSdiTxPhy_GetUnderflowFlag(DtDfSdiTxPhy*, Bool*  pUflFlag);
 DtStatus  DtDfSdiTxPhy_SetOperationalMode(DtDfSdiTxPhy*, Int OpMode);
-DtStatus  DtDfSdiTxPhy_SetSdiRate(DtDfSdiTxPhy*, Int  SdiRate, Bool  Fractional);
+DtStatus  DtDfSdiTxPhy_SetVidStd(DtDfSdiTxPhy*, Int  VidStd);
 DtStatus  DtDfSdiTxPhy_SetTxMode(DtDfSdiTxPhy*, Int  TxMode);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

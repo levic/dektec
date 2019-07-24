@@ -57,6 +57,8 @@ typedef struct _DtaHdmiVidStd
 #define DT_HDMITX_E_YCBCR_422_FORCED      0x00080000
 #define DT_HDMITX_E_YCBCR_444_FORCED      0x00100000
 #define DT_HDMITX_E_HDR_FORCED            0x00200000
+#define DT_HDMITX_E_LOCKED_FORCED         0x00400000 // EDID Write locked
+
 
 // Warnings
 #define DT_HDMITX_E_VIDSTD_NOT_FOUND      0x01000000
@@ -106,7 +108,7 @@ typedef struct _DtaHdmiTx
     Int  m_AudioType;               // NOT USED, can be used for multichannel or MASK
 
     UInt32  m_HdmiErrorState;       // HDMI INIT ERROR STATE
-
+    Int  m_NumberOfEdidExtensions;  // Number of EDID extensions
 
     // Supported features
     UInt64  m_MonSupportedFormats;  // From DTD + SVD

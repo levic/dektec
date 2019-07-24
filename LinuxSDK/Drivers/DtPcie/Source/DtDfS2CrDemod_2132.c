@@ -68,6 +68,20 @@ void  DtDfS2CrDemod_2132_Close(DtDf*  pDf)
     DtDf_Close(pDf);
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfS2CrDemod_2132_DemodReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtDfS2CrDemod_2132_DemodReset(DtDfS2CrDemod_2132 * pDf)
+{
+    // Sanity checks
+    DF_S2CRDEMOD_DEFAULT_PRECONDITIONS(pDf);
+
+    // Operational state must be enabled
+    DF_S2CRDEMOD_MUST_BE_ENABLED(pDf);
+
+    // Set the S2Demod spectrum inversion setting
+    return DtBcS2DEMOD_2132_DemodReset(pDf->m_pBcS2Demod);
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfS2CrDemod_2132_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtDfS2CrDemod_2132*  DtDfS2CrDemod_2132_Open(DtCore*  pCore, DtPt* pPt, 
@@ -172,6 +186,54 @@ DtStatus DtDfS2CrDemod_2132_GetOperationalMode(DtDfS2CrDemod_2132* pDf, Int* pOp
     *pOpMode = pDf->m_OperationalMode;
 
     return DT_STATUS_OK;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- DtDfS2CrDemod_2132_GetPlInformation -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfS2CrDemod_2132_GetPlInformation(DtDfS2CrDemod_2132* pDf, Int* pPlMode, 
+                                                                           Int* pPlsValue)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    Int BcPlMode = 0;
+
+    // Sanity checks
+    DF_S2CRDEMOD_DEFAULT_PRECONDITIONS(pDf);
+
+    // Operational state must be enabled
+    DF_S2CRDEMOD_MUST_BE_ENABLED(pDf);
+
+    // Check parameters
+    if (pPlMode == NULL || pPlsValue==NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Operational mode must be run
+    if (pDf->m_OperationalMode != DT_BLOCK_OPMODE_RUN)
+        return DT_STATUS_INVALID_IN_OPMODE;
+
+    // Get the Pl mode and Pls value
+    Status = DtBcS2DEMOD_2132_GetPlInformation(pDf->m_pBcS2Demod, &BcPlMode, pPlsValue);
+    if (DT_SUCCESS(Status))
+    {
+        // Convert roll-off to driver type
+        switch (BcPlMode)
+        {
+        case DT_BC_S2DEMOD_2132_PL_MODE_ACM:
+            *pPlMode = DT_S2CRDEMOD_2132_PLMODE_ACM;
+            break;
+        case DT_BC_S2DEMOD_2132_PL_MODE_CCM:
+            *pPlMode = DT_S2CRDEMOD_2132_PLMODE_CCM;
+            break;
+        case DT_BC_S2DEMOD_2132_PL_MODE_VCM:
+            *pPlMode = DT_S2CRDEMOD_2132_PLMODE_VCM;
+            break;        
+        default: DT_ASSERT(FALSE); return DT_STATUS_FAIL;
+        }
+    }
+    else
+    {
+        DtDbgOutDf(ERR, S2CRDEMOD_2132, pDf, "ERROR: failed to get S2Dec roll-off");
+    }
+    return Status;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfS2CrDemod_2132_GetRollOff -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -420,6 +482,39 @@ DtStatus  DtDfS2CrDemod_2132_SetOperationalMode(DtDfS2CrDemod_2132*  pDf, Int  O
 
     DtSpinLockRelease(&pDf->m_OpModeSpinLock);
     return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- DtDfS2CrDemod_2132_SetPlInformation -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtDfS2CrDemod_2132_SetPlInformation(DtDfS2CrDemod_2132* pDf, Int PlMode,
+                                                                             Int PlsValue)
+{
+    Int  BcPlMode;
+
+    // Sanity checks
+    DF_S2CRDEMOD_DEFAULT_PRECONDITIONS(pDf);
+
+    // Operational state must be enabled
+    DF_S2CRDEMOD_MUST_BE_ENABLED(pDf);
+
+    // Convert and check parameters
+    switch (PlMode)
+    {
+    case DT_S2CRDEMOD_2132_PLMODE_ACM:
+        BcPlMode = DT_BC_S2DEMOD_2132_PL_MODE_ACM;
+        break;
+    case DT_S2CRDEMOD_2132_PLMODE_CCM:
+        BcPlMode = DT_BC_S2DEMOD_2132_PL_MODE_CCM;
+        break;
+    case DT_S2CRDEMOD_2132_PLMODE_VCM:
+        BcPlMode = DT_BC_S2DEMOD_2132_PL_MODE_VCM;
+        break;
+    default:
+        return DT_STATUS_INVALID_PARAMETER;
+    }
+
+    // Set the S2Demod spectrum inversion setting
+    return DtBcS2DEMOD_2132_SetPlInformation(pDf->m_pBcS2Demod, PlMode, PlsValue);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfS2CrDemod_2132_SetSpectrumInv -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -708,12 +803,15 @@ void DtDfS2CrDemod_2132_RollOffUpdate(DtDfS2CrDemod_2132*  pDf)
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 static DtStatus  DtIoStubDfS2CrDemod_OnCmd(const DtIoStub* pStub, 
                                              DtIoStubIoParams* pIoParams, Int * pOutSize);
+static DtStatus  DtIoStubDfS2CrDemod_OnCmdDemodReset(const DtIoStubDfS2CrDemod_2132*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdGetCounters( const DtIoStubDfS2CrDemod_2132*,
                                               DtIoctlS2CrDemodCmd_2132GetCountersOutput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdGetFreqOffset( const DtIoStubDfS2CrDemod_2132*,
                                             DtIoctlS2CrDemodCmd_2132GetFreqOffsetOutput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdGetOperationalMode(
                const DtIoStubDfS2CrDemod_2132*, DtIoctlS2CrDemodCmd_2132GetOpModeOutput*);
+static DtStatus  DtIoStubDfS2CrDemod_OnCmdGetPlInformation(
+        const DtIoStubDfS2CrDemod_2132*, DtIoctlS2CrDemodCmd_2132GetPlInformationOutput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdGetRollOff(const DtIoStubDfS2CrDemod_2132*, 
                                                DtIoctlS2CrDemodCmd_2132GetRollOffOutput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdGetSnrInfo(const DtIoStubDfS2CrDemod_2132*,
@@ -726,6 +824,8 @@ static DtStatus  DtIoStubDfS2CrDemod_OnCmdGetSymbolRate(const DtIoStubDfS2CrDemo
                                             DtIoctlS2CrDemodCmd_2132GetSymbolRateOutput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdSetOperationalMode(
           const DtIoStubDfS2CrDemod_2132*, const DtIoctlS2CrDemodCmd_2132SetOpModeInput*);
+static DtStatus  DtIoStubDfS2CrDemod_OnCmdSetPlInformation(
+  const DtIoStubDfS2CrDemod_2132*,  const DtIoctlS2CrDemodCmd_2132SetPlInformationInput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdSetSpectrumInv(const DtIoStubDfS2CrDemod_2132*,
                                       const DtIoctlS2CrDemodCmd_2132SetSpectrumInvInput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdSetSymbolRate(const DtIoStubDfS2CrDemod_2132*,
@@ -823,6 +923,9 @@ DtStatus  DtIoStubDfS2CrDemod_OnCmd(
 
     switch (pIoParams->m_Cmd)
     {
+    case DT_S2CRDEMOD_CMD_2132_DEMOD_RESET:
+        Status = DtIoStubDfS2CrDemod_OnCmdDemodReset(STUB_S2CRDEMOD);
+        break;
     case DT_S2CRDEMOD_CMD_2132_GET_COUNTERS:
         Status = DtIoStubDfS2CrDemod_OnCmdGetCounters(STUB_S2CRDEMOD, 
                                                                   &pOutData->m_GetCounters);
@@ -875,11 +978,27 @@ DtStatus  DtIoStubDfS2CrDemod_OnCmd(
     case DT_S2CRDEMOD_CMD_2132_SOFT_RESET:
         Status = DtIoStubDfS2CrDemod_OnCmdSoftReset(STUB_S2CRDEMOD);
         break;
+    case DT_S2CRDEMOD_CMD_2132_GET_PL_INFORMATION:
+        Status = DtIoStubDfS2CrDemod_OnCmdGetPlInformation(STUB_S2CRDEMOD, 
+                                                                  &pOutData->m_GetPlInfo);
+        break;
+     case DT_S2CRDEMOD_CMD_2132_SET_PL_INFORMATION:
+        Status = DtIoStubDfS2CrDemod_OnCmdSetPlInformation(STUB_S2CRDEMOD, 
+                                                                   &pInData->m_SetPlInfo);
+        break;
     default:
         DT_ASSERT(FALSE);
         return DT_STATUS_NOT_SUPPORTED;
     }
     return Status;
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfS2CrDemod_OnCmdDemodReset -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtIoStubDfS2CrDemod_OnCmdDemodReset(const DtIoStubDfS2CrDemod_2132* pStub)
+{
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfS2CrDemod_2132));
+    return DtDfS2CrDemod_2132_DemodReset(STUB_DF);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfS2CrDemod_OnCmdGetCounters -.-.-.-.-.-.-.-.-.-.-.-.-
@@ -919,6 +1038,18 @@ DtStatus DtIoStubDfS2CrDemod_OnCmdGetOperationalMode(
     DT_ASSERT(pOutData != NULL);
 
     return DtDfS2CrDemod_2132_GetOperationalMode(STUB_DF, &pOutData->m_OpMode);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfS2CrDemod_OnCmdGetPlInformation -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtIoStubDfS2CrDemod_OnCmdGetPlInformation(
+    const DtIoStubDfS2CrDemod_2132* pStub,
+    DtIoctlS2CrDemodCmd_2132GetPlInformationOutput* pOutData)
+{
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfS2CrDemod_2132));
+    DT_ASSERT(pOutData != NULL);
+    return DtDfS2CrDemod_2132_GetPlInformation(STUB_DF, &pOutData->m_PlMode, 
+                                                                   &pOutData->m_PlsValue);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfS2CrDemod_OnCmdGetRollOff -.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -999,6 +1130,18 @@ DtStatus DtIoStubDfS2CrDemod_OnCmdSetOperationalMode(
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfS2CrDemod_2132));
     DT_ASSERT(pInData != NULL);
     return DtDfS2CrDemod_2132_SetOperationalMode(STUB_DF, pInData->m_OpMode);
+}
+
+//.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfS2CrDemod_OnCmdSetPlInformation -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtIoStubDfS2CrDemod_OnCmdSetPlInformation(
+    const DtIoStubDfS2CrDemod_2132* pStub, 
+    const DtIoctlS2CrDemodCmd_2132SetPlInformationInput* pInData)
+{
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfS2CrDemod_2132));
+    DT_ASSERT(pInData != NULL);
+    return DtDfS2CrDemod_2132_SetPlInformation(STUB_DF, pInData->m_PlMode, 
+                                                                     pInData->m_PlsValue);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfS2CrDemod_OnCmdSetSpectrumInv -.-.-.-.-.-.-.-.-.-.-.-.

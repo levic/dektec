@@ -829,6 +829,8 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
 
     // First powerup is done
     pDvcData->m_InitialPowerup = FALSE;
+    pDvcData->m_PowerupReady = TRUE;
+
 
     // Set power up event
     DtaEventsSet(pDvcData, NULL, DTA_EVENT_TYPE_POWER, DTA_EVENT_VALUE1_POWER_UP, 0);
@@ -1033,6 +1035,8 @@ DtStatus  DtaDevicePowerUpPost(DtaDeviceData* pDvcData)
 //
 DtStatus  DtaDevicePowerDownPre(DtaDeviceData* pDvcData)
 {
+    pDvcData->m_PowerupReady = FALSE;
+
     // Powerdown genlock module
     DtaGenlockPowerDownPre(pDvcData);
 
@@ -1157,7 +1161,6 @@ DtStatus  DtaDevicePowerDown(DtaDeviceData* pDvcData)
     DtaRegControl1SetHwEnable(pDvcData->m_pGenRegs, 0);
     DtaRegControl1SetOutputEnable(pDvcData->m_pGenRegs, 0);
 
-
     // Set power down event
     DtaEventsSet(pDvcData, NULL, DTA_EVENT_TYPE_POWER, DTA_EVENT_VALUE1_POWER_DOWN, 0);
     DtDbgOut(MAX, DTA, "Exit");
@@ -1214,6 +1217,14 @@ void  DtaDeviceExit(DtaDeviceData* pDvcData)
 DtStatus  DtaDeviceOpen(DtaDeviceData* pDvcData, DtFileObject* pFile)
 {
     DtaFileHandleInfo*  pFileHandleInfo;
+
+    // Check if device is powered up and initialised
+    if (!pDvcData->m_PowerupReady)
+    {
+        DtDbgOut(ERR, DTA, "DTA-%d still in powerdown. Reject access", 
+                                                        pDvcData->m_DevInfo.m_TypeNumber);
+        return DT_STATUS_POWERDOWN;
+    }
 
     // Add file handle to the filehandle info array
     DtFastMutexAcquire(&pDvcData->m_FileHandleInfoMutex);

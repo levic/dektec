@@ -97,21 +97,5 @@ void  DtaPPBufferReadDataFinished(PPBuffer* pPPBuffer);
 DtStatus  DtaPropertiesInit(DtaDeviceData* pDvcData);
 DtStatus  DtaPropertiesReportDriverErrors(DtaDeviceData* pDvcData);
 
-// Video-standard helpers
-Int  DtaIoStd2VidStd(Int  Value, Int  SubValue);
-Int  DtaVidStd2Fps(Int  VidStd);
-Bool  DtaVidStdIsFractional(Int  VidStd);
-Bool  DtaVidStdIsInterlaced(Int  VidStd);
-Bool  DtaVidStdIsPsf(Int  VidStd);
-Bool  DtaVidStdIs3gSdi(Int  VidStd);
-Bool  DtaVidStdIs3glvlBSdi(Int  VidStd);
-Bool  DtaVidStdIs6gSdi(Int  VidStd);
-Bool  DtaVidStdIs12gSdi(Int  VidStd);
-Bool  DtaVidStdIsHdSdi(Int  VidStd);
-Bool  DtaVidStdIsSdSdi(Int  VidStd);
-
-// For debugging
-char*  VidStdName(Int VidStd);
-
 
 #endif // __DTA_UTILITY_H

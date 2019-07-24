@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        33
+#define DTAPI_VERSION_MINOR        34
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        117
+#define DTAPI_VERSION_BUILD        120
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -1597,9 +1597,10 @@ struct DtStatistic
 
     enum TimeWindowType
     {
-        STAT_TIME_SHORT,
-        STAT_TIME_MEDIUM,
-        STAT_TIME_LONG
+        STAT_TIME_NOT_USED = -1,    // Request current statistic value.
+        STAT_TIME_SHORT,            // Request statistic for a short time window.
+        STAT_TIME_MEDIUM,           // Request statistic for a medium time window.
+        STAT_TIME_LONG              // Request statistic for a long time window.
     };
 
     DTAPI_RESULT  m_Result;         // Result of retrieving the statistic
@@ -1738,7 +1739,7 @@ struct DtTimeOfDay
 #define DTAPI_STAT_AUD_FRAMES_ENC   0x01D        // Number of audio frames encoded
 #define DTAPI_STAT_MUX_NUM_BYTES    0x01E        // Number of bytes multiplexed
 #define DTAPI_STAT_LOCK_PERC        0x021        // Percentage of lock frames
-#define DTAPI_STAT_MER_HEADERS      0x022        // MER in dB for DVBS2 headers
+#define DTAPI_STAT_MER_PLHEADERS    0x022        // MER in dB for DVBS2 headers
 
 // Double statistics
 #define DTAPI_STAT_BER_POSTBCH      0x100        // Post-BCH bit error rate
@@ -1760,11 +1761,11 @@ struct DtTimeOfDay
 #define DTAPI_STAT_CARRIER_LOCK     0x201        // Carrier lock
 #define DTAPI_STAT_FEC_LOCK         0x202        // FEC lock
 #define DTAPI_STAT_LOCK             0x200        // Overall lock status
-#define DTAPI_STAT_LOCK_ALL         0x207        // All streams locked
+#define DTAPI_STAT_STREAM_LOCK      0x207        // Single stream lock
 #define DTAPI_STAT_PACKET_LOCK      0x203        // Packet lock
 #define DTAPI_STAT_SPECTRUMINV      0x205        // Spectrum inversion
 #define DTAPI_STAT_VIT_LOCK         0x204        // Viterbi lock
-#define DTAPI_STAT_HEADER_LOCK      0x206        // Stream headers lock
+#define DTAPI_STAT_PLHEADER_LOCK    0x206        // Stream headers lock
 
 // Complex statistics 
 #define DTAPI_STAT_DAB_ENSEM_INFO   0x308        // DAB ensemble information from the
@@ -2974,6 +2975,7 @@ public:                             // TODOSD should be protected
 #define DTAPI_GENL_NO_REF           1
 #define DTAPI_GENL_LOCKING          2
 #define DTAPI_GENL_LOCKED           3
+#define DTAPI_GENL_INVALID          4
 
 // Status and error flags for GPS-Synchronisation
 #define DTAPI_GPS_1PPS_SYNC         0x000001
@@ -4921,6 +4923,7 @@ private:
 #define DTAPI_E_TAINTED_FW          (DTAPI_E + 263)
 #define DTAPI_E_OBSOLETE_FW         (DTAPI_E + 264)
 #define DTAPI_E_PLP_COLLISION       (DTAPI_E + 265)
+#define DTAPI_E_PLP_NOT_FOUND       (DTAPI_E + 266)
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+ DVB-C2, DVB-S2, DVB-T2, ISDB-Tmm Multi PLP Parameters +=+=+=+=+=+=+=+=+
@@ -5628,7 +5631,7 @@ struct DtAtsc3DemodL1BasicData
     int  m_FrameLengthMode;     // L1B_frame_length_mode; Frame alignment, see
                                 // DTAPI_ATSC3_ALIGN_x
     int  m_FrameLength;         // L1B_frame_length, if framelength is time-aligned
-                                // time period = L1B_frame_length ? 5 ms
+                                // time period = L1B_frame_length @ 5 ms
     int  m_ExcessSamples;       // L1B_excess_samples_per_symbol; if framelength is 
                                 // time-aligned, the number of excess samples included
                                 // in the guard interval of each non-Preamble OFDM symbol 
@@ -7681,7 +7684,8 @@ typedef void  DtReadIqFunc(void* pOpaque,
 typedef void  DtWriteMeasFunc(void *pOpaque, DtStreamSelPars&, DtMeasurement*);
 typedef void  DtWriteStreamFunc(void* pOpaque, DtStreamSelPars& StreamSel, 
                                                   const unsigned char* pData, int Length);
-
+typedef void  DtWriteStreamWithTimeFunc(void* pOpaque, DtStreamSelPars& StreamSel, 
+                               const unsigned char* pData, int Length, __int64 Timestamp);
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAdvDemod -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Class representing an advanced demodulator. 
@@ -7737,6 +7741,7 @@ public:
     DTAPI_RESULT  OpenStream(DtStreamSelPars StreamSel);
     DTAPI_RESULT  RegisterCallback(DtOutputRateChangedFunc* pCallback, void* pOpaque);
     DTAPI_RESULT  RegisterCallback(DtWriteStreamFunc* pCallback, void* pOpaque);
+    DTAPI_RESULT  RegisterCallback(DtWriteStreamWithTimeFunc* pCallback, void* pOpaque);
     DTAPI_RESULT  RegisterCallback(DtWriteMeasFunc* pCallback, void* pOpaque);
     DTAPI_RESULT  Reset(int ResetMode);
     DTAPI_RESULT  SetAntPower(int AntPower);
@@ -8036,6 +8041,7 @@ public:
 
     // Operations
 public:
+    DtMxVideoProps  GetScaled(int  Scaling) const;
     bool  InitEx(int  VidStd, DtMxPixelFormat);
     bool  InitEx(DtMxPixelFormat, int  NumFields, int  Width, int  Height, 
                                             const DtFractionInt&  Fps=DtFractionInt(0,1));
@@ -10185,6 +10191,7 @@ struct DtHdmiTxStatus
     DtHdmiVidStd  m_SelectedVidStd;         // Video standard selected
     int  m_UsedVidMod;                      // DTAPI_HDMI_VIDMOD_xx video mode used
     int  m_SelectedVidMod;                  // DTAPI_HDMI_VIDMOD_xx video mode selected
+    int  m_NumEdidExtensions;               // Number of EDID extension tables defined
     // HDR support
     int  m_SupportedEotf;                   // Supported Electro-Optical Transfer Function
     int  m_SupportedStaticMetadataDescr;    // Supported Static Metadata Descriptor

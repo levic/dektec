@@ -58,6 +58,11 @@ while (0)
 #define DT_BC_S2DEMOD_2132_SPECINV_NORMAL  1        // Normal spectrum
 #define DT_BC_S2DEMOD_2132_SPECINV_INVERT  2        // Inverted spectrum
 
+// PL Information mode
+#define DT_BC_S2DEMOD_2132_PL_MODE_ACM    0        // Optimize for ACM mode
+#define DT_BC_S2DEMOD_2132_PL_MODE_CCM    1        // Optimize for CCM mode
+#define DT_BC_S2DEMOD_2132_PL_MODE_VCM    2        // Optimize for VCM mode
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcS2DEMOD_2132 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 typedef  struct _DtBcS2DEMOD_2132
 {
@@ -76,13 +81,18 @@ typedef  struct _DtBcS2DEMOD_2132
     Int  m_SymbolToSampleRateRatio; // Symbol to sample-rate ratio
     UInt  m_PlHdrResyncCount;   // PL-header re-sync count
     Bool  m_PlHeaderSync;       // PL-header sync
+    Int  m_PlMode;              // PL header mode (ACM/CCM/VCM)
+    Int  m_PlsValue;            // Pl header PLS value for CCM mode
 } DtBcS2DEMOD_2132;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcS2DEMOD_2132 public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
 void  DtBcS2DEMOD_2132_Close(DtBc*);
+DtStatus  DtBcS2DEMOD_2132_DemodReset(DtBcS2DEMOD_2132* pBc);
 DtBcS2DEMOD_2132*  DtBcS2DEMOD_2132_Open(Int  Address, DtCore*, DtPt*  pPt, 
                                             const char*  pRole, Int  Instance, Int  Uuid);
 DtStatus  DtBcS2DEMOD_2132_GetOperationalMode(DtBcS2DEMOD_2132* pBc,  Int* pOpMode);
+DtStatus  DtBcS2DEMOD_2132_GetPlInformation(DtBcS2DEMOD_2132* pBc, Int* pPlMode, 
+                                                                         Int* pPlsValue );
 DtStatus  DtBcS2DEMOD_2132_GetFreqOffset(DtBcS2DEMOD_2132* pBc, Int* pCoarseFreq,
                                                    Int* pFineFreq, Int* pDecimationRate);
 DtStatus  DtBcS2DEMOD_2132_GetRollOff(DtBcS2DEMOD_2132* pBc, Int* pRollOff);
@@ -94,6 +104,8 @@ DtStatus  DtBcS2DEMOD_2132_GetStatus(DtBcS2DEMOD_2132* pBc,  Bool* pSignalDetect
 DtStatus  DtBcS2DEMOD_2132_GetSymbolRate(DtBcS2DEMOD_2132* pBc, Int* pDecRate, 
                             Int* pSamSymRatio,  Int* pSymSamRatio, Int* pMeasSamSymRatio);
 DtStatus  DtBcS2DEMOD_2132_SetOperationalMode(DtBcS2DEMOD_2132* pBc,  Int OpMode);
+DtStatus  DtBcS2DEMOD_2132_SetPlInformation(DtBcS2DEMOD_2132* pBc, Int PlMode, 
+                                                                            Int PlsValue);
 DtStatus  DtBcS2DEMOD_2132_SetRollOff(DtBcS2DEMOD_2132* pBc, Int RollOff);
 DtStatus  DtBcS2DEMOD_2132_SetSpectrumInv(DtBcS2DEMOD_2132* pBc, Int SpecInvCtrl);
 DtStatus  DtBcS2DEMOD_2132_SetSymbolRate(DtBcS2DEMOD_2132* pBc, Int DecRate, 

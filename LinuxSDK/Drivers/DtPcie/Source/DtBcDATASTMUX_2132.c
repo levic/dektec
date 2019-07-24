@@ -100,7 +100,7 @@ DtStatus DtBcDATASTMUX_2132_GetSelection(DtBcDATASTMUX_2132* pBc, Int* pSelect)
 //
 DtStatus DtBcDATASTMUX_2132_SetSelection(DtBcDATASTMUX_2132* pBc, Int Select)
 {
-    UInt32  RegSelect;
+    UInt32  FldSelect, RegControl;
     // Sanity check
     BC_DATASTMUX_2132_DEFAULT_PRECONDITIONS(pBc);
 
@@ -111,10 +111,12 @@ DtStatus DtBcDATASTMUX_2132_SetSelection(DtBcDATASTMUX_2132* pBc, Int Select)
     // Set register
     switch (Select)
     {
-    case DT_DATASTMUX_2132_SELECT_IQ: RegSelect = DATASTMUX_CMD_IQSamples; break;
-    case DT_DATASTMUX_2132_SELECT_L3: RegSelect = DATASTMUX_CMD_L3Frames; break;
+    case DT_DATASTMUX_2132_SELECT_IQ: FldSelect = DATASTMUX_CMD_IQSamples; break;
+    case DT_DATASTMUX_2132_SELECT_L3: FldSelect = DATASTMUX_CMD_L3Frames; break;
     }
-    DATASTMUX_SelectInput_WRITE(pBc, RegSelect);
+    RegControl = DATASTMUX_Control_READ(pBc);
+    RegControl = DATASTMUX_Control_SET_SelectInput(RegControl, FldSelect);
+    DATASTMUX_Control_WRITE(pBc, RegControl);
 
     // Update cache
     pBc->m_Selection = Select;
@@ -125,16 +127,20 @@ DtStatus DtBcDATASTMUX_2132_SetSelection(DtBcDATASTMUX_2132* pBc, Int Select)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDATASTMUX_2132_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtBcDATASTMUX_2132_Init(DtBc*  pBc)
+DtStatus  DtBcDATASTMUX_2132_Init(DtBc*  pBcBase)
 {
+    DtBcDATASTMUX_2132* pBc = (DtBcDATASTMUX_2132*)pBcBase;
     DtStatus  Status=DT_STATUS_OK;
+    UInt32 RegControl;
 
     // Sanity checks
     BC_DATASTMUX_2132_DEFAULT_PRECONDITIONS(pBc);
 
     // Initialize the selection
     BC_DATASTMUX_2132->m_Selection = DT_DATASTMUX_2132_SELECT_IQ;
-    DATASTMUX_SelectInput_WRITE(BC_DATASTMUX_2132, DATASTMUX_CMD_IQSamples);
+    RegControl = DATASTMUX_Control_READ(pBc);
+    RegControl = DATASTMUX_Control_SET_SelectInput(RegControl, DATASTMUX_CMD_IQSamples);
+    DATASTMUX_Control_WRITE(pBc, RegControl);
 
     return Status;
 }

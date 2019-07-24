@@ -79,15 +79,16 @@ DtBcGS2988*  DtBcGS2988_Open(Int  Address, DtCore*  pCore, DtPt*  pPt,
 //
 DtStatus  DtBcGS2988_SetSdiMode(DtBcGS2988*  pBc, Int  Mode)
 {
-    BC_GS2988_DEFAULT_PRECONDITIONS(pBc);
+    UInt32  RegControl;
 
     // Apply mode
+    RegControl = GS2988_Control_READ(pBc);
     if (Mode == DT_GS2988_SDIMODE_HD_3G)
-        GS2988_SdiHdOrSd_WRITE(pBc, GS2988_SDIMODE_HD);
+        RegControl = GS2988_Control_SET_SdiHdOrSd(RegControl, GS2988_SDIMODE_HD);
     else if (Mode == DT_GS2988_SDIMODE_SD)
-        GS2988_SdiHdOrSd_WRITE(pBc, GS2988_SDIMODE_SD);
+        RegControl = GS2988_Control_SET_SdiHdOrSd(RegControl, GS2988_SDIMODE_SD);
     else
         return DT_STATUS_INVALID_PARAMETER;
-
+    GS2988_Control_WRITE(pBc, RegControl);
     return DT_STATUS_OK;
 }

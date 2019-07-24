@@ -88,5 +88,33 @@ DtStatus  DtCore_TOD_PeriodicItvUnregister(DtCore*  pCore, const DtObject*  pObj
     if (CF_TOD(pCore) == NULL)
         return DT_STATUS_FAIL;
     return DtCfTod_PeriodicIntervalUnregister(CF_TOD(pCore), pObject);
+}
 
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_TOD_Add -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Returns Time1 + Offset
+//
+DtTodTime DtCore_TOD_Add(DtTodTime Time, Int64 Offset)
+{
+    UInt64 T;
+    DT_ASSERT(Time.m_Nanoseconds<1000*1000*1000 && Time.m_Nanoseconds<1000*1000*1000);
+    T = Time.m_Seconds*1000LL*1000*1000 + Time.m_Nanoseconds;
+    T = T + (UInt64)Offset;
+    Time.m_Seconds = (UInt32)(T/(1000LL*1000*1000));
+    Time.m_Nanoseconds = (UInt32)(T%(1000LL*1000*1000));
+    return Time;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_TOD_TimeDiff -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Returns Time1 - Time2 in nano seconds
+//
+Int64 DtCore_TOD_TimeDiff(DtTodTime Time1, DtTodTime Time2)
+{
+    UInt64 T1, T2;
+    DT_ASSERT(Time1.m_Nanoseconds<1000*1000*1000 && Time2.m_Nanoseconds<1000*1000*1000);
+    T1 = Time1.m_Seconds*1000LL*1000*1000 + Time1.m_Nanoseconds;
+    T2 = Time2.m_Seconds*1000LL*1000*1000 + Time2.m_Nanoseconds;
+    return (Int64)(T1 - T2);
 }

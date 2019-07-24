@@ -53,6 +53,7 @@ const DtBcId  DT_BC_KNOWN[] =
     { DT_BC_CONSTSOURCE_NAME,     DT_BC_CONSTSOURCE_SHORTNAME,     NULL, -1, -1 },
     { DT_BC_FANC_NAME,            DT_BC_FANC_SHORTNAME,            NULL, -1, -1 },
     { DT_BC_FPGATEMP_NAME,        DT_BC_FPGATEMP_SHORTNAME,        NULL, -1, -1 },
+    { DT_BC_GENL_NAME,            DT_BC_GENL_SHORTNAME,            NULL, -1, -1 },
     { DT_BC_GS2988_NAME,          DT_BC_GS2988_SHORTNAME,          NULL, -1, -1 },
     { DT_BC_I2CM_NAME,            DT_BC_I2CM_SHORTNAME,            NULL, -1, -1 },
     { DT_BC_IPSECG_NAME,          DT_BC_IPSECG_SHORTNAME,          NULL, -1, -1 },
@@ -640,6 +641,9 @@ DtBc*  DtBc_OpenType(DtBcType  Type, Int  Address, DtCore*  pCore,
     case DT_BLOCK_TYPE_FPGATEMP:
         DT_ASSERT(CreateStub == FALSE);
         return (DtBc*)DtBcFPGATEMP_Open(Address, pCore, pPt, pRole, Instance, Uuid);
+    case DT_BLOCK_TYPE_GENL:
+        DT_ASSERT(CreateStub == FALSE);
+        return (DtBc*)DtBcGENL_Open(Address, pCore, pPt, pRole, Instance, Uuid, FALSE);
     case DT_BLOCK_TYPE_GS2988:
         return (DtBc*)DtBcGS2988_Open(Address, pCore, pPt, pRole, Instance, 
                                                                         Uuid, CreateStub);

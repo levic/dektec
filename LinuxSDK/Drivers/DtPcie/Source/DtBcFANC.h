@@ -59,6 +59,7 @@ typedef  struct _DtBcFANC
     Bool  m_HasNoFan;           // Fanless variant
     Int  m_MeasurementPeriod;   // Measurement period in milliseconds
     Int  m_WatchdogTimeout;     // Watchdog timeout in milliseconds
+    Int  m_InitialFanSpeed;     // Default/initial fanspeed
     Int  m_FanSpeed;            // Fan speed "percentage" (100% = 127)
 }  DtBcFANC;
 
@@ -67,7 +68,7 @@ void  DtBcFANC_Close(DtBc*);
 DtBcFANC*  DtBcFANC_Open(Int  Address, DtCore*, DtPt*  pPt, 
                                             const char*  pRole, Int  Instance, Int  Uuid);
 DtStatus DtBcFANC_GetConfig(DtBcFANC* pBc, Bool* pHasNoFan, Int* pMeasPeriod,
-                                                                         Int* pWdTimeout);
+                                                        Int* pWdTimeout, Int* pInitSpeed);
 DtStatus  DtBcFANC_GetFanSpeed(DtBcFANC* pBc,  Int* pFanSpeed);
 DtStatus  DtBcFANC_GetStatus(DtBcFANC* pBc,  Int*  pFanSpeedRpm, Bool*  pIsWdTimeout, 
                                                                       Bool*  pIsFanStuck);

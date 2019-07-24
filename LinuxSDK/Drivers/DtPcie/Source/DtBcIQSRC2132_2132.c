@@ -104,6 +104,7 @@ DtStatus DtBcIQSRC2132_2132_GetSampleRateConversion(DtBcIQSRC2132_2132* pBc,
 DtStatus DtBcIQSRC2132_2132_SetSampleRateConversion(DtBcIQSRC2132_2132* pBc, Int Enable, 
                                                                 UInt32 SampleRateFraction)
 {
+    UInt32  RegControl;
     // Sanity check
     BC_IQSRC2132_2132_DEFAULT_PRECONDITIONS(pBc);
 
@@ -117,7 +118,11 @@ DtStatus DtBcIQSRC2132_2132_SetSampleRateConversion(DtBcIQSRC2132_2132* pBc, Int
                      && SampleRateFraction!=DT_IQSRC2132_2132_FRAC_0_03125)
         return DT_STATUS_INVALID_PARAMETER;
 
-    IQSRC2132_Enable_WRITE(pBc, Enable==TRUE ? 1: 0);
+    // Update control register
+    RegControl = IQSRC2132_Control_READ(pBc);
+    RegControl = IQSRC2132_Control_SET_Enable(RegControl, Enable==TRUE ? 1: 0);
+    IQSRC2132_Control_WRITE(pBc, RegControl);
+
     if (Enable == TRUE)
     { 
         UInt32 RegSrFrac = 0;
@@ -142,8 +147,10 @@ DtStatus DtBcIQSRC2132_2132_SetSampleRateConversion(DtBcIQSRC2132_2132* pBc, Int
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcIQSRC2132_2132_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtBcIQSRC2132_2132_Init(DtBc*  pBc)
+DtStatus  DtBcIQSRC2132_2132_Init(DtBc*  pBcBase)
 {
+    DtBcIQSRC2132_2132* pBc = (DtBcIQSRC2132_2132*)pBcBase;
+    UInt32 RegControl;
     DtStatus  Status=DT_STATUS_OK;
 
     // Sanity checks
@@ -152,7 +159,9 @@ DtStatus  DtBcIQSRC2132_2132_Init(DtBc*  pBc)
     // Initialize the sample rate convertor
     BC_IQSRC2132_2132->m_SrcEnabled = FALSE;
     BC_IQSRC2132_2132->m_SrcFraction = DT_IQSRC2132_2132_FRAC_0_5;
-    IQSRC2132_Enable_WRITE(BC_IQSRC2132_2132, 0);
+    RegControl = IQSRC2132_Control_READ(pBc);
+    RegControl = IQSRC2132_Control_SET_Enable(RegControl, 0);
+    IQSRC2132_Control_WRITE(pBc, RegControl);
     IQSRC2132_SampleRateFraction_WRITE(BC_IQSRC2132_2132, 0X80000000);
 
     return Status;

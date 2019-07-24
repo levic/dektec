@@ -88,7 +88,7 @@ DtStatus DtBcIQCGRAB_2132_GetIqConstPoints(DtBcIQCGRAB_2132* pBc, Int StreamId,
                                   Int NumIqPoints, Int16* pIqPoints, Int* pNumIqPointsOut)
 {
     DtStatus  Status = DT_STATUS_OK;
-    UInt32  RegCapSettings;
+    UInt32  RegCapSettings, RegCapControl;
     Int i;
 
     // Sanity check
@@ -118,11 +118,14 @@ DtStatus DtBcIQCGRAB_2132_GetIqConstPoints(DtBcIQCGRAB_2132* pBc, Int StreamId,
         return Status;
     }
 
-    // Set stream-ID and num to get and start capturing
+    // Set stream-ID and num to get 
     RegCapSettings = IQCGRAB_CaptureSettings_SET_NumSamples(0, (UInt)NumIqPoints);
-    RegCapSettings = IQCGRAB_CaptureSettings_SET_StreamID(RegCapSettings, (UInt)StreamId);
+    RegCapSettings = IQCGRAB_CaptureSettings_SET_PLS(RegCapSettings, (UInt)StreamId);
     IQCGRAB_CaptureSettings_WRITE(pBc, RegCapSettings);
-    IQCGRAB_CaptureControl_PULSE_Start(pBc);
+    // Start capturing
+    RegCapControl = IQCGRAB_CaptureControl_READ(pBc);
+    RegCapControl = IQCGRAB_CaptureControl_SET_Start(RegCapControl, 1);
+    IQCGRAB_CaptureControl_WRITE(pBc, RegCapControl);
 
     // Wait for done interrupt
     Status = DtEventWaitUnInt(&pBc->m_DoneEvent, 5000);

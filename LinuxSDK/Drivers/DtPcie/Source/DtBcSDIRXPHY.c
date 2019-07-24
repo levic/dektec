@@ -473,17 +473,17 @@ DtStatus DtBcSDIRXPHY_C10A10_SetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     if (SdiRate==DT_DRV_SDIRATE_SD || SdiRate==DT_DRV_SDIRATE_3G)
     { 
         // Set loop filter and dividers for 3Gbps operation
-        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_CdrPllLfResistorPd(
+        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_LfResistorPd(
                                              RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_3);
-        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_CdrPllPdLCounter(
+        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_PdLCounter(
                                           RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_4);
     }
     else
     { 
         // Set loop filter and dividers for HD operation
-        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_CdrPllLfResistorPd(
+        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_LfResistorPd(
                                              RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_0);
-        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_CdrPllPdLCounter(
+        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_PdLCounter(
                                           RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_8);
     }
     SDIRXPHY_C10A10_CdrPllSettings4_WRITE(pBc, RegCdrPllSettings4);
@@ -552,9 +552,9 @@ DtStatus  DtBcSDIRXPHY_Init(DtBc*  pBcBase)
         // Set loop filter and dividers for HD operation
         UInt32  RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_READ(pBc);
         UInt32  RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_READ(pBc);
-        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_CdrPllLfResistorPd(
+        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_LfResistorPd(
                                              RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_0);
-        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_CdrPllPdLCounter(
+        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_PdLCounter(
                                           RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_8);
         SDIRXPHY_C10A10_CdrPllSettings4_WRITE(pBc, RegCdrPllSettings4);
         SDIRXPHY_C10A10_CdrPllSettings9_WRITE(pBc, RegCdrPllSettings9);

@@ -69,6 +69,14 @@ DtStatus  DtCore_DEVICE_Init(DtCore*  pCore, DtIoStubCoreOpenFunc  pOpenStubFunc
         return DT_STATUS_OUT_OF_MEMORY;
     }
     
+    // Create the events data
+    DT_ASSERT(pCore->m_pCfEvtData == NULL);
+    pCore->m_pCfEvtData = DtCore_EVENTS_CreateEvtData();
+    if (pCore->m_pCfEvtData == NULL)
+    {
+        DtDbgOut(ERR, CORE, "Failed to create events data");
+        return DT_STATUS_OUT_OF_MEMORY;
+    }
     // Init block-controller-list (with an initial capacity of 8 BCs + grow with 4)
     DT_ASSERT(pCore->m_pBcList == NULL);
     pCore->m_pBcList = DtVectorBc_Create(8, 4);
@@ -131,6 +139,7 @@ DtStatus  DtCore_DEVICE_Init(DtCore*  pCore, DtIoStubCoreOpenFunc  pOpenStubFunc
 DtStatus  DtCore_DEVICE_PowerUp(DtCore*  pCore)
 {
     DtStatus  Status = DT_STATUS_OK;
+    DtDriverEvent PowerEvent;
 
     DtDbgOut(MAX, CORE, "Start");
 
@@ -249,6 +258,11 @@ DtStatus  DtCore_DEVICE_PowerUp(DtCore*  pCore)
         return Status;
     }
 
+    // Set power up event
+    PowerEvent.m_EventType = DT_DRV_EVENT_TYPE_POWER;
+    PowerEvent.m_EventValue1 = DT_DRV_EVENT_VALUE1_POWER_UP;
+    PowerEvent.m_EventValue2 = 0;
+    DtCore_EVENTS_Set((DtCore*)pCore, PowerEvent , FALSE);
     DtDbgOut(MAX, CORE, "Exit");
 
     return DT_STATUS_OK;
@@ -623,11 +637,16 @@ DtStatus  DtCore_DEVICE_PowerDown(DtCore* pCore)
     Int  i=0;
     DtFileHandleInfo*  pFileHandleInfo;
     DtStatus  Status = DT_STATUS_OK;
-
+    DtDriverEvent PowerEvent;
     DtDbgOut(MAX, CORE, "Start");
 
     // Sanity checks
     CORE_DEFAULT_PRECONDITIONS(pCore);
+    // Set power down event
+    PowerEvent.m_EventType = DT_DRV_EVENT_TYPE_POWER;
+    PowerEvent.m_EventValue1 = DT_DRV_EVENT_VALUE1_POWER_DOWN;
+    PowerEvent.m_EventValue2 = 0;
+    DtCore_EVENTS_Set((DtCore*)pCore, PowerEvent , FALSE);
 
     // Set power down pending to prevent new IOCTL's
     DtFastMutexAcquire(&pCore->m_FileHandleInfoMutex);
@@ -691,12 +710,10 @@ DtStatus  DtCore_DEVICE_PowerDown(DtCore* pCore)
     }
 
     //.-.-.-.-.-.-.-.-.-.-.-.- Step 3: close the core DFs and BCs -.-.-.-.-.-.-.-.-.-.-.-.
-
     if (pCore->m_CloseChildrenFunc != NULL)
         pCore->m_CloseChildrenFunc(pCore);
     else
         DtCore_CloseChildren(pCore);
-
 
     DtDbgOut(MAX, CORE, "Exit");
     
@@ -760,6 +777,12 @@ void  DtCore_DEVICE_Exit(DtCore*  pCore)
         pCore->m_pPtList = NULL;
     }
 
+    // Clean-up event data
+    if (pCore->m_pCfEvtData != NULL)
+    { 
+        DtCore_EVENTS_CleanupEvtData(pCore->m_pCfEvtData);
+        pCore->m_pCfEvtData = NULL;
+    }
     // Clean-up core io-stub
     if (pCore->m_pIoStub!=NULL)
     {

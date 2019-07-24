@@ -239,13 +239,6 @@ DtStatus  DtDfTempFanMgr_Init(DtDf*  pDfBase)
     pDf->m_FanCtrlState = TEMPFANMGR_FANCTRL_DISABLED;
     DtSpinLockInit(&pDf->m_FanCtrlStateSpinLock);
 
-    // Delay and MinFanSpeed should have a valid value
-    DT_ASSERT(pDf->m_Delay > 0);
-    DT_ASSERT(pDf->m_MinFanSpeed >= DT_BC_FANC_MIN_SPEED);
-    DT_ASSERT(pDf->m_MinFanSpeed <= DT_BC_FANC_MAX_SPEED);
-    // Set default fanspeed
-    pDf->m_FanSpeed_x_Delay = DT_BC_FANC_DEFAULT_SPEED * pDf->m_Delay;
-
     // Create list for the temperature sensors
     DT_ASSERT(pDf->m_pDfTempSensors == NULL);
     pDf->m_pDfTempSensors = DtVectorDf_Create(1, 1);
@@ -339,17 +332,12 @@ DtStatus  DtDfTempFanMgr_LoadParameters(DtDf*  pDfBase)
     // Sanity checks
     DF_TEMPFANMGR_DEFAULT_PRECONDITIONS(pDf);
 
-
     // Invalidate parameters
     pDf->m_Delay = -1;
     pDf->m_MinFanSpeed = -1;
     // Load parameters from property store
     DT_RETURN_ON_ERROR(DtDf_LoadParameters(pDfBase, DT_SIZEOF_ARRAY(DFTEMPFANMGR_PARS), 
                                                                       DFTEMPFANMGR_PARS));
-    // Check paramaters have been loaded succesfully
-    DT_ASSERT(pDf->m_Delay > 0);
-    DT_ASSERT(pDf->m_MinFanSpeed >= DT_BC_FANC_MIN_SPEED);
-    DT_ASSERT(pDf->m_MinFanSpeed <= DT_BC_FANC_MAX_SPEED);
     return DT_STATUS_OK;
 }
 
@@ -370,14 +358,19 @@ DtStatus  DtDfTempFanMgr_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
         if (pDf->m_pBcFanCtrl != NULL)
         {
             Bool  HasNoFan;
-            Int  MeasPeriod, WdTimeout;
-            DT_RETURN_ON_ERROR(DtBcFANC_GetConfig(pDf->m_pBcFanCtrl, &HasNoFan, 
-                                                                &MeasPeriod, &WdTimeout));
+            Int  MeasPeriod, WdTimeout, InitFanSpeed;
+            DT_RETURN_ON_ERROR(DtBcFANC_GetConfig(pDf->m_pBcFanCtrl, &HasNoFan,
+                                                 &MeasPeriod, &WdTimeout, &InitFanSpeed));
             if (!HasNoFan)
             {
                 // One fan found
                 pDf->m_NumFans = 1;
+                // Delay and MinFanSpeed should have a valid value
+                DT_ASSERT(pDf->m_Delay > 0);
+                DT_ASSERT(pDf->m_MinFanSpeed >= DT_BC_FANC_MIN_SPEED);
+                DT_ASSERT(pDf->m_MinFanSpeed <= DT_BC_FANC_MAX_SPEED);
                 // Set initial fan speed
+                pDf->m_FanSpeed_x_Delay = InitFanSpeed * pDf->m_Delay;
                 DT_RETURN_ON_ERROR(DtBcFANC_SetFanSpeed(pDf->m_pBcFanCtrl, 
                                                    pDf->m_FanSpeed_x_Delay/pDf->m_Delay));
             }

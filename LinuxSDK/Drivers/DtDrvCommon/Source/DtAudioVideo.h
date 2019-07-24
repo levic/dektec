@@ -33,4 +33,25 @@ Int  DtAvGetNumPixelsPerLine(Int VidStd);
 Int  DtAvGetNumVidStd(void);
 DtStatus  DtAvGetFramePropsFromIdx(Int Idx, DtAvFrameProps*  pProps);
 
+// Video-standard helpers
+// Video-standard helpers
+Int  DtAvIoStd2VidStd(Int  Value, Int  SubValue);
+Int  DtAvVidStd2Fps(Int  VidStd);
+Bool  DtAvVidStdIsFractional(Int  VidStd);
+Bool  DtAvVidStdIsInterlaced(Int  VidStd);
+Bool  DtAvVidStdIsPsf(Int  VidStd);
+Bool  DtAvVidStdIs3gSdi(Int  VidStd);
+Bool  DtAvVidStdIs3glvlBSdi(Int  VidStd);
+Bool  DtAvVidStdIs6gSdi(Int  VidStd);
+Bool  DtAvVidStdIs12gSdi(Int  VidStd);
+Bool  DtAvVidStdIsHdSdi(Int  VidStd);
+Bool  DtAvVidStdIsSdSdi(Int  VidStd);
+
+Int  DtAvVidStd2FrameLength(Int  VidStd);
+Int  DtAvVidStd2FramePeriod(Int VidStd);
+Int   DtAvVidStdSymbOffset2TimeOffset(Int VidStd, Int SymbolOffset);
+Bool  DtAvVidStdUsesFractionalClock(Int  VidStd);
+// For debugging
+char*  VidStdName(Int VidStd);
+
 #endif // __DT_AUDIO_VIDEO_H

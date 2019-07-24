@@ -2851,7 +2851,7 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
             DtaHdmiVidStd NewVidStd;
             NewVidStd.m_AspectRatio = DTA_AR_16_9;
             NewVidStd.m_VidStd = 
-                           DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value,
+                           DtAvIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value,
                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
 
             for (i=0; i<pDvcData->m_NumNonIpPorts && DT_SUCCESS(Status); i++)
@@ -2898,7 +2898,7 @@ static DtStatus  DtaNonIpIoConfigSetIoStd(
                 DtaHdmiVidStd NewVidStd;
                 NewVidStd.m_AspectRatio = DTA_AR_16_9;
                 NewVidStd.m_VidStd = 
-                           DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value,
+                          DtAvIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value,
                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
 
                 for (i=0; i<pDvcData->m_NumNonIpPorts && DT_SUCCESS(Status); i++)

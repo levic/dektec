@@ -100,12 +100,15 @@ DtStatus DtBcLNBH25_2132_SendToneBurst(DtBcLNBH25_2132* pBc, Int ToneBurst)
     DtFastMutexAcquire(&pBc->m_AccessMutex);
 
     // Reset the transmitter
-    RegData = LNBH25_TxControl_SET_Command(0, LNBH25_CMD_NOP);
+    RegData = LNBH25_TxControl_READ(pBc);
+    RegData = LNBH25_TxControl_SET_Command(RegData, LNBH25_CMD_NOP);
     RegData = LNBH25_TxControl_SET_Reset(RegData, LNBH25_CMD_RESET);
     LNBH25_TxControl_WRITE(pBc, RegData);
 
     // Clear failure flag
-    LNBH25_FaultControl_PULSE_Reset(pBc);
+    RegData = LNBH25_FaultControl_READ(pBc);
+    RegData = LNBH25_FaultControl_SET_Reset(RegData, 1);
+    LNBH25_FaultControl_WRITE(pBc, RegData);
     pBc->m_Failure = FALSE;
 
     // Reset done event
@@ -193,7 +196,9 @@ DtStatus DtBcLNBH25_2132_SendReceiveMessage(DtBcLNBH25_2132* pBc, const UInt8* p
     LNBH25_RxControl_WRITE(pBc, RegData);
 
     // Clear failure flag
-    LNBH25_FaultControl_PULSE_Reset(pBc);
+    RegData = LNBH25_FaultControl_READ(pBc);
+    RegData = LNBH25_FaultControl_SET_Reset(RegData, 1);
+    LNBH25_FaultControl_WRITE(pBc, RegData);
     pBc->m_Failure = FALSE;
 
     // Reset done event

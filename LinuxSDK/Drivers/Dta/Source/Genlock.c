@@ -275,7 +275,7 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
    DT_ASSERT(pNonIpPort->m_IoCfg[DT_IOCONFIG_GENREF].m_Value == DT_IOCONFIG_TRUE);
         
     // Reference standard is IO-STD to which this port is configured
-    RefVidStd = DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
+    RefVidStd = DtAvIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
                                     pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
     // Check the standard is supported
     switch (RefVidStd)
@@ -363,13 +363,13 @@ DtStatus  DtaGenlockApplyGenRefConfig(DtaDeviceData* pDvcData)
         return Status;
     
     // Compute duration of a single line
-    Fps = DtaVidStd2Fps(RefVidStd);
+    Fps = DtAvVidStd2Fps(RefVidStd);
     DT_ASSERT(Fps > 0);
     pGenlData->m_RefLineDurationNs = (1000000000 / Fps) / RefAvProps.m_NumLines;
     if (RefAvProps.m_IsFractional)
         pGenlData->m_RefLineDurationNs = (pGenlData->m_RefLineDurationNs*1001) / 1000;
 
-    Fps = DtaVidStd2Fps(OutVidStd);
+    Fps = DtAvVidStd2Fps(OutVidStd);
     DT_ASSERT(Fps > 0);
     pGenlData->m_OutLineDurationNs = (1000000000 / Fps) / OutAvProps.m_NumLines;
     if (OutAvProps.m_IsFractional)

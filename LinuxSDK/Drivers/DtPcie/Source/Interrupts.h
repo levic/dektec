@@ -44,6 +44,8 @@
 #define  DT_INTERRUPT_SDITXF_FMTEVENT       15
 #define  DT_INTERRUPT_CONSTSOURCE_TESTDONE  16
 #define  DT_INTERRUPT_CONSTSINK_TESTDONE    17
+#define  DT_INTERRUPT_GENL_STARTOFFRAME     18
+#define  DT_INTERRUPT_LMH1981_STARTOFFRAME  19
 
 // Signature of the interrupt handler callback function
 typedef  DtStatus  (*DtBcIntHandlerFunc)(DtBc*, Int  Id, Int  Index, void*);

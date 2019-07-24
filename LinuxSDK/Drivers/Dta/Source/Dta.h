@@ -33,9 +33,9 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA log levels -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
 // IAL related
-#define  LOG_LEVEL_IAL           LOG_AVG
+#define  LOG_LEVEL_IAL           LOG_MAX
 // Toplevel related
-#define  LOG_LEVEL_DTA           LOG_MIN
+#define  LOG_LEVEL_DTA           LOG_AVG
 // I2C related
 #define  LOG_LEVEL_I2C           LOG_MIN
 // Events
@@ -219,6 +219,7 @@ struct _DtaDeviceData
         
     // Used during powerup to determine what should be initialised
     Bool  m_InitialPowerup;
+    Bool  m_PowerupReady;
 
     // Registry
     Bool   m_RegistryWriteBusy;

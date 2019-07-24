@@ -193,7 +193,7 @@ DtStatus  DtaGs2961GetVideoStd(DtaNonIpPort*  pNonIpPort, Int*  pVidStd)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaGs2962Enable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort)
+DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort, Bool  EnableVpidProc)
 {
     UInt  IoProc;
     // Port must has a matrix-API register interface
@@ -216,8 +216,11 @@ DtStatus  DtaGs2962Enable(DtaNonIpPort*  pNonIpPort)
     IoProc = 0x0A00;
     if (!DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort))
     {
-        // Disable: ILLEGAL_WORD_REMAP, ANC_CSUM_INS,
+        // Disable: ILLEGAL_WORD_REMAP, ANC_CSUM_INS
         IoProc |= 0x0028;
+        // Also disable SMPTE_352M_INS, if VPID insertion is disabled
+        if (!EnableVpidProc)
+            IoProc |= 0x0040;
     }
     // Set VPID insertion bytes
     DtaGs2962SetVpid(pNonIpPort, DtaRegHdSdiFormat1Get(pNonIpPort->m_pTxRegs));

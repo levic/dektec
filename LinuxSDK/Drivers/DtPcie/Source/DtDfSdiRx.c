@@ -61,7 +61,6 @@ static DtStatus  DtDfSdiRx_OpenChildren(DtDfSdiRx*);
 static DtStatus  DtDfSdiRx_CheckSdiRate(DtDfSdiRx*, Int SdiRate);
 static void  DtDfSdiRx_PeriodicIntervalHandler(DtObject*, DtTodTime  Time);
 static void  DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*,  DtTodTime  Time);
-static Int64  DtDfSdiRx_TimeDiff(DtTodTime  Time1, DtTodTime  Time2);
 static Bool  DtDfSdiRx_UsesLockToData(Int Rate);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfSdiRx - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -355,7 +354,7 @@ DtStatus DtDfSdiRx_SetRxMode(DtDfSdiRx* pDf, Int RxMode)
         pDf->m_RxMode = RxMode;
         // Logging
         DtCore_TOD_GetTime(pDf->m_pCore, &Time);
-        TimeDiffMs = (Int)(DtDfSdiRx_TimeDiff(Time, pDf->m_StateTime)/(1000*1000));
+        TimeDiffMs = (Int)(DtCore_TOD_TimeDiff(Time, pDf->m_StateTime)/(1000*1000));
         pDf->m_StateTime = Time;
         DtDbgOutDf(MIN, SDIRX, pDf, "Entered: STATE_INIT_XCVR; Rate: %d RxMode: %d"
                               " Duration: %d", pDf->m_CurrentSdiRate, RxMode, TimeDiffMs);
@@ -406,7 +405,7 @@ DtStatus DtDfSdiRx_SetSdiRate(DtDfSdiRx* pDf, Int SdiRate)
 
         // Logging
         DtCore_TOD_GetTime(pDf->m_pCore, &Time);
-        TimeDiffMs = (Int)(DtDfSdiRx_TimeDiff(Time, pDf->m_StateTime)/(1000*1000));
+        TimeDiffMs = (Int)(DtCore_TOD_TimeDiff(Time, pDf->m_StateTime)/(1000*1000));
         pDf->m_StateTime = Time;
         DtDbgOutDf(MIN, SDIRX, pDf, "Entered: STATE_INIT_XCVR; SetSdiRate: %d"
                               " Duration: %d", pDf->m_CurrentSdiRate, TimeDiffMs);
@@ -542,7 +541,7 @@ DtStatus DtDfSdiRx_ConfigureRateC10A10(DtDfSdiRx* pDf, Int SdiRate)
 DtStatus DtDfSdiRx_ConfigureRateCV(DtDfSdiRx* pDf, Int SdiRate)
 {
     DtStatus  Status=DT_STATUS_OK;
-    Int  BcReconfig;
+    Int  BcReconfig=DT_SDIXCFG_MODE_3G;
     Bool DownsamplerEnable = FALSE;
 
     // Convert parameter for the block controllers
@@ -567,6 +566,9 @@ DtStatus DtDfSdiRx_ConfigureRateCV(DtDfSdiRx* pDf, Int SdiRate)
     case DT_DRV_SDIRATE_12G:
         DownsamplerEnable = FALSE;
         BcReconfig = DT_SDIXCFG_MODE_3G;
+        break;
+    default:
+        DT_ASSERT(FALSE);
         break;
     }   
 
@@ -859,7 +861,7 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
 {
     DtStatus  Status = DT_STATUS_OK;
     Bool  LockedToRef=FALSE,LineLock = FALSE, CarrierDetected = FALSE;
-    DT_UNUSED Int  TimeDiffMs = (Int)(DtDfSdiRx_TimeDiff(Time, pDf->m_StateTime) 
+    DT_UNUSED Int  TimeDiffMs = (Int)(DtCore_TOD_TimeDiff(Time, pDf->m_StateTime) 
                                                                            / (1000*1000));
     DtSpinLockAcquireAtDpc(&pDf->m_SpinLock);
 
@@ -1223,15 +1225,6 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
         break;
     }
     DtSpinLockReleaseFromDpc(&pDf->m_SpinLock);
-}
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_TimeDiff -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-Int64 DtDfSdiRx_TimeDiff(DtTodTime Time1, DtTodTime Time2)
-{
-    UInt64 T1 = Time1.m_Seconds*1000LL*1000*1000 + Time1.m_Nanoseconds;
-    UInt64 T2 = Time2.m_Seconds*1000LL*1000*1000 + Time2.m_Nanoseconds;
-    return (Int64)(T1 - T2);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_UsesLockToData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

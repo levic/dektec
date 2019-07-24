@@ -580,7 +580,7 @@ DtStatus  DtaNonIpMatrixDetectVidStd(DtaNonIpPort* pNonIpPort, Int*  pVidStd)
                 NumVidStdToggle = 2;
             }
             // Check if the current video standard is fractional
-            else if (DtaVidStdIsFractional(pMatrix->m_FrameProps.m_VidStd))
+            else if (DtAvVidStdIsFractional(pMatrix->m_FrameProps.m_VidStd))
             {
                 // Toggle to a non-fractional format
                 DT_ASSERT(pNonIpPort->m_Cap1080I50);
@@ -1011,9 +1011,9 @@ DtStatus  DtaNonIpMatrixStart(
     // Manual frame index control is not supported on legacy interface
     if (DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort) && !AutoMode)
         return DT_STATUS_NOT_SUPPORTED;
-    
+
     DtMutexAcquire(&pMatrix->m_StateLock, -1);
-        
+
     // State cannot be unintialised or configuring
     if (pMatrix->m_State==MATRIX_PORT_UNINIT || pMatrix->m_State==MATRIX_PORT_CONFIGURING)
     {
@@ -1049,6 +1049,12 @@ DtStatus  DtaNonIpMatrixStart(
         NeedReConfig = TRUE;
         ConfigMode = DTA_MATRIX_CMODE_RESTART;
     }
+    else if (IsOutput && pNonIpPort->m_AsiSdiDeserItfType==ASI_SDI_SER_ITF_GS2962)
+    {
+        // Must restart channels with a GS2962 to properly enable/disable VPID processing
+        NeedReConfig = TRUE;
+        ConfigMode = DTA_MATRIX_CMODE_RESTART;
+    }
     else
         NeedReConfig = FALSE;
 
@@ -1073,11 +1079,11 @@ DtStatus  DtaNonIpMatrixStart(
     // 3G-level B inputs are a special case, we enable the processing for those.
     {
         volatile UInt8*  pHdRegs = pNonIpPort->m_pRxRegs;
-        Int  NewVidStd = DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
+        Int  NewVidStd = DtAvIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
     
         Bool  EnableVpidProc = IsOutput && !DisableVpidProc;
-        if (!IsOutput && DtaVidStdIs3glvlBSdi(NewVidStd))
+        if (!IsOutput && DtAvVidStdIs3glvlBSdi(NewVidStd))
         {
             EnableVpidProc = TRUE;
         }
@@ -1813,9 +1819,9 @@ DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
         // API for 6G and 12G for DTA-2195. See FW-PR-31
         if (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber == 2195)
         {
-            Int  VidStd = DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
+            Int  VidStd = DtAvIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
-            if (DtaVidStdIs6gSdi(VidStd) || DtaVidStdIs12gSdi(VidStd))
+            if (DtAvVidStdIs6gSdi(VidStd) || DtAvVidStdIs12gSdi(VidStd))
             {
                 DtaNonIpPort*  pNonIpPorts = pNonIpPort->m_pDvcData->m_pNonIpPorts;
                 // We only change state if all 4 ports have the same state in 6G and 12G
@@ -1930,7 +1936,7 @@ DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
                 RefClk = DtaRegRefClkCntGet64(pNonIpPort->m_pDvcData->m_pGenRegs);
             }
 
-            if (DtaVidStdIs3glvlBSdi(pFrameProps->m_VidStd) &&
+            if (DtAvVidStdIs3glvlBSdi(pFrameProps->m_VidStd) &&
                         pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_INPUT)
             {
                 // For 3G level B input the interrupts are 1126 and 1124 lines apart. To
@@ -1971,7 +1977,7 @@ DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
                     pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_TOP;
                 }
             }
-            else if (DtaVidStdIs3glvlBSdi(pFrameProps->m_VidStd) &&
+            else if (DtAvVidStdIs3glvlBSdi(pFrameProps->m_VidStd) &&
                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_OUTPUT)
             {
                 if (DtaRegHdStatGetCurLvlAToBFrame(pNonIpPort->m_pRxRegs) == 0)
@@ -2175,7 +2181,7 @@ static DtStatus  DtaNonIpMatrixConfigureForAsi(
         // Check for GS2962 serialiser
         if (pNonIpPort->m_AsiSdiSerItfType == ASI_SDI_SER_ITF_GS2962)
         {
-            Status = DtaGs2962Enable(pNonIpPort);
+            Status = DtaGs2962Enable(pNonIpPort, FALSE);
             if (!DT_SUCCESS(Status))
             {
                 DtDbgOut(ERR, NONIP, "Failed to enabled GS2962 for ASI");
@@ -2236,7 +2242,7 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
     IsLegacy = DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort);
 
     // Check if reconfiguration is required
-    NewVidStd = DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
+    NewVidStd = DtAvIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
     if (pNonIpPort->m_Matrix.m_State==MATRIX_PORT_UNINIT || 
                                     pNonIpPort->m_Matrix.m_State==MATRIX_PORT_CONFIGURING)
@@ -2303,7 +2309,7 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
     // Disabled for inputs, enabled for outputs if not disabled by user.
     // 3G-level B inputs are a special case, we enable the processing for those.
     EnableVpidProc = IsOutput && EnableVpidProc;
-    if (IsInput && DtaVidStdIs3glvlBSdi(NewVidStd))
+    if (IsInput && DtAvVidStdIs3glvlBSdi(NewVidStd))
     {
         EnableVpidProc = TRUE;
     }
@@ -2372,7 +2378,7 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
         // Check for GS2962 serialiser
         if (pNonIpPort->m_AsiSdiSerItfType == ASI_SDI_SER_ITF_GS2962)
         {
-            Status = DtaGs2962Enable(pNonIpPort);
+            Status = DtaGs2962Enable(pNonIpPort, EnableVpidProc);
             if (!DT_SUCCESS(Status))
             {
                 DtDbgOut(ERR, NONIP, "Failed to enabled GS2962 for SDI");
@@ -2577,12 +2583,12 @@ DtStatus  DtaNonIpMatrixApplyConfig(DtaNonIpPort* pNonIpPort)
         DtaRegHdFrameConfig1SetInterlaced(pHdRegs, pFrameProps->m_IsInterlaced ? 1 : 0);
         // Select fractional or non-fractional clock
         // NOTE: For SD, always select the non-fractional clock
-        if (DtaVidStdIsSdSdi(pFrameProps->m_VidStd))
+        if (DtAvVidStdIsSdSdi(pFrameProps->m_VidStd))
             DtaRegHdCtrl2SetFracClockSel(pHdRegs, 0);
         else
             DtaRegHdCtrl2SetFracClockSel(pHdRegs, pFrameProps->m_IsFractional ? 1 : 0);
         // Enable level A<=>B converter when in 3G-level-B 'mode'
-        if (DtaVidStdIs3glvlBSdi(VidStd))
+        if (DtAvVidStdIs3glvlBSdi(VidStd))
             DtaRegHdCtrl2SetLvlBConvEn(pHdRegs, 1);
         else
             DtaRegHdCtrl2SetLvlBConvEn(pHdRegs, 0);
@@ -2599,7 +2605,7 @@ DtStatus  DtaNonIpMatrixApplyConfig(DtaNonIpPort* pNonIpPort)
         {
             Int  OutDelayPs, DelayNs, PixelsPerLine, Fps, LineDurationNs, PixelDurationPs;
 
-            Fps = DtaVidStd2Fps(pFrameProps->m_VidStd);
+            Fps = DtAvVidStd2Fps(pFrameProps->m_VidStd);
             DT_ASSERT(Fps > 0);
             LineDurationNs = (1000000000 / Fps) / pFrameProps->m_NumLines;
             if (pFrameProps->m_IsFractional)
@@ -2619,15 +2625,15 @@ DtStatus  DtaNonIpMatrixApplyConfig(DtaNonIpPort* pNonIpPort)
             DT_ASSERT(OutDelayPs >= 0);
 
             // Add the serialiser delay (depends on the video standard)
-            if (DtaVidStdIs12gSdi(pFrameProps->m_VidStd))
+            if (DtAvVidStdIs12gSdi(pFrameProps->m_VidStd))
                 OutDelayPs  += (pNonIpPort->m_AsiSdiSerDelayNs12g * 1000);
-            else if (DtaVidStdIs6gSdi(pFrameProps->m_VidStd))
+            else if (DtAvVidStdIs6gSdi(pFrameProps->m_VidStd))
                 OutDelayPs  += (pNonIpPort->m_AsiSdiSerDelayNs6g * 1000);
-            else if (DtaVidStdIs3gSdi(pFrameProps->m_VidStd))
+            else if (DtAvVidStdIs3gSdi(pFrameProps->m_VidStd))
                 OutDelayPs  += (pNonIpPort->m_AsiSdiSerDelayNs3g * 1000);
-            else if (DtaVidStdIsHdSdi(pFrameProps->m_VidStd))
+            else if (DtAvVidStdIsHdSdi(pFrameProps->m_VidStd))
                 OutDelayPs  += (pNonIpPort->m_AsiSdiSerDelayNsHd * 1000);
-            else if (DtaVidStdIsSdSdi(pFrameProps->m_VidStd))
+            else if (DtAvVidStdIsSdSdi(pFrameProps->m_VidStd))
                 OutDelayPs  += (pNonIpPort->m_AsiSdiSerDelayNsSd * 1000);
             DT_ASSERT(OutDelayPs >= 0);
                        
@@ -2699,10 +2705,10 @@ DtStatus  DtaNonIpMatrixSetVpidRegs(DtaNonIpPort* pNonIpPort)
     Line1 = pFrameProps->m_SwitchingLines[0] + 3;
     if (pFrameProps->m_SwitchingLines[1] != -1)
         Line2 = pFrameProps->m_SwitchingLines[1] + 3;
-    else if (DtaVidStdIs3glvlBSdi(VidStd))
+    else if (DtAvVidStdIs3glvlBSdi(VidStd))
         Line2 = 572;
 
-    if (DtaVidStdIs3glvlBSdi(VidStd) &&
+    if (DtAvVidStdIs3glvlBSdi(VidStd) &&
                         pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_INPUT)
     {
         // Firmware ignores line numbers and simply extracts any valid VPID from the
@@ -2773,7 +2779,7 @@ DtStatus  DtaNonIpMatrixApplyBufferConfig(DtaNonIpPort* pNonIpPort)
 //
 DtStatus  DtaNonIpMatrixInitFrameProps(DtaNonIpPort* pNonIpPort)
 {
-    Int  VidStd = DtaIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value,
+    Int  VidStd = DtAvIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value,
                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
     return DtAvGetFrameProps(VidStd, &pNonIpPort->m_Matrix.m_FrameProps);
 }
