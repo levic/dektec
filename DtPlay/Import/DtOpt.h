@@ -168,6 +168,14 @@ public:
         PrintOptionsHelp(Options, N);
     }
 
+    inline const DtOptType  Type() const { return m_Type;  }
+    inline const wstring  Name() const { return m_Name; }
+    inline const wstring  Description() const { return m_Description; }
+    inline const DtEnumOptPair* EnumPairs() const
+    {
+        return (m_Type == OPT_TYPE_INT) ? m_EnumPairs : NULL;
+    }
+
 private:
     void  ParseIntOpt();
     void  ParseInt64Opt();

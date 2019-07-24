@@ -17,6 +17,36 @@
 #define _vsnwprintf vswprintf
 #endif
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- PCAP-file -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+#define PCAP_MAGIC_NUMBER_US     0xa1b2c3d4
+#define PCAP_MAGIC_NUMBER_NS     0xa1b23c4d
+#define PCAP_VERSION_MAJOR      2
+#define PCAP_VERSION_MINOR      4
+
+struct PcapFileHeader
+{
+    unsigned int  m_MagicNumber;        // Magic number
+    unsigned short  m_VersionMajor;     // Major version number
+    unsigned short  m_VersionMinor;     // Minor version number
+    unsigned int  m_ThisZone;           // GMT to local correction; Always 0
+    unsigned int  m_SigFigs;            // Accuracy of timestamps; Always 0
+    unsigned int  m_SnapLen;            // Maximum length of captured packets, in bytes
+    unsigned int  m_Network;            // Data link type
+};
+
+struct TimeVal
+{
+  int m_Seconds;
+  int m_NsOrUs;
+};
+struct PcapPckHeader
+{
+    TimeVal  m_TimeStamp;               // Timestamp
+    unsigned int  m_InclLen;            // Number of bytes saved in file
+    unsigned int  m_OrigLen;            // Original length of packet
+};
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class Exc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 class Exc
@@ -86,6 +116,7 @@ public:
     DtOpt  m_OutpLevel;         // -ml: Modulator output level
     DtOpt  m_CodeRate;          // -mc: code rate
     DtOpt  m_QamJ83Annex;       // -ma: J83 annex (QAM-A/B/C)
+    DtOpt  m_SpecInvers;        // -msi: Spectral inversion
 
     DtOpt  m_IqInterpFilter;    // -if: Interpolation filter to use in IQ mode
 
@@ -116,6 +147,7 @@ public:
     DtOpt  m_ShowHelp;          // -?: show help
 
     bool m_PlayDtSdiFile;       // Play .dtsdi file
+    bool m_PlayPcapFile;        // Play .pcap file
 
 protected:
 
@@ -150,6 +182,7 @@ protected:
     //---- Internal operation ----
     void AttachToOutput();
     void AutoDetectSdiFormat();
+    void DetectPcapFormat();
     void DisplayPlayInfo();
     bool HasOutputPort();
     void InitIsdbtPars(DtIsdbtPars& IsdbtPars);
@@ -172,9 +205,13 @@ protected:
     bool  m_Ip;                     // Current output is a IP port
     FILE* m_pFile;                  // Our play file
     int  m_SizeOfDtSdiHdr;          // Size of DtSdi file header
+    bool  m_m_PcapUsesNanoSeconds;  // If true PCAP-file timestamps in nanoseconds
+                                    // otherwise microseconds
+    bool  m_PcapEthernetLinkType;   // If true PCAP uses Ethernet linktype otherwise IP
 
     char* m_pBuf;                   // Our data buffer
     int  m_ExitLoad;                // Load at which we should exit our loop
+
 };
 
 #endif // #ifndef __DTPLAY_H
