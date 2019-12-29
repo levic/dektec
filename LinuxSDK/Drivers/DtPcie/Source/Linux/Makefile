@@ -109,6 +109,8 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcLMH1981.o              \
          $(SRCDIR)/DtBcMSIX.o                 \
          $(SRCDIR)/DtBcREBOOT.o               \
+         $(SRCDIR)/DtBcSDIDMX12G.o            \
+         $(SRCDIR)/DtBcSDIMUX12G.o            \
          $(SRCDIR)/DtBcSDIRXF.o               \
          $(SRCDIR)/DtBcSDIRXP.o               \
          $(SRCDIR)/DtBcSDIRXPHY.o             \
@@ -119,6 +121,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcSDIXCFG.o              \
          $(SRCDIR)/DtBcSPIM.o                 \
          $(SRCDIR)/DtBcSPIMF.o                \
+         $(SRCDIR)/DtBcST425LR.o              \
          $(SRCDIR)/DtBcSWITCH.o               \
          $(SRCDIR)/DtBcTSRXFMT.o              \
          $(SRCDIR)/DtBcTOD.o                  \
@@ -204,7 +207,7 @@ INSTALLDIR = /lib/modules/$(CURRENT)/kernel/drivers/misc
 # Default option
 
 all:	PREREQ $(DTSAL) $(DTDRVCOMMON)
-	make MYPWD=$(PWD) -C $(KERNELDIR) SUBDIRS=$(PWD) modules
+	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) modules
 
 INSTALL_CMD := "/sbin/rmmod $(TARGET) 2>/dev/null || true &&          \
 				install -d $(INSTALLDIR) &&     \
@@ -235,7 +238,7 @@ $(DTDRVCOMMON):
 
 clean:
 	@if [ -f MakefilePrereq ]; then make -f MakefilePrereq clean ; fi 
-	make MYPWD=$(PWD) -C $(KERNELDIR) SUBDIRS=$(PWD) clean
+	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
 	make MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 	make MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 

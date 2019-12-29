@@ -414,6 +414,9 @@ typedef enum  _DtBcType
     DT_BLOCK_TYPE_BURSTFIFO,    // BurstFifo
     DT_BLOCK_TYPE_LMH1981,      // Lmh1981Ctrl
     DT_BLOCK_TYPE_GENL,         // GenLock
+    DT_BLOCK_TYPE_SDIDMX12G,    // SdiDemux12G
+    DT_BLOCK_TYPE_SDIMUX12G,    // SdiMux12G
+    DT_BLOCK_TYPE_ST425LR,      // St425LinkReorder
 
     // Local DTA-2132 blocks. DONOT RENUMBER!!
     DT_BLOCK_TYPE_AD5320_2132   = LTYPE_SEQNUM(2132, 1),
@@ -491,6 +494,7 @@ typedef enum  _DtFunctionType
     DT_FUNC_TYPE_GENLOCKCTRL_AF,    // Genlock control API function
     DT_FUNC_TYPE_SDIGENREF,         // SDI genref API function
     DT_FUNC_TYPE_VIRTGENREF,        // SDI virtual genref driver function
+    DT_FUNC_TYPE_KEEPALIVE,         // Keep alive control API function
 
     // Local DTA-2132 functions. DONOT RENUMBER!!
     DT_FUNC_TYPE_SPIM_2132 = LTYPE_SEQNUM(2132, 1),
@@ -604,6 +608,9 @@ enum {
     FUNC_BURSTFIFO_CMD,
     FUNC_LMH1981_CMD,
     FUNC_GENLOCKCTRL_CMD,
+    FUNC_SDIDMX12G_CMD,
+    FUNC_SDIMUX12G_CMD,
+    FUNC_ST425LR_CMD,
 };
 
 // NOP command
@@ -1697,6 +1704,8 @@ typedef enum _DtIoctlGenLockCtrlCmd
 {
     DT_GENLOCKCTRL_CMD_GET_STATUS        = 0,  // Get status
     DT_GENLOCKCTRL_CMD_RELOCK            = 1,  // Re-lock
+    DT_GENLOCKCTRL_CMD_GET_DCO_FREQ_OFFSET    = 2,  // Get DCO frequency offset
+    DT_GENLOCKCTRL_CMD_SET_DCO_FREQ_OFFSET    = 3,  // Set DCO frequency offset
 }  DtIoctlGenLockCtrlCmd;
 
 // GenLock states
@@ -1727,21 +1736,46 @@ ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetStatusOutput, 12)
 typedef DtIoctlInputDataHdr DtIoctlGenLockCtrlCmdReLockInput;
 ASSERT_SIZE(DtIoctlGenLockCtrlCmdReLockInput, 16)
 
+// -.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL - Get DCO Frequency Offset -.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtIoctlGenLockCtrlCmdGetDcoFreqOffsetInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+}  DtIoctlGenLockCtrlCmdGetDcoFreqOffsetInput;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetDcoFreqOffsetInput, 16)
+
+typedef struct _DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput
+{
+    Int64A  m_DcoFrequencyMilliHz;      // DCO frequency in milli Hz
+    Int  m_DcoFreqOffsetPpt;            // DCO frequency offset in ppt
+}  DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput, 16)
+
+// -.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL - Set DCO Frequency Offset -.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_DcoFreqOffset;       // DCO frequency offset in ppt
+}  DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput, 20)
+
 
 // -.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-
 // GENLOCKCTRL command - Input data
 typedef union _DtIoctlGenLockCtrlCmdInput
 {
-    DtIoctlGenLockCtrlCmdGetStatusInput  m_GetState;
+    DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput  m_SetDcoFreqOffset;
 } DtIoctlGenLockCtrlCmdInput;
-ASSERT_SIZE(DtIoctlGenLockCtrlCmdInput, 16)
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdInput, 20)
 
 // GENLOCKCTRL command - Output data
 typedef union _DtIoctlGenLockCtrlCmdOutput
 {
     DtIoctlGenLockCtrlCmdGetStatusOutput  m_GetStatus;
+    DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput  m_GetDcoFreqOffset;
 }  DtIoctlGenLockCtrlCmdOutput;
-ASSERT_SIZE(DtIoctlGenLockCtrlCmdOutput, 12)
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdOutput, 16)
 
 
 #ifdef WINBUILD
@@ -2498,6 +2532,147 @@ typedef union _DtIoctlRebootCmdInput
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_SDIDMX12G_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SdiDmx12G Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlSdiDmx12GCmd
+{
+    DT_SDIDMX12G_CMD_GET_OPERATIONAL_MODE = 0,
+    DT_SDIDMX12G_CMD_GET_SDIRATE = 1,
+    DT_SDIDMX12G_CMD_SET_OPERATIONAL_MODE = 2,
+    DT_SDIDMX12G_CMD_SET_SDIRATE = 3,
+}  DtIoctlSdiDmx12GCmd;
+
+
+// .-.-.-.-.-.-.-.-.- SDIDMX12G Command - Get Operational Mode Command -.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlSdiDmx12GCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlSdiDmx12GCmdGetOpModeInput, 16)
+typedef struct _DtIoctlSdiDmx12GCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlSdiDmx12GCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlSdiDmx12GCmdGetOpModeOutput, 4)
+
+// -.-.-.-.-.-.-.-.-.-.-.- SDIDMX12G Command - Get SdiRate Command -.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlSdiDmx12GCmdGetSdiRateInput;
+ASSERT_SIZE(DtIoctlSdiDmx12GCmdGetSdiRateInput, 16)
+typedef struct _DtIoctlSdiDmx12GCmdGetSdiRateOutput
+{
+    Int  m_SdiRate;          // SDI-Rate
+}  DtIoctlSdiDmx12GCmdGetSdiRateOutput;
+ASSERT_SIZE(DtIoctlSdiDmx12GCmdGetSdiRateOutput, 4)
+
+// .-.-.-.-.-.-.-.-.- SDIDMX12G Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlSdiDmx12GCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlSdiDmx12GCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlSdiDmx12GCmdSetOpModeInput, 20)
+
+// -.-.-.-.-.-.-.-.-.-.-.- SDIDMX12G Command - Set SdiRate Command -.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlSdiDmx12GCmdSetSdiRateInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_SdiRate;          // SDI-Rate
+}  DtIoctlSdiDmx12GCmdSetSdiRateInput;
+ASSERT_SIZE(DtIoctlSdiDmx12GCmdSetSdiRateInput, 20)
+
+
+// .-.-.-.-.-.-.-.-.-.-.-.- SDIDMX12G Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.
+// SDIDMX12G command - IOCTL input data
+typedef union _DtIoctlSdiDmx12GCmdInput
+{
+    DtIoctlSdiDmx12GCmdSetSdiRateInput  m_SetSdiRate;   // SdiDmx12G - Set SDI-rate
+    DtIoctlSdiDmx12GCmdSetOpModeInput  m_SetOpMode;     // SdiDmx12G - Set op. mode
+}  DtIoctlSdiDmx12GCmdInput;
+
+// SDIDMX12G command - IOCTL output data
+typedef union _DtIoctlSdiDmx12GCmdOutput
+{
+    DtIoctlSdiDmx12GCmdGetSdiRateOutput  m_GetSdiRate;  // SdiDmx12G - Get SDI-Rate
+    DtIoctlSdiDmx12GCmdGetOpModeOutput  m_GetOpMode;    // SdiDmx12G - Get op. mode
+}  DtIoctlSdiDmx12GCmdOutput;
+
+
+#ifdef WINBUILD
+    #define DT_IOCTL_SDIDMX12G_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDIDMX12G_CMD,         \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlSdiDmx12GCmdInOut
+    {
+        DtIoctlSdiDmx12GCmdInput  m_Input;
+        DtIoctlSdiDmx12GCmdOutput  m_Output;
+    }  DtIoctlSdiDmx12GCmdInOut;
+    #define DT_IOCTL_SDIDMX12G_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SDIDMX12G_CMD,       \
+                                                                 DtIoctlSdiDmx12GCmdInOut)
+#endif
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_SDIMUX12G_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SdiMux12G Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlSdiMux12GCmd
+{
+    DT_SDIMUX12G_CMD_GET_OPERATIONAL_MODE = 0,
+    DT_SDIMUX12G_CMD_SET_OPERATIONAL_MODE = 2,
+}  DtIoctlSdiMux12GCmd;
+
+
+// .-.-.-.-.-.-.-.-.- SDIMUX12G Command - Get Operational Mode Command -.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlSdiMux12GCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlSdiMux12GCmdGetOpModeInput, 16)
+typedef struct _DtIoctlSdiMux12GCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlSdiMux12GCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlSdiMux12GCmdGetOpModeOutput, 4)
+
+// .-.-.-.-.-.-.-.-.- SDIMUX12G Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlSdiMux12GCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlSdiMux12GCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlSdiMux12GCmdSetOpModeInput, 20)
+
+// .-.-.-.-.-.-.-.-.-.-.-.- SDIMUX12G Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.
+// SDIMUX12G command - IOCTL input data
+typedef union _DtIoctlSdiMux12GCmdInput
+{
+    DtIoctlSdiMux12GCmdSetOpModeInput  m_SetOpMode;     // SdiMux12G - Set op. mode
+}  DtIoctlSdiMux12GCmdInput;
+
+// SDIMUX12G command - IOCTL output data
+typedef union _DtIoctlSdiMux12GCmdOutput
+{
+    DtIoctlSdiMux12GCmdGetOpModeOutput  m_GetOpMode;    // SdiMux12G - Get op. mode
+}  DtIoctlSdiMux12GCmdOutput;
+
+
+#ifdef WINBUILD
+    #define DT_IOCTL_SDIMUX12G_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDIMUX12G_CMD,         \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlSdiMux12GCmdInOut
+    {
+        DtIoctlSdiMux12GCmdInput  m_Input;
+        DtIoctlSdiMux12GCmdOutput  m_Output;
+    }  DtIoctlSdiMux12GCmdInOut;
+    #define DT_IOCTL_SDIMUX12G_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SDIMUX12G_CMD,       \
+                                                                 DtIoctlSdiMux12GCmdInOut)
+#endif
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_SDIRX_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SDI Receiver Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2917,6 +3092,7 @@ typedef enum _DtIoctlSdiTxFCmd
     DT_SDITXF_CMD_SET_FMT_EVENT_SETTING = 2,
     DT_SDITXF_CMD_SET_OPERATIONAL_MODE = 3,
     DT_SDITXF_CMD_WAIT_FOR_FMT_EVENT = 4,
+    DT_SDITXF_CMD_GET_MAX_SDIRATE = 5,
 }  _DtIoctlSdiTxFCmd;
 
 
@@ -2930,6 +3106,16 @@ typedef struct _DtIoctlSdiTxFCmdGetFmtEventSettingOutput
     Int  m_NumSofsBetweenTod;   // Number of frames between SoF timestamp
 } DtIoctlSdiTxFCmdGetFmtEventSettingOutput;
 ASSERT_SIZE(DtIoctlSdiTxFCmdGetFmtEventSettingOutput, 8)
+
+// .-.-.-.-.-.-.-.-.-.-.-.- SDITXF Command - Get Maximum SDI-Rate -.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlSdiTxFCmdGetMaxSdiRateInput;
+ASSERT_SIZE(DtIoctlSdiTxFCmdGetMaxSdiRateInput, 16)
+typedef struct _DtIoctlSdiTxFCmdGetMaxSdiRateOutput
+{
+    Int  m_MaxSdiRate;              // Maximum SDI-rate
+}  DtIoctlSdiTxFCmdGetMaxSdiRateOutput;
+ASSERT_SIZE(DtIoctlSdiTxFCmdGetMaxSdiRateOutput, 4)
 
 
 //.-.-.-.-.-.-.-.-.-.-.-.- SDITXF Command - Get Operational Mode  -.-.-.-.-.-.-.-.-.-.-.-.
@@ -2994,6 +3180,7 @@ typedef union _DtIoctlSdiTxFCmdInput
 typedef union _DtIoctlSdiTxFCmdOutput
 {
     DtIoctlSdiTxFCmdGetFmtEventSettingOutput m_GetFmtEventSetting; // Get event setting
+    DtIoctlSdiTxFCmdGetMaxSdiRateOutput  m_GetMaxSdiRate;          // Get max SDI rate
     DtIoctlSdiTxFCmdGetOpModeOutput  m_GetOpMode;                  // Get operational mode
     DtIoctlSdiTxFCmdWaitForFmtEventOutput  m_WaitForFmtEvent;      // Wait for fmt event
 }  DtIoctlSdiTxFCmdOutput;
@@ -3160,6 +3347,8 @@ typedef enum _DtIoctlSdiTxPhyCmd
     DT_SDITXPHY_CMD_CLEAR_UNDERFLOW_FLAG = 7,
     DT_SDITXPHY_CMD_GET_UNDERFLOW_FLAG = 8,
     DT_SDITXPHY_CMD_GET_GENLOCK_STATUS = 9,
+    DT_SDITXPHY_CMD_SET_OPERATIONAL_MODE_TIMED = 10,
+    DT_SDITXPHY_CMD_GET_MAX_SDIRATE = 11,
 }  DtIoctlSdiTxPhyCmd;
 
 // DT SDITXPHY  TX-mode
@@ -3185,6 +3374,15 @@ typedef struct _DtIoctlSdiTxPhyCmdGetGenLockStatusOutput
 }  DtIoctlSdiTxPhyCmdGetGenLockStatusOutput;
 ASSERT_SIZE(DtIoctlSdiTxPhyCmdGetGenLockStatusOutput, 4)
 
+// -.-.-.-.-.-.-.-.-.- SDITXPHY Command - Get Maximum SDI Rate Command -.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlSdiTxPhyCmdGetMaxSdiRateInput;
+ASSERT_SIZE(DtIoctlSdiTxPhyCmdGetMaxSdiRateInput, 16)
+typedef struct _DtIoctlSdiTxPhyCmdGetMaxSdiRateOutput
+{
+    Int  m_MaxSdiRate;          // SDI rate
+}  DtIoctlSdiTxPhyCmdGetMaxSdiRateOutput;
+ASSERT_SIZE(DtIoctlSdiTxPhyCmdGetMaxSdiRateOutput, 4)
 
 //-.-.-.-.-.-.-.-.-.- SDITXPHY Command - Get Operational Mode Command -.-.-.-.-.-.-.-.-.-.
 //
@@ -3246,6 +3444,16 @@ typedef struct _DtIoctlSdiTxPhyCmdSetOpModeInput
 }  DtIoctlSdiTxPhyCmdSetOpModeInput;
 ASSERT_SIZE(DtIoctlSdiTxPhyCmdSetOpModeInput, 20)
 
+// .-.-.-.-.-.-.-.- SDITXPHY Command - Set Operational Mode Timed Command -.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlSdiTxPhyCmdSetOpModeTimedInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+    DtTodTime  m_StartTime;     // Start time
+}  DtIoctlSdiTxPhyCmdSetOpModeTimedInput;
+ASSERT_SIZE(DtIoctlSdiTxPhyCmdSetOpModeTimedInput, 28)
+
 //-.-.-.-.-.-.-.-.-.-.-.- SDITXPHY Command - Set SDI Rate Command -.-.-.-.-.-.-.-.-.-.-.-.
 //
 typedef struct _DtIoctlSdiTxPhyCmdSetSdiRateInput
@@ -3271,6 +3479,7 @@ ASSERT_SIZE(DtIoctlSdiTxPhyCmdSetTxModeInput, 20)
 typedef union _DtIoctlSdiTxPhyCmdInput
 {
     DtIoctlSdiTxPhyCmdSetOpModeInput  m_SetOpMode;              // Set operational mode
+    DtIoctlSdiTxPhyCmdSetOpModeTimedInput  m_SetOpModeTimed;    // Set op mode timed
     DtIoctlSdiTxPhyCmdSetSdiRateInput  m_SetSdiRate;            // Set SDI rate
     DtIoctlSdiTxPhyCmdSetTxModeInput  m_SetTxMode;              // Set TX mode
 }  DtIoctlSdiTxPhyCmdInput;
@@ -3278,6 +3487,7 @@ typedef union _DtIoctlSdiTxPhyCmdInput
 typedef union _DtIoctlSdiTxPhyCmdOutput
 {
     DtIoctlSdiTxPhyCmdGetOpModeOutput  m_GetOpMode;             // Get operational mode
+    DtIoctlSdiTxPhyCmdGetMaxSdiRateOutput  m_GetMaxSdiRate;     // Get Max SDI rate
     DtIoctlSdiTxPhyCmdGetGenLockStatusOutput  m_GetGenLockStatus;  // Get GenLock status
     DtIoctlSdiTxPhyCmdGetSdiRateOutput  m_GetSdiRate;           // Get SDI rate
     DtIoctlSdiTxPhyCmdGetSdiStatusOutput  m_GetSdiStatus;       // Get SDI-status
@@ -3476,6 +3686,7 @@ typedef enum _DtIoctlSpiMCmd
 #define DT_SPIM_SPIDVC_LMH0394   4  // Texas Instruments LMH0394 3G-SDI/ASI receiver
 #define DT_SPIM_SPIDVC_GS3590    5  // Gennum GS3590 3G-SDI/ASI Cable Driver/Equalizer
 #define DT_SPIM_SPIDVC_25AA640A  6  // Microchip 25AA640 64K SPI bus serial EEPROM
+#define DT_SPIM_SPIDVC_GS12090   7  // Gennum GS12090 12G-SDI/ASI Cable Driver/Equalizer
 
 // SPIM duplex Mode
 #define DT_SPIM_DPX_FULL_DUPLEX  0x0    // Send and receive simultaneously
@@ -3863,6 +4074,86 @@ ASSERT_SIZE(DtIoctlStubCmdOutput, 8)
                                                                      DtaIoctlStubCmdInOut)
 #endif
 
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_ST425LR_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- St425Lr Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlSt425LrCmd
+{
+    DT_ST425LR_CMD_GET_LINK_ORDER = 0,
+    DT_ST425LR_CMD_GET_OPERATIONAL_MODE = 1,
+    DT_ST425LR_CMD_SET_LINK_ORDER = 2,
+    DT_ST425LR_CMD_SET_OPERATIONAL_MODE = 3,
+}  DtIoctlSt425LrCmd;
+
+// -.-.-.-.-.-.-.-.-.-.-.- ST425LR Command - Get LinkOrder Command -.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlSt425LrCmdGetLinkOrderInput;
+ASSERT_SIZE(DtIoctlSt425LrCmdGetLinkOrderInput, 16)
+typedef struct _DtIoctlSt425LrCmdGetLinkOrderOutput
+{
+    UInt8  m_pLinkIn[4];          // St425Lr link order; index=link; value=SDI-input
+}  DtIoctlSt425LrCmdGetLinkOrderOutput;
+ASSERT_SIZE(DtIoctlSt425LrCmdGetLinkOrderOutput, 4)
+
+// -.-.-.-.-.-.-.-.-.- ST425LR Command - Get Operational Mode Command -.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlSt425LrCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlSt425LrCmdGetOpModeInput, 16)
+typedef struct _DtIoctlSt425LrCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlSt425LrCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlSt425LrCmdGetOpModeOutput, 4)
+
+// -.-.-.-.-.-.-.-.-.-.-.- ST425LR Command - Set LinkOrder Command -.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlSt425LrCmdSetLinkOrderInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    UInt8  m_pLinkIn[4];          // St425Lr link order; index=link; value=SDI-input
+}  DtIoctlSt425LrCmdSetLinkOrderInput;
+ASSERT_SIZE(DtIoctlSt425LrCmdSetLinkOrderInput, 20)
+
+// -.-.-.-.-.-.-.-.-.- ST425LR Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlSt425LrCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlSt425LrCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlSt425LrCmdSetOpModeInput, 20)
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- ST425LR Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-
+// ST425LR command - IOCTL input data
+typedef union _DtIoctlSt425LrCmdInput
+{
+    DtIoctlSt425LrCmdSetLinkOrderInput  m_SetLinkOrder;  // St425Lr - Set link order
+    DtIoctlSt425LrCmdSetOpModeInput  m_SetOpMode;        // St425Lr - Set op. mode
+}  DtIoctlSt425LrCmdInput;
+
+// ST425LR command - IOCTL output data
+typedef union _DtIoctlSt425LrCmdOutput
+{
+    DtIoctlSt425LrCmdGetLinkOrderOutput  m_GetLinkOrder;  // St425Lr - Get link order
+    DtIoctlSt425LrCmdGetOpModeOutput  m_GetOpMode;        // St425Lr - Get op. mode
+}  DtIoctlSt425LrCmdOutput;
+
+
+#ifdef WINBUILD
+    #define DT_IOCTL_ST425LR_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_ST425LR_CMD,             \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlSt425LrCmdInOut
+    {
+        DtIoctlSt425LrCmdInput  m_Input;
+        DtIoctlSt425LrCmdOutput  m_Output;
+    }  DtIoctlSt425LrCmdInOut;
+    #define DT_IOCTL_ST425LR_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_ST425LR_CMD,           \
+                                                                    DtIoctlSt425LrCmdInOut)
+#endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_SWITCH_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -4999,10 +5290,21 @@ typedef enum _DtIoctlLnbh25Cmd_2132
     DT_LNBH25_CMD_2132_SEND_TONEBURST = 0,
     DT_LNBH25_CMD_2132_SEND_MESSAGE = 1,
     DT_LNBH25_CMD_2132_SEND_RECEIVE_MESSAGE = 2,
+    DT_LNBH25_CMD_2132_ENABLE_TONE = 3
+
 }  DtIoctlLnbh25Cmd_2132;
 // Tone burst
 #define DT_LNBH25_2132_TONEBURST_A      0x0  // Tone burst A
 #define DT_LNBH25_2132_TONEBURST_B      0x1  // Tone burst B
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- LNBH25_2132 - Enable Tone -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+typedef struct _DtIoctlLnbh25Cmd_2132EnableToneInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_EnableTone;            // Enable 22 kHz tone (bool)
+}  DtIoctlLnbh25Cmd_2132EnableToneInput;
+ASSERT_SIZE(DtIoctlLnbh25Cmd_2132EnableToneInput, 20)
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- LNBH25_2132 - Send Burst Tone -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 typedef struct _DtIoctlLnbh25Cmd_2132SendToneBurstInput
@@ -5040,6 +5342,7 @@ ASSERT_SIZE(DtIoctlLnbh25Cmd_2132SendReceiveMessageOutput, 4)
 // LNBH25_2132 command - IOCTL input data
 typedef union _DtIoctlLnbh25CmdInput_2132
 {
+    DtIoctlLnbh25Cmd_2132EnableToneInput    m_EnableTone;       // Enable 22 kHz tone
     DtIoctlLnbh25Cmd_2132SendToneBurstInput  m_SndToneBurst;    // Send tone burst
     DtIoctlLnbh25Cmd_2132SendMessageInput   m_SndMsg;           // Send message
     DtIoctlLnbh25Cmd_2132SendReceiveMessageInput  m_SndRcvMsg;  // Send/receive message
@@ -5838,6 +6141,8 @@ ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
     DtIoctlLedBCmdInput  m_LedBCmd;                                                      \
     DtIoctlRebootCmdInput  m_Reboot;                                                     \
     DtIoctlSdiXCfgCmdInput  m_SdiXCfgCmd;                                                \
+    DtIoctlSdiDmx12GCmdInput  m_SdiDmx12GCmd;                                            \
+    DtIoctlSdiMux12GCmdInput  m_SdiMux12GCmd;                                            \
     DtIoctlSdiRxCmdInput  m_SdiRxCmd;                                                    \
     DtIoctlSdiRxPCmdInput  m_SdiRxPCmd;                                                  \
     DtIoctlSdiRxFCmdInput  m_SdiRxFCmd;                                                  \
@@ -5848,6 +6153,7 @@ ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
     DtIoctlSpiMCmdInput  m_SpiMCmd;                                                      \
     DtIoctlSpiMfCmdInput  m_SpiMfCmd;                                                    \
     DtIoctlSpiPromCmdInput  m_SpiPromCmd;                                                \
+    DtIoctlSt425LrCmdInput  m_St425LrCmd;                                                \
     DtIoctlSwitchCmdInput  m_SwitchCmd;                                                  \
     DtIoctlTempFanMgrCmdInput  m_TempFanMgrCmd;                                          \
     DtIoctlTodCmdInput  m_TodCmd;                                                        \
@@ -5892,6 +6198,8 @@ typedef union _DtIoctlInputData
     DtIoctlLedBCmdOutput  m_LedBCmd;                                                     \
     DtIoctlLmh1981CmdOutput  m_Lmh1981Cmd;                                               \
     DtIoctlPropCmdOutput  m_PropCmd;                                                     \
+    DtIoctlSdiDmx12GCmdOutput  m_SdiDmx12GCmd;                                           \
+    DtIoctlSdiMux12GCmdOutput  m_SdiMux12GCmd;                                           \
     DtIoctlSdiXCfgCmdOutput  m_SdiXCfgCmd;                                               \
     DtIoctlSdiRxCmdOutput  m_SdiRxCmd;                                                   \
     DtIoctlSdiRxPCmdOutput  m_SdiRxPCmd;                                                 \
@@ -5903,6 +6211,7 @@ typedef union _DtIoctlInputData
     DtIoctlSpiMCmdOutput  m_SpiMCmd;                                                     \
     DtIoctlSpiMfCmdOutput  m_SpiMfCmd;                                                   \
     DtIoctlSpiPromCmdOutput  m_SpiPromCmd;                                               \
+    DtIoctlSt425LrCmdOutput  m_St425LrCmd;                                               \
     DtIoctlSwitchCmdOutput  m_SwitchCmd;                                                 \
     DtIoctlTempFanMgrCmdOutput  m_TempFanMgrCmd;                                         \
     DtIoctlTodCmdOutput  m_TodCmd;                                                       \

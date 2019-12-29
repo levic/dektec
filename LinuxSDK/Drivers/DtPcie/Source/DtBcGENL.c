@@ -269,13 +269,6 @@ DtStatus DtBcGENL_StartOfFrameRegister(DtBcGENL* pBc,
     // Update list under spinlock protection
     DtSpinLockAcquire(&pBc->m_Lock);
 
-    // Must be IDLE
-    if (pBc->m_OperationalMode != DT_BLOCK_OPMODE_IDLE)
-    { 
-        DtSpinLockRelease(&pBc->m_Lock);
-        return DT_STATUS_INVALID_IN_OPMODE;
-    }
-
     // Check if we already have an entry for this object
     NumElems = DtVector_Size(pBc->m_pOnStartOfFrameHandlers);
     for (i=0; i<NumElems; i++)
@@ -315,13 +308,6 @@ DtStatus DtBcGENL_StartOfFrameUnregister(DtBcGENL* pBc, const DtObject* pObject)
 
     // Update list under spinlock protection
     DtSpinLockAcquire(&pBc->m_Lock);
-
-    // Must be IDLE
-    if (pBc->m_OperationalMode != DT_BLOCK_OPMODE_IDLE)
-    { 
-        DtSpinLockRelease(&pBc->m_Lock);
-        return DT_STATUS_INVALID_IN_OPMODE;
-    }
 
     // Find entry for the specified object and erase it
     NumElems = DtVector_Size(pBc->m_pOnStartOfFrameHandlers);

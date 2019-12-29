@@ -503,42 +503,77 @@ DtStatus  DtCore_DEVICE_PowerUpPost(DtCore* pCore)
 
     // Enable all device DFs
     NumDf = DtVectorDf_Size(pCore->m_pDfList);
-    for (i=0; i<NumDf; i++)
+    for (i=0; i<NumDf && DT_SUCCESS(Status); i++)
     {
         DtDf*  pDf = DtVectorDf_At(pCore->m_pDfList, i);
         if (pDf==NULL || pDf->m_EnableFunc==NULL)
             continue;
         Status = pDf->m_EnableFunc(pDf, TRUE);
         DT_ASSERT(DT_SUCCESS(Status));
-        if (!DT_SUCCESS(Status))
-            return Status;
     }
 
     // Enable all device BCs
     NumBc = DtVectorBc_Size(pCore->m_pBcList);
-    for (i=0; i<NumBc; i++)
+    for (i=0; i<NumBc && DT_SUCCESS(Status); i++)
     {
         DtBc*  pBc = DtVectorBc_At(pCore->m_pBcList, i);
         if (pBc==NULL || pBc->m_EnableFunc==NULL)
             continue;
         Status = pBc->m_EnableFunc(pBc, TRUE);
         DT_ASSERT(DT_SUCCESS(Status));
-        if (!DT_SUCCESS(Status))
-            return Status;
     }
     
     // First enable all PTs
     NumPt = DtVectorPt_Size(pCore->m_pPtList);
-    for (i=0; i<NumPt; i++)
+    for (i=0; i<NumPt && DT_SUCCESS(Status); i++)
     {
         DtPt*  pPt = DtVectorPt_At(pCore->m_pPtList, i);
         if (pPt==NULL || pPt->m_EnableFunc==NULL)
             continue;
         Status = pPt->m_EnableFunc(pPt, TRUE);
         DT_ASSERT(DT_SUCCESS(Status));
-        if (!DT_SUCCESS(Status))
-            return Status;
     }
+
+    if (!DT_SUCCESS(Status))
+    {
+        // Enabling failed. Disable all object again.
+        // Save the fail status
+        DtStatus FailStatus = Status;
+        // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Disable all PTs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+        // NOTE: disable them in reverse order from enabling
+        NumPt = DtVectorPt_Size(pCore->m_pPtList);
+        for (i=(NumPt-1); i>=0; i--)
+        {
+            DtPt*  pPt = DtVectorPt_At(pCore->m_pPtList, i);
+            if (pPt==NULL || pPt->m_EnableFunc==NULL)
+                continue;
+            Status = pPt->m_EnableFunc(pPt, FALSE);
+        }
+
+        // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Disable all DFs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+        // NOTE: disable them in reverse order from enabling
+        NumDf = DtVectorDf_Size(pCore->m_pDfList);
+        for (i=(NumDf-1); i>=0; i--)
+        {
+            DtDf*  pDf = DtVectorDf_At(pCore->m_pDfList, i);
+            if (pDf==NULL || pDf->m_EnableFunc==NULL)
+                continue;
+            Status = pDf->m_EnableFunc(pDf, FALSE);
+        }
+
+        // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Disable all BCs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+        // NOTE: disable them in reverse order from enabling
+        NumBc = DtVectorBc_Size(pCore->m_pBcList);
+        for (i=(NumBc-1); i>=0; i--)
+        {
+            DtBc*  pBc = DtVectorBc_At(pCore->m_pBcList, i);
+            if (pBc==NULL || pBc->m_EnableFunc==NULL)
+                continue;
+            Status = pBc->m_EnableFunc(pBc, FALSE);
+        }
+        return  FailStatus;
+    }
+
     // Finally restore the IO-configuratoin
     Status = DtCore_IOCONFIG_Restore(pCore);
     if (!DT_SUCCESS(Status))
@@ -571,7 +606,7 @@ DtStatus  DtCore_DEVICE_PowerDownPre(DtCore* pCore)
 
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Disable all PTs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-    // NOTE: disable them in reserve order from enabling
+    // NOTE: disable them in reverse order from enabling
 
     NumPt = DtVectorPt_Size(pCore->m_pPtList);
     for (i=(NumPt-1); i>=0; i--)
@@ -583,7 +618,7 @@ DtStatus  DtCore_DEVICE_PowerDownPre(DtCore* pCore)
     }
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Disable all DFs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-    // NOTE: disable them in reserve order from enabling
+    // NOTE: disable them in reverse order from enabling
 
     NumDf = DtVectorDf_Size(pCore->m_pDfList);
     for (i=(NumDf-1); i>=0; i--)
@@ -595,7 +630,7 @@ DtStatus  DtCore_DEVICE_PowerDownPre(DtCore* pCore)
     }
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Disable all BCs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-    // NOTE: disable them in reserve order from enabling
+    // NOTE: disable them in reverse order from enabling
 
     NumBc = DtVectorBc_Size(pCore->m_pBcList);
     for (i=(NumBc-1); i>=0; i--)
@@ -799,4 +834,15 @@ void  DtCore_DEVICE_Exit(DtCore*  pCore)
 Int DtCore_DEVICE_GetNumPorts(DtCore* pCore)
 {
     return pCore->m_NumPorts;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_DEVICE_GetTypeNumber -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int DtCore_DEVICE_GetTypeNumber(DtCore* pCore)
+{
+    DT_ASSERT(pCore->m_pDevInfo != NULL);
+    if (pCore->m_pDevInfo != NULL)
+        return pCore->m_pDevInfo->m_TypeNumber;
+    else
+        return -1;
 }

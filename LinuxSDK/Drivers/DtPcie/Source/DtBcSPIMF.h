@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBcSPIMF.h *#*#*#*#*#*#*#*#*#*#*# (C) 2017 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBcSPIMF.h *#*#*#*#*#*#*#*# (C) 2017-2019 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -54,6 +54,8 @@ typedef  struct _DtBcSPIMF
     //DtMutex
 
     // Configuration data read from block
+    Bool  m_SupportsV1;             // Supports the SPIMF V1 interface
+    Bool  m_FlashPropsAreSet;       // Indicates whether flash properties are set
     Int  m_ConfClockRateHz;         // Frequency of SCK signal (in Hz)
     Int  m_ConfMemoryId;            // Identifier for SPI Flash/PROM device
     Int  m_ConfBitOrder;            // Preset transfer bit order, on a per-byte basis
@@ -62,6 +64,11 @@ typedef  struct _DtBcSPIMF
     Int  m_ConfMemorySize;          // Size of the flash (in bytes)
     Int  m_ConfTxFifoSize;          // Transmit FIFO size (in bytes)
     Int  m_ConfRxFifoSize;          // Receive FIFO size (in bytes)
+    // SPIMF version 1 properties
+    Int  m_PageWriteTimeout;        // Page write timeout
+    Int  m_BulkEraseTimeout;        // Bulk erase timeout
+    Int  m_SectorEraseTimeout;      // Sector erase timeout
+
 
      // Read/Write/Erase  state
     volatile Int  m_State;          // Operation in progress

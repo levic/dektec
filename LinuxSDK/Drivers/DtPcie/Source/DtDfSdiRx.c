@@ -705,6 +705,7 @@ static DtStatus  DtDfSdiRx_OnCloseFile(DtDf* pDf, const DtFileObject* pFile)
 //
 DtStatus  DtDfSdiRx_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
 {
+    Int  MaxSdiRate1=0, MaxSdiRate2=0;
     DtDfSdiRx*  pDf = (DtDfSdiRx*)pDfBase;
     // Sanity checks
     DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
@@ -718,9 +719,10 @@ DtStatus  DtDfSdiRx_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
         // Phy's device family
         DT_RETURN_ON_ERROR(DtBcSDIRXPHY_GetDeviceFamily(pDf->m_pBcSdiRxPhy, 
                                                                 &pDf->m_PhyDeviceFamily));
-        // Maximum SDI-rate
-        DT_RETURN_ON_ERROR(DtBcSDIRXPHY_GetMaxSdiRate(pDf->m_pBcSdiRxPhy, 
-                                                                  &pDf->m_PhyMaxSdiRate));
+        // Maximum SDI-rate is minimum of SdiTxP and SdiTxPhy
+        DT_RETURN_ON_ERROR(DtBcSDIRXPHY_GetMaxSdiRate(pDf->m_pBcSdiRxPhy, &MaxSdiRate1)); 
+        DT_RETURN_ON_ERROR(DtBcSDIRXP_GetMaxSdiRate(pDf->m_pBcSdiRxProt, &MaxSdiRate2)); 
+        pDf->m_PhyMaxSdiRate = (MaxSdiRate1 < MaxSdiRate2) ? MaxSdiRate1 : MaxSdiRate2;
 
         // Operational mode must be IDLE
         DT_ASSERT(pDf->m_OperationalMode == DT_FUNC_OPMODE_IDLE);

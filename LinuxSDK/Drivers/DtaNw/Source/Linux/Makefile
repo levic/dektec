@@ -110,7 +110,7 @@ INSTALLDIR = /lib/modules/$(CURRENT)/kernel/drivers/misc
 
 all: PREREQ $(DTA_LINUX)/Module.symvers Messages.h Messages.c $(DTSAL)
 	cp $(DTA_LINUX)/Module.symvers ./Module.symvers
-	make MYPWD=$(PWD) -C $(KERNELDIR) SUBDIRS=$(PWD) modules
+	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) modules
 
 $(DTA_LINUX)/Module.symvers:
 	make MYPWD=$(PWD) -C $(DTA_LINUX)
@@ -149,7 +149,7 @@ $(DTSAL):
 
 clean:
 	@if [ -f MakefilePrereq ]; then make -f MakefilePrereq clean ; fi
-	make MYPWD=$(PWD) -C $(KERNELDIR) SUBDIRS=$(PWD) clean
+	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
 	make MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 
 # ========================================================================================

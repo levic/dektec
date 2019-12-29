@@ -112,6 +112,26 @@ DtStatus DtBcSDITXF_GetFmtEventSetting(DtBcSDITXF* pBc,  Int* pNumLinesPerEvent,
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXF_GetMaxSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDITXF_GetMaxSdiRate(DtBcSDITXF* pBc, Int* pMaxSdiRate)
+{
+    // Sanity check
+    BC_SDITXF_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check parameter
+    if (pMaxSdiRate == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDITXF_MUST_BE_ENABLED(pBc);
+
+    // Return cached value
+    *pMaxSdiRate = pBc->m_MaxSdiRate;
+
+    return DT_STATUS_OK;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXF_GetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcSDITXF_GetOperationalMode(DtBcSDITXF* pBc, Int* pOpMode)
@@ -301,6 +321,22 @@ DtStatus  DtBcSDITXF_Init(DtBc*  pBcBase)
     pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
     DtBcSDITXF_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
                                                                        pBc->m_UlfEnabled);
+    // Get maximum supported rate
+    if (pBc->m_Version == 0)
+        pBc->m_MaxSdiRate = DT_DRV_SDIRATE_3G;
+    else
+    {
+        UInt32  FwMaxSdiRate = SDITXF_Config_READ_MaxSdiRate(pBc);
+        switch (FwMaxSdiRate)
+        {
+        case SDITXF_SDIMODE_SD:     pBc->m_MaxSdiRate = DT_DRV_SDIRATE_SD; break;
+        case SDITXF_SDIMODE_HD:     pBc->m_MaxSdiRate = DT_DRV_SDIRATE_HD; break;
+        case SDITXF_SDIMODE_3G:     pBc->m_MaxSdiRate = DT_DRV_SDIRATE_3G; break;
+        case SDITXF_SDIMODE_6G:     pBc->m_MaxSdiRate = DT_DRV_SDIRATE_6G; break;
+        case SDITXF_SDIMODE_12G:    pBc->m_MaxSdiRate = DT_DRV_SDIRATE_12G; break;
+        default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+        }
+    }
 
     // Default an interrupt at SOF only
     pBc->m_NumLinesPerEvent = 0;
@@ -593,6 +629,8 @@ void  DtBcSDITXF_SetControlRegs(DtBcSDITXF* pBc, Bool BlkEna, Int OpMode,
 static DtStatus  DtIoStubBcSDITXF_OnCmd(const DtIoStub*, DtIoStubIoParams*, Int*);
 static DtStatus  DtIoStubBcSDITXF_OnCmdGetFmtEventSetting(const DtIoStubBcSDITXF*, 
                                              DtIoctlSdiTxFCmdGetFmtEventSettingOutput*);
+static DtStatus  DtIoStubBcSDITXF_OnCmdGetMaxSdiRate(const DtIoStubBcSDITXF*, 
+                                                    DtIoctlSdiTxFCmdGetMaxSdiRateOutput*);
 static DtStatus  DtIoStubBcSDITXF_OnCmdGetOperationalMode(const DtIoStubBcSDITXF*,
                                                       DtIoctlSdiTxFCmdGetOpModeOutput*);
 static DtStatus  DtIoStubBcSDITXF_OnCmdSetFmtEventSetting(const DtIoStubBcSDITXF*,
@@ -695,6 +733,11 @@ DtStatus  DtIoStubBcSDITXF_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoP
         Status = DtIoStubBcSDITXF_OnCmdGetFmtEventSetting(SDITXF_STUB, 
                                                           &pOutData->m_GetFmtEventSetting);
         break;
+    case DT_SDITXF_CMD_GET_MAX_SDIRATE:
+        DT_ASSERT(pOutData != NULL);
+        Status = DtIoStubBcSDITXF_OnCmdGetMaxSdiRate(SDITXF_STUB,
+                                                              &pOutData->m_GetMaxSdiRate);
+        break;
     case DT_SDITXF_CMD_GET_OPERATIONAL_MODE:
         DT_ASSERT(pOutData != NULL);
         Status = DtIoStubBcSDITXF_OnCmdGetOperationalMode(SDITXF_STUB,
@@ -736,6 +779,20 @@ DtStatus  DtIoStubBcSDITXF_OnCmdGetFmtEventSetting(
     // Get format event interrupt timing
     return DtBcSDITXF_GetFmtEventSetting(SDITXF_BC, &pOutData->m_NumLinesPerEvent,
                                                           &pOutData->m_NumSofsBetweenTod);
+}
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcSDITXF_OnCmdGetMaxSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtIoStubBcSDITXF_OnCmdGetMaxSdiRate(
+    const DtIoStubBcSDITXF* pStub,
+    DtIoctlSdiTxFCmdGetMaxSdiRateOutput* pOutData)
+{
+
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcSDITXF));
+    DT_ASSERT(pOutData != NULL);
+
+    // Get maximum SDI-rate
+    return DtBcSDITXF_GetMaxSdiRate(SDITXF_BC, &pOutData->m_MaxSdiRate);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcSDITXF_OnCmdGetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-

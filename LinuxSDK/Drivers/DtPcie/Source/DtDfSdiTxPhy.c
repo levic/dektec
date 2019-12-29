@@ -50,6 +50,7 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 static DtStatus  DtDfSdiTxPhy_Init(DtDf*);
+static void  DtDfSdiTxPhy_GenLockStartOfFrameHandler(DtObject*, const DtTodTime*);
 static DtStatus  DtDfSdiTxPhy_OnCloseFile(DtDf*, const DtFileObject*);
 static DtStatus  DtDfSdiTxPhy_LoadParameters(DtDf*);
 static DtStatus  DtDfSdiTxPhy_OnEnablePostChildren(DtDf*, Bool  Enable);
@@ -140,6 +141,26 @@ DtStatus DtDfSdiTxPhy_GetGenLockStatus(DtDfSdiTxPhy* pDf, Int* pGenLockStatus)
 
     *pGenLockStatus = pDf->m_PhyIsGenLocked ? DT_SDITXPHY_GENLOCK_LOCKED 
                                                             : DT_SDITXPHY_GENLOCK_NO_LOCK;
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_GetMaxSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSdiTxPhy_GetMaxSdiRate(DtDfSdiTxPhy* pDf, Int* pMaxSdiRate)
+{
+    // Sanity check
+    DF_SDITXPHY_DEFAULT_PRECONDITIONS(pDf);
+
+    // Check parameter
+    if (pMaxSdiRate == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    DF_SDITXPHY_MUST_BE_ENABLED(pDf);
+
+    // Return cached value
+    *pMaxSdiRate = pDf->m_PhyMaxSdiRate;
+
     return DT_STATUS_OK;
 }
 
@@ -263,10 +284,17 @@ DtStatus DtDfSdiTxPhy_GetUnderflowFlag(DtDfSdiTxPhy* pDf, Bool* pUflFlag)
     return DtBcSDITXPHY_GetUnderflowFlag(pDf->m_pBcSdiTxPhy, pUflFlag);
 }
 
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_SetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_SetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtDfSdiTxPhy_SetOperationalMode(DtDfSdiTxPhy*  pDf, Int  OpMode)
+{
+    const DtTodTime  Immediately = {0, 0};
+    return DtDfSdiTxPhy_SetOperationalModeTimed( pDf, OpMode, Immediately);
+}
+// .-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_SetOperationalModeTimed -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtDfSdiTxPhy_SetOperationalModeTimed(DtDfSdiTxPhy*  pDf, Int  OpMode, 
+                                                                     DtTodTime  StartTime)
 {
     DtStatus  Status = DT_STATUS_OK;
 
@@ -278,6 +306,12 @@ DtStatus  DtDfSdiTxPhy_SetOperationalMode(DtDfSdiTxPhy*  pDf, Int  OpMode)
                                                     && OpMode!=DT_FUNC_OPMODE_RUN)
     {
         DtDbgOutDf(ERR, SDITXPHY, pDf, "Invalid operational mode");
+        return DT_STATUS_INVALID_PARAMETER;
+    }
+    if ((StartTime.m_Nanoseconds!=0 && StartTime.m_Seconds!=0) && (!pDf->m_CapGenLocked 
+                                                           || OpMode!=DT_FUNC_OPMODE_RUN))
+    {
+        DtDbgOutDf(ERR, SDITXPHY, pDf, "Invalid start time");
         return DT_STATUS_INVALID_PARAMETER;
     }
     // Must be enabled
@@ -340,7 +374,21 @@ DtStatus  DtDfSdiTxPhy_SetOperationalMode(DtDfSdiTxPhy*  pDf, Int  OpMode)
                 Status = DtBcSDITXPHY_ArmForSof(pDf->m_pBcSdiTxPhy);
         }
         if (DT_SUCCESS(Status))
+        {
+            // Perform immediately?
+            if (StartTime.m_Nanoseconds==0 && StartTime.m_Seconds==0)
+            {
             Status = DtBcSDITXPHY_SetOperationalMode(pDf->m_pBcSdiTxPhy, PhyOpMode);
+                pDf->m_DelayedStart = FALSE;
+            }
+            else
+            {   
+                // Start can only be delayed for genlocked capable ports
+                DT_ASSERT(OpMode==DT_FUNC_OPMODE_RUN && pDf->m_CapGenLocked);
+                pDf->m_DelayedStart = TRUE;
+                pDf->m_DelayedStartTime = StartTime;
+            }
+        }
 
         // Save new operational mode
         if (DT_SUCCESS(Status))
@@ -516,6 +564,9 @@ DtStatus  DtDfSdiTxPhy_Init(DtDf*  pDfBase)
     pDf->m_PhyMaxSdiRate = DT_DRV_SDIRATE_HD;
     pDf->m_PhyIsGenLocked = FALSE;
     pDf->m_GenLockIsLocked = FALSE;
+    pDf->m_DelayedStart = FALSE;
+    pDf->m_DelayedStartTime.m_Nanoseconds = 0;
+    pDf->m_DelayedStartTime.m_Seconds = 0;
     // Get the GenLocked-IO-capability of the port
     pDf->m_CapGenLocked = FALSE;
     PortIndex = DtCore_PT_GetPortIndex(pDf->m_pPt);
@@ -549,6 +600,27 @@ DtStatus  DtDfSdiTxPhy_Init(DtDf*  pDfBase)
     return DT_STATUS_OK;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_GenLockStartOfFrameHandler -.-.-.-.-.-.-.-.-.-.-.-
+//
+void DtDfSdiTxPhy_GenLockStartOfFrameHandler(DtObject* pObj, const DtTodTime* pSofTod)
+{
+    DtDfSdiTxPhy*  pDf = (DtDfSdiTxPhy*)pObj;
+    DtStatus  Status=DT_STATUS_OK;
+    DF_SDITXPHY_DEFAULT_PRECONDITIONS(pDf);
+    DtSpinLockAcquireAtDpc(&pDf->m_SpinLock);
+    if (pDf->m_DelayedStart)
+    {
+        Int64 TimeDiff = DtCore_TOD_TimeDiff(pDf->m_DelayedStartTime, *pSofTod);
+        if (TimeDiff <= 0)
+        { 
+            Status = DtBcSDITXPHY_SetOperationalMode(pDf->m_pBcSdiTxPhy, 
+                                                                     DT_BLOCK_OPMODE_RUN);
+            DT_ASSERT(DT_SUCCESS(Status));
+            pDf->m_DelayedStart = FALSE;
+        }
+    }
+    DtSpinLockReleaseFromDpc(&pDf->m_SpinLock);
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_LoadParameters -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -586,7 +658,7 @@ DtStatus  DtDfSdiTxPhy_LoadParameters(DtDf*  pDfBase)
 
     return DT_STATUS_OK;
 }
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_OnEnablePostChildren -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_OnEnablePostChildren -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtDfSdiTxPhy_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
 {
@@ -666,6 +738,20 @@ DtStatus DtDfSdiTxPhy_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
                 pDf->m_PhyIsGenLocked = FALSE;
             }
         }
+        // Register Genlock start-of-frame handler
+        if (DT_SUCCESS(Status) && pDf->m_CapGenLocked && pDf->m_pBcGenLock!=NULL)
+        {
+            DtBcGENLOnStartOfFrameRegData RegData;
+            RegData.m_OnStartOfFrameFunc = DtDfSdiTxPhy_GenLockStartOfFrameHandler;
+            RegData.m_pObject = (DtObject*)pDf;
+            Status = DtBcGENL_StartOfFrameRegister(pDf->m_pBcGenLock, &RegData);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOutDf(ERR, SDITXPHY, pDf,
+                                      "ERROR: failed to register start-of-frame handler");
+                return Status;
+    }
+        }
     }
     return Status;
 }
@@ -681,6 +767,9 @@ DtStatus DtDfSdiTxPhy_OnEnablePreChildren(DtDf*  pDfBase, Bool  Enable)
         // ENABLE -> DISABLE
         DtDbgOutDf(AVG, SDITXPHY, pDf, "ENABLE -> DISABLE");
 
+        // Unregister start of frame handlers
+        if (pDf->m_CapGenLocked && pDf->m_pBcGenLock!=NULL)
+            DtBcGENL_StartOfFrameUnregister(pDf->m_pBcGenLock, (DtObject*)pDf);
         // Unregister GenLock status changed callback
         if(pDf->m_CapGenLocked && pDf->m_pDfGenLockCtrl!=NULL)
         { 
@@ -768,9 +857,12 @@ DtStatus  DtDfSdiTxPhy_OpenChildren(DtDfSdiTxPhy*  pDf)
     // Find device level clock generator (optional)
     pDf->m_pDfSi534X  = (DtDfSi534X*)DtCore_DF_Find(pDf->m_pCore, NULL,
                                                                DT_FUNC_TYPE_SI534X, NULL);
-    // Find device level GenLock controller
+    // Find device level GenLock controller (optional)
     pDf->m_pDfGenLockCtrl  = (DtDfGenLockCtrl*)DtCore_DF_Find(pDf->m_pCore, NULL,
                                                           DT_FUNC_TYPE_GENLOCKCTRL, NULL);
+    // Find device level GenLock (optional)
+    pDf->m_pBcGenLock  = (DtBcGENL*)DtCore_BC_Find(pDf->m_pCore, NULL,
+                                                                DT_BLOCK_TYPE_GENL, NULL);
     return DT_STATUS_OK;
 }
 
@@ -1238,9 +1330,7 @@ DtStatus  DtDfSdiTxPhy_ComputeSofDelay(DtDfSdiTxPhy* pDf, Int VidStd, Int* pSofD
     SofDelayClks = (SofDelayNs*1485 + 5)/10000;
     if (DtAvVidStdUsesFractionalClock(VidStd))
         SofDelayClks = SofDelayClks*1000/1001;
-
     *pSofDelay = SofDelayClks;
-
     return DT_STATUS_OK;
 }
 
@@ -1259,6 +1349,8 @@ static DtStatus DtIoStubDfSdiTxPhy_OnCmd(const DtIoStub* pStub,
 static DtStatus  DtIoStubDfSdiTxPhy_OnCmdClearUnderflowFlag(const DtIoStubDfSdiTxPhy*);
 static DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetGenLockStatus(const DtIoStubDfSdiTxPhy *,
                                                DtIoctlSdiTxPhyCmdGetGenLockStatusOutput*);
+static DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetMaxSdiRate(const DtIoStubDfSdiTxPhy*, 
+                                                  DtIoctlSdiTxPhyCmdGetMaxSdiRateOutput*);
 static DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetOperationalMode(const DtIoStubDfSdiTxPhy*,
                                                       DtIoctlSdiTxPhyCmdGetOpModeOutput*);
 static DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetSdiRate(const DtIoStubDfSdiTxPhy*, 
@@ -1269,6 +1361,9 @@ static DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetUnderflowFlag(const DtIoStubDfSdiTxP
                                                DtIoctlSdiTxPhyCmdGetUnderflowFlagOutput*);
 static DtStatus  DtIoStubDfSdiTxPhy_OnCmdSetOperationalMode(const DtIoStubDfSdiTxPhy*,
                                                  const DtIoctlSdiTxPhyCmdSetOpModeInput*);
+static DtStatus  DtIoStubDfSdiTxPhy_OnCmdSetOperationalModeTimed(
+                                            const DtIoStubDfSdiTxPhy*,
+                                            const DtIoctlSdiTxPhyCmdSetOpModeTimedInput*);
 static DtStatus DtIoStubDfSdiTxPhy_OnCmdSetSdiRate(const DtIoStubDfSdiTxPhy*, 
                                                 const DtIoctlSdiTxPhyCmdSetSdiRateInput*);
 
@@ -1371,6 +1466,11 @@ DtStatus  DtIoStubDfSdiTxPhy_OnCmd(
         Status = DtIoStubDfSdiTxPhy_OnCmdGetGenLockStatus(STUB_SDITXPHY, 
                                                            &pOutData->m_GetGenLockStatus);
         break;
+    case DT_SDITXPHY_CMD_GET_MAX_SDIRATE:
+        DT_ASSERT(pOutData != NULL);
+        Status = DtIoStubDfSdiTxPhy_OnCmdGetMaxSdiRate(STUB_SDITXPHY, 
+                                                              &pOutData->m_GetMaxSdiRate);
+        break;
     case DT_SDITXPHY_CMD_GET_OPERATIONAL_MODE:
         DT_ASSERT(pOutData != NULL);
         Status = DtIoStubDfSdiTxPhy_OnCmdGetOperationalMode(STUB_SDITXPHY, 
@@ -1396,6 +1496,10 @@ DtStatus  DtIoStubDfSdiTxPhy_OnCmd(
     case DT_SDITXPHY_CMD_SET_OPERATIONAL_MODE:
         Status = DtIoStubDfSdiTxPhy_OnCmdSetOperationalMode(STUB_SDITXPHY, 
                                                                    &pInData->m_SetOpMode);
+        break;
+    case DT_SDITXPHY_CMD_SET_OPERATIONAL_MODE_TIMED:
+        Status = DtIoStubDfSdiTxPhy_OnCmdSetOperationalModeTimed(STUB_SDITXPHY, 
+                                                              &pInData->m_SetOpModeTimed);
         break;
     case DT_SDITXPHY_CMD_SET_SDIRATE:
         Status = DtIoStubDfSdiTxPhy_OnCmdSetSdiRate(STUB_SDITXPHY, 
@@ -1428,6 +1532,15 @@ DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetGenLockStatus(
     DT_ASSERT(pOutData != NULL);
 
     return DtDfSdiTxPhy_GetGenLockStatus(STUB_DF, &pOutData->m_GenLockStatus);
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfSdiTxPhy_OnCmdGetMaxSdiRate -.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetMaxSdiRate(
+    const DtIoStubDfSdiTxPhy*  pStub, 
+    DtIoctlSdiTxPhyCmdGetMaxSdiRateOutput* pOutData)
+{
+    return DtDfSdiTxPhy_GetMaxSdiRate(STUB_DF, &pOutData->m_MaxSdiRate);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfSdiTxPhy_OnCmdGetOperationalMode -.-.-.-.-.-.-.-.-.-.-.
@@ -1490,6 +1603,17 @@ DtStatus  DtIoStubDfSdiTxPhy_OnCmdSetOperationalMode(
     return DtDfSdiTxPhy_SetOperationalMode(STUB_DF, pInData->m_OpMode);
 }
 
+// -.-.-.-.-.-.-.-.-.- DtIoStubDfSdiTxPhy_OnCmdSetOperationalModeTimed -.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtIoStubDfSdiTxPhy_OnCmdSetOperationalModeTimed(
+    const DtIoStubDfSdiTxPhy*  pStub, 
+    const DtIoctlSdiTxPhyCmdSetOpModeTimedInput* pInData)
+{
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfSdiTxPhy));
+    DT_ASSERT(pInData != NULL);
+    return DtDfSdiTxPhy_SetOperationalModeTimed(STUB_DF, pInData->m_OpMode, 
+                                                                    pInData->m_StartTime);
+}
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfSdiTxPhy_OnCmdSetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtIoStubDfSdiTxPhy_OnCmdSetSdiRate(

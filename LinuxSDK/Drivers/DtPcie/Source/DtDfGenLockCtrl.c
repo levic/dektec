@@ -86,6 +86,10 @@ static void  DtDfGenLockCtrl_DcoControlLocked(DtDfGenLockCtrl*,
                              DtDfGenLockCtrlDcoState*, DtDfGenLockCtrlGenRefStatus,
                              DtDfGenLockCtrlGenRefType, const DtDfGenLockCtrlSofTods*, 
                              Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
+static void  DtDfGenLockCtrl_DcoFreeRunning(DtDfGenLockCtrl*,
+                             DtDfGenLockCtrlDcoState*, DtDfGenLockCtrlGenRefStatus,
+                             DtDfGenLockCtrlGenRefType, const DtDfGenLockCtrlSofTods*, 
+                             Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
 static DtDfGenLockCtrlGenRefStatus  DtDfGenLockCtrl_DetermineGenRefStatus(
                                           DtDfGenLockCtrl*, DtDfGenLockCtrlGenRefType,
                                           const DtDfGenLockCtrlSofTods*, 
@@ -231,6 +235,46 @@ DtStatus DtDfGenLockCtrl_ReLock(DtDfGenLockCtrl* pDf)
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GetDcoFreqOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtDfGenLockCtrl_GetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int* pFreqOffsetPpt,
+                                                                Int64*  pFrequencyMilliHz)
+{
+    // Sanity check
+    DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
+    // Must be enabled
+    DF_GENLOCKCTRL_MUST_BE_ENABLED(pDf);
+
+    // Check parameter
+    if (pFreqOffsetPpt==NULL || pFrequencyMilliHz==NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    *pFreqOffsetPpt = pDf->m_DcoFreqOffsetPpt;
+    *pFrequencyMilliHz = DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(pDf);
+
+    return DT_STATUS_OK;
+}
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_SetDcoFreqOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int FreqOffset)
+{
+    DtStatus Status = DT_STATUS_OK;
+    // Sanity check
+    DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
+    // Must be enabled
+    DF_GENLOCKCTRL_MUST_BE_ENABLED(pDf);
+    // Check parameter
+    if (FreqOffset < -100*Exp6 || FreqOffset > 100*Exp6)
+        return DT_STATUS_INVALID_PARAMETER;
+    // Check state and update offset
+    DtSpinLockAcquire(&pDf->m_SofSpinLock);
+    if (pDf->m_DcoControlState == DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING)
+        pDf->m_DcoFreeRunFreqOffsetPpt = FreqOffset;
+    else
+        Status = DT_STATUS_BUSY;
+    DtSpinLockRelease(&pDf->m_SofSpinLock);
+    return Status;
+}
 
 // -.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_LockChangedRegister -.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -342,6 +386,7 @@ DtStatus  DtDfGenLockCtrl_Init(DtDf* pDfBase)
     pDf->m_FramePeriod = DtAvVidStd2FramePeriod(pDf->m_VideoStandard);
     pDf->m_DcoControlPars = DtDfGenLockCtrl_GetDcoControlPars(pDf->m_VideoStandard);
     pDf->m_DcoFreqOffsetPpt = 0;
+    pDf->m_DcoFreeRunFreqOffsetPpt = 0;
 
     // Init GenRef info
     DtDfGenLockCtrl_InitGenRefInfo(pDf);
@@ -419,6 +464,7 @@ DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         pDf->m_FramePeriod = DtAvVidStd2FramePeriod(pDf->m_VideoStandard);
         pDf->m_DcoControlPars = DtDfGenLockCtrl_GetDcoControlPars(pDf->m_VideoStandard);
         pDf->m_DcoFreqOffsetPpt = 0;
+        pDf->m_DcoFreeRunFreqOffsetPpt = 0;
         DT_RETURN_ON_ERROR(DtBcGENL_SetFrameLength(pDf->m_pBcGenLock,
                                              pDf->m_FrameLength, pDf->m_FractionalClock));
         DT_RETURN_ON_ERROR(DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X,
@@ -452,8 +498,6 @@ DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
             DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: failed to set GENL opmode");
             return Status;
         }
-
-        pDf->m_DcoFreqOffsetPpt = 0;
 
         // Init GenRef info
         DtDfGenLockCtrl_InitGenRefInfo(pDf);
@@ -766,7 +810,9 @@ void  DtDfGenLockCtrl_DcoControl(DtDfGenLockCtrl* pDf,
                                                   GenRefAvgFramePeriodPs, pGenLockSofTod);
         break;
     case DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING:
-        // Nothing to do
+        DtDfGenLockCtrl_DcoFreeRunning(pDf, &DcoState, GenRefStatus,
+                                                  GenRefType,  pGenRefSofTods,
+                                                  GenRefAvgFramePeriodPs, pGenLockSofTod);
         break;
     }
 
@@ -807,6 +853,7 @@ void  DtDfGenLockCtrl_DcoControlInit(DtDfGenLockCtrl* pDf,
         DtStatus  Status;
         // Free running set nominal DCO frequency
         pDf->m_DcoFreqOffsetPpt = 0;
+        pDf->m_DcoFreeRunFreqOffsetPpt = 0;
         Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X,
                                          pDf->m_DcoFreqOffsetPpt, pDf->m_FractionalClock);
         DT_ASSERT(DT_SUCCESS(Status));
@@ -1061,6 +1108,25 @@ void  DtDfGenLockCtrl_DcoControlLocked(DtDfGenLockCtrl* pDf,
                                                  (Int)(pDf->m_DcoFreqOffsetPpt/1000));
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoFreeRunning -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtDfGenLockCtrl_DcoFreeRunning(DtDfGenLockCtrl* pDf, 
+                                             DtDfGenLockCtrlDcoState* pDcoState, 
+                                             DtDfGenLockCtrlGenRefStatus GenRefStatus,
+                                             DtDfGenLockCtrlGenRefType  GenRefType,
+                                             const DtDfGenLockCtrlSofTods* pGenRefSofTods,
+                                             Int64  GenRefAvgFramePeriodPs,
+                                             const DtTodTime* pGenLockSofTod)
+{
+    if (pDf->m_DcoFreqOffsetPpt != pDf->m_DcoFreeRunFreqOffsetPpt)
+    {
+        DtStatus  Status;
+        pDf->m_DcoFreqOffsetPpt = pDf->m_DcoFreeRunFreqOffsetPpt;
+        Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 
+                                        pDf->m_DcoFreqOffsetPpt , pDf->m_FractionalClock);
+        DT_ASSERT(DT_SUCCESS(Status));
+    }
+}
 // .-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DetermineGenRefStatus -.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtDfGenLockCtrlGenRefStatus  DtDfGenLockCtrl_DetermineGenRefStatus(DtDfGenLockCtrl* pDf, 
@@ -1508,7 +1574,10 @@ static DtStatus DtIoStubDfGenLockCtrl_OnCmd(const DtIoStub* pStub,
 static DtStatus  DtIoStubDfGenLockCtrl_OnCmdGetGenLockStatus(const DtIoStubDfGenLockCtrl*,
                                                    DtIoctlGenLockCtrlCmdGetStatusOutput*);
 static DtStatus  DtIoStubDfGenLockCtrl_OnCmdReLock(const DtIoStubDfGenLockCtrl*);
-
+static DtStatus  DtIoStubDfGenLockCtrl_OnCmdGetDcoFreqOffset(const DtIoStubDfGenLockCtrl*,
+                                             DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput*);
+static DtStatus  DtIoStubDfGenLockCtrl_OnCmdSetDcoFreqOffset(const DtIoStubDfGenLockCtrl*,
+                                       const DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput*);
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- List of supported IOCTL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // First declare IOCTL commands
 DECL_DT_IOCTL_CMD_PROPS_GENLOCKCTRL;
@@ -1604,6 +1673,14 @@ DtStatus  DtIoStubDfGenLockCtrl_OnCmd(
     case DT_GENLOCKCTRL_CMD_RELOCK:
         Status = DtIoStubDfGenLockCtrl_OnCmdReLock(STUB_GENLOCKCTRL);
         break;
+    case DT_GENLOCKCTRL_CMD_GET_DCO_FREQ_OFFSET:
+        Status = DtIoStubDfGenLockCtrl_OnCmdGetDcoFreqOffset(STUB_GENLOCKCTRL,
+                                                           &pOutData->m_GetDcoFreqOffset);
+        break;
+    case DT_GENLOCKCTRL_CMD_SET_DCO_FREQ_OFFSET:
+        Status = DtIoStubDfGenLockCtrl_OnCmdSetDcoFreqOffset(STUB_GENLOCKCTRL,
+                                                            &pInData->m_SetDcoFreqOffset);
+        break;
     default:
         DT_ASSERT(FALSE);
         return DT_STATUS_NOT_SUPPORTED;
@@ -1632,4 +1709,23 @@ DtStatus  DtIoStubDfGenLockCtrl_OnCmdReLock(
     GENLOCKCTRL_STUB_DEFAULT_PRECONDITIONS(pStub);
 
     return DtDfGenLockCtrl_ReLock(STUB_DF);
+}
+// -.-.-.-.-.-.-.-.-.-.- DtIoStubDfGenLockCtrl_OnCmdGetDcoFreqOffset -.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtIoStubDfGenLockCtrl_OnCmdGetDcoFreqOffset(
+    const DtIoStubDfGenLockCtrl* pStub,
+    DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput* pOutData)
+{
+    GENLOCKCTRL_STUB_DEFAULT_PRECONDITIONS(pStub);
+    return DtDfGenLockCtrl_GetDcoFreqOffset(STUB_DF, &pOutData->m_DcoFreqOffsetPpt,
+                                                        &pOutData->m_DcoFrequencyMilliHz);
+}
+// -.-.-.-.-.-.-.-.-.-.- DtIoStubDfGenLockCtrl_OnCmdSetDcoFreqOffset -.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtIoStubDfGenLockCtrl_OnCmdSetDcoFreqOffset(
+    const DtIoStubDfGenLockCtrl* pStub,
+    const DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput* pInData)
+{
+    GENLOCKCTRL_STUB_DEFAULT_PRECONDITIONS(pStub);
+    return DtDfGenLockCtrl_SetDcoFreqOffset(STUB_DF, pInData->m_DcoFreqOffset);
 }

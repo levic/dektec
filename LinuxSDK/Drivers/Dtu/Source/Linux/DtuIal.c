@@ -464,8 +464,11 @@ static long  DtuIoctl(
             UInt*  pBufSizeLoc = (UInt*)Arg;
 
             ReservedForSizeParam = 2*sizeof(UInt);
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
             if (access_ok(VERIFY_READ, (void*)Arg, ReservedForSizeParam) == 0)
+#else
+            if (access_ok((void*)Arg, ReservedForSizeParam) == 0)
+#endif
                 Result = -EFAULT;
 
             if (Result >= 0)
@@ -502,13 +505,18 @@ static long  DtuIoctl(
         {
             // Set output buffer size
             Ioctl.m_OutputBufferSize = OutputSizeParam;
-            if (_IOC_TYPE(Cmd)==DTU_IOCTL_MAGIC && Ioctl.m_OutputBufferSize>sizeof(IoctlOutputData))
+            if (_IOC_TYPE(Cmd)==DTU_IOCTL_MAGIC && 
+                                         Ioctl.m_OutputBufferSize>sizeof(IoctlOutputData))
                 Ioctl.m_OutputBufferSize = sizeof(IoctlOutputData);
 
             DtDbgOut(MAX, IAL, "Output buffer size %d", Ioctl.m_OutputBufferSize);
 
             // Ioctl reads --> driver needs write access for user memory
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
             if (access_ok(VERIFY_WRITE, (void*)Arg, Ioctl.m_OutputBufferSize) == 0)
+#else
+            if (access_ok((void*)Arg, Ioctl.m_OutputBufferSize) == 0)
+#endif
                 Result = -EFAULT;
 
             // Allocate memory for the output data
@@ -533,13 +541,20 @@ static long  DtuIoctl(
             // Set input buffer size
             Ioctl.m_InputBufferSize = InputSizeParam;
 
-            if (_IOC_TYPE(Cmd)==DTU_IOCTL_MAGIC && Ioctl.m_InputBufferSize>sizeof(DtuIoctlInputData))
+            if (_IOC_TYPE(Cmd)==DTU_IOCTL_MAGIC && 
+                                        Ioctl.m_InputBufferSize>sizeof(DtuIoctlInputData))
                 Ioctl.m_InputBufferSize = sizeof(DtuIoctlInputData);
             
             DtDbgOut(MAX, IAL, "Input buffer size %d", Ioctl.m_InputBufferSize);
             
             // Ioctl writes --> driver needs read access for user memory
-            if (access_ok(VERIFY_READ, (void*)Arg, Ioctl.m_InputBufferSize+ReservedForSizeParam) == 0)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
+            if (access_ok(VERIFY_READ, (void*)Arg, 
+                                       Ioctl.m_InputBufferSize+ReservedForSizeParam) == 0)
+#else
+            if (access_ok((void*)Arg,
+                                     Ioctl.m_InputBufferSize + ReservedForSizeParam) == 0)
+#endif
                 Result = -EFAULT;
             
             // Allocate memory for the input data
@@ -573,7 +588,8 @@ static long  DtuIoctl(
                 // Skip the size counters, we already have them
                 pArg += ReservedForSizeParam;
 
-                if (copy_from_user(Ioctl.m_pInputBuffer, (void*)pArg, Ioctl.m_InputBufferSize) != 0)
+                if (copy_from_user(Ioctl.m_pInputBuffer, (void*)pArg, 
+                                                            Ioctl.m_InputBufferSize) != 0)
                     Result = -EFAULT;
             }
         }

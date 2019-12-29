@@ -64,6 +64,7 @@ typedef  struct _DtBcSDITXF
 
     Int  m_NumLinesPerEvent;        // Number of lines between format events (0=at SOF)
     Int  m_NumSofsBetweenTod;       // Number of frames between TOD samples
+    Int  m_MaxSdiRate;              // Maximum SDI-rate
 
     // Interrupts related
     DtDpc  m_IntDpc;
@@ -89,6 +90,7 @@ DtBcSDITXF*  DtBcSDITXF_Open(Int  Address, DtCore*, DtPt*  pPt,
 
 DtStatus  DtBcSDITXF_GetFmtEventSetting(DtBcSDITXF* pBc, Int* pNumLinesPerEvent, 
                                                            Int* pNumSofsBetweenTimestamp);
+DtStatus  DtBcSDITXF_GetMaxSdiRate(DtBcSDITXF* pBc, Int* pMaxSdiRate);
 DtStatus  DtBcSDITXF_GetOperationalMode(DtBcSDITXF* pBc,  Int* pOpMode);
 DtStatus  DtBcSDITXF_SetFmtEventSetting(DtBcSDITXF* pBc, Int NumLinesPerEvent,
                                                              Int NumSofsBetweenTimestamp);

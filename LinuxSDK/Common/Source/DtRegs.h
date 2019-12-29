@@ -388,7 +388,7 @@
 #define DT_TX_REG_LOOPBKDATA           0x0020
 #define DT_TX_REG_THRESHCTRL           0x0024
 // Modulation registers
-#define DT_TX_REG_MOD_CONTROL3         0x0024   // Reserved for future use
+#define DT_TX_REG_MOD_CONTROL0         0x0024   // Noise generator DTA-2115B
 #define DT_TX_REG_MOD_CONTROL1         0x0028
 #define DT_TX_REG_MOD_CONTROL2         0x002C   // for modulator channel
 #define DT_TX_REG_MOD_CHANLEVEL        0x0030
@@ -564,6 +564,16 @@
 #define DT_TXCTRL2_S2LOOPMODE_SH       16
 #define DT_TXCTRL2_DIRMODE_MSK         0x00020000
 #define DT_TXCTRL2_DIRMODE_SH          17
+
+//-.-.-.-.-.-.-.-.-.-.- Tx Modulation-Control 0 register: Bit fields -.-.-.-.-.-.-.-.-.-.-
+#define DT_TXMODC0_AWGN_CORR_MSK       0x00000FFF
+#define DT_TXMODC0_AWGN_CORR_SH        0
+#define DT_TXMODC0_NOISETYPE_SEL_MSK   0x80000000
+#define DT_TXMODC0_NOISETYPE_SEL_SH    31
+
+// Modulation-Type field the extended version: values
+#define DT_TXMODC0_NOISE_AWGN           0x00    // Adaptive White Gaussian Noise
+#define DT_TXMODC0_NOISE_APUN           0x01    // Adaptive Pink Uniform Noise
 
 //-.-.-.-.-.-.-.-.-.-.-.- Modulation-Control1 register: Bit fields -.-.-.-.-.-.-.-.-.-.-.-
 #define DT_TXMODC1_M_MSK               0x0000000F

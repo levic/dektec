@@ -152,6 +152,8 @@ DtStatus DtBcFANC_SetFanSpeed(DtBcFANC* pBc, Int FanSpeed)
     // Check parameters
     if (FanSpeed<DT_BC_FANC_MIN_SPEED || FanSpeed>DT_BC_FANC_MAX_SPEED || pBc->m_HasNoFan)
         return DT_STATUS_INVALID_PARAMETER;
+    
+    // Don't check on no change! Otherwise watchdog will fire!!
 
     // Set new fan speed
     DtBcFANC_SetControlReg(pBc, FANC_OPSTATE_NORMAL, TRUE, FanSpeed);

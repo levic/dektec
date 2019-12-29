@@ -93,6 +93,8 @@
 #define  LOG_LEVEL_BC_LMH1981       LOG_ERR
 #define  LOG_LEVEL_BC_MSIX          LOG_ERR
 #define  LOG_LEVEL_BC_REBOOT        LOG_ERR
+#define  LOG_LEVEL_BC_SDIDMX12G     LOG_ERR
+#define  LOG_LEVEL_BC_SDIMUX12G     LOG_ERR
 #define  LOG_LEVEL_BC_SDIXCFG       LOG_ERR
 #define  LOG_LEVEL_BC_SDIRXF        LOG_ERR
 #define  LOG_LEVEL_BC_SDIRXP        LOG_ERR
@@ -104,6 +106,7 @@
 #define  LOG_LEVEL_BC_SDIXCVR3GCV   LOG_ERR
 #define  LOG_LEVEL_BC_SPIM          LOG_ERR
 #define  LOG_LEVEL_BC_SPIMF         LOG_ERR
+#define  LOG_LEVEL_BC_ST425LR       LOG_ERR
 #define  LOG_LEVEL_BC_SWITCH        LOG_ERR
 #define  LOG_LEVEL_BC_TOD           LOG_ERR
 #define  LOG_LEVEL_BC_TSRXFMT       LOG_ERR

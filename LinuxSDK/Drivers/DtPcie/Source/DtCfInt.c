@@ -147,6 +147,12 @@ DtStatus  DtCfInt_HandlerUnregister(DtCfInt*  pCf, Int  Index, const DtBc*  pBc)
 
     // Update callback data
     pData = (DtBcIntHandlerRegData*)DtVector_At(pCf->m_pIntHandlers, Index);
+    // Not registered?
+    if (pData->m_IntHandlerFunc==NULL && pData->m_pBc==NULL)
+    {
+        DtDbgOutCf(AVG, INT, pCf, "Interrupt handler not registered");
+        return DT_STATUS_NOT_FOUND;
+    }
     // Check if BC is valid
     if(pData->m_pBc != pBc)
     {

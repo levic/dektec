@@ -101,6 +101,7 @@ typedef struct  _DtDfSdiRx
 void  DtDfSdiRx_Close(DtDf*);
 DtDfSdiRx*  DtDfSdiRx_Open(DtCore*, DtPt*  pPt, const char*  pRole, Int  Instance, 
                                                              Int  Uuid, Bool  CreateStub);
+DtStatus  DtDfSdiRx_GetMaxSdiRate(DtDfSdiRx*,Int* pMaxSdiRate);
 DtStatus  DtDfSdiRx_GetOperationalMode(DtDfSdiRx*, Int* pOpMode);
 DtStatus  DtDfSdiRx_GetRxMode(DtDfSdiRx*, Int* pRxMode);
 DtStatus  DtDfSdiRx_GetSdiRate(DtDfSdiRx*,Int* pSdiRate);

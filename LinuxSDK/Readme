@@ -32,54 +32,70 @@ Extracting LinuxSDK.tar.gz will lead to the following directory structure:
 
  - LinuxSDK
    |
-   |- License              License agreement for this package
+   |- License                License agreement for this package
    | 
-   |- Common               (Common sources)
+   |- Common                 (Common sources)
    |  |- Import
    |  |- Source
    |
    |
    |- Drivers
-   |  |- Dta               (Driver for DTA-series PCI/PCIe cards)
+   |  |- Dta                 (Driver for DTA-series PCI/PCIe cards)
    |  |  |- Source
-   |  |  |  |- Linux       (Contains Dta driver makefile)
+   |  |  |  |- Linux         (Contains Dta driver makefile)
    |  |
-   |  |- DtPcie            (Driver for DTA-series PCIe cards)
+   |  |- DtPcie              (Driver for DTA-series PCIe cards)
    |  |  |- Source
-   |  |  |  |- Linux       (Contains DtPcie driver makefile) 
+   |  |  |  |- Linux         (Contains DtPcie driver makefile) 
    |  |  
-   |  |- DtaNw             (Network driver for DTA-series PCI/PCIe cards)
+   |  |- DtaNw               (Network driver for DTA-series PCI/PCIe cards)
    |  |  |- Source          
-   |  |  |  |- Linux       (Contains DtaNw driver makefile)
+   |  |  |  |- Linux         (Contains DtaNw driver makefile)
    |  |
-   |  |- Dtu               (Driver for DTU-series USB devices)
+   |  |- Dtu                 (Driver for DTU-series USB devices)
    |  |  |- Source
-   |  |  |  |- Linux       (Contains Dtu driver makefile)
+   |  |  |  |- Linux         (Contains Dtu driver makefile)
    |
    |
-   |- DtDrvCommon          (Common driver sources)
+   |- DtDrvCommon            (Common driver sources)
    |  |- Source
    |
    |
-   |- DtSal                (Software-Abstraction-Layer (used by drivers))
+   |- DtSal                  (Software-Abstraction-Layer (used by drivers))
    |  |- Source
    |
    |
-   |- DtapiService         (DTAPI service/daemon)
-   |  |- DtapiService.bin  (self-extracting binairy installer for DtapiService)
+   |- DtapiService           (DTAPI service/daemon)
+   |  |- DtapiService.bin    (self-extracting binairy installer for DtapiService)
    |
    |
-   |- DTAPI                (C++ wrapper library)
-   |  |- Doc               (Documentation)
-   |  |- Include           (DTAPI.h include file)
+   |- DTAPI                  (C++ wrapper library)
+   |  |- Doc                 (Documentation)
+   |  |- Include             (DTAPI.h include file)
    |  |- Lib
-   |    |- GCC4.8          (Contains DTAPI object file compiled with GCC 4.8.5)
-   |    |  |- DTAPI.o      (32-bit version)
-   |    |  |- DTAPI64.o    (64-bit version)
+   |    |- GCC4.8_CXX11_ABI0 (Contains DTAPI object file compiled with _GLIBCXX_USE_CXX11_ABI=0*)
+   |    |  |- DTAPI.o        (32-bit version)
+   |    |  |- DTAPI64.o      (64-bit version)
    |    |
-   |    |- GCC5.1          (Contains DTAPI object file compiled with GCC 5.1.0)
-   |       |- DTAPI.o      (32-bit version)
-   |       |- DTAPI64.o    (64-bit version)
+   |    |- GCC5.1_CXX11_ABI1 (Contains DTAPI object file compiled with _GLIBCXX_USE_CXX11_ABI=1*)
+   |       |- DTAPI.o        (32-bit version)
+   |       |- DTAPI64.o      (64-bit version)
+   |
+   |
+   |- DTAPITS                (DTAPITS Installer. A license is needed to use this library)
+   
+* CXX11_ABI:
+The C++11 standard has different versions of the Application Binary Interface (ABI).
+You can select the CXX11 ABI version by using the _GLIBCXX_USE_CXX11_ABI compiler option.
+If the compiler option is not used, the compiler uses the default setting setted up at compile time of the compiler.
+
+The GCC4.8 libraries are compatible with the CXX11 ABI version 0.
+The GCC5.1 libraries are compatible with the CXX11 ABI version 1.
+
+If the compiler only supports CXX11 ABI version 0, you should always use the GCC4.8 libraries.
+If the compiler only supports CXX11 ABI version 1, you should always use the GCC5.1 libraries.
+If the compiler supports both, you can force the CXX11 ABI version with the _GLIBCXX_USE_CXX11_ABI compiler option.
+
 
 --------------------------------------------------------------------------------
 - Version info: 

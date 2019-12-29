@@ -33,9 +33,9 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA log levels -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
 // IAL related
-#define  LOG_LEVEL_IAL           LOG_MAX
+#define  LOG_LEVEL_IAL           LOG_AVG
 // Toplevel related
-#define  LOG_LEVEL_DTA           LOG_AVG
+#define  LOG_LEVEL_DTA           LOG_MIN
 // I2C related
 #define  LOG_LEVEL_I2C           LOG_MIN
 // Events

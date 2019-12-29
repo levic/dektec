@@ -114,19 +114,21 @@ DtStatus DtBcKA_GetFailSafeInfo(DtBcKA* pBc, Bool* pFailSafeEnable, Int* pTimeou
 //
 DtStatus DtBcKA_Pulse(DtBcKA * pBc)
 {
+    DtStatus  Status=DT_STATUS_OK;
+
     // Sanity check
     BC_KA_DEFAULT_PRECONDITIONS(pBc);
 
     // Must be eneabled
     BC_KA_MUST_BE_ENABLED(pBc);
 
+    DtSpinLockAcquire(&pBc->m_KaLock);
     // Keep-alive not used?
     if (pBc->m_AutoKeepAlive)
-        return DT_STATUS_CONFIG_ERROR;
-
-    // Reset alive count
-    DtSpinLockAcquire(&pBc->m_KaLock);
-    pBc->m_AliveCnt = 0;
+        Status = DT_STATUS_CONFIG_ERROR;
+    else
+        // Reset alive count
+        pBc->m_AliveCnt = 0;
     DtSpinLockRelease(&pBc->m_KaLock);
     return DT_STATUS_OK;
 }
@@ -251,10 +253,15 @@ DtStatus DtBcKA_SetKaConfig(DtBcKA* pBc, Bool AutoKeepAlive, Bool FailSafeEnable
     if (Timeout < 0)
         return DT_STATUS_INVALID_PARAMETER;
 
+    DtSpinLockAcquire(&pBc->m_KaLock);
+
     // No change?
     if (pBc->m_AutoKeepAlive==AutoKeepAlive && pBc->m_FailSafeEnabled==FailSafeEnable
                                        && (pBc->m_WatchDogTimeout==Timeout || Timeout==0))
+    { 
+        DtSpinLockRelease(&pBc->m_KaLock);
         return DT_STATUS_OK;
+    }
     
     // Ignore Timeout?
     if (Timeout == 0)
@@ -268,11 +275,14 @@ DtStatus DtBcKA_SetKaConfig(DtBcKA* pBc, Bool AutoKeepAlive, Bool FailSafeEnable
         // Compute after how many TOD-periods the timeout is reached
         TimeOutCnt = (Timeout + pBc->m_TodPeriod-1) / pBc->m_TodPeriod;
         if (TimeOutCnt <= 0)
+        { 
+            DtSpinLockRelease(&pBc->m_KaLock);
             return DT_STATUS_INVALID_PARAMETER;
+        }
     }
 
     // Enable/disable keep-alive and set new timeout count
-    DtSpinLockAcquire(&pBc->m_KaLock);
+
     pBc->m_AutoKeepAlive = AutoKeepAlive;
     pBc->m_FailSafeEnabled = FailSafeEnable;
     pBc->m_WatchDogTimeout = Timeout;
@@ -303,14 +313,10 @@ static DtStatus  DtIoStubBcKA_OnCmdSetFailSafeConfig(const DtIoStubBcKA*,
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- List of supported IOCTL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // First declare IOCTL commands
-DECL_DT_IOCTL_CMD_PROPS_EXCL_ACCESS;
 DECL_DT_IOCTL_CMD_PROPS_KA;
 
 static const DtIoctlProperties  IOSTUB_BC_KA_IOCTLS[] = 
 {
-    DT_IOCTL_PROPS_EXCL_ACCESS_CMD(
-        DtIoStubBc_OnExclAccessCmd,     // Use default handler
-        NULL, NULL),
     DT_IOCTL_PROPS_KA_CMD(
         DtIoStubBcKA_OnCmd,
         NULL,  NULL),

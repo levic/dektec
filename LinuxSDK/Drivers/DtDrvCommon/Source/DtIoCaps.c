@@ -127,6 +127,7 @@ const DtIoCapDef  DtIoCapDefinitions[] =
     { DT_IOCAP_L3MODE,     "CAP_L3MODE" },
     { DT_IOCAP_MATRIX,     "CAP_MATRIX" },
     { DT_IOCAP_MATRIX2,    "CAP_MATRIX2" },
+    { DT_IOCAP_QUADLINK,   "CAP_QUADLINK" },
     { DT_IOCAP_RAWASI,     "CAP_RAWASI" },
     { DT_IOCAP_SDI10BNBO,  "CAP_SDI10BNBO" },
     { DT_IOCAP_SDITIME,    "CAP_SDITIME" },

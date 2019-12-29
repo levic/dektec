@@ -8248,6 +8248,8 @@ static const DtProperty  DtProperties2115_0_36[] =
 };
 static const DtProperty  DtProperties2115_0_37[] =
 {
+    { "CAP_SNR_GAUSSIAN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 2, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TX_DVBT2", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 1, 0, 400, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 1, 0, 400, -1, PROPERTY_SCOPE_DTAPI, 0,
@@ -8906,7 +8908,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2115_0[] =
     { DtProperties2115_0_34, 10 },
     { DtProperties2115_0_35, 14 },
     { DtProperties2115_0_36, 13 },
-    { DtProperties2115_0_37, 18 },
+    { DtProperties2115_0_37, 19 },
     { NULL, 0 },
     { DtProperties2115_0_39, 1 },
     { DtProperties2115_0_40, 3 },

@@ -269,6 +269,7 @@ DtStatus  DtCore_DEVICE_PowerDown(DtCore* pCore);
 DtStatus  DtCore_DEVICE_ExitPre(DtCore* pCore);
 void      DtCore_DEVICE_Exit(DtCore*);
 Int       DtCore_DEVICE_GetNumPorts(DtCore*);
+Int       DtCore_DEVICE_GetTypeNumber(DtCore*);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_BC - Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtCore_BC_Close(DtBc*);

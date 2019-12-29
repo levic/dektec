@@ -65,6 +65,7 @@ typedef struct  _DtDfSpiCableDrvEq
     Int  m_SdiRate;                     // Selected SDI-rate
     Int  m_Direction;                   // Direction TX-driver / RX-equalizer
     Int  m_SpiDeviceId;                 // Cable driver/equalizer SPI device ID
+    Bool  m_Supports12G;                // Supports 12G
 }  DtDfSpiCableDrvEq;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

@@ -44,6 +44,11 @@ int  kstrtos64(const char*  p, int Base, UInt64*  pRes)
     return 0;
 }
 #endif
+
+// Linux kernel versions >=5.1
+#ifndef get_ds
+#define get_ds() (KERNEL_DS)
+#endif
 #endif
 
 

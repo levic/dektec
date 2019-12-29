@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        34
+#define DTAPI_VERSION_MINOR        35
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        120
+#define DTAPI_VERSION_BUILD        123
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -491,59 +491,60 @@ private:
 #define DTAPI_CAP_MUTE        Dtapi::DtCaps(165) // Mute RF output signal
 #define DTAPI_CAP_ROLLOFF     Dtapi::DtCaps(166) // Adjustable roll-off factor
 #define DTAPI_CAP_S2APSK      Dtapi::DtCaps(167) // DVB-S2 16-APSK/32-APSK
-#define DTAPI_CAP_SNR         Dtapi::DtCaps(168) // AWGN insertion
-#define DTAPI_CAP_TX_16MHZ    Dtapi::DtCaps(169) // 16MHz bandwidth mode
-#define DTAPI_CAP_TX_SFN      Dtapi::DtCaps(170) // SNF operation
+#define DTAPI_CAP_SNR         Dtapi::DtCaps(168) // Noise insertion
+#define DTAPI_CAP_SNR_GAUSSIAN Dtapi::DtCaps(169) // AWGN insertion
+#define DTAPI_CAP_TX_16MHZ    Dtapi::DtCaps(170) // 16MHz bandwidth mode
+#define DTAPI_CAP_TX_SFN      Dtapi::DtCaps(171) // SNF operation
 
 // Capability group RFCLKSEL - RF clock source selection
-#define DTAPI_CAP_RFCLKEXT    Dtapi::DtCaps(171) // External RF clock input
-#define DTAPI_CAP_RFCLKINT    Dtapi::DtCaps(172) // Internal RF clock reference
+#define DTAPI_CAP_RFCLKEXT    Dtapi::DtCaps(172) // External RF clock input
+#define DTAPI_CAP_RFCLKINT    Dtapi::DtCaps(173) // Internal RF clock reference
 
 // Capability group RXSTD - Receiver standards
-#define DTAPI_CAP_RX_ATSC     Dtapi::DtCaps(173) // ATSC 8-VSB reception
-#define DTAPI_CAP_RX_ATSC3    Dtapi::DtCaps(174) // ATSC3.0 reception
-#define DTAPI_CAP_RX_CMMB     Dtapi::DtCaps(175) // CMMB reception
-#define DTAPI_CAP_RX_DAB      Dtapi::DtCaps(176) // DAB reception
-#define DTAPI_CAP_RX_DTMB     Dtapi::DtCaps(177) // DTMB reception
-#define DTAPI_CAP_RX_DVBC2    Dtapi::DtCaps(178) // DVB-C2 reception
-#define DTAPI_CAP_RX_DVBS     Dtapi::DtCaps(179) // DVB-S reception
-#define DTAPI_CAP_RX_DVBS2    Dtapi::DtCaps(180) // DVB-S2 reception
-#define DTAPI_CAP_RX_DVBT     Dtapi::DtCaps(181) // DVB-T reception
-#define DTAPI_CAP_RX_DVBT2    Dtapi::DtCaps(182) // DVB-T2 reception
-#define DTAPI_CAP_RX_GOLD     Dtapi::DtCaps(183) // GOLD for receivers
-#define DTAPI_CAP_RX_IQ       Dtapi::DtCaps(184) // I/Q sample reception
-#define DTAPI_CAP_RX_ISDBS    Dtapi::DtCaps(185) // ISDB-S reception
-#define DTAPI_CAP_RX_ISDBT    Dtapi::DtCaps(186) // ISDB-T reception
-#define DTAPI_CAP_RX_MH       Dtapi::DtCaps(187) // ATSC-MH reception
-#define DTAPI_CAP_RX_QAMA     Dtapi::DtCaps(188) // QAM-A reception
-#define DTAPI_CAP_RX_QAMB     Dtapi::DtCaps(189) // QAM-B reception
-#define DTAPI_CAP_RX_QAMC     Dtapi::DtCaps(190) // QAM-C reception
-#define DTAPI_CAP_RX_T2MI     Dtapi::DtCaps(191) // T2MI reception
+#define DTAPI_CAP_RX_ATSC     Dtapi::DtCaps(174) // ATSC 8-VSB reception
+#define DTAPI_CAP_RX_ATSC3    Dtapi::DtCaps(175) // ATSC3.0 reception
+#define DTAPI_CAP_RX_CMMB     Dtapi::DtCaps(176) // CMMB reception
+#define DTAPI_CAP_RX_DAB      Dtapi::DtCaps(177) // DAB reception
+#define DTAPI_CAP_RX_DTMB     Dtapi::DtCaps(178) // DTMB reception
+#define DTAPI_CAP_RX_DVBC2    Dtapi::DtCaps(179) // DVB-C2 reception
+#define DTAPI_CAP_RX_DVBS     Dtapi::DtCaps(180) // DVB-S reception
+#define DTAPI_CAP_RX_DVBS2    Dtapi::DtCaps(181) // DVB-S2 reception
+#define DTAPI_CAP_RX_DVBT     Dtapi::DtCaps(182) // DVB-T reception
+#define DTAPI_CAP_RX_DVBT2    Dtapi::DtCaps(183) // DVB-T2 reception
+#define DTAPI_CAP_RX_GOLD     Dtapi::DtCaps(184) // GOLD for receivers
+#define DTAPI_CAP_RX_IQ       Dtapi::DtCaps(185) // I/Q sample reception
+#define DTAPI_CAP_RX_ISDBS    Dtapi::DtCaps(186) // ISDB-S reception
+#define DTAPI_CAP_RX_ISDBT    Dtapi::DtCaps(187) // ISDB-T reception
+#define DTAPI_CAP_RX_MH       Dtapi::DtCaps(188) // ATSC-MH reception
+#define DTAPI_CAP_RX_QAMA     Dtapi::DtCaps(189) // QAM-A reception
+#define DTAPI_CAP_RX_QAMB     Dtapi::DtCaps(190) // QAM-B reception
+#define DTAPI_CAP_RX_QAMC     Dtapi::DtCaps(191) // QAM-C reception
+#define DTAPI_CAP_RX_T2MI     Dtapi::DtCaps(192) // T2MI reception
 
 // Capability group SPICLKSEL - Parallel port clock source selection
-#define DTAPI_CAP_SPICLKEXT   Dtapi::DtCaps(192) // External clock input
-#define DTAPI_CAP_SPICLKINT   Dtapi::DtCaps(193) // Internal clock reference
+#define DTAPI_CAP_SPICLKEXT   Dtapi::DtCaps(193) // External clock input
+#define DTAPI_CAP_SPICLKINT   Dtapi::DtCaps(194) // Internal clock reference
 
 // Capability group SPIMODE - Parallel port mode
-#define DTAPI_CAP_SPIFIXEDCLK Dtapi::DtCaps(194) // SPI fixed clock with valid signal
-#define DTAPI_CAP_SPIDVBMODE  Dtapi::DtCaps(195) // SPI DVB mode
-#define DTAPI_CAP_SPISER8B    Dtapi::DtCaps(196) // SPI serial 8-bit mode
-#define DTAPI_CAP_SPISER10B   Dtapi::DtCaps(197) // SPI serial 10-bit mode
+#define DTAPI_CAP_SPIFIXEDCLK Dtapi::DtCaps(195) // SPI fixed clock with valid signal
+#define DTAPI_CAP_SPIDVBMODE  Dtapi::DtCaps(196) // SPI DVB mode
+#define DTAPI_CAP_SPISER8B    Dtapi::DtCaps(197) // SPI serial 8-bit mode
+#define DTAPI_CAP_SPISER10B   Dtapi::DtCaps(198) // SPI serial 10-bit mode
 
 // Capability group SPISTD - Parallel port I/O standard
-#define DTAPI_CAP_SPILVDS1    Dtapi::DtCaps(198) // LVDS1
-#define DTAPI_CAP_SPILVDS2    Dtapi::DtCaps(199) // LVDS2
-#define DTAPI_CAP_SPILVTTL    Dtapi::DtCaps(200) // LVTTL
+#define DTAPI_CAP_SPILVDS1    Dtapi::DtCaps(199) // LVDS1
+#define DTAPI_CAP_SPILVDS2    Dtapi::DtCaps(200) // LVDS2
+#define DTAPI_CAP_SPILVTTL    Dtapi::DtCaps(201) // LVTTL
 
 // Capability group TSRATESEL - Transport-stream rate selection
-#define DTAPI_CAP_EXTTSRATE   Dtapi::DtCaps(201) // External TS rate clock input
-#define DTAPI_CAP_EXTRATIO    Dtapi::DtCaps(202) // External TS rate clock with ratio
-#define DTAPI_CAP_INTTSRATE   Dtapi::DtCaps(203) // Internal TS rate clock reference
-#define DTAPI_CAP_LOCK2INP    Dtapi::DtCaps(204) // Lock TS rate to input port
+#define DTAPI_CAP_EXTTSRATE   Dtapi::DtCaps(202) // External TS rate clock input
+#define DTAPI_CAP_EXTRATIO    Dtapi::DtCaps(203) // External TS rate clock with ratio
+#define DTAPI_CAP_INTTSRATE   Dtapi::DtCaps(204) // Internal TS rate clock reference
+#define DTAPI_CAP_LOCK2INP    Dtapi::DtCaps(205) // Lock TS rate to input port
 
 // Capability group VIDENC - Supported video standards
-#define DTAPI_CAP_ENC_H264    Dtapi::DtCaps(205) // H.264 video encoder
-#define DTAPI_CAP_ENC_MP2V    Dtapi::DtCaps(206) // MPEG2 video encoder
+#define DTAPI_CAP_ENC_H264    Dtapi::DtCaps(206) // H.264 video encoder
+#define DTAPI_CAP_ENC_MP2V    Dtapi::DtCaps(207) // MPEG2 video encoder
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCmmbPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -1514,13 +1515,15 @@ private:
 #define DTAPI_PAR_DEMOD_LDPC_AVG        3       // LDPC average iterations limit, used
                                                 // to limit CPU load; default 16
 #define DTAPI_PAR_DEMOD_ATSC_FFE_TAPS   4       // Number of Feed Forward Equalizer taps
-                                                // Range:16-128, multiple of 8, default=96
+                                                // Range:16-256, multiple of 8, default=96
 #define DTAPI_PAR_DEMOD_ATSC_DFE_TAPS   5       // Number Decision Feedback Equalizer taps
-                                                // Range:16-128, multiple of 8, default=24
-
+                                                // Range:16-256, multiple of 8, default=24
+#define DTAPI_PAR_DEMOD_ATSC_CLKSYNC_DELAY  6   // Delay in ms for sample rate offset
+                                                // acquisition. Default 50ms.
+                                                // (result: 50ppm sample rate tolerance)
 // Boolean parameters
-#define DTAPI_PAR_DEMOD_MER_ENA         6        // Enable MER calculation; default on
-#define DTAPI_PAR_DEMOD_QAM_SPECINV     7        // Enable spectral inversion; default off
+#define DTAPI_PAR_DEMOD_MER_ENA         7        // Enable MER calculation; default on
+#define DTAPI_PAR_DEMOD_QAM_SPECINV     8        // Enable spectral inversion; default off
 
 // Undefined parameter
 #define DTAPI_PAR_UNDEFINED             0        // Value is not defined yet
@@ -1530,7 +1533,7 @@ private:
 #define DTAPI_PAR_UNSUP_UINTITEM    0xFFFFFFFF   // Unsupported unsigned integer item
 
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPhaseNoisePars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPhaseNoisePars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Structure for specifying the phase noise parameters
 //
@@ -1591,7 +1594,8 @@ struct DtStatistic
     {
         STAT_IDXTRA_NOT_USED = -1,   // IdXtra parameter is not used
         STAT_IDXTRA_ISDBT_LAYER,     // IdXtra is a ISDBT layer id.
-        STAT_IDXTRA_ISI,             // IdXtra is -1 or a DvbS2 stream id.
+        STAT_IDXTRA_ISI,             // IdXtra is DTAPI_STAT_IDXTRA_ISI_OVERALL 
+                                     // or a DvbS2 stream id.
         STAT_IDXTRA_TIME_WINDOW      // IdXtra is a time frame.
     };
 
@@ -1800,6 +1804,9 @@ struct DtTimeOfDay
 #define DTAPI_STAT_UNDEFINED        0x000        // Value is not defined yet
 #define DTAPI_STAT_UNSUP_INTITEM    0x80000000   // Unsupported integer item
 #define DTAPI_STAT_UNSUP_UINTITEM   0xFFFFFFFF   // Unsupported unsigned integer item
+
+// IdXtra values
+#define DTAPI_STAT_IDXTRA_ISI_OVERALL -1         // Idxtra for isi overall statistics.
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIpQosStats -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -2336,6 +2343,8 @@ struct DtDvbS2Isi
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
 
+#define DTAPI_DVBS2_DEMOD_ISI_ALL      -1            // L3 selection for all streams 
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbS2StreamSelPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // This structure specifies the selection parameters for a DVB-S2 transport stream
@@ -2839,6 +2848,8 @@ public:
                                                                               int& Build);
     virtual DTAPI_RESULT  GetDisplayName(wchar_t* pName);
     virtual DTAPI_RESULT  GetDisplayName(char* pName);
+    virtual DTAPI_RESULT  GetFailsafeAlive(int Port, bool& Alive);
+    virtual DTAPI_RESULT  GetFailsafeConfig(int Port, bool& Enable, int& Timeout);
     virtual DTAPI_RESULT  GetFanSpeed(int Fan, int& Rpm);
     virtual DTAPI_RESULT  GetFirmwareVariant(int& FirmwareVariant);
     virtual DTAPI_RESULT  GetFirmwareVersion(int& FirmwareVersion);
@@ -2876,6 +2887,8 @@ public:
                                                        int EventTypes, void** pId = NULL);
     virtual DTAPI_RESULT  SetDisplayName(wchar_t* pName);
     virtual DTAPI_RESULT  SetDisplayName (char* pName);
+    virtual DTAPI_RESULT  SetFailsafeAlive(int Port);
+    virtual DTAPI_RESULT  SetFailsafeConfig(int Port, bool Enable, int Timeout);
     static  DTAPI_RESULT  SetFirmwareVariant(__int64 SerialNumber, int FwVariant, 
                                                                     bool CheckOnly=false);
     virtual DTAPI_RESULT  SetIoConfig(int Port, int Group, int Value, int SubValue = -1,
@@ -3280,6 +3293,7 @@ private:
 #define DTAPI_RXMODE_IPRAW          (DTAPI_RXMODE_TS | 0x07)
 #define DTAPI_RXMODE_RAWASI         (DTAPI_RXMODE_TS | 0x08)
 #define DTAPI_RXMODE_STTRP          (DTAPI_RXMODE_TS | 0x09)
+#define DTAPI_RXMODE_STL3ALL        (DTAPI_RXMODE_TS | 0x0A)
 #define DTAPI_RXMODE_TS_MASK        (DTAPI_RXMODE_TS | DTAPI_RXMODE_TS_MODE_BITS)
 
 // Receive mode for SDI - Modes
@@ -3655,8 +3669,10 @@ private:
 #define DTAPI_LED_HARDWARE          5
 
 // Noise modes
-#define DTAPI_NOISE_DISABLED        0            // No noise generation
-#define DTAPI_NOISE_WNG_HW          1            // White noise generator (hardware)
+#define DTAPI_NOISE_DISABLED        0       // No noise generation
+#define DTAPI_NOISE_WNG_HW          1       // Hardware noise generator (legacy)
+#define DTAPI_NOISE_UNIFORM_HW      1       // Uniform white noise generator (hardware)
+#define DTAPI_NOISE_GAUSSIAN_HW     2       // Gaussian white noise generator (hardware)
 
 // Polarity control
 #define DTAPI_POLARITY_AUTO         0

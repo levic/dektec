@@ -325,7 +325,6 @@ DtStatus  DtDfTempFanMgr_LoadParameters(DtDf*  pDfBase)
     DtDfParameters  DFTEMPFANMGR_PARS[] =
     {
         // Name,  Value Type,  Value*
-        { "CONTROL_DELAY", PROPERTY_VALUE_TYPE_INT, &(pDf->m_Delay) },
         { "MIN_FAN_SPEED", PROPERTY_VALUE_TYPE_INT, &(pDf->m_MinFanSpeed) },
     };
 
@@ -333,7 +332,6 @@ DtStatus  DtDfTempFanMgr_LoadParameters(DtDf*  pDfBase)
     DF_TEMPFANMGR_DEFAULT_PRECONDITIONS(pDf);
 
     // Invalidate parameters
-    pDf->m_Delay = -1;
     pDf->m_MinFanSpeed = -1;
     // Load parameters from property store
     DT_RETURN_ON_ERROR(DtDf_LoadParameters(pDfBase, DT_SIZEOF_ARRAY(DFTEMPFANMGR_PARS), 
@@ -365,14 +363,11 @@ DtStatus  DtDfTempFanMgr_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
             {
                 // One fan found
                 pDf->m_NumFans = 1;
-                // Delay and MinFanSpeed should have a valid value
-                DT_ASSERT(pDf->m_Delay > 0);
+                // MinFanSpeed should have a valid value
                 DT_ASSERT(pDf->m_MinFanSpeed >= DT_BC_FANC_MIN_SPEED);
                 DT_ASSERT(pDf->m_MinFanSpeed <= DT_BC_FANC_MAX_SPEED);
                 // Set initial fan speed
-                pDf->m_FanSpeed_x_Delay = InitFanSpeed * pDf->m_Delay;
-                DT_RETURN_ON_ERROR(DtBcFANC_SetFanSpeed(pDf->m_pBcFanCtrl, 
-                                                   pDf->m_FanSpeed_x_Delay/pDf->m_Delay));
+                DT_RETURN_ON_ERROR(DtBcFANC_SetFanSpeed(pDf->m_pBcFanCtrl, InitFanSpeed));
             }
         }
 
@@ -490,9 +485,9 @@ void DtDfTempFanMgr_UpdateFanSpeed(DtDfTempFanMgr*  pDf)
     DtDfSensTemp* pTempSensor =  NULL;
     DtDfSensTempProperties* pTempProps = NULL;
     Int i;
-    Int  Temperature;
-    Int  MaxTempDiff = -1000;
-    Int  FanSpeed;
+    Int  Temperature, MaxTemp, TargetTemp;
+    Int  FanSpeed=0, MaxFanSpeed=pDf->m_MinFanSpeed;
+    Bool  MaxTempExceeded = FALSE;
 
     // We cannot control if there are no temperature sensors
     if (pDf->m_NumTempSensors == 0)
@@ -501,7 +496,6 @@ void DtDfTempFanMgr_UpdateFanSpeed(DtDfTempFanMgr*  pDf)
     // Do for all temperature sensors
     for (i=0; i<pDf->m_NumTempSensors; i++)
     {
-        Int TempDiff = 0;
         // Get temperature sensor
         pTempSensor = (DtDfSensTemp*)DtVectorDf_At(pDf->m_pDfTempSensors, i);
         DT_ASSERT(pTempSensor != NULL);
@@ -516,23 +510,35 @@ void DtDfTempFanMgr_UpdateFanSpeed(DtDfTempFanMgr*  pDf)
         // Get temperature properties
         pTempProps = (DtDfSensTempProperties*)DtVector_At(pDf->m_pTempSensorProps, i);
         DT_ASSERT(pTempSensor != NULL);
+        MaxTemp = pTempProps->m_MaximumTemperature;
+        TargetTemp = pTempProps->m_TargetTemperature;
+        DT_ASSERT(MaxTemp >= TargetTemp);
+        DT_ASSERT(pDf->m_MinFanSpeed <= DT_BC_FANC_MAX_SPEED);
+        DT_ASSERT(pDf->m_MinFanSpeed >= DT_BC_FANC_MIN_SPEED);
 
         // Determine delta between current temperature and target
-        TempDiff = Temperature - pTempProps->m_TargetTemperature;
-        if (TempDiff > MaxTempDiff)
-            MaxTempDiff = TempDiff;
+        if (Temperature >= MaxTemp)
+            MaxTempExceeded = TRUE;
+        else if (Temperature > TargetTemp)
+        {
+            Int  Rc1000 = ((DT_BC_FANC_MAX_SPEED - pDf->m_MinFanSpeed)*1000) /
+                                                                   (MaxTemp - TargetTemp);
+            FanSpeed = pDf->m_MinFanSpeed + (Rc1000*(Temperature - TargetTemp))/1000;
+            if (FanSpeed > MaxFanSpeed)
+                MaxFanSpeed = FanSpeed;
+        }
     }
+    
+    // Determine new fan-speed
+    FanSpeed = MaxFanSpeed;
+    if (MaxTempExceeded)
+        FanSpeed = DT_BC_FANC_MAX_SPEED;
+    else if (FanSpeed > DT_BC_FANC_MAX_SPEED)
+        FanSpeed = DT_BC_FANC_MAX_SPEED;
+    else if (FanSpeed < pDf->m_MinFanSpeed)
+        FanSpeed = pDf->m_MinFanSpeed;
 
-    // FanSpeed += MaxTempDiff*PeriodTime/Delay
-    pDf->m_FanSpeed_x_Delay +=  MaxTempDiff * pDf->m_PeriodicInterval;
-    if (pDf->m_FanSpeed_x_Delay > DT_BC_FANC_MAX_SPEED*pDf->m_Delay)
-        pDf->m_FanSpeed_x_Delay = DT_BC_FANC_MAX_SPEED*pDf->m_Delay;
-    else if (pDf->m_FanSpeed_x_Delay < pDf->m_MinFanSpeed*pDf->m_Delay)
-        pDf->m_FanSpeed_x_Delay = pDf->m_MinFanSpeed*pDf->m_Delay;
-
-    FanSpeed = pDf->m_FanSpeed_x_Delay / pDf->m_Delay;
-
-    // Set new fan-speed
+    // Set new fan-speed (don't let the watchdog expire!)
     Status = DtBcFANC_SetFanSpeed(pDf->m_pBcFanCtrl, FanSpeed);
     if (!DT_SUCCESS(Status))
         DtDbgOutDf(ERR, TEMPFANMGR, pDf, "ERROR: failed to set fan-speed");

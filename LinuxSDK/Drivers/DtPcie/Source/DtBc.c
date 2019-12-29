@@ -62,6 +62,8 @@ const DtBcId  DT_BC_KNOWN[] =
     { DT_BC_LMH1981_NAME,         DT_BC_LMH1981_SHORTNAME,         NULL, -1, -1 },
     { DT_BC_MSIX_NAME,            DT_BC_MSIX_SHORTNAME,            NULL, -1, -1 },
     { DT_BC_REBOOT_NAME,          DT_BC_REBOOT_SHORTNAME,          NULL, -1, -1 },
+    { DT_BC_SDIDMX12G_NAME,       DT_BC_SDIDMX12G_SHORTNAME,       NULL, -1, -1 },
+    { DT_BC_SDIMUX12G_NAME,       DT_BC_SDIMUX12G_SHORTNAME,       NULL, -1, -1 },
     { DT_BC_SDIXCFG_NAME,         DT_BC_SDIXCFG_SHORTNAME,         NULL, -1, -1 },
     { DT_BC_SDIRXF_NAME,          DT_BC_SDIRXF_SHORTNAME,          NULL, -1, -1 },
     { DT_BC_SDIRXP_NAME,          DT_BC_SDIRXP_SHORTNAME,          NULL, -1, -1 },
@@ -72,6 +74,7 @@ const DtBcId  DT_BC_KNOWN[] =
     { DT_BC_SDITXPLL_NAME,        DT_BC_SDITXPLL_SHORTNAME,        NULL, -1, -1 },
     { DT_BC_SPIM_NAME,            DT_BC_SPIM_SHORTNAME,            NULL, -1, -1 },
     { DT_BC_SPIMF_NAME,           DT_BC_SPIMF_SHORTNAME,           NULL, -1, -1 },
+    { DT_BC_ST425LR_NAME,         DT_BC_ST425LR_SHORTNAME,         NULL, -1, -1 },
     { DT_BC_SWITCH_NAME,          DT_BC_SWITCH_SHORTNAME,          NULL, -1, -1 },
     { DT_BC_TOD_NAME,             DT_BC_TOD_SHORTNAME,             NULL, -1, -1 },
     { DT_BC_TSRXFMT_NAME,         DT_BC_TSRXFMT_SHORTNAME,         NULL, -1, -1 },
@@ -470,7 +473,7 @@ DtStatus  DtBc_IntHandlerUnregisterAll(DtBc*  pBc)
     {
         const Int  Id = pBc->m_IntProps[i].m_Id;
         DtStatus  Status = DtBc_IntHandlerUnregister(pBc, Id);
-        if (!DT_SUCCESS(Status))
+        if (!DT_SUCCESS(Status) && Status!=DT_STATUS_NOT_FOUND)
             DT_ASSERT(FALSE);
     }
     return DT_STATUS_OK;
@@ -674,6 +677,12 @@ DtBc*  DtBc_OpenType(DtBcType  Type, Int  Address, DtCore*  pCore,
     case DT_BLOCK_TYPE_SPIMF:
         return (DtBc*)DtBcSPIMF_Open(Address, pCore, pPt, pRole, Instance,
                                                                         Uuid, CreateStub);
+    case DT_BLOCK_TYPE_SDIDMX12G:
+        return (DtBc*)DtBcSDIDMX12G_Open(Address, pCore, pPt, pRole, Instance,
+                                                                        Uuid, CreateStub);
+    case DT_BLOCK_TYPE_SDIMUX12G:
+        return (DtBc*)DtBcSDIMUX12G_Open(Address, pCore, pPt, pRole, Instance,
+                                                                        Uuid, CreateStub);
     case DT_BLOCK_TYPE_SDIXCFG:
         return (DtBc*)DtBcSDIXCFG_Open(Address, pCore, pPt, pRole, Instance,
                                                                         Uuid, CreateStub);
@@ -699,7 +708,9 @@ DtBc*  DtBc_OpenType(DtBcType  Type, Int  Address, DtCore*  pCore,
     case DT_BLOCK_TYPE_SDITXPLL:
         DT_ASSERT(CreateStub == FALSE);
         return (DtBc*)DtBcSDITXPLL_Open(Address, pCore, pPt, pRole, Instance, Uuid);
-
+    case DT_BLOCK_TYPE_ST425LR:
+        return (DtBc*)DtBcST425LR_Open(Address, pCore, pPt, pRole, Instance,
+                                                                        Uuid, CreateStub);
     case DT_BLOCK_TYPE_SWITCH:
         return (DtBc*)DtBcSWITCH_Open(Address, pCore, pPt, pRole, Instance,
                                                                         Uuid, CreateStub);
@@ -1151,6 +1162,10 @@ DtIoStubBc*  DtIoStubBc_OpenType(DtBc*  pBc)
         break;
     case DT_BLOCK_TYPE_REBOOT:
         return (DtIoStubBc*)DtIoStubBcREBOOT_Open(pBc);
+    case DT_BLOCK_TYPE_SDIDMX12G:
+        return (DtIoStubBc*)DtIoStubBcSDIDMX12G_Open(pBc);
+    case DT_BLOCK_TYPE_SDIMUX12G:
+        return (DtIoStubBc*)DtIoStubBcSDIMUX12G_Open(pBc);
     case DT_BLOCK_TYPE_SDIXCFG:
         return (DtIoStubBc*)DtIoStubBcSDIXCFG_Open(pBc);
     case DT_BLOCK_TYPE_SDIRXF:
@@ -1171,6 +1186,8 @@ DtIoStubBc*  DtIoStubBc_OpenType(DtBc*  pBc)
         return (DtIoStubBc*)DtIoStubBcSPIM_Open(pBc);
     case DT_BLOCK_TYPE_SPIMF:
         return (DtIoStubBc*)DtIoStubBcSPIMF_Open(pBc);
+    case DT_BLOCK_TYPE_ST425LR:
+        return (DtIoStubBc*)DtIoStubBcST425LR_Open(pBc);
     case DT_BLOCK_TYPE_SWITCH:
         return (DtIoStubBc*)DtIoStubBcSWITCH_Open(pBc);
     case DT_BLOCK_TYPE_TOD:

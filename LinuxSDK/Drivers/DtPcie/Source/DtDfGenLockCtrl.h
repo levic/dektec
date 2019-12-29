@@ -158,6 +158,8 @@ typedef struct  _DtDfGenLockCtrl
     DtDfGenLockCtrlDcoControlPars  m_DcoControlPars; // Dco control parameter
     Int  m_Count;                   // For debugging
     Int  m_DcoFreqOffsetPpt;        // DcoFrequency offset in parts per trilion
+    Int  m_DcoFreeRunFreqOffsetPpt; // DcoFrequency offset in parts per trilion  when in
+                                    // free running mode
 
     DtVector*  m_pOnLockChangedHandlers; // List of registered on genlock lock changed
                                          // handlers
@@ -177,6 +179,8 @@ DtStatus  DtDfGenLockCtrl_GetGenLockStatus(DtDfGenLockCtrl*, Int* pGenLockState,
                                                         Int* pRefVidStd, Int* pDetVidStd);
 DtStatus  DtDfGenLockCtrl_IsLocked(DtDfGenLockCtrl*, Bool* pLocked);
 DtStatus  DtDfGenLockCtrl_ReLock(DtDfGenLockCtrl*);
+DtStatus  DtDfGenLockCtrl_GetDcoFreqOffset(DtDfGenLockCtrl*, Int*, Int64*);
+DtStatus  DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl*, Int);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubDfGenLockCtrl definitions +=+=+=+=+=+=+=+=+=+=+=+=+=

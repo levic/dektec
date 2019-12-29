@@ -70,6 +70,7 @@ void  DtBcLNBH25_2132_Close(DtBc*);
 DtBcLNBH25_2132*  DtBcLNBH25_2132_Open(Int  Address, DtCore*, DtPt*  pPt, 
                           const char*  pRole, Int  Instance, Int  Uuid, Bool  CreateStub);
 DtStatus  DtBcLNBH25_2132_SendToneBurst(DtBcLNBH25_2132*, Int ToneBurst);
+DtStatus  DtBcLNBH25_2132_EnableTone(DtBcLNBH25_2132*, Int EnableTone);
 DtStatus  DtBcLNBH25_2132_SendMessage(DtBcLNBH25_2132*, const UInt8* pMsgSend,
                                             Int NumToSend, UInt8* pMsgRcv, Int* pNumRcvd);
 

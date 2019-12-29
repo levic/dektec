@@ -807,8 +807,11 @@ static int  DtCorePcie_IAL_Ioctl(
             UInt*  pBufSizeLoc = (UInt*)Arg;
 
             ReservedForSizeParam = 2*sizeof(UInt);
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
             if (access_ok(VERIFY_READ, (void*)Arg, ReservedForSizeParam) == 0)
+#else
+            if (access_ok((void*)Arg, ReservedForSizeParam) == 0)
+#endif
                 Result = -EFAULT;
 
             if (Result >= 0)
@@ -852,7 +855,11 @@ static int  DtCorePcie_IAL_Ioctl(
             DtDbgOut(MAX, IAL, "Output buffer size %d", Ioctl.m_OutputBufferSize);
 
             // Ioctl reads --> driver needs write access for user memory
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
             if (access_ok(VERIFY_WRITE, (void*)Arg, Ioctl.m_OutputBufferSize) == 0)
+#else
+            if (access_ok((void*)Arg, Ioctl.m_OutputBufferSize) == 0)
+#endif
                 Result = -EFAULT;
 
             // Allocate memory for the output data
@@ -883,8 +890,13 @@ static int  DtCorePcie_IAL_Ioctl(
             DtDbgOut(MAX, IAL, "Input buffer size %d", Ioctl.m_InputBufferSize);
             
             // Ioctl writes --> driver needs read access for user memory
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
             if (access_ok(VERIFY_READ, (void*)Arg, 
                                        Ioctl.m_InputBufferSize+ReservedForSizeParam) == 0)
+#else
+            if (access_ok((void*)Arg,
+                                     Ioctl.m_InputBufferSize + ReservedForSizeParam) == 0)
+#endif
                 Result = -EFAULT;
             
             // Allocate memory for the input data

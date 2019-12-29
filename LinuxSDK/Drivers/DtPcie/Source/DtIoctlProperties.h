@@ -896,7 +896,6 @@ typedef struct  _DtIoctlProperties
     )
 
 
-
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_GENLOCKCTRL_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -919,11 +918,31 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_DYNAMIC_SIZEOF(DtIoctlGenLockCtrlCmdReLockInput),                       \
         0)
 
+#define DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_DCO_FREQ_OFFSET                               \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_GENLOCKCTRL_CMD_GET_DCO_FREQ_OFFSET,                                          \
+        "GET_DCO_FREQ_OFFSET",                                                           \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlGenLockCtrlCmdGetDcoFreqOffsetInput),                              \
+        sizeof(DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput))
+
+#define DT_IOCTL_CMD_PROPS_GENLOCKCTRL_SET_DCO_FREQ_OFFSET                               \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_GENLOCKCTRL_CMD_SET_DCO_FREQ_OFFSET,                                          \
+        "SET_DCO_FREQ_OFFSET",                                                           \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput),                              \
+        0)
+
 #define DECL_DT_IOCTL_CMD_PROPS_GENLOCKCTRL                                              \
     static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_GENLOCKCTRL[] =                \
     {                                                                                    \
         DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_STATUS,                                       \
         DT_IOCTL_CMD_PROPS_GENLOCKCTRL_RELOCK,                                           \
+        DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_DCO_FREQ_OFFSET,                              \
+        DT_IOCTL_CMD_PROPS_GENLOCKCTRL_SET_DCO_FREQ_OFFSET,                              \
     }
 
 #define DT_IOCTL_PROPS_GENLOCKCTRL_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)           \
@@ -1137,7 +1156,7 @@ typedef struct  _DtIoctlProperties
         DT_KA_CMD_PULSE,                                                                 \
         "SET_PULSE",                                                                     \
         TRUE,                                                                            \
-        TRUE,                                                                            \
+        FALSE,                                                                           \
         sizeof(DtIoctlKaCmdPulseInput),                                                  \
         0)
 
@@ -1146,8 +1165,8 @@ typedef struct  _DtIoctlProperties
         DT_KA_CMD_SET_FAILSAFE_CONFIG,                                                   \
         "SET_FAILSAFE_CONFIG",                                                           \
         TRUE,                                                                            \
-        TRUE,                                                                            \
-        sizeof(DtIoctlKaCmdSetFailSafeConfigInput),                                              \
+        FALSE,                                                                           \
+        sizeof(DtIoctlKaCmdSetFailSafeConfigInput),                                      \
         0)
 
 #define DECL_DT_IOCTL_CMD_PROPS_KA                                                       \
@@ -1302,6 +1321,103 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_REBOOT_CMD,                                                             \
         "DT_IOCTL_REBOOT_CMD",                                                           \
         DT_IOCTL_CMD_PROPS_REBOOT,                                                       \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_SDIDMX12G_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_SDIDMX12G_GET_OPERATIONAL_MODE                                \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDIDMX12G_CMD_GET_OPERATIONAL_MODE,                                           \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSdiDmx12GCmdGetOpModeInput),                                      \
+        sizeof(DtIoctlSdiDmx12GCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_SDIDMX12G_GET_SDIRATE                                         \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDIDMX12G_CMD_GET_SDIRATE,                                                    \
+        "GET_SDIRATE",                                                                   \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSdiDmx12GCmdGetSdiRateInput),                                     \
+        sizeof(DtIoctlSdiDmx12GCmdGetSdiRateOutput))
+
+#define DT_IOCTL_CMD_PROPS_SDIDMX12G_SET_OPERATIONAL_MODE                                \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDIDMX12G_CMD_SET_OPERATIONAL_MODE,                                           \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlSdiDmx12GCmdSetOpModeInput),                                      \
+        0)
+
+#define DT_IOCTL_CMD_PROPS_SDIDMX12G_SET_SDIRATE                                         \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDIDMX12G_CMD_SET_SDIRATE,                                                    \
+        "SET_SDIRATE",                                                                   \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlSdiDmx12GCmdSetSdiRateInput),                                     \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_SDIDMX12G                                                \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_SDIDMX12G[] =                  \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_SDIDMX12G_GET_OPERATIONAL_MODE,                               \
+        DT_IOCTL_CMD_PROPS_SDIDMX12G_GET_SDIRATE,                                        \
+        DT_IOCTL_CMD_PROPS_SDIDMX12G_SET_OPERATIONAL_MODE,                               \
+        DT_IOCTL_CMD_PROPS_SDIDMX12G_SET_SDIRATE,                                        \
+    }
+
+#define DT_IOCTL_PROPS_SDIDMX12G_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)             \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_SDIDMX12G_CMD,                                                          \
+        "DT_IOCTL_SDIDMX12G_CMD",                                                        \
+        DT_IOCTL_CMD_PROPS_SDIDMX12G,                                                    \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_SDIMUX12G_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_SDIMUX12G_GET_OPERATIONAL_MODE                                \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDIMUX12G_CMD_GET_OPERATIONAL_MODE,                                           \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSdiMux12GCmdGetOpModeInput),                                      \
+        sizeof(DtIoctlSdiMux12GCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_SDIMUX12G_SET_OPERATIONAL_MODE                                \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDIMUX12G_CMD_SET_OPERATIONAL_MODE,                                           \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlSdiMux12GCmdSetOpModeInput),                                      \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_SDIMUX12G                                                \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_SDIMUX12G[] =                  \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_SDIMUX12G_GET_OPERATIONAL_MODE,                               \
+        DT_IOCTL_CMD_PROPS_SDIMUX12G_SET_OPERATIONAL_MODE,                               \
+    }
+
+#define DT_IOCTL_PROPS_SDIMUX12G_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)             \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_SDIMUX12G_CMD,                                                          \
+        "DT_IOCTL_SDIMUX12G_CMD",                                                        \
+        DT_IOCTL_CMD_PROPS_SDIMUX12G,                                                    \
         ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
     )
 
@@ -1640,6 +1756,15 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlSdiTxFCmdGetFmtEventSettingInput),                                 \
         sizeof(DtIoctlSdiTxFCmdGetFmtEventSettingOutput))
 
+#define DT_IOCTL_CMD_PROPS_SDITXF_GET_MAX_SDIRATE                                        \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDITXF_CMD_GET_MAX_SDIRATE,                                                   \
+        "GET_MAX_SDIRATE",                                                               \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSdiTxFCmdGetMaxSdiRateInput),                                      \
+        sizeof(DtIoctlSdiTxPhyCmdGetMaxSdiRateOutput))
+
 #define DT_IOCTL_CMD_PROPS_SDITXF_GET_OPERATIONAL_MODE                                   \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_SDITXF_CMD_GET_OPERATIONAL_MODE,                                              \
@@ -1680,6 +1805,7 @@ typedef struct  _DtIoctlProperties
     static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_SDITXF[] =                     \
     {                                                                                    \
         DT_IOCTL_CMD_PROPS_SDITXF_GET_FMT_EVENT_SETTING,                                 \
+        DT_IOCTL_CMD_PROPS_SDITXF_GET_MAX_SDIRATE,                                       \
         DT_IOCTL_CMD_PROPS_SDITXF_GET_OPERATIONAL_MODE,                                  \
         DT_IOCTL_CMD_PROPS_SDITXF_SET_FMT_EVENT_SETTING,                                 \
         DT_IOCTL_CMD_PROPS_SDITXF_SET_OPERATIONAL_MODE,                                  \
@@ -1814,6 +1940,15 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlSdiTxPhyCmdGetGenLockStatusInput),                                 \
         sizeof(DtIoctlSdiTxPhyCmdGetGenLockStatusOutput))
 
+#define DT_IOCTL_CMD_PROPS_SDITXPHY_GET_MAX_SDIRATE                                      \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDITXPHY_CMD_GET_MAX_SDIRATE,                                                 \
+        "GET_MAX_SDIRATE",                                                               \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSdiTxPhyCmdGetMaxSdiRateInput),                                    \
+        sizeof(DtIoctlSdiTxPhyCmdGetMaxSdiRateOutput))
+
 #define DT_IOCTL_CMD_PROPS_SDITXPHY_GET_OPERATIONAL_MODE                                 \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_SDITXPHY_CMD_GET_OPERATIONAL_MODE,                                            \
@@ -1870,6 +2005,14 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlSdiTxPhyCmdSetOpModeInput),                                        \
         0)
 
+#define DT_IOCTL_CMD_PROPS_SDITXPHY_SET_OPERATIONAL_MODE_TIMED                           \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDITXPHY_CMD_SET_OPERATIONAL_MODE_TIMED,                                      \
+        "SET_OPERATIONAL_MODE_TIMED",                                                    \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlSdiTxPhyCmdSetOpModeTimedInput),                                   \
+        0)
 
 #define DT_IOCTL_CMD_PROPS_SDITXPHY_SET_SDIRATE                                          \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
@@ -1894,7 +2037,9 @@ typedef struct  _DtIoctlProperties
     {                                                                                    \
         DT_IOCTL_CMD_PROPS_SDITXPHY_CLEAR_UNDERFLOW_FLAG,                                \
         DT_IOCTL_CMD_PROPS_SDITXPHY_GET_GENLOCK_STATUS,                                  \
+        DT_IOCTL_CMD_PROPS_SDITXPHY_GET_MAX_SDIRATE,                                     \
         DT_IOCTL_CMD_PROPS_SDITXPHY_GET_OPERATIONAL_MODE,                                \
+        DT_IOCTL_CMD_PROPS_SDITXPHY_SET_OPERATIONAL_MODE_TIMED,                          \
         DT_IOCTL_CMD_PROPS_SDITXPHY_GET_SDIRATE,                                         \
         DT_IOCTL_CMD_PROPS_SDITXPHY_GET_SDI_STATUS,                                      \
         DT_IOCTL_CMD_PROPS_SDITXPHY_GET_TXMODE,                                          \
@@ -2168,6 +2313,66 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_SPIPROM,                                                      \
         ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
     )
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_ST425LR_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_ST425LR_GET_LINK_ORDER                                        \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_ST425LR_CMD_GET_LINK_ORDER,                                                   \
+        "GET_LINK_ORDER",                                                                \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSt425LrCmdGetLinkOrderInput),                                      \
+        sizeof(DtIoctlSt425LrCmdGetLinkOrderOutput))
+
+#define DT_IOCTL_CMD_PROPS_ST425LR_GET_OPERATIONAL_MODE                                  \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_ST425LR_CMD_GET_OPERATIONAL_MODE,                                             \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSt425LrCmdGetOpModeInput),                                         \
+        sizeof(DtIoctlSt425LrCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_ST425LR_SET_LINK_ORDER                                        \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_ST425LR_CMD_SET_LINK_ORDER,                                                   \
+        "SET_LINK_ORDER",                                                                \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlSt425LrCmdSetLinkOrderInput),                                      \
+        0)
+
+#define DT_IOCTL_CMD_PROPS_ST425LR_SET_OPERATIONAL_MODE                                  \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_ST425LR_CMD_SET_OPERATIONAL_MODE,                                             \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlSt425LrCmdSetOpModeInput),                                         \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_ST425LR                                                  \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_ST425LR[] =                    \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_ST425LR_GET_OPERATIONAL_MODE,                                 \
+        DT_IOCTL_CMD_PROPS_ST425LR_GET_LINK_ORDER,                                       \
+        DT_IOCTL_CMD_PROPS_ST425LR_SET_OPERATIONAL_MODE,                                 \
+        DT_IOCTL_CMD_PROPS_ST425LR_SET_LINK_ORDER,                                       \
+    }
+
+#define DT_IOCTL_PROPS_ST425LR_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)               \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_ST425LR_CMD,                                                            \
+        "DT_IOCTL_ST425LR_CMD",                                                          \
+        DT_IOCTL_CMD_PROPS_ST425LR,                                                      \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -2918,6 +3123,14 @@ typedef struct  _DtIoctlProperties
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_LNBH25_CMD_2132 +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+#define DT_IOCTL_CMD_PROPS_LNBH25_2132_ENABLE_TONE                                       \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_LNBH25_CMD_2132_ENABLE_TONE,                                                  \
+        "ENABLE_TONE",                                                                   \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlLnbh25Cmd_2132EnableToneInput),                                    \
+        0)
 
 #define DT_IOCTL_CMD_PROPS_LNBH25_2132_SEND_TONEBURST                                    \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
@@ -2952,6 +3165,7 @@ typedef struct  _DtIoctlProperties
 #define DECL_DT_IOCTL_CMD_PROPS_LNBH25_2132                                              \
     static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_LNBH25_2132[] =                \
     {                                                                                    \
+        DT_IOCTL_CMD_PROPS_LNBH25_2132_ENABLE_TONE,                                      \
         DT_IOCTL_CMD_PROPS_LNBH25_2132_SEND_TONEBURST,                                   \
         DT_IOCTL_CMD_PROPS_LNBH25_2132_SEND_MESSAGE,                                     \
         DT_IOCTL_CMD_PROPS_LNBH25_2132_SEND_RECEIVE_MESSAGE                              \

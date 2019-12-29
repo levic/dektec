@@ -66,6 +66,7 @@ typedef enum _DtIoCapValue
     DT_IOCAP_L3MODE,           // L3-frame mode
     DT_IOCAP_MATRIX,           // Matrix API support
     DT_IOCAP_MATRIX2,          // High-level Matrix API support
+    DT_IOCAP_QUADLINK,         // Forms a Quad-link group with next 3 ports
     DT_IOCAP_RAWASI,           // Raw ASI
     DT_IOCAP_SDI10BNBO,        // 10-bit network byte order
     DT_IOCAP_SDITIME,          // SDI timestamping

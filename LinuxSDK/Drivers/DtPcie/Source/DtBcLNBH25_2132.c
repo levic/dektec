@@ -60,6 +60,38 @@ void  DtBcLNBH25_2132_Close(DtBc*  pBc)
     DtBc_Close(pBc);
 }
 
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcLNBH25_2132_EnableTone -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtBcLNBH25_2132_EnableTone(DtBcLNBH25_2132* pBc, Int EnableTone)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    UInt32  RegData;
+
+    // Sanity check
+    BC_LNBH25_2132_DEFAULT_PRECONDITIONS(pBc);
+
+
+    // Protect LNB access against concurrent access
+    DtFastMutexAcquire(&pBc->m_AccessMutex);
+
+    // Reset the transmitter
+    RegData = LNBH25_TxControl_READ(pBc);
+    RegData = LNBH25_TxControl_SET_Command(RegData, LNBH25_CMD_NOP);
+    RegData = LNBH25_TxControl_SET_Reset(RegData, LNBH25_CMD_RESET);
+    LNBH25_TxControl_WRITE(pBc, RegData);
+
+    // Generate a 22 kHz tone.
+    RegData = LNBH25_TxControl_SET_Command(0, (Bool)EnableTone
+                                     ? LNBH25_CMD_GENERATE_22KHZ : LNBH25_CMD_STOP_22KHZ);
+    RegData = LNBH25_TxControl_SET_Reset(RegData, LNBH25_CMD_NOP);
+    LNBH25_TxControl_WRITE(pBc, RegData);
+
+    // Release mutex
+    DtFastMutexRelease(&pBc->m_AccessMutex);
+    return Status;
+
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcLNBH25_2132_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtBcLNBH25_2132*  DtBcLNBH25_2132_Open(Int  Address, DtCore* pCore, DtPt*  pPt, 
@@ -466,6 +498,10 @@ static DtStatus  DtIoStubBcLNBH25_2132_AppendDynamicSize(const DtIoStub*,
                                                                       DtIoStubIoParams *);
 static DtStatus  DtIoStubBcLNBH25_2132_OnCmd(const DtIoStub*, DtIoStubIoParams*, Int*);
 
+static DtStatus DtIoStubBcLNBH25_2132_OnCmdEnableTone(
+                                          const DtIoStubBcLNBH25_2132* , 
+                                          const DtIoctlLnbh25Cmd_2132EnableToneInput*);
+
 static DtStatus DtIoStubBcLNBH25_2132_OnCmdSendToneBurst(
                                           const DtIoStubBcLNBH25_2132* , 
                                           const DtIoctlLnbh25Cmd_2132SendToneBurstInput*);
@@ -622,6 +658,11 @@ DtStatus  DtIoStubBcLNBH25_2132_OnCmd(const DtIoStub*  pStub,
 
     switch (pIoParams->m_Cmd)
     {
+    case DT_LNBH25_CMD_2132_ENABLE_TONE:
+        DT_ASSERT(pInData != NULL);
+        Status = DtIoStubBcLNBH25_2132_OnCmdEnableTone(LNBH25_2132_STUB,
+                                                                  &pInData->m_EnableTone);
+        break;
     case DT_LNBH25_CMD_2132_SEND_TONEBURST:
         DT_ASSERT(pInData != NULL);
         Status = DtIoStubBcLNBH25_2132_OnCmdSendToneBurst(LNBH25_2132_STUB,
@@ -642,6 +683,18 @@ DtStatus  DtIoStubBcLNBH25_2132_OnCmd(const DtIoStub*  pStub,
         return DT_STATUS_NOT_SUPPORTED;
     }
     return Status;
+}
+
+//.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcLNBH25_2132_OnCmdEnableTone -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtIoStubBcLNBH25_2132_OnCmdEnableTone(
+    const DtIoStubBcLNBH25_2132* pStub,
+    const DtIoctlLnbh25Cmd_2132EnableToneInput* pInData)
+{
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcLNBH25_2132));
+    DT_ASSERT(pInData!=NULL);
+
+    return DtBcLNBH25_2132_EnableTone(LNBH25_2132_BC, pInData->m_EnableTone);
 }
 
 //-.-.-.-.-.-.-.-.-.-.- DtIoStubBcLNBH25_2132_OnCmdSendToneBurst -.-.-.-.-.-.-.-.-.-.-

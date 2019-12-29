@@ -73,8 +73,6 @@ typedef struct  _DtDfTempFanMgr
 
     // Fan speed control parameters
     Int  m_PeriodicInterval;            // Periodic timer interval in milliseconds
-    Int  m_FanSpeed_x_Delay;            // FanSpeed * Delay
-    Int  m_Delay;                       // Control delay in milliseconds per degree
     Int  m_MinFanSpeed;                 // Minimum fan-speed
 }  DtDfTempFanMgr;
 

@@ -108,13 +108,13 @@ PWD = $(shell pwd)
 # Default option
 
 all:
-	make MYPWD=$(PWD) -C $(KERNELDIR) SUBDIRS=$(PWD) modules
+	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) modules
 
 # ========================================================================================
 # Clean all option
 
 clean:
-	make MYPWD=$(PWD) -C $(KERNELDIR) SUBDIRS=$(PWD) clean
+	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
 
 # ========================================================================================
 endif

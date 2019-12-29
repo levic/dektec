@@ -146,7 +146,7 @@ INSTALLDIR = /lib/modules/$(CURRENT)/kernel/drivers/usb/DekTec
 # Default option
 
 all: PREREQ $(DTSAL) $(DTDRVCOMMON)
-	make MYPWD=$(PWD) -C $(KERNELDIR) SUBDIRS=$(PWD) modules
+	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) modules
 
 INSTALL_CMD := "/sbin/rmmod $(TARGET) 2>/dev/null || true &&          \
 				install -d $(INSTALLDIR) &&     \
@@ -177,7 +177,7 @@ $(DTDRVCOMMON):
 
 clean:
 	@if [ -f MakefilePrereq ]; then make -f MakefilePrereq clean ; fi
-	make MYPWD=$(PWD) -C $(KERNELDIR) SUBDIRS=$(PWD) clean
+	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
 	make MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 	make MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 	

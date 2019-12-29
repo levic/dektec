@@ -47,7 +47,6 @@
 static DtStatus  DtBcSDITXPHY_Init(DtBc*);
 static DtStatus  DtBcSDITXPHY_OnEnable(DtBc*, Bool);
 static DtStatus  DtBcSDITXPHY_OnCloseFile(DtBc*, const DtFileObject*);
-static DtStatus  DtBcSDITXPHY_CheckSdiRate(DtBcSDITXPHY* pBc, Int SdiRate);
 static void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY*, Bool BlkEnable, Int OpMode,
                                   Bool TxClkReset, Bool Arm, Int SofDelay, Int SrcFactor);
 static DtStatus DtBcSDITXPHY_C10A10_SetPllSelect(DtBcSDITXPHY*, Int ClockIdx);
@@ -726,28 +725,6 @@ DtStatus  DtBcSDITXPHY_OnCloseFile(DtBc*  pBc, const DtFileObject* pFile)
     return DtBc_OnCloseFile(pBc, pFile);
 }
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_CheckSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-DtStatus DtBcSDITXPHY_CheckSdiRate(DtBcSDITXPHY* pBc, Int SdiRate)
-{
-    // Check whether it is a valid SDI-rate
-    if (   SdiRate!=DT_DRV_SDIRATE_SD && SdiRate!=DT_DRV_SDIRATE_HD 
-        && SdiRate!=DT_DRV_SDIRATE_3G && SdiRate!=DT_DRV_SDIRATE_6G 
-        && SdiRate!=DT_DRV_SDIRATE_12G)
-        return DT_STATUS_INVALID_PARAMETER;
-
-    // Assumption we can keep the comparison simple
-    DT_ASSERT(DT_DRV_SDIRATE_SD<DT_DRV_SDIRATE_HD 
-              && DT_DRV_SDIRATE_HD<DT_DRV_SDIRATE_3G
-              && DT_DRV_SDIRATE_3G<DT_DRV_SDIRATE_6G
-              && DT_DRV_SDIRATE_6G<DT_DRV_SDIRATE_12G);
-    
-    // Check whether the SDI-rate is supported
-    if (SdiRate > pBc->m_MaxSdiRate)
-        return DT_STATUS_NOT_SUPPORTED;
-
-    return DT_STATUS_OK;
-}
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,

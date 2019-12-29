@@ -45,6 +45,9 @@
 #include "DtDfAsiRx.h"
 #include "DtDfSdiRx.h"
 #include "DtDfSpiCableDrvEq.h"
+#include "DtBcSDIDMX12G.h"
+#include "DtBcSDIMUX12G.h"
+#include "DtBcST425LR.h"
 
 // Name for the AsiSdiRxTx port.
 #define DT_DF_ASISDIRXTX_NAME   "ASISDIRXTX"
@@ -76,6 +79,11 @@ typedef struct  _DtPTAsiSdiRxTx
     DtBcSWITCH*  m_pBcSwitchTestModeTx; // DMA-testmode switch
     DtBcCONSTSINK*  m_pBcConstSink;     // Constant rate sink block controller
 
+    // 12G TX Block controllers
+    DtBcSWITCH*  m_pBcSwitchSdiTxDmxOut; // SDI mux 12G output switch
+    DtBcSDIDMX12G*  m_pBcSdiTxDmx12G;    // SDI demux 12G
+    DtBcSWITCH*  m_pBcSwitchSdiTxDmxIn;  // SDI mux 12G input switch
+
     // RX Driver functions
     DtDfAsiRx*  m_pDfAsiRx;             // ASI receiver
     DtDfSdiRx*  m_pDfSdiRx;             // SDI receiver including PHY for ASI
@@ -86,6 +94,12 @@ typedef struct  _DtPTAsiSdiRxTx
     DtBcSDIRXF*  m_pBcSdiRxF;             // SDI-RX formatter simple
     DtBcSWITCH*  m_pBcSwitchTestModeRx;   // DMA-testmode switch
     DtBcCONSTSOURCE*  m_pBcConstSource;   // Constant rate source block controller
+
+    // 12G RX Block controllers
+    DtBcSWITCH*  m_pBcSwitchSdiRxMuxIn;   // SDI mux 12G input switch
+    DtBcSDIMUX12G*  m_pBcSdiRxMux12G;    // SDI mux 12G
+    DtBcST425LR*  m_pBcSdiRxSt425Lr;     // ST425 Link reorder
+    DtBcSWITCH*  m_pBcSwitchSdiRxMuxOut; // SDI mux 12G output switch
 
     // RX TX Block controllers
     DtBcCDMAC*  m_pBcCDmaC;               // DMA-controller

@@ -1,4 +1,4 @@
-// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtDfSpiCableDrvEq.c *#*#*#*#*#*#*#*#*#*#* (C) 2019 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtDfSpiCableDrvEq.c *#*#*#*#*#*#*#*#* (C) 2019 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -30,7 +30,7 @@
         
 #define SPIM_ROLE_NONE      NULL
 
-#define GS3590_MAX_ADDRESS  0xBF    // Highest GS3590 register address
+#define GSXX90_MAX_ADDRESS  0xBF    // Highest GS3590/GS12090 register address
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -52,11 +52,16 @@ static DtStatus  DtDfSpiCableDrvEq_OnEnablePostChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfSpiCableDrvEq_OnEnablePreChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfSpiCableDrvEq_OpenChildren(DtDfSpiCableDrvEq*);
 // Cable driver/equalizer type specific operations
-static DtStatus  DtDfSpiCableDrvEq_SetGs3590Direction(DtDfSpiCableDrvEq*, Int Direction);
-static DtStatus  DtDfSpiCableDrvEq_SetGs3590SdiRate(DtDfSpiCableDrvEq*, Int SdiRate);
-static DtStatus  DtDfSpiCableDrvEq_ReadGs3590(DtDfSpiCableDrvEq*, Int StartAddress, 
+static DtStatus  DtDfSpiCableDrvEq_ClearGsXx90StickyCounts(DtDfSpiCableDrvEq*);
+static DtStatus  DtDfSpiCableDrvEq_GetGsXx90StickyCounts(DtDfSpiCableDrvEq*,
+                                               Int* pPriCdChangeCnt, Int* pSecCdChangeCnt,
+                                               Int* pRateChangeCnt, Int* pPllChangeCnt);
+static DtStatus  DtDfSpiCableDrvEq_SetGsXx90Direction(DtDfSpiCableDrvEq*, Int Direction);
+static DtStatus  DtDfSpiCableDrvEq_SetGsXx90SdiRate(DtDfSpiCableDrvEq*, Int SdiRate);
+static DtStatus  DtDfSpiCableDrvEq_SetGsXx90AutoSleep(DtDfSpiCableDrvEq*, Bool Enable);
+static DtStatus  DtDfSpiCableDrvEq_ReadGsXx90(DtDfSpiCableDrvEq*, Int StartAddress,
                                                             Int NumToRead, UInt16 * pBuf);
-static DtStatus  DtDfSpiCableDrvEq_WriteGs3590(DtDfSpiCableDrvEq*, Int StartAddress,
+static DtStatus  DtDfSpiCableDrvEq_WriteGsXx90(DtDfSpiCableDrvEq*, Int StartAddress,
                                                      Int NumToWrite, const UInt16 * pBuf);
 // =+=+=+=+=+=+=+=+=+=+=+=+ DtDfSpiCableDrvEq - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -66,9 +71,6 @@ void  DtDfSpiCableDrvEq_Close(DtDf*  pDf)
 {
 
     DF_SPICABLEDRVEQ_DEFAULT_PRECONDITIONS(pDf);
-
-    // Unregister periodic interrupt handler
-    DtCore_TOD_PeriodicItvUnregister(pDf->m_pCore, (DtObject*)pDf);
 
     // Let base function perform final clean-up
     DtDf_Close(pDf);
@@ -169,7 +171,8 @@ DtStatus DtDfSpiCableDrvEq_SetDirection(DtDfSpiCableDrvEq* pDf, Int Direction)
     switch (pDf->m_SpiDeviceId)
     {
     case DT_SPIM_SPIDVC_GS3590:
-        Status = DtDfSpiCableDrvEq_SetGs3590Direction(pDf, Direction);
+    case DT_SPIM_SPIDVC_GS12090:
+        Status = DtDfSpiCableDrvEq_SetGsXx90Direction(pDf, Direction);
         break;
     case DT_SPIM_SPIDVC_UNDEFINED:
     default:
@@ -194,7 +197,15 @@ DtStatus DtDfSpiCableDrvEq_SetSdiRate(DtDfSpiCableDrvEq* pDf, Int SdiRate)
     DF_SPICABLEDRVEQ_DEFAULT_PRECONDITIONS(pDf);
 
     // Check parameters
-    if (SdiRate!=DT_DRV_SDIRATE_UNKNOWN && SdiRate!=DT_DRV_SDIRATE_SD
+    if (pDf->m_Supports12G && 
+                         (   SdiRate!=DT_DRV_SDIRATE_UNKNOWN && SdiRate!=DT_DRV_SDIRATE_SD
+                          && SdiRate!=DT_DRV_SDIRATE_HD && SdiRate!=DT_DRV_SDIRATE_3G
+                          && SdiRate!=DT_DRV_SDIRATE_6G && SdiRate!=DT_DRV_SDIRATE_12G))
+    {
+        DtDbgOutDf(ERR, SPICABLEDRVEQ, pDf, "Invalid  SDI-rate");
+        return DT_STATUS_INVALID_PARAMETER;
+    }
+    else if (SdiRate!=DT_DRV_SDIRATE_UNKNOWN && SdiRate!=DT_DRV_SDIRATE_SD
                               && SdiRate!=DT_DRV_SDIRATE_HD && SdiRate!=DT_DRV_SDIRATE_3G)
     {
         DtDbgOutDf(ERR, SPICABLEDRVEQ, pDf, "Invalid SDI-rate");
@@ -212,7 +223,8 @@ DtStatus DtDfSpiCableDrvEq_SetSdiRate(DtDfSpiCableDrvEq* pDf, Int SdiRate)
     switch (pDf->m_SpiDeviceId)
     {
     case DT_SPIM_SPIDVC_GS3590:
-        Status = DtDfSpiCableDrvEq_SetGs3590SdiRate(pDf, SdiRate);
+    case DT_SPIM_SPIDVC_GS12090:
+        Status = DtDfSpiCableDrvEq_SetGsXx90SdiRate(pDf, SdiRate);
         break;
     case DT_SPIM_SPIDVC_UNDEFINED:
     default:
@@ -247,6 +259,7 @@ DtStatus  DtDfSpiCableDrvEq_Init(DtDf* pDfBase)
     pDf->m_Direction = DT_DF_SPICABLEDRVEQ_DIR_TX;
     pDf->m_SdiRate = DT_DRV_SDIRATE_UNKNOWN;
     pDf->m_SpiDeviceId = DT_SPIM_SPIDVC_UNDEFINED;
+    pDf->m_Supports12G = FALSE;
 
     //Open children
     Status = DtDfSpiCableDrvEq_OpenChildren(pDf);
@@ -280,9 +293,16 @@ DtStatus DtDfSpiCableDrvEq_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         switch (pDf->m_SpiDeviceId)
         {
         case DT_SPIM_SPIDVC_GS3590:
-            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGs3590Direction(pDf, 
+            pDf->m_Supports12G = FALSE;
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90Direction(pDf, 
                                                                        pDf->m_Direction));
-            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGs3590SdiRate(pDf, pDf->m_SdiRate));
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90SdiRate(pDf, pDf->m_SdiRate));
+            break;
+        case DT_SPIM_SPIDVC_GS12090:
+            pDf->m_Supports12G = TRUE;
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90Direction(pDf, 
+                                                                       pDf->m_Direction));
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90SdiRate(pDf, pDf->m_SdiRate));
             break;
         case DT_SPIM_SPIDVC_UNDEFINED:
         default:
@@ -325,13 +345,12 @@ static DtStatus  DtDfSpiCableDrvEq_OnCloseFile(DtDf* pDfBase, const DtFileObject
     if (DT_SUCCESS(Status))
     {
         DtDbgOutDf(AVG, SPICABLEDRVEQ, pDf, "Go to IDLE");
-
     }
     // Use base function to release exclusive access
     return DtDf_OnCloseFile((DtDf*)pDf, pFile);
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_OpenChildren -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_OpenChildren -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtDfSpiCableDrvEq_OpenChildren(DtDfSpiCableDrvEq*  pDf)
 {
@@ -359,9 +378,9 @@ DtStatus  DtDfSpiCableDrvEq_OpenChildren(DtDfSpiCableDrvEq*  pDf)
     return DT_STATUS_OK;
 }
 
-// .-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_SetGs3590Direction -.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_SetGsXx90Direction -.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtDfSpiCableDrvEq_SetGs3590Direction(DtDfSpiCableDrvEq* pDf, Int Direction)
+DtStatus  DtDfSpiCableDrvEq_SetGsXx90Direction(DtDfSpiCableDrvEq* pDf, Int Direction)
 {
     const Int INPUT_SELECT_CTRL = 0x14;
     UInt16  RegData[1];
@@ -372,44 +391,52 @@ DtStatus  DtDfSpiCableDrvEq_SetGs3590Direction(DtDfSpiCableDrvEq* pDf, Int Direc
     // DIR_SELMODE: b2..b1: 01 (Host Interface Mode)
     // DIR_SEL:     b0: 0 Cable Equalizer/ 1 Cable Driver
     RegData[0] =  (Direction == DT_DF_SPICABLEDRVEQ_DIR_RX) ? 0x0302 : 0x0303;
-    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_WriteGs3590(pDf, INPUT_SELECT_CTRL, 1, RegData));
-    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_ReadGs3590(pDf, INPUT_SELECT_CTRL, 1, RegDataRb));
+    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_WriteGsXx90(pDf, INPUT_SELECT_CTRL, 1, RegData));
+    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_ReadGsXx90(pDf, INPUT_SELECT_CTRL, 1,RegDataRb));
     DT_ASSERT((RegData[0] == RegDataRb[0]));
     return DT_STATUS_OK;
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_SetGs3590SdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_SetGsXx90SdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtDfSpiCableDrvEq_SetGs3590SdiRate(DtDfSpiCableDrvEq* pDf, Int SdiRate)
+DtStatus  DtDfSpiCableDrvEq_SetGsXx90SdiRate(DtDfSpiCableDrvEq* pDf, Int SdiRate)
 {
     const Int RATE_DETECT_MODE = 0x06;
     UInt16  RegData[1] = {0};
     UInt16  RegDataRb[1] = {0};
-    // RSVD:        b15..b12: 0
+    // RSVD:        b15..b14: 0
+    // ENA_12G      b13: 1
+    // ENA_6G       b12: 1
     // ENA_3G       b11: 1
     // ENA_HD       b10: 1
     // ENA_SD       b9: 1
     // ENA_MADI     b8: 0
     // RSVD:        b7..b5: 0
-    // MANUAL_RATE  b4..b1: 010(SD), 011 (HD), 100 (3G)
+    // MANUAL_RATE  b4..b1: 010(SD), 011 (HD), 100 (3G), 101 (6G), 110 (12G)
     // AUTO_RATE    b0: 0 (Disable), 1 (Enable)
     switch (SdiRate)
     {
         default:
-        case DT_DRV_SDIRATE_UNKNOWN:  RegData[0] = 0x0E01; break;
-        case DT_DRV_SDIRATE_SD:       RegData[0] = 0x0E04; break;
-        case DT_DRV_SDIRATE_HD:       RegData[0] = 0x0E06; break;
-        case DT_DRV_SDIRATE_3G:       RegData[0] = 0x0E08; break;
+        case DT_DRV_SDIRATE_UNKNOWN: if (pDf->m_Supports12G)
+                                        RegData[0] = 0x3E01;
+                                     else
+                                        RegData[0] = 0x0E01;
+                                     break;
+        case DT_DRV_SDIRATE_SD:      RegData[0] = 0x0004; break;
+        case DT_DRV_SDIRATE_HD:      RegData[0] = 0x0006; break;
+        case DT_DRV_SDIRATE_3G:      RegData[0] = 0x0008; break;
+        case DT_DRV_SDIRATE_6G:      RegData[0] = 0x000A; break;
+        case DT_DRV_SDIRATE_12G:     RegData[0] = 0x000C; break;
     }
-    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_WriteGs3590(pDf, RATE_DETECT_MODE, 1, RegData));
-    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_ReadGs3590(pDf, RATE_DETECT_MODE, 1, RegDataRb));
+    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_WriteGsXx90(pDf, RATE_DETECT_MODE, 1, RegData));
+    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_ReadGsXx90(pDf, RATE_DETECT_MODE, 1, RegDataRb));
     DT_ASSERT((RegData[0] == RegDataRb[0]));
     return DT_STATUS_OK;
 }
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_ReadGs3590 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_ReadGsXx90 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtDfSpiCableDrvEq_ReadGs3590(DtDfSpiCableDrvEq* pDf, Int StartAddress, 
+DtStatus  DtDfSpiCableDrvEq_ReadGsXx90(DtDfSpiCableDrvEq* pDf, Int StartAddress, 
                                                               Int NumToRead, UInt16* pBuf)
 {
     DtStatus  Status = DT_STATUS_OK;
@@ -419,7 +446,7 @@ DtStatus  DtDfSpiCableDrvEq_ReadGs3590(DtDfSpiCableDrvEq* pDf, Int StartAddress,
     DF_SPICABLEDRVEQ_DEFAULT_PRECONDITIONS(pDf);
 
     // Check parameters
-    if (StartAddress<0 || (StartAddress + NumToRead)>(GS3590_MAX_ADDRESS+1) || NumToRead<1 
+    if (StartAddress<0 || (StartAddress + NumToRead)>(GSXX90_MAX_ADDRESS+1) || NumToRead<1 
                                                                             || pBuf==NULL)
         return DT_STATUS_INVALID_PARAMETER;
 
@@ -446,9 +473,9 @@ DtStatus  DtDfSpiCableDrvEq_ReadGs3590(DtDfSpiCableDrvEq* pDf, Int StartAddress,
     return Status;
 }
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_WriteGs3590 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_WriteGsXx90 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtDfSpiCableDrvEq_WriteGs3590(DtDfSpiCableDrvEq* pDf, Int StartAddress, 
+DtStatus  DtDfSpiCableDrvEq_WriteGsXx90(DtDfSpiCableDrvEq* pDf, Int StartAddress, 
                                                        Int NumToWrite, const UInt16* pBuf)
 {
     DtStatus  Status = DT_STATUS_OK;
@@ -458,7 +485,7 @@ DtStatus  DtDfSpiCableDrvEq_WriteGs3590(DtDfSpiCableDrvEq* pDf, Int StartAddress
     DF_SPICABLEDRVEQ_DEFAULT_PRECONDITIONS(pDf);
 
     // Check parameters
-    if (StartAddress<0 || (StartAddress + NumToWrite)>(GS3590_MAX_ADDRESS+1) 
+    if (StartAddress<0 || (StartAddress + NumToWrite)>(GSXX90_MAX_ADDRESS+1) 
                                                             || NumToWrite<1 || pBuf==NULL)
         return DT_STATUS_INVALID_PARAMETER;
 
