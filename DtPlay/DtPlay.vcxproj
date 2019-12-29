@@ -23,6 +23,10 @@
     <DtapiExportDir>VC15</DtapiExportDir>
     <PlatformToolset>v141_xp</PlatformToolset>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(VisualStudioVersion)'=='16.0'">
+    <DtapiExportDir>VC16</DtapiExportDir>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
