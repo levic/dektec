@@ -52,13 +52,8 @@ static DtStatus  DtDfSpiCableDrvEq_OnEnablePostChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfSpiCableDrvEq_OnEnablePreChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfSpiCableDrvEq_OpenChildren(DtDfSpiCableDrvEq*);
 // Cable driver/equalizer type specific operations
-static DtStatus  DtDfSpiCableDrvEq_ClearGsXx90StickyCounts(DtDfSpiCableDrvEq*);
-static DtStatus  DtDfSpiCableDrvEq_GetGsXx90StickyCounts(DtDfSpiCableDrvEq*,
-                                               Int* pPriCdChangeCnt, Int* pSecCdChangeCnt,
-                                               Int* pRateChangeCnt, Int* pPllChangeCnt);
 static DtStatus  DtDfSpiCableDrvEq_SetGsXx90Direction(DtDfSpiCableDrvEq*, Int Direction);
 static DtStatus  DtDfSpiCableDrvEq_SetGsXx90SdiRate(DtDfSpiCableDrvEq*, Int SdiRate);
-static DtStatus  DtDfSpiCableDrvEq_SetGsXx90AutoSleep(DtDfSpiCableDrvEq*, Bool Enable);
 static DtStatus  DtDfSpiCableDrvEq_ReadGsXx90(DtDfSpiCableDrvEq*, Int StartAddress,
                                                             Int NumToRead, UInt16 * pBuf);
 static DtStatus  DtDfSpiCableDrvEq_WriteGsXx90(DtDfSpiCableDrvEq*, Int StartAddress,
@@ -205,8 +200,9 @@ DtStatus DtDfSpiCableDrvEq_SetSdiRate(DtDfSpiCableDrvEq* pDf, Int SdiRate)
         DtDbgOutDf(ERR, SPICABLEDRVEQ, pDf, "Invalid  SDI-rate");
         return DT_STATUS_INVALID_PARAMETER;
     }
-    else if (SdiRate!=DT_DRV_SDIRATE_UNKNOWN && SdiRate!=DT_DRV_SDIRATE_SD
-                              && SdiRate!=DT_DRV_SDIRATE_HD && SdiRate!=DT_DRV_SDIRATE_3G)
+    else if (!pDf->m_Supports12G && 
+                         (   SdiRate!=DT_DRV_SDIRATE_UNKNOWN && SdiRate!=DT_DRV_SDIRATE_SD
+                          && SdiRate!=DT_DRV_SDIRATE_HD && SdiRate!=DT_DRV_SDIRATE_3G))
     {
         DtDbgOutDf(ERR, SPICABLEDRVEQ, pDf, "Invalid SDI-rate");
         return DT_STATUS_INVALID_PARAMETER;

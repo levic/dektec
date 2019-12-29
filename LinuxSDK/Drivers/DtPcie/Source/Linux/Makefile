@@ -146,6 +146,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtDfVirtGenRef.o           \
          $(SRCDIR)/DtDfVpd.o                  \
          $(SRCDIR)/DtPt.o                     \
+         $(SRCDIR)/DtPtAsiSdiMon.o            \
          $(SRCDIR)/DtPtAsiSdiRxTx.o           \
          $(SRCDIR)/DtPtSdiGenRef.o            \
          $(SRCDIR)/DtIoStub.o                 \

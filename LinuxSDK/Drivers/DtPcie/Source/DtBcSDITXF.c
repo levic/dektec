@@ -68,17 +68,18 @@ void  DtBcSDITXF_Close(DtBc*  pBc)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXF_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtBcSDITXF*  DtBcSDITXF_Open(Int  Address, DtCore*  pCore, DtPt*  pPt,
+DtBcSDITXF*  DtBcSDITXF_Open(Int  Address, DtCore*  pCore, DtPt*  pPt, DtBcType  Type,
                            const char*  pRole, Int  Instance, Int  Uuid, Bool  CreateStub)
 {
     DtBcId  Id;
     DtBcOpenParams  OpenParams;
     
     DT_ASSERT(pCore!=NULL && pCore->m_Size>=sizeof(DtCore));
-    
+    DT_ASSERT(Type== DT_BLOCK_TYPE_SDITXF || Type==DT_BLOCK_TYPE_SDITXF6G12G);
+
     // Init open parameters
-    DT_BC_SDITXF_INIT_ID(Id, pRole, Instance, Uuid);
-    DT_BC_INIT_OPEN_PARAMS(OpenParams, DtBcSDITXF, Id, DT_BLOCK_TYPE_SDITXF, Address,
+    DT_BC_SDITXF_INIT_ID(Id, Type, pRole, Instance, Uuid);
+    DT_BC_INIT_OPEN_PARAMS(OpenParams, DtBcSDITXF, Id, Type, Address,
                                                                   pPt, CreateStub, pCore);
     // Register the callbacks
     OpenParams.m_CloseFunc = DtBcSDITXF_Close;
@@ -148,6 +149,26 @@ DtStatus DtBcSDITXF_GetOperationalMode(DtBcSDITXF* pBc, Int* pOpMode)
 
     // Return cached operational mode
     *pOpMode = pBc->m_OperationalMode;
+
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXF_GetStreamAlignment -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDITXF_GetStreamAlignment(DtBcSDITXF* pBc, Int* pStreamAlignment)
+{
+    // Sanity check
+    BC_SDITXF_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check parameter
+    if (pStreamAlignment == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDITXF_MUST_BE_ENABLED(pBc);
+
+    // Return cached value
+    *pStreamAlignment = pBc->m_StreamAlignment;
 
     return DT_STATUS_OK;
 }
@@ -223,14 +244,14 @@ DtStatus DtBcSDITXF_SetOperationalMode(DtBcSDITXF* pBc, Int OpMode)
         DtEventReset(&pBc->m_FmtEvent);
         // Enable formatter event interrupt
         pBc->m_FmtIntEnabled = TRUE;
-        Status = DtBc_InterruptEnable((DtBc*)pBc, DT_INTERRUPT_SDITXF_FMTEVENT);
+        Status = DtBc_InterruptEnable((DtBc*)pBc, pBc->m_FmtIntId);
         DT_ASSERT(DT_SUCCESS(Status));
     }
     else
     {
         // RUN -> IDLE
         // Disable formatter event interrupt
-        Status = DtBc_InterruptDisable((DtBc*)pBc, DT_INTERRUPT_SDITXF_FMTEVENT);
+        Status = DtBc_InterruptDisable((DtBc*)pBc, pBc->m_FmtIntId);
         DT_ASSERT(DT_SUCCESS(Status));
 
         // Make sure that WaitForFmtEvent doesn't wait forever
@@ -322,9 +343,8 @@ DtStatus  DtBcSDITXF_Init(DtBc*  pBcBase)
     DtBcSDITXF_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
                                                                        pBc->m_UlfEnabled);
     // Get maximum supported rate
-    if (pBc->m_Version == 0)
-        pBc->m_MaxSdiRate = DT_DRV_SDIRATE_3G;
-    else
+    pBc->m_MaxSdiRate = DT_DRV_SDIRATE_3G;
+    if (pBc->m_Version > 0)
     {
         UInt32  FwMaxSdiRate = SDITXF_Config_READ_MaxSdiRate(pBc);
         switch (FwMaxSdiRate)
@@ -338,6 +358,21 @@ DtStatus  DtBcSDITXF_Init(DtBc*  pBcBase)
         }
     }
 
+    // Get stream-alignement
+    pBc->m_StreamAlignment = 32;
+    if (pBc->m_Version > 0)
+    {
+        UInt32  FwAlignment = SDITXF_Config_READ_Alignment(pBc);
+        switch (FwAlignment)
+        {
+        case SDITXF_STREAMALIGNMENT_32b:   pBc->m_StreamAlignment = 32; break;
+        case SDITXF_STREAMALIGNMENT_64b:   pBc->m_StreamAlignment = 64; break;
+        case SDITXF_STREAMALIGNMENT_128b:  pBc->m_StreamAlignment = 128; break;
+        case SDITXF_STREAMALIGNMENT_256b:  pBc->m_StreamAlignment = 256; break;
+        case SDITXF_STREAMALIGNMENT_512b:  pBc->m_StreamAlignment = 512; break;
+        default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+        }
+    }
     // Default an interrupt at SOF only
     pBc->m_NumLinesPerEvent = 0;
     RegFmtEvent = SDITXF_FmtEvent_READ(pBc);
@@ -474,7 +509,8 @@ void DtBcSDITXF_InterruptDpcFmtEvent(DtDpcArgs* pArgs)
     // Sanity check
 #ifdef DEBUG
     UInt32  IntId = pArgs->m_Data1.m_UInt32_1;
-    DT_ASSERT(IntId == DT_INTERRUPT_SDITXF_FMTEVENT);
+    DT_ASSERT(IntId==DT_INTERRUPT_SDITXF_FMTEVENT 
+                                             || IntId==DT_INTERRUPT_SDITXF6G12G_FMTEVENT);
 #endif  // #ifdef DEBUG
     BC_SDITXF_DEFAULT_PRECONDITIONS(pBc);
 
@@ -531,6 +567,7 @@ DtStatus  DtBcSDITXF_InterruptHandler(DtBc*  pBc, Int  Id, Int  Index, void*  pC
     switch (Id)
     {
     case DT_INTERRUPT_SDITXF_FMTEVENT:
+    case DT_INTERRUPT_SDITXF6G12G_FMTEVENT:
         break;
 
         // Not a SDITXF interrupt
@@ -561,6 +598,8 @@ DtStatus  DtBcSDITXF_RegisterIntHandlers(DtBcSDITXF*  pBc)
     // Sanity check
     BC_SDITXF_DEFAULT_PRECONDITIONS(pBc);
 
+    pBc->m_FmtIntId = -1;
+
     // Register interrupt callbacks, but do not enable the interrupts. We will enable 
     // them on demand
     for(i=0; i<pBc->m_NumInterrupts; i++)
@@ -571,6 +610,9 @@ DtStatus  DtBcSDITXF_RegisterIntHandlers(DtBcSDITXF*  pBc)
         switch(Id)
         {
         case DT_INTERRUPT_SDITXF_FMTEVENT:
+        case DT_INTERRUPT_SDITXF6G12G_FMTEVENT:
+            // Store format event interrupt ID 
+            pBc->m_FmtIntId = Id;
             // NOTE: the SDITXF uses one handler for all interrupt sources
             Status = DtBc_IntHandlerRegister((DtBc*)pBc, Id, 
                                                      DtBcSDITXF_InterruptHandler, NULL);
@@ -633,6 +675,8 @@ static DtStatus  DtIoStubBcSDITXF_OnCmdGetMaxSdiRate(const DtIoStubBcSDITXF*,
                                                     DtIoctlSdiTxFCmdGetMaxSdiRateOutput*);
 static DtStatus  DtIoStubBcSDITXF_OnCmdGetOperationalMode(const DtIoStubBcSDITXF*,
                                                       DtIoctlSdiTxFCmdGetOpModeOutput*);
+static DtStatus  DtIoStubBcSDITXF_OnCmdGetStreamAlignment(const DtIoStubBcSDITXF*, 
+                                               DtIoctlSdiTxFCmdGetStreamAlignmentOutput*);
 static DtStatus  DtIoStubBcSDITXF_OnCmdSetFmtEventSetting(const DtIoStubBcSDITXF*,
                                        const  DtIoctlSdiTxFCmdSetFmtEventSettingInput*);
 static DtStatus  DtIoStubBcSDITXF_OnCmdSetOperationalMode(const DtIoStubBcSDITXF*,
@@ -743,11 +787,15 @@ DtStatus  DtIoStubBcSDITXF_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoP
         Status = DtIoStubBcSDITXF_OnCmdGetOperationalMode(SDITXF_STUB,
                                                                   &pOutData->m_GetOpMode);
         break;
+    case DT_SDITXF_CMD_GET_STREAM_ALIGNMENT:
+        DT_ASSERT(pOutData != NULL);
+        Status = DtIoStubBcSDITXF_OnCmdGetStreamAlignment(SDITXF_STUB,
+                                                               &pOutData->m_GetAlignment);
+        break;
     case DT_SDITXF_CMD_SET_FMT_EVENT_SETTING:
         DT_ASSERT(pInData != NULL);
         Status = DtIoStubBcSDITXF_OnCmdSetFmtEventSetting(SDITXF_STUB, 
                                                            &pInData->m_SetFmtEventSetting);
-        break;
         break;
     case DT_SDITXF_CMD_SET_OPERATIONAL_MODE:
         DT_ASSERT(pInData != NULL);
@@ -807,6 +855,20 @@ DtStatus  DtIoStubBcSDITXF_OnCmdGetOperationalMode(
 
     // Get operational Mode
     return DtBcSDITXF_GetOperationalMode(SDITXF_BC, &pOutData->m_OpMode);
+}
+
+// .-.-.-.-.-.-.-.-.-.-.- DtIoStubBcSDITXF_OnCmdGetStreamAlignment -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtIoStubBcSDITXF_OnCmdGetStreamAlignment(
+    const DtIoStubBcSDITXF* pStub,
+    DtIoctlSdiTxFCmdGetStreamAlignmentOutput* pOutData)
+{
+
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcSDITXF));
+    DT_ASSERT(pOutData != NULL);
+
+    // Get maximum SDI-rate
+    return DtBcSDITXF_GetStreamAlignment(SDITXF_BC, &pOutData->m_StreamAlignment);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcSDITXF_OnCmdSetFmtEventTiming -.-.-.-.-.-.-.-.-.-.-.-.

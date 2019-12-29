@@ -34,7 +34,8 @@
 typedef enum _DtIoCapValue
 {
     // Capability group BOOLIO - Boolean I/O capabilities
-    DT_IOCAP_DMATESTMODE = 0,  // DMA-rate testmode is supported
+    DT_IOCAP_AUTOBFGEN = 0,    // Automatic black-frame generation capability
+    DT_IOCAP_DMATESTMODE,      // DMA-rate testmode is supported
     DT_IOCAP_FAILSAFE,         // A fail-over relay is available
     DT_IOCAP_FRACMODE,         // Fractional mode is supported
     DT_IOCAP_GENLOCKED,        // Locked to a genlock reference

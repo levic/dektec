@@ -130,8 +130,8 @@ typedef struct  _DtIoctlProperties
         "GET_MAX_NUM_MEASM",                                                             \
         TRUE,                                                                            \
         FALSE,                                                                           \
-        sizeof(DtIoctlAccuFifoCmdGetMeasmStatusInput),                                   \
-        sizeof(DtIoctlAccuFifoCmdGetMeasmStatusOutput))
+        sizeof(DtIoctlAccuFifoCmdGetMaxNumMeasmInput),                                   \
+        sizeof(DtIoctlAccuFifoCmdGetMaxNumMeasmOutput))
 
 #define DT_IOCTL_CMD_PROPS_ACCUFIFO_GET_MEASM_STATUS                                     \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
@@ -915,8 +915,18 @@ typedef struct  _DtIoctlProperties
         "RELOCK",                                                                        \
         TRUE,                                                                            \
         FALSE,                                                                           \
-        DT_IOCTL_DYNAMIC_SIZEOF(DtIoctlGenLockCtrlCmdReLockInput),                       \
+        sizeof(DtIoctlGenLockCtrlCmdReLockInput),                                        \
         0)
+
+
+#define DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_DCO_CLK_PROPS                                 \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_GENLOCKCTRL_CMD_GET_DCO_CLK_PROPS,                                            \
+        "GET_DCO_CLK_PROPS",                                                             \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlGenLockCtrlCmdGetDcoClockPropsInput),                              \
+        DT_IOCTL_DYNAMIC_SIZEOF(DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput))
 
 #define DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_DCO_FREQ_OFFSET                               \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
@@ -941,6 +951,7 @@ typedef struct  _DtIoctlProperties
     {                                                                                    \
         DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_STATUS,                                       \
         DT_IOCTL_CMD_PROPS_GENLOCKCTRL_RELOCK,                                           \
+        DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_DCO_CLK_PROPS,                                \
         DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_DCO_FREQ_OFFSET,                              \
         DT_IOCTL_CMD_PROPS_GENLOCKCTRL_SET_DCO_FREQ_OFFSET,                              \
     }
@@ -1598,6 +1609,15 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlSdiRxFCmdGetOpModeInput),                                          \
         sizeof(DtIoctlSdiRxFCmdGetOpModeOutput))
 
+#define DT_IOCTL_CMD_PROPS_SDIRXF_GET_STREAM_ALIGNMENT                                   \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDIRXF_CMD_GET_STREAM_ALIGNMENT,                                              \
+        "GET_STREAM_ALIGNMENT",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSdiRxFCmdGetStreamAlignmentInput),                                 \
+        sizeof(DtIoctlSdiRxFCmdGetStreamAlignmentOutput))
+
 #define DT_IOCTL_CMD_PROPS_SDIRXF_SET_FMT_EVENT_TIMING                                   \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_SDIRXF_CMD_SET_FMT_EVENT_TIMING,                                              \
@@ -1641,6 +1661,7 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_SDIRXF_GET_FRAME_PROPERTIES,                                  \
         DT_IOCTL_CMD_PROPS_SDIRXF_GET_MAX_SDIRATE,                                       \
         DT_IOCTL_CMD_PROPS_SDIRXF_GET_OPERATIONAL_MODE,                                  \
+        DT_IOCTL_CMD_PROPS_SDIRXF_GET_STREAM_ALIGNMENT,                                  \
         DT_IOCTL_CMD_PROPS_SDIRXF_SET_FMT_EVENT_TIMING,                                  \
         DT_IOCTL_CMD_PROPS_SDIRXF_SET_FRAME_PROPERTIES,                                  \
         DT_IOCTL_CMD_PROPS_SDIRXF_SET_OPERATIONAL_MODE,                                  \
@@ -1763,7 +1784,7 @@ typedef struct  _DtIoctlProperties
         TRUE,                                                                            \
         FALSE,                                                                           \
         sizeof(DtIoctlSdiTxFCmdGetMaxSdiRateInput),                                      \
-        sizeof(DtIoctlSdiTxPhyCmdGetMaxSdiRateOutput))
+        sizeof(DtIoctlSdiTxFCmdGetMaxSdiRateOutput))
 
 #define DT_IOCTL_CMD_PROPS_SDITXF_GET_OPERATIONAL_MODE                                   \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
@@ -1773,6 +1794,15 @@ typedef struct  _DtIoctlProperties
         FALSE,                                                                           \
         sizeof(DtIoctlSdiTxFCmdGetOpModeInput),                                          \
         sizeof(DtIoctlSdiTxFCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_SDITXF_GET_STREAM_ALIGNMENT                                   \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDITXF_CMD_GET_STREAM_ALIGNMENT,                                              \
+        "GET_STREAM_ALIGNMENT",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSdiTxFCmdGetStreamAlignmentInput),                                 \
+        sizeof(DtIoctlSdiTxFCmdGetStreamAlignmentOutput))
 
 #define DT_IOCTL_CMD_PROPS_SDITXF_SET_FMT_EVENT_SETTING                                  \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
@@ -1807,6 +1837,7 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_SDITXF_GET_FMT_EVENT_SETTING,                                 \
         DT_IOCTL_CMD_PROPS_SDITXF_GET_MAX_SDIRATE,                                       \
         DT_IOCTL_CMD_PROPS_SDITXF_GET_OPERATIONAL_MODE,                                  \
+        DT_IOCTL_CMD_PROPS_SDITXF_GET_STREAM_ALIGNMENT,                                  \
         DT_IOCTL_CMD_PROPS_SDITXF_SET_FMT_EVENT_SETTING,                                 \
         DT_IOCTL_CMD_PROPS_SDITXF_SET_OPERATIONAL_MODE,                                  \
         DT_IOCTL_CMD_PROPS_SDITXF_WAIT_FOR_FMT_EVENT,                                    \

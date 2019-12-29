@@ -1023,6 +1023,30 @@ static DtStatus  DtuIoConfigUpdateValidate(
             return DT_STATUS_CONFIG_ERROR;
         }
 
+        // Validate DT_IOCONFIG_AUTOBFGEN
+        DtDbgOut(MAX, IOCONFIG, "Configuration AUTOBFGEN Value: %d SubValue: %d",
+            pPortUpdate->m_CfgValue[DT_IOCONFIG_AUTOBFGEN].m_Value,
+            pPortUpdate->m_CfgValue[DT_IOCONFIG_AUTOBFGEN].m_SubValue);
+
+        switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_AUTOBFGEN].m_Value)
+        {
+        case DT_IOCONFIG_NONE:
+            // Not applicable should only be set when we do not support automatic 
+            // black-frame genertion
+            DT_ASSERT(!pNonIpPort->m_CapAutoBfGen);
+            break;
+        case DT_IOCONFIG_FALSE:
+            if (!pNonIpPort->m_CapAutoBfGen)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        case DT_IOCONFIG_TRUE:
+            if (!pNonIpPort->m_CapAutoBfGen)
+                return DT_STATUS_CONFIG_ERROR;
+            break;
+        default:
+            return DT_STATUS_CONFIG_ERROR;
+        }
+
         // Validate DT_IOCONFIG_FAILSAFE
         DtDbgOut(MAX, IOCONFIG, "Configuration FAILSAFE Value: %d SubValue: %d",
             pPortUpdate->m_CfgValue[DT_IOCONFIG_FAILSAFE].m_Value,

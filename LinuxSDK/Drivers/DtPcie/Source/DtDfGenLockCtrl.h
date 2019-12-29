@@ -143,8 +143,10 @@ typedef struct  _DtDfGenLockCtrl
     DtTodTime  m_GenLockSofTod;               // GENL start-of-frame timestamp 
                                               // protected by m_SofSpinLock
 
-    // Driver functiona
-    DtDfSi534X* m_pDfSi534X;        // Si534X Clock Oscillator
+    // Driver function
+    DtDfSi534X* m_pDfSi534X;                  // Si534X Clock Oscillator
+    const DtDfSi534XClockProps*  m_pSi534XClockProps;   // Clock properties
+    Int  m_NumSi534XClockProps;
 
     // Start-of-frame handling
     DtSpinLock  m_SofSpinLock;      // Spinlock to protect Operational Mode and SofTods
@@ -154,12 +156,10 @@ typedef struct  _DtDfGenLockCtrl
     Bool  m_StopDcoControlThread;   // DCO-control stop flag
     DtEvent  m_DcoControlSofEvent;  // DCO-control new start-of-frame event
     DtDfGenLockCtrlDcoState  m_DcoControlState;  // DCO-control state
-    DtDfGenLockCtrlGenRefStatus  m_GenRefSatus;  // GenRef signal status
+    DtDfGenLockCtrlGenRefStatus  m_GenRefStatus;  // GenRef signal status
     DtDfGenLockCtrlDcoControlPars  m_DcoControlPars; // Dco control parameter
     Int  m_Count;                   // For debugging
     Int  m_DcoFreqOffsetPpt;        // DcoFrequency offset in parts per trilion
-    Int  m_DcoFreeRunFreqOffsetPpt; // DcoFrequency offset in parts per trilion  when in
-                                    // free running mode
 
     DtVector*  m_pOnLockChangedHandlers; // List of registered on genlock lock changed
                                          // handlers
@@ -179,8 +179,10 @@ DtStatus  DtDfGenLockCtrl_GetGenLockStatus(DtDfGenLockCtrl*, Int* pGenLockState,
                                                         Int* pRefVidStd, Int* pDetVidStd);
 DtStatus  DtDfGenLockCtrl_IsLocked(DtDfGenLockCtrl*, Bool* pLocked);
 DtStatus  DtDfGenLockCtrl_ReLock(DtDfGenLockCtrl*);
-DtStatus  DtDfGenLockCtrl_GetDcoFreqOffset(DtDfGenLockCtrl*, Int*, Int64*);
-DtStatus  DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl*, Int);
+DtStatus  DtDfGenLockCtrl_GetDcoClockProperties(DtDfGenLockCtrl*, Int, Int*,
+                                                           DtIoctlGenLockCtrlClockProps*);
+DtStatus  DtDfGenLockCtrl_GetDcoFreqOffset(DtDfGenLockCtrl*, Int, Int*, Int64*);
+DtStatus  DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl*, Int, Int);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubDfGenLockCtrl definitions +=+=+=+=+=+=+=+=+=+=+=+=+=

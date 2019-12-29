@@ -47,9 +47,23 @@ static DtStatus  DtBcSDIRXPHY_Init(DtBc*);
 static DtStatus  DtBcSDIRXPHY_OnEnable(DtBc*, Bool);
 static DtStatus  DtBcSDIRXPHY_OnCloseFile(DtBc*, const DtFileObject*);
 static DtStatus  DtBcSDIRXPHY_CheckSdiRate(DtBcSDIRXPHY*, Int SdiRate);
-static void  DtBcSDIRXPHY_SetControlRegs(DtBcSDIRXPHY*, Bool BlkEnable, 
-                                              Int OpMode, Bool RxClkReset,  Bool PllReset,
-                                              Int LockMode, Bool  DownsamplerEnable);
+static DtStatus DtBcSDIRXPHY_C10A10_StartSetSdiRate(DtBcSDIRXPHY*, Int SdiRate);
+static DtStatus DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(DtBcSDIRXPHY*, Bool* pDone);
+static DtStatus DtBcSDIRXPHY_C10A10_FinishSetSdiRate(DtBcSDIRXPHY*);
+static DtStatus DtBcSDIRXPHY_CV_StartSetSdiRate(DtBcSDIRXPHY*, Int SdiRate);
+static DtStatus DtBcSDIRXPHY_CV_GetSetSdiRateDone(DtBcSDIRXPHY*, Bool* pDone);
+static DtStatus DtBcSDIRXPHY_CV_FinishSetSdiRate(DtBcSDIRXPHY*);
+static DtStatus DtBcSDIRXPHY_V1_C10A10_StartSetSdiRate(DtBcSDIRXPHY*, Int SdiRate);
+static DtStatus DtBcSDIRXPHY_V1_C10A10_GetSetSdiRateDone(DtBcSDIRXPHY*, Bool* pDone);
+static DtStatus DtBcSDIRXPHY_V1_C10A10_FinishSetSdiRate(DtBcSDIRXPHY*);
+static DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY*, Int SdiRate);
+static DtStatus DtBcSDIRXPHY_V2_C10A10_GetSetSdiRateDone(DtBcSDIRXPHY*, Bool* pDone);
+static DtStatus DtBcSDIRXPHY_V2_C10A10_FinishSetSdiRate(DtBcSDIRXPHY*);
+static DtStatus DtBcSDIRXPHY_V2_C10A10_StartUserCalibration(DtBcSDIRXPHY*);
+
+static void  DtBcSDIRXPHY_SetControlRegs(DtBcSDIRXPHY*, Bool BlkEnable,  Int OpMode,
+                                      Bool RxClkReset,  Bool PllReset,  Bool XcvrReset,
+                                      Int LockMode, Bool  DownsamplerEnable, Int SdiRate);
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDIRXPHY - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -189,6 +203,26 @@ DtStatus DtBcSDIRXPHY_GetLockMode(DtBcSDIRXPHY* pBc, Int* pLockMode)
     return DT_STATUS_OK;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_GetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_GetSdiRate(DtBcSDIRXPHY* pBc, Int* pSdiRate)
+{
+    // Sanity check
+    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Parameter check
+    if (pSdiRate == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
+    
+    // Return cached value
+    *pSdiRate = pBc->m_SdiRate;
+    return DT_STATUS_OK;
+}
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_IsCarrierDetect -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcSDIRXPHY_IsCarrierDetect(DtBcSDIRXPHY* pBc, Bool* pCarrier)
@@ -272,31 +306,6 @@ DtStatus DtBcSDIRXPHY_IsLockedToRef(DtBcSDIRXPHY* pBc, Bool* pLocked)
     return DT_STATUS_OK;
 }
 
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_ResetPll -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-DtStatus DtBcSDIRXPHY_ResetPll(DtBcSDIRXPHY* pBc)
-{
-    // Sanity check
-    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
-
-    // Must be enabled
-    BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
-    
-    // Operational mode must be IDLE or STANDBY
-    if (pBc->m_OperationalMode == DT_BLOCK_OPMODE_RUN)
-    { 
-        DtDbgOutBc(ERR, SDIRXPHY, pBc, "Operational mode not in idle/standby");
-        return DT_STATUS_INVALID_IN_OPMODE;
-    }
-    // Make settings in register
-    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
-                                         pBc->m_OperationalMode, pBc->m_ClockReset, 
-                                         TRUE, pBc->m_LockMode, pBc->m_DownsamplerEnable);
-    return DT_STATUS_OK;
-}
-
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_SetClockReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcSDIRXPHY_SetClockReset(DtBcSDIRXPHY* pBc, Bool ClkReset)
@@ -313,12 +322,17 @@ DtStatus DtBcSDIRXPHY_SetClockReset(DtBcSDIRXPHY* pBc, Bool ClkReset)
         DtDbgOutBc(ERR, SDIRXPHY, pBc, "Operational mode not in idle/standby");
         return DT_STATUS_INVALID_IN_OPMODE;
     }
-    // Make settings in register
-    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
-                                               pBc->m_OperationalMode, ClkReset, FALSE,
-                                               pBc->m_LockMode, pBc->m_DownsamplerEnable);
+
+    // No change?
+    if (pBc->m_ClockReset == ClkReset)
+        return DT_STATUS_OK;
+
     // Update cache
     pBc->m_ClockReset = ClkReset;
+    // Make settings in register
+    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                               pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, FALSE,
+                               pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
     return DT_STATUS_OK;
 }
 
@@ -338,13 +352,17 @@ DtStatus  DtBcSDIRXPHY_SetDownsamplerEnable(DtBcSDIRXPHY* pBc, Bool Enable)
         DtDbgOutBc(ERR, SDIRXPHY, pBc, "Operational mode not in idle/standby");
         return DT_STATUS_INVALID_IN_OPMODE;
     }
-    // Make settings in register
-    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
-                                                pBc->m_OperationalMode, pBc->m_ClockReset,
-                                                FALSE, pBc->m_LockMode, Enable);
+
+    // No change?
+    if (pBc->m_DownsamplerEnable == Enable)
+        return DT_STATUS_OK;
 
     // Update cache
     pBc->m_DownsamplerEnable = Enable;
+    // Make settings in register
+    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                               pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, FALSE,
+                               pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
     return DT_STATUS_OK;
 }
 
@@ -377,12 +395,12 @@ DtStatus DtBcSDIRXPHY_SetOperationalMode(DtBcSDIRXPHY * pBc, Int OpMode)
     if (pBc->m_OperationalMode == OpMode)
         return DT_STATUS_OK;
 
-    // Make setting in control register
-    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, OpMode, pBc->m_ClockReset, 
-                                        FALSE, pBc->m_LockMode, pBc->m_DownsamplerEnable);
     // Save operational mode
     pBc->m_OperationalMode = OpMode;
-
+    // Make settings in register
+    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                               pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, FALSE,
+                               pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
     return DT_STATUS_OK;
 }
 
@@ -410,48 +428,23 @@ DtStatus DtBcSDIRXPHY_SetLockMode(DtBcSDIRXPHY* pBc, Int LockMode)
         DtDbgOutBc(ERR, SDIRXPHY, pBc, "Operational mode not in idle");
         return DT_STATUS_INVALID_IN_OPMODE;
     }
-    // Make settings in register
-    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
-                                         pBc->m_OperationalMode, pBc->m_ClockReset, FALSE,
-                                         LockMode, pBc->m_DownsamplerEnable);
+    // No change?
+    if (pBc->m_LockMode == LockMode)
+        return DT_STATUS_OK;
+
     // Update cache
     pBc->m_LockMode = LockMode;
+    // Make settings in register
+    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                               pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, FALSE,
+                               pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
     return DT_STATUS_OK;
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_C10A10_GetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_SetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtBcSDIRXPHY_C10A10_GetSdiRate(DtBcSDIRXPHY* pBc, Int* pSdiRate)
+DtStatus DtBcSDIRXPHY_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
 {
-    // Sanity check
-    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
-
-    // Parameter check
-    if (pSdiRate == NULL)
-        return DT_STATUS_INVALID_PARAMETER;
-
-    // Must be enabled
-    BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
-    
-    // Check device family
-    if (pBc->m_DeviceFamily!=DT_BC_SDIRXPHY_FAMILY_A10 
-                                        && pBc->m_DeviceFamily!=DT_BC_SDIRXPHY_FAMILY_C10)
-    { 
-        DtDbgOutBc(ERR, SDIRXPHY, pBc, "ERROR: Not supported for this device family");
-        return DT_STATUS_NOT_SUPPORTED;
-    }
-
-    // Return cached value
-    *pSdiRate = pBc->m_C10A10SdiRate;
-    return DT_STATUS_OK;
-}
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_C10A10_SetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-DtStatus DtBcSDIRXPHY_C10A10_SetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
-{
-    UInt32  RegCdrPllSettings4, RegCdrPllSettings9;
-
     // Sanity check
     BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
 
@@ -461,38 +454,91 @@ DtStatus DtBcSDIRXPHY_C10A10_SetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     // Must be enabled
     BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
     
-    // Check device family
-    if (pBc->m_DeviceFamily!=DT_BC_SDIRXPHY_FAMILY_A10 
-                                        && pBc->m_DeviceFamily!=DT_BC_SDIRXPHY_FAMILY_C10)
+    // Operational mode must be IDLE or STANDBY
+    if (pBc->m_OperationalMode == DT_BLOCK_OPMODE_RUN)
     { 
-        DtDbgOutBc(ERR, SDIRXPHY, pBc, "ERROR: Not supported for this device family");
-        return DT_STATUS_NOT_SUPPORTED;
+        DtDbgOutBc(ERR, SDIRXPHY, pBc, "Operational mode not in idle");
+        return DT_STATUS_INVALID_IN_OPMODE;
     }
-    RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_READ(pBc);
-    RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_READ(pBc);
-    if (SdiRate==DT_DRV_SDIRATE_SD || SdiRate==DT_DRV_SDIRATE_3G)
-    { 
-        // Set loop filter and dividers for 3Gbps operation
-        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_LfResistorPd(
-                                             RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_3);
-        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_PdLCounter(
-                                          RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_4);
-    }
-    else
-    { 
-        // Set loop filter and dividers for HD operation
-        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_LfResistorPd(
-                                             RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_0);
-        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_PdLCounter(
-                                          RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_8);
-    }
-    SDIRXPHY_C10A10_CdrPllSettings4_WRITE(pBc, RegCdrPllSettings4);
-    SDIRXPHY_C10A10_CdrPllSettings9_WRITE(pBc, RegCdrPllSettings9);
+    // No change?
+    if (pBc->m_SdiRate == SdiRate)
+        return DT_STATUS_OK;
 
-    // Update cached value
-    pBc->m_C10A10SdiRate = SdiRate;
+
+    // Update cache
+    pBc->m_SdiRate = SdiRate;
+    // Make settings in register
+    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                               pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, FALSE,
+                               pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
+
+    // Device family specific function
+    switch (pBc->m_DeviceFamily)
+    {
+    case DT_BC_SDIRXPHY_FAMILY_A10:
+                                return DtBcSDIRXPHY_C10A10_StartSetSdiRate(pBc, SdiRate);
+    case DT_BC_SDIRXPHY_FAMILY_C10:
+                                return DtBcSDIRXPHY_C10A10_StartSetSdiRate(pBc, SdiRate);
+    case DT_BC_SDIRXPHY_FAMILY_CV:
+                                return DtBcSDIRXPHY_CV_StartSetSdiRate(pBc, SdiRate);
+    default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+    }
     return DT_STATUS_OK;
 }
+
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_GetSetSdiRateDone -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_GetSetSdiRateDone(DtBcSDIRXPHY* pBc, Bool* pDone)
+{
+    // Sanity check
+    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Parameter check
+    if (pDone == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
+
+
+    // Device family specific function
+    switch (pBc->m_DeviceFamily)
+    {
+    case DT_BC_SDIRXPHY_FAMILY_A10:
+                                return DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(pBc, pDone);
+    case DT_BC_SDIRXPHY_FAMILY_C10:
+                                return DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(pBc, pDone);
+    case DT_BC_SDIRXPHY_FAMILY_CV:
+                                return DtBcSDIRXPHY_CV_GetSetSdiRateDone(pBc, pDone);
+    default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+    }
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_FinishSetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
+{
+    // Sanity check
+    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Must be enabled
+    BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
+
+    // Device family specific function
+    switch (pBc->m_DeviceFamily)
+    {
+    case DT_BC_SDIRXPHY_FAMILY_A10: return DtBcSDIRXPHY_C10A10_FinishSetSdiRate(pBc);
+    case DT_BC_SDIRXPHY_FAMILY_C10: return DtBcSDIRXPHY_C10A10_FinishSetSdiRate(pBc);
+    case DT_BC_SDIRXPHY_FAMILY_CV:  return DtBcSDIRXPHY_CV_FinishSetSdiRate(pBc);
+    default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+    }
+    return DT_STATUS_OK;
+}
+
+
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDIRXPHY - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -538,28 +584,17 @@ DtStatus  DtBcSDIRXPHY_Init(DtBc*  pBcBase)
     pBc->m_ClockReset = TRUE;
     pBc->m_LockMode = DT_BC_SDIRXPHY_LOCKMODE_LOCK_TO_REF;
     pBc->m_DownsamplerEnable = FALSE;
-    pBc->m_C10A10SdiRate = DT_DRV_SDIRATE_UNKNOWN;
+    pBc->m_SdiRate = DT_DRV_SDIRATE_HD;
+    DT_ASSERT(DT_SUCCESS(DtBcSDIRXPHY_CheckSdiRate(pBc, pBc->m_SdiRate)));
 
     // Make settings in register
-    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                               pBc->m_ClockReset, FALSE,
-                                               pBc->m_LockMode, pBc->m_DownsamplerEnable);
+    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                               pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, FALSE,
+                               pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
 
-    // Device family specific initialisation
-    if (pBc->m_DeviceFamily==SDIRXPHY_FAMILY_A10
-                                              || pBc->m_DeviceFamily==SDIRXPHY_FAMILY_C10)
-    {
-        // Set loop filter and dividers for HD operation
-        UInt32  RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_READ(pBc);
-        UInt32  RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_READ(pBc);
-        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_LfResistorPd(
-                                             RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_0);
-        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_PdLCounter(
-                                          RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_8);
-        SDIRXPHY_C10A10_CdrPllSettings4_WRITE(pBc, RegCdrPllSettings4);
-        SDIRXPHY_C10A10_CdrPllSettings9_WRITE(pBc, RegCdrPllSettings9);
-        pBc->m_C10A10SdiRate = DT_DRV_SDIRATE_HD;
-    }
+    // The device specific initialization cannot be performed when the block is in IDLE
+    // It will be performed in OnEnable()
+
     return Status;
 }
 
@@ -569,10 +604,11 @@ DtStatus DtBcSDIRXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
 {
     DtStatus  Status=DT_STATUS_OK;
     DtBcSDIRXPHY* pBc = (DtBcSDIRXPHY*) pBcBase;
+    UInt32  RegResetBusy=0, RegCalBusy=0;
+    Int  TimeoutCount=0;
  
     // Sanity check
     BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
-
 
     if (Enable)
     {
@@ -582,6 +618,62 @@ DtStatus DtBcSDIRXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
         pBc->m_ClockReset = TRUE;
         pBc->m_LockMode = DT_BC_SDIRXPHY_LOCKMODE_LOCK_TO_REF;
         pBc->m_DownsamplerEnable = FALSE;
+
+        // Save block enable
+        pBc->m_BlockEnabled = Enable;
+        // Make settings in register
+        DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                               pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, FALSE,
+                               pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
+
+        // Wait a while such that the reset is completed
+        DtWaitBlock(1);
+        RegResetBusy = SDIRXPHY_Status_READ_ResetInProgress(pBc);
+        TimeoutCount = 100;
+        while (RegResetBusy!=0 && TimeoutCount>0)
+        {
+            DtWaitBlock(1);
+            TimeoutCount--;
+            RegResetBusy = SDIRXPHY_Status_READ_ResetInProgress(pBc);
+        }
+        DT_ASSERT(RegResetBusy == 0);
+
+        // Wait till power-up calibration is completed
+        RegCalBusy = SDIRXPHY_Status_READ_CalBusy(pBc);
+        TimeoutCount = 100;
+        while (RegCalBusy!=0 && TimeoutCount>0)
+        {
+            DtSleep(1);
+            TimeoutCount--;
+            RegCalBusy = SDIRXPHY_Status_READ_CalBusy(pBc);
+        }
+        DT_ASSERT(RegCalBusy == 0);
+
+        // Device family specific initialisation
+        if (pBc->m_DeviceFamily==DT_BC_SDIRXPHY_FAMILY_A10
+                                        || pBc->m_DeviceFamily==DT_BC_SDIRXPHY_FAMILY_C10)
+        {
+            Bool Done = FALSE;
+            // Start setting SDI-rate
+            Status = DtBcSDIRXPHY_C10A10_StartSetSdiRate(pBc, pBc->m_SdiRate);
+            DT_ASSERT(DT_SUCCESS(Status));
+            if (!DT_SUCCESS(Status))
+                return Status;
+
+            // Wait till completed
+            Status = DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(pBc, &Done);
+            TimeoutCount = 100;
+            while (!Done && DT_SUCCESS(Status) && TimeoutCount>0)
+            {
+                DtSleep(1);
+                TimeoutCount--;
+                Status = DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(pBc, &Done);
+            }
+            if (!Done)
+                Status = DT_STATUS_TIMEOUT;
+            // Finish setting SDI-rate
+            DtBcSDIRXPHY_C10A10_FinishSetSdiRate(pBc);
+        }
     }
     else
     {
@@ -593,15 +685,22 @@ DtStatus DtBcSDIRXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
             DtDbgOutBc(ERR, SDIRXPHY, pBc, "ERROR: SetOperationalMode failed");
             DT_ASSERT(FALSE);
         }
+
+        // Save block enable
+        pBc->m_BlockEnabled = Enable;
+
+        // Set defaults
+        pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
+        pBc->m_ClockReset = TRUE;
+        pBc->m_LockMode = DT_BC_SDIRXPHY_LOCKMODE_LOCK_TO_REF;
+        pBc->m_DownsamplerEnable = FALSE;
+
+        // Make settings in register
+        DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                               pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, FALSE,
+                               pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
     }
-
-    // Make setting in control register
-    DtBcSDIRXPHY_SetControlRegs(pBc, Enable, pBc->m_OperationalMode, pBc->m_ClockReset,
-                                        FALSE, pBc->m_LockMode, pBc->m_DownsamplerEnable);
-    // Save block enable
-    pBc->m_BlockEnabled = Enable;
-
-    return DT_STATUS_OK;
+   return DT_STATUS_OK;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -653,14 +752,627 @@ DtStatus DtBcSDIRXPHY_CheckSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     return DT_STATUS_OK;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_C10A10_StartSetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    // Version specific StartSetSdiRate
+    if (pBc->m_Version == 1)
+        Status = DtBcSDIRXPHY_V1_C10A10_StartSetSdiRate(pBc, SdiRate);
+    else if (pBc->m_Version >= 2)
+        Status = DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(pBc, SdiRate);
+   else
+        Status = DT_STATUS_FAIL;
+    return Status;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_C10A10_GetSetSdiRateDone -.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(DtBcSDIRXPHY* pBc, Bool* pDone)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    // Version specific StartSetSdiRate
+    if (pBc->m_Version == 1)
+        Status = DtBcSDIRXPHY_V1_C10A10_GetSetSdiRateDone(pBc, pDone);
+    else if (pBc->m_Version >= 2)
+        Status = DtBcSDIRXPHY_V2_C10A10_GetSetSdiRateDone(pBc, pDone);
+   else
+        Status = DT_STATUS_FAIL;
+    return Status;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_C10A10_FinishSetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_C10A10_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    // Version specific StartSetSdiRate
+    if (pBc->m_Version == 1)
+        Status = DtBcSDIRXPHY_V1_C10A10_FinishSetSdiRate(pBc);
+    else if (pBc->m_Version >= 2)
+        Status = DtBcSDIRXPHY_V2_C10A10_FinishSetSdiRate(pBc);
+   else
+        Status = DT_STATUS_FAIL;
+    return Status;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_CV_StartSetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_CV_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
+{
+    // Nothing to do  for CV
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_CV_GetSetSdiRateDone -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_CV_GetSetSdiRateDone(DtBcSDIRXPHY* pBc, Bool* pDone)
+{
+    // Nothing to do  for CV
+    *pDone = TRUE;
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_CV_FinishSetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_CV_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
+{
+    // Reset the PLL
+    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                               pBc->m_OperationalMode, pBc->m_ClockReset, TRUE, FALSE,
+                               pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
+    return DT_STATUS_OK;
+}
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V1_C10A10_SetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_V1_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
+{
+    UInt32  RegCdrPllSettings4, RegCdrPllSettings9;
+
+    // Sanity check
+    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
+    
+    // Read registers
+    RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_READ(pBc);
+    RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_READ(pBc);
+    if (SdiRate==DT_DRV_SDIRATE_SD || SdiRate==DT_DRV_SDIRATE_3G)
+    { 
+        // Set loop filter and dividers for 3Gbps operation
+        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_LfResistorPd(
+                                             RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_3);
+        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_PdLCounter(
+                                          RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_4);
+    }
+    else
+    { 
+        // Set loop filter and dividers for HD operation
+        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_LfResistorPd(
+                                             RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_0);
+        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_PdLCounter(
+                                          RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_8);
+    }
+    // Write registers
+    SDIRXPHY_C10A10_CdrPllSettings4_WRITE(pBc, RegCdrPllSettings4);
+    SDIRXPHY_C10A10_CdrPllSettings9_WRITE(pBc, RegCdrPllSettings9);
+
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V1_C10A10_GetSetSdiRateDone -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_V1_C10A10_GetSetSdiRateDone(DtBcSDIRXPHY* pBc, Bool* pDone)
+{
+    // All done  for C10/A10 Version 1
+    *pDone = TRUE;
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V1_C10A10_FinishSetSdiRate -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_V1_C10A10_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
+{
+    // Reset the PLL
+    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                               pBc->m_OperationalMode, pBc->m_ClockReset, TRUE, FALSE,
+                               pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V2_C10A10_SetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+//  Settings include 6/12G register
+//
+DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    UInt32  RegCdrPllSettings4, RegCdrPllSettings9, RegPcsPmaSel, RegPcsRxBlockSel,
+            RegRxPcs8G0, RegRxPcs8G1, RegRxPcs8G2, RegRxPcs8G3, RegRxPcs8G4,
+            RegRxPcs8G5, RegRxPcs8G6, RegRxPcs8G7, RegRxPcs10G0, RegRxPcs10G1, 
+            RegRxPcs10G2, RegRxPcs10G3, RegRxPcs10G4, RegRxPcs10G5, RegRxPcsFifo, 
+            RegCdrPllSettings8, RegCdrPllSettings10, RegPmaRxDeser, RegPmaEqBw, 
+            RegCalBusy, WaitRequest, TimeoutCount;
+
+    // Sanity check
+    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // CalBusy should be de-asserted
+    RegCalBusy = SDIRXPHY_Status_READ_CalBusy(pBc);
+    DT_ASSERT(RegCalBusy ==0);
+
+    // 1. Place the RX simplex channel in DIGITAL reset (rx_digital_reset) 
+    // then Analog reset (rx_analog_reset)
+    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                       pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, TRUE,
+                       pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
+    // 2. Check for internal configuration bus arbitration. Check that 
+    // “reconfig_waitrequest” is not high before writing to the reconfiguration interface.
+    DtWaitBlock(1);
+    WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
+    TimeoutCount = 100;
+    while (WaitRequest!=0 && TimeoutCount>0)
+    {
+        DtWaitBlock(1);
+        TimeoutCount--;
+        WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
+    }
+    DT_ASSERT(WaitRequest == 0);
+
+    // 3. Reconfigure
+    // Read registers
+    RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_READ(pBc);
+    RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_READ(pBc);
+    RegPcsPmaSel = SDIRXPHY_C10A10_PcsPmaSel_READ(pBc);
+    RegPcsRxBlockSel = SDIRXPHY_C10A10_PcsRxBlockSel_READ(pBc);
+    RegRxPcs8G0 = SDIRXPHY_C10A10_RxPcs8G0_READ(pBc);
+    RegRxPcs8G1 = SDIRXPHY_C10A10_RxPcs8G1_READ(pBc);
+    RegRxPcs8G2 = SDIRXPHY_C10A10_RxPcs8G2_READ(pBc);
+    RegRxPcs8G3 = SDIRXPHY_C10A10_RxPcs8G3_READ(pBc);
+    RegRxPcs8G4 = SDIRXPHY_C10A10_RxPcs8G4_READ(pBc);
+    RegRxPcs8G5 = SDIRXPHY_C10A10_RxPcs8G5_READ(pBc);
+    RegRxPcs8G6 = SDIRXPHY_C10A10_RxPcs8G6_READ(pBc);
+    RegRxPcs8G7 = SDIRXPHY_C10A10_RxPcs8G7_READ(pBc);
+    RegRxPcs10G0 = SDIRXPHY_C10A10_RxPcs10G0_READ(pBc);
+    RegRxPcs10G1 = SDIRXPHY_C10A10_RxPcs10G1_READ(pBc);
+    RegRxPcs10G2 = SDIRXPHY_C10A10_RxPcs10G2_READ(pBc);
+    RegRxPcs10G3 = SDIRXPHY_C10A10_RxPcs10G3_READ(pBc);
+    RegRxPcs10G4 = SDIRXPHY_C10A10_RxPcs10G4_READ(pBc);
+    RegRxPcs10G5 = SDIRXPHY_C10A10_RxPcs10G5_READ(pBc);
+    RegRxPcsFifo = SDIRXPHY_C10A10_RxPcsFifo_READ(pBc);
+    RegCdrPllSettings8 = SDIRXPHY_C10A10_CdrPllSettings8_READ(pBc);
+    RegCdrPllSettings10 = SDIRXPHY_C10A10_CdrPllSettings10_READ(pBc);
+    RegPmaRxDeser = SDIRXPHY_C10A10_PmaRxDeser_READ(pBc);
+    RegPmaEqBw = SDIRXPHY_C10A10_PmaEqSettings_READ(pBc);
+
+    // Modify registers
+    if (SdiRate==DT_DRV_SDIRATE_SD || SdiRate==DT_DRV_SDIRATE_3G)
+    { 
+        // Set loop filter and dividers for 3Gbps operation
+        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_LfResistorPd(
+                                             RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_3);
+        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_PdLCounter(
+                                          RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_4);
+    }
+    else if (SdiRate==DT_DRV_SDIRATE_HD)
+    { 
+        // Set loop filter and dividers for HD operation
+        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_LfResistorPd(
+                                             RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_0);
+        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_PdLCounter(
+                                          RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_8);
+    }
+    else if (SdiRate==DT_DRV_SDIRATE_6G)
+    { 
+        // Set loop filter and dividers for 12G operation
+        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_LfResistorPd(
+                                             RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_3);
+        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_PdLCounter(
+                                          RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_2);
+    }
+    else if (SdiRate==DT_DRV_SDIRATE_12G)
+    { 
+        // Set loop filter and dividers for 12G operation
+        RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_SET_LfResistorPd(
+                                             RegCdrPllSettings4, SDIRXPHY_LFPD_SETTING_2);
+        RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_SET_PdLCounter(
+                                          RegCdrPllSettings9, SDIRXPHY_LCOUNTER_DIV_BY_1);
+    }
+    else
+    {
+        DT_ASSERT(FALSE);
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
+    if (SdiRate==DT_DRV_SDIRATE_SD || SdiRate==DT_DRV_SDIRATE_HD
+                                                            || SdiRate==DT_DRV_SDIRATE_3G)
+    { 
+        // PCS PMA select : 8G PCS
+        RegPcsPmaSel = SDIRXPHY_C10A10_PcsPmaSel_SET_PcsPmaBlockSel(RegPcsPmaSel,
+                                                                SDIRXPHY_PCS_EIGHT_G_PCS);
+        // PCS RX BlockSelect  8G and 8G clock out
+        RegPcsRxBlockSel = SDIRXPHY_C10A10_PcsRxBlockSel_SET_RxBlockSel(RegPcsRxBlockSel,
+                                                                SDIRXPHY_RXBLKSEL_EIGHTG);
+        RegPcsRxBlockSel = SDIRXPHY_C10A10_PcsRxBlockSel_SET_RxClkOut(RegPcsRxBlockSel,
+                                                        SDIRXPHY_RXCLKOUT_EIGHTG_CLK_OUT);
+        // 8G Rx PCS 0: PMA double width: 10
+        RegRxPcs8G0 = SDIRXPHY_C10A10_RxPcs8G0_SET_PmaDw(RegRxPcs8G0,  SDIRXPHY_PMADW_10);
+        // 8G Rx PCS 1: Word aligner pattern length: 7 WaPldControlled: SW
+        RegRxPcs8G1 = SDIRXPHY_C10A10_RxPcs8G1_SET_WaPd(RegRxPcs8G1, 
+                                                                   SDIRXPHY_WAPD_WA_PD_7);
+        RegRxPcs8G1 = SDIRXPHY_C10A10_RxPcs8G1_SET_WaPldControlled(RegRxPcs8G1, 
+                                                            SDIRXPHY_PLDCTRL_PLD_CTRL_SW);
+        // 8G Rx PCS 2: 8B 10B decoder: Disable
+        RegRxPcs8G2 = SDIRXPHY_C10A10_RxPcs8G2_SET_Decoder8B10B(RegRxPcs8G2, 
+                                                                  SDIRXPHY_8B10B_DISABLE);
+        // 8G Rx PCS 3: Byte deserializer: 2
+        RegRxPcs8G3 = SDIRXPHY_C10A10_RxPcs8G3_SET_ByteDeserializer(RegRxPcs8G3, 
+                                                                    SDIRXPHY_BDS_EN_BY_2);
+        // 8G Rx PCS 4: Phase compensator read Pointer: Enable; 
+        //              WA disparity error flag: Disable 
+        RegRxPcs8G4 = SDIRXPHY_C10A10_RxPcs8G4_SET_PhaseCompRdptr(RegRxPcs8G4, 
+                                                                 SDIRXPHY_ENRDPTR_ENABLE);
+        RegRxPcs8G4 = SDIRXPHY_C10A10_RxPcs8G4_SET_WaDispErrFlag(RegRxPcs8G4, 
+                                                            SDIRXPHY_DISPERRFLAG_DISABLE);
+        // 8G Rx PCS 5: Word aligneer mode: Bit slip
+        RegRxPcs8G5 = SDIRXPHY_C10A10_RxPcs8G5_SET_WaBoundaryLockCtrl(RegRxPcs8G5, 
+                                                             SDIRXPHY_BOUNDLOCK_BIT_SLIP);
+        // 8G Rx PCS 6: Rdclk gate: Disable; DW WrClk gate: Enable; SW WrClk gate: Disable
+        RegRxPcs8G6 = SDIRXPHY_C10A10_RxPcs8G6_SET_ClockGatePcRdclk(RegRxPcs8G6, 
+                                                            SDIRXPHY_PCRDCLKGATE_DISABLE);
+        RegRxPcs8G6 = SDIRXPHY_C10A10_RxPcs8G6_SET_ClockGateDwPcWrclk(RegRxPcs8G6, 
+                                                             SDIRXPHY_DWWRCLKGATE_ENABLE);
+        RegRxPcs8G6 = SDIRXPHY_C10A10_RxPcs8G6_SET_ClockGateSwPcWrclk(RegRxPcs8G6, 
+                                                            SDIRXPHY_SWWRCLKGATE_DISABLE);
+        // 8G Rx PCS 7: DW WaClk gate: Enable; SW WaClk gate: Disable; BdsClk gate:Disable
+        RegRxPcs8G7 = SDIRXPHY_C10A10_RxPcs8G7_SET_ClockGateDwWa(RegRxPcs8G7, 
+                                                             SDIRXPHY_CLKGATEDWWA_ENABLE);
+        RegRxPcs8G7 = SDIRXPHY_C10A10_RxPcs8G7_SET_ClockGateSwWa(RegRxPcs8G7, 
+                                                            SDIRXPHY_CLKGATESWWA_DISABLE);
+        RegRxPcs8G7 = SDIRXPHY_C10A10_RxPcs8G7_SET_ClockGateBdsDec(RegRxPcs8G7, 
+                                                             SDIRXPHY_BDSCLKGATE_DISABLE);
+        // 10G Rx PCS 0:GB Rx OD Width: 64; GB Rx ID Width: 64
+        RegRxPcs10G0 = SDIRXPHY_C10A10_RxPcs10G0_SET_GbRxOdWidth(RegRxPcs10G0, 
+                                                                 SDIRXPHY_GBRXODWIDTH_64);
+        RegRxPcs10G0 = SDIRXPHY_C10A10_RxPcs10G0_SET_GbRxIdWidth(RegRxPcs10G0, 
+                                                                 SDIRXPHY_GBRXIDWIDTH_64);
+        // 10G Rx PCS 1:Read fifo clk enable: Disable; Write fifo clk enable: Dusable
+        RegRxPcs10G1 = SDIRXPHY_C10A10_RxPcs10G1_SET_RdfifoClken(RegRxPcs10G1, 
+                                                            SDIRXPHY_RDFIFOCLKEN_DISABLE);
+        RegRxPcs10G1 = SDIRXPHY_C10A10_RxPcs10G1_SET_WrfifoClken(RegRxPcs10G1, 
+                                                            SDIRXPHY_WRFIFOCLKEN_DISABLE);
+
+        // 10G Rx PCS 2: GB exp clock enable: Disable
+        RegRxPcs10G2 = SDIRXPHY_C10A10_RxPcs10G2_SET_GbExpClken(RegRxPcs10G2, 
+                                                             SDIRXPHY_GBEXPCLKEN_DISABLE);
+        // 10G Rx PCS 3: Stretch num stages: 0
+        RegRxPcs10G3 = SDIRXPHY_C10A10_RxPcs10G3_SET_StretchNumStages(RegRxPcs10G3, 
+                                                                      SDIRXPHY_STRETCH_0);
+        // 10G Rx PCS 4: FIFO stop read: Not empty; FIFO double read: Disable
+        RegRxPcs10G4 = SDIRXPHY_C10A10_RxPcs10G4_SET_FifoStopRd(RegRxPcs10G4, 
+                                                             SDIRXPHY_FIFOSTOPRD_N_EMPTY);
+        RegRxPcs10G4 = SDIRXPHY_C10A10_RxPcs10G4_SET_FifoDoubleRead(RegRxPcs10G4, 
+                                                         SDIRXPHY_FIFODOUBLEREAD_DISABLE);
+        // 10G Rx PCS 5:Phase compensator rd del: Del2
+        RegRxPcs10G5 = SDIRXPHY_C10A10_RxPcs10G5_SET_PhcompRdDel(RegRxPcs10G5, 
+                                                     SDIRXPHY_PHCOMPRDDEL_PHCOMP_RD_DEL2);
+        // Rx PCS FIFO: Prot mode: Non 10G; Double read mode: Disable
+        RegRxPcsFifo = SDIRXPHY_C10A10_RxPcsFifo_SET_ProtMode(RegRxPcsFifo, 
+                                                              SDIRXPHY_PROTMODE_NON_TENG);
+        RegRxPcsFifo = SDIRXPHY_C10A10_RxPcsFifo_SET_DoubleReadMode(RegRxPcsFifo, 
+                                                         SDIRXPHY_DOUBLEREADMODE_DISABLE);
+        // CDR PLL Settings 8: Chargepump current up: Setting4
+        RegCdrPllSettings8 = SDIRXPHY_C10A10_CdrPllSettings8_SET_ChgpmpCurrentUpPd(
+                                      RegCdrPllSettings8, SDIRXPHY_CPCURRENTUP_SETTING_4);
+        // CDR PLL Settings 10: Chargepump current down: Setting4
+        RegCdrPllSettings10 = SDIRXPHY_C10A10_CdrPllSettings10_SET_ChgpmpCurrentDnPd(
+                                     RegCdrPllSettings10, SDIRXPHY_CPCURRENTDN_SETTING_4);
+        // PMS Rx Deserializer: Deserialization Factor: 10
+        RegPmaRxDeser = SDIRXPHY_C10A10_PmaRxDeser_SET_DeserFactor(RegPmaRxDeser, 
+                                                                 SDIRXPHY_DESERFACTOR_10);
+        // Equalizer bandwidth select for datarate <= 5G
+        RegPmaEqBw = SDIRXPHY_C10A10_PmaEqSettings_SET_EqualizerBw(RegPmaEqBw, 
+                                                                   SDIRXPHY_EQBW_EQ_BW_1);
+    }
+    else if (SdiRate==DT_DRV_SDIRATE_6G)
+    { 
+        // PCS PMA select : 8G PCS
+        RegPcsPmaSel = SDIRXPHY_C10A10_PcsPmaSel_SET_PcsPmaBlockSel(RegPcsPmaSel,
+                                                                SDIRXPHY_PCS_EIGHT_G_PCS);
+        // PCS RX BlockSelect  8G and 8G clock out
+        RegPcsRxBlockSel = SDIRXPHY_C10A10_PcsRxBlockSel_SET_RxBlockSel(RegPcsRxBlockSel,
+                                                                SDIRXPHY_RXBLKSEL_EIGHTG);
+        RegPcsRxBlockSel = SDIRXPHY_C10A10_PcsRxBlockSel_SET_RxClkOut(RegPcsRxBlockSel,
+                                                        SDIRXPHY_RXCLKOUT_EIGHTG_CLK_OUT);
+        // 8G Rx PCS 0: PMA double width: 20
+        RegRxPcs8G0 = SDIRXPHY_C10A10_RxPcs8G0_SET_PmaDw(RegRxPcs8G0,  SDIRXPHY_PMADW_20);
+        // 8G Rx PCS 1: Word aligner pattern length: 7 WaPldControlled: Rising edge
+        RegRxPcs8G1 = SDIRXPHY_C10A10_RxPcs8G1_SET_WaPd(RegRxPcs8G1, 
+                                                                   SDIRXPHY_WAPD_WA_PD_7);
+        RegRxPcs8G1 = SDIRXPHY_C10A10_RxPcs8G1_SET_WaPldControlled(RegRxPcs8G1, 
+                                                         SDIRXPHY_PLDCTRL_RISING_EDGE_DW);
+        // 8G Rx PCS 2: 8B 10B decoder: Disable
+        RegRxPcs8G2 = SDIRXPHY_C10A10_RxPcs8G2_SET_Decoder8B10B(RegRxPcs8G2, 
+                                                                  SDIRXPHY_8B10B_DISABLE);
+        // 8G Rx PCS 3: Byte deserializer: 2
+        RegRxPcs8G3 = SDIRXPHY_C10A10_RxPcs8G3_SET_ByteDeserializer(RegRxPcs8G3, 
+                                                                    SDIRXPHY_BDS_EN_BY_2);
+        // 8G Rx PCS 4: Phase compensator read Pointer: Enable; 
+        //              WA disparity error flag: Disable 
+        RegRxPcs8G4 = SDIRXPHY_C10A10_RxPcs8G4_SET_PhaseCompRdptr(RegRxPcs8G4, 
+                                                                 SDIRXPHY_ENRDPTR_ENABLE);
+        RegRxPcs8G4 = SDIRXPHY_C10A10_RxPcs8G4_SET_WaDispErrFlag(RegRxPcs8G4, 
+                                                             SDIRXPHY_DISPERRFLAG_DISABLE);
+        // 8G Rx PCS 5: Word aligneer mode: Bit slip
+        RegRxPcs8G5 = SDIRXPHY_C10A10_RxPcs8G5_SET_WaBoundaryLockCtrl(RegRxPcs8G5, 
+                                                             SDIRXPHY_BOUNDLOCK_BIT_SLIP);
+        // 8G Rx PCS 6: Rdclk gate: Disable; DW WrClk gate:Disable; SW WrClk gate:Disable
+        RegRxPcs8G6 = SDIRXPHY_C10A10_RxPcs8G6_SET_ClockGatePcRdclk(RegRxPcs8G6, 
+                                                            SDIRXPHY_PCRDCLKGATE_DISABLE);
+        RegRxPcs8G6 = SDIRXPHY_C10A10_RxPcs8G6_SET_ClockGateDwPcWrclk(RegRxPcs8G6, 
+                                                            SDIRXPHY_DWWRCLKGATE_DISABLE);
+        RegRxPcs8G6 = SDIRXPHY_C10A10_RxPcs8G6_SET_ClockGateSwPcWrclk(RegRxPcs8G6, 
+                                                            SDIRXPHY_SWWRCLKGATE_DISABLE);
+        // 8G Rx PCS 7: DW WaClk gate:Disable; SW WaClk gate:Disable; BdsClk gate:Disable
+        RegRxPcs8G7 = SDIRXPHY_C10A10_RxPcs8G7_SET_ClockGateDwWa(RegRxPcs8G7, 
+                                                            SDIRXPHY_CLKGATEDWWA_DISABLE);
+        RegRxPcs8G7 = SDIRXPHY_C10A10_RxPcs8G7_SET_ClockGateSwWa(RegRxPcs8G7, 
+                                                            SDIRXPHY_CLKGATESWWA_DISABLE);
+        RegRxPcs8G7 = SDIRXPHY_C10A10_RxPcs8G7_SET_ClockGateBdsDec(RegRxPcs8G7, 
+                                                             SDIRXPHY_BDSCLKGATE_DISABLE);
+        // 10G Rx PCS 0:GB Rx OD Width: 64; GB Rx ID Width: 64
+        RegRxPcs10G0 = SDIRXPHY_C10A10_RxPcs10G0_SET_GbRxOdWidth(RegRxPcs10G0, 
+                                                                 SDIRXPHY_GBRXODWIDTH_64);
+        RegRxPcs10G0 = SDIRXPHY_C10A10_RxPcs10G0_SET_GbRxIdWidth(RegRxPcs10G0, 
+                                                                 SDIRXPHY_GBRXIDWIDTH_64);
+        // 10G Rx PCS 1:Read fifo clk enable: Disable; Write fifo clk enable: Dusable
+        RegRxPcs10G1 = SDIRXPHY_C10A10_RxPcs10G1_SET_RdfifoClken(RegRxPcs10G1, 
+                                                            SDIRXPHY_RDFIFOCLKEN_DISABLE);
+        RegRxPcs10G1 = SDIRXPHY_C10A10_RxPcs10G1_SET_WrfifoClken(RegRxPcs10G1, 
+                                                            SDIRXPHY_WRFIFOCLKEN_DISABLE);
+
+        // 10G Rx PCS 2: GB exp clock enable: Disable
+        RegRxPcs10G2 = SDIRXPHY_C10A10_RxPcs10G2_SET_GbExpClken(RegRxPcs10G2, 
+                                                             SDIRXPHY_GBEXPCLKEN_DISABLE);
+        // 10G Rx PCS 3: Stretch num stages: 0
+        RegRxPcs10G3 = SDIRXPHY_C10A10_RxPcs10G3_SET_StretchNumStages(RegRxPcs10G3, 
+                                                                      SDIRXPHY_STRETCH_0);
+        // 10G Rx PCS 4: FIFO stop read: Not empty; FIFO double read: Disable
+        RegRxPcs10G4 = SDIRXPHY_C10A10_RxPcs10G4_SET_FifoStopRd(RegRxPcs10G4, 
+                                                             SDIRXPHY_FIFOSTOPRD_N_EMPTY);
+        RegRxPcs10G4 = SDIRXPHY_C10A10_RxPcs10G4_SET_FifoDoubleRead(RegRxPcs10G4, 
+                                                         SDIRXPHY_FIFODOUBLEREAD_DISABLE);
+        // 10G Rx PCS 5:Phase compensator rd del: Del2
+        RegRxPcs10G5 = SDIRXPHY_C10A10_RxPcs10G5_SET_PhcompRdDel(RegRxPcs10G5, 
+                                                     SDIRXPHY_PHCOMPRDDEL_PHCOMP_RD_DEL2);
+        // Rx PCS FIFO: Prot mode: Non 10G; Double read mode: Disable
+        RegRxPcsFifo = SDIRXPHY_C10A10_RxPcsFifo_SET_ProtMode(RegRxPcsFifo, 
+                                                              SDIRXPHY_PROTMODE_NON_TENG);
+        RegRxPcsFifo = SDIRXPHY_C10A10_RxPcsFifo_SET_DoubleReadMode(RegRxPcsFifo, 
+                                                         SDIRXPHY_DOUBLEREADMODE_DISABLE);
+        // CDR PLL Settings 8: Chargepump current up: Setting4
+        RegCdrPllSettings8 = SDIRXPHY_C10A10_CdrPllSettings8_SET_ChgpmpCurrentUpPd(
+                                      RegCdrPllSettings8, SDIRXPHY_CPCURRENTUP_SETTING_4);
+        // CDR PLL Settings 10: Chargepump current down: Setting4
+        RegCdrPllSettings10 = SDIRXPHY_C10A10_CdrPllSettings10_SET_ChgpmpCurrentDnPd(
+                                     RegCdrPllSettings10, SDIRXPHY_CPCURRENTDN_SETTING_4);
+        // PMS Rx Deserializer: Deserialization Factor: 10
+        RegPmaRxDeser = SDIRXPHY_C10A10_PmaRxDeser_SET_DeserFactor(RegPmaRxDeser, 
+                                                                 SDIRXPHY_DESERFACTOR_20);
+        // Equalizer bandwidth select for datarate <= 10G
+        RegPmaEqBw = SDIRXPHY_C10A10_PmaEqSettings_SET_EqualizerBw(RegPmaEqBw, 
+                                                                   SDIRXPHY_EQBW_EQ_BW_2);
+    }
+    else if (SdiRate==DT_DRV_SDIRATE_12G) 
+    { 
+        // PCS PMA select : 10G PCS
+        RegPcsPmaSel = SDIRXPHY_C10A10_PcsPmaSel_SET_PcsPmaBlockSel(RegPcsPmaSel,
+                                                                  SDIRXPHY_PCS_TEN_G_PCS);
+        // PCS RX BlockSelect  10G and 10G clock out
+        RegPcsRxBlockSel = SDIRXPHY_C10A10_PcsRxBlockSel_SET_RxBlockSel(RegPcsRxBlockSel,
+                                                                  SDIRXPHY_RXBLKSEL_TENG);
+        RegPcsRxBlockSel = SDIRXPHY_C10A10_PcsRxBlockSel_SET_RxClkOut(RegPcsRxBlockSel,
+                                                          SDIRXPHY_RXCLKOUT_TENG_CLK_OUT);
+        // 8G Rx PCS 0: PMA double width: 10
+        RegRxPcs8G0 = SDIRXPHY_C10A10_RxPcs8G0_SET_PmaDw(RegRxPcs8G0,  SDIRXPHY_PMADW_10);
+        // 8G Rx PCS 1: Word aligner pat. length: 10; WaPldControlled: Disabled(=Rising)
+        RegRxPcs8G1 = SDIRXPHY_C10A10_RxPcs8G1_SET_WaPd(RegRxPcs8G1, 
+                                                                  SDIRXPHY_WAPD_WA_PD_10);
+        RegRxPcs8G1 = SDIRXPHY_C10A10_RxPcs8G1_SET_WaPldControlled(RegRxPcs8G1, 
+                                                         SDIRXPHY_PLDCTRL_RISING_EDGE_DW);
+        // 8G Rx PCS 2: 8B 10B decoder: Enable IBM
+        RegRxPcs8G2 = SDIRXPHY_C10A10_RxPcs8G2_SET_Decoder8B10B(RegRxPcs8G2, 
+                                                               SDIRXPHY_8B10B_ENABLE_IBM);
+        // 8G Rx PCS 3: Byte deserializer: Disabled
+        RegRxPcs8G3 = SDIRXPHY_C10A10_RxPcs8G3_SET_ByteDeserializer(RegRxPcs8G3, 
+                                                                    SDIRXPHY_BDS_DISABLE);
+        // 8G Rx PCS 4: Phase compensator read Pointer: Disabled; 
+        //              WA disparity error flag: Enabled 
+        RegRxPcs8G4 = SDIRXPHY_C10A10_RxPcs8G4_SET_PhaseCompRdptr(RegRxPcs8G4, 
+                                                                SDIRXPHY_ENRDPTR_DISABLE);
+        RegRxPcs8G4 = SDIRXPHY_C10A10_RxPcs8G4_SET_WaDispErrFlag(RegRxPcs8G4, 
+                                                             SDIRXPHY_DISPERRFLAG_ENABLE);
+        // 8G Rx PCS 5: Word aligneer mode: Sync SM
+        RegRxPcs8G5 = SDIRXPHY_C10A10_RxPcs8G5_SET_WaBoundaryLockCtrl(RegRxPcs8G5, 
+                                                              SDIRXPHY_BOUNDLOCK_SYNC_SM);
+        // 8G Rx PCS 6: Rdclk gate: Enable; DW WrClk gate: Enable; SW WrClk gate: Enable
+        RegRxPcs8G6 = SDIRXPHY_C10A10_RxPcs8G6_SET_ClockGatePcRdclk(RegRxPcs8G6, 
+                                                             SDIRXPHY_PCRDCLKGATE_ENABLE);
+        RegRxPcs8G6 = SDIRXPHY_C10A10_RxPcs8G6_SET_ClockGateDwPcWrclk(RegRxPcs8G6, 
+                                                             SDIRXPHY_DWWRCLKGATE_ENABLE);
+        RegRxPcs8G6 = SDIRXPHY_C10A10_RxPcs8G6_SET_ClockGateSwPcWrclk(RegRxPcs8G6, 
+                                                             SDIRXPHY_SWWRCLKGATE_ENABLE);
+        // 8G Rx PCS 7: DW WaClk gate: Enable; SW WaClk gate: Enable; BdsClk gate: Enable
+        RegRxPcs8G7 = SDIRXPHY_C10A10_RxPcs8G7_SET_ClockGateDwWa(RegRxPcs8G7, 
+                                                             SDIRXPHY_CLKGATEDWWA_ENABLE);
+        RegRxPcs8G7 = SDIRXPHY_C10A10_RxPcs8G7_SET_ClockGateSwWa(RegRxPcs8G7, 
+                                                             SDIRXPHY_CLKGATESWWA_ENABLE);
+        RegRxPcs8G7 = SDIRXPHY_C10A10_RxPcs8G7_SET_ClockGateBdsDec(RegRxPcs8G7, 
+                                                              SDIRXPHY_BDSCLKGATE_ENABLE);
+        // 10G Rx PCS 0:GB Rx OD Width: 40; GB Rx ID Width: 40
+        RegRxPcs10G0 = SDIRXPHY_C10A10_RxPcs10G0_SET_GbRxOdWidth(RegRxPcs10G0, 
+                                                                 SDIRXPHY_GBRXODWIDTH_40);
+        RegRxPcs10G0 = SDIRXPHY_C10A10_RxPcs10G0_SET_GbRxIdWidth(RegRxPcs10G0, 
+                                                                 SDIRXPHY_GBRXIDWIDTH_40);
+        // 10G Rx PCS 1:Read fifo clk enable: Enable; Write fifo clk enable: Enable
+        RegRxPcs10G1 = SDIRXPHY_C10A10_RxPcs10G1_SET_RdfifoClken(RegRxPcs10G1, 
+                                                             SDIRXPHY_RDFIFOCLKEN_ENABLE);
+        RegRxPcs10G1 = SDIRXPHY_C10A10_RxPcs10G1_SET_WrfifoClken(RegRxPcs10G1, 
+                                                             SDIRXPHY_WRFIFOCLKEN_ENABLE);
+
+        // 10G Rx PCS 2: GB exp clock enable: Enable
+        RegRxPcs10G2 = SDIRXPHY_C10A10_RxPcs10G2_SET_GbExpClken(RegRxPcs10G2, 
+                                                              SDIRXPHY_GBEXPCLKEN_ENABLE);
+        // 10G Rx PCS 3: Stretch num stages: 2
+        RegRxPcs10G3 = SDIRXPHY_C10A10_RxPcs10G3_SET_StretchNumStages(RegRxPcs10G3, 
+                                                                      SDIRXPHY_STRETCH_2);
+        // 10G Rx PCS 4: FIFO stop read: Empty; FIFO double read: Enable
+        RegRxPcs10G4 = SDIRXPHY_C10A10_RxPcs10G4_SET_FifoStopRd(RegRxPcs10G4, 
+                                                               SDIRXPHY_FIFOSTOPRD_EMPTY);
+        RegRxPcs10G4 = SDIRXPHY_C10A10_RxPcs10G4_SET_FifoDoubleRead(RegRxPcs10G4, 
+                                                          SDIRXPHY_FIFODOUBLEREAD_ENABLE);
+        // 10G Rx PCS 5:Phase compensator rd del: Del3
+        RegRxPcs10G5 = SDIRXPHY_C10A10_RxPcs10G5_SET_PhcompRdDel(RegRxPcs10G5, 
+                                                     SDIRXPHY_PHCOMPRDDEL_PHCOMP_RD_DEL3);
+        // Rx PCS FIFO: Prot mode: 10G; Double read mode: Enable
+        RegRxPcsFifo = SDIRXPHY_C10A10_RxPcsFifo_SET_ProtMode(RegRxPcsFifo, 
+                                                                  SDIRXPHY_PROTMODE_TENG);
+        RegRxPcsFifo = SDIRXPHY_C10A10_RxPcsFifo_SET_DoubleReadMode(RegRxPcsFifo, 
+                                                          SDIRXPHY_DOUBLEREADMODE_ENABLE);
+        // CDR PLL Settings 8: Chargepump current up: Setting3
+        RegCdrPllSettings8 = SDIRXPHY_C10A10_CdrPllSettings8_SET_ChgpmpCurrentUpPd(
+                                      RegCdrPllSettings8, SDIRXPHY_CPCURRENTUP_SETTING_3);
+        // CDR PLL Settings 10: Chargepump current down: Setting3
+        RegCdrPllSettings10 = SDIRXPHY_C10A10_CdrPllSettings10_SET_ChgpmpCurrentDnPd(
+                                     RegCdrPllSettings10, SDIRXPHY_CPCURRENTDN_SETTING_3);
+        // PMS Rx Deserializer: Deserialization Factor: 40
+        RegPmaRxDeser = SDIRXPHY_C10A10_PmaRxDeser_SET_DeserFactor(RegPmaRxDeser, 
+                                                                 SDIRXPHY_DESERFACTOR_40);
+        // Equalizer bandwidth select for datarate <= 20G
+        RegPmaEqBw = SDIRXPHY_C10A10_PmaEqSettings_SET_EqualizerBw(RegPmaEqBw, 
+                                                                   SDIRXPHY_EQBW_EQ_BW_3);
+    }
+    else
+    {
+        DT_ASSERT(FALSE);
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
+
+    // Write registres
+    SDIRXPHY_C10A10_CdrPllSettings4_WRITE(pBc, RegCdrPllSettings4);
+    SDIRXPHY_C10A10_CdrPllSettings9_WRITE(pBc, RegCdrPllSettings9);
+    SDIRXPHY_C10A10_PcsPmaSel_WRITE(pBc, RegPcsPmaSel);
+    SDIRXPHY_C10A10_PcsRxBlockSel_WRITE(pBc, RegPcsRxBlockSel);
+    SDIRXPHY_C10A10_RxPcs8G0_WRITE(pBc, RegRxPcs8G0);
+    SDIRXPHY_C10A10_RxPcs8G1_WRITE(pBc, RegRxPcs8G1);
+    SDIRXPHY_C10A10_RxPcs8G2_WRITE(pBc, RegRxPcs8G2);
+    SDIRXPHY_C10A10_RxPcs8G3_WRITE(pBc, RegRxPcs8G3);
+    SDIRXPHY_C10A10_RxPcs8G4_WRITE(pBc, RegRxPcs8G4);
+    SDIRXPHY_C10A10_RxPcs8G5_WRITE(pBc, RegRxPcs8G5);
+    SDIRXPHY_C10A10_RxPcs8G6_WRITE(pBc, RegRxPcs8G6);
+    SDIRXPHY_C10A10_RxPcs8G7_WRITE(pBc, RegRxPcs8G7);
+    SDIRXPHY_C10A10_RxPcs10G0_WRITE(pBc, RegRxPcs10G0);
+    SDIRXPHY_C10A10_RxPcs10G1_WRITE(pBc, RegRxPcs10G1);
+    SDIRXPHY_C10A10_RxPcs10G2_WRITE(pBc, RegRxPcs10G2);
+    SDIRXPHY_C10A10_RxPcs10G3_WRITE(pBc, RegRxPcs10G3);
+    SDIRXPHY_C10A10_RxPcs10G4_WRITE(pBc, RegRxPcs10G4);
+    SDIRXPHY_C10A10_RxPcs10G5_WRITE(pBc, RegRxPcs10G5);
+    SDIRXPHY_C10A10_RxPcsFifo_WRITE(pBc, RegRxPcsFifo);
+    SDIRXPHY_C10A10_CdrPllSettings8_WRITE(pBc, RegCdrPllSettings8);
+    SDIRXPHY_C10A10_CdrPllSettings10_WRITE(pBc, RegCdrPllSettings10);
+    SDIRXPHY_C10A10_PmaRxDeser_WRITE(pBc, RegPmaRxDeser);
+    SDIRXPHY_C10A10_PmaEqSettings_WRITE(pBc, RegPmaEqBw);
+
+    // 4. Reconfigure the PMA analog settings. Currently not required
+    
+    // 5. Start user calibration
+    Status = DtBcSDIRXPHY_V2_C10A10_StartUserCalibration(pBc);
+    return Status;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V2_C10A10_GetSetSdiRateDone -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_V2_C10A10_GetSetSdiRateDone(DtBcSDIRXPHY* pBc, Bool* pDone)
+{
+    // 5.6 Wait until CalDone is asserted
+    UInt32  RegCalBusy = SDIRXPHY_Status_READ_CalBusy(pBc);
+    *pDone = (RegCalBusy == 0);
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V2_C10A10_FinishSetSdiRate -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_V2_C10A10_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
+{
+    // 7. Release the ANALOG reset (rx_analog_reset) then 
+    // the DIGITAL reset (rx_digital_reset) 
+    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                       pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, FALSE,
+                       pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V2_C10A10_StartUserCalibration -.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtBcSDIRXPHY_V2_C10A10_StartUserCalibration(DtBcSDIRXPHY* pBc)
+{
+    UInt32  RegData=0,  WaitRequest=0, TimeoutCount=0;
+
+    // 5.1 Request access to calibration registers.
+    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_READ(pBc);
+    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_ArbiterCtrlPma(RegData, 
+                                                                  SDIRXPHY_ARBOWNER_User);
+    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_CalDonePma(RegData, 
+                                                                  SDIRXPHY_CALDONE_Done);
+    SDIRXPHY_C10A10_ArbitrationCtrl_WRITE(pBc, RegData);
+
+    // 5.2 Wait for access to calibration registers.
+    WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
+    TimeoutCount = 100;
+    while (WaitRequest!=0 && TimeoutCount>0)
+    {
+        DtWaitBlock(1);
+        TimeoutCount--;
+        WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
+    }
+    DT_ASSERT(WaitRequest == 0);
+
+    // 5.3 CalEnable.RxCalEn =1  CalEnable.AdaptEn = 0 
+    RegData = SDIRXPHY_C10A10_CalEnable_READ(pBc);
+    RegData = SDIRXPHY_C10A10_CalEnable_SET_RxCalEn(RegData, SDIRXPHY_CALEN_Enable);
+    RegData = SDIRXPHY_C10A10_CalEnable_SET_TxCalEn(RegData, SDIRXPHY_CALEN_Disable);
+    RegData = SDIRXPHY_C10A10_CalEnable_SET_AdaptEn(RegData, SDIRXPHY_CALEN_Disable);
+    SDIRXPHY_C10A10_CalEnable_WRITE(pBc, RegData);
+
+    // 5.4 PmaSettings.RateSwitchFlag=0 for a CDR rate switch
+    // write a 1 if no CDR rate switch with different CDR bandwidth setting 
+    RegData = SDIRXPHY_C10A10_PmaSettings_READ(pBc);
+    RegData = SDIRXPHY_C10A10_PmaSettings_SET_RateSwitchFlag(RegData,
+                                                            SDIRXPHY_RATESWITCH_Switched);
+    SDIRXPHY_C10A10_PmaSettings_WRITE(pBc, RegData);
+
+    // 5.5 Release configuration bus to PreSICE to perform calibration
+    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_READ(pBc);
+    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_ArbiterCtrlPma(RegData, 
+                                                               SDIRXPHY_ARBOWNER_PreSICE);
+    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_CalDonePma(RegData, 
+                                                                   SDIRXPHY_CALDONE_Busy);
+    SDIRXPHY_C10A10_ArbitrationCtrl_WRITE(pBc, RegData);
+
+    return DT_STATUS_OK;
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void  DtBcSDIRXPHY_SetControlRegs(DtBcSDIRXPHY* pBc, Bool BlkEnable,
-                                               Int OpMode, Bool RxClkReset, Bool PllReset,
-                                               Int LockMode, Bool DownsamplerEnable)
+void  DtBcSDIRXPHY_SetControlRegs(DtBcSDIRXPHY* pBc, Bool BlkEnable, Int OpMode,
+                                        Bool RxClkReset, Bool PllReset, Bool XcvrReset,
+                                        Int LockMode, Bool DownsamplerEnable, Int SdiRate)
 {
-    UInt RegData=0, FldOpMode=0, FldBlkEnable=0, FldLockMode=0, FldRxClkReset=0;
-
+    UInt RegData=0, FldOpMode=0, FldBlkEnable=0, FldLockMode=0, FldRxClkReset=0,
+         FldXcvrReset=0, FldSdiRate=0;
     // Convert block enable to BB-type
     FldBlkEnable = BlkEnable ? SDIRXPHY_BLKENA_ENABLED : SDIRXPHY_BLKENA_DISABLED;
 
@@ -687,6 +1399,20 @@ void  DtBcSDIRXPHY_SetControlRegs(DtBcSDIRXPHY* pBc, Bool BlkEnable,
     // Convert clock reset
     FldRxClkReset = RxClkReset ?  1 : 0;
 
+    // Convert transceiver reset
+    FldXcvrReset = XcvrReset ?  1 : 0;
+
+    // Convert SDI rate
+    switch (SdiRate)
+    {
+    case DT_DRV_SDIRATE_SD:   FldSdiRate = SDIRXPHY_SDIMODE_SD; break;
+    case DT_DRV_SDIRATE_HD:   FldSdiRate = SDIRXPHY_SDIMODE_HD; break;
+    case DT_DRV_SDIRATE_3G:   FldSdiRate = SDIRXPHY_SDIMODE_3G; break;
+    case DT_DRV_SDIRATE_6G:   FldSdiRate = SDIRXPHY_SDIMODE_6G; break;
+    case DT_DRV_SDIRATE_12G:  FldSdiRate = SDIRXPHY_SDIMODE_12G; break;
+    default: DT_ASSERT(FALSE);
+    }
+
     // Invalid combination?
     DT_ASSERT(BlkEnable || OpMode==DT_BLOCK_OPMODE_IDLE);
 
@@ -699,6 +1425,8 @@ void  DtBcSDIRXPHY_SetControlRegs(DtBcSDIRXPHY* pBc, Bool BlkEnable,
     RegData = SDIRXPHY_Control_SET_PllReset(RegData, PllReset ? 1 : 0);
     RegData = SDIRXPHY_Control_SET_SrcFactor(RegData, DownsamplerEnable ? 
                                           SDIRXPHY_SDIMODE_x11 : SDIRXPHY_SDIMODE_BYPASS);
+    RegData = SDIRXPHY_Control_SET_SdiRate(RegData, FldSdiRate);
+    RegData = SDIRXPHY_Control_SET_XcvrReset(RegData, FldXcvrReset);
     SDIRXPHY_Control_WRITE(BC_SDIRXPHY, RegData);
 }
 

@@ -96,6 +96,7 @@ void DtIoCapsSetCap(DtIoCaps* pCaps, DtIoCapValue  Cap)
 const DtIoCapDef  DtIoCapDefinitions[] =
 {
     // Capability group BOOLIO - Boolean I/O capabilities
+    { DT_IOCAP_AUTOBFGEN,    "CAP_AUTOBFGEN" },
     { DT_IOCAP_DMATESTMODE,  "CAP_DMATESTMODE" },
     { DT_IOCAP_FAILSAFE,     "CAP_FAILSAFE" },
     { DT_IOCAP_FRACMODE,     "CAP_FRACMODE" },

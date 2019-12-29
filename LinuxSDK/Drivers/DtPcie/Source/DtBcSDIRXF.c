@@ -195,6 +195,27 @@ DtStatus DtBcSDIRXF_GetOperationalMode(DtBcSDIRXF* pBc, Int* pOpMode)
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXF_GetStreamAlignment -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXF_GetStreamAlignment(DtBcSDIRXF* pBc, Int* pStreamAlignment)
+{
+    // Sanity check
+    BC_SDIRXF_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check parameter
+    if (pStreamAlignment == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDIRXF_MUST_BE_ENABLED(pBc);
+
+    // Return cached value
+    *pStreamAlignment = pBc->m_StreamAlignment;
+
+    return DT_STATUS_OK;
+}
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXF_SetFmtEventTiming -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcSDIRXF_SetFmtEventTiming(DtBcSDIRXF* pBc, Int Interval, Int Delay,
@@ -445,6 +466,22 @@ DtStatus  DtBcSDIRXF_Init(DtBc*  pBcBase)
     case SDIRXF_SDIMODE_12G:    pBc->m_MaxSdiRate = DT_DRV_SDIRATE_12G; break;
     default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
     }
+
+    // Get stream-alignement
+    pBc->m_StreamAlignment = 32;
+    //if (pBc->m_Version > 0)  TODOTD
+    //{
+    //    UInt32  FwAlignment = SDIRXF_Config_READ_Alignment(pBc);
+    //    switch (FwAlignment)
+    //    {
+    //    case SDIRXF_STREAMALIGNMENT_32b:   pBc->m_StreamAlignment = 32; break;
+    //    case SDIRXF_STREAMALIGNMENT_64b:   pBc->m_StreamAlignment = 64; break;
+    //    case SDIRXF_STREAMALIGNMENT_128b:  pBc->m_StreamAlignment = 128; break;
+    //    case SDIRXF_STREAMALIGNMENT_256b:  pBc->m_StreamAlignment = 256; break;
+    //    case SDIRXF_STREAMALIGNMENT_512b:  pBc->m_StreamAlignment = 512; break;
+    //    default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+    //    }
+    //}
 
     // For format event timing and frame properties we don't have good defaults
     pBc->m_FramePropsSet = FALSE;
@@ -721,6 +758,8 @@ static DtStatus  DtIoStubBcSDIRXF_OnCmdGetMaxSdiRate(const DtIoStubBcSDIRXF*,
                                                     DtIoctlSdiRxFCmdGetMaxSdiRateOutput*);
 static DtStatus  DtIoStubBcSDIRXF_OnCmdGetOperationalMode(const DtIoStubBcSDIRXF*,
                                                         DtIoctlSdiRxFCmdGetOpModeOutput*);
+static DtStatus  DtIoStubBcSDIRXF_OnCmdGetStreamAlignment(const DtIoStubBcSDIRXF*, 
+                                               DtIoctlSdiRxFCmdGetStreamAlignmentOutput*);
 static DtStatus  DtIoStubBcSDIRXF_OnCmdSetFmtEventTiming(const DtIoStubBcSDIRXF*,
                                           const  DtIoctlSdiRxFCmdSetFmtEventTimingInput*);
 static DtStatus  DtIoStubBcSDIRXF_OnCmdSetFrameProperties(const DtIoStubBcSDIRXF*,
@@ -838,6 +877,11 @@ DtStatus  DtIoStubBcSDIRXF_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoP
         Status = DtIoStubBcSDIRXF_OnCmdGetOperationalMode(SDIRXF_STUB,
                                                                   &pOutData->m_GetOpMode);
         break;
+    case DT_SDIRXF_CMD_GET_STREAM_ALIGNMENT:
+        DT_ASSERT(pOutData != NULL);
+        Status = DtIoStubBcSDIRXF_OnCmdGetStreamAlignment(SDIRXF_STUB, 
+                                                               &pOutData->m_GetAlignment);
+        break;
     case DT_SDIRXF_CMD_SET_FMT_EVENT_TIMING:
         DT_ASSERT(pInData != NULL);
         Status = DtIoStubBcSDIRXF_OnCmdSetFmtEventTiming(SDIRXF_STUB, 
@@ -923,6 +967,21 @@ DtStatus  DtIoStubBcSDIRXF_OnCmdGetOperationalMode(
     // Get operational Mode
     return DtBcSDIRXF_GetOperationalMode(SDIRXF_BC, &pOutData->m_OpMode);
 }
+
+// .-.-.-.-.-.-.-.-.-.-.- DtIoStubBcSDIRXF_OnCmdGetStreamAlignment -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtIoStubBcSDIRXF_OnCmdGetStreamAlignment(
+    const DtIoStubBcSDIRXF* pStub,
+    DtIoctlSdiRxFCmdGetStreamAlignmentOutput* pOutData)
+{
+
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcSDIRXF));
+    DT_ASSERT(pOutData != NULL);
+
+    // Get maximum SDI-rate
+    return DtBcSDIRXF_GetStreamAlignment(SDIRXF_BC, &pOutData->m_StreamAlignment);
+}
+
 
 //-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcSDIRXF_OnCmdSetFmtEventTiming -.-.-.-.-.-.-.-.-.-.-.-.
 //

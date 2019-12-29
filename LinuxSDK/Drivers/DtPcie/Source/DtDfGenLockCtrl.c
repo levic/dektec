@@ -64,6 +64,7 @@ static DtStatus  DtDfGenLockCtrl_OnCloseFile(DtDf*, const DtFileObject*);
 static DtStatus  DtDfGenLockCtrl_OnEnablePostChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfGenLockCtrl_OnEnablePreChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfGenLockCtrl_OpenChildren(DtDfGenLockCtrl*);
+static Int  DtDfGenLockCtrl_GetCurrentClockIdx(DtDfGenLockCtrl*);
 static void  DtDfGenLockCtrl_InitGenRefInfo(DtDfGenLockCtrl*);
 static DtStatus DtDfGenLockCtrl_SetVideoStandard(DtDfGenLockCtrl * pDf, Int VidStd);
 static void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread*, void* pContext);
@@ -235,45 +236,148 @@ DtStatus DtDfGenLockCtrl_ReLock(DtDfGenLockCtrl* pDf)
     return DT_STATUS_OK;
 }
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GetDcoFreqOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GetDcoClockProperties -.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus DtDfGenLockCtrl_GetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int* pFreqOffsetPpt,
-                                                                Int64*  pFrequencyMilliHz)
+DtStatus DtDfGenLockCtrl_GetDcoClockProperties(DtDfGenLockCtrl* pDf,
+                   Int  MaxNumElems, Int* pNumElems, DtIoctlGenLockCtrlClockProps* pProps)
 {
+    Int i= 0;
     // Sanity check
     DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
+
     // Must be enabled
     DF_GENLOCKCTRL_MUST_BE_ENABLED(pDf);
 
     // Check parameter
-    if (pFreqOffsetPpt==NULL || pFrequencyMilliHz==NULL)
+    if (pNumElems==NULL || pProps==NULL)
         return DT_STATUS_INVALID_PARAMETER;
 
-    *pFreqOffsetPpt = pDf->m_DcoFreqOffsetPpt;
-    *pFrequencyMilliHz = DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(pDf);
+    // Return the number of elems available
+    *pNumElems = pDf->m_NumSi534XClockProps;
+
+    // Buffer too small; return number of elements only
+    if (MaxNumElems < pDf->m_NumSi534XClockProps)
+        return DT_STATUS_OK;
+
+    // Copy the clock properties
+    for (i = 0; i<pDf->m_NumSi534XClockProps; i++)
+    {
+        pProps[i].m_ClockIdx = i;
+        pProps[i].m_FrequencyuHz = pDf->m_pSi534XClockProps[i].m_FrequencyuHz;
+        switch (pDf->m_pSi534XClockProps[i].m_ClockType)
+        {
+        case DT_DF_SI534X_CLK_FRACTIONAL:
+            pProps[i].m_ClockType = DT_GENLOCKCTR_CLKTYPE_FRACTIONAL;
+            break;
+        case DT_DF_SI534X_CLK_NON_FRACTIONAL:
+            pProps[i].m_ClockType = DT_GENLOCKCTR_CLKTYPE_NON_FRACTIONAL;
+            break;
+        default:
+            DT_ASSERT(FALSE);
+            break;
+        }
+        pProps[i].m_RangePpt = pDf->m_pSi534XClockProps[i].m_RangePpt;
+        pProps[i].m_StepSizePpt = pDf->m_pSi534XClockProps[i].m_StepSizePpt;
+    }
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GetDcoFreqOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtDfGenLockCtrl_GetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int  ClockIdx,
+                                          Int* pFreqOffsetPpt, Int64*  pFrequencyMicroHz)
+{
+    const DtDfSi534XClockProps*  pClkProps=NULL;
+    Bool  IsFractional=FALSE;
+    Int64  OutFreq=0, BaseFreq = 0, DeltaFreq=0;
+    Int  FreqOffsetPpt=0;
+
+    // Sanity check
+    DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
+    // Must be enabled
+    DF_GENLOCKCTRL_MUST_BE_ENABLED(pDf);
+    DT_ASSERT(pDf->m_pSi534XClockProps != NULL);
+
+    // Check parameter
+    if (pFreqOffsetPpt==NULL || pFrequencyMicroHz==NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+    if (ClockIdx<-1 || ClockIdx>=pDf->m_NumSi534XClockProps)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Get properties  under SofSpinLock
+    DtSpinLockAcquire(&pDf->m_SofSpinLock);
+    if (ClockIdx == -1)
+        ClockIdx = DtDfGenLockCtrl_GetCurrentClockIdx(pDf);
+    pClkProps = &pDf->m_pSi534XClockProps[ClockIdx];
+    IsFractional = (pClkProps->m_ClockType == DT_DF_SI534X_CLK_FRACTIONAL);
+    BaseFreq = pClkProps->m_FrequencyuHz;
+    DtSpinLockRelease(&pDf->m_SofSpinLock);
+
+    // Get current offset
+    DT_RETURN_ON_ERROR(DtDfSi534X_GetFreqOffsetPpt(pDf->m_pDfSi534X, IsFractional, 
+                                                                         &FreqOffsetPpt));
+    // Compute output frequency in micro Hertz
+    if  (FreqOffsetPpt < 0)
+    { 
+        DT_ASSERT((BaseFreq/Exp9)<(3*Exp9) && -FreqOffsetPpt<(3*Exp9));
+        DeltaFreq =  (BaseFreq/Exp9) * -FreqOffsetPpt;
+        DeltaFreq += ((BaseFreq%Exp9) * -FreqOffsetPpt + 5*Exp8) / Exp9;
+        DeltaFreq = (DeltaFreq + 500) / Exp3;
+        OutFreq = BaseFreq - DeltaFreq;
+    } else {
+        DT_ASSERT((BaseFreq/Exp9)<(3*Exp9) && FreqOffsetPpt<(3*Exp9));
+        DeltaFreq =  (BaseFreq/Exp9) * FreqOffsetPpt;
+        DeltaFreq += ((BaseFreq%Exp9) * FreqOffsetPpt + 5*Exp8) / Exp9;
+        DeltaFreq = (DeltaFreq + 500) / Exp3;
+        OutFreq = BaseFreq + DeltaFreq;
+    }
+    *pFrequencyMicroHz = OutFreq;
+    *pFreqOffsetPpt = FreqOffsetPpt;
 
     return DT_STATUS_OK;
 }
+
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_SetDcoFreqOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int FreqOffset)
+DtStatus DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int ClockIdx,
+                                                                        Int FreqOffsetPpt)
 {
     DtStatus Status = DT_STATUS_OK;
+    const DtDfSi534XClockProps*  pClkProps = NULL;
+    Bool IsFractional = FALSE;
+
     // Sanity check
     DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
     // Must be enabled
     DF_GENLOCKCTRL_MUST_BE_ENABLED(pDf);
-    // Check parameter
-    if (FreqOffset < -100*Exp6 || FreqOffset > 100*Exp6)
+    DT_ASSERT(pDf->m_pSi534XClockProps != NULL);
+
+    // Check paramters
+    if (ClockIdx<-1 || ClockIdx>=pDf->m_NumSi534XClockProps)
         return DT_STATUS_INVALID_PARAMETER;
-    // Check state and update offset
+
+    // Get properties and check state under SofSpinLock
     DtSpinLockAcquire(&pDf->m_SofSpinLock);
-    if (pDf->m_DcoControlState == DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING)
-        pDf->m_DcoFreeRunFreqOffsetPpt = FreqOffset;
-    else
-        Status = DT_STATUS_BUSY;
+    if (ClockIdx == -1)
+        ClockIdx = DtDfGenLockCtrl_GetCurrentClockIdx(pDf);
+    pClkProps = &pDf->m_pSi534XClockProps[ClockIdx];
+    pClkProps = &pDf->m_pSi534XClockProps[ClockIdx];
+    IsFractional = (pClkProps->m_ClockType == DT_DF_SI534X_CLK_FRACTIONAL);
+    // Internal virtual genref must be used and free running
+    if (pDf->m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_VIRTUAL
+                          || pDf->m_DcoControlState!=DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING)
+        Status = DT_STATUS_IN_USE;
     DtSpinLockRelease(&pDf->m_SofSpinLock);
-    return Status;
+
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    // Check offset
+    if (FreqOffsetPpt<-pClkProps->m_RangePpt || FreqOffsetPpt>pClkProps->m_RangePpt)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Update offset
+     return DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, FreqOffsetPpt, IsFractional);
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_LockChangedRegister -.-.-.-.-.-.-.-.-.-.-.-.-
@@ -378,7 +482,7 @@ DtStatus  DtDfGenLockCtrl_Init(DtDf* pDfBase)
 
     // Set defaults
     pDf->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_INITIAL;
-    pDf->m_GenRefSatus = DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
+    pDf->m_GenRefStatus = DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
     pDf->m_GenLockControlEnabled = FALSE;
     pDf->m_VideoStandard = DT_VIDSTD_1080I50;
     pDf->m_FrameLength = DtAvVidStd2FrameLength(pDf->m_VideoStandard);
@@ -386,7 +490,8 @@ DtStatus  DtDfGenLockCtrl_Init(DtDf* pDfBase)
     pDf->m_FramePeriod = DtAvVidStd2FramePeriod(pDf->m_VideoStandard);
     pDf->m_DcoControlPars = DtDfGenLockCtrl_GetDcoControlPars(pDf->m_VideoStandard);
     pDf->m_DcoFreqOffsetPpt = 0;
-    pDf->m_DcoFreeRunFreqOffsetPpt = 0;
+    pDf->m_pSi534XClockProps = NULL;
+    pDf->m_NumSi534XClockProps = 0;
 
     // Init GenRef info
     DtDfGenLockCtrl_InitGenRefInfo(pDf);
@@ -457,6 +562,10 @@ DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         // Set operational mode of children to IDLE
         DT_RETURN_ON_ERROR(DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock,
                                                                    DT_BLOCK_OPMODE_IDLE));
+
+        // Get the clock properties
+        DT_RETURN_ON_ERROR(DtDfSi534X_GetClockProperties(pDf->m_pDfSi534X,
+                                 &pDf->m_NumSi534XClockProps, &pDf->m_pSi534XClockProps));
         // Set defaults
         pDf->m_VideoStandard = DT_VIDSTD_1080I50;
         pDf->m_FrameLength = DtAvVidStd2FrameLength(pDf->m_VideoStandard);
@@ -464,12 +573,10 @@ DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         pDf->m_FramePeriod = DtAvVidStd2FramePeriod(pDf->m_VideoStandard);
         pDf->m_DcoControlPars = DtDfGenLockCtrl_GetDcoControlPars(pDf->m_VideoStandard);
         pDf->m_DcoFreqOffsetPpt = 0;
-        pDf->m_DcoFreeRunFreqOffsetPpt = 0;
         DT_RETURN_ON_ERROR(DtBcGENL_SetFrameLength(pDf->m_pBcGenLock,
                                              pDf->m_FrameLength, pDf->m_FractionalClock));
-        DT_RETURN_ON_ERROR(DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X,
-                                        pDf->m_DcoFreqOffsetPpt, pDf->m_FractionalClock));
-
+        DT_RETURN_ON_ERROR(DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, FALSE));
+        DT_RETURN_ON_ERROR(DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, TRUE));
         // Register Genlock start-of-frame handler
         GenlockRegData.m_OnStartOfFrameFunc = DtDfGenLockCtrl_GenLockStartOfFrameHandler;
         GenlockRegData.m_pObject = (DtObject*)pDf;
@@ -509,7 +616,7 @@ DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         // Enable genlocking control
         DtSpinLockAcquire(&pDf->m_SofSpinLock);
         pDf->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_INITIAL;
-        pDf->m_GenRefSatus = DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
+        pDf->m_GenRefStatus = DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
         pDf->m_GenLockControlEnabled = TRUE;
         DtSpinLockRelease(&pDf->m_SofSpinLock);
     }
@@ -607,6 +714,23 @@ DtStatus  DtDfGenLockCtrl_OpenChildren(DtDfGenLockCtrl*  pDf)
     DT_ASSERT(pDf->m_pDfSi534X != NULL);
 
     return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GetCurrentClockIdx -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int DtDfGenLockCtrl_GetCurrentClockIdx(DtDfGenLockCtrl* pDf)
+{
+    // Return the clock index that is currently used
+    Int  ClkIdx;
+    for (ClkIdx = 0; ClkIdx<pDf->m_NumSi534XClockProps; ClkIdx++)
+    {
+        Bool IsFractional = (pDf->m_pSi534XClockProps[ClkIdx].m_ClockType
+                                                     == DT_GENLOCKCTR_CLKTYPE_FRACTIONAL);
+        if (IsFractional == pDf->m_FractionalClock)
+            return ClkIdx;
+    }
+    DT_ASSERT(FALSE);
+    return 0;
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_InitGenRefInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -823,7 +947,7 @@ void  DtDfGenLockCtrl_DcoControl(DtDfGenLockCtrl* pDf,
         // Update the state
         pDf->m_DcoControlState = DcoState;
         // Save new GenRef status
-        pDf->m_GenRefSatus = GenRefStatus;
+        pDf->m_GenRefStatus = GenRefStatus;
     }
     // Determine new GenLock status
     GenLockStatus = DtDfGenLockCtrl_GetGenLockStatusInternal(pDf);
@@ -853,9 +977,9 @@ void  DtDfGenLockCtrl_DcoControlInit(DtDfGenLockCtrl* pDf,
         DtStatus  Status;
         // Free running set nominal DCO frequency
         pDf->m_DcoFreqOffsetPpt = 0;
-        pDf->m_DcoFreeRunFreqOffsetPpt = 0;
-        Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X,
-                                         pDf->m_DcoFreqOffsetPpt, pDf->m_FractionalClock);
+        Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, FALSE);
+        DT_ASSERT(DT_SUCCESS(Status));
+        Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, TRUE);
         DT_ASSERT(DT_SUCCESS(Status));
         DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State => FREE RUNNING");
         *pDcoState = DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING;
@@ -1118,14 +1242,7 @@ void  DtDfGenLockCtrl_DcoFreeRunning(DtDfGenLockCtrl* pDf,
                                              Int64  GenRefAvgFramePeriodPs,
                                              const DtTodTime* pGenLockSofTod)
 {
-    if (pDf->m_DcoFreqOffsetPpt != pDf->m_DcoFreeRunFreqOffsetPpt)
-    {
-        DtStatus  Status;
-        pDf->m_DcoFreqOffsetPpt = pDf->m_DcoFreeRunFreqOffsetPpt;
-        Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 
-                                        pDf->m_DcoFreqOffsetPpt , pDf->m_FractionalClock);
-        DT_ASSERT(DT_SUCCESS(Status));
-    }
+    // Nothing to do
 }
 // .-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DetermineGenRefStatus -.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -1261,7 +1378,7 @@ void DtDfGenLockCtrl_GenRefStartOfFrameHandler(DtDfGenLockCtrl* pDf, Int PortIdx
             pDf->m_GenRefPortIndex = PortIdx;
             pDf->m_GenRefFramePeriod = DtAvVidStd2FramePeriod(VidStd);
             // Start pessimistic
-            pDf->m_GenRefSatus = DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
+            pDf->m_GenRefStatus = DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
 
             // Change detected
             pDf->m_GenRefParChanged = TRUE;
@@ -1492,10 +1609,10 @@ DtDfGenLockCtrlDcoControlPars  DtDfGenLockCtrl_GetDcoControlPars(Int  VidStd)
 //
 Int DtDfGenLockCtrl_GetGenLockStatusInternal(DtDfGenLockCtrl* pDf)
 {
-    if (pDf->m_GenRefSatus == DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL)
+    if (pDf->m_GenRefStatus == DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL)
         return DT_GENLOCKCTRL_STATUS_NO_REF;
 
-    if (pDf->m_GenRefSatus == DT_DF_GENLOCKCTRL_GENREFSTATUS_INVALID_SIGNAL)
+    if (pDf->m_GenRefStatus == DT_DF_GENLOCKCTRL_GENREFSTATUS_INVALID_SIGNAL)
         return DT_GENLOCKCTRL_STATUS_INVALID_REF;
 
     switch (pDf->m_DcoControlState)
@@ -1569,13 +1686,20 @@ void DtDfGenLockCtrl_NotifyLockChange(DtDfGenLockCtrl* pDf, Bool Locked)
 #define STUB_DF  ((DtDfGenLockCtrl*)STUB_GENLOCKCTRL->m_pDf)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-static DtStatus DtIoStubDfGenLockCtrl_OnCmd(const DtIoStub* pStub, 
+static DtStatus  DtIoStubDfGenLockCtrl_AppendDynamicSize(const DtIoStub*,
+                                                            DtIoStubIoParams * pIoParams);
+static DtStatus  DtIoStubDfGenLockCtrl_OnCmd(const DtIoStub* pStub, 
                                              DtIoStubIoParams* pIoParams, Int * pOutSize);
 static DtStatus  DtIoStubDfGenLockCtrl_OnCmdGetGenLockStatus(const DtIoStubDfGenLockCtrl*,
                                                    DtIoctlGenLockCtrlCmdGetStatusOutput*);
 static DtStatus  DtIoStubDfGenLockCtrl_OnCmdReLock(const DtIoStubDfGenLockCtrl*);
+static DtStatus  DtIoStubDfGenLockCtrl_OnCmdGetDcoClockProperties(
+                                        const DtIoStubDfGenLockCtrl*,
+                                        const DtIoctlGenLockCtrlCmdGetDcoClockPropsInput*,
+                                        DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput*);
 static DtStatus  DtIoStubDfGenLockCtrl_OnCmdGetDcoFreqOffset(const DtIoStubDfGenLockCtrl*,
-                                             DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput*);
+                                        const DtIoctlGenLockCtrlCmdGetDcoFreqOffsetInput*,
+                                        DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput*);
 static DtStatus  DtIoStubDfGenLockCtrl_OnCmdSetDcoFreqOffset(const DtIoStubDfGenLockCtrl*,
                                        const DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput*);
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- List of supported IOCTL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1586,7 +1710,8 @@ static const DtIoctlProperties  IOSTUB_DF_GENLOCKCTRL_IOCTLS[] =
 {
     DT_IOCTL_PROPS_GENLOCKCTRL_CMD(
         DtIoStubDfGenLockCtrl_OnCmd, 
-        NULL, NULL),
+        DtIoStubDfGenLockCtrl_AppendDynamicSize,
+        NULL),
 };
 
 // =+=+=+=+=+=+=+=+=+=+=+ DtIoStubDfGenLockCtrl - Public functions +=+=+=+=+=+=+=+=+=+=+=+
@@ -1622,6 +1747,47 @@ DtIoStubDfGenLockCtrl*  DtIoStubDfGenLockCtrl_Open(DtDf*  pDf)
 }
 
 // =+=+=+=+=+=+=+=+=+=+=+ DtIoStubDfGenLockCtrl - Private functions +=+=+=+=+=+=+=+=+=+=+=
+// -.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfGenLockCtrl_AppendDynamicSize -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtIoStubDfGenLockCtrl_AppendDynamicSize(
+    const DtIoStub*  pStub,
+    DtIoStubIoParams*  pIoParams)
+{
+    DtStatus Status = DT_STATUS_OK;
+    const DtIoctlGenLockCtrlCmdInput*  pInData = NULL;
+
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfGenLockCtrl));
+    DT_ASSERT(pIoParams != NULL);
+    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_GENLOCKCTRL_CMD);
+
+    // Get in-/out-data
+    DT_ASSERT(pIoParams->m_pInData != NULL);
+    pInData = &pIoParams->m_pInData->m_GenLockCtrlCmd;
+
+    //-.-.-.-.-.-.- Step 1: Append dynamic part to required size of command -.-.-.-.-.-.-.
+
+    switch (pIoParams->m_Cmd)
+    {
+    case DT_GENLOCKCTRL_CMD_GET_DCO_CLK_PROPS:
+        // Sanity checks
+        DT_ASSERT(!pIoParams->m_InReqSizeIsDynamic && pIoParams->m_OutReqSizeIsDynamic);
+        DT_ASSERT(pIoParams->m_InReqSize 
+                                  >= sizeof(DtIoctlGenLockCtrlCmdGetDcoClockPropsInput));
+        DT_ASSERT(pIoParams->m_OutReqSize
+                                  >= sizeof(DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput));
+        // Add dynamic size (i.e. #bytes to get)
+        pIoParams->m_OutReqSize += pInData->m_GetDcoClkProps.m_MaxNumEntries 
+                                                   * sizeof(DtIoctlGenLockCtrlClockProps);
+        break;
+
+    default:
+        DT_ASSERT(!pIoParams->m_InReqSizeIsDynamic && !pIoParams->m_OutReqSizeIsDynamic);
+        if (pIoParams->m_InReqSizeIsDynamic || pIoParams->m_OutReqSizeIsDynamic)
+            Status = DT_STATUS_FAIL;
+        break;
+    }
+    return Status;
+}
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfGenLockCtrl_OnCmd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -1673,8 +1839,14 @@ DtStatus  DtIoStubDfGenLockCtrl_OnCmd(
     case DT_GENLOCKCTRL_CMD_RELOCK:
         Status = DtIoStubDfGenLockCtrl_OnCmdReLock(STUB_GENLOCKCTRL);
         break;
+    case DT_GENLOCKCTRL_CMD_GET_DCO_CLK_PROPS:
+        Status = DtIoStubDfGenLockCtrl_OnCmdGetDcoClockProperties(STUB_GENLOCKCTRL,
+                                                             &pInData->m_GetDcoClkProps,
+                                                             &pOutData->m_GetDcoClkProps);
+        break;
     case DT_GENLOCKCTRL_CMD_GET_DCO_FREQ_OFFSET:
         Status = DtIoStubDfGenLockCtrl_OnCmdGetDcoFreqOffset(STUB_GENLOCKCTRL,
+                                                           &pInData->m_GetDcoFreqOffset,
                                                            &pOutData->m_GetDcoFreqOffset);
         break;
     case DT_GENLOCKCTRL_CMD_SET_DCO_FREQ_OFFSET:
@@ -1710,16 +1882,32 @@ DtStatus  DtIoStubDfGenLockCtrl_OnCmdReLock(
 
     return DtDfGenLockCtrl_ReLock(STUB_DF);
 }
+
+// .-.-.-.-.-.-.-.-.- DtIoStubDfGenLockCtrl_OnCmdGetDcoClockProperties -.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtIoStubDfGenLockCtrl_OnCmdGetDcoClockProperties(
+    const DtIoStubDfGenLockCtrl* pStub,
+    const DtIoctlGenLockCtrlCmdGetDcoClockPropsInput*  pInData,
+    DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput*  pOutData)
+{
+    GENLOCKCTRL_STUB_DEFAULT_PRECONDITIONS(pStub);
+    return DtDfGenLockCtrl_GetDcoClockProperties(STUB_DF, pInData->m_MaxNumEntries,
+                                                        &pOutData->m_NumEntries,
+                                                        pOutData->m_Properties);
+}
 // -.-.-.-.-.-.-.-.-.-.- DtIoStubDfGenLockCtrl_OnCmdGetDcoFreqOffset -.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtIoStubDfGenLockCtrl_OnCmdGetDcoFreqOffset(
     const DtIoStubDfGenLockCtrl* pStub,
+    const DtIoctlGenLockCtrlCmdGetDcoFreqOffsetInput* pInData,
     DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput* pOutData)
 {
     GENLOCKCTRL_STUB_DEFAULT_PRECONDITIONS(pStub);
-    return DtDfGenLockCtrl_GetDcoFreqOffset(STUB_DF, &pOutData->m_DcoFreqOffsetPpt,
-                                                        &pOutData->m_DcoFrequencyMilliHz);
+    return DtDfGenLockCtrl_GetDcoFreqOffset(STUB_DF, pInData->m_ClockIdx,
+                                                        &pOutData->m_DcoFreqOffsetPpt,
+                                                        &pOutData->m_DcoFrequencyMicroHz);
 }
+
 // -.-.-.-.-.-.-.-.-.-.- DtIoStubDfGenLockCtrl_OnCmdSetDcoFreqOffset -.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtIoStubDfGenLockCtrl_OnCmdSetDcoFreqOffset(
@@ -1727,5 +1915,6 @@ DtStatus DtIoStubDfGenLockCtrl_OnCmdSetDcoFreqOffset(
     const DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput* pInData)
 {
     GENLOCKCTRL_STUB_DEFAULT_PRECONDITIONS(pStub);
-    return DtDfGenLockCtrl_SetDcoFreqOffset(STUB_DF, pInData->m_DcoFreqOffset);
+    return DtDfGenLockCtrl_SetDcoFreqOffset(STUB_DF, pInData->m_ClockIdx, 
+                                                             pInData->m_DcoFreqOffsetPpt);
 }

@@ -29,18 +29,23 @@
 #include "DtBc.h"
 
 // Name and short-name of the SdiTxProtocol block (must match block ID)
-#define DT_BC_SDITXP_NAME        "SdiTxProtocol"
-#define DT_BC_SDITXP_SHORTNAME   "SDITXP"
-
+#define DT_BC_SDITXP_NAME           "SdiTxProtocol"
+#define DT_BC_SDITXP_SHORTNAME      "SDITXP"
+#define DT_BC_SDITXP6G12G_NAME      "SdiTxProtocol6G12G"
+#define DT_BC_SDITXP6G12G_SHORTNAME "SDITXP6G12G"
 
 // MACRO: to init an block-controller-ID for the SDITXP-BC
-#define DT_BC_SDITXP_INIT_ID(ID, ROLE, INSTANCE, UUID)                                   \
+#define DT_BC_SDITXP_INIT_ID(ID, TYPE, ROLE, INSTANCE, UUID)                             \
 do                                                                                       \
 {                                                                                        \
-    DT_BC_INIT_ID(ID, DT_BC_SDITXP_NAME, DT_BC_SDITXP_SHORTNAME, ROLE, INSTANCE, UUID);  \
+    if (TYPE == DT_BLOCK_TYPE_SDITXP)                                                    \
+        DT_BC_INIT_ID(ID, DT_BC_SDITXP_NAME, DT_BC_SDITXP_SHORTNAME, ROLE, INSTANCE,     \
+                                                                                 UUID);  \
+    else                                                                                 \
+        DT_BC_INIT_ID(ID, DT_BC_SDITXP6G12G_NAME, DT_BC_SDITXP6G12G_SHORTNAME, ROLE,     \
+                                                                       INSTANCE, UUID);  \
 }                                                                                        \
 while (0)
-
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDITXP definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -66,7 +71,7 @@ typedef  struct _DtBcSDITXP
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXP public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 void  DtBcSDITXP_Close(DtBc*);
-DtBcSDITXP*  DtBcSDITXP_Open(Int  Address, DtCore*, DtPt*  pPt, 
+DtBcSDITXP*  DtBcSDITXP_Open(Int  Address, DtCore*, DtPt*  pPt, DtBcType  Type,
                          const char*  pRole, Int  Instance, Int  Uuid, Bool  CreateStub);
 DtStatus  DtBcSDITXP_GetClampedSymsCount(DtBcSDITXP*, UInt* pClampedCount);
 DtStatus  DtBcSDITXP_GetGenerationMode(DtBcSDITXP*, Bool*  pClampEna, 

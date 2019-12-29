@@ -25,18 +25,23 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
 
+#define  SI534X_EXP12  (1000LL*1000LL*1000LL*1000LL)
+#define  SI534X_EXP9   (1000LL*1000LL*1000LL)
+#define  SI534X_EXP6   (1000LL*1000LL)
+#define  SI534X_EXP5   (100LL*1000LL)
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Types -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SI534X Configuration Data -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 // SI534X  Hard reset
-const DtDfSi534XConfigItem SI534X_CONFIG_HARDRST[] =
+const DtDfSi534XRegister SI534X_CONFIG_HARDRST[] =
 {
     {0x001E,0x02},
 };
 
 // SI534X  Preamble
-const DtDfSi534XConfigItem SI534X_CONFIG_PREAMBLE[] =
+const DtDfSi534XRegister SI534X_CONFIG_PREAMBLE[] =
 {
     {0x0B24,0xC0},
     {0x0B25,0x00},
@@ -44,7 +49,7 @@ const DtDfSi534XConfigItem SI534X_CONFIG_PREAMBLE[] =
 };
 
 // SI534X  Postamble
-const DtDfSi534XConfigItem SI534X_CONFIG_POSTAMBLE[] =
+const DtDfSi534XRegister SI534X_CONFIG_POSTAMBLE[] =
 {
     {0x0514,0x01},
     {0x001C,0x01},
@@ -53,70 +58,207 @@ const DtDfSi534XConfigItem SI534X_CONFIG_POSTAMBLE[] =
     {0x0B25,0x02},
 };
 
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+ SI5342  free-running dual clock +=+=+=+=+=+=+=+=+=+=+=+=+=+
 // SI5342  free-running dual clock (non-fractional and fractional) config
-// for the SI5344 fractional clock on N0 non fractional clock on N1.
-const DtDfSi534XConfigItem SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
-{
+// for the SI5342 fractional clock on N0 non fractional clock on N1.
 
-    /* Start configuration registers */
+// Properties
+const DtDfSi534XClockProps SI5342_CONFIG_FREE_RUN_DUAL_CLOCK_PROPS[2] =
+{
+    { 0,                                                // Clock output port index 0
+      DT_DF_SI534X_CLK_FRACTIONAL,                      // Fractional clock
+      (SI534X_EXP12+201527918592LL-1)/201527918592LL,   // 1e12/N0_NUM
+      200*SI534X_EXP6,                                  // +/- 200ppm
+      148*SI534X_EXP12 + 32*SI534X_EXP12/91             // 148.5/1.001 MHz
+    },
+    { 1,                                                // Clock output port index 1
+      DT_DF_SI534X_CLK_NON_FRACTIONAL,                  // Non-fractional clock
+      (SI534X_EXP12+103079215104LL-1)/103079215104LL,   // 1e12/N0_NUM
+      200*SI534X_EXP6,                                  // +/- 200ppm
+      148*SI534X_EXP12 + 500LL*SI534X_EXP9              // 148.5MHz
+    },
+};
+
+//  Design
+//  ======
+//  Host Interface:
+//     I/O Power Supply: VDD (Core)
+//     SPI Mode: 4-Wire
+//     I2C Address Range: 104d to 107d / 0x68 to 0x6B (selected via A0/A1 pins)
+//  
+//  XA/XB:
+//     54 MHz (XTAL - Crystal)
+//  
+//  Inputs:
+//      IN0: Unused
+//      IN1: 27 MHz
+//           Standard
+//      IN2: Unused
+//      IN3: Unused
+//  
+//  Outputs:
+//     OUT0: 148.3516483516483516... MHz [ 148 + 32/91 MHz ]
+//           [ 148.5MHz*1000/1001 ]
+//           Enabled, LVDS 1.8 V
+//     OUT1: 148.5 MHz
+//           Enabled, LVDS 1.8 V
+//  
+//  Frequency Plan
+//  ==============
+//  Fvco = 13.2759890109890109... GHz [ 13 + 5023/18200 GHz ]
+//  Fpfd = 296.7032967032967032... kHz [ 296 + 64/91 kHz ]
+//  Fms0 = 890.1098901098901098... MHz [ 890 + 10/91 MHz ]
+//  Fms1 = 594 MHz
+//  
+//  P dividers:
+//     P0  = Unused
+//     P1  = 91
+//     P2  = Unused
+//     P3  = Unused
+//     Pxaxb = 1
+//  
+//  MXAXB = 245.8516483516483516... [ 245 + 155/182 ]
+//  M = 8949
+//  N dividers:
+//     N0:
+//        Value: 14.915
+//        OUT0: 148.3516483516483516... MHz [ 148 + 32/91 MHz ]
+//     N1:
+//        Value: 22.3501498501498501... [ 22 + 701/2002 ]
+//        OUT1: 148.5 MHz [ 148 + 1/2 MHz ]
+//  
+//  R dividers:
+//     R0 = 6
+//     R1 = 4
+//  
+//  Nominal Bandwidth:
+//    Desired: 100.000 Hz
+//    Actual:  134.601 Hz
+//    Coefficients:
+//       BW0:  20
+//       BW1:  35
+//       BW2:  12
+//       BW3:  11
+//       BW4:  31
+//       BW5:  63
+//  Fastlock Bandwidth:
+//    Desired: 4.000 kHz
+//    Actual:  4.456 kHz
+//    Coefficients:
+//       BW0:  25
+//       BW1:  47
+//       BW2:  7
+//       BW3:  6
+//       BW4:  31
+//       BW5:  63
+//  Holdover Bandwidth:
+//     N/A (Ramped Exit from Holdover)
+//  
+//  Digitally Controlled Oscillator (DCO)
+//  =====================================
+//  Mode: Register Direct Write
+//  
+//         Fvco * Nx_DEN
+//  Fout = -------------
+//          Nx_NUM * R
+//  
+//  N0: DCO Enabled
+//  
+//     Fvco:               13.2759890109890109... GHz [ 13 + 5023/18200 GHz ]
+//     N0_NUM:             50046435328
+//     N0_DEN:             3355443200
+//     Step Word:          1
+//  
+//     Desired Step Size:  1 ppt
+//     Actual Step Size:   19.981443103111... ppt
+//     Range:              200 ppm
+//  
+//     OUT0
+//          R0:            6
+//          Initial Freq:  148.351648351648... MHz
+//          Step Size:     0.00296428002... Hz
+//          Min Freq:      148.321989887167... MHz
+//          Max Freq:      148.381318679514... MHz
+//  
+//  N1: DCO Enabled
+//  
+//     Fvco:               13.2759890109890109... GHz [ 13 + 5023/18200 GHz ]
+//     N1_NUM:             93837066240
+//     N1_DEN:             4198498304
+//     Step Word:          1
+//  
+//     Desired Step Size:  1 ppt
+//     Actual Step Size:   10.656769654893... ppt
+//     Range:              200 ppm
+//  
+//     OUT1
+//          R1:            4
+//          Initial Freq:  148.5 MHz
+//          Step Size:     0.001582530293... Hz
+//          Min Freq:      148.470311876065... MHz
+//          Max Freq:      148.529699999183... MHz
+
+// Register settings
+const DtDfSi534XRegister SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
+{
     { 0x0006, 0x00 },
     { 0x0007, 0x00 },
     { 0x0008, 0x00 },
     { 0x000B, 0x68 },
     { 0x0016, 0x02 },
     { 0x0017, 0xDC },
-    { 0x0018, 0xCC },
+    { 0x0018, 0xDD },
     { 0x0019, 0xDD },
     { 0x001A, 0xDF },
     { 0x002B, 0x02 },
-    { 0x002C, 0x03 },
-    { 0x002D, 0x05 },
-    { 0x002E, 0x2F },
-    { 0x002F, 0x05 },
-    { 0x0030, 0x2F },
-    { 0x0031, 0x05 },
+    { 0x002C, 0x02 },
+    { 0x002D, 0x04 },
+    { 0x002E, 0x00 },
+    { 0x002F, 0x00 },
+    { 0x0030, 0xEA },
+    { 0x0031, 0x00 },
     { 0x0032, 0x00 },
     { 0x0033, 0x00 },
     { 0x0034, 0x00 },
     { 0x0035, 0x00 },
-    { 0x0036, 0x2F },
-    { 0x0037, 0x05 },
-    { 0x0038, 0x2F },
-    { 0x0039, 0x05 },
+    { 0x0036, 0x00 },
+    { 0x0037, 0x00 },
+    { 0x0038, 0xEA },
+    { 0x0039, 0x00 },
     { 0x003A, 0x00 },
     { 0x003B, 0x00 },
     { 0x003C, 0x00 },
     { 0x003D, 0x00 },
-    { 0x003F, 0x33 },
-    { 0x0040, 0x04 },
-    { 0x0041, 0x02 },
+    { 0x003F, 0x22 },
+    { 0x0040, 0x01 },
+    { 0x0041, 0x00 },
     { 0x0042, 0x0B },
     { 0x0043, 0x00 },
     { 0x0044, 0x00 },
     { 0x0045, 0x0C },
-    { 0x0046, 0x32 },
+    { 0x0046, 0x00 },
     { 0x0047, 0x32 },
     { 0x0048, 0x00 },
     { 0x0049, 0x00 },
-    { 0x004A, 0x32 },
+    { 0x004A, 0x00 },
     { 0x004B, 0x32 },
     { 0x004C, 0x00 },
     { 0x004D, 0x00 },
-    { 0x004E, 0x55 },
+    { 0x004E, 0x50 },
     { 0x004F, 0x00 },
     { 0x0050, 0x0F },
-    { 0x0051, 0x03 },
+    { 0x0051, 0x00 },
     { 0x0052, 0x03 },
     { 0x0053, 0x00 },
     { 0x0054, 0x00 },
-    { 0x0055, 0x03 },
+    { 0x0055, 0x00 },
     { 0x0056, 0x03 },
     { 0x0057, 0x00 },
     { 0x0058, 0x00 },
-    { 0x0059, 0x05 },
-    { 0x005A, 0x2F },
-    { 0x005B, 0x3C },
-    { 0x005C, 0xDA },
+    { 0x0059, 0x04 },
+    { 0x005A, 0x00 },
+    { 0x005B, 0x00 },
+    { 0x005C, 0x00 },
     { 0x005D, 0x00 },
     { 0x005E, 0x00 },
     { 0x005F, 0x00 },
@@ -131,31 +273,31 @@ const DtDfSi534XConfigItem SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
     { 0x0068, 0x00 },
     { 0x0069, 0x00 },
     { 0x0092, 0x02 },
-    { 0x0093, 0x30 },
+    { 0x0093, 0xA0 },
     { 0x0095, 0x00 },
     { 0x0096, 0x90 },
     { 0x0098, 0x70 },
     { 0x009A, 0x02 },
-    { 0x009B, 0x00 },
-    { 0x009D, 0x00 },
+    { 0x009B, 0x70 },
+    { 0x009D, 0x08 },
     { 0x009E, 0x50 },
     { 0x00A0, 0x30 },
     { 0x00A2, 0x00 },
-    { 0x00A9, 0xC7 },
-    { 0x00AA, 0x01 },
+    { 0x00A9, 0x83 },
+    { 0x00AA, 0x1E },
     { 0x00AB, 0x00 },
     { 0x00AC, 0x00 },
     { 0x00E5, 0x21 },
-    { 0x00EA, 0x00 },
-    { 0x00EB, 0x00 },
+    { 0x00EA, 0x8E },
+    { 0x00EB, 0x1D },
     { 0x00EC, 0x00 },
     { 0x00ED, 0x00 },
     { 0x0102, 0x01 },
-    { 0x0112, 0x06 },
+    { 0x0112, 0x02 },
     { 0x0113, 0x09 },
     { 0x0114, 0x3E },
     { 0x0115, 0x18 },
-    { 0x0117, 0x06 },
+    { 0x0117, 0x02 },
     { 0x0118, 0x09 },
     { 0x0119, 0x3E },
     { 0x011A, 0x19 },
@@ -164,26 +306,26 @@ const DtDfSi534XConfigItem SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
     { 0x0141, 0x40 },
     { 0x0142, 0xFF },
     { 0x0206, 0x00 },
-    { 0x0208, 0x01 },
+    { 0x0208, 0x00 },
     { 0x0209, 0x00 },
     { 0x020A, 0x00 },
     { 0x020B, 0x00 },
     { 0x020C, 0x00 },
     { 0x020D, 0x00 },
-    { 0x020E, 0x01 },
+    { 0x020E, 0x00 },
     { 0x020F, 0x00 },
     { 0x0210, 0x00 },
     { 0x0211, 0x00 },
-    { 0x0212, 0x80 },
-    { 0x0213, 0xA7 },
-    { 0x0214, 0x48 },
-    { 0x0215, 0x4A },
-    { 0x0216, 0x27 },
+    { 0x0212, 0x5B },
+    { 0x0213, 0x00 },
+    { 0x0214, 0x00 },
+    { 0x0215, 0x00 },
+    { 0x0216, 0x00 },
     { 0x0217, 0x00 },
-    { 0x0218, 0x47 },
-    { 0x0219, 0x3F },
-    { 0x021A, 0xBF },
-    { 0x021B, 0x10 },
+    { 0x0218, 0x01 },
+    { 0x0219, 0x00 },
+    { 0x021A, 0x00 },
+    { 0x021B, 0x00 },
     { 0x021C, 0x00 },
     { 0x021D, 0x00 },
     { 0x021E, 0x00 },
@@ -205,23 +347,23 @@ const DtDfSi534XConfigItem SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
     { 0x022E, 0x00 },
     { 0x022F, 0x00 },
     { 0x0231, 0x0B },
-    { 0x0232, 0x1B },
+    { 0x0232, 0x0B },
     { 0x0233, 0x0B },
     { 0x0234, 0x0B },
     { 0x0235, 0x00 },
     { 0x0236, 0x00 },
     { 0x0237, 0x00 },
-    { 0x0238, 0x00 },
-    { 0x0239, 0x84 },
+    { 0x0238, 0xC9 },
+    { 0x0239, 0xAE },
     { 0x023A, 0x00 },
     { 0x023B, 0x00 },
     { 0x023C, 0x00 },
     { 0x023D, 0x00 },
-    { 0x023E, 0x80 },
-    { 0x0250, 0x00 },
+    { 0x023E, 0xB6 },
+    { 0x0250, 0x02 },
     { 0x0251, 0x00 },
     { 0x0252, 0x00 },
-    { 0x0253, 0x00 },
+    { 0x0253, 0x01 },
     { 0x0254, 0x00 },
     { 0x0255, 0x00 },
     { 0x026B, 0x44 },
@@ -240,82 +382,82 @@ const DtDfSi534XConfigItem SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
     { 0x028F, 0x00 },
     { 0x0290, 0x00 },
     { 0x0291, 0x00 },
-    { 0x0294, 0xB0 },
-    { 0x0296, 0x00 },
+    { 0x0294, 0xD0 },
+    { 0x0296, 0x02 },
     { 0x0297, 0x02 },
     { 0x0299, 0x02 },
-    { 0x029D, 0x8F },
-    { 0x029E, 0xC2 },
-    { 0x029F, 0x01 },
-    { 0x02A9, 0x66 },
-    { 0x02AA, 0x66 },
-    { 0x02AB, 0x02 },
+    { 0x029D, 0x7E },
+    { 0x029E, 0x00 },
+    { 0x029F, 0x00 },
+    { 0x02A9, 0x33 },
+    { 0x02AA, 0x01 },
+    { 0x02AB, 0x00 },
     { 0x02B7, 0xFF },
     { 0x0302, 0x00 },
     { 0x0303, 0x00 },
     { 0x0304, 0x00 },
-    { 0x0305, 0xEC },
-    { 0x0306, 0x2E },
+    { 0x0305, 0xA7 },
+    { 0x0306, 0x0B },
     { 0x0307, 0x00 },
     { 0x0308, 0x00 },
     { 0x0309, 0x00 },
     { 0x030A, 0x00 },
-    { 0x030B, 0xFA },
+    { 0x030B, 0xC8 },
     { 0x030C, 0x00 },
     { 0x030D, 0x00 },
     { 0x030E, 0x00 },
-    { 0x030F, 0x00 },
-    { 0x0310, 0x00 },
-    { 0x0311, 0x18 },
+    { 0x030F, 0x20 },
+    { 0x0310, 0xD9 },
+    { 0x0311, 0x15 },
     { 0x0312, 0x00 },
     { 0x0313, 0x00 },
     { 0x0314, 0x00 },
-    { 0x0315, 0x00 },
-    { 0x0316, 0x80 },
+    { 0x0315, 0x40 },
+    { 0x0316, 0xFA },
     { 0x0317, 0x00 },
     { 0x0338, 0x00 },
     { 0x0339, 0x1F },
-    { 0x033B, 0xCA },
+    { 0x033B, 0x01 },
     { 0x033C, 0x00 },
     { 0x033D, 0x00 },
     { 0x033E, 0x00 },
     { 0x033F, 0x00 },
     { 0x0340, 0x00 },
-    { 0x0341, 0x67 },
+    { 0x0341, 0x01 },
     { 0x0342, 0x00 },
     { 0x0343, 0x00 },
     { 0x0344, 0x00 },
     { 0x0345, 0x00 },
     { 0x0346, 0x00 },
-    { 0x0359, 0x94 },
-    { 0x035A, 0xFC },
+    { 0x0359, 0x00 },
+    { 0x035A, 0x00 },
     { 0x035B, 0x00 },
-    { 0x035C, 0xFD },
+    { 0x035C, 0x00 },
     { 0x0487, 0x00 },
-    { 0x0508, 0x13 },
-    { 0x0509, 0x22 },
-    { 0x050A, 0x0D },
-    { 0x050B, 0x0C },
-    { 0x050C, 0x07 },
-    { 0x050D, 0x01 },
-    { 0x050E, 0x16 },
-    { 0x050F, 0x2A },
-    { 0x0510, 0x0A },
-    { 0x0511, 0x09 },
-    { 0x0512, 0x07 },
-    { 0x0513, 0x01 },
+    { 0x0508, 0x14 },
+    { 0x0509, 0x23 },
+    { 0x050A, 0x0C },
+    { 0x050B, 0x0B },
+    { 0x050C, 0x1F },
+    { 0x050D, 0x3F },
+    { 0x050E, 0x19 },
+    { 0x050F, 0x2F },
+    { 0x0510, 0x07 },
+    { 0x0511, 0x06 },
+    { 0x0512, 0x1F },
+    { 0x0513, 0x3F },
     { 0x0515, 0x00 },
-    { 0x0516, 0xC0 },
-    { 0x0517, 0x28 },
-    { 0x0518, 0x56 },
-    { 0x0519, 0xA8 },
-    { 0x051A, 0x81 },
+    { 0x0516, 0x00 },
+    { 0x0517, 0x00 },
+    { 0x0518, 0x80 },
+    { 0x0519, 0x7A },
+    { 0x051A, 0x11 },
     { 0x051B, 0x00 },
-    { 0x051C, 0x38 },
-    { 0x051D, 0xFA },
-    { 0x051E, 0xF9 },
-    { 0x051F, 0x85 },
-    { 0x0521, 0x3B },
+    { 0x051C, 0x00 },
+    { 0x051D, 0x00 },
+    { 0x051E, 0x00 },
+    { 0x051F, 0x80 },
+    { 0x0521, 0x2B },
     { 0x052A, 0x03 },
     { 0x052B, 0x01 },
     { 0x052C, 0x87 },
@@ -323,8 +465,8 @@ const DtDfSi534XConfigItem SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
     { 0x052E, 0x19 },
     { 0x052F, 0x19 },
     { 0x0531, 0x00 },
-    { 0x0532, 0xD3 },
-    { 0x0533, 0x90 },
+    { 0x0532, 0xF2 },
+    { 0x0533, 0x15 },
     { 0x0534, 0x00 },
     { 0x0535, 0x00 },
     { 0x0536, 0x04 },
@@ -334,17 +476,19 @@ const DtDfSi534XConfigItem SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
     { 0x053A, 0x02 },
     { 0x053B, 0x03 },
     { 0x053C, 0x00 },
-    { 0x053D, 0x0C },
+    { 0x053D, 0x0E },
     { 0x053E, 0x06 },
-    { 0x0589, 0x77 },
-    { 0x058A, 0x02 },
-    { 0x059B, 0xFA },
-    { 0x059D, 0x13 },
-    { 0x059E, 0x24 },
-    { 0x059F, 0x0D },
-    { 0x05A0, 0x0C },
-    { 0x05A1, 0x07 },
-    { 0x05A2, 0x01 },
+    { 0x0589, 0x56 },
+    { 0x058A, 0x00 },
+    { 0x059B, 0xF8 },   // Set INIT_LO_CLOSE_HO to "0" so that  loop bandwidth or fastlock
+                        // bandwidth will primarily determine the settling behavior.
+                        // Silabs technical support e-mail 2019.10.25
+    { 0x059D, 0x14 },
+    { 0x059E, 0x25 },
+    { 0x059F, 0x0C },
+    { 0x05A0, 0x0B },
+    { 0x05A1, 0x1F },
+    { 0x05A2, 0x3F },
     { 0x05A6, 0x03 },
     { 0x0802, 0x35 },
     { 0x0803, 0x05 },
@@ -444,8 +588,8 @@ const DtDfSi534XConfigItem SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
     { 0x0861, 0x00 },
     { 0x090E, 0x02 },
     { 0x0943, 0x00 },
-    { 0x0949, 0x13 },
-    { 0x094A, 0x03 },
+    { 0x0949, 0x12 },
+    { 0x094A, 0x02 },
     { 0x094E, 0x49 },
     { 0x094F, 0x02 },
     { 0x095E, 0x00 },
@@ -455,19 +599,38 @@ const DtDfSi534XConfigItem SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
     { 0x0A05, 0x03 },
     { 0x0A14, 0x00 },
     { 0x0A1A, 0x00 },
-    { 0x0B44, 0x0D },
+    { 0x0B44, 0x2F },
     { 0x0B46, 0x00 },
-    { 0x0B47, 0x0C },
-    { 0x0B48, 0x0C },
+    { 0x0B47, 0x0D },
+    { 0x0B48, 0x0D },
     { 0x0B4A, 0x00 },
     { 0x0B57, 0xF0 },
     { 0x0B58, 0x00 },
-    /* End configuration registers */
 };
 
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+ SI5344  free-running dual clock +=+=+=+=+=+=+=+=+=+=+=+=+=+
 // SI5344  free-running dual clock (non-fractional and fractional) config
 // for the SI5344 fractional clock on N0 non fractional clock on N2.
-const DtDfSi534XConfigItem SI5344_CONFIG_FREE_RUN_DUAL_CLOCK[] =
+
+// Properties
+const DtDfSi534XClockProps SI5344_CONFIG_FREE_RUN_DUAL_CLOCK_PROPS[2] =
+{
+    { 0,                                                // Clock output port index 0
+      DT_DF_SI534X_CLK_FRACTIONAL,                      // Fractional clock
+      (SI534X_EXP12+201527918592LL-1)/201527918592LL,   // 1e12/N0_NUM
+      200*SI534X_EXP6,                                  // +/- 200ppm
+      148*SI534X_EXP12 + 32*SI534X_EXP12/91             // 148.5/1.001 MHz
+    },
+    { 2,                                                // Clock output port index 2
+      DT_DF_SI534X_CLK_NON_FRACTIONAL,                  // Non-fractional clock
+      (SI534X_EXP12+103079215104LL-1)/103079215104LL,   // 1e12/N0_NUM
+      200*SI534X_EXP6,                                  // +/- 200ppm
+      148*SI534X_EXP12 + 500LL*SI534X_EXP9              // 148.5MHz
+    },
+};
+
+// Register settings
+const DtDfSi534XRegister SI5344_CONFIG_FREE_RUN_DUAL_CLOCK[] =
 {
     /* Start configuration registers */
     { 0x0006, 0x00 },
@@ -801,7 +964,9 @@ const DtDfSi534XConfigItem SI5344_CONFIG_FREE_RUN_DUAL_CLOCK[] =
     { 0x053E, 0x06 },
     { 0x0589, 0x77 },
     { 0x058A, 0x02 },
-    { 0x059B, 0xFA },
+    { 0x059B, 0xF8 },   // Set INIT_LO_CLOSE_HO to "0" so that  loop bandwidth or fastlock
+                        // bandwidth will primarily determine the settling behavior.
+                        // Silabs technical support e-mail 2019.10.25
     { 0x059D, 0x13 },
     { 0x059E, 0x24 },
     { 0x059F, 0x0D },
@@ -930,8 +1095,28 @@ const DtDfSi534XConfigItem SI5344_CONFIG_FREE_RUN_DUAL_CLOCK[] =
     /* End configuration registers */
 };
 
+// =+=+=+=+=+=+=+=+=+=+=+=+=+ SI5342  free-running single clock +=+=+=+=+=+=+=+=+=+=+=+=+=
 // SI534X  free-running single 148.5MHz Output Clock Defaulting to 27MHz input
-const DtDfSi534XConfigItem SI534X_CONFIG_FREE_RUN_148_5MHZ[] =
+
+// Properties
+const DtDfSi534XClockProps SI5342_CONFIG_FREE_RUN_SINGLE_CLOCK_PROPS[2] =
+{
+    { 0,                                                // Clock output port index 0
+      DT_DF_SI534X_CLK_FRACTIONAL,                      // Fractional clock
+      (SI534X_EXP12+96636764160LL-1)/96636764160LL,     // 1e12/N0_NUM
+      200*SI534X_EXP6,                                  // +/- 200ppm
+      1483516484LL*SI534X_EXP5                          // 148.35MHz
+    },
+    { 0,                                                // Clock output port index 0
+      DT_DF_SI534X_CLK_NON_FRACTIONAL,                   // Non-fractional clock
+      (SI534X_EXP12+96636764160LL-1)/96636764160LL,     // 1e12/N0_NUM
+      200*SI534X_EXP6,                                  // +/- 200ppm
+      148*SI534X_EXP12 + 500LL*SI534X_EXP9              // 148.5MHz
+    },
+};
+
+// SI534X  free-running single 148.5MHz Output Clock Defaulting to 27MHz input
+const DtDfSi534XRegister SI534X_CONFIG_FREE_RUN_148_5MHZ[] =
 {
     { 0x0006, 0x00 },
     { 0x0007, 0x00 },
@@ -1212,7 +1397,9 @@ const DtDfSi534XConfigItem SI534X_CONFIG_FREE_RUN_148_5MHZ[] =
     { 0x053E, 0x06 },
     { 0x0589, 0x4F },
     { 0x058A, 0x02 },
-    { 0x059B, 0xFA },
+    { 0x059B, 0xF8 },   // Set INIT_LO_CLOSE_HO to "0" so that  loop bandwidth or fastlock
+                        // bandwidth will primarily determine the settling behavior.
+                        // Silabs technical support e-mail 2019.10.25
     { 0x059D, 0x13 },
     { 0x059E, 0x24 },
     { 0x059F, 0x0C },
@@ -1338,8 +1525,12 @@ const DtDfSi534XConfigItem SI534X_CONFIG_FREE_RUN_148_5MHZ[] =
     { 0x0B58, 0x00 },
 };
 
+// =+=+=+=+=+=+=+=+=+=+=+=+=+ SI5342  free-running single clock +=+=+=+=+=+=+=+=+=+=+=+=+=
 // SI534X  free-running single 148.35MHz Output Clock Defaulting to 27MHz input
-const DtDfSi534XConfigItem SI534X_CONFIG_FREE_RUN_148_35MHZ[] =
+
+
+// Register settings
+const DtDfSi534XRegister SI534X_CONFIG_FREE_RUN_148_35MHZ[] =
 {             
     { 0x0006, 0x00 },
     { 0x0007, 0x00 },
@@ -1620,7 +1811,9 @@ const DtDfSi534XConfigItem SI534X_CONFIG_FREE_RUN_148_35MHZ[] =
     { 0x053E, 0x06 },
     { 0x0589, 0x4E },
     { 0x058A, 0x02 },
-    { 0x059B, 0xFA },
+    { 0x059B, 0xF8 },   // Set INIT_LO_CLOSE_HO to "0" so that  loop bandwidth or fastlock
+                        // bandwidth will primarily determine the settling behavior.
+                        // Silabs technical support e-mail 2019.10.25
     { 0x059D, 0x13 },
     { 0x059E, 0x24 },
     { 0x059F, 0x0C },

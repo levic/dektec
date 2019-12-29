@@ -146,12 +146,18 @@ DtStatus DtPtAsiSdiRxTx_Init(DtPt* pPtBase)
 {
    DtPtAsiSdiRxTx* pPt = (DtPtAsiSdiRxTx*)pPtBase;
 
-   const char* FrontEndTxRoleName = "TX_FRONT_END";
-   const char* BackEndTxRoleName =  "TX_BACK_END";
-   const char* TestModeTxRoleName = "TX_TEST_MODE";
-   const char* FrontEndRxRoleName = "RX_FRONT_END";
-   const char* BackEndRxRoleName =  "RX_BACK_END";
-   const char* TestModeRxRoleName = "RX_TEST_MODE";
+    const char* FrontEndTxRoleName = "TX_FRONT_END";
+    const char* BackEndTxRoleName =  "TX_BACK_END";
+    const char* TestModeTxRoleName = "TX_TEST_MODE";
+    const char* SdiTxDmxOutRoleName = "SDI_DEMUX_OUT";
+    const char* SdiTxDmxInRoleName = "SDI_DEMUX_IN";
+    const char* FrontEndRxRoleName = "RX_FRONT_END";
+    const char* BackEndRxRoleName =  "RX_BACK_END";
+    const char* TestModeRxRoleName = "RX_TEST_MODE";
+    const char* SdiRxMuxOutRoleName = "SDI_MUX_OUT";
+    const char* SdiRxMuxInRoleName = "SDI_MUX_IN";
+    const char* SdiTxFrom4LinkMaster ="FROM_QUAD_LINK_MASTER";
+    const char* SdiRxTo4LinkMaster ="TO_QUAD_LINK_MASTER";
 
     // Sanity check
     PT_ASISDIRXTX_DEFAULT_PRECONDITIONS(pPt);
@@ -171,14 +177,29 @@ DtStatus DtPtAsiSdiRxTx_Init(DtPt* pPtBase)
     pPt->m_pBcSwitchTestModeTx = (DtBcSWITCH*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SWITCH, 
                                                                       TestModeTxRoleName);
     pPt->m_pBcSdiTxF = (DtBcSDITXF*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDITXF, NULL);
+    if (pPt->m_pBcSdiTxF == NULL)
+        pPt->m_pBcSdiTxF = (DtBcSDITXF*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDITXF6G12G,
+                                                                                    NULL);
     pPt->m_pBcSdiTxP = (DtBcSDITXP*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDITXP, NULL);
+    if (pPt->m_pBcSdiTxP == NULL)
+        pPt->m_pBcSdiTxP = (DtBcSDITXP*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDITXP6G12G,
+                                                                                    NULL);
     pPt->m_pBcConstSink = (DtBcCONSTSINK*)DtPt_FindBc(pPtBase, 
                                                            DT_BLOCK_TYPE_CONSTSINK, NULL);
 
     //.-.-.-.-.-.-.-.-.-.-.-.- Find optional TX-block controllers -.-.-.-.-.-.-.-.-.-.-.-.
     pPt->m_pBcKeepAlive = (DtBcKA*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_KA, NULL);
     pPt->m_pBcGs2988 = (DtBcGS2988*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_GS2988, NULL);
-
+    // 12G TX
+    pPt->m_pBcSwitchSdiTxDmxOut = (DtBcSWITCH*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SWITCH,
+                                                                     SdiTxDmxOutRoleName);
+    pPt->m_pBcSwitchSdiTxDmxIn = (DtBcSWITCH*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SWITCH,
+                                                                      SdiTxDmxInRoleName);
+    pPt->m_pBcSdiTxDmx12G = (DtBcSDIDMX12G*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDIDMX12G,
+                                                                                    NULL);
+    // 3G-TX QuadLink 
+    pPt->m_pBcSwitchSdiTxFrom4LinkMaster = (DtBcSWITCH*)DtPt_FindBc(pPtBase, 
+                                              DT_BLOCK_TYPE_SWITCH, SdiTxFrom4LinkMaster);
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- Find the RX-driver functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
     pPt->m_pDfAsiRx = (DtDfAsiRx*)DtPt_FindDf(pPtBase, DT_FUNC_TYPE_ASIRX, NULL);
@@ -194,7 +215,19 @@ DtStatus DtPtAsiSdiRxTx_Init(DtPt* pPtBase)
     pPt->m_pBcSdiRxF = (DtBcSDIRXF*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDIRXF, NULL);
     pPt->m_pBcConstSource = (DtBcCONSTSOURCE*)DtPt_FindBc(pPtBase,
                                                          DT_BLOCK_TYPE_CONSTSOURCE, NULL);
-
+    //.-.-.-.-.-.-.-.-.-.-.-.- Find optional RX-block controllers -.-.-.-.-.-.-.-.-.-.-.-.
+    // 12G RX
+    pPt->m_pBcSwitchSdiRxMuxIn = (DtBcSWITCH*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SWITCH,
+                                                                      SdiRxMuxInRoleName);
+    pPt->m_pBcSwitchSdiRxMuxOut = (DtBcSWITCH*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SWITCH,
+                                                                     SdiRxMuxOutRoleName);
+    pPt->m_pBcSdiRxMux12G = (DtBcSDIMUX12G*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDIMUX12G,
+                                                                                    NULL);
+    pPt->m_pBcSdiRxSt425Lr = (DtBcST425LR*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_ST425LR,
+                                                                                    NULL);
+    // 3G-RX QuadLink 
+    pPt->m_pBcSwitchSdiRxTo4LinkMaster = (DtBcSWITCH*)DtPt_FindBc(pPtBase, 
+                                                DT_BLOCK_TYPE_SWITCH, SdiRxTo4LinkMaster);
     //-.-.-.-.-.-.-.-.-.-.-.-.- Find the RX/TX-block controllers -.-.-.-.-.-.-.-.-.-.-.-.-
     pPt->m_pBcCDmaC = (DtBcCDMAC*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_CDMAC, NULL);
     pPt->m_pBcBURSTFIFO = (DtBcBURSTFIFO*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_BURSTFIFO,
@@ -537,6 +570,11 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchTestModeRx, FALSE);
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcConstSource, FALSE);
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiRxF, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxMuxOut, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiRxMux12G, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiRxSt425Lr, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxMuxIn, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxTo4LinkMaster, FALSE);
         }
         // Enable TX-driver functions/blocks that do not dependent on IOSTD or other
         // IO configs
@@ -571,6 +609,10 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcConstSink, FALSE);
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiTxF, FALSE);
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiTxP, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxDmxOut, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiTxDmx12G, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxDmxIn, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxFrom4LinkMaster, FALSE);
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcKeepAlive, FALSE);
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcGs2988, FALSE);
         }
@@ -607,6 +649,12 @@ DtStatus DtPtAsiSdiRxTx_SetRxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
         // ASI
         // Disable the SDI formatter block controller
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiRxF, FALSE);
+        // Disable the 12G RX block controllers
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxMuxOut, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiRxMux12G, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiRxSt425Lr, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxMuxIn, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxTo4LinkMaster, FALSE);
 
         // Enable ASI RX driver function
         ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfAsiRx, TRUE);
@@ -639,6 +687,12 @@ DtStatus DtPtAsiSdiRxTx_SetRxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
         
         // Enable the SDI formatter block controller
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiRxF, TRUE);
+        // Enable the 12G RX block controllers
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxMuxOut, TRUE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiRxMux12G, TRUE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiRxSt425Lr, TRUE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxMuxIn, TRUE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxTo4LinkMaster, TRUE);
 
         // Set switches in the SDI position
         if (pPt->m_pBcSwitchFrontEndRx != NULL)
@@ -773,6 +827,11 @@ DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiTxF, FALSE);
         // Disable the SDI protocol block controller
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiTxP, FALSE);
+        // Disable the 12G TX block controllers
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxDmxOut, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiTxDmx12G, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxDmxIn, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxFrom4LinkMaster, FALSE);
 
         // Enable ASI TX Gate block controller
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcAsiTxG, TRUE);
@@ -842,6 +901,11 @@ DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiTxF, TRUE);
         // Enable the SDI protocol block controller
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiTxP, TRUE);
+        // Enable the 12G TX block controllers
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxDmxOut, TRUE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiTxDmx12G, TRUE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxDmxIn, TRUE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxFrom4LinkMaster, TRUE);
 
         // Set switches in the SDI position
         if (pPt->m_pBcSwitchFrontEndTx != NULL)
@@ -988,6 +1052,13 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigPrepare(DtPt* pPtBase,
                              && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
             Status = DT_STATUS_BUSY;
     }
+    if (DT_SUCCESS(Status) && pPt->m_pBcSdiTxDmx12G!=NULL)
+    {
+        TempStatus = DtBcSDIDMX12G_GetOperationalMode(pPt->m_pBcSdiTxDmx12G, &OpMode);
+        if (TempStatus!=DT_STATUS_NOT_ENABLED 
+                             && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
+            Status = DT_STATUS_BUSY;
+    }
     if (DT_SUCCESS(Status) && pPt->m_pBcCDmaC!=NULL)
     {
         UInt32 StatusFlags, ErrorFlags; 
@@ -1030,7 +1101,20 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigPrepare(DtPt* pPtBase,
                              && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
             Status = DT_STATUS_BUSY;
     }
-
+    if (DT_SUCCESS(Status) && pPt->m_pBcSdiRxMux12G!=NULL)
+    {
+        TempStatus = DtBcSDIMUX12G_GetOperationalMode(pPt->m_pBcSdiRxMux12G, &OpMode);
+        if (TempStatus!=DT_STATUS_NOT_ENABLED 
+                             && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
+            Status = DT_STATUS_BUSY;
+    }
+    if (DT_SUCCESS(Status) && pPt->m_pBcSdiRxSt425Lr!=NULL)
+    {
+        TempStatus = DtBcST425LR_GetOperationalMode(pPt->m_pBcSdiRxSt425Lr, &OpMode);
+        if (TempStatus!=DT_STATUS_NOT_ENABLED 
+                             && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
+            Status = DT_STATUS_BUSY;
+    }
     if (!DT_SUCCESS(Status))
     {
         DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: Children not in IDLE");

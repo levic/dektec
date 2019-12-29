@@ -42,7 +42,10 @@ typedef struct _DtTableLink
 // Type to store all properties for a single device
 typedef struct _DtTableStore {
     Int  m_TypeNumber;
-    Int  m_SubDvc;
+    Int  m_SubDvcOrSubtype;     // In old drivers (Dta, Dtu, DtaNw) table strores 
+                                // are unqiue based on the combination of type-number and 
+                                // sub-device, while for new drivers (DtPcie) the unique 
+                                // combination is type-number and sub-type
     UInt  m_TableLinkCount;
     const DtTableLink*  m_pTableLink;
 } DtTableStore;
@@ -52,7 +55,7 @@ DtStatus  DtTablesInit(DtPropertyData* pPropData);
 DtStatus  DtTableGet(DtPropertyData* pPropData,
                      const char*  pTableName, Int  PortIndex, UInt  MaxNumEntries,
                      UInt* pNumEntries, DtTableEntry* pTableEntry2, UInt OutBufSize);
-DtStatus  DtTableGetForType(const char*  pTypeName, Int  TypeNumber, Int  SubDvc, 
+DtStatus  DtTableGetForType(const char*  pTypeName, Int  TypeNumber, Int  SubDvcOrSubType,
                                              Int  HwRev, Int  FwVer, Int FwVariant,
                                              const char*  pTableName, Int  PortIndex, 
                                              UInt  MaxNumEntries, UInt* pNumEntries, 

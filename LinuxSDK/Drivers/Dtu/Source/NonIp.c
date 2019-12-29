@@ -179,6 +179,8 @@ DtStatus  DtuNonIpInit(
     pNonIpPort->m_CapLock2Inp = DtPropertiesGetBool(pPropData, "CAP_LOCK2INP",
                                                                  pNonIpPort->m_PortIndex);
     // BOOLIO (Boolean I/O capabilities) - Capabilities
+    pNonIpPort->m_CapAutoBfGen = DtPropertiesGetBool(pPropData, "CAP_AUTOBFGEN",
+                                                                 pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapFailSafe = DtPropertiesGetBool(pPropData, "CAP_FAILSAFE",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapGenLocked = DtPropertiesGetBool(pPropData, "CAP_GENLOCKED",
@@ -687,6 +689,10 @@ DtStatus  DtuNonIpInit(
     if (pNonIpPort->m_CapSwS2Apsk)   
         pNonIpPort->m_IoCfg[DT_IOCONFIG_SWS2APSK].m_Value = DT_IOCONFIG_FALSE;
     
+    // DT_IOCONFIG_AUTOBFGEN
+    if (pNonIpPort->m_CapAutoBfGen)
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_AUTOBFGEN].m_Value = DT_IOCONFIG_TRUE;
+
     // DT_IOCONFIG_FAILSAFE
     if (pNonIpPort->m_CapFailSafe)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_FAILSAFE].m_Value = DT_IOCONFIG_FALSE;
@@ -1134,7 +1140,8 @@ DtStatus  DtuNonIpIoConfigSet(
     case DT_IOCONFIG_BW:
         // Ignore this IO-Config. It only exists to keep existing applications working
         break;
-
+         // Automatic black-frame generation
+    case DT_IOCONFIG_AUTOBFGEN:
         // Fail-over relais available
     case DT_IOCONFIG_FAILSAFE:
         // Locked to a genlock reference

@@ -24,6 +24,7 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtPt.h"
+#include "DtPtAsiSdiMon.h"
 #include "DtPtAsiSdiRxTx.h"
 #include "DtPtSdiGenRef.h"
 
@@ -654,6 +655,9 @@ DtPt*  DtPt_OpenType(DtPortType  Type, DtCore*  pCore, Int  PortIndex)
         return DtPt_Open(&BaseParams);
     }
     break;
+
+    case DT_PORT_TYPE_ASISDIMON:
+        return (DtPt*)DtPtAsiSdiMon_Open(pCore, PortIndex, Type);
 
     case DT_PORT_TYPE_ASISDIRX:
     case DT_PORT_TYPE_ASISDIRXTX:

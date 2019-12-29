@@ -417,6 +417,8 @@ typedef enum  _DtBcType
     DT_BLOCK_TYPE_SDIDMX12G,    // SdiDemux12G
     DT_BLOCK_TYPE_SDIMUX12G,    // SdiMux12G
     DT_BLOCK_TYPE_ST425LR,      // St425LinkReorder
+    DT_BLOCK_TYPE_SDITXF6G12G,  // SdiTxFmtSimple 6G 12G
+    DT_BLOCK_TYPE_SDITXP6G12G,  // SdiTxProtocol 6G 12G
 
     // Local DTA-2132 blocks. DONOT RENUMBER!!
     DT_BLOCK_TYPE_AD5320_2132   = LTYPE_SEQNUM(2132, 1),
@@ -495,6 +497,7 @@ typedef enum  _DtFunctionType
     DT_FUNC_TYPE_SDIGENREF,         // SDI genref API function
     DT_FUNC_TYPE_VIRTGENREF,        // SDI virtual genref driver function
     DT_FUNC_TYPE_KEEPALIVE,         // Keep alive control API function
+    DT_FUNC_TYPE_ASISDIMON,         // ASI/SDI monitor control API function
 
     // Local DTA-2132 functions. DONOT RENUMBER!!
     DT_FUNC_TYPE_SPIM_2132 = LTYPE_SEQNUM(2132, 1),
@@ -527,6 +530,7 @@ typedef enum  _DtPortType
     DT_PORT_TYPE_ASISDIRXTX,    // ASI/SDI receiver/transmitter port
     DT_PORT_TYPE_ASISDITX,      // ASI/SDI transmitter port
     DT_PORT_TYPE_SDIGENREF,     // SDI genref port
+    DT_PORT_TYPE_ASISDIMON,     // ASI/SDI monitor port
 }  DtPortType;
 
 
@@ -1704,8 +1708,11 @@ typedef enum _DtIoctlGenLockCtrlCmd
 {
     DT_GENLOCKCTRL_CMD_GET_STATUS        = 0,  // Get status
     DT_GENLOCKCTRL_CMD_RELOCK            = 1,  // Re-lock
-    DT_GENLOCKCTRL_CMD_GET_DCO_FREQ_OFFSET    = 2,  // Get DCO frequency offset
-    DT_GENLOCKCTRL_CMD_SET_DCO_FREQ_OFFSET    = 3,  // Set DCO frequency offset
+    // UNUSED DT_GENLOCKCTRL_CMD_GET_DCO_FREQ_OFFSET    = 2,
+    // UNUSED DT_GENLOCKCTRL_CMD_SET_DCO_FREQ_OFFSET    = 3,
+    DT_GENLOCKCTRL_CMD_GET_DCO_CLK_PROPS    = 4,  // Get DCO clock propties
+    DT_GENLOCKCTRL_CMD_GET_DCO_FREQ_OFFSET  = 5,  // Get DCO frequency offset
+    DT_GENLOCKCTRL_CMD_SET_DCO_FREQ_OFFSET  = 6,  // Set DCO frequency offset
 }  DtIoctlGenLockCtrlCmd;
 
 // GenLock states
@@ -1714,6 +1721,21 @@ typedef enum _DtIoctlGenLockCtrlCmd
 #define  DT_GENLOCKCTRL_STATUS_LOCKING       2
 #define  DT_GENLOCKCTRL_STATUS_LOCKED        3
 #define  DT_GENLOCKCTRL_STATUS_FREE_RUN      4
+
+// Clock properties:clock types
+#define  DT_GENLOCKCTR_CLKTYPE_NON_FRACTIONAL    0
+#define  DT_GENLOCKCTR_CLKTYPE_FRACTIONAL    1
+
+// Clock properties
+typedef struct _DtIoctlGenLockCtrlClockProps
+{
+    Int  m_ClockIdx;                // Clock index
+    Int  m_ClockType;               // Clock type (Fractional/Non-fractional)
+    Int  m_StepSizePpt;             // Minimum step size in  parts per trillion
+    Int  m_RangePpt;                // Frequency range in parts per trillion 
+    Int64A  m_FrequencyuHz;         // Frequency in micro Hertz
+} DtIoctlGenLockCtrlClockProps;
+
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL - Get Status Command -.-.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -1736,17 +1758,35 @@ ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetStatusOutput, 12)
 typedef DtIoctlInputDataHdr DtIoctlGenLockCtrlCmdReLockInput;
 ASSERT_SIZE(DtIoctlGenLockCtrlCmdReLockInput, 16)
 
+// -.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL - Get DCO Clock properties -.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtIoctlGenLockCtrlCmdGetDcoClockPropsInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_MaxNumEntries;
+} DtIoctlGenLockCtrlCmdGetDcoClockPropsInput;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetDcoClockPropsInput, 20)
+
+typedef struct _DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput
+{
+    Int  m_NumEntries;
+    UInt64A  m_Dummy;           // Only here for alignment reason
+    DtIoctlGenLockCtrlClockProps  m_Properties[0];  // Dynamic sized buffer
+} DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput, 16)
+
 // -.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL - Get DCO Frequency Offset -.-.-.-.-.-.-.-.-.-.-.-.
 
 typedef struct _DtIoctlGenLockCtrlCmdGetDcoFreqOffsetInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_ClockIdx;            // Clock index 
 }  DtIoctlGenLockCtrlCmdGetDcoFreqOffsetInput;
-ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetDcoFreqOffsetInput, 16)
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetDcoFreqOffsetInput, 20)
 
 typedef struct _DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput
 {
-    Int64A  m_DcoFrequencyMilliHz;      // DCO frequency in milli Hz
+    Int64A  m_DcoFrequencyMicroHz;      // DCO frequency in micro Hz
     Int  m_DcoFreqOffsetPpt;            // DCO frequency offset in ppt
 }  DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput;
 ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput, 16)
@@ -1756,24 +1796,28 @@ ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput, 16)
 typedef struct _DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
-    Int  m_DcoFreqOffset;       // DCO frequency offset in ppt
+    Int  m_ClockIdx;            // Clock index 
+    Int  m_DcoFreqOffsetPpt;    // DCO frequency offset in ppt
 }  DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput;
-ASSERT_SIZE(DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput, 20)
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput, 24)
 
 
 // -.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-
 // GENLOCKCTRL command - Input data
 typedef union _DtIoctlGenLockCtrlCmdInput
 {
+    DtIoctlGenLockCtrlCmdGetDcoClockPropsInput  m_GetDcoClkProps;
+    DtIoctlGenLockCtrlCmdGetDcoFreqOffsetInput  m_GetDcoFreqOffset;
     DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput  m_SetDcoFreqOffset;
 } DtIoctlGenLockCtrlCmdInput;
-ASSERT_SIZE(DtIoctlGenLockCtrlCmdInput, 20)
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdInput, 24)
 
 // GENLOCKCTRL command - Output data
 typedef union _DtIoctlGenLockCtrlCmdOutput
 {
     DtIoctlGenLockCtrlCmdGetStatusOutput  m_GetStatus;
-    DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput  m_GetDcoFreqOffset;
+   DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput  m_GetDcoClkProps;
+   DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput  m_GetDcoFreqOffset;
 }  DtIoctlGenLockCtrlCmdOutput;
 ASSERT_SIZE(DtIoctlGenLockCtrlCmdOutput, 16)
 
@@ -2407,7 +2451,11 @@ typedef enum _DtIoctlPropertyCmd
 #define DT_IOCTL_PROP_COMMON_INPUT_DATA                                                  \
     DtIoctlInputDataHdr  m_CmdHdr;          /* Common input data header */               \
     Int  m_TypeNumber;                      /* Type number (-1=get for current) */       \
-    Int  m_SubDvc;                          /* Sub-device (-1=get for current) */        \
+    Int16  m_SubDvc;                        /* Sub-device. Not used only here for */     \
+                                            /* backwards compatibility. Only valid  */   \
+                                            /* value is: -1, to indicate field is */     \
+                                            /* not used */                               \
+    Int16  m_SubType;                       /* Device subtype (0=none, 1=A, ...) */      \
     Int  m_HardwareRevision;                /* Hardware revision */                      \
     Int  m_FirmwareVersion;                 /* Firmware version */                       \
     Int  m_FirmwareVariant;                 /* Firmware variant */                       \
@@ -2826,6 +2874,7 @@ typedef enum _DtIoctlSdiRxFCmd
     DT_SDIRXF_CMD_SET_FRAME_PROPERTIES = 5,
     DT_SDIRXF_CMD_SET_OPERATIONAL_MODE = 6,
     DT_SDIRXF_CMD_WAIT_FOR_FMT_EVENT = 7,
+    DT_SDIRXF_CMD_GET_STREAM_ALIGNMENT = 8,
 }  _DtIoctlSdiRxFCmd;
 
 
@@ -2855,7 +2904,7 @@ typedef struct _DtIoctlSdiRxFCmdGetFramePropertiesOutput
 }  DtIoctlSdiRxFCmdGetFramePropertiesOutput;
 ASSERT_SIZE(DtIoctlSdiRxFCmdGetFramePropertiesOutput, 20)
 
-//.-.-.-.-.-.-.-.-.-.-.-.- SDIRXF Command - Get Maximum SDI-RATE  -.-.-.-.-.-.-.-.-.-.-.-.
+//.-.-.-.-.-.-.-.-.-.-.-.- SDIRXF Command - Get Maximum SDI-Rate  -.-.-.-.-.-.-.-.-.-.-.-.
 //
 typedef DtIoctlInputDataHdr DtIoctlSdiRxFCmdGetMaxSdiRateInput;
 ASSERT_SIZE(DtIoctlSdiRxFCmdGetMaxSdiRateInput, 16)
@@ -2874,6 +2923,16 @@ typedef struct _DtIoctlSdiRxFCmdGetOpModeOutput
     Int  m_OpMode;         // Operational mode
 }  DtIoctlSdiRxFCmdGetOpModeOutput;
 ASSERT_SIZE(DtIoctlSdiRxFCmdGetOpModeOutput, 4)
+
+//.-.-.-.-.-.-.-.-.-.-.-.- SDIRXF Command - Get Maximum SDI-Rate  -.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlSdiRxFCmdGetStreamAlignmentInput;
+ASSERT_SIZE(DtIoctlSdiRxFCmdGetStreamAlignmentInput, 16)
+typedef struct _DtIoctlSdiRxFCmdGetStreamAlignmentOutput
+{
+    Int  m_StreamAlignment;         // Stream alignment
+}  DtIoctlSdiRxFCmdGetStreamAlignmentOutput;
+ASSERT_SIZE(DtIoctlSdiRxFCmdGetStreamAlignmentOutput, 4)
 
 //-.-.-.-.-.-.-.-.-.- SDIRXF Command - Set Format Event Timing Command -.-.-.-.-.-.-.-.-.-
 //
@@ -2942,6 +3001,7 @@ typedef union _DtIoctlSdiRxFCmdOutput
     DtIoctlSdiRxFCmdGetFramePropertiesOutput  m_GetFrameProps;   // Get frame properties
     DtIoctlSdiRxFCmdGetMaxSdiRateOutput  m_GetMaxSdiRate;        // Get max SDI-rate
     DtIoctlSdiRxFCmdGetOpModeOutput  m_GetOpMode;                // Get operational mode
+    DtIoctlSdiRxFCmdGetStreamAlignmentOutput  m_GetAlignment;    // Get alignment
     DtIoctlSdiRxFCmdWaitForFmtEventOutput  m_WaitForFmtEvent;    // Wait for fmt event
 }  DtIoctlSdiRxFCmdOutput;
 #ifdef WINBUILD
@@ -3093,6 +3153,7 @@ typedef enum _DtIoctlSdiTxFCmd
     DT_SDITXF_CMD_SET_OPERATIONAL_MODE = 3,
     DT_SDITXF_CMD_WAIT_FOR_FMT_EVENT = 4,
     DT_SDITXF_CMD_GET_MAX_SDIRATE = 5,
+    DT_SDITXF_CMD_GET_STREAM_ALIGNMENT = 6,
 }  _DtIoctlSdiTxFCmd;
 
 
@@ -3127,6 +3188,16 @@ typedef struct _DtIoctlSdiTxFCmdGetOpModeOutput
     Int  m_OpMode;         // Operational mode
 }  DtIoctlSdiTxFCmdGetOpModeOutput;
 ASSERT_SIZE(DtIoctlSdiTxFCmdGetOpModeOutput, 4)
+
+// .-.-.-.-.-.-.-.-.-.-.-.- SDITXF Command - Get Stream Alignment -.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlSdiTxFCmdGetStreamAlignmentInput;
+ASSERT_SIZE(DtIoctlSdiTxFCmdGetStreamAlignmentInput, 16)
+typedef struct _DtIoctlSdiTxFCmdGetStreamAlignmentOutput
+{
+    Int  m_StreamAlignment;              // Stream alignment
+}  DtIoctlSdiTxFCmdGetStreamAlignmentOutput;
+ASSERT_SIZE(DtIoctlSdiTxFCmdGetStreamAlignmentOutput, 4)
 
 //.-.-.-.-.-.-.-.-.- SDITXF Command - Set Format Event Setting Command -.-.-.-.-.-.-.-.-.-
 //
@@ -3182,6 +3253,7 @@ typedef union _DtIoctlSdiTxFCmdOutput
     DtIoctlSdiTxFCmdGetFmtEventSettingOutput m_GetFmtEventSetting; // Get event setting
     DtIoctlSdiTxFCmdGetMaxSdiRateOutput  m_GetMaxSdiRate;          // Get max SDI rate
     DtIoctlSdiTxFCmdGetOpModeOutput  m_GetOpMode;                  // Get operational mode
+    DtIoctlSdiTxFCmdGetStreamAlignmentOutput  m_GetAlignment;      // Get alignment
     DtIoctlSdiTxFCmdWaitForFmtEventOutput  m_WaitForFmtEvent;      // Wait for fmt event
 }  DtIoctlSdiTxFCmdOutput;
 #ifdef WINBUILD
@@ -3364,6 +3436,7 @@ typedef enum _DtIoctlSdiTxPhyCmd
 typedef DtIoctlInputDataHdr DtIoctlSdiTxPhyCmdClearUnderflowFlagInput;
 ASSERT_SIZE(DtIoctlSdiTxPhyCmdClearUnderflowFlagInput, 16)
 
+
 // .-.-.-.-.-.-.-.-.-.- SDITXPHY Command - Get GenLock Status Command -.-.-.-.-.-.-.-.-.-.
 //
 typedef DtIoctlInputDataHdr DtIoctlSdiTxPhyCmdGetGenLockStatusInput;
@@ -3486,9 +3559,9 @@ typedef union _DtIoctlSdiTxPhyCmdInput
 // SDITXPHY command - IOCTL output data
 typedef union _DtIoctlSdiTxPhyCmdOutput
 {
-    DtIoctlSdiTxPhyCmdGetOpModeOutput  m_GetOpMode;             // Get operational mode
-    DtIoctlSdiTxPhyCmdGetMaxSdiRateOutput  m_GetMaxSdiRate;     // Get Max SDI rate
     DtIoctlSdiTxPhyCmdGetGenLockStatusOutput  m_GetGenLockStatus;  // Get GenLock status
+    DtIoctlSdiTxPhyCmdGetMaxSdiRateOutput  m_GetMaxSdiRate;     // Get Max SDI rate
+    DtIoctlSdiTxPhyCmdGetOpModeOutput  m_GetOpMode;             // Get operational mode
     DtIoctlSdiTxPhyCmdGetSdiRateOutput  m_GetSdiRate;           // Get SDI rate
     DtIoctlSdiTxPhyCmdGetSdiStatusOutput  m_GetSdiStatus;       // Get SDI-status
     DtIoctlSdiTxPhyCmdGetTxModeOutput  m_GetTxMode;             // Get TX mode

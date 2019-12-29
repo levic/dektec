@@ -199,7 +199,7 @@ DtStatus  DtaDeviceInit(DtaDeviceData* pDvcData)
         pDvcData->m_PropData.m_pTableStore = NULL;
         pDvcData->m_PropData.m_TypeName = "DTA";
         pDvcData->m_PropData.m_TypeNumber = pDvcData->m_DevInfo.m_TypeNumber;
-        pDvcData->m_PropData.m_SubDvc = pDvcData->m_DevInfo.m_SubDvc;
+        pDvcData->m_PropData.m_SubDvcOrSubType = pDvcData->m_DevInfo.m_SubDvc;
         pDvcData->m_PropData.m_FirmwareVariant = pDvcData->m_DevInfo.m_FirmwareVariant;
         pDvcData->m_PropData.m_FirmwareVersion = pDvcData->m_DevInfo.m_FirmwareVersion;
         pDvcData->m_PropData.m_HardwareRevision = pDvcData->m_DevInfo.m_HardwareRevision;
@@ -480,7 +480,7 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
             pDvcData->m_PropData.m_pTableStore = NULL;
             pDvcData->m_PropData.m_TypeName = "DTA";
             pDvcData->m_PropData.m_TypeNumber = pDvcData->m_DevInfo.m_TypeNumber;
-            pDvcData->m_PropData.m_SubDvc = pDvcData->m_DevInfo.m_SubDvc;
+            pDvcData->m_PropData.m_SubDvcOrSubType = pDvcData->m_DevInfo.m_SubDvc;
             pDvcData->m_PropData.m_FirmwareVariant = pDvcData->m_DevInfo.m_FirmwareVariant;
             pDvcData->m_PropData.m_FirmwareVersion = pDvcData->m_DevInfo.m_FirmwareVersion;
             pDvcData->m_PropData.m_HardwareRevision = pDvcData->m_DevInfo.m_HardwareRevision;
@@ -537,7 +537,7 @@ DtStatus  DtaDevicePowerUp(DtaDeviceData* pDvcData)
             pDvcData->m_PropData.m_pTableStore = NULL;
             pDvcData->m_PropData.m_TypeName = "DTA";
             pDvcData->m_PropData.m_TypeNumber = pDvcData->m_DevInfo.m_TypeNumber;
-            pDvcData->m_PropData.m_SubDvc = pDvcData->m_DevInfo.m_SubDvc;
+            pDvcData->m_PropData.m_SubDvcOrSubType = pDvcData->m_DevInfo.m_SubDvc;
             pDvcData->m_PropData.m_HardwareRevision = pDvcData->m_DevInfo.m_HardwareRevision;
             // Initialise the property store
             Status = DtaPropertiesInit(pDvcData);
@@ -1717,7 +1717,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                 // Property for a specific type was requested
                 Status = DtPropertiesGetForType("DTA", 
                                                  pInBuf->m_GetProperty.m_TypeNumber,
-                                                 pDvcData->m_PropData.m_SubDvc,
+                                                 pDvcData->m_PropData.m_SubDvcOrSubType,
                                                  pInBuf->m_GetProperty.m_HardwareRevision,
                                                  pInBuf->m_GetProperty.m_FirmwareVersion,
                                                  -1,
@@ -2224,7 +2224,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                 // Property for a specific type was requested
                 Status = DtPropertiesStrGetForType("DTA",
                                               pInBuf->m_GetStrProperty.m_TypeNumber,
-                                              pDvcData->m_PropData.m_SubDvc, 
+                                              pDvcData->m_PropData.m_SubDvcOrSubType, 
                                               pInBuf->m_GetStrProperty.m_HardwareRevision, 
                                               pInBuf->m_GetStrProperty.m_FirmwareVersion,
                                               -1,
@@ -2315,7 +2315,7 @@ DtStatus  DtaDeviceIoctl(DtaDeviceData* pDvcData,
                 // Property for a specific type was requested
                 Status = DtPropertiesGetForType("DTA",
                                                 pInBuf->m_GetProperty2.m_TypeNumber,
-                                                pDvcData->m_PropData.m_SubDvc,
+                                                pDvcData->m_PropData.m_SubDvcOrSubType,
                                                 pInBuf->m_GetProperty2.m_HardwareRevision,
                                                 pInBuf->m_GetProperty2.m_FirmwareVersion,
                                                 -1,

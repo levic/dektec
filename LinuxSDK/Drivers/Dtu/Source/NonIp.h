@@ -124,6 +124,7 @@ typedef struct _DtuNonIpPort
     Bool  m_CapIntTsRate;
     Bool  m_CapLock2Inp;
     // BOOLIO (Boolean I/O capabilities) - Capabilities
+    Bool  m_CapAutoBfGen;
     Bool  m_CapFailSafe;
     Bool  m_CapGenLocked;
     Bool  m_CapGenRef;

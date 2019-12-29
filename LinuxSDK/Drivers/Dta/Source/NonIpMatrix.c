@@ -55,7 +55,8 @@ static Bool  DtaNonIpMatrixValidateStartLineAndNumLines(
                                DtAvFrameProps* pFrameProps, Int  StartLine, Int  NumLines);
 static Int  DtaNonIpMatrixCountMatrixPorts(DtaNonIpPort* pNonIpPort);
 static Int  DtaNonIpPort2RowIdx(DtaNonIpPort* pNonIpPort);
-static DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame);
+static DtStatus  DtaNonIpMatrixWriteHoldFrame(DtaNonIpPort*  pNonIpPort, Bool BlackFrame,
+                                                                            Int64  Frame);
 static DtStatus  DtaLmh0387WriteRegister(DtaNonIpPort*  pNonIpPort, 
                                                                  Int Addr, UInt32  Value);
 
@@ -1772,7 +1773,7 @@ DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
 {
     DtDpcArgs  DpcArgs;
     Int  CurFrmIdx=0, NextFrmIdx=0, LastFrmIdx = 0;
-    Bool  IsRunning = TRUE;
+    Bool  IsRunning=TRUE, IsOutput=FALSE;
     const DtAvFrameProps*  pFrameProps = NULL;
     DtaFrameBufSectionConfig*  pSections = pNonIpPort->m_Matrix.m_BufConfig.m_Sections;
 
@@ -1786,6 +1787,7 @@ DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
         DtaRegHdStatClrLastFrameInt(pNonIpPort->m_pRxRegs);
         return DT_STATUS_OK;
     }
+    IsOutput = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_OUTPUT);
 
     // In the legacy HD-channel register interface, the last/current frame counters are
     // maintained by the hardware as opposed to being maintained in the driver
@@ -1874,6 +1876,10 @@ DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
 
         if (ChangeToRun)
         {
+            // Enable EAV/SAV repair
+            volatile UInt8* pHdRegs = pNonIpPort->m_pTxRegs;
+            DtaRegHdCtrl1SetTxNoEav(pHdRegs, 0);
+            DtaRegHdCtrl1SetTxNoSav(pHdRegs, 0);
             NextFrame = pNonIpPort->m_Matrix.m_NextFrame;
             DT_ASSERT(NextFrame != -1);
             pNonIpPort->m_Matrix.m_CurFrame = NextFrame - 1;
@@ -1883,8 +1889,13 @@ DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
         }
         else if (NewState == MATRIX_PORT_RUN_AUTO)
         {
-            // Update current frame
-            pNonIpPort->m_Matrix.m_CurFrame++;  
+            // Update current frame.
+            // If output, check for underflows and do not update when we have an underflow
+            if (!IsOutput || 
+                  pNonIpPort->m_Matrix.m_CurFrame<pNonIpPort->m_Matrix.m_LastWrittenFrame)
+            {
+                pNonIpPort->m_Matrix.m_CurFrame++;
+            }
             NextFrame = pNonIpPort->m_Matrix.m_CurFrame+1;  // set next
         }
         else if (NewState == MATRIX_PORT_RUN_MAN)
@@ -1894,12 +1905,18 @@ DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
         }
         else
         {
-            // Next frame shall be the hold frame (i.e. a black frame) 
+            // Next frame shall be the hold frame (i.e. a black or empty frame) 
             NextFrame = DTA_FRMBUF_HOLD_FRAME;
 
             if (ChangeToHold)
+            {
+                // Disable EAV/SAV repair (empty frame will be really empty)
+                volatile UInt8* pHdRegs = pNonIpPort->m_pTxRegs;
+                DtaRegHdCtrl1SetTxNoEav(pHdRegs, 1);
+                DtaRegHdCtrl1SetTxNoSav(pHdRegs, 1);
                 DtDbgOutPort(AVG, NONIP, pNonIpPort,
                                     "Enter hold state; Repeating frame: %lld", NextFrame);
+        }
         }
 
         // Get Index of current and last frames
@@ -2144,7 +2161,6 @@ static DtStatus  DtaNonIpMatrixConfigureForAsi(
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- Finally: init IO-interface  -.-.-.-.-.-.-.-.-.-.-.-.-.-.
     
     DtaRegHdCtrl1SetIoEnable(pHdRegs, 1);
-
     // Issue a IO reset. NOTE: reset before enabling serialiser/de-serialisers
     DtaRegHdCtrl1SetIoReset(pHdRegs, 1);
     DtSleep(5);
@@ -2219,7 +2235,7 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
     DtStatus  Status = DT_STATUS_OK;
     Int  n, NewVidStd = DT_VIDSTD_UNKNOWN;
     Bool  ConfigRequired=FALSE, IsInput=FALSE, IsOutput=FALSE, IsLegacy=FALSE;
-    Bool  EnableVpidProc=TRUE, ForceConfig=FALSE;
+    Bool  EnableVpidProc=TRUE, ForceConfig=FALSE, AutoBfGen=TRUE;
     volatile UInt8* pHdRegs =  pNonIpPort->m_pRxRegs;
     DtaFrameBufConfig*  pBufConfig = &pNonIpPort->m_Matrix.m_BufConfig;
     DtaFrameBufSectionConfig*  pSections = pBufConfig->m_Sections;
@@ -2241,6 +2257,8 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
     // Check if we have a legacy interface
     IsLegacy = DtaNonIpMatrixUsesLegacyHdChannelInterface(pNonIpPort);
 
+    // Check if we have to automatically generate black-frames or empty frames (mute)
+    AutoBfGen = (pNonIpPort->m_IoCfg[DT_IOCONFIG_AUTOBFGEN].m_Value!=DT_IOCONFIG_FALSE);
     // Check if reconfiguration is required
     NewVidStd = DtAvIoStd2VidStd(pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_Value, 
                                        pNonIpPort->m_IoCfg[DT_IOCONFIG_IOSTD].m_SubValue);
@@ -2399,7 +2417,8 @@ static DtStatus  DtaNonIpMatrixConfigureForSdi(
             // start-frame is the black frame
             if (!IsLegacy || (IsLegacy && StartFrame==DTA_FRMBUF_HOLD_FRAME))
             {
-                Status = DtaNonIpMatrixWriteBlackFrame(pNonIpPort, DTA_FRMBUF_HOLD_FRAME);
+                Status = DtaNonIpMatrixWriteHoldFrame(pNonIpPort, AutoBfGen,
+                                                                   DTA_FRMBUF_HOLD_FRAME);
                 if (!DT_SUCCESS(Status))
                 {
                     DtDbgOut(ERR, NONIP, "Failed to init HOLD buffer with black-frame");
@@ -3137,15 +3156,16 @@ static void  AncPacketChecksum(UInt16* pAncPacketData, Int SymbolOffset)
     pAncPacketData[ChecksumDataIndex] = (UInt16)Checksum;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixWriteBlackFrame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixWriteHoldFrame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// Writes a black-frame to the specified frame buffer
+// Writes a black or empty-frame to the specified frame buffer
 //
 // NOTE: this function generates and writes one line at a time, so that we do not need to 
 // allocate a kernel buffer large enough for a full frame (may not succeed to allocate
 // such a large buffer)
 //
-DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
+DtStatus  DtaNonIpMatrixWriteHoldFrame(DtaNonIpPort*  pNonIpPort, Bool BlackFrame, 
+                                                                             Int64  Frame)
 {
     DtStatus  Status = DT_STATUS_OK;
     Bool  VSync;
@@ -3165,7 +3185,7 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
     static const  UInt16  EAV_VIDEO[] = { 0x274, 0x368 };
     static const  UInt16  SAV_VIDEO[] = { 0x200, 0x31C };
 
-    DtDbgOutPort(AVG, NONIP, pNonIpPort, "Writing black-frame to frame-buffer: %lld",
+    DtDbgOutPort(AVG, NONIP, pNonIpPort, "Writing hold-frame to frame-buffer: %lld",
                                                                                    Frame);
     
     // Temporary go to 3G
@@ -3180,7 +3200,7 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
     pProps = &pNonIpPort->m_Matrix.m_FrameProps;
     pLocalAddress = (UInt8*)(size_t)pNonIpPort->m_FifoOffset;
 
-    DtDbgOutPort(AVG, NONIP, pNonIpPort, "Black frame vid std = %s",
+    DtDbgOutPort(AVG, NONIP, pNonIpPort, "Hold frame vid std = %s",
                                                             VidStdName(pProps->m_VidStd));
 
     //.-.-.-.-.-.-.-.-.- Step 1: Allocate buffer for black-frame lines -.-.-.-.-.-.-.-.-.-
@@ -3188,7 +3208,7 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
     // Get size of a single line (in # symbols)
     LineNumS = pProps->m_EavNumS + pProps->m_HancNumS + pProps->m_SavNumS + 
                                                                        pProps->m_VancNumS;
-    DtDbgOut(AVG, NONIP, "One black frame line has %d symbols", LineNumS);
+    DtDbgOut(AVG, NONIP, "One hold frame line has %d symbols", LineNumS);
 
     // Get DMA size for a single line
     pMemTrSetup->m_IsWrite = TRUE;
@@ -3228,14 +3248,19 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
 
     // Init line buffer with blanking
     for (s=0; s<(LineNumS * 5); s++)
+    {
+        if (BlackFrame)
         pLineBuf[s] = (s%2)==0 ? 0x200 : 0x040;
+        else
+            pLineBuf[s] = 0x000;
+    }
 
     for (LineBlockStart=1; LineBlockStart<=pProps->m_NumLines; LineBlockStart+=5)
     {
-        for (l = LineBlockStart; l < LineBlockStart+5; l++)
+        for (l=LineBlockStart; l<LineBlockStart+5 && BlackFrame; l++)
         {
+            // Initialize lines for black-frame
             UInt  LineStartOffset;
-
             LineStartOffset = ((l - 1) % 5) * LineNumS;
 
             // Generate EAVs and SAVs
@@ -3338,11 +3363,11 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
             }
         }
         // Prep for DMA
-        pMemTrSetup->m_StartLine = l - 5; // set next line to write
+        pMemTrSetup->m_StartLine = LineBlockStart; // set next line to write
         Status = DtaNonIpMatrixPrepForDma(pNonIpPort, LineDmaSize, pMemTrSetup, &DmaSize);
         if (!DT_SUCCESS(Status))
         {
-            DtDbgOut(ERR, DTA, "Prep-DMA for black-frame (l=%d-%d) failed (ERROR=0x%08X)",
+            DtDbgOut(ERR, DTA, "Prep-DMA for hold-frame (l=%d-%d) failed (ERROR=0x%08X)",
                                                       pMemTrSetup->m_StartLine,
                                                       pMemTrSetup->m_StartLine+5, Status);
             DtaDmaCleanupKernelBuffer(&pNonIpPort->m_DmaChannel, pLineBuf, pPageList, 
@@ -3366,7 +3391,7 @@ DtStatus  DtaNonIpMatrixWriteBlackFrame(DtaNonIpPort*  pNonIpPort, Int64  Frame)
                                                                   0, pLocalAddress, 0, 0);
         if (!DT_SUCCESS(Status))
         {
-            DtDbgOut(ERR, DTA, "DMA-transfer for black-frame (l=%d-%d) failed "
+            DtDbgOut(ERR, DTA, "DMA-transfer for hold-frame (l=%d-%d) failed "
                                                       "(ERROR=0x%08X)", 
                                                       pMemTrSetup->m_StartLine, 
                                                       pMemTrSetup->m_StartLine+5, Status);
@@ -3442,15 +3467,24 @@ DtStatus  DtaNonIpMatrixDmaProgramTrCallback(DmaChannel*  pDmaCh, void*  pContex
     DtaNonIpPort*  pNonIpPort = (DtaNonIpPort*)pContext;
     DtaMatrixDmaContext*  pDmaContext = NULL;
     volatile UInt8*  pHdRegs = NULL;
+    Bool  IsOutput = FALSE;
     
     DT_ASSERT(pDmaCh!=NULL && pNonIpPort!=NULL);
     DT_ASSERT(pNonIpPort->m_CapMatrix);
+
+    IsOutput = (pNonIpPort->m_IoCfg[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_OUTPUT);
 
     pDmaContext = &pNonIpPort->m_Matrix.m_DmaContext;
     pHdRegs = pNonIpPort->m_pRxRegs;
 
     // Issue the memory transfer start command
     DtaRegHdMemTrControlSetTrCmd(pHdRegs, pDmaContext->m_MemTrSetup.m_TrCmd);
+    
+    // Store sequence number of last written frame
+    if (IsOutput)
+        pNonIpPort->m_Matrix.m_LastWrittenFrame = pDmaContext->m_MemTrSetup.m_Frame;
+    else
+        pNonIpPort->m_Matrix.m_LastWrittenFrame = 0;
     return DT_STATUS_OK;
 }
 

@@ -175,6 +175,7 @@ typedef struct _DtaMatrixPort
     volatile Int64  m_CurFrame; // Frame currently being transmitted/received
     volatile Int64  m_LastFrame;  // Last transmitted/received frame
     volatile Int64  m_NextFrame;  // Forced next frame to transmit/receive
+    volatile Int64  m_LastWrittenFrame;  // Frame number of last written frame
     volatile Int64  m_SofFrame; // Frame transmitted/received @SOF-interrupt-event
     volatile Int  m_SofLine;    // Line transmitted/received @SOF-interrupt-event
     volatile Int64  m_FrmIntCnt; // Frame interrupt counter
@@ -326,6 +327,7 @@ struct _DtaNonIpPort
     Bool  m_CapIntTsRate;
     Bool  m_CapLock2Inp;
     // BOOLIO (Boolean I/O capabilities) - Capabilities
+    Bool  m_CapAutoBfGen;
     Bool  m_CapFracMode;
     Bool  m_CapFailSafe;
     Bool  m_CapGenLocked;

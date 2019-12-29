@@ -62,7 +62,6 @@ static DtStatus  DtDfSdiTxPhy_ConfigureRate(DtDfSdiTxPhy*, Int SdiRate, Bool Fra
 static DtStatus  DtDfSdiTxPhy_ConfigureRateC10A10(DtDfSdiTxPhy*, Int SdiRate, Bool Fract);
 static DtStatus  DtDfSdiTxPhy_ConfigureRateCV(DtDfSdiTxPhy*, Int SdiRate, Bool Fract);
 static void  DtDfSdiTxPhy_SdiLockStateUpdate(DtDfSdiTxPhy*  pDf);
-static void  DtDfSdiTxPhy_SdiLockStateUpdateC10A10(DtDfSdiTxPhy*  pDf);
 static void  DtDfSdiTxPhy_SdiLockStateUpdateCV(DtDfSdiTxPhy*  pDf);
 static void  DtDfSdiTxPhy_OnGenLockChanged(DtObject* , Bool Lock);
 static Int  DtDfSdiTxPhy_VidStd2SdiRate(Int  VidStd);
@@ -324,9 +323,10 @@ DtStatus  DtDfSdiTxPhy_SetOperationalModeTimed(DtDfSdiTxPhy*  pDf, Int  OpMode,
     // Lock the LockState
     DtSpinLockAcquire(&pDf->m_SpinLock);
 
-    // When going to standby/run, we need to wait for TX-lock
+    // When going to standby/run, we need to wait for TX-lock for Cyclone V TxPhy
     if ((OpMode==DT_FUNC_OPMODE_STANDBY || OpMode==DT_FUNC_OPMODE_RUN)
-                                            && pDf->m_LockState!=SDITXPHY_STATE_TX_LOCKED)
+                                      && pDf->m_LockState!=SDITXPHY_STATE_TX_LOCKED 
+                                      && pDf->m_PhyDeviceFamily==DT_BC_SDITXPHY_FAMILY_CV)
     {
         // Wait maximum 100ms
         Int  TimeoutCount = 100;
@@ -378,7 +378,7 @@ DtStatus  DtDfSdiTxPhy_SetOperationalModeTimed(DtDfSdiTxPhy*  pDf, Int  OpMode,
             // Perform immediately?
             if (StartTime.m_Nanoseconds==0 && StartTime.m_Seconds==0)
             {
-            Status = DtBcSDITXPHY_SetOperationalMode(pDf->m_pBcSdiTxPhy, PhyOpMode);
+                Status = DtBcSDITXPHY_SetOperationalMode(pDf->m_pBcSdiTxPhy, PhyOpMode);
                 pDf->m_DelayedStart = FALSE;
             }
             else
@@ -447,11 +447,6 @@ DtStatus DtDfSdiTxPhy_SetVidStd(DtDfSdiTxPhy* pDf, Int VidStd)
         return DT_STATUS_OK;
     }
 
-    // Start clock reconfiguration
-    DtSpinLockAcquire(&pDf->m_SpinLock);
-    pDf->m_LockState = SDITXPHY_STATE_RECONFIG;
-    DtSpinLockRelease(&pDf->m_SpinLock);
-
     // Configure new rate
     Status = DtDfSdiTxPhy_ConfigureRate(pDf, SdiRate, Fractional);
     if (DT_SUCCESS(Status))
@@ -462,10 +457,6 @@ DtStatus DtDfSdiTxPhy_SetVidStd(DtDfSdiTxPhy* pDf, Int VidStd)
         pDf->m_FractionalClock = Fractional;
     }
 
-    // Restart locking
-    DtSpinLockAcquire(&pDf->m_SpinLock);
-    pDf->m_LockState = SDITXPHY_STATE_WAIT_FOR_PLL_LOCK;
-    DtSpinLockRelease(&pDf->m_SpinLock);
 
     return Status;
 }
@@ -510,11 +501,6 @@ DtStatus DtDfSdiTxPhy_SetTxMode(DtDfSdiTxPhy* pDf, Int TxMode)
        SofDelayClks = 0;
     DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetSofDelay(pDf->m_pBcSdiTxPhy, SofDelayClks));
 
-    // Start reconfiguration
-    DtSpinLockAcquire(&pDf->m_SpinLock);
-    pDf->m_LockState = SDITXPHY_STATE_RECONFIG;
-    DtSpinLockRelease(&pDf->m_SpinLock);
-
     // Configure new TxMode
     pDf->m_TxMode = TxMode;
 
@@ -523,11 +509,6 @@ DtStatus DtDfSdiTxPhy_SetTxMode(DtDfSdiTxPhy* pDf, Int TxMode)
     else
         // ASI uses SD-SDI-rate
         Status = DtDfSdiTxPhy_ConfigureRate(pDf, DT_DRV_SDIRATE_SD, FALSE);
-
-    // Restart locking
-    DtSpinLockAcquire(&pDf->m_SpinLock);
-    pDf->m_LockState = SDITXPHY_STATE_WAIT_FOR_PLL_LOCK;
-    DtSpinLockRelease(&pDf->m_SpinLock);
 
     return Status;
 }
@@ -693,10 +674,6 @@ DtStatus DtDfSdiTxPhy_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
         // Maximum SDI-rate
         DT_RETURN_ON_ERROR(DtBcSDITXPHY_GetMaxSdiRate(pDf->m_pBcSdiTxPhy, 
                                                                   &pDf->m_PhyMaxSdiRate));
-        // Start clock reconfiguration
-        DtSpinLockAcquire(&pDf->m_SpinLock);
-        pDf->m_LockState = SDITXPHY_STATE_RECONFIG;
-        DtSpinLockRelease(&pDf->m_SpinLock);
 
         // Configure defaults
         pDf->m_TxMode = DT_SDITXPHY_TXMODE_SDI;
@@ -711,11 +688,6 @@ DtStatus DtDfSdiTxPhy_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
         if (DT_SUCCESS(Status))
             Status = DtDfSdiTxPhy_ConfigureRate(pDf, pDf->m_SdiRate, 
                                                                   pDf->m_FractionalClock);
-
-        // Start relocking
-        DtSpinLockAcquire(&pDf->m_SpinLock);
-        pDf->m_LockState = SDITXPHY_STATE_WAIT_FOR_PLL_LOCK;
-        DtSpinLockRelease(&pDf->m_SpinLock);
 
         // Enable periodic interval handler
         DtSpinLockAcquire(&pDf->m_PerItvSpinLock);
@@ -779,9 +751,9 @@ DtStatus DtDfSdiTxPhy_OnEnablePreChildren(DtDf*  pDfBase, Bool  Enable)
             if (!DT_SUCCESS(Status))
                 DtDbgOutDf(ERR, SDITXPHY, pDf, "Failed to unregister");
         }
-        // Start relocking
+        // Stop relocking
         DtSpinLockAcquire(&pDf->m_SpinLock);
-        pDf->m_LockState = SDITXPHY_STATE_WAIT_FOR_PLL_LOCK;
+        pDf->m_LockState = SDITXPHY_STATE_RECONFIG;
         DtSpinLockRelease(&pDf->m_SpinLock);
 
         // Disable periodic interval handler
@@ -938,7 +910,9 @@ DtStatus DtDfSdiTxPhy_ConfigureRate(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool  Frac
 //
 DtStatus DtDfSdiTxPhy_ConfigureRateC10A10(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool  FracClk)
 {
-    Int  SrcFactor = 1;
+    DtStatus  Status = DT_STATUS_OK;
+    Int PllId=0, Timeout=0;
+    Bool  IsPllLocked=FALSE,  IsResetInProgress=FALSE;
 
     // Sanity checks
     DF_SDITXPHY_DEFAULT_PRECONDITIONS(pDf);
@@ -948,21 +922,65 @@ DtStatus DtDfSdiTxPhy_ConfigureRateC10A10(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool
 
     // Reset  PHY clock
     DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetClockReset(pDf->m_pBcSdiTxPhy, TRUE));
-    
-    // Set Upsampling factor
-    switch (SdiRate)
-    {
-    case  DT_DRV_SDIRATE_SD: SrcFactor = 11; break;
-    case  DT_DRV_SDIRATE_HD: SrcFactor = 2; break;
-    case  DT_DRV_SDIRATE_3G: SrcFactor = 1; break;
-    }
-    DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetUpsampleFactor(pDf->m_pBcSdiTxPhy, SrcFactor));
+
+    // Set SDI-rate
+    DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetSdiRate(pDf->m_pBcSdiTxPhy, SdiRate));
 
     // Set SDI fractional clock rate
     DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_SetSdiFractionalClock(pDf->m_pBcSdiTxPhy,
                                                                                 FracClk));
-    return DT_STATUS_OK;
+
+    // Check PLL-lock
+    Status = DtBcSDITXPHY_GetTxPllId(pDf->m_pBcSdiTxPhy, &PllId);
+    DT_ASSERT(DT_SUCCESS(Status));
+    Status = DtDfSi534X_IsPllLocked(pDf->m_pDfSi534X,  PllId, &IsPllLocked);
+    DT_ASSERT(DT_SUCCESS(Status));
+    DT_ASSERT(IsPllLocked);
+    if (!DT_SUCCESS(Status) || !IsPllLocked)
+        return DT_STATUS_NOT_INITIALISED;
+
+    // Perform calibration initially and after fractional/non-fractional rate change
+    if (FracClk!=pDf->m_FractionalClock || !DtDf_IsEnabled((DtDf*)pDf))
+    { 
+        Bool  CalDone;
+        // Start calibration
+        DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_StartCalibration(pDf->m_pBcSdiTxPhy));
+    
+        // Wait until calibration is completed
+        Timeout = 200;
+        CalDone = FALSE;
+        while (Timeout>0 && !CalDone)
+        {
+            DtSleep(1);
+            Timeout--;
+            Status = DtBcSDITXPHY_C10A10_GetCalibrationDone(pDf->m_pBcSdiTxPhy, &CalDone);
+            DT_ASSERT(DT_SUCCESS(Status));
+        }
+        if (!CalDone)
+            return DT_STATUS_TIMEOUT;
+    }
+
+    // Calibration completed deassert clock-reset
+    Status = DtBcSDITXPHY_SetClockReset(pDf->m_pBcSdiTxPhy, FALSE);
+    DT_ASSERT(DT_SUCCESS(Status));
+
+  
+    // Wait until PHY reset in progress is deasserted
+    Timeout = 100;
+    IsResetInProgress = TRUE;
+    Status = DtBcSDITXPHY_IsResetInProgress(pDf->m_pBcSdiTxPhy, &IsResetInProgress);
+    while (Timeout>0 && IsResetInProgress)
+    {
+        DtSleep(1);
+        Timeout--;
+        Status = DtBcSDITXPHY_IsResetInProgress(pDf->m_pBcSdiTxPhy, &IsResetInProgress);
+        DT_ASSERT(DT_SUCCESS(Status));
+    }
+    if (IsResetInProgress)
+        return DT_STATUS_TIMEOUT;
+    return Status;
 }
+
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_ConfigureRateCV -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -971,10 +989,13 @@ DtStatus DtDfSdiTxPhy_ConfigureRateC10A10(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool
 //
 DtStatus DtDfSdiTxPhy_ConfigureRateCV(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool  FracClk)
 {
-    Int  SrcFactor = 1;
-
     // Sanity checks
     DF_SDITXPHY_DEFAULT_PRECONDITIONS(pDf);
+
+    // Start clock reconfiguration
+    DtSpinLockAcquire(&pDf->m_SpinLock);
+    pDf->m_LockState = SDITXPHY_STATE_RECONFIG;
+    DtSpinLockRelease(&pDf->m_SpinLock);
 
     // Assumption there is one clock
     DT_ASSERT(pDf->m_PhyNumClocks == 1);
@@ -984,14 +1005,8 @@ DtStatus DtDfSdiTxPhy_ConfigureRateCV(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool  Fr
     // Reset  PHY clock
      DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetClockReset(pDf->m_pBcSdiTxPhy, TRUE));
     
-     // Set Upsampling factor
-     switch (SdiRate)
-     {
-     case  DT_DRV_SDIRATE_SD: SrcFactor = 11; break;
-     case  DT_DRV_SDIRATE_HD: SrcFactor = 2; break;
-     case  DT_DRV_SDIRATE_3G: SrcFactor = 1; break;
-     }
-     DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetUpsampleFactor(pDf->m_pBcSdiTxPhy, SrcFactor));
+    // Set SDI-rate
+    DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetSdiRate(pDf->m_pBcSdiTxPhy, SdiRate));
 
     // Change clock frequency
     DT_RETURN_ON_ERROR(DtDfSi534X_SetConfig(pDf->m_pDfSi534X,
@@ -1009,6 +1024,12 @@ DtStatus DtDfSdiTxPhy_ConfigureRateCV(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool  Fr
     DT_RETURN_ON_ERROR(DtDfSdiXCfgMgr_SetXcvrMode(pDf->m_pDfSdiXCfgMgr,
                                    DtCore_PT_GetPortIndex(pDf->m_pPt),
                                    DT_SDIXCFG_CHANTYPE_TX_PLL, DT_SDIXCFG_MODE_NON_FRAC));
+
+    // Restart locking
+    DtSpinLockAcquire(&pDf->m_SpinLock);
+    pDf->m_LockState = SDITXPHY_STATE_WAIT_FOR_PLL_LOCK;
+    DtSpinLockRelease(&pDf->m_SpinLock);
+
     return DT_STATUS_OK;
 }
 
@@ -1019,123 +1040,15 @@ void DtDfSdiTxPhy_SdiLockStateUpdate(DtDfSdiTxPhy*  pDf)
     // Call device family specific configure function
     switch (pDf->m_PhyDeviceFamily)
     {
-    case DT_BC_SDITXPHY_FAMILY_A10:  DtDfSdiTxPhy_SdiLockStateUpdateC10A10(pDf); break;
-    case DT_BC_SDITXPHY_FAMILY_C10:  DtDfSdiTxPhy_SdiLockStateUpdateC10A10(pDf); break;
+    case DT_BC_SDITXPHY_FAMILY_A10:
+    case DT_BC_SDITXPHY_FAMILY_C10:
+        break;
     case DT_BC_SDITXPHY_FAMILY_CV:   DtDfSdiTxPhy_SdiLockStateUpdateCV(pDf);  break;
     default:
         DT_ASSERT(FALSE);
         DtDbgOutDf(ERR, SDITXPHY, pDf, "Unsupported device family");
         break;
     }
-}
-
-// .-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_SdiLockStateUpdateC10A10 -.-.-.-.-.-.-.-.-.-.-.-.
-//
-void DtDfSdiTxPhy_SdiLockStateUpdateC10A10(DtDfSdiTxPhy*  pDf)
-{
-    DtStatus  Status = DT_STATUS_OK;
-    Bool  IsPllLocked=FALSE, IsResetInProgress=TRUE;
-    Int  PllId = -1;
-    DT_ASSERT(pDf->m_pDfSi534X!=NULL  && pDf->m_pBcSdiTxPhy!=NULL);
-
-    DtSpinLockAcquireAtDpc(&pDf->m_SpinLock);
-
-    switch (pDf->m_LockState)
-    {
-    case SDITXPHY_STATE_RECONFIG:
-        // Reconfiguration busy; nothing to do
-        break;
-
-    case SDITXPHY_STATE_WAIT_FOR_PLL_LOCK:
-        // Check PLL-lock
-        Status = DtBcSDITXPHY_GetTxPllId(pDf->m_pBcSdiTxPhy, &PllId);
-        DT_ASSERT(DT_SUCCESS(Status));
-        Status = DtDfSi534X_IsPllLocked(pDf->m_pDfSi534X,  PllId, &IsPllLocked);
-        DT_ASSERT(DT_SUCCESS(Status));
-        if (IsPllLocked)
-        {
-            // PLL locked, deassert clock-reset
-            Status = DtBcSDITXPHY_SetClockReset(pDf->m_pBcSdiTxPhy, FALSE);
-            DT_ASSERT(DT_SUCCESS(Status));
-            // State = WAIT_FOR_PHY_READY
-            DtDbgOutDf(MIN, SDITXPHY, pDf, "Entered: STATE_WAIT_FOR_PHY_READY");
-            pDf->m_LockState = SDITXPHY_STATE_WAIT_FOR_PHY_READY;
-        }
-        break;
-
-    case SDITXPHY_STATE_WAIT_FOR_PHY_READY:
-        // Check PHY reset in progress
-        Status = DtBcSDITXPHY_IsResetInProgress(pDf->m_pBcSdiTxPhy, &IsResetInProgress);
-        DT_ASSERT(DT_SUCCESS(Status));
-            
-        if (!IsResetInProgress)
-        {
-            // Update the PHY operational mode
-            Int  PhyOpMode = DT_BLOCK_OPMODE_IDLE;
-            switch (pDf->m_OperationalMode)
-            {
-            case DT_FUNC_OPMODE_IDLE:     PhyOpMode = DT_BLOCK_OPMODE_IDLE; break;
-            case DT_FUNC_OPMODE_STANDBY:  PhyOpMode = DT_BLOCK_OPMODE_STANDBY; break;
-            case DT_FUNC_OPMODE_RUN:      PhyOpMode = DT_BLOCK_OPMODE_RUN; break;
-            default: DT_ASSERT(FALSE);
-            }
-            // Do we need to start on start-of-frame (SDI-GenLock)
-            if (pDf->m_CapGenLocked && pDf->m_TxMode==DT_SDITXPHY_TXMODE_SDI
-                                                        && PhyOpMode==DT_BLOCK_OPMODE_RUN)
-            {
-                // Make sure PHY is in STANDBY
-                Int  CurPhyOpStatus;
-                Status = DtBcSDITXPHY_GetOperationalStatus(pDf->m_pBcSdiTxPhy, 
-                                                                         &CurPhyOpStatus);
-                if (DT_SUCCESS(Status) && CurPhyOpStatus!=DT_BLOCK_OPSTATUS_STANDBY)
-                    Status = DtBcSDITXPHY_SetOperationalMode(pDf->m_pBcSdiTxPhy,
-                                                                 DT_BLOCK_OPMODE_STANDBY);
-                // Update the TxPhy GenLock status
-                pDf->m_PhyIsGenLocked = pDf->m_GenLockIsLocked;
-
-                // Arm for start-on-frame
-                if (DT_SUCCESS(Status))
-                    Status = DtBcSDITXPHY_ArmForSof(pDf->m_pBcSdiTxPhy);
-            }
-            if (DT_SUCCESS(Status))
-                Status = DtBcSDITXPHY_SetOperationalMode(pDf->m_pBcSdiTxPhy, PhyOpMode);
-            if (!DT_SUCCESS(Status))
-                DtDbgOutDf(ERR, SDITXPHY, pDf, "ERROR: DtBcSDITXPHY_SetOperationalMode"
-                                               " failed (Status=0x%08X)", Status);
-            else
-            {
-                // State = STATE_TX_LOCKED
-                DtDbgOutDf(MIN, SDITXPHY, pDf, "Entered: STATE_TX_LOCKED");
-                pDf->m_LockState = SDITXPHY_STATE_TX_LOCKED;
-            }
-        }
-        break;
-
-
-    case SDITXPHY_STATE_TX_LOCKED:
-        // Check PLL-lock
-        Status = DtBcSDITXPHY_GetTxPllId(pDf->m_pBcSdiTxPhy, &PllId);
-        DT_ASSERT(DT_SUCCESS(Status));
-        Status = DtDfSi534X_IsPllLocked(pDf->m_pDfSi534X,  PllId, &IsPllLocked);
-        DT_ASSERT(DT_SUCCESS(Status));
-        if (!IsPllLocked)
-        {
-            // PLL lost lock, start re-initialization
-            // Set operational mode of SDITXPHY to IDLE
-            Status = DtBcSDITXPHY_SetOperationalMode(pDf->m_pBcSdiTxPhy, 
-                                                                    DT_BLOCK_OPMODE_IDLE);
-            DT_ASSERT(DT_SUCCESS(Status));
-            // Reset  PHY-clock
-            Status = DtBcSDITXPHY_SetClockReset(pDf->m_pBcSdiTxPhy, TRUE);
-            DT_ASSERT(DT_SUCCESS(Status));
-
-            // State = STATE_WAIT_FOR_PLL_LOCK
-            pDf->m_LockState = SDITXPHY_STATE_WAIT_FOR_PLL_LOCK;
-            DtDbgOutDf(MIN, SDITXPHY, pDf, "Entered: STATE_WAIT_FOR_PLL_LOCK");
-        }
-        break;
-    }
-    DtSpinLockReleaseFromDpc(&pDf->m_SpinLock);
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_SdiLockStateUpdateCV -.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1154,7 +1067,7 @@ void DtDfSdiTxPhy_SdiLockStateUpdateCV(DtDfSdiTxPhy*  pDf)
     case SDITXPHY_STATE_RECONFIG:
         // Reconfiguration busy; nothing to do
         break;
-
+    default:
     case SDITXPHY_STATE_WAIT_FOR_PLL_LOCK:
         // Check PLL-lock
         DT_ASSERT(pDf->m_pBcSdiTxPll != NULL);
@@ -1286,7 +1199,7 @@ DtStatus  DtDfSdiTxPhy_ComputeSofDelay(DtDfSdiTxPhy* pDf, Int VidStd, Int* pSofD
 {
     DtStatus  Status = DT_STATUS_OK;
     DtAvFrameProps  VidProps;
-    Int  SofDelayNs, SofDelayClks=0;
+    Int  SofDelayNs, SofDelayClks=0, SyncPointSymOffset=0;
     *pSofDelay = 0;
 
     // GenLocking generates the Start-of-Frame too early. The SofDelay has to compensate
@@ -1298,8 +1211,13 @@ DtStatus  DtDfSdiTxPhy_ComputeSofDelay(DtDfSdiTxPhy* pDf, Int VidStd, Int* pSofD
     if (!DT_SUCCESS(Status))
         return DT_STATUS_INVALID_PARAMETER;
 
+    // Compute sync-point symbol offset
+    SyncPointSymOffset = VidProps.m_SyncPointPixelOff*2;
+    if (DtAvVidStdIs6gSdi(VidStd) || DtAvVidStdIs12gSdi(VidStd))
+        SyncPointSymOffset *= 4;
+
     // Compute delay needed for the syncpoint offset in nanoseconds
-    SofDelayNs -= DtAvVidStdSymbOffset2TimeOffset(VidStd, VidProps.m_SyncPointPixelOff*2);
+    SofDelayNs -= DtAvVidStdSymbOffset2TimeOffset(VidStd, SyncPointSymOffset);
 
     // Additional compensation for Level-B
     if (DtAvVidStdIs3glvlBSdi(VidStd))
@@ -1308,8 +1226,7 @@ DtStatus  DtDfSdiTxPhy_ComputeSofDelay(DtDfSdiTxPhy* pDf, Int VidStd, Int* pSofD
         Int NumSymb = VidProps.m_EavNumS + VidProps.m_HancNumS
                                                + VidProps.m_SavNumS + VidProps.m_VancNumS;
         SofDelayNs -= DtAvVidStdSymbOffset2TimeOffset(VidStd, NumSymb);
-        SofDelayNs -= DtAvVidStdSymbOffset2TimeOffset(VidStd, 
-                                                          VidProps.m_SyncPointPixelOff*2);
+        SofDelayNs -= DtAvVidStdSymbOffset2TimeOffset(VidStd, SyncPointSymOffset);
         // 20 pixel compensation necessary
         SofDelayNs += DtAvVidStdSymbOffset2TimeOffset(VidStd, 40);
     }
@@ -1622,3 +1539,4 @@ DtStatus  DtIoStubDfSdiTxPhy_OnCmdSetSdiRate(
 {
     return DT_STATUS_NOT_SUPPORTED; // Not supported anymore; video standard must be set
 }
+

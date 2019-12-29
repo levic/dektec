@@ -68,6 +68,7 @@ typedef  struct _DtBcSDIRXF
     Bool  m_BlockEnabled;           // Block enabled
     Int  m_OperationalMode;         // Operational mode
     Int  m_MaxSdiRate;              // Maximum SDI-rate
+    Int  m_StreamAlignment;         // Stream bit-alignment
 
     // Interrupts related
     DtDpc  m_IntDpc;
@@ -93,6 +94,7 @@ DtStatus  DtBcSDIRXF_GetFrameProperties(DtBcSDIRXF*, Int*  pNumSymsHanc,
                                                    Int* pSdiRate, Int* pAssumeInterlaced);
 DtStatus  DtBcSDIRXF_GetMaxSdiRate(DtBcSDIRXF* pBc, Int* pMaxSdiRate);
 DtStatus  DtBcSDIRXF_GetOperationalMode(DtBcSDIRXF* pBc,  Int* pOpMode);
+DtStatus  DtBcSDIRXF_GetStreamAlignment(DtBcSDIRXF* pBc,  Int* pStreamAlignment);
 DtStatus  DtBcSDIRXF_SetFmtEventTiming(DtBcSDIRXF* pBc, Int Interval, Int Delay, 
                                                                          Int IntPerFrame);
 DtStatus  DtBcSDIRXF_SetFrameProperties(DtBcSDIRXF*, Int  NumSymsHanc,

@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        35
-#define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        123
+#define DTAPI_VERSION_MINOR        36
+#define DTAPI_VERSION_BUGFIX       3
+#define DTAPI_VERSION_BUILD        130
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -153,6 +153,7 @@ class MplpHelper;
 class OutpChannel;
 class SdiMatrixImpl;
 class AvInputStatus;
+class TransferRateGaugerImpl;
 struct DtAtscStreamSelPars;
 struct DtAtsc3DemodL1Data;
 struct DtAtsc3TxIdInfo;
@@ -316,235 +317,236 @@ private:
 #define DTAPI_CAP_ENC_MP1L2   Dtapi::DtCaps(26)  // MPEG1-layer II audio encoder
 
 // Capability group BOOLIO - Boolean I/O capabilities
-#define DTAPI_CAP_BW          Dtapi::DtCaps(27)  // DEPRECATED, do not use
-#define DTAPI_CAP_DMATESTMODE Dtapi::DtCaps(28)  // DMA-rate test mode
-#define DTAPI_CAP_FAILSAFE    Dtapi::DtCaps(29)  // A fail-over relay is available
-#define DTAPI_CAP_FRACMODE    Dtapi::DtCaps(30)  // Fractional mode is supported
-#define DTAPI_CAP_GENLOCKED   Dtapi::DtCaps(31)  // Locked to a genlock reference
-#define DTAPI_CAP_GENREF      Dtapi::DtCaps(32)  // Genlock reference input
-#define DTAPI_CAP_SWS2APSK    Dtapi::DtCaps(33)  // DVB-S2 APSK mode
+#define DTAPI_CAP_AUTOBFGEN   Dtapi::DtCaps(27)  // Automatic black-frame generation
+#define DTAPI_CAP_BW          Dtapi::DtCaps(28)  // DEPRECATED, do not use
+#define DTAPI_CAP_DMATESTMODE Dtapi::DtCaps(29)  // DMA-rate test mode
+#define DTAPI_CAP_FAILSAFE    Dtapi::DtCaps(30)  // A fail-over relay is available
+#define DTAPI_CAP_FRACMODE    Dtapi::DtCaps(31)  // Fractional mode is supported
+#define DTAPI_CAP_GENLOCKED   Dtapi::DtCaps(32)  // Locked to a genlock reference
+#define DTAPI_CAP_GENREF      Dtapi::DtCaps(33)  // Genlock reference input
+#define DTAPI_CAP_SWS2APSK    Dtapi::DtCaps(34)  // DVB-S2 APSK mode
 
 // Capability group DEMODPROPS - Demodulation properties
-#define DTAPI_CAP_ANTPWR      Dtapi::DtCaps(34)  // Antenna power
-#define DTAPI_CAP_LNB         Dtapi::DtCaps(35)  // LNB
-#define DTAPI_CAP_RX_ADV      Dtapi::DtCaps(36)  // Advanced demodulation
-#define DTAPI_CAP_RX_ADV_A3   Dtapi::DtCaps(37)  // Basic and ATSC3 advanced demodulation
-#define DTAPI_CAP_RX_ADV_BASIC Dtapi::DtCaps(38) // Basic advanced demodulation
-#define DTAPI_CAP_RX_ADV_T2   Dtapi::DtCaps(39)  // Basic and DVB-T2 advanced demodulation
+#define DTAPI_CAP_ANTPWR      Dtapi::DtCaps(35)  // Antenna power
+#define DTAPI_CAP_LNB         Dtapi::DtCaps(36)  // LNB
+#define DTAPI_CAP_RX_ADV      Dtapi::DtCaps(37)  // Advanced demodulation
+#define DTAPI_CAP_RX_ADV_A3   Dtapi::DtCaps(38)  // Basic and ATSC3 advanced demodulation
+#define DTAPI_CAP_RX_ADV_BASIC Dtapi::DtCaps(39) // Basic advanced demodulation
+#define DTAPI_CAP_RX_ADV_T2   Dtapi::DtCaps(40)  // Basic and DVB-T2 advanced demodulation
 
 // Capability group FREQBAND - Frequency band
-#define DTAPI_CAP_LBAND       Dtapi::DtCaps(40)  // L-band 950-2150MHz
-#define DTAPI_CAP_VHF         Dtapi::DtCaps(41)  // VHF-band 47-470MHz
-#define DTAPI_CAP_UHF         Dtapi::DtCaps(42)  // UHF-band 400-862MHz
+#define DTAPI_CAP_LBAND       Dtapi::DtCaps(41)  // L-band 950-2150MHz
+#define DTAPI_CAP_VHF         Dtapi::DtCaps(42)  // VHF-band 47-470MHz
+#define DTAPI_CAP_UHF         Dtapi::DtCaps(43)  // UHF-band 400-862MHz
 
 // Capability group HDMISTD - HDMI standard
-#define DTAPI_CAP_HDMI1_4     Dtapi::DtCaps(43)  // HDMI 1.4
-#define DTAPI_CAP_HDMI2_0     Dtapi::DtCaps(44)  // HDMI 2.0
+#define DTAPI_CAP_HDMI1_4     Dtapi::DtCaps(44)  // HDMI 1.4
+#define DTAPI_CAP_HDMI2_0     Dtapi::DtCaps(45)  // HDMI 2.0
 
 // Capability group IODIR - I/O direction
-#define DTAPI_CAP_DISABLED    Dtapi::DtCaps(45)  // Port is disabled
-#define DTAPI_CAP_INPUT       Dtapi::DtCaps(46)  // Uni-directional input
-#define DTAPI_CAP_INTINPUT    Dtapi::DtCaps(47)  // Internal input port
-#define DTAPI_CAP_MONITOR     Dtapi::DtCaps(48)  // Monitor of input or output
-#define DTAPI_CAP_OUTPUT      Dtapi::DtCaps(49)  // Uni-directional output
+#define DTAPI_CAP_DISABLED    Dtapi::DtCaps(46)  // Port is disabled
+#define DTAPI_CAP_INPUT       Dtapi::DtCaps(47)  // Uni-directional input
+#define DTAPI_CAP_INTINPUT    Dtapi::DtCaps(48)  // Internal input port
+#define DTAPI_CAP_MONITOR     Dtapi::DtCaps(49)  // Monitor of input or output
+#define DTAPI_CAP_OUTPUT      Dtapi::DtCaps(50)  // Uni-directional output
 
 // Subcapabilities of IODIR, DTAPI_CAP_INPUT
-#define DTAPI_CAP_SHAREDANT   Dtapi::DtCaps(50)  // Get antenna signal from another port
+#define DTAPI_CAP_SHAREDANT   Dtapi::DtCaps(51)  // Get antenna signal from another port
 
 // Subcapabilities of IODIR, DTAPI_CAP_OUTPUT
-#define DTAPI_CAP_DBLBUF      Dtapi::DtCaps(51)  // Double buffered output
-#define DTAPI_CAP_LOOPS2L3    Dtapi::DtCaps(52)  // Loop-through of DVB-S2 in L3-frames
-#define DTAPI_CAP_LOOPS2TS    Dtapi::DtCaps(53)  // Loop-through of an DVB-S(2) input
-#define DTAPI_CAP_LOOPTHR     Dtapi::DtCaps(54)  // Loop-through of another input
+#define DTAPI_CAP_DBLBUF      Dtapi::DtCaps(52)  // Double buffered output
+#define DTAPI_CAP_LOOPS2L3    Dtapi::DtCaps(53)  // Loop-through of DVB-S2 in L3-frames
+#define DTAPI_CAP_LOOPS2TS    Dtapi::DtCaps(54)  // Loop-through of an DVB-S(2) input
+#define DTAPI_CAP_LOOPTHR     Dtapi::DtCaps(55)  // Loop-through of another input
 
 // Capability group IOPROPS - Miscellaneous I/O properties
-#define DTAPI_CAP_ASIPOL      Dtapi::DtCaps(55)  // ASI output signal can be inverted
-#define DTAPI_CAP_GENREFSLAVE Dtapi::DtCaps(56)  // Slaved genlock reference
-#define DTAPI_CAP_HUFFMAN     Dtapi::DtCaps(57)  // Huffman coding for SDI
-#define DTAPI_CAP_IPPAIR      Dtapi::DtCaps(58)  // Network port supports failover
-#define DTAPI_CAP_L3MODE      Dtapi::DtCaps(59)  // L3-frame mode
-#define DTAPI_CAP_MATRIX      Dtapi::DtCaps(60)  // Matrix API support
-#define DTAPI_CAP_MATRIX2     Dtapi::DtCaps(61)  // High-level Matrix API support
-#define DTAPI_CAP_QUADLINK    Dtapi::DtCaps(62)  // Forms a Quad-link group with next 3 ports
-#define DTAPI_CAP_RAWASI      Dtapi::DtCaps(63)  // Raw ASI
-#define DTAPI_CAP_SDI10BNBO   Dtapi::DtCaps(64)  // 10-bit network byte order
-#define DTAPI_CAP_SDITIME     Dtapi::DtCaps(65)  // SDI timestamping
-#define DTAPI_CAP_TIMESTAMP64 Dtapi::DtCaps(66)  // 64-bit timestamping
-#define DTAPI_CAP_TRPMODE     Dtapi::DtCaps(67)  // Transparent mode
-#define DTAPI_CAP_TS          Dtapi::DtCaps(68)  // MPEG-2 transport stream
-#define DTAPI_CAP_TXONTIME    Dtapi::DtCaps(69)  // Transmit on timestamp
-#define DTAPI_CAP_VIRTUAL     Dtapi::DtCaps(70)  // Virtual port, no physical connection
+#define DTAPI_CAP_ASIPOL      Dtapi::DtCaps(56)  // ASI output signal can be inverted
+#define DTAPI_CAP_GENREFSLAVE Dtapi::DtCaps(57)  // Slaved genlock reference
+#define DTAPI_CAP_HUFFMAN     Dtapi::DtCaps(58)  // Huffman coding for SDI
+#define DTAPI_CAP_IPPAIR      Dtapi::DtCaps(59)  // Network port supports failover
+#define DTAPI_CAP_L3MODE      Dtapi::DtCaps(60)  // L3-frame mode
+#define DTAPI_CAP_MATRIX      Dtapi::DtCaps(61)  // Matrix API support
+#define DTAPI_CAP_MATRIX2     Dtapi::DtCaps(62)  // High-level Matrix API support
+#define DTAPI_CAP_QUADLINK    Dtapi::DtCaps(63)  // Forms a Quad-link group with next 3 ports
+#define DTAPI_CAP_RAWASI      Dtapi::DtCaps(64)  // Raw ASI
+#define DTAPI_CAP_SDI10BNBO   Dtapi::DtCaps(65)  // 10-bit network byte order
+#define DTAPI_CAP_SDITIME     Dtapi::DtCaps(66)  // SDI timestamping
+#define DTAPI_CAP_TIMESTAMP64 Dtapi::DtCaps(67)  // 64-bit timestamping
+#define DTAPI_CAP_TRPMODE     Dtapi::DtCaps(68)  // Transparent mode
+#define DTAPI_CAP_TS          Dtapi::DtCaps(69)  // MPEG-2 transport stream
+#define DTAPI_CAP_TXONTIME    Dtapi::DtCaps(70)  // Transmit on timestamp
+#define DTAPI_CAP_VIRTUAL     Dtapi::DtCaps(71)  // Virtual port, no physical connection
 
 // Capability group IOSTD - I/O standard
-#define DTAPI_CAP_12GSDI      Dtapi::DtCaps(71)  // 12G-SDI
-#define DTAPI_CAP_3GSDI       Dtapi::DtCaps(72)  // 3G-SDI
-#define DTAPI_CAP_6GSDI       Dtapi::DtCaps(73)  // 6G-SDI
-#define DTAPI_CAP_ASI         Dtapi::DtCaps(74)  // DVB-ASI transport stream
-#define DTAPI_CAP_AVENC       Dtapi::DtCaps(75)  // Audio/video encoder
-#define DTAPI_CAP_DEKTECST    Dtapi::DtCaps(76)  // DekTec Streaming-data Interface
-#define DTAPI_CAP_DEMOD       Dtapi::DtCaps(77)  // Demodulation
-#define DTAPI_CAP_GPSTIME     Dtapi::DtCaps(78)  // 1PPS and 10MHz GPS-clock input
-#define DTAPI_CAP_HDMI        Dtapi::DtCaps(79)  // HDMI
-#define DTAPI_CAP_HDSDI       Dtapi::DtCaps(80)  // HD-SDI
-#define DTAPI_CAP_IFADC       Dtapi::DtCaps(81)  // IF A/D converter
-#define DTAPI_CAP_IP          Dtapi::DtCaps(82)  // Transport stream over IP
-#define DTAPI_CAP_MOD         Dtapi::DtCaps(83)  // Modulator output
-#define DTAPI_CAP_PHASENOISE  Dtapi::DtCaps(84)  // Phase noise injection
-#define DTAPI_CAP_RS422       Dtapi::DtCaps(85)  // RS422 port
-#define DTAPI_CAP_SDIRX       Dtapi::DtCaps(86)  // SDI receiver
-#define DTAPI_CAP_SDI         Dtapi::DtCaps(87)  // SD-SDI
-#define DTAPI_CAP_SPI         Dtapi::DtCaps(88)  // DVB-SPI transport stream
-#define DTAPI_CAP_SPISDI      Dtapi::DtCaps(89)  // SD-SDI on a parallel port
+#define DTAPI_CAP_12GSDI      Dtapi::DtCaps(72)  // 12G-SDI
+#define DTAPI_CAP_3GSDI       Dtapi::DtCaps(73)  // 3G-SDI
+#define DTAPI_CAP_6GSDI       Dtapi::DtCaps(74)  // 6G-SDI
+#define DTAPI_CAP_ASI         Dtapi::DtCaps(75)  // DVB-ASI transport stream
+#define DTAPI_CAP_AVENC       Dtapi::DtCaps(76)  // Audio/video encoder
+#define DTAPI_CAP_DEKTECST    Dtapi::DtCaps(77)  // DekTec Streaming-data Interface
+#define DTAPI_CAP_DEMOD       Dtapi::DtCaps(78)  // Demodulation
+#define DTAPI_CAP_GPSTIME     Dtapi::DtCaps(79)  // 1PPS and 10MHz GPS-clock input
+#define DTAPI_CAP_HDMI        Dtapi::DtCaps(80)  // HDMI
+#define DTAPI_CAP_HDSDI       Dtapi::DtCaps(81)  // HD-SDI
+#define DTAPI_CAP_IFADC       Dtapi::DtCaps(82)  // IF A/D converter
+#define DTAPI_CAP_IP          Dtapi::DtCaps(83)  // Transport stream over IP
+#define DTAPI_CAP_MOD         Dtapi::DtCaps(84)  // Modulator output
+#define DTAPI_CAP_PHASENOISE  Dtapi::DtCaps(85)  // Phase noise injection
+#define DTAPI_CAP_RS422       Dtapi::DtCaps(86)  // RS422 port
+#define DTAPI_CAP_SDIRX       Dtapi::DtCaps(87)  // SDI receiver
+#define DTAPI_CAP_SDI         Dtapi::DtCaps(88)  // SD-SDI
+#define DTAPI_CAP_SPI         Dtapi::DtCaps(89)  // DVB-SPI transport stream
+#define DTAPI_CAP_SPISDI      Dtapi::DtCaps(90)  // SD-SDI on a parallel port
 
 // Subcapabilities of IOSTD, DTAPI_CAP_12GSDI
-#define DTAPI_CAP_2160P50     Dtapi::DtCaps(90)  // 2160p/50 lvl A
-#define DTAPI_CAP_2160P50B    Dtapi::DtCaps(91)  // 2160p/50 lvl B
-#define DTAPI_CAP_2160P59_94  Dtapi::DtCaps(92)  // 2160p/59.94 lvl A
-#define DTAPI_CAP_2160P59_94B Dtapi::DtCaps(93)  // 2160p/59.94 lvl B
-#define DTAPI_CAP_2160P60     Dtapi::DtCaps(94)  // 2160p/60 lvl A
-#define DTAPI_CAP_2160P60B    Dtapi::DtCaps(95)  // 2160p/60 lvl B
+#define DTAPI_CAP_2160P50     Dtapi::DtCaps(91)  // 2160p/50 lvl A
+#define DTAPI_CAP_2160P50B    Dtapi::DtCaps(92)  // 2160p/50 lvl B
+#define DTAPI_CAP_2160P59_94  Dtapi::DtCaps(93)  // 2160p/59.94 lvl A
+#define DTAPI_CAP_2160P59_94B Dtapi::DtCaps(94)  // 2160p/59.94 lvl B
+#define DTAPI_CAP_2160P60     Dtapi::DtCaps(95)  // 2160p/60 lvl A
+#define DTAPI_CAP_2160P60B    Dtapi::DtCaps(96)  // 2160p/60 lvl B
 
 // Subcapabilities of IOSTD, DTAPI_CAP_3GSDI
-#define DTAPI_CAP_1080P50     Dtapi::DtCaps(96)  // 1080p/50 lvl A
-#define DTAPI_CAP_1080P50B    Dtapi::DtCaps(97)  // 1080p/50 lvl B
-#define DTAPI_CAP_1080P59_94  Dtapi::DtCaps(98)  // 1080p/59.94 lvl A
-#define DTAPI_CAP_1080P59_94B Dtapi::DtCaps(99)  // 1080p/59.94 lvl B
-#define DTAPI_CAP_1080P60     Dtapi::DtCaps(100) // 1080p/60 lvl A
-#define DTAPI_CAP_1080P60B    Dtapi::DtCaps(101) // 1080p/60 lvl B
+#define DTAPI_CAP_1080P50     Dtapi::DtCaps(97)  // 1080p/50 lvl A
+#define DTAPI_CAP_1080P50B    Dtapi::DtCaps(98)  // 1080p/50 lvl B
+#define DTAPI_CAP_1080P59_94  Dtapi::DtCaps(99)  // 1080p/59.94 lvl A
+#define DTAPI_CAP_1080P59_94B Dtapi::DtCaps(100) // 1080p/59.94 lvl B
+#define DTAPI_CAP_1080P60     Dtapi::DtCaps(101) // 1080p/60 lvl A
+#define DTAPI_CAP_1080P60B    Dtapi::DtCaps(102) // 1080p/60 lvl B
 
 // Subcapabilities of IOSTD, DTAPI_CAP_6GSDI
-#define DTAPI_CAP_2160P23_98  Dtapi::DtCaps(102) // 2160p/23.98
-#define DTAPI_CAP_2160P24     Dtapi::DtCaps(103) // 2160p/24
-#define DTAPI_CAP_2160P25     Dtapi::DtCaps(104) // 2160p/25
-#define DTAPI_CAP_2160P29_97  Dtapi::DtCaps(105) // 2160p/29.97
-#define DTAPI_CAP_2160P30     Dtapi::DtCaps(106) // 2160p/30
+#define DTAPI_CAP_2160P23_98  Dtapi::DtCaps(103) // 2160p/23.98
+#define DTAPI_CAP_2160P24     Dtapi::DtCaps(104) // 2160p/24
+#define DTAPI_CAP_2160P25     Dtapi::DtCaps(105) // 2160p/25
+#define DTAPI_CAP_2160P29_97  Dtapi::DtCaps(106) // 2160p/29.97
+#define DTAPI_CAP_2160P30     Dtapi::DtCaps(107) // 2160p/30
 
 // Subcapabilities of IOSTD, DTAPI_CAP_HDSDI
-#define DTAPI_CAP_1080I50     Dtapi::DtCaps(107) // 1080i/50
-#define DTAPI_CAP_1080I59_94  Dtapi::DtCaps(108) // 1080i/59.94
-#define DTAPI_CAP_1080I60     Dtapi::DtCaps(109) // 1080i/60
-#define DTAPI_CAP_1080P23_98  Dtapi::DtCaps(110) // 1080p/23.98
-#define DTAPI_CAP_1080P24     Dtapi::DtCaps(111) // 1080p/24
-#define DTAPI_CAP_1080P25     Dtapi::DtCaps(112) // 1080p/25
-#define DTAPI_CAP_1080P29_97  Dtapi::DtCaps(113) // 1080p/29.97
-#define DTAPI_CAP_1080P30     Dtapi::DtCaps(114) // 1080p/30
-#define DTAPI_CAP_1080PSF23_98 Dtapi::DtCaps(115) // 1080psf/23.98
-#define DTAPI_CAP_1080PSF24   Dtapi::DtCaps(116) // 1080psf/24
-#define DTAPI_CAP_1080PSF25   Dtapi::DtCaps(117) // 1080psf/25
-#define DTAPI_CAP_1080PSF29_97 Dtapi::DtCaps(118) // 1080psf/29.97
-#define DTAPI_CAP_1080PSF30   Dtapi::DtCaps(119) // 1080psf/30
-#define DTAPI_CAP_720P23_98   Dtapi::DtCaps(120) // 720p/23.98
-#define DTAPI_CAP_720P24      Dtapi::DtCaps(121) // 720p/24
-#define DTAPI_CAP_720P25      Dtapi::DtCaps(122) // 720p/25
-#define DTAPI_CAP_720P29_97   Dtapi::DtCaps(123) // 720p/29.97
-#define DTAPI_CAP_720P30      Dtapi::DtCaps(124) // 720p/30
-#define DTAPI_CAP_720P50      Dtapi::DtCaps(125) // 720p/50
-#define DTAPI_CAP_720P59_94   Dtapi::DtCaps(126) // 720p/59.94
-#define DTAPI_CAP_720P60      Dtapi::DtCaps(127) // 720p/60
+#define DTAPI_CAP_1080I50     Dtapi::DtCaps(108) // 1080i/50
+#define DTAPI_CAP_1080I59_94  Dtapi::DtCaps(109) // 1080i/59.94
+#define DTAPI_CAP_1080I60     Dtapi::DtCaps(110) // 1080i/60
+#define DTAPI_CAP_1080P23_98  Dtapi::DtCaps(111) // 1080p/23.98
+#define DTAPI_CAP_1080P24     Dtapi::DtCaps(112) // 1080p/24
+#define DTAPI_CAP_1080P25     Dtapi::DtCaps(113) // 1080p/25
+#define DTAPI_CAP_1080P29_97  Dtapi::DtCaps(114) // 1080p/29.97
+#define DTAPI_CAP_1080P30     Dtapi::DtCaps(115) // 1080p/30
+#define DTAPI_CAP_1080PSF23_98 Dtapi::DtCaps(116) // 1080psf/23.98
+#define DTAPI_CAP_1080PSF24   Dtapi::DtCaps(117) // 1080psf/24
+#define DTAPI_CAP_1080PSF25   Dtapi::DtCaps(118) // 1080psf/25
+#define DTAPI_CAP_1080PSF29_97 Dtapi::DtCaps(119) // 1080psf/29.97
+#define DTAPI_CAP_1080PSF30   Dtapi::DtCaps(120) // 1080psf/30
+#define DTAPI_CAP_720P23_98   Dtapi::DtCaps(121) // 720p/23.98
+#define DTAPI_CAP_720P24      Dtapi::DtCaps(122) // 720p/24
+#define DTAPI_CAP_720P25      Dtapi::DtCaps(123) // 720p/25
+#define DTAPI_CAP_720P29_97   Dtapi::DtCaps(124) // 720p/29.97
+#define DTAPI_CAP_720P30      Dtapi::DtCaps(125) // 720p/30
+#define DTAPI_CAP_720P50      Dtapi::DtCaps(126) // 720p/50
+#define DTAPI_CAP_720P59_94   Dtapi::DtCaps(127) // 720p/59.94
+#define DTAPI_CAP_720P60      Dtapi::DtCaps(128) // 720p/60
 
 // Subcapabilities of IOSTD, DTAPI_CAP_SDI
-#define DTAPI_CAP_525I59_94   Dtapi::DtCaps(128) // 525i/59.94
-#define DTAPI_CAP_625I50      Dtapi::DtCaps(129) // 625i/50
+#define DTAPI_CAP_525I59_94   Dtapi::DtCaps(129) // 525i/59.94
+#define DTAPI_CAP_625I50      Dtapi::DtCaps(130) // 625i/50
 
 // Subcapabilities of IOSTD, DTAPI_CAP_SPISDI
-#define DTAPI_CAP_SPI525I59_94 Dtapi::DtCaps(130) // SPI 525i/59.94
-#define DTAPI_CAP_SPI625I50   Dtapi::DtCaps(131) // SPI 625i/50
+#define DTAPI_CAP_SPI525I59_94 Dtapi::DtCaps(131) // SPI 525i/59.94
+#define DTAPI_CAP_SPI625I50   Dtapi::DtCaps(132) // SPI 625i/50
 
 // Capability group PWRMODE - Power mode
-#define DTAPI_CAP_MODHQ       Dtapi::DtCaps(132) // High-quality modulation
-#define DTAPI_CAP_LOWPWR      Dtapi::DtCaps(133) // Low-power mode
+#define DTAPI_CAP_MODHQ       Dtapi::DtCaps(133) // High-quality modulation
+#define DTAPI_CAP_LOWPWR      Dtapi::DtCaps(134) // Low-power mode
 
 // Capability group MODSTD - Modulation standards
-#define DTAPI_CAP_TX_ATSC     Dtapi::DtCaps(134) // ATSC 8-VSB modulation
-#define DTAPI_CAP_TX_ATSC3    Dtapi::DtCaps(135) // ATSC3.0 modulation
-#define DTAPI_CAP_TX_CMMB     Dtapi::DtCaps(136) // CMMB modulation
-#define DTAPI_CAP_TX_DAB      Dtapi::DtCaps(137) // DAB modulation
-#define DTAPI_CAP_TX_DTMB     Dtapi::DtCaps(138) // DTMB modulation
-#define DTAPI_CAP_TX_DVBC2    Dtapi::DtCaps(139) // DVB-C2 modulation
-#define DTAPI_CAP_TX_DVBS     Dtapi::DtCaps(140) // DVB-S modulation
-#define DTAPI_CAP_TX_DVBS2    Dtapi::DtCaps(141) // DVB-S2 modulation
-#define DTAPI_CAP_TX_DVBS2X   Dtapi::DtCaps(142) // DVB-S2X modulation
-#define DTAPI_CAP_TX_DVBT     Dtapi::DtCaps(143) // DVB-T modulation
-#define DTAPI_CAP_TX_DVBT2    Dtapi::DtCaps(144) // DVB-T2 modulation
-#define DTAPI_CAP_TX_GOLD     Dtapi::DtCaps(145) // GOLD for modulators
-#define DTAPI_CAP_TX_HW8CH    Dtapi::DtCaps(146) // Eight-channel HW modulation
-#define DTAPI_CAP_TX_IQ       Dtapi::DtCaps(147) // I/Q sample modulation
-#define DTAPI_CAP_TX_ISDBS    Dtapi::DtCaps(148) // ISDB-S modulation
-#define DTAPI_CAP_TX_ISDBS3   Dtapi::DtCaps(149) // ISDB-S3 modulation
-#define DTAPI_CAP_TX_ISDBT    Dtapi::DtCaps(150) // ISDB-T modulation
-#define DTAPI_CAP_TX_ISDBTMM  Dtapi::DtCaps(151) // ISDB-Tmm modulation
-#define DTAPI_CAP_TX_MH       Dtapi::DtCaps(152) // ATSC-MH modulation
-#define DTAPI_CAP_TX_QAMA     Dtapi::DtCaps(153) // QAM-A modulation
-#define DTAPI_CAP_TX_QAMB     Dtapi::DtCaps(154) // QAM-B modulation
-#define DTAPI_CAP_TX_QAMC     Dtapi::DtCaps(155) // QAM-C modulation
-#define DTAPI_CAP_TX_SWMC     Dtapi::DtCaps(156) // SW multi-channel modulation
-#define DTAPI_CAP_TX_T2MI     Dtapi::DtCaps(157) // T2MI transmission
-#define DTAPI_CAP_TX_T2SPLP   Dtapi::DtCaps(158) // DVB-T2 single PLP modulation
+#define DTAPI_CAP_TX_ATSC     Dtapi::DtCaps(135) // ATSC 8-VSB modulation
+#define DTAPI_CAP_TX_ATSC3    Dtapi::DtCaps(136) // ATSC3.0 modulation
+#define DTAPI_CAP_TX_CMMB     Dtapi::DtCaps(137) // CMMB modulation
+#define DTAPI_CAP_TX_DAB      Dtapi::DtCaps(138) // DAB modulation
+#define DTAPI_CAP_TX_DTMB     Dtapi::DtCaps(139) // DTMB modulation
+#define DTAPI_CAP_TX_DVBC2    Dtapi::DtCaps(140) // DVB-C2 modulation
+#define DTAPI_CAP_TX_DVBS     Dtapi::DtCaps(141) // DVB-S modulation
+#define DTAPI_CAP_TX_DVBS2    Dtapi::DtCaps(142) // DVB-S2 modulation
+#define DTAPI_CAP_TX_DVBS2X   Dtapi::DtCaps(143) // DVB-S2X modulation
+#define DTAPI_CAP_TX_DVBT     Dtapi::DtCaps(144) // DVB-T modulation
+#define DTAPI_CAP_TX_DVBT2    Dtapi::DtCaps(145) // DVB-T2 modulation
+#define DTAPI_CAP_TX_GOLD     Dtapi::DtCaps(146) // GOLD for modulators
+#define DTAPI_CAP_TX_HW8CH    Dtapi::DtCaps(147) // Eight-channel HW modulation
+#define DTAPI_CAP_TX_IQ       Dtapi::DtCaps(148) // I/Q sample modulation
+#define DTAPI_CAP_TX_ISDBS    Dtapi::DtCaps(149) // ISDB-S modulation
+#define DTAPI_CAP_TX_ISDBS3   Dtapi::DtCaps(150) // ISDB-S3 modulation
+#define DTAPI_CAP_TX_ISDBT    Dtapi::DtCaps(151) // ISDB-T modulation
+#define DTAPI_CAP_TX_ISDBTMM  Dtapi::DtCaps(152) // ISDB-Tmm modulation
+#define DTAPI_CAP_TX_MH       Dtapi::DtCaps(153) // ATSC-MH modulation
+#define DTAPI_CAP_TX_QAMA     Dtapi::DtCaps(154) // QAM-A modulation
+#define DTAPI_CAP_TX_QAMB     Dtapi::DtCaps(155) // QAM-B modulation
+#define DTAPI_CAP_TX_QAMC     Dtapi::DtCaps(156) // QAM-C modulation
+#define DTAPI_CAP_TX_SWMC     Dtapi::DtCaps(157) // SW multi-channel modulation
+#define DTAPI_CAP_TX_T2MI     Dtapi::DtCaps(158) // T2MI transmission
+#define DTAPI_CAP_TX_T2SPLP   Dtapi::DtCaps(159) // DVB-T2 single PLP modulation
 
 // Capability group MODPROPS - Modulation properties
-#define DTAPI_CAP_ADJLVL      Dtapi::DtCaps(159) // Adjustable output level
-#define DTAPI_CAP_CM          Dtapi::DtCaps(160) // Channel simulation
-#define DTAPI_CAP_CW          Dtapi::DtCaps(161) // Continuous wave
-#define DTAPI_CAP_DIGIQ       Dtapi::DtCaps(162) // Digital I/Q sample output
-#define DTAPI_CAP_DVBCID      Dtapi::DtCaps(163) // DVB carrier ID 
-#define DTAPI_CAP_IF          Dtapi::DtCaps(164) // IF output
-#define DTAPI_CAP_MUTE        Dtapi::DtCaps(165) // Mute RF output signal
-#define DTAPI_CAP_ROLLOFF     Dtapi::DtCaps(166) // Adjustable roll-off factor
-#define DTAPI_CAP_S2APSK      Dtapi::DtCaps(167) // DVB-S2 16-APSK/32-APSK
-#define DTAPI_CAP_SNR         Dtapi::DtCaps(168) // Noise insertion
-#define DTAPI_CAP_SNR_GAUSSIAN Dtapi::DtCaps(169) // AWGN insertion
-#define DTAPI_CAP_TX_16MHZ    Dtapi::DtCaps(170) // 16MHz bandwidth mode
-#define DTAPI_CAP_TX_SFN      Dtapi::DtCaps(171) // SNF operation
+#define DTAPI_CAP_ADJLVL      Dtapi::DtCaps(160) // Adjustable output level
+#define DTAPI_CAP_CM          Dtapi::DtCaps(161) // Channel simulation
+#define DTAPI_CAP_CW          Dtapi::DtCaps(162) // Continuous wave
+#define DTAPI_CAP_DIGIQ       Dtapi::DtCaps(163) // Digital I/Q sample output
+#define DTAPI_CAP_DVBCID      Dtapi::DtCaps(164) // DVB carrier ID 
+#define DTAPI_CAP_IF          Dtapi::DtCaps(165) // IF output
+#define DTAPI_CAP_MUTE        Dtapi::DtCaps(166) // Mute RF output signal
+#define DTAPI_CAP_ROLLOFF     Dtapi::DtCaps(167) // Adjustable roll-off factor
+#define DTAPI_CAP_S2APSK      Dtapi::DtCaps(168) // DVB-S2 16-APSK/32-APSK
+#define DTAPI_CAP_SNR         Dtapi::DtCaps(169) // Noise insertion
+#define DTAPI_CAP_SNR_GAUSSIAN Dtapi::DtCaps(170) // AWGN insertion
+#define DTAPI_CAP_TX_16MHZ    Dtapi::DtCaps(171) // 16MHz bandwidth mode
+#define DTAPI_CAP_TX_SFN      Dtapi::DtCaps(172) // SNF operation
 
 // Capability group RFCLKSEL - RF clock source selection
-#define DTAPI_CAP_RFCLKEXT    Dtapi::DtCaps(172) // External RF clock input
-#define DTAPI_CAP_RFCLKINT    Dtapi::DtCaps(173) // Internal RF clock reference
+#define DTAPI_CAP_RFCLKEXT    Dtapi::DtCaps(173) // External RF clock input
+#define DTAPI_CAP_RFCLKINT    Dtapi::DtCaps(174) // Internal RF clock reference
 
 // Capability group RXSTD - Receiver standards
-#define DTAPI_CAP_RX_ATSC     Dtapi::DtCaps(174) // ATSC 8-VSB reception
-#define DTAPI_CAP_RX_ATSC3    Dtapi::DtCaps(175) // ATSC3.0 reception
-#define DTAPI_CAP_RX_CMMB     Dtapi::DtCaps(176) // CMMB reception
-#define DTAPI_CAP_RX_DAB      Dtapi::DtCaps(177) // DAB reception
-#define DTAPI_CAP_RX_DTMB     Dtapi::DtCaps(178) // DTMB reception
-#define DTAPI_CAP_RX_DVBC2    Dtapi::DtCaps(179) // DVB-C2 reception
-#define DTAPI_CAP_RX_DVBS     Dtapi::DtCaps(180) // DVB-S reception
-#define DTAPI_CAP_RX_DVBS2    Dtapi::DtCaps(181) // DVB-S2 reception
-#define DTAPI_CAP_RX_DVBT     Dtapi::DtCaps(182) // DVB-T reception
-#define DTAPI_CAP_RX_DVBT2    Dtapi::DtCaps(183) // DVB-T2 reception
-#define DTAPI_CAP_RX_GOLD     Dtapi::DtCaps(184) // GOLD for receivers
-#define DTAPI_CAP_RX_IQ       Dtapi::DtCaps(185) // I/Q sample reception
-#define DTAPI_CAP_RX_ISDBS    Dtapi::DtCaps(186) // ISDB-S reception
-#define DTAPI_CAP_RX_ISDBT    Dtapi::DtCaps(187) // ISDB-T reception
-#define DTAPI_CAP_RX_MH       Dtapi::DtCaps(188) // ATSC-MH reception
-#define DTAPI_CAP_RX_QAMA     Dtapi::DtCaps(189) // QAM-A reception
-#define DTAPI_CAP_RX_QAMB     Dtapi::DtCaps(190) // QAM-B reception
-#define DTAPI_CAP_RX_QAMC     Dtapi::DtCaps(191) // QAM-C reception
-#define DTAPI_CAP_RX_T2MI     Dtapi::DtCaps(192) // T2MI reception
+#define DTAPI_CAP_RX_ATSC     Dtapi::DtCaps(175) // ATSC 8-VSB reception
+#define DTAPI_CAP_RX_ATSC3    Dtapi::DtCaps(176) // ATSC3.0 reception
+#define DTAPI_CAP_RX_CMMB     Dtapi::DtCaps(177) // CMMB reception
+#define DTAPI_CAP_RX_DAB      Dtapi::DtCaps(178) // DAB reception
+#define DTAPI_CAP_RX_DTMB     Dtapi::DtCaps(179) // DTMB reception
+#define DTAPI_CAP_RX_DVBC2    Dtapi::DtCaps(180) // DVB-C2 reception
+#define DTAPI_CAP_RX_DVBS     Dtapi::DtCaps(181) // DVB-S reception
+#define DTAPI_CAP_RX_DVBS2    Dtapi::DtCaps(182) // DVB-S2 reception
+#define DTAPI_CAP_RX_DVBT     Dtapi::DtCaps(183) // DVB-T reception
+#define DTAPI_CAP_RX_DVBT2    Dtapi::DtCaps(184) // DVB-T2 reception
+#define DTAPI_CAP_RX_GOLD     Dtapi::DtCaps(185) // GOLD for receivers
+#define DTAPI_CAP_RX_IQ       Dtapi::DtCaps(186) // I/Q sample reception
+#define DTAPI_CAP_RX_ISDBS    Dtapi::DtCaps(187) // ISDB-S reception
+#define DTAPI_CAP_RX_ISDBT    Dtapi::DtCaps(188) // ISDB-T reception
+#define DTAPI_CAP_RX_MH       Dtapi::DtCaps(189) // ATSC-MH reception
+#define DTAPI_CAP_RX_QAMA     Dtapi::DtCaps(190) // QAM-A reception
+#define DTAPI_CAP_RX_QAMB     Dtapi::DtCaps(191) // QAM-B reception
+#define DTAPI_CAP_RX_QAMC     Dtapi::DtCaps(192) // QAM-C reception
+#define DTAPI_CAP_RX_T2MI     Dtapi::DtCaps(193) // T2MI reception
 
 // Capability group SPICLKSEL - Parallel port clock source selection
-#define DTAPI_CAP_SPICLKEXT   Dtapi::DtCaps(193) // External clock input
-#define DTAPI_CAP_SPICLKINT   Dtapi::DtCaps(194) // Internal clock reference
+#define DTAPI_CAP_SPICLKEXT   Dtapi::DtCaps(194) // External clock input
+#define DTAPI_CAP_SPICLKINT   Dtapi::DtCaps(195) // Internal clock reference
 
 // Capability group SPIMODE - Parallel port mode
-#define DTAPI_CAP_SPIFIXEDCLK Dtapi::DtCaps(195) // SPI fixed clock with valid signal
-#define DTAPI_CAP_SPIDVBMODE  Dtapi::DtCaps(196) // SPI DVB mode
-#define DTAPI_CAP_SPISER8B    Dtapi::DtCaps(197) // SPI serial 8-bit mode
-#define DTAPI_CAP_SPISER10B   Dtapi::DtCaps(198) // SPI serial 10-bit mode
+#define DTAPI_CAP_SPIFIXEDCLK Dtapi::DtCaps(196) // SPI fixed clock with valid signal
+#define DTAPI_CAP_SPIDVBMODE  Dtapi::DtCaps(197) // SPI DVB mode
+#define DTAPI_CAP_SPISER8B    Dtapi::DtCaps(198) // SPI serial 8-bit mode
+#define DTAPI_CAP_SPISER10B   Dtapi::DtCaps(199) // SPI serial 10-bit mode
 
 // Capability group SPISTD - Parallel port I/O standard
-#define DTAPI_CAP_SPILVDS1    Dtapi::DtCaps(199) // LVDS1
-#define DTAPI_CAP_SPILVDS2    Dtapi::DtCaps(200) // LVDS2
-#define DTAPI_CAP_SPILVTTL    Dtapi::DtCaps(201) // LVTTL
+#define DTAPI_CAP_SPILVDS1    Dtapi::DtCaps(200) // LVDS1
+#define DTAPI_CAP_SPILVDS2    Dtapi::DtCaps(201) // LVDS2
+#define DTAPI_CAP_SPILVTTL    Dtapi::DtCaps(202) // LVTTL
 
 // Capability group TSRATESEL - Transport-stream rate selection
-#define DTAPI_CAP_EXTTSRATE   Dtapi::DtCaps(202) // External TS rate clock input
-#define DTAPI_CAP_EXTRATIO    Dtapi::DtCaps(203) // External TS rate clock with ratio
-#define DTAPI_CAP_INTTSRATE   Dtapi::DtCaps(204) // Internal TS rate clock reference
-#define DTAPI_CAP_LOCK2INP    Dtapi::DtCaps(205) // Lock TS rate to input port
+#define DTAPI_CAP_EXTTSRATE   Dtapi::DtCaps(203) // External TS rate clock input
+#define DTAPI_CAP_EXTRATIO    Dtapi::DtCaps(204) // External TS rate clock with ratio
+#define DTAPI_CAP_INTTSRATE   Dtapi::DtCaps(205) // Internal TS rate clock reference
+#define DTAPI_CAP_LOCK2INP    Dtapi::DtCaps(206) // Lock TS rate to input port
 
 // Capability group VIDENC - Supported video standards
-#define DTAPI_CAP_ENC_H264    Dtapi::DtCaps(206) // H.264 video encoder
-#define DTAPI_CAP_ENC_MP2V    Dtapi::DtCaps(207) // MPEG2 video encoder
+#define DTAPI_CAP_ENC_H264    Dtapi::DtCaps(207) // H.264 video encoder
+#define DTAPI_CAP_ENC_MP2V    Dtapi::DtCaps(208) // MPEG2 video encoder
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCmmbPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -963,137 +965,138 @@ struct DtIoConfig
 #define DTAPI_IOCONFIG_TSRATESEL   7             // Transport-stream rate selection
 
 // I/O configuration groups - Boolean I/O
-#define DTAPI_IOCONFIG_BW          8             // DEPRECATED, do not use
-#define DTAPI_IOCONFIG_DMATESTMODE 9             // DMA-rate test mode
-#define DTAPI_IOCONFIG_FAILSAFE    10            // A fail-over relay is available
-#define DTAPI_IOCONFIG_FRACMODE    11            // Fractional mode is supported
-#define DTAPI_IOCONFIG_GENLOCKED   12            // Locked to a genlock reference
-#define DTAPI_IOCONFIG_GENREF      13            // Genlock reference input
-#define DTAPI_IOCONFIG_SWS2APSK    14            // DVB-S2 APSK mode
+#define DTAPI_IOCONFIG_AUTOBFGEN   8             // Automatic black-frame generation
+#define DTAPI_IOCONFIG_BW          9             // DEPRECATED, do not use
+#define DTAPI_IOCONFIG_DMATESTMODE 10            // DMA-rate test mode
+#define DTAPI_IOCONFIG_FAILSAFE    11            // A fail-over relay is available
+#define DTAPI_IOCONFIG_FRACMODE    12            // Fractional mode is supported
+#define DTAPI_IOCONFIG_GENLOCKED   13            // Locked to a genlock reference
+#define DTAPI_IOCONFIG_GENREF      14            // Genlock reference input
+#define DTAPI_IOCONFIG_SWS2APSK    15            // DVB-S2 APSK mode
 
 // Values for boolean I/O configuration options
-#define DTAPI_IOCONFIG_TRUE        15            // Turn I/O capability on
-#define DTAPI_IOCONFIG_FALSE       16            // Turn I/O capability off
+#define DTAPI_IOCONFIG_TRUE        16            // Turn I/O capability on
+#define DTAPI_IOCONFIG_FALSE       17            // Turn I/O capability off
 
 // Values for group IO_CONFIG_IODIR (I/O direction)
-#define DTAPI_IOCONFIG_DISABLED    17            // Port is disabled
-#define DTAPI_IOCONFIG_INPUT       18            // Uni-directional input
-#define DTAPI_IOCONFIG_INTINPUT    19            // Internal input port
-#define DTAPI_IOCONFIG_MONITOR     20            // Monitor of input or output
-#define DTAPI_IOCONFIG_OUTPUT      21            // Uni-directional output
+#define DTAPI_IOCONFIG_DISABLED    18            // Port is disabled
+#define DTAPI_IOCONFIG_INPUT       19            // Uni-directional input
+#define DTAPI_IOCONFIG_INTINPUT    20            // Internal input port
+#define DTAPI_IOCONFIG_MONITOR     21            // Monitor of input or output
+#define DTAPI_IOCONFIG_OUTPUT      22            // Uni-directional output
 
 // SubValues for group DTAPI_IOCONFIG_IODIR, value DTAPI_IOCONFIG_INPUT
-#define DTAPI_IOCONFIG_SHAREDANT   22            // Get antenna signal from another port
+#define DTAPI_IOCONFIG_SHAREDANT   23            // Get antenna signal from another port
 
 // SubValues for group DTAPI_IOCONFIG_IODIR, value DTAPI_IOCONFIG_OUTPUT
-#define DTAPI_IOCONFIG_DBLBUF      23            // Double buffered output
-#define DTAPI_IOCONFIG_LOOPS2L3    24            // Loop-through of DVB-S2 in L3-frames
-#define DTAPI_IOCONFIG_LOOPS2TS    25            // Loop-through of an DVB-S(2) input
-#define DTAPI_IOCONFIG_LOOPTHR     26            // Loop-through of another input
+#define DTAPI_IOCONFIG_DBLBUF      24            // Double buffered output
+#define DTAPI_IOCONFIG_LOOPS2L3    25            // Loop-through of DVB-S2 in L3-frames
+#define DTAPI_IOCONFIG_LOOPS2TS    26            // Loop-through of an DVB-S(2) input
+#define DTAPI_IOCONFIG_LOOPTHR     27            // Loop-through of another input
 
 // Values for group IO_CONFIG_IOSTD (I/O standard)
-#define DTAPI_IOCONFIG_12GSDI      27            // 12G-SDI
-#define DTAPI_IOCONFIG_3GSDI       28            // 3G-SDI
-#define DTAPI_IOCONFIG_6GSDI       29            // 6G-SDI
-#define DTAPI_IOCONFIG_ASI         30            // DVB-ASI transport stream
-#define DTAPI_IOCONFIG_AVENC       31            // Audio/video encoder
-#define DTAPI_IOCONFIG_DEKTECST    32            // DekTec Streaming-data Interface
-#define DTAPI_IOCONFIG_DEMOD       33            // Demodulation
-#define DTAPI_IOCONFIG_GPSTIME     34            // 1PPS and 10MHz GPS-clock input
-#define DTAPI_IOCONFIG_HDMI        35            // HDMI
-#define DTAPI_IOCONFIG_HDSDI       36            // HD-SDI
-#define DTAPI_IOCONFIG_IFADC       37            // IF A/D converter
-#define DTAPI_IOCONFIG_IP          38            // Transport stream over IP
-#define DTAPI_IOCONFIG_MOD         39            // Modulator output
-#define DTAPI_IOCONFIG_PHASENOISE  40            // Phase noise injection
-#define DTAPI_IOCONFIG_RS422       41            // RS422 port
-#define DTAPI_IOCONFIG_SDIRX       42            // SDI receiver
-#define DTAPI_IOCONFIG_SDI         43            // SD-SDI
-#define DTAPI_IOCONFIG_SPI         44            // DVB-SPI transport stream
-#define DTAPI_IOCONFIG_SPISDI      45            // SD-SDI on a parallel port
+#define DTAPI_IOCONFIG_12GSDI      28            // 12G-SDI
+#define DTAPI_IOCONFIG_3GSDI       29            // 3G-SDI
+#define DTAPI_IOCONFIG_6GSDI       30            // 6G-SDI
+#define DTAPI_IOCONFIG_ASI         31            // DVB-ASI transport stream
+#define DTAPI_IOCONFIG_AVENC       32            // Audio/video encoder
+#define DTAPI_IOCONFIG_DEKTECST    33            // DekTec Streaming-data Interface
+#define DTAPI_IOCONFIG_DEMOD       34            // Demodulation
+#define DTAPI_IOCONFIG_GPSTIME     35            // 1PPS and 10MHz GPS-clock input
+#define DTAPI_IOCONFIG_HDMI        36            // HDMI
+#define DTAPI_IOCONFIG_HDSDI       37            // HD-SDI
+#define DTAPI_IOCONFIG_IFADC       38            // IF A/D converter
+#define DTAPI_IOCONFIG_IP          39            // Transport stream over IP
+#define DTAPI_IOCONFIG_MOD         40            // Modulator output
+#define DTAPI_IOCONFIG_PHASENOISE  41            // Phase noise injection
+#define DTAPI_IOCONFIG_RS422       42            // RS422 port
+#define DTAPI_IOCONFIG_SDIRX       43            // SDI receiver
+#define DTAPI_IOCONFIG_SDI         44            // SD-SDI
+#define DTAPI_IOCONFIG_SPI         45            // DVB-SPI transport stream
+#define DTAPI_IOCONFIG_SPISDI      46            // SD-SDI on a parallel port
 
 // SubValues for group DTAPI_IOCONFIG_IOSTD, value DTAPI_IOCONFIG_12GSDI
-#define DTAPI_IOCONFIG_2160P50     46            // 2160p/50 lvl A
-#define DTAPI_IOCONFIG_2160P50B    47            // 2160p/50 lvl B
-#define DTAPI_IOCONFIG_2160P59_94  48            // 2160p/59.94 lvl A
-#define DTAPI_IOCONFIG_2160P59_94B 49            // 2160p/59.94 lvl B
-#define DTAPI_IOCONFIG_2160P60     50            // 2160p/60 lvl A
-#define DTAPI_IOCONFIG_2160P60B    51            // 2160p/60 lvl B
+#define DTAPI_IOCONFIG_2160P50     47            // 2160p/50 lvl A
+#define DTAPI_IOCONFIG_2160P50B    48            // 2160p/50 lvl B
+#define DTAPI_IOCONFIG_2160P59_94  49            // 2160p/59.94 lvl A
+#define DTAPI_IOCONFIG_2160P59_94B 50            // 2160p/59.94 lvl B
+#define DTAPI_IOCONFIG_2160P60     51            // 2160p/60 lvl A
+#define DTAPI_IOCONFIG_2160P60B    52            // 2160p/60 lvl B
 
 // SubValues for group DTAPI_IOCONFIG_IOSTD, value DTAPI_IOCONFIG_3GSDI
-#define DTAPI_IOCONFIG_1080P50     52            // 1080p/50 lvl A
-#define DTAPI_IOCONFIG_1080P50B    53            // 1080p/50 lvl B
-#define DTAPI_IOCONFIG_1080P59_94  54            // 1080p/59.94 lvl A
-#define DTAPI_IOCONFIG_1080P59_94B 55            // 1080p/59.94 lvl B
-#define DTAPI_IOCONFIG_1080P60     56            // 1080p/60 lvl A
-#define DTAPI_IOCONFIG_1080P60B    57            // 1080p/60 lvl B
+#define DTAPI_IOCONFIG_1080P50     53            // 1080p/50 lvl A
+#define DTAPI_IOCONFIG_1080P50B    54            // 1080p/50 lvl B
+#define DTAPI_IOCONFIG_1080P59_94  55            // 1080p/59.94 lvl A
+#define DTAPI_IOCONFIG_1080P59_94B 56            // 1080p/59.94 lvl B
+#define DTAPI_IOCONFIG_1080P60     57            // 1080p/60 lvl A
+#define DTAPI_IOCONFIG_1080P60B    58            // 1080p/60 lvl B
 
 // SubValues for group DTAPI_IOCONFIG_IOSTD, value DTAPI_IOCONFIG_6GSDI
-#define DTAPI_IOCONFIG_2160P23_98  58            // 2160p/23.98
-#define DTAPI_IOCONFIG_2160P24     59            // 2160p/24
-#define DTAPI_IOCONFIG_2160P25     60            // 2160p/25
-#define DTAPI_IOCONFIG_2160P29_97  61            // 2160p/29.97
-#define DTAPI_IOCONFIG_2160P30     62            // 2160p/30
+#define DTAPI_IOCONFIG_2160P23_98  59            // 2160p/23.98
+#define DTAPI_IOCONFIG_2160P24     60            // 2160p/24
+#define DTAPI_IOCONFIG_2160P25     61            // 2160p/25
+#define DTAPI_IOCONFIG_2160P29_97  62            // 2160p/29.97
+#define DTAPI_IOCONFIG_2160P30     63            // 2160p/30
 
 // SubValues for group DTAPI_IOCONFIG_IOSTD, value DTAPI_IOCONFIG_HDSDI
-#define DTAPI_IOCONFIG_1080I50     63            // 1080i/50
-#define DTAPI_IOCONFIG_1080I59_94  64            // 1080i/59.94
-#define DTAPI_IOCONFIG_1080I60     65            // 1080i/60
-#define DTAPI_IOCONFIG_1080P23_98  66            // 1080p/23.98
-#define DTAPI_IOCONFIG_1080P24     67            // 1080p/24
-#define DTAPI_IOCONFIG_1080P25     68            // 1080p/25
-#define DTAPI_IOCONFIG_1080P29_97  69            // 1080p/29.97
-#define DTAPI_IOCONFIG_1080P30     70            // 1080p/30
-#define DTAPI_IOCONFIG_1080PSF23_98 71           // 1080psf/23.98
-#define DTAPI_IOCONFIG_1080PSF24   72            // 1080psf/24
-#define DTAPI_IOCONFIG_1080PSF25   73            // 1080psf/25
-#define DTAPI_IOCONFIG_1080PSF29_97 74           // 1080psf/29.97
-#define DTAPI_IOCONFIG_1080PSF30   75            // 1080psf/30
-#define DTAPI_IOCONFIG_720P23_98   76            // 720p/23.98
-#define DTAPI_IOCONFIG_720P24      77            // 720p/24
-#define DTAPI_IOCONFIG_720P25      78            // 720p/25
-#define DTAPI_IOCONFIG_720P29_97   79            // 720p/29.97
-#define DTAPI_IOCONFIG_720P30      80            // 720p/30
-#define DTAPI_IOCONFIG_720P50      81            // 720p/50
-#define DTAPI_IOCONFIG_720P59_94   82            // 720p/59.94
-#define DTAPI_IOCONFIG_720P60      83            // 720p/60
+#define DTAPI_IOCONFIG_1080I50     64            // 1080i/50
+#define DTAPI_IOCONFIG_1080I59_94  65            // 1080i/59.94
+#define DTAPI_IOCONFIG_1080I60     66            // 1080i/60
+#define DTAPI_IOCONFIG_1080P23_98  67            // 1080p/23.98
+#define DTAPI_IOCONFIG_1080P24     68            // 1080p/24
+#define DTAPI_IOCONFIG_1080P25     69            // 1080p/25
+#define DTAPI_IOCONFIG_1080P29_97  70            // 1080p/29.97
+#define DTAPI_IOCONFIG_1080P30     71            // 1080p/30
+#define DTAPI_IOCONFIG_1080PSF23_98 72           // 1080psf/23.98
+#define DTAPI_IOCONFIG_1080PSF24   73            // 1080psf/24
+#define DTAPI_IOCONFIG_1080PSF25   74            // 1080psf/25
+#define DTAPI_IOCONFIG_1080PSF29_97 75           // 1080psf/29.97
+#define DTAPI_IOCONFIG_1080PSF30   76            // 1080psf/30
+#define DTAPI_IOCONFIG_720P23_98   77            // 720p/23.98
+#define DTAPI_IOCONFIG_720P24      78            // 720p/24
+#define DTAPI_IOCONFIG_720P25      79            // 720p/25
+#define DTAPI_IOCONFIG_720P29_97   80            // 720p/29.97
+#define DTAPI_IOCONFIG_720P30      81            // 720p/30
+#define DTAPI_IOCONFIG_720P50      82            // 720p/50
+#define DTAPI_IOCONFIG_720P59_94   83            // 720p/59.94
+#define DTAPI_IOCONFIG_720P60      84            // 720p/60
 
 // SubValues for group DTAPI_IOCONFIG_IOSTD, value DTAPI_IOCONFIG_SDI
-#define DTAPI_IOCONFIG_525I59_94   84            // 525i/59.94
-#define DTAPI_IOCONFIG_625I50      85            // 625i/50
+#define DTAPI_IOCONFIG_525I59_94   85            // 525i/59.94
+#define DTAPI_IOCONFIG_625I50      86            // 625i/50
 
 // SubValues for group DTAPI_IOCONFIG_IOSTD, value DTAPI_IOCONFIG_SPISDI
-#define DTAPI_IOCONFIG_SPI525I59_94 86           // SPI 525i/59.94
-#define DTAPI_IOCONFIG_SPI625I50   87            // SPI 625i/50
+#define DTAPI_IOCONFIG_SPI525I59_94 87           // SPI 525i/59.94
+#define DTAPI_IOCONFIG_SPI625I50   88            // SPI 625i/50
 
 // Values for group IO_CONFIG_PWRMODE (Power mode)
-#define DTAPI_IOCONFIG_MODHQ       88            // High-quality modulation
-#define DTAPI_IOCONFIG_LOWPWR      89            // Low-power mode
+#define DTAPI_IOCONFIG_MODHQ       89            // High-quality modulation
+#define DTAPI_IOCONFIG_LOWPWR      90            // Low-power mode
 
 // Values for group IO_CONFIG_RFCLKSEL (RF clock source selection)
-#define DTAPI_IOCONFIG_RFCLKEXT    90            // External RF clock input
-#define DTAPI_IOCONFIG_RFCLKINT    91            // Internal RF clock reference
+#define DTAPI_IOCONFIG_RFCLKEXT    91            // External RF clock input
+#define DTAPI_IOCONFIG_RFCLKINT    92            // Internal RF clock reference
 
 // Values for group IO_CONFIG_SPICLKSEL (Parallel port clock source selection)
-#define DTAPI_IOCONFIG_SPICLKEXT   92            // External clock input
-#define DTAPI_IOCONFIG_SPICLKINT   93            // Internal clock reference
+#define DTAPI_IOCONFIG_SPICLKEXT   93            // External clock input
+#define DTAPI_IOCONFIG_SPICLKINT   94            // Internal clock reference
 
 // Values for group IO_CONFIG_SPIMODE (Parallel port mode)
-#define DTAPI_IOCONFIG_SPIFIXEDCLK 94            // SPI fixed clock with valid signal
-#define DTAPI_IOCONFIG_SPIDVBMODE  95            // SPI DVB mode
-#define DTAPI_IOCONFIG_SPISER8B    96            // SPI serial 8-bit mode
-#define DTAPI_IOCONFIG_SPISER10B   97            // SPI serial 10-bit mode
+#define DTAPI_IOCONFIG_SPIFIXEDCLK 95            // SPI fixed clock with valid signal
+#define DTAPI_IOCONFIG_SPIDVBMODE  96            // SPI DVB mode
+#define DTAPI_IOCONFIG_SPISER8B    97            // SPI serial 8-bit mode
+#define DTAPI_IOCONFIG_SPISER10B   98            // SPI serial 10-bit mode
 
 // Values for group IO_CONFIG_SPISTD (Parallel port I/O standard)
-#define DTAPI_IOCONFIG_SPILVDS1    98            // LVDS1
-#define DTAPI_IOCONFIG_SPILVDS2    99            // LVDS2
-#define DTAPI_IOCONFIG_SPILVTTL    100           // LVTTL
+#define DTAPI_IOCONFIG_SPILVDS1    99            // LVDS1
+#define DTAPI_IOCONFIG_SPILVDS2    100           // LVDS2
+#define DTAPI_IOCONFIG_SPILVTTL    101           // LVTTL
 
 // Values for group IO_CONFIG_TSRATESEL (Transport-stream rate selection)
-#define DTAPI_IOCONFIG_EXTTSRATE   101           // External TS rate clock input
-#define DTAPI_IOCONFIG_EXTRATIO    102           // External TS rate clock with ratio
-#define DTAPI_IOCONFIG_INTTSRATE   103           // Internal TS rate clock reference
-#define DTAPI_IOCONFIG_LOCK2INP    104           // Lock TS rate to input port
+#define DTAPI_IOCONFIG_EXTTSRATE   102           // External TS rate clock input
+#define DTAPI_IOCONFIG_EXTRATIO    103           // External TS rate clock with ratio
+#define DTAPI_IOCONFIG_INTTSRATE   104           // Internal TS rate clock reference
+#define DTAPI_IOCONFIG_LOCK2INP    105           // Lock TS rate to input port
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIqData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -2103,6 +2106,27 @@ struct DtTunePars
     } u;
 };
 
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtTxClockProperties -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// ASI/SDI transmit clock properties
+//
+enum DtTxClockType
+{
+    DT_TXCLK_FRACTIONAL,
+    DT_TXCLK_NON_FRACTIONAL,
+};
+struct DtTxClockProperties
+{
+    int  m_TxClockId;               // Identification of the transmit clock to be used
+                                    // in GetTxClockOffset() and SetTxClockOffset()
+    DtTxClockType  m_ClockType;     // Fractional / Non-fractional clock
+    double  m_Frequency;            // Centre frequency in Hertz
+    double  m_RangePpm;             // Frequency range in ppm (+ and -)
+    double  m_StepSizePpm;          // Approximate step size in ppm
+    std::vector<int>  m_Ports;      // Associated ports
+};
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtVidStdInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 struct DtVidStdInfo
@@ -2877,6 +2901,10 @@ public:
     virtual DTAPI_RESULT  GetRefClkCnt(__uint64& RefClkCnt, int& RefClkFreqHz);
     virtual DTAPI_RESULT  GetRefClkFreq(int&  RefClkFreqHz);
     virtual DTAPI_RESULT  GetStateFlags(int  Port, int  &StateFlags);
+    virtual DTAPI_RESULT  GetTxClockProperties(std::vector<DtTxClockProperties>&  
+                                                                        TxClkProps) const;
+    virtual DTAPI_RESULT  GetTxClockOffset(int  TxClockId, double& OffsetPpm) const;
+
     virtual DTAPI_RESULT  GetUsbSpeed(int& UsbSpeed);
     virtual DTAPI_RESULT  GetVcxoState(bool& Enable, int& Lock, int& VcxoClkFreqHz);
     virtual DTAPI_RESULT  HwFuncScan(int NumEntries, int& NumEntriesResult,
@@ -2899,6 +2927,7 @@ public:
     virtual DTAPI_RESULT  SetLicenseFromString(const std::wstring& LicString,
                                                                         bool Force=false);
     virtual DTAPI_RESULT  SetNwSpeed(int Port, bool Enable, int Speed);
+    virtual DTAPI_RESULT  SetTxClockOffset(int  TxClockId, double OffsetPpm);
     virtual DTAPI_RESULT  SetVcxoState(bool Enable, int Value);
     virtual DTAPI_RESULT  UnregisterCallback(void* pId);
     virtual DTAPI_RESULT  VpdDelete(const char* pTag);
@@ -3301,6 +3330,7 @@ private:
 #define DTAPI_RXMODE_SDI_MODE_BITS  0x0F00
 #define DTAPI_RXMODE_SDI_FULL       (DTAPI_RXMODE_SDI | 0x100)
 #define DTAPI_RXMODE_SDI_ACTVID     (DTAPI_RXMODE_SDI | 0x200)
+#define DTAPI_RXMODE_SDI_RAWDMA     (DTAPI_RXMODE_SDI | 0x400)
 #define DTAPI_RXMODE_SDI_MASK       (DTAPI_RXMODE_SDI | DTAPI_RXMODE_SDI_MODE_BITS)
 // Receive mode for SDI - Flags
 #define DTAPI_RXMODE_SDI_HUFFMAN    0x00002000
@@ -3308,6 +3338,7 @@ private:
 #define DTAPI_RXMODE_SDI_16B        0x00008000
 #define DTAPI_RXMODE_SDI_10B_NBO    0x00010000
 #define DTAPI_RXMODE_SDI_STAT       0x00020000
+
 
 // Receive mode for SDI and Transport Streams - Common flags
 #define DTAPI_RXMODE_TIMESTAMP32    0x01000000
@@ -4175,6 +4206,47 @@ private:
     DTAPI_RESULT  DetachUnlock();
 };
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtTransferRateGauger -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+class DtTransferRateGauger
+{
+public:
+    DtTransferRateGauger();
+    virtual ~DtTransferRateGauger();
+private:
+    // No implementation is provided for the copy constructor
+    DtTransferRateGauger(const DtTransferRateGauger&);
+    DtTransferRateGauger&  operator = (const DtTransferRateGauger&);
+
+public:
+    // Initialize the minimum sustainable transfer-rate gauger.
+    // This does not initiate any real measurement activity, it is just used 
+    // to specify parameters.
+    DTAPI_RESULT  Init(DtDevice& DtDvc, int Port);
+
+    // Start the measurement process.
+    // This method will not wait for measurement results, but return quickly.
+    // Measurement results can be queried asynchronously with GetTransferRate(.).
+    DTAPI_RESULT  Start();
+    
+    // Stop the measurement process.
+    // GetTransferRate(.) cannot be called anymore.
+    DTAPI_RESULT  Stop();
+
+    // Get minimum sustainable transfer rate.
+    // Returns DTAPI_E_INITIALIZING if no measurement result is available yet.
+    DTAPI_RESULT  GetTransferRate(__int64& RateBps) const;
+
+    // Encapsulated data
+private:
+    mutable void*  m_pLockCount;
+    TransferRateGaugerImpl*  m_pImpl;
+
+    // Private helper functions
+private:
+    void  Cleanup();
+    DTAPI_RESULT  Lock() const;
+    DTAPI_RESULT  Unlock() const;
+};
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ SDI +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 // DtSdi - Table-of-content entry types
@@ -8376,6 +8448,19 @@ public:
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ MATRIX CALLBACK DATA STRUCTURES +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- enum DtMxVidPattern -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+enum DtMxVidPattern
+{
+    DT_VIDPAT_BLACK_FRAME,
+    DT_VIDPAT_RED_FRAME,
+    DT_VIDPAT_GREEN_FRAME,
+    DT_VIDPAT_BLUE_FRAME,
+    DT_VIDPAT_WHITE_FRAME,
+};
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxRawDataSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 class DtMxRawDataSdi
@@ -8387,9 +8472,13 @@ public:
     int  m_StartLine;           // 1st line in buffer (1-based)
     int  m_NumLines;            // #lines to transfer (-1 for all lines)
     // Informational
-    DtMxPixelFormat  m_PixelFormat;  // Pixel format. Can be UYVY422 or YUVY422
+    DtMxPixelFormat  m_PixelFormat;  // Pixel format. Can be DT_PXFMT_UYVY422_10B or
+                                     // DT_PXFMT_UYVY422_16B
     int  m_Width;               // Width in pixels
     int  m_Height;              // Height in pixels
+
+    // Initialize the raw SDI-buffers with a specific pattern in an efficient way.
+    DTAPI_RESULT  InitBuf(DtMxVidPattern  Pattern, int VidStd, int LinkStd);
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxRawData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -8422,17 +8511,6 @@ public:
                                 // chrominancy planes have m_NumLines twice as small
                                 // as DtMatrixVideoBuf::m_Height.
     DtMxVideoPlaneBuf();
-};
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- enum DtMxVidPattern -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-enum DtMxVidPattern
-{
-    DT_VIDPAT_BLACK_FRAME,
-    DT_VIDPAT_RED_FRAME,
-    DT_VIDPAT_GREEN_FRAME,
-    DT_VIDPAT_BLUE_FRAME,
-    DT_VIDPAT_WHITE_FRAME,
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxVideoBuf -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

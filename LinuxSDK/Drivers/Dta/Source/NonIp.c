@@ -52,6 +52,8 @@ static DtStatus  DtaNonIpIoConfigSetTsRateSel(DtaNonIpPort* pNonIpPort,  Int Gro
                                                                DtaIoConfigValue CfgValue);
 static DtStatus  DtaNonIpIoConfigSetSwS2Apsk(DtaNonIpPort* pNonIpPort,  Int Group,
                                                                DtaIoConfigValue CfgValue);
+static DtStatus  DtaNonIpIoConfigSetAutoBfGen(DtaNonIpPort* pNonIpPort,  Int Group,
+                                                               DtaIoConfigValue CfgValue);
 static DtStatus  DtaNonIpIoConfigSetFailSafe(DtaNonIpPort* pNonIpPort,  Int Group,
                                                                DtaIoConfigValue CfgValue);
 static DtStatus  DtaNonIpIoConfigSetGenLocked(DtaNonIpPort* pNonIpPort,  Int Group,
@@ -358,6 +360,8 @@ DtStatus  DtaNonIpInit(
     pNonIpPort->m_CapLock2Inp = DtPropertiesGetBool(pPropData, "CAP_LOCK2INP",
                                                                  pNonIpPort->m_PortIndex);
     // BOOLIO (Boolean I/O capabilities) - Capabilities
+    pNonIpPort->m_CapAutoBfGen = DtPropertiesGetBool(pPropData, "CAP_AUTOBFGEN",
+                                                                 pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapFailSafe = DtPropertiesGetBool(pPropData, "CAP_FAILSAFE",
                                                                  pNonIpPort->m_PortIndex);
     pNonIpPort->m_CapFracMode = DtPropertiesGetBool(pPropData, "CAP_FRACMODE",
@@ -1094,6 +1098,9 @@ DtStatus  DtaNonIpInit(
     if (pNonIpPort->m_CapSwS2Apsk)   
         pNonIpPort->m_IoCfg[DT_IOCONFIG_SWS2APSK].m_Value = DT_IOCONFIG_FALSE;
     
+    // DT_IOCONFIG_AUTOBFGEN
+    if (pNonIpPort->m_CapAutoBfGen)
+        pNonIpPort->m_IoCfg[DT_IOCONFIG_AUTOBFGEN].m_Value = DT_IOCONFIG_TRUE;
     // DT_IOCONFIG_FAILSAFE
     if (pNonIpPort->m_CapFailSafe)
         pNonIpPort->m_IoCfg[DT_IOCONFIG_FAILSAFE].m_Value = DT_IOCONFIG_FALSE;
@@ -2532,6 +2539,10 @@ DtStatus  DtaNonIpIoConfigSet(
         Status = DtaNonIpIoConfigSetTsRateSel(pNonIpPort, Group, CfgValue);
         break;
          
+        // Automatic black-frame generation
+    case DT_IOCONFIG_AUTOBFGEN:
+        Status = DtaNonIpIoConfigSetAutoBfGen(pNonIpPort, Group, CfgValue);
+        break;
         // Fail-over relais available
     case DT_IOCONFIG_FAILSAFE:
         Status = DtaNonIpIoConfigSetFailSafe(pNonIpPort, Group, CfgValue);
@@ -3287,6 +3298,34 @@ static DtStatus  DtaNonIpIoConfigSetSwS2Apsk(
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpIoConfigSetAutoBfGen -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtaNonIpIoConfigSetAutoBfGen(
+    DtaNonIpPort* pNonIpPort,
+    Int Group,
+    DtaIoConfigValue CfgValue)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtaIoConfigValue  IoDirValue, IoStdValue, OldCfgValue;
+    OldCfgValue = pNonIpPort->m_IoCfg[Group];
+    // Check current direction and IO-standard
+    DtaNonIpIoConfigGet(pNonIpPort, DT_IOCONFIG_IODIR, &IoDirValue);
+    DtaNonIpIoConfigGet(pNonIpPort, DT_IOCONFIG_IOSTD, &IoStdValue);
+    if (IoDirValue.m_Value == DT_IOCONFIG_INPUT
+        || IoStdValue.m_Value== DT_IOCONFIG_ASI || IoStdValue.m_Value==DT_IOCONFIG_SPI)
+    {
+        // Currently new setting has no effect; Save new config to the cache
+        pNonIpPort->m_IoCfg[Group] = CfgValue;  
+        return DT_STATUS_OK;
+    }
+    // Save new config, before apply-ing
+    pNonIpPort->m_IoCfg[Group] = CfgValue;
+    Status = DtaNonIpMatrixConfigure(pNonIpPort, TRUE);
+    // Restore original config, if failed to apply new one
+    if (!DT_SUCCESS(Status))
+        pNonIpPort->m_IoCfg[Group] = OldCfgValue;
+    return Status;
+}
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpIoConfigSetFailSafe -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 static DtStatus  DtaNonIpIoConfigSetFailSafe(

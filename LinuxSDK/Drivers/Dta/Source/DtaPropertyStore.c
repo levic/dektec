@@ -7406,7 +7406,7 @@ static const DtProperty  DtProperties2115_0_01[] =
                                                                                    0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
                                                                                    0, 0 },
-    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 400, -1,
+    { "FIRMWARE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 400, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 1, 0, 400, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -8525,7 +8525,9 @@ static const DtProperty  DtProperties2115_0_48[] =
 {
     { "FIRMWARE_RELEASE_N1_1", DT_PVE,
       "Support for Single Frequency Network (SFN) operation", PROPERTY_VALUE_TYPE_STRING,
-                                       -1, 0, 0, 400, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                       -1, 0, 0, 400, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N2_0", DT_PVE, "Support for uniform or gaussian noise generator",
+           PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 400, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2115_0_49[] =
 {
@@ -8919,7 +8921,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2115_0[] =
     { DtProperties2115_0_45, 19 },
     { DtProperties2115_0_46, 14 },
     { DtProperties2115_0_47, 12 },
-    { DtProperties2115_0_48, 1 },
+    { DtProperties2115_0_48, 2 },
     { DtProperties2115_0_49, 1 },
     { DtProperties2115_0_50, 4 },
     { DtProperties2115_0_51, 11 },
@@ -13623,6 +13625,10 @@ static const DtProperty  DtProperties2152_0_19[] =
                     -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, ARCHITECTURE_TX_LEGACY_MATRIX, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_AUTOBFGEN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 2, 0, -1,
                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 5, 11, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 2, 0, -1,
@@ -13786,6 +13792,10 @@ static const DtProperty  DtProperties2152_0_36[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 3, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "DEFAULT_AUTOBFGEN", DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0,
+                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0,
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -14069,7 +14079,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2152_0[] =
     { DtProperties2152_0_16, 7 },
     { DtProperties2152_0_17, 5 },
     { NULL, 0 },
-    { DtProperties2152_0_19, 4 },
+    { DtProperties2152_0_19, 6 },
     { DtProperties2152_0_20, 1 },
     { DtProperties2152_0_21, 4 },
     { DtProperties2152_0_22, 2 },
@@ -14086,7 +14096,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2152_0[] =
     { NULL, 0 },
     { DtProperties2152_0_34, 1 },
     { DtProperties2152_0_35, 8 },
-    { DtProperties2152_0_36, 11 },
+    { DtProperties2152_0_36, 13 },
     { DtProperties2152_0_37, 3 },
     { DtProperties2152_0_38, 4 },
     { DtProperties2152_0_39, 3 },
@@ -14337,6 +14347,10 @@ static const DtProperty  DtProperties2154_0_19[] =
                     -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, ARCHITECTURE_TX_LEGACY_MATRIX, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_AUTOBFGEN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 5, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 5, 0, -1,
@@ -14513,6 +14527,10 @@ static const DtProperty  DtProperties2154_0_36[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 4, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "DEFAULT_AUTOBFGEN", DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0,
+                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1,
                         5, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -14855,7 +14873,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2154_0[] =
     { DtProperties2154_0_16, 7 },
     { DtProperties2154_0_17, 7 },
     { NULL, 0 },
-    { DtProperties2154_0_19, 4 },
+    { DtProperties2154_0_19, 6 },
     { DtProperties2154_0_20, 1 },
     { DtProperties2154_0_21, 4 },
     { DtProperties2154_0_22, 4 },
@@ -14872,7 +14890,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2154_0[] =
     { NULL, 0 },
     { DtProperties2154_0_34, 1 },
     { DtProperties2154_0_35, 10 },
-    { DtProperties2154_0_36, 12 },
+    { DtProperties2154_0_36, 14 },
     { DtProperties2154_0_37, 3 },
     { DtProperties2154_0_38, 4 },
     { DtProperties2154_0_39, 2 },
@@ -15055,6 +15073,10 @@ static const DtProperty  DtProperties2154_1_19[] =
                     -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, ARCHITECTURE_TX_LEGACY_MATRIX, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_AUTOBFGEN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 5, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 5, 0, -1,
@@ -15188,6 +15210,10 @@ static const DtProperty  DtProperties2154_1_36[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "DEFAULT_AUTOBFGEN", DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0,
+                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0,
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -15472,7 +15498,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2154_1[] =
     { DtProperties2154_1_16, 5 },
     { DtProperties2154_1_17, 5 },
     { NULL, 0 },
-    { DtProperties2154_1_19, 4 },
+    { DtProperties2154_1_19, 6 },
     { DtProperties2154_1_20, 1 },
     { DtProperties2154_1_21, 4 },
     { DtProperties2154_1_22, 4 },
@@ -15489,7 +15515,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2154_1[] =
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties2154_1_35, 8 },
-    { DtProperties2154_1_36, 7 },
+    { DtProperties2154_1_36, 9 },
     { DtProperties2154_1_37, 1 },
     { DtProperties2154_1_38, 2 },
     { DtProperties2154_1_39, 2 },
@@ -16655,6 +16681,10 @@ static const DtProperty  DtProperties2174_0_19[] =
                     -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, ARCHITECTURE_TX_LEGACY_MATRIX, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_AUTOBFGEN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 2, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 2, 0, -1,
@@ -16835,6 +16865,10 @@ static const DtProperty  DtProperties2174_0_36[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 4, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "DEFAULT_AUTOBFGEN", DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0,
+                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1,
                         3, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -17167,7 +17201,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2174_0[] =
     { DtProperties2174_0_16, 7 },
     { DtProperties2174_0_17, 7 },
     { DtProperties2174_0_18, 4 },
-    { DtProperties2174_0_19, 4 },
+    { DtProperties2174_0_19, 6 },
     { DtProperties2174_0_20, 1 },
     { DtProperties2174_0_21, 4 },
     { DtProperties2174_0_22, 4 },
@@ -17184,7 +17218,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2174_0[] =
     { NULL, 0 },
     { DtProperties2174_0_34, 1 },
     { DtProperties2174_0_35, 10 },
-    { DtProperties2174_0_36, 12 },
+    { DtProperties2174_0_36, 14 },
     { DtProperties2174_0_37, 2 },
     { DtProperties2174_0_38, 4 },
     { DtProperties2174_0_39, 5 },
@@ -17378,6 +17412,10 @@ static const DtProperty  DtProperties2174_1_19[] =
                     -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, ARCHITECTURE_TX_LEGACY_MATRIX, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_AUTOBFGEN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 2, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 2, 0, -1,
@@ -17513,6 +17551,10 @@ static const DtProperty  DtProperties2174_1_36[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "DEFAULT_AUTOBFGEN", DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0,
+                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0,
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -17787,7 +17829,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2174_1[] =
     { DtProperties2174_1_16, 5 },
     { DtProperties2174_1_17, 5 },
     { DtProperties2174_1_18, 2 },
-    { DtProperties2174_1_19, 4 },
+    { DtProperties2174_1_19, 6 },
     { DtProperties2174_1_20, 1 },
     { DtProperties2174_1_21, 4 },
     { DtProperties2174_1_22, 4 },
@@ -17804,7 +17846,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2174_1[] =
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties2174_1_35, 8 },
-    { DtProperties2174_1_36, 7 },
+    { DtProperties2174_1_36, 9 },
     { DtProperties2174_1_37, 1 },
     { DtProperties2174_1_38, 2 },
     { DtProperties2174_1_39, 5 },
@@ -18058,6 +18100,10 @@ static const DtProperty  DtProperties2179_0_19[] =
                     -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, ARCHITECTURE_TX_LEGACY_MATRIX, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_AUTOBFGEN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
@@ -18234,6 +18280,10 @@ static const DtProperty  DtProperties2179_0_36[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 3, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "DEFAULT_AUTOBFGEN", DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0,
+                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1,
                         0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -18502,7 +18552,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_0[] =
     { DtProperties2179_0_16, 7 },
     { DtProperties2179_0_17, 6 },
     { DtProperties2179_0_18, 4 },
-    { DtProperties2179_0_19, 4 },
+    { DtProperties2179_0_19, 6 },
     { DtProperties2179_0_20, 1 },
     { DtProperties2179_0_21, 4 },
     { DtProperties2179_0_22, 4 },
@@ -18519,7 +18569,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_0[] =
     { NULL, 0 },
     { DtProperties2179_0_34, 1 },
     { DtProperties2179_0_35, 8 },
-    { DtProperties2179_0_36, 11 },
+    { DtProperties2179_0_36, 13 },
     { DtProperties2179_0_37, 2 },
     { DtProperties2179_0_38, 4 },
     { DtProperties2179_0_39, 3 },
@@ -18705,6 +18755,10 @@ static const DtProperty  DtProperties2179_1_19[] =
                     -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, ARCHITECTURE_TX_LEGACY_MATRIX, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_AUTOBFGEN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
@@ -18836,6 +18890,10 @@ static const DtProperty  DtProperties2179_1_36[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "DEFAULT_AUTOBFGEN", DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0,
+                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0,
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -19054,7 +19112,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_1[] =
     { DtProperties2179_1_16, 5 },
     { DtProperties2179_1_17, 5 },
     { DtProperties2179_1_18, 2 },
-    { DtProperties2179_1_19, 4 },
+    { DtProperties2179_1_19, 6 },
     { DtProperties2179_1_20, 1 },
     { DtProperties2179_1_21, 4 },
     { DtProperties2179_1_22, 4 },
@@ -19071,7 +19129,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_1[] =
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties2179_1_35, 6 },
-    { DtProperties2179_1_36, 7 },
+    { DtProperties2179_1_36, 9 },
     { DtProperties2179_1_37, 1 },
     { DtProperties2179_1_38, 2 },
     { DtProperties2179_1_39, 3 },
@@ -19288,6 +19346,10 @@ static const DtProperty  DtProperties2179_2_19[] =
                     -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, ARCHITECTURE_TX_LEGACY_MATRIX, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_AUTOBFGEN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
@@ -19443,6 +19505,10 @@ static const DtProperty  DtProperties2179_2_36[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "DEFAULT_AUTOBFGEN", DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0,
+                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0,
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -19689,7 +19755,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_2[] =
     { DtProperties2179_2_16, 6 },
     { DtProperties2179_2_17, 5 },
     { DtProperties2179_2_18, 3 },
-    { DtProperties2179_2_19, 4 },
+    { DtProperties2179_2_19, 6 },
     { DtProperties2179_2_20, 1 },
     { DtProperties2179_2_21, 4 },
     { DtProperties2179_2_22, 4 },
@@ -19706,7 +19772,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_2[] =
     { NULL, 0 },
     { DtProperties2179_2_34, 1 },
     { DtProperties2179_2_35, 7 },
-    { DtProperties2179_2_36, 9 },
+    { DtProperties2179_2_36, 11 },
     { DtProperties2179_2_37, 2 },
     { DtProperties2179_2_38, 3 },
     { DtProperties2179_2_39, 3 },
@@ -19892,6 +19958,10 @@ static const DtProperty  DtProperties2179_3_19[] =
                     -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, ARCHITECTURE_TX_LEGACY_MATRIX, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_AUTOBFGEN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
@@ -20023,6 +20093,10 @@ static const DtProperty  DtProperties2179_3_36[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "DEFAULT_AUTOBFGEN", DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0,
+                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0,
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -20241,7 +20315,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_3[] =
     { DtProperties2179_3_16, 5 },
     { DtProperties2179_3_17, 5 },
     { DtProperties2179_3_18, 2 },
-    { DtProperties2179_3_19, 4 },
+    { DtProperties2179_3_19, 6 },
     { DtProperties2179_3_20, 1 },
     { DtProperties2179_3_21, 4 },
     { DtProperties2179_3_22, 4 },
@@ -20258,7 +20332,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_3[] =
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties2179_3_35, 6 },
-    { DtProperties2179_3_36, 7 },
+    { DtProperties2179_3_36, 9 },
     { DtProperties2179_3_37, 1 },
     { DtProperties2179_3_38, 2 },
     { DtProperties2179_3_39, 3 },
@@ -20475,6 +20549,10 @@ static const DtProperty  DtProperties2179_4_19[] =
                     -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, ARCHITECTURE_TX_LEGACY_MATRIX, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_AUTOBFGEN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
@@ -20630,6 +20708,10 @@ static const DtProperty  DtProperties2179_4_36[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "DEFAULT_AUTOBFGEN", DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0,
+                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0,
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -20876,7 +20958,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_4[] =
     { DtProperties2179_4_16, 6 },
     { DtProperties2179_4_17, 5 },
     { DtProperties2179_4_18, 3 },
-    { DtProperties2179_4_19, 4 },
+    { DtProperties2179_4_19, 6 },
     { DtProperties2179_4_20, 1 },
     { DtProperties2179_4_21, 4 },
     { DtProperties2179_4_22, 4 },
@@ -20893,7 +20975,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_4[] =
     { NULL, 0 },
     { DtProperties2179_4_34, 1 },
     { DtProperties2179_4_35, 7 },
-    { DtProperties2179_4_36, 9 },
+    { DtProperties2179_4_36, 11 },
     { DtProperties2179_4_37, 2 },
     { DtProperties2179_4_38, 3 },
     { DtProperties2179_4_39, 3 },
@@ -21079,6 +21161,10 @@ static const DtProperty  DtProperties2179_5_19[] =
                     -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, ARCHITECTURE_TX_LEGACY_MATRIX, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_AUTOBFGEN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
@@ -21210,6 +21296,10 @@ static const DtProperty  DtProperties2179_5_36[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "DEFAULT_AUTOBFGEN", DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0,
+                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_NOT_SUPP, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0,
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -21428,7 +21518,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_5[] =
     { DtProperties2179_5_16, 5 },
     { DtProperties2179_5_17, 5 },
     { DtProperties2179_5_18, 2 },
-    { DtProperties2179_5_19, 4 },
+    { DtProperties2179_5_19, 6 },
     { DtProperties2179_5_20, 1 },
     { DtProperties2179_5_21, 4 },
     { DtProperties2179_5_22, 4 },
@@ -21445,7 +21535,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_5[] =
     { NULL, 0 },
     { NULL, 0 },
     { DtProperties2179_5_35, 6 },
-    { DtProperties2179_5_36, 7 },
+    { DtProperties2179_5_36, 9 },
     { DtProperties2179_5_37, 1 },
     { DtProperties2179_5_38, 2 },
     { DtProperties2179_5_39, 3 },
@@ -22612,6 +22702,8 @@ static const DtProperty  DtProperties2195_0_19[] =
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, ARCHITECTURE_TX_LEGACY_MATRIX, NULL, PROPERTY_VALUE_TYPE_INT, 10, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_AUTOBFGEN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -22945,6 +23037,8 @@ static const DtProperty  DtProperties2195_0_36[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 4, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "DEFAULT_AUTOBFGEN", DT_IOCONFIG_TRUE, NULL, PROPERTY_VALUE_TYPE_INT, 1, -1, 0, 0,
+                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PROGRAMMING_SEC_ITF", PROG_ITF_JTAG_FAST, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1,
                         0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -23416,7 +23510,7 @@ static const DtProperty  DtProperties2195_0_61[] =
                                        -1, -1, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "MATRIX_MEM_LINE_ALIGNMENT", 512, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "PROGRAMMING_SUPPORTS_FW_REBOOT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0,
+    { "PROGRAMMING_SUPPORTS_FW_REBOOT", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "TESTING_LOOP_BACK_32B_TX", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -23481,7 +23575,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2195_0[] =
     { DtProperties2195_0_16, 7 },
     { DtProperties2195_0_17, 11 },
     { DtProperties2195_0_18, 7 },
-    { DtProperties2195_0_19, 9 },
+    { DtProperties2195_0_19, 10 },
     { DtProperties2195_0_20, 19 },
     { DtProperties2195_0_21, 16 },
     { DtProperties2195_0_22, 12 },
@@ -23498,7 +23592,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2195_0[] =
     { DtProperties2195_0_33, 8 },
     { DtProperties2195_0_34, 11 },
     { DtProperties2195_0_35, 14 },
-    { DtProperties2195_0_36, 11 },
+    { DtProperties2195_0_36, 12 },
     { DtProperties2195_0_37, 2 },
     { DtProperties2195_0_38, 14 },
     { DtProperties2195_0_39, 9 },
@@ -23596,105 +23690,106 @@ const char*  IoConfigCodeStrings[] =
 /*  5 */ "SPIMODE",
 /*  6 */ "SPISTD",
 /*  7 */ "TSRATESEL",
-/*  8 */ "BW",
-/*  9 */ "DMATESTMODE",
-/* 10 */ "FAILSAFE",
-/* 11 */ "FRACMODE",
-/* 12 */ "GENLOCKED",
-/* 13 */ "GENREF",
-/* 14 */ "SWS2APSK",
-/* 15 */ "TRUE",
-/* 16 */ "FALSE",
-/* 17 */ "DISABLED",
-/* 18 */ "INPUT",
-/* 19 */ "INTINPUT",
-/* 20 */ "MONITOR",
-/* 21 */ "OUTPUT",
-/* 22 */ "SHAREDANT",
-/* 23 */ "DBLBUF",
-/* 24 */ "LOOPS2L3",
-/* 25 */ "LOOPS2TS",
-/* 26 */ "LOOPTHR",
-/* 27 */ "12GSDI",
-/* 28 */ "3GSDI",
-/* 29 */ "6GSDI",
-/* 30 */ "ASI",
-/* 31 */ "AVENC",
-/* 32 */ "DEKTECST",
-/* 33 */ "DEMOD",
-/* 34 */ "GPSTIME",
-/* 35 */ "HDMI",
-/* 36 */ "HDSDI",
-/* 37 */ "IFADC",
-/* 38 */ "IP",
-/* 39 */ "MOD",
-/* 40 */ "PHASENOISE",
-/* 41 */ "RS422",
-/* 42 */ "SDIRX",
-/* 43 */ "SDI",
-/* 44 */ "SPI",
-/* 45 */ "SPISDI",
-/* 46 */ "2160P50",
-/* 47 */ "2160P50B",
-/* 48 */ "2160P59_94",
-/* 49 */ "2160P59_94B",
-/* 50 */ "2160P60",
-/* 51 */ "2160P60B",
-/* 52 */ "1080P50",
-/* 53 */ "1080P50B",
-/* 54 */ "1080P59_94",
-/* 55 */ "1080P59_94B",
-/* 56 */ "1080P60",
-/* 57 */ "1080P60B",
-/* 58 */ "2160P23_98",
-/* 59 */ "2160P24",
-/* 60 */ "2160P25",
-/* 61 */ "2160P29_97",
-/* 62 */ "2160P30",
-/* 63 */ "1080I50",
-/* 64 */ "1080I59_94",
-/* 65 */ "1080I60",
-/* 66 */ "1080P23_98",
-/* 67 */ "1080P24",
-/* 68 */ "1080P25",
-/* 69 */ "1080P29_97",
-/* 70 */ "1080P30",
-/* 71 */ "1080PSF23_98",
-/* 72 */ "1080PSF24",
-/* 73 */ "1080PSF25",
-/* 74 */ "1080PSF29_97",
-/* 75 */ "1080PSF30",
-/* 76 */ "720P23_98",
-/* 77 */ "720P24",
-/* 78 */ "720P25",
-/* 79 */ "720P29_97",
-/* 80 */ "720P30",
-/* 81 */ "720P50",
-/* 82 */ "720P59_94",
-/* 83 */ "720P60",
-/* 84 */ "525I59_94",
-/* 85 */ "625I50",
-/* 86 */ "SPI525I59_94",
-/* 87 */ "SPI625I50",
-/* 88 */ "MODHQ",
-/* 89 */ "LOWPWR",
-/* 90 */ "RFCLKEXT",
-/* 91 */ "RFCLKINT",
-/* 92 */ "SPICLKEXT",
-/* 93 */ "SPICLKINT",
-/* 94 */ "SPIFIXEDCLK",
-/* 95 */ "SPIDVBMODE",
-/* 96 */ "SPISER8B",
-/* 97 */ "SPISER10B",
-/* 98 */ "SPILVDS1",
-/* 99 */ "SPILVDS2",
-/* 100 */ "SPILVTTL",
-/* 101 */ "EXTTSRATE",
-/* 102 */ "EXTRATIO",
-/* 103 */ "INTTSRATE",
-/* 104 */ "LOCK2INP"
+/*  8 */ "AUTOBFGEN",
+/*  9 */ "BW",
+/* 10 */ "DMATESTMODE",
+/* 11 */ "FAILSAFE",
+/* 12 */ "FRACMODE",
+/* 13 */ "GENLOCKED",
+/* 14 */ "GENREF",
+/* 15 */ "SWS2APSK",
+/* 16 */ "TRUE",
+/* 17 */ "FALSE",
+/* 18 */ "DISABLED",
+/* 19 */ "INPUT",
+/* 20 */ "INTINPUT",
+/* 21 */ "MONITOR",
+/* 22 */ "OUTPUT",
+/* 23 */ "SHAREDANT",
+/* 24 */ "DBLBUF",
+/* 25 */ "LOOPS2L3",
+/* 26 */ "LOOPS2TS",
+/* 27 */ "LOOPTHR",
+/* 28 */ "12GSDI",
+/* 29 */ "3GSDI",
+/* 30 */ "6GSDI",
+/* 31 */ "ASI",
+/* 32 */ "AVENC",
+/* 33 */ "DEKTECST",
+/* 34 */ "DEMOD",
+/* 35 */ "GPSTIME",
+/* 36 */ "HDMI",
+/* 37 */ "HDSDI",
+/* 38 */ "IFADC",
+/* 39 */ "IP",
+/* 40 */ "MOD",
+/* 41 */ "PHASENOISE",
+/* 42 */ "RS422",
+/* 43 */ "SDIRX",
+/* 44 */ "SDI",
+/* 45 */ "SPI",
+/* 46 */ "SPISDI",
+/* 47 */ "2160P50",
+/* 48 */ "2160P50B",
+/* 49 */ "2160P59_94",
+/* 50 */ "2160P59_94B",
+/* 51 */ "2160P60",
+/* 52 */ "2160P60B",
+/* 53 */ "1080P50",
+/* 54 */ "1080P50B",
+/* 55 */ "1080P59_94",
+/* 56 */ "1080P59_94B",
+/* 57 */ "1080P60",
+/* 58 */ "1080P60B",
+/* 59 */ "2160P23_98",
+/* 60 */ "2160P24",
+/* 61 */ "2160P25",
+/* 62 */ "2160P29_97",
+/* 63 */ "2160P30",
+/* 64 */ "1080I50",
+/* 65 */ "1080I59_94",
+/* 66 */ "1080I60",
+/* 67 */ "1080P23_98",
+/* 68 */ "1080P24",
+/* 69 */ "1080P25",
+/* 70 */ "1080P29_97",
+/* 71 */ "1080P30",
+/* 72 */ "1080PSF23_98",
+/* 73 */ "1080PSF24",
+/* 74 */ "1080PSF25",
+/* 75 */ "1080PSF29_97",
+/* 76 */ "1080PSF30",
+/* 77 */ "720P23_98",
+/* 78 */ "720P24",
+/* 79 */ "720P25",
+/* 80 */ "720P29_97",
+/* 81 */ "720P30",
+/* 82 */ "720P50",
+/* 83 */ "720P59_94",
+/* 84 */ "720P60",
+/* 85 */ "525I59_94",
+/* 86 */ "625I50",
+/* 87 */ "SPI525I59_94",
+/* 88 */ "SPI625I50",
+/* 89 */ "MODHQ",
+/* 90 */ "LOWPWR",
+/* 91 */ "RFCLKEXT",
+/* 92 */ "RFCLKINT",
+/* 93 */ "SPICLKEXT",
+/* 94 */ "SPICLKINT",
+/* 95 */ "SPIFIXEDCLK",
+/* 96 */ "SPIDVBMODE",
+/* 97 */ "SPISER8B",
+/* 98 */ "SPISER10B",
+/* 99 */ "SPILVDS1",
+/* 100 */ "SPILVDS2",
+/* 101 */ "SPILVTTL",
+/* 102 */ "EXTTSRATE",
+/* 103 */ "EXTRATIO",
+/* 104 */ "INTTSRATE",
+/* 105 */ "LOCK2INP"
 };
-const Int  IoConfigCodeStringCount = 105;
+const Int  IoConfigCodeStringCount = 106;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IoConfigCodes_XX[] -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -23703,258 +23798,262 @@ const Int  IoConfigCodeStringCount = 105;
 //
 static const IoConfigCode  IoConfigCodes_0[] =
 {
-    { "FAILSAFE", 10 },
-    { "INTINPUT", 19 }
+    { "FAILSAFE", 11 },
+    { "INTINPUT", 20 }
 };
 static const IoConfigCode  IoConfigCodes_1[] =
 {
-    { "1080P30", 70 }
+    { "1080P30", 71 }
 };
 static const IoConfigCode  IoConfigCodes_2[] =
 {
-    { "RS422", 41 }
+    { "RS422", 42 }
 };
 static const IoConfigCode  IoConfigCodes_3[] =
 {
     { "PWRMODE", 2 },
-    { "LOOPS2L3", 24 },
-    { "1080P50", 52 },
-    { "720P23_98", 76 }
+    { "LOOPS2L3", 25 },
+    { "1080P50", 53 },
+    { "720P23_98", 77 }
 };
 static const IoConfigCode  IoConfigCodes_4[] =
 {
-    { "2160P60", 50 },
-    { "2160P24", 59 }
+    { "2160P60", 51 },
+    { "2160P24", 60 }
 };
 static const IoConfigCode  IoConfigCodes_5[] =
 {
-    { "SDI", 43 },
-    { "2160P50B", 47 },
-    { "2160P25", 60 }
+    { "SDI", 44 },
+    { "2160P50B", 48 },
+    { "2160P25", 61 }
 };
 static const IoConfigCode  IoConfigCodes_6[] =
 {
-    { "FRACMODE", 11 },
-    { "2160P60B", 51 }
+    { "FRACMODE", 12 },
+    { "2160P60B", 52 }
 };
 static const IoConfigCode  IoConfigCodes_7[] =
 {
-    { "HDMI", 35 },
-    { "SPILVTTL", 100 }
+    { "HDMI", 36 },
+    { "SPILVTTL", 101 }
 };
 static const IoConfigCode  IoConfigCodes_8[] =
 {
     { "IOSTD", 1 },
-    { "720P29_97", 79 },
-    { "720P59_94", 82 }
+    { "720P29_97", 80 },
+    { "720P59_94", 83 }
 };
 static const IoConfigCode  IoConfigCodes_12[] =
 {
-    { "1080PSF23_98", 71 }
+    { "1080PSF23_98", 72 }
 };
 static const IoConfigCode  IoConfigCodes_14[] =
 {
-    { "DEMOD", 33 }
+    { "DEMOD", 34 }
 };
 static const IoConfigCode  IoConfigCodes_15[] =
 {
-    { "12GSDI", 27 }
+    { "12GSDI", 28 }
 };
 static const IoConfigCode  IoConfigCodes_16[] =
 {
-    { "FALSE", 16 },
-    { "625I50", 85 }
+    { "FALSE", 17 },
+    { "625I50", 86 }
 };
 static const IoConfigCode  IoConfigCodes_17[] =
 {
-    { "GENLOCKED", 12 },
-    { "HDSDI", 36 },
-    { "SPI", 44 },
-    { "SPISDI", 45 },
-    { "1080I59_94", 64 },
-    { "1080PSF29_97", 74 },
-    { "720P30", 80 }
+    { "GENLOCKED", 13 },
+    { "HDSDI", 37 },
+    { "SPI", 45 },
+    { "SPISDI", 46 },
+    { "1080I59_94", 65 },
+    { "1080PSF29_97", 75 },
+    { "720P30", 81 }
 };
 static const IoConfigCode  IoConfigCodes_18[] =
 {
-    { "AVENC", 31 },
-    { "SPIDVBMODE", 95 }
+    { "AVENC", 32 },
+    { "SPIDVBMODE", 96 }
 };
 static const IoConfigCode  IoConfigCodes_19[] =
 {
-    { "2160P23_98", 58 },
-    { "720P50", 81 }
+    { "2160P23_98", 59 },
+    { "720P50", 82 }
 };
 static const IoConfigCode  IoConfigCodes_20[] =
 {
-    { "DBLBUF", 23 }
+    { "DBLBUF", 24 }
 };
 static const IoConfigCode  IoConfigCodes_21[] =
 {
-    { "INPUT", 18 },
-    { "EXTRATIO", 102 }
+    { "INPUT", 19 },
+    { "EXTRATIO", 103 }
 };
 static const IoConfigCode  IoConfigCodes_22[] =
 {
     { "SPIMODE", 5 },
-    { "SPICLKINT", 93 }
+    { "SPICLKINT", 94 }
 };
 static const IoConfigCode  IoConfigCodes_24[] =
 {
-    { "2160P59_94", 48 },
-    { "2160P29_97", 61 }
+    { "2160P59_94", 49 },
+    { "2160P29_97", 62 }
 };
 static const IoConfigCode  IoConfigCodes_26[] =
 {
-    { "2160P59_94B", 49 }
+    { "2160P59_94B", 50 }
 };
 static const IoConfigCode  IoConfigCodes_27[] =
 {
-    { "SPIFIXEDCLK", 94 }
+    { "SPIFIXEDCLK", 95 }
 };
 static const IoConfigCode  IoConfigCodes_28[] =
 {
     { "IODIR", 0 },
     { "SPISTD", 6 },
     { "TSRATESEL", 7 },
-    { "SPI625I50", 87 },
-    { "SPICLKEXT", 92 }
+    { "SPI625I50", 88 },
+    { "SPICLKEXT", 93 }
 };
 static const IoConfigCode  IoConfigCodes_29[] =
 {
-    { "1080I60", 65 },
-    { "1080PSF24", 72 }
+    { "1080I60", 66 },
+    { "1080PSF24", 73 }
 };
 static const IoConfigCode  IoConfigCodes_30[] =
 {
-    { "BW", 8 },
-    { "GPSTIME", 34 },
-    { "1080PSF25", 73 }
+    { "BW", 9 },
+    { "GPSTIME", 35 },
+    { "1080PSF25", 74 }
 };
 static const IoConfigCode  IoConfigCodes_31[] =
 {
-    { "3GSDI", 28 }
+    { "3GSDI", 29 }
+};
+static const IoConfigCode  IoConfigCodes_32[] =
+{
+    { "AUTOBFGEN", 8 }
 };
 static const IoConfigCode  IoConfigCodes_33[] =
 {
-    { "2160P30", 62 }
+    { "2160P30", 63 }
 };
 static const IoConfigCode  IoConfigCodes_34[] =
 {
-    { "6GSDI", 29 },
-    { "ASI", 30 },
-    { "RFCLKINT", 91 }
+    { "6GSDI", 30 },
+    { "ASI", 31 },
+    { "RFCLKINT", 92 }
 };
 static const IoConfigCode  IoConfigCodes_35[] =
 {
-    { "SWS2APSK", 14 },
-    { "2160P50", 46 },
-    { "INTTSRATE", 103 }
+    { "SWS2APSK", 15 },
+    { "2160P50", 47 },
+    { "INTTSRATE", 104 }
 };
 static const IoConfigCode  IoConfigCodes_36[] =
 {
-    { "1080P60", 56 },
-    { "1080P24", 67 },
-    { "525I59_94", 84 }
+    { "1080P60", 57 },
+    { "1080P24", 68 },
+    { "525I59_94", 85 }
 };
 static const IoConfigCode  IoConfigCodes_37[] =
 {
-    { "TRUE", 15 },
-    { "MOD", 39 },
-    { "1080P50B", 53 },
-    { "1080P25", 68 }
+    { "TRUE", 16 },
+    { "MOD", 40 },
+    { "1080P50B", 54 },
+    { "1080P25", 69 }
 };
 static const IoConfigCode  IoConfigCodes_38[] =
 {
-    { "1080P60B", 57 }
+    { "1080P60B", 58 }
 };
 static const IoConfigCode  IoConfigCodes_39[] =
 {
-    { "LOCK2INP", 104 }
+    { "LOCK2INP", 105 }
 };
 static const IoConfigCode  IoConfigCodes_40[] =
 {
-    { "RFCLKEXT", 90 }
+    { "RFCLKEXT", 91 }
 };
 static const IoConfigCode  IoConfigCodes_41[] =
 {
-    { "EXTTSRATE", 101 }
+    { "EXTTSRATE", 102 }
 };
 static const IoConfigCode  IoConfigCodes_43[] =
 {
-    { "LOOPS2TS", 25 }
+    { "LOOPS2TS", 26 }
 };
 static const IoConfigCode  IoConfigCodes_45[] =
 {
-    { "MONITOR", 20 },
-    { "LOOPTHR", 26 }
+    { "MONITOR", 21 },
+    { "LOOPTHR", 27 }
 };
 static const IoConfigCode  IoConfigCodes_47[] =
 {
     { "SPICLKSEL", 4 },
-    { "SDIRX", 42 }
+    { "SDIRX", 43 }
 };
 static const IoConfigCode  IoConfigCodes_48[] =
 {
-    { "SPI525I59_94", 86 },
-    { "LOWPWR", 89 }
+    { "SPI525I59_94", 87 },
+    { "LOWPWR", 90 }
 };
 static const IoConfigCode  IoConfigCodes_51[] =
 {
-    { "1080P23_98", 66 }
+    { "1080P23_98", 67 }
 };
 static const IoConfigCode  IoConfigCodes_52[] =
 {
-    { "PHASENOISE", 40 },
-    { "720P24", 77 },
-    { "720P60", 83 }
+    { "PHASENOISE", 41 },
+    { "720P24", 78 },
+    { "720P60", 84 }
 };
 static const IoConfigCode  IoConfigCodes_53[] =
 {
-    { "720P25", 78 },
-    { "SPISER8B", 96 }
+    { "720P25", 79 },
+    { "SPISER8B", 97 }
 };
 static const IoConfigCode  IoConfigCodes_54[] =
 {
-    { "OUTPUT", 21 }
+    { "OUTPUT", 22 }
 };
 static const IoConfigCode  IoConfigCodes_56[] =
 {
-    { "1080P59_94", 54 },
-    { "1080P29_97", 69 }
+    { "1080P59_94", 55 },
+    { "1080P29_97", 70 }
 };
 static const IoConfigCode  IoConfigCodes_58[] =
 {
-    { "1080P59_94B", 55 },
-    { "1080PSF30", 75 }
+    { "1080P59_94B", 56 },
+    { "1080PSF30", 76 }
 };
 static const IoConfigCode  IoConfigCodes_59[] =
 {
     { "RFCLKSEL", 3 },
-    { "SPILVDS1", 98 }
+    { "SPILVDS1", 99 }
 };
 static const IoConfigCode  IoConfigCodes_60[] =
 {
-    { "DMATESTMODE", 9 },
-    { "GENREF", 13 },
-    { "DEKTECST", 32 },
-    { "IFADC", 37 },
-    { "1080I50", 63 },
-    { "SPILVDS2", 99 }
+    { "DMATESTMODE", 10 },
+    { "GENREF", 14 },
+    { "DEKTECST", 33 },
+    { "IFADC", 38 },
+    { "1080I50", 64 },
+    { "SPILVDS2", 100 }
 };
 static const IoConfigCode  IoConfigCodes_61[] =
 {
-    { "DISABLED", 17 }
+    { "DISABLED", 18 }
 };
 static const IoConfigCode  IoConfigCodes_62[] =
 {
-    { "IP", 38 },
-    { "MODHQ", 88 },
-    { "SPISER10B", 97 }
+    { "IP", 39 },
+    { "MODHQ", 89 },
+    { "SPISER10B", 98 }
 };
 static const IoConfigCode  IoConfigCodes_63[] =
 {
-    { "SHAREDANT", 22 }
+    { "SHAREDANT", 23 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IoConfigCodeHashSets[] -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -23995,7 +24094,7 @@ const IoConfigCodeHashSet  IoConfigCodeHashSets[] =
     { IoConfigCodes_29, 2 },
     { IoConfigCodes_30, 3 },
     { IoConfigCodes_31, 1 },
-    { NULL, 0 },
+    { IoConfigCodes_32, 1 },
     { IoConfigCodes_33, 1 },
     { IoConfigCodes_34, 3 },
     { IoConfigCodes_35, 3 },

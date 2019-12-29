@@ -67,17 +67,18 @@ void  DtBcSDITXP_Close(DtBc*  pBc)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXP_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtBcSDITXP*  DtBcSDITXP_Open(Int  Address, DtCore*  pCore, DtPt*  pPt,
+DtBcSDITXP*  DtBcSDITXP_Open(Int  Address, DtCore*  pCore, DtPt*  pPt, DtBcType  Type,
                            const char*  pRole, Int  Instance, Int  Uuid, Bool  CreateStub)
 {
     DtBcId  Id;
     DtBcOpenParams  OpenParams;
     
     DT_ASSERT(pCore!=NULL && pCore->m_Size>=sizeof(DtCore));
+    DT_ASSERT(Type== DT_BLOCK_TYPE_SDITXP || Type==DT_BLOCK_TYPE_SDITXP6G12G);
     
     // Init open parameters
-    DT_BC_SDITXP_INIT_ID(Id, pRole, Instance, Uuid);
-    DT_BC_INIT_OPEN_PARAMS(OpenParams, DtBcSDITXP, Id, DT_BLOCK_TYPE_SDITXP, Address,
+    DT_BC_SDITXP_INIT_ID(Id, Type, pRole, Instance, Uuid);
+    DT_BC_INIT_OPEN_PARAMS(OpenParams, DtBcSDITXP, Id, Type, Address,
                                                                   pPt, CreateStub, pCore);
     // Register the callbacks
     OpenParams.m_CloseFunc = DtBcSDITXP_Close;

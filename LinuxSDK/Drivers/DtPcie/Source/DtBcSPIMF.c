@@ -1674,9 +1674,10 @@ UInt  DtBcSPIMF_GetTypToMaxEraseTimeFactor(UInt8*  pBuffer)
 //
 UInt  DtBcSPIMF_ComputeSectorEraseTimeUs(UInt32  Units, UInt32  Count)
 {
-    UInt  Timeout;
+    UInt  Timeout = 0;
     switch (Units)
     {
+        default:
         case BFP_ERASE_TYPE4_UNIT_1MS:   Timeout =      1*1000; break;
         case BFP_ERASE_TYPE4_UNIT_16MS:  Timeout =     16*1000; break;
         case BFP_ERASE_TYPE4_UNIT_128MS: Timeout =    128*1000; break;

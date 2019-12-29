@@ -47,9 +47,11 @@
 static DtStatus  DtBcSDITXPHY_Init(DtBc*);
 static DtStatus  DtBcSDITXPHY_OnEnable(DtBc*, Bool);
 static DtStatus  DtBcSDITXPHY_OnCloseFile(DtBc*, const DtFileObject*);
+static DtStatus  DtBcSDITXPHY_CheckSdiRate(DtBcSDITXPHY*, Int SdiRate);
 static void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY*, Bool BlkEnable, Int OpMode,
                                   Bool TxClkReset, Bool Arm, Int SofDelay, Int SrcFactor);
 static DtStatus DtBcSDITXPHY_C10A10_SetPllSelect(DtBcSDITXPHY*, Int ClockIdx);
+static void  DtBcSDITXPHY_SetSlewRateControl(DtBcSDITXPHY*, Int SdiRate);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDITXPHY - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -307,6 +309,21 @@ DtStatus DtBcSDITXPHY_GetTxPllId(DtBcSDITXPHY* pBc, Int* pTxPllId)
     return DT_STATUS_OK;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_GetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDITXPHY_GetSdiRate(DtBcSDITXPHY* pBc, Int* pSdiRate)
+{
+    // Sanity check
+    BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
+    // Check parameters
+    if (pSdiRate == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+    // Must be enabled
+    BC_SDITXPHY_MUST_BE_ENABLED(pBc);
+    // Return cached SDI-rate
+    *pSdiRate = pBc->m_SdiRate;
+    return DT_STATUS_OK;
+}
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_GetSofDelay -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcSDITXPHY_GetSofDelay(DtBcSDITXPHY* pBc, Int* pSofDelay)
@@ -343,26 +360,6 @@ DtStatus DtBcSDITXPHY_GetUnderflowFlag(DtBcSDITXPHY*  pBc, Bool*  pUnderflow)
 
     // Return the underflow flag
     *pUnderflow =  (SDITXPHY_CdcFifoStatus_READ_Underflow(pBc) != 0);
-
-    return DT_STATUS_OK;
-}
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_GetUpsampleFactor -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-DtStatus DtBcSDITXPHY_GetUpsampleFactor(DtBcSDITXPHY* pBc, Int* pSrcFactor)
-{
-    // Sanity check
-    BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
-
-    // Check parameters
-    if (pSrcFactor == NULL)
-        return DT_STATUS_INVALID_PARAMETER;
-
-    // Must be enabled
-    BC_SDITXPHY_MUST_BE_ENABLED(pBc);
-
-    // Return cached up-sample factor
-    *pSrcFactor = pBc->m_UpsampleFactor;
 
     return DT_STATUS_OK;
 }
@@ -420,41 +417,37 @@ DtStatus DtBcSDITXPHY_SetClockReset(DtBcSDITXPHY* pBc, Bool ClkReset)
     return DT_STATUS_OK;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetUpsampleFactor -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+// -.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_C10A10_GetCalibrationDone -.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus DtBcSDITXPHY_SetUpsampleFactor(DtBcSDITXPHY * pBc, Int SrcFactor)
+DtStatus DtBcSDITXPHY_C10A10_GetCalibrationDone(DtBcSDITXPHY* pBc, Bool* pDone)
 {
+    UInt32  RegCalBusy=0;
+
     // Sanity check
     BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
-
-    // Check parameters
-    if (SrcFactor!=1 && SrcFactor!=2 && SrcFactor!=11)
-    { 
-        DtDbgOutBc(ERR, SDITXPHY, pBc, "Invalid upsample factor");
-        return DT_STATUS_INVALID_PARAMETER;
-    }
-
+    
     // Must be enabled
     BC_SDITXPHY_MUST_BE_ENABLED(pBc);
     
-    // Operational mode must be IDLE/STANDBY
-    if (pBc->m_OperationalMode == DT_BLOCK_OPMODE_RUN)
+    // Check device family
+    if (pBc->m_DeviceFamily!=DT_BC_SDITXPHY_FAMILY_A10 
+                                        && pBc->m_DeviceFamily!=DT_BC_SDITXPHY_FAMILY_C10)
     { 
-        DtDbgOutBc(ERR, SDITXPHY, pBc, "Operational mode not in idle/standby");
-        return DT_STATUS_INVALID_IN_OPMODE;
+        DtDbgOutBc(ERR, SDITXPHY, pBc, "ERROR: Not supported for this device family");
+        return DT_STATUS_NOT_SUPPORTED;
     }
 
-    // No change?
-    if (pBc->m_UpsampleFactor == SrcFactor)
+    // No calibration needed before PHY version 2
+    if (pBc->m_Version < 2)
+    { 
+        *pDone = TRUE;
         return DT_STATUS_OK;
+    }
 
-    // Update cache
-    pBc->m_UpsampleFactor = SrcFactor;
-
-    // Make settings in register
-    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                                  pBc->m_ClockReset, FALSE, 
-                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
+    // Wait until CalDone is asserted
+    RegCalBusy = SDITXPHY_Status_READ_CalBusy(pBc);
+    *pDone = (RegCalBusy == 0);
     return DT_STATUS_OK;
 }
 
@@ -515,6 +508,68 @@ DtStatus DtBcSDITXPHY_C10A10_SetSdiFractionalClock(DtBcSDITXPHY* pBc, Bool FracC
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_C10A10_StartCalibration -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDITXPHY_C10A10_StartCalibration(DtBcSDITXPHY* pBc)
+{
+    UInt32  RegData=0,  WaitRequest=0, TimeoutCount=0;
+    // Sanity check
+    BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
+    
+    // Must be enabled
+    BC_SDITXPHY_MUST_BE_ENABLED(pBc);
+    
+    // Check device family
+    if (pBc->m_DeviceFamily!=DT_BC_SDITXPHY_FAMILY_A10 
+                                        && pBc->m_DeviceFamily!=DT_BC_SDITXPHY_FAMILY_C10)
+    { 
+        DtDbgOutBc(ERR, SDITXPHY, pBc, "ERROR: Not supported for this device family");
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
+    // No calibration needed before PHY version 2
+    if (pBc->m_Version < 2)
+        return DT_STATUS_OK;
+
+    // Clock reset should be asserted
+    DT_ASSERT(pBc->m_ClockReset == TRUE);
+
+    // Request access to calibration registers.
+    RegData = SDITXPHY_C10A10_ArbitrationCtrl_READ(pBc);
+    RegData = SDITXPHY_C10A10_ArbitrationCtrl_SET_ArbiterCtrlPma(RegData, 
+                                                                  SDITXPHY_ARBOWNER_User);
+    RegData = SDITXPHY_C10A10_ArbitrationCtrl_SET_CalDonePma(RegData, 
+                                                                  SDITXPHY_CALDONE_Done);
+    SDITXPHY_C10A10_ArbitrationCtrl_WRITE(pBc, RegData);
+
+    // Wait for access to calibration registers.
+    WaitRequest = SDITXPHY_Status_READ_WaitRequest(pBc);
+    TimeoutCount = 100;
+    while (WaitRequest!=0 && TimeoutCount>0)
+    {
+        DtWaitBlock(1);
+        TimeoutCount--;
+        WaitRequest = SDITXPHY_Status_READ_WaitRequest(pBc);
+    }
+    DT_ASSERT(WaitRequest == 0);
+
+    // CalEnable.TxCalEn = 1; CalEnable.RxCalEn = 0; CalEnable.AdaptEn = 0;
+    RegData = SDITXPHY_C10A10_CalEnable_READ(pBc);
+    RegData = SDITXPHY_C10A10_CalEnable_SET_RxCalEn(RegData, SDITXPHY_CALEN_Disable);
+    RegData = SDITXPHY_C10A10_CalEnable_SET_TxCalEn(RegData, SDITXPHY_CALEN_Enable);
+    RegData = SDITXPHY_C10A10_CalEnable_SET_AdaptEn(RegData, SDITXPHY_CALEN_Disable);
+    SDITXPHY_C10A10_CalEnable_WRITE(pBc, RegData);
+
+    // Release configuration bus to PreSICE to perform calibration
+    RegData = SDITXPHY_C10A10_ArbitrationCtrl_READ(pBc);
+    RegData = SDITXPHY_C10A10_ArbitrationCtrl_SET_ArbiterCtrlPma(RegData, 
+                                                               SDITXPHY_ARBOWNER_PreSICE);
+    RegData = SDITXPHY_C10A10_ArbitrationCtrl_SET_CalDonePma(RegData, 
+                                                                   SDITXPHY_CALDONE_Busy);
+    SDITXPHY_C10A10_ArbitrationCtrl_WRITE(pBc, RegData);
+
+    return DT_STATUS_OK;
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -553,6 +608,56 @@ DtStatus DtBcSDITXPHY_SetOperationalMode(DtBcSDITXPHY * pBc, Int OpMode)
 
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDITXPHY_SetSdiRate(DtBcSDITXPHY* pBc, Int SdiRate)
+{
+    UInt32  SrcFactor = 0;
+    // Sanity check
+    BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
+    // Check parameters
+    DT_RETURN_ON_ERROR(DtBcSDITXPHY_CheckSdiRate(pBc, SdiRate));
+    // Must be enabled
+    BC_SDITXPHY_MUST_BE_ENABLED(pBc);
+
+    // Determine upsampling factor
+    if (pBc->m_MaxSdiRate <= DT_DRV_SDIRATE_3G)
+    {
+        switch (SdiRate)
+        {
+        case  DT_DRV_SDIRATE_SD: SrcFactor = 11; break;
+        case  DT_DRV_SDIRATE_HD: SrcFactor = 2; break;
+        case  DT_DRV_SDIRATE_3G: SrcFactor = 1; break;
+        default: DT_ASSERT(FALSE);
+        }
+    } else {
+        switch (SdiRate)
+        {
+        case  DT_DRV_SDIRATE_SD:  SrcFactor = 44; break;
+        case  DT_DRV_SDIRATE_HD:  SrcFactor = 8; break;
+        case  DT_DRV_SDIRATE_3G:  SrcFactor = 4; break;
+        case  DT_DRV_SDIRATE_6G:  SrcFactor = 2; break;
+        case  DT_DRV_SDIRATE_12G: SrcFactor = 1; break;
+        default: DT_ASSERT(FALSE);
+        }
+    }
+
+    // No change?
+    if (pBc->m_SdiRate==SdiRate && pBc->m_UpsampleFactor==SrcFactor)
+        return DT_STATUS_OK;
+
+    // Update cache
+    pBc->m_UpsampleFactor = SrcFactor;
+    pBc->m_SdiRate = SdiRate;
+
+    // Make settings in register
+    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
+                                                  pBc->m_ClockReset, FALSE, 
+                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
+    // Update slew rate
+    DtBcSDITXPHY_SetSlewRateControl(pBc, SdiRate);
+    return DT_STATUS_OK;
+}
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetSofDelay -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcSDITXPHY_SetSofDelay(DtBcSDITXPHY* pBc, Int SofDelay)
@@ -609,7 +714,6 @@ DtStatus  DtBcSDITXPHY_Init(DtBc*  pBcBase)
     pBc->m_BlockEnabled = FALSE;
     pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
     pBc->m_ClockReset = TRUE;
-    pBc->m_UpsampleFactor = 1;
     pBc->m_SofDelay = 0;
     pBc->m_C10A10FractClock = FALSE;
 
@@ -652,10 +756,16 @@ DtStatus  DtBcSDITXPHY_Init(DtBc*  pBcBase)
     default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
     }
 
+    // Select default up-sample factor for HD
+    pBc->m_SdiRate = DT_DRV_SDIRATE_HD;
+    pBc->m_UpsampleFactor = (pBc->m_MaxSdiRate <= DT_DRV_SDIRATE_3G) ? 2 : 8;
+
     // Make settings in register
     DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
                                                   pBc->m_ClockReset, FALSE, 
                                                   pBc->m_SofDelay, pBc->m_UpsampleFactor);
+    // Set slew rate
+    DtBcSDITXPHY_SetSlewRateControl(pBc, pBc->m_SdiRate);
     return Status;
 }
 
@@ -688,16 +798,21 @@ DtStatus DtBcSDITXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
             DT_ASSERT(FALSE);
         }
     }
-
     // Save block enable
     pBc->m_BlockEnabled = Enable;
-
     // Make setting in control register
     DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
                                                   pBc->m_ClockReset, FALSE, 
                                                   pBc->m_SofDelay, pBc->m_UpsampleFactor);
+    // Device family specific initialization
+    if (pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10 
+                                        || pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10)
+        // Select clock
+        DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_SetPllSelect(pBc, 
+                                                        pBc->m_C10A10FractClock ? 1 : 0));
     return DT_STATUS_OK;
 }
+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -725,6 +840,25 @@ DtStatus  DtBcSDITXPHY_OnCloseFile(DtBc*  pBc, const DtFileObject* pFile)
     return DtBc_OnCloseFile(pBc, pFile);
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_CheckSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDITXPHY_CheckSdiRate(DtBcSDITXPHY* pBc, Int SdiRate)
+{
+    // Check whether it is a valid SDI-rate
+    if (   SdiRate!=DT_DRV_SDIRATE_SD && SdiRate!=DT_DRV_SDIRATE_HD 
+        && SdiRate!=DT_DRV_SDIRATE_3G && SdiRate!=DT_DRV_SDIRATE_6G 
+        && SdiRate!=DT_DRV_SDIRATE_12G)
+        return DT_STATUS_INVALID_PARAMETER;
+    // Assumption we can keep the comparison simple
+    DT_ASSERT(DT_DRV_SDIRATE_SD<DT_DRV_SDIRATE_HD 
+              && DT_DRV_SDIRATE_HD<DT_DRV_SDIRATE_3G
+              && DT_DRV_SDIRATE_3G<DT_DRV_SDIRATE_6G
+              && DT_DRV_SDIRATE_6G<DT_DRV_SDIRATE_12G);
+    // Check whether the SDI-rate is supported
+    if (SdiRate > pBc->m_MaxSdiRate)
+        return DT_STATUS_NOT_SUPPORTED;
+    return DT_STATUS_OK;
+}
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,
@@ -749,7 +883,10 @@ void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,
     {
     case 1:   FldSrcFactor = SDITXPHY_SDIMODE_BYPASS; break;
     case 2:   FldSrcFactor = SDITXPHY_SDIMODE_x2; break;
+    case 4:   FldSrcFactor = SDITXPHY_SDIMODE_x4; break;
+    case 8:   FldSrcFactor = SDITXPHY_SDIMODE_x8; break;
     case 11:  FldSrcFactor = SDITXPHY_SDIMODE_x11; break;
+    case 44:  FldSrcFactor = SDITXPHY_SDIMODE_x44; break;
     default: DT_ASSERT(FALSE);
     }
 
@@ -808,4 +945,28 @@ DtStatus DtBcSDITXPHY_C10A10_SetPllSelect(DtBcSDITXPHY* pBc, Int ClockIdx)
 
     SDITXPHY_C10A10_PllSelectionMux_WRITE(pBc, PllSelect);
     return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetSlewRateControl -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void DtBcSDITXPHY_SetSlewRateControl(DtBcSDITXPHY* pBc, Int SdiRate)
+{
+    UInt32  FwSlewRate = SDITXPHY_SLEWRATE_SLEW_R3;
+    UInt32  RegTxCtrl = 0;
+
+    // Supported by C10A10 PHY version 2 and later
+    if (pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_CV || pBc->m_Version < 2)
+        return;
+
+    switch (SdiRate)
+    {
+    case DT_DRV_SDIRATE_SD:   FwSlewRate = SDITXPHY_SLEWRATE_SLEW_R1; break;
+    case DT_DRV_SDIRATE_HD:   FwSlewRate = SDITXPHY_SLEWRATE_SLEW_R3; break;
+    case DT_DRV_SDIRATE_3G:   FwSlewRate = SDITXPHY_SLEWRATE_SLEW_R4; break;
+    case DT_DRV_SDIRATE_6G:   FwSlewRate = SDITXPHY_SLEWRATE_SLEW_R5; break;
+    case DT_DRV_SDIRATE_12G:  FwSlewRate = SDITXPHY_SLEWRATE_SLEW_R5; break;
+    }
+    RegTxCtrl = SDITXPHY_C10A10_TxCtrl_READ(pBc);
+    RegTxCtrl = SDITXPHY_C10A10_TxCtrl_SET_SlewRateCtrl(RegTxCtrl,  FwSlewRate);
+    SDITXPHY_C10A10_TxCtrl_WRITE(pBc, RegTxCtrl);
 }

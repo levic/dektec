@@ -104,7 +104,7 @@ PWD = $(shell pwd)
 
 all:
 	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
-	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) modules
+	make MYPWD=$(PWD) -C $(KERNELDIR) KBUILD_MODPOST_NOFINAL=1 M=$(PWD) modules
 
 # ========================================================================================
 # Clean all option

@@ -896,7 +896,7 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
         pPropData->m_pTableStore = NULL;
         pPropData->m_TypeName = "DTU";
         pPropData->m_TypeNumber = pDvcData->m_DevInfo.m_TypeNumber;
-        pPropData->m_SubDvc = 0; // no USB devs with sub-devices yet
+        pPropData->m_SubDvcOrSubType = 0; // no USB devs with sub-devices yet
         pPropData->m_FirmwareVersion = 0;
         pPropData->m_FirmwareVariant = 0;
         pPropData->m_HardwareRevision = 0;
@@ -1062,7 +1062,7 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
 
     if (pDvcData->m_DevInfo.m_TypeNumber==351 && pDvcData->m_DevInfo.m_UsbSpeed==2)
     {
-        UInt16  RegRateSel = 0;
+        UInt16  RegRateSel=0, RegIoProc=0;
 
         // Set RxMode register to IDLE
         Status = Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_FPGA, 0x06, 0);
@@ -1075,6 +1075,19 @@ DtStatus  DtuDevicePowerUp(DtuDeviceData* pDvcData)
             return Status;
         RegRateSel |= 0x04;
         Status = Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_GS1661, 0x24, RegRateSel);
+        if (!DT_SUCCESS(Status))
+            return Status;
+
+        // Disable corrections for TRS, Line Numbers, HD CRC, ANC Checksums,
+        // Illegal Words and EDH CRC
+        Status = Dtu35xRegRead(pDvcData, DTU_USB3_DEV_GS1661, 0x00, &RegIoProc);
+        if (!DT_SUCCESS(Status))
+            return Status;
+        //   TRS_INS_DS1_MASK | LNUM_INS_DS1_MASK | CRC_INS_DS1_MASK 
+        // | ANC_CHECKSUM_INSERTION_DS1_MASK | ILLEGAL_WORD_REMAP_DS1_MASK 
+        // | EDH_CRC_INS_MASK
+        RegIoProc |= 0x081f;
+        Status = Dtu35xRegWrite(pDvcData, DTU_USB3_DEV_GS1661, 0x00, RegIoProc);
         if (!DT_SUCCESS(Status))
             return Status;
     }

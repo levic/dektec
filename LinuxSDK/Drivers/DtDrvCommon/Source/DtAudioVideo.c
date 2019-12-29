@@ -860,11 +860,17 @@ Int DtAvVidStd2FrameLength(Int VidStd)
     case DT_VIDSTD_1080P59_94B:
     case DT_VIDSTD_1080P60:
     case DT_VIDSTD_1080P60B:
+    case DT_VIDSTD_2160P59_94:
+    case DT_VIDSTD_2160P59_94B:
+    case DT_VIDSTD_2160P60:
+    case DT_VIDSTD_2160P60B:   
         return 2475000;     // 60fps
 
     case DT_VIDSTD_720P50:
     case DT_VIDSTD_1080P50:
     case DT_VIDSTD_1080P50B:
+    case DT_VIDSTD_2160P50:
+    case DT_VIDSTD_2160P50B:
         return 2970000;     // 50 fps
 
     case DT_VIDSTD_720P29_97:
@@ -875,6 +881,8 @@ Int DtAvVidStd2FrameLength(Int VidStd)
     case DT_VIDSTD_1080PSF29_97:
     case DT_VIDSTD_1080I59_94:
     case DT_VIDSTD_1080I60: 
+    case DT_VIDSTD_2160P29_97: 
+    case DT_VIDSTD_2160P30:
         return 4950000;     // 30 fps
 
     case DT_VIDSTD_525I59_94:
@@ -885,6 +893,7 @@ Int DtAvVidStd2FrameLength(Int VidStd)
     case DT_VIDSTD_1080P25:
     case DT_VIDSTD_1080PSF25:
     case DT_VIDSTD_1080I50:
+    case DT_VIDSTD_2160P25:
         return 5940000;     // 25 fps
     
     case DT_VIDSTD_720P23_98:
@@ -893,6 +902,8 @@ Int DtAvVidStd2FrameLength(Int VidStd)
     case DT_VIDSTD_1080P23_98:
     case DT_VIDSTD_1080PSF24:
     case DT_VIDSTD_1080PSF23_98:
+    case DT_VIDSTD_2160P24:
+    case DT_VIDSTD_2160P23_98:
         return 6187500;     // 24 fps
 
    default:
@@ -930,8 +941,12 @@ Int DtAvVidStdSymbOffset2TimeOffset(Int VidStd, Int SymbolOffset)
     UInt64 OffsetNs = 0;
 
     // Determine sample clock
-    UInt  SampleClock;
-    if (DtAvVidStdIs3gSdi(VidStd))
+    UInt64  SampleClock;
+    if (DtAvVidStdIs12gSdi(VidStd))
+        SampleClock = 8*1485*100*1000;
+    else if (DtAvVidStdIs6gSdi(VidStd))
+        SampleClock = 4*1485*100*1000;
+    else if (DtAvVidStdIs3gSdi(VidStd))
         SampleClock = 2*1485*100*1000;
     else  if (DtAvVidStdIsHdSdi(VidStd))
         SampleClock = 2*1485*100*1000/2;
@@ -957,19 +972,9 @@ Int DtAvVidStdSymbOffset2TimeOffset(Int VidStd, Int SymbolOffset)
 //
 Bool DtAvVidStdUsesFractionalClock(Int VidStd)
 {
-    switch (VidStd)
-    {
-    case DT_VIDSTD_720P59_94:
-    case DT_VIDSTD_1080P59_94:
-    case DT_VIDSTD_1080P59_94B:
-    case DT_VIDSTD_720P29_97:
-    case DT_VIDSTD_1080P29_97:
-    case DT_VIDSTD_1080PSF29_97:
-    case DT_VIDSTD_1080I59_94:
-    case DT_VIDSTD_720P23_98:
-    case DT_VIDSTD_1080P23_98:
-    case DT_VIDSTD_1080PSF23_98:
-        return TRUE;
-    }
-    return FALSE;
+    // 525i59 is the exception: a fractional videostandard using non-fractional clock
+    if (VidStd == DT_VIDSTD_525I59_94)
+        return FALSE;
+    else 
+        return DtAvVidStdIsFractional(VidStd);
 }

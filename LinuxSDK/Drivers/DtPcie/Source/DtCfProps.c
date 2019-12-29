@@ -126,7 +126,7 @@ DtStatus  DtCfProps_GetForType(
     DtCfProps*  pCf,
     const char*  pTypeName,
     Int  TypeNumber,
-    Int  SubDvc,
+    Int  SubType,
     DtPropertyFilterCriteria  Flt,
     const char*  pName,
     DtPropertyValue*  pValue,
@@ -136,7 +136,7 @@ DtStatus  DtCfProps_GetForType(
     // Sanity checks
     CF_PROPS_DEFAULT_PRECONDITIONS(pCf);
 
-    return DtPropertiesGetForType(pTypeName, TypeNumber, SubDvc, Flt.m_HwRev, 
+    return DtPropertiesGetForType(pTypeName, TypeNumber, SubType, Flt.m_HwRev, 
                                        Flt.m_FwVersion, Flt.m_FwVariant,
                                        pName, Flt.m_PortIndex, pValue, pType, pScope, 
                                        Flt.m_DtapiMaj, Flt.m_DtapiMin, Flt.m_DtapiBugfix);
@@ -164,7 +164,7 @@ DtStatus  DtCfProps_GetStrForType(
     DtCfProps*  pCf, 
     const char*  pTypeName, 
     Int  TypeNumber, 
-    Int  SubDvc, 
+    Int  SubType, 
     DtPropertyFilterCriteria  Flt,
     const char*  pName, 
     char*  pStr,
@@ -173,7 +173,7 @@ DtStatus  DtCfProps_GetStrForType(
     // Sanity checks
     CF_PROPS_DEFAULT_PRECONDITIONS(pCf);
 
-    return DtPropertiesStrGetForType(pTypeName, TypeNumber, SubDvc, Flt.m_HwRev, 
+    return DtPropertiesStrGetForType(pTypeName, TypeNumber, SubType, Flt.m_HwRev, 
                                        Flt.m_FwVersion, Flt.m_FwVariant,
                                        pName, Flt.m_PortIndex, pStr, pScope, 
                                        Flt.m_DtapiMaj, Flt.m_DtapiMin, Flt.m_DtapiBugfix);
@@ -400,7 +400,7 @@ DtStatus  DtCfProps_ReInit(DtCfProps*  pCf)
     //pCf->m_PropData.m_PropertyNotFoundString = ?;
     pCf->m_PropData.m_TypeName = pCore->m_TypeName;
     pCf->m_PropData.m_TypeNumber = pCore->m_pDevInfo->m_TypeNumber;
-    pCf->m_PropData.m_SubDvc = 0;//pCore->m_pDevInfo->m_SubDvc;
+    pCf->m_PropData.m_SubDvcOrSubType = (Int)pCore->m_pDevInfo->m_SubType;
     pCf->m_PropData.m_HardwareRevision = pCore->m_pDevInfo->m_HardwareRevision;
 
     return DT_STATUS_OK;
@@ -430,7 +430,7 @@ DtStatus  DtCfProps_Init(DtDf*  pCf)
     CF_PROPS->m_PropData.m_pTableStore = NULL;
     CF_PROPS->m_PropData.m_TypeName = pCore->m_TypeName;
     CF_PROPS->m_PropData.m_TypeNumber = pCore->m_pDevInfo->m_TypeNumber;
-    CF_PROPS->m_PropData.m_SubDvc = 0;//pCore->m_pDevInfo->m_SubDvc;
+    CF_PROPS->m_PropData.m_SubDvcOrSubType = (Int)pCore->m_pDevInfo->m_SubType;
     CF_PROPS->m_PropData.m_HardwareRevision = pCore->m_pDevInfo->m_HardwareRevision;
 
     Status = DtPropertiesInit(&CF_PROPS->m_PropData);
@@ -630,7 +630,7 @@ DtStatus  DtIoStubCfProps_OnCmdGetStr(const DtIoStubCfProps*  pStub,
 
         
     // Get for specific type or for the attached devices
-    if (pInData->m_TypeNumber==-1 || pInData->m_SubDvc==-1)
+    if (pInData->m_TypeNumber==-1)
     {
         // Get the property for the current device
         Status = DtCfProps_GetStr(STUB_CF, pInData->m_Name, Flt,
@@ -638,10 +638,18 @@ DtStatus  DtIoStubCfProps_OnCmdGetStr(const DtIoStubCfProps*  pStub,
     }
     else
     {
+        // NOTE: old DTAPI versions do not know DtIoctlPropCmdCommonInput::m_SubType 
+        // exists and assume only a Int DtIoctlPropCmdCommonInput::m_SubDvc field, which 
+        // it always sets to 0. Therefor if the Int16 DtIoctlPropCmdCommonInput::m_SubDvc 
+        // is not -1, we have an old DTAPI and should ignore m_SubType and just use the 
+        // current subtype in our property lookup
+        Int  SubType = STUB_PROPS->m_pCore->m_pDevInfo->m_SubType;
+        if (pInData->m_SubDvc==-1 && pInData->m_SubType!=-1)
+            SubType = pInData->m_SubType;  // Use specified subtype
+        
         // Property for a specific type was requested
         Status = DtCfProps_GetStrForType(STUB_CF, STUB_PROPS->m_pCore->m_TypeName,
-                                                     pInData->m_TypeNumber, 
-                                                     pInData->m_SubDvc,
+                                                     pInData->m_TypeNumber, SubType,
                                                      Flt, pInData->m_Name,
                                                      pOutData->m_Str, &pOutData->m_Scope);
     }
@@ -712,11 +720,20 @@ DtStatus  DtIoStubCfProps_OnCmdGetValue(const DtIoStubCfProps*  pStub,
         DtPropertyValue  Value;
         DtPropertyValueType  Type;
         DtPropertyScope  Scope;
-    
+
+        // NOTE: old DTAPI versions do not know DtIoctlPropCmdCommonInput::m_SubType 
+        // exists and assume only a Int DtIoctlPropCmdCommonInput::m_SubDvc field, which 
+        // it always sets to 0. Therefor if the Int16 DtIoctlPropCmdCommonInput::m_SubDvc 
+        // is not -1, we have an old DTAPI and should ignore m_SubType and just use the 
+        // current subtype in our property lookup
+        Int  SubType = STUB_PROPS->m_pCore->m_pDevInfo->m_SubType;
+        if (pInData->m_SubDvc==-1 && pInData->m_SubType!=-1)
+            SubType = pInData->m_SubType;  // Use specified subtype
+        
         // Property for a specific type was requested
         Status = DtCfProps_GetForType(STUB_CF, STUB_PROPS->m_pCore->m_TypeName,
-                                            pInData->m_TypeNumber, pInData->m_SubDvc, Flt,
-                                            pInData->m_Name, &Value, &Type, &Scope);
+                                             pInData->m_TypeNumber, SubType,
+                                             Flt, pInData->m_Name, &Value, &Type, &Scope);
         pOutData->m_Value = Value;
         pOutData->m_Type = Type;
         pOutData->m_Scope = Scope;

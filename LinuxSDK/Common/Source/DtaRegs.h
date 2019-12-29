@@ -4284,6 +4284,29 @@ static __inline UInt  DtaRegHdCtrl1GetNoVpidProc(volatile UInt8* pBase)
     return READ_UINT_MASKED(pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_TXNOVPIDREPLACE_MSK,
                                                           DT_HD_CTRL1_TXNOVPIDREPLACE_SH);
 }
+// HD-Channel Control register: TX no EAV
+static __inline Int  DtaRegHdCtrl1GetTxNoEav(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_TXNOEAV_MSK, 
+                                                                  DT_HD_CTRL1_TXNOEAV_SH);
+}
+static __inline void  DtaRegHdCtrl1SetTxNoEav(volatile UInt8* pBase, UInt  Dir)
+{
+    WRITE_UINT_MASKED(Dir, pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_TXNOEAV_MSK, 
+                                                                  DT_HD_CTRL1_TXNOEAV_SH);
+}
+// HD-Channel Control register: TX no SAV
+static __inline Int  DtaRegHdCtrl1GetTxNoSav(volatile UInt8* pBase)
+{
+    return READ_UINT_MASKED(pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_TXNOSAV_MSK, 
+                                                                  DT_HD_CTRL1_TXNOSAV_SH);
+}
+static __inline void  DtaRegHdCtrl1SetTxNoSav(volatile UInt8* pBase, UInt  Dir)
+{
+    WRITE_UINT_MASKED(Dir, pBase, DT_HD_REG_CTRL1, DT_HD_CTRL1_TXNOSAV_MSK, 
+                                                                  DT_HD_CTRL1_TXNOSAV_SH);
+}
+
 
 // HD-Channel Control1 register:  RX sync error interrupt enable
 static __inline void  DtaRegHdCtrl1SetRxSyncErrIntEn(volatile UInt8* pBase, UInt  Ena)

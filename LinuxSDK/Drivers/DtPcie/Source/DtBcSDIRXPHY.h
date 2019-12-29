@@ -68,7 +68,7 @@ typedef  struct _DtBcSDIRXPHY
     Bool  m_DownsamplerEnable; // Downsampler Enable
     Int  m_DeviceFamily;       // Device family
     Int  m_MaxSdiRate;         // Maximum SDI-rate
-    Int  m_C10A10SdiRate;      // SDI-rate only applicable for A10/C10
+    Int  m_SdiRate;            // SDI-rate
 }  DtBcSDIRXPHY;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -80,17 +80,16 @@ DtStatus  DtBcSDIRXPHY_GetDeviceFamily(DtBcSDIRXPHY* pBc,  Int* pDeviceFamily);
 DtStatus  DtBcSDIRXPHY_GetMaxSdiRate(DtBcSDIRXPHY* pBc,  Int* pMaxSdiRate);
 DtStatus  DtBcSDIRXPHY_GetOperationalMode(DtBcSDIRXPHY* pBc,  Int* pOpMode);
 DtStatus  DtBcSDIRXPHY_GetLockMode(DtBcSDIRXPHY*, Int* pLockMode);
+DtStatus  DtBcSDIRXPHY_GetSdiRate(DtBcSDIRXPHY* pBc,  Int* pSdiRate);
 DtStatus  DtBcSDIRXPHY_IsCarrierDetect(DtBcSDIRXPHY*, Bool* pCarrier);
 DtStatus  DtBcSDIRXPHY_IsLockedToData(DtBcSDIRXPHY*, Bool* pLocked);
 DtStatus  DtBcSDIRXPHY_IsLockedToRef(DtBcSDIRXPHY*, Bool* pLocked);
-DtStatus  DtBcSDIRXPHY_ResetPll(DtBcSDIRXPHY* pBc);
 DtStatus  DtBcSDIRXPHY_SetClockReset(DtBcSDIRXPHY* pBc,  Bool ClkReset);
 DtStatus  DtBcSDIRXPHY_SetDownsamplerEnable(DtBcSDIRXPHY* pBc, Bool Enable);
 DtStatus  DtBcSDIRXPHY_SetOperationalMode(DtBcSDIRXPHY* pBc,  Int OpMode);
 DtStatus  DtBcSDIRXPHY_SetLockMode(DtBcSDIRXPHY* pBc, Int LockMode);
-
-// Aria 10/ Cyclone 10 specific functions
-DtStatus  DtBcSDIRXPHY_C10A10_GetSdiRate(DtBcSDIRXPHY* pBc,  Int* pSdiRate);
-DtStatus  DtBcSDIRXPHY_C10A10_SetSdiRate(DtBcSDIRXPHY* pBc,  Int SdiRate);
+DtStatus  DtBcSDIRXPHY_StartSetSdiRate(DtBcSDIRXPHY* pBc,  Int SdiRate);
+DtStatus  DtBcSDIRXPHY_GetSetSdiRateDone(DtBcSDIRXPHY* pBc,  Bool* pDone);
+DtStatus  DtBcSDIRXPHY_FinishSetSdiRate(DtBcSDIRXPHY * pBc);
 
 #endif  // #ifndef __DT_BC_SDIRXPHY_H

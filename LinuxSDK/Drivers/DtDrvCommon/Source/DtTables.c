@@ -45,7 +45,7 @@ DtStatus  DtTablesInit(DtPropertyData* pPropData)
     for (Index=0; Index<DtTableStoreCount; Index++)
     {
         if (DtTableStores[Index].m_TypeNumber==pPropData->m_TypeNumber && 
-                                       DtTableStores[Index].m_SubDvc==pPropData->m_SubDvc)
+                     DtTableStores[Index].m_SubDvcOrSubtype==pPropData->m_SubDvcOrSubType)
         {
             pPropData->m_pTableStore = (void*)&DtTableStores[Index];
             break;
@@ -54,9 +54,10 @@ DtStatus  DtTablesInit(DtPropertyData* pPropData)
 
     // It's not a fault if no table store is found. Not all cards have tables
     if (pPropData->m_pTableStore == NULL)
-        DtDbgOut(MIN, TABLE, "Tablestore not found for %s-%d:%d", pPropData->m_TypeName,
-                                                                  pPropData->m_TypeNumber,
-                                                                     pPropData->m_SubDvc);
+        DtDbgOut(MIN, TABLE, "Tablestore not found for %s-%d:%d",
+                                                            pPropData->m_TypeName,
+                                                            pPropData->m_TypeNumber,
+                                                            pPropData->m_SubDvcOrSubType);
     return DT_STATUS_OK;
 }
 
@@ -161,7 +162,7 @@ DtStatus  DtTableGet(
         DtDbgOut(ERR, TABLE, "Failed to get table %s for DTX-%d:%d, FW %d, HW %d port %i", 
                                                   pTableName,
                                                   pPropData->m_TypeNumber,
-                                                  pPropData->m_SubDvc,
+                                                  pPropData->m_SubDvcOrSubType,
                                                   pPropData->m_FirmwareVersion,
                                                   pPropData->m_HardwareRevision,
                                                   PortIndex);
@@ -172,7 +173,7 @@ DtStatus  DtTableGet(
         DtDbgOut(MAX, TABLE, "Found table %s for DTX-%d:%d, FW %d, HW %d. #EL:%i #MAX:%i" ,
                                                   pTableName,
                                                   pPropData->m_TypeNumber,
-                                                  pPropData->m_SubDvc,
+                                                  pPropData->m_SubDvcOrSubType,
                                                   pPropData->m_FirmwareVersion,
                                                   pPropData->m_HardwareRevision,
                                                   pTableLinkFound->m_TableEntryCount,
@@ -203,7 +204,7 @@ DtStatus  DtTableGet(
 DtStatus  DtTableGetForType(
     const char*  pTypeName,
     Int  TypeNumber, 
-    Int  SubDvc,
+    Int  SubDvcOrSubType,
     Int  HwRev,
     Int  FwVer,
     Int  FwVariant,
@@ -219,7 +220,7 @@ DtStatus  DtTableGetForType(
         
     // Init property data structure
     PropData.m_TypeNumber = TypeNumber;
-    PropData.m_SubDvc = SubDvc;
+    PropData.m_SubDvcOrSubType = SubDvcOrSubType;
     PropData.m_FirmwareVariant = FwVariant;
     PropData.m_FirmwareVersion = FwVer;
     PropData.m_HardwareRevision = HwRev;

@@ -25,6 +25,10 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtDfSdiRx.h"
 
+
+// #define  DISABLE_AUTO_SDIRATE_DETECTION     1
+// #define  CONFIGURE_SDIRATE_ONCE     1
+// #define  CONFIGURE_SDIRATE_DISABLED     1
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Types -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Defines / Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
         
@@ -49,9 +53,10 @@
 
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-static DtStatus  DtDfSdiRx_ConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next);
-static DtStatus  DtDfSdiRx_ConfigureRateC10A10(DtDfSdiRx* pDf, Int SdiRate);
-static DtStatus  DtDfSdiRx_ConfigureRateCV(DtDfSdiRx* pDf, Int SdiRate);
+static DtStatus  DtDfSdiRx_StartConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next);
+static DtStatus  DtDfSdiRx_StartConfigureRateC10A10(DtDfSdiRx* pDf, Int SdiRate);
+static DtStatus  DtDfSdiRx_StartConfigureRateCV(DtDfSdiRx* pDf, Int SdiRate);
+static DtStatus  DtDfSdiRx_FinishConfigureRate(DtDfSdiRx* pDf, Int SdiRate);
 static DtStatus  DtDfSdiRx_Init(DtDf*);
 static DtStatus  DtDfSdiRx_OnCloseFile(DtDf*, const DtFileObject*);
 static DtStatus  DtDfSdiRx_OnEnablePostChildren(DtDf*, Bool  Enable);
@@ -420,11 +425,11 @@ DtStatus DtDfSdiRx_SetSdiRate(DtDfSdiRx* pDf, Int SdiRate)
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfSdiRx - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_ConfigureRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_StartConfigureRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-// Configures the block controllers for the new SDI-rate
+// Starts the configuration of the block controllers for the new SDI-rate
 //
-DtStatus DtDfSdiRx_ConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next)
+DtStatus DtDfSdiRx_StartConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next)
 {
     // Sanity checks
     DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
@@ -432,6 +437,16 @@ DtStatus DtDfSdiRx_ConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next)
     // Check parameters
     if (pSdiRate == NULL)
         return DT_STATUS_INVALID_PARAMETER;
+
+#ifdef  DISABLE_AUTO_SDIRATE_DETECTION
+    if (pDf->m_RxMode == DT_SDIRX_RXMODE_SDI)
+    { 
+        // Force to use configured SDI-rate
+        *pSdiRate = pDf->m_ConfigSdiRate;
+        Next = FALSE;
+    }
+#endif
+
     DT_RETURN_ON_ERROR(DtDfSdiRx_CheckSdiRate(pDf, *pSdiRate));
 
     // Select next SDI-rate?
@@ -456,9 +471,9 @@ DtStatus DtDfSdiRx_ConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next)
     {
     case DT_BC_SDIRXPHY_FAMILY_A10:
     case DT_BC_SDIRXPHY_FAMILY_C10:
-        return DtDfSdiRx_ConfigureRateC10A10(pDf, *pSdiRate);
+        return DtDfSdiRx_StartConfigureRateC10A10(pDf, *pSdiRate);
     case DT_BC_SDIRXPHY_FAMILY_CV:
-        return DtDfSdiRx_ConfigureRateCV(pDf, *pSdiRate);
+        return DtDfSdiRx_StartConfigureRateCV(pDf, *pSdiRate);
     default:
         DT_ASSERT(FALSE);
         DtDbgOutDf(ERR, SDIRX, pDf, "Unsupported device family");
@@ -466,14 +481,83 @@ DtStatus DtDfSdiRx_ConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next)
     }
     return DT_STATUS_OK;
 }
-
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_ConfigureRateC10A10 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_StartConfigureRateC10A10 -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus DtDfSdiRx_ConfigureRateC10A10(DtDfSdiRx* pDf, Int SdiRate)
+DtStatus DtDfSdiRx_StartConfigureRateC10A10(DtDfSdiRx* pDf, Int SdiRate)
+{
+    DtStatus  Status=DT_STATUS_OK;
+    // Change the operational mode such that PHY and transceiver can be configured
+    if (DT_SUCCESS(Status))
+        Status =  DtBcSDIRXPHY_SetOperationalMode(pDf->m_pBcSdiRxPhy,
+                                                                 DT_BLOCK_OPMODE_STANDBY);
+    // Reset clock
+    if (DT_SUCCESS(Status))
+        Status = DtBcSDIRXPHY_SetClockReset(pDf->m_pBcSdiRxPhy, TRUE);
+
+    // Select new rate
+    if (DT_SUCCESS(Status))
+        Status = DtBcSDIRXPHY_StartSetSdiRate(pDf->m_pBcSdiRxPhy, SdiRate);
+
+    return Status;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_ConfigureRateCV -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSdiRx_StartConfigureRateCV(DtDfSdiRx* pDf, Int SdiRate)
+{
+    DtStatus  Status=DT_STATUS_OK;
+    Int  BcReconfig=DT_SDIXCFG_MODE_3G;
+
+    // Convert parameter for the block controllers
+    switch (SdiRate)
+    {
+    case DT_DRV_SDIRATE_SD:
+        BcReconfig = DT_SDIXCFG_MODE_3G;
+        break;
+    case DT_DRV_SDIRATE_HD:
+        BcReconfig = DT_SDIXCFG_MODE_1G5;
+        break;
+    case DT_DRV_SDIRATE_3G:
+        BcReconfig = DT_SDIXCFG_MODE_3G;
+        break;
+    default:
+        DT_ASSERT(FALSE);
+        break;
+    }   
+
+    // Change the operational mode such that PHY and transceiver can be configured
+    if (DT_SUCCESS(Status))
+        Status =  DtBcSDIRXPHY_SetOperationalMode(pDf->m_pBcSdiRxPhy,
+                                                                 DT_BLOCK_OPMODE_STANDBY);
+    // Reset clock
+    if (DT_SUCCESS(Status))
+        Status = DtBcSDIRXPHY_SetClockReset(pDf->m_pBcSdiRxPhy, TRUE);
+
+    // Change reconfig controller for new rate
+    if (DT_SUCCESS(Status))
+        Status = DtDfSdiXCfgMgr_SetXcvrMode(pDf->m_pDfSdiXCfgMgr, 
+                                                 DtCore_PT_GetPortIndex(pDf->m_pPt),
+                                                 DT_SDIXCFG_CHANTYPE_RX_CHAN, BcReconfig);
+    // Select new rate
+    if (DT_SUCCESS(Status))
+        Status = DtBcSDIRXPHY_StartSetSdiRate(pDf->m_pBcSdiRxPhy, SdiRate);
+
+    return Status;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_FinishConfigureRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Finishes the configuration of the block controllers for the new SDI-rate
+//
+DtStatus DtDfSdiRx_FinishConfigureRate(DtDfSdiRx* pDf, Int SdiRate)
 {
     DtStatus  Status=DT_STATUS_OK;
     Bool DownsamplerEnable = FALSE;
-    // DT_ASSERT(FALSE);  //  Must be completed
+
+    // Sanity checks
+    DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
+    DT_ASSERT(DtDfSdiRx_CheckSdiRate(pDf, SdiRate) == DT_STATUS_OK);
+
     // Convert parameter for the block controllers
     switch (SdiRate)
     {
@@ -493,22 +577,10 @@ DtStatus DtDfSdiRx_ConfigureRateC10A10(DtDfSdiRx* pDf, Int SdiRate)
         DownsamplerEnable = FALSE;
         break;
     }   
-
-    // Change the operational mode such that PHY and transceiver can be configured
-    if (DT_SUCCESS(Status))
-        Status =  DtBcSDIRXPHY_SetOperationalMode(pDf->m_pBcSdiRxPhy,
-                                                                 DT_BLOCK_OPMODE_STANDBY);
-    // Select new rate
-    if (DT_SUCCESS(Status))
-        Status = DtBcSDIRXPHY_C10A10_SetSdiRate(pDf->m_pBcSdiRxPhy, SdiRate);
+    // Finish SetSdiRate
+    Status = DtBcSDIRXPHY_FinishSetSdiRate(pDf->m_pBcSdiRxPhy);
 
     // Restart locking
-    // Reset PLL
-    if (DT_SUCCESS(Status))
-        Status = DtBcSDIRXPHY_ResetPll(pDf->m_pBcSdiRxPhy);
-    // Reset clock
-    if (DT_SUCCESS(Status))
-        Status = DtBcSDIRXPHY_SetClockReset(pDf->m_pBcSdiRxPhy, TRUE);
     // Lock to reference
     if (DT_SUCCESS(Status))
         Status = DtBcSDIRXPHY_SetLockMode(pDf->m_pBcSdiRxPhy,
@@ -517,86 +589,6 @@ DtStatus DtDfSdiRx_ConfigureRateC10A10(DtDfSdiRx* pDf, Int SdiRate)
     if (DT_SUCCESS(Status))
         Status = DtBcSDIRXPHY_SetDownsamplerEnable(pDf->m_pBcSdiRxPhy, DownsamplerEnable);
     // SDIRXP is only configured when in SDI-mode
-    if (pDf->m_RxMode == DT_SDIRX_RXMODE_SDI)
-    { 
-        DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
-        // Change the operational mode of SDIRXP in idle such that it can be configured
-        if (DT_SUCCESS(Status))
-            Status = DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt,
-                                                                    DT_BLOCK_OPMODE_IDLE);
-        // Set SDI-rate in SDIRXP
-        if (DT_SUCCESS(Status))
-            Status = DtBcSDIRXP_SetSdiRate(pDf->m_pBcSdiRxProt, SdiRate);
-
-        // Set the SDIRXP in standby
-        if (DT_SUCCESS(Status))
-            Status = DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt,
-                                                                 DT_BLOCK_OPMODE_STANDBY);
-    }
-    return Status;
-}
-
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_ConfigureRateCV -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-DtStatus DtDfSdiRx_ConfigureRateCV(DtDfSdiRx* pDf, Int SdiRate)
-{
-    DtStatus  Status=DT_STATUS_OK;
-    Int  BcReconfig=DT_SDIXCFG_MODE_3G;
-    Bool DownsamplerEnable = FALSE;
-
-    // Convert parameter for the block controllers
-    switch (SdiRate)
-    {
-    case DT_DRV_SDIRATE_SD:
-        DownsamplerEnable = TRUE;
-        BcReconfig = DT_SDIXCFG_MODE_3G;
-        break;
-    case DT_DRV_SDIRATE_HD:
-        DownsamplerEnable = FALSE;
-        BcReconfig = DT_SDIXCFG_MODE_1G5;
-        break;
-    case DT_DRV_SDIRATE_3G:
-        DownsamplerEnable = FALSE;
-        BcReconfig = DT_SDIXCFG_MODE_3G;
-        break;
-    case DT_DRV_SDIRATE_6G:
-        DownsamplerEnable = FALSE;
-        BcReconfig = DT_SDIXCFG_MODE_3G;
-        break;
-    case DT_DRV_SDIRATE_12G:
-        DownsamplerEnable = FALSE;
-        BcReconfig = DT_SDIXCFG_MODE_3G;
-        break;
-    default:
-        DT_ASSERT(FALSE);
-        break;
-    }   
-
-    // Change the operational mode such that PHY and transceiver can be configured
-    if (DT_SUCCESS(Status))
-        Status =  DtBcSDIRXPHY_SetOperationalMode(pDf->m_pBcSdiRxPhy,
-                                                                 DT_BLOCK_OPMODE_STANDBY);
-
-    // Change reconfig controller for new rate
-    if (DT_SUCCESS(Status))
-        Status = DtDfSdiXCfgMgr_SetXcvrMode(pDf->m_pDfSdiXCfgMgr, 
-                                                 DtCore_PT_GetPortIndex(pDf->m_pPt),
-                                                 DT_SDIXCFG_CHANTYPE_RX_CHAN, BcReconfig);
-    // Restart locking
-    // Reset PLL
-    if (DT_SUCCESS(Status))
-        Status = DtBcSDIRXPHY_ResetPll(pDf->m_pBcSdiRxPhy);
-    // Reset clock
-    if (DT_SUCCESS(Status))
-        Status = DtBcSDIRXPHY_SetClockReset(pDf->m_pBcSdiRxPhy, TRUE);
-    // Lock to reference
-    if (DT_SUCCESS(Status))
-        Status = DtBcSDIRXPHY_SetLockMode(pDf->m_pBcSdiRxPhy,
-                                                     DT_BC_SDIRXPHY_LOCKMODE_LOCK_TO_REF);
-    // Set downsampling
-    if (DT_SUCCESS(Status))
-        Status = DtBcSDIRXPHY_SetDownsamplerEnable(pDf->m_pBcSdiRxPhy, DownsamplerEnable);
-    // SDIRXP3G is only configured in SDI-mode
     if (pDf->m_RxMode == DT_SDIRX_RXMODE_SDI)
     { 
         DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
@@ -743,8 +735,7 @@ DtStatus  DtDfSdiRx_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
         pDf->m_LockState = SDIRX_STATE_INIT_XCVR;
         DtCore_TOD_GetTime(pDf->m_pCore, &pDf->m_StateTime);
         pDf->m_CurrentSdiRate = pDf->m_ConfigSdiRate;
-        DT_RETURN_ON_ERROR(DtDfSdiRx_ConfigureRate(pDf, &pDf->m_CurrentSdiRate, FALSE));
-        
+
         // Enable periodic interval handler
         DtSpinLockAcquire(&pDf->m_PerItvSpinLock);
         pDf->m_PerItvEnable = TRUE;
@@ -862,23 +853,55 @@ void  DtDfSdiRx_PeriodicIntervalHandler(DtObject* pObj, DtTodTime  Time)
 void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
 {
     DtStatus  Status = DT_STATUS_OK;
-    Bool  LockedToRef=FALSE,LineLock = FALSE, CarrierDetected = FALSE;
+    Bool  Done=FALSE, LockedToRef=FALSE,LineLock = FALSE, CarrierDetected = FALSE;
     DT_UNUSED Int  TimeDiffMs = (Int)(DtCore_TOD_TimeDiff(Time, pDf->m_StateTime) 
                                                                            / (1000*1000));
+#ifdef CONFIGURE_SDIRATE_DISABLED
+    return;
+#endif
+
     DtSpinLockAcquireAtDpc(&pDf->m_SpinLock);
 
     switch (pDf->m_LockState)
     {
     default:
     case SDIRX_STATE_INIT_XCVR:
-
         if (pDf->m_RxMode == DT_SDIRX_RXMODE_SDI)
         {
              // Configure current SDI-rate
-            Status = DtDfSdiRx_ConfigureRate(pDf, &pDf->m_CurrentSdiRate, FALSE);
-            if (DT_SUCCESS(Status))
+            Status = DtDfSdiRx_StartConfigureRate(pDf, &pDf->m_CurrentSdiRate, FALSE);
+        }
+        else 
+        {
+            // Configure ASI rate
+            Int AsiRate = DT_DRV_SDIRATE_SD;
+            Status = DtDfSdiRx_StartConfigureRate(pDf, &AsiRate, FALSE);
+        }
+        if (!DT_SUCCESS(Status))
+        {
+            // Configuration failed; retry later again
+            DtDbgOutDf(ERR, SDIRX, pDf, 
+                    "ERROR: DtDfSdiRx_StartConfigureRate failed (Status=0x%08X)", Status);
+            break;
+        }
+        // Rate configuration started
+        // State = WAIT_CONFIGURE_RATE_DONE_1
+        pDf->m_LockState = SDIRX_STATE_WAIT_CONFIGURE_RATE_DONE_1;
+        pDf->m_StateTime = Time;
+        DtDbgOutDf(MIN, SDIRX, pDf, "Entered: WAIT_CONFIGURE_RATE_DONE"
+                                                             " Duration: %d", TimeDiffMs);
+        // Fall through and check done
+
+    case SDIRX_STATE_WAIT_CONFIGURE_RATE_DONE_1:
+        Status = DtBcSDIRXPHY_GetSetSdiRateDone(pDf->m_pBcSdiRxPhy, &Done);
+        DT_ASSERT(DT_SUCCESS(Status));
+        if (DT_SUCCESS(Status) && Done)
+        {
+            if (pDf->m_RxMode == DT_SDIRX_RXMODE_SDI)
             {
-                // Configuration completed
+               // Configuration completed
+                Status = DtDfSdiRx_FinishConfigureRate(pDf, pDf->m_CurrentSdiRate);
+                DT_ASSERT(DT_SUCCESS(Status));
                 // State = WAIT_SDI_LOCKED_TO_REF1
                 pDf->m_LockState = SDIRX_STATE_WAIT_SDI_LOCKED_TO_REF1;
                 pDf->m_StateTime = Time;
@@ -886,26 +909,16 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
                                       " Duration: %d", pDf->m_CurrentSdiRate, TimeDiffMs);
             }
             else
-                DtDbgOutDf(ERR, SDIRX, pDf, 
-                      "ERROR: DtDfSdiRx_ConfigureSdiRate failed (Status=0x%08X)", Status);
-        }
-        else
-        {
-            Int AsiRate = DT_DRV_SDIRATE_SD;
-            Status = DtDfSdiRx_ConfigureRate(pDf, &AsiRate, FALSE);
-            if (DT_SUCCESS(Status))
             {
                 // Configuration completed
+                Status = DtDfSdiRx_FinishConfigureRate(pDf, DT_DRV_SDIRATE_SD);
+                DT_ASSERT(DT_SUCCESS(Status));
                 // State = WAIT_ASI_LOCKED_TO_REF
                 pDf->m_LockState = SDIRX_STATE_WAIT_ASI_LOCKED_TO_REF;
                 pDf->m_StateTime = Time;
                 DtDbgOutDf(MIN, SDIRX, pDf, "Entered: WAIT_ASI_LOCKED_TO_REF; Rate: %d"
-                                      " Duration: %d", pDf->m_CurrentSdiRate, TimeDiffMs);
+                                          " Duration: %d", DT_DRV_SDIRATE_SD, TimeDiffMs);
             }
-            else
-                DtDbgOutDf(ERR, SDIRX, pDf, 
-                      "ERROR: DtDfSdiRx_ConfigureSdiRate failed (Status=0x%08X)", Status);
-
         }
         break;
 
@@ -972,6 +985,9 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
         }
         else
         {
+#ifdef CONFIGURE_SDIRATE_ONCE
+             break;
+#endif
             // Check carrier detect
             Status = DtBcSDIRXPHY_IsCarrierDetect(pDf->m_pBcSdiRxPhy, &CarrierDetected);
             if (!DT_SUCCESS(Status) || !CarrierDetected)
@@ -987,18 +1003,18 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
             else
             {
                 // Carrier detected but no line lock; try next SDI-rate
-                Status = DtDfSdiRx_ConfigureRate(pDf, &pDf->m_CurrentSdiRate, TRUE);
+                Status = DtDfSdiRx_StartConfigureRate(pDf, &pDf->m_CurrentSdiRate, TRUE);
                 if (DT_SUCCESS(Status))
                 {
-                    // State = WAIT_SDI_LOCKED_TO_REF1
-                    pDf->m_LockState = SDIRX_STATE_WAIT_SDI_LOCKED_TO_REF1;
+                    // State = WAIT_CONFIGURE_RATE_DONE
+                    pDf->m_LockState = SDIRX_STATE_WAIT_CONFIGURE_RATE_DONE_1;
                     pDf->m_StateTime = Time;
-                    DtDbgOutDf(MIN, SDIRX, pDf, "Entered: WAIT_SDI_LOCKED_TO_REF1;"
+                    DtDbgOutDf(MIN, SDIRX, pDf, "Entered: WAIT_CONFIGURE_RATE_DONE;"
                          " Rate: %d Duration: %d", pDf->m_CurrentSdiRate, TimeDiffMs);
 
                 }
                 else
-                    DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: DtDfSdiRx_ConfigureRate"
+                    DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: DtDfSdiRx_StartConfigureRate"
                                                        " failed (Status=0x%08X)", Status);
             }
         }
@@ -1059,6 +1075,7 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
                                                        pDf->m_CurrentSdiRate, TimeDiffMs);
         }
         break;
+
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Slow SDI-rate search -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
     case SDIRX_STATE_SDI_DELAY:
         // Check carrier detect
@@ -1068,38 +1085,56 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
             // Carrier detected
             // Configure last locked SDI-rate
             pDf->m_CurrentSdiRate = pDf->m_LastLockedSdiRate;
-            Status = DtDfSdiRx_ConfigureRate(pDf, &pDf->m_CurrentSdiRate, FALSE);
+            Status = DtDfSdiRx_StartConfigureRate(pDf, &pDf->m_CurrentSdiRate, FALSE);
             if (DT_SUCCESS(Status))
             {
-                // State = WAIT_SDI_LOCKED_TO_REF1
-                pDf->m_LockState = SDIRX_STATE_WAIT_SDI_LOCKED_TO_REF1;
+                // State = WAIT_CONFIGURE_RATE_DONE
+                pDf->m_LockState = SDIRX_STATE_WAIT_CONFIGURE_RATE_DONE_1;
                 pDf->m_StateTime = Time;
-                DtDbgOutDf(MIN, SDIRX, pDf, "Entered: WAIT_SDI_LOCKED_TO_REF1; Rate: %d"
+                DtDbgOutDf(MIN, SDIRX, pDf, "Entered: WAIT_CONFIGURE_RATE_DONE; Rate: %d"
                                       " Duration: %d", pDf->m_CurrentSdiRate, TimeDiffMs);
             }
             else
-                DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: DtDfSdiRx_ConfigureRate"
+                DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: DtDfSdiRx_StartConfigureRate"
                                                        " failed (Status=0x%08X)", Status);
         }
         else if (pDf->m_DelayCount <= 0)
         {
             // No carrier detected
             // Configure next SDI-rate
-            Status = DtDfSdiRx_ConfigureRate(pDf, &pDf->m_CurrentSdiRate, TRUE);
+            Status = DtDfSdiRx_StartConfigureRate(pDf, &pDf->m_CurrentSdiRate, TRUE);
             if (DT_SUCCESS(Status))
             {
-                // State = WAIT_SDI_LOCKED_TO_REF2
-                pDf->m_LockState = SDIRX_STATE_WAIT_SDI_LOCKED_TO_REF2;
+                // State = WAIT_CONFIGURE_RATE_DONE_2
+                pDf->m_LockState = SDIRX_STATE_WAIT_CONFIGURE_RATE_DONE_2;
                 pDf->m_StateTime = Time;
-                DtDbgOutDf(MIN, SDIRX, pDf, "Entered: WAIT_SDI_LOCKED_TO_REF2; Rate: %d"
-                                      " Duration: %d", pDf->m_CurrentSdiRate, TimeDiffMs);
+                DtDbgOutDf(MIN, SDIRX, pDf, "Entered: WAIT_CONFIGURE_RATE_DONE_2;"
+                             " Rate: %d Duration: %d", pDf->m_CurrentSdiRate, TimeDiffMs);
             }
             else
-                DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: DtDfSdiRx_ConfigureRate"
+                DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: DtDfSdiRx_StartConfigureRate"
                                                        " failed (Status=0x%08X)", Status);
         }
         else
             pDf->m_DelayCount--;
+        break;
+
+    case SDIRX_STATE_WAIT_CONFIGURE_RATE_DONE_2:
+        Status = DtBcSDIRXPHY_GetSetSdiRateDone(pDf->m_pBcSdiRxPhy, &Done);
+        DT_ASSERT(DT_SUCCESS(Status));
+        if (DT_SUCCESS(Status) && Done)
+        {
+            // Configuration completed
+            Status = DtDfSdiRx_FinishConfigureRate(pDf, pDf->m_CurrentSdiRate);
+            DT_ASSERT(DT_SUCCESS(Status));
+            DT_ASSERT(pDf->m_RxMode == DT_SDIRX_RXMODE_SDI);
+
+            // State = WAIT_SDI_LOCKED_TO_REF2
+            pDf->m_LockState = SDIRX_STATE_WAIT_SDI_LOCKED_TO_REF2;
+            pDf->m_StateTime = Time;
+            DtDbgOutDf(MIN, SDIRX, pDf, "Entered: WAIT_SDI_LOCKED_TO_REF2; Rate: %d"
+                       " Duration: %d", pDf->m_CurrentSdiRate, TimeDiffMs);
+        }
         break;
 
    case SDIRX_STATE_WAIT_SDI_LOCKED_TO_REF2:
@@ -1173,7 +1208,6 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
         break;
 
         //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- ASI detection -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-
     case SDIRX_STATE_WAIT_ASI_LOCKED_TO_REF:
         // Is PHY.LockedToRef?
         Status = DtBcSDIRXPHY_IsLockedToRef(pDf->m_pBcSdiRxPhy, &LockedToRef);

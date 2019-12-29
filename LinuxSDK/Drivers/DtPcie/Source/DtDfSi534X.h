@@ -51,12 +51,12 @@ while (0)
 
 #define  DT_DF_SI534X_MAX_NUM_CLOCKS    4   // Maximum 4 configurable clocks
 
-// Structure for storing a configuration item
-typedef struct  _DtDfSi534XConfigItem
+// Structure for storing register address and data
+typedef struct  _DtDfSi534XRegister
 {
-    UInt16  m_BankData0;     // Bank and first data byte
-    UInt8  m_Data1;          // Second data byte
-} DtDfSi534XConfigItem;
+    UInt16  m_BankAddr;     // Bank and address
+    UInt8  m_Data;          // Data byte
+} DtDfSi534XRegister;
 
 
 typedef enum _DtDfSi534XConfig
@@ -74,6 +74,24 @@ typedef struct  _DtDfSi534XSdiTxPll
     Int  m_PllId;
 }DtDfSi534XSdiTxPll;
 
+// Clock types
+typedef enum _DtDfSi534XClkType
+{
+    DT_DF_SI534X_CLK_NON_FRACTIONAL,
+    DT_DF_SI534X_CLK_FRACTIONAL,
+} DtDfSi534XClkType;
+
+// Clock properties
+typedef struct  _DtDfSi534XClockProps
+{
+    Int  m_ClockPortIdx;            // Clock output port index
+    DtDfSi534XClkType  m_ClockType; // Clock type (Fractional/Non-fractional)
+    Int  m_StepSizePpt;             // Minimum step size in  parts per trillion
+    Int  m_RangePpt;                // Frequency range in parts per trillion 
+    Int64  m_FrequencyuHz;          // Frequency in micro Hertz
+} DtDfSi534XClockProps;
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 typedef struct  _DtDfSi534X
 {
@@ -85,11 +103,11 @@ typedef struct  _DtDfSi534X
     Int  m_DeviceType;                  // Device type 5342/5344
     Int  m_Si534XAddress;               // Address of  the SI-534X device
     Int  m_NumClockOutputs;             // Number of clock outputs
-    Int  m_NonFracClkIdx;               // Clock output index for non-fractional clock
-    Int  m_FracClkIdx;                  // Clock output index for fractional clock
+    Int  m_NonFracClkPortIdx;           // Clock output port index  non-fractional clock
+    Int  m_FracClkPortIdx;              // Clock output port index fractional clock
     Int  m_PrevBank;                    // Previous selected bank
     DtDfSi534XConfig  m_CurConfig;      // Current loaded configuration
-    const DtDfSi534XConfigItem*  m_pCurConfigItems; // Current configured items
+    const DtDfSi534XRegister*  m_pCurConfigItems; // Current configured items
     Int  m_CurConfigNumItems;           // Number of configured items
     DtVectorBc*  m_pBcSdiTxPlls;         // SDITXPLL block controllers
     DtVector*  m_pSdiTxPllTable;         // SDITXPLL look-up table
@@ -101,6 +119,9 @@ typedef struct  _DtDfSi534X
 void  DtDfSi534X_Close(DtDf*);
 DtDfSi534X*  DtDfSi534X_Open(DtCore*, DtPt*  pPt, const char*  pRole, Int  Instance, 
                                                              Int  Uuid, Bool  CreateStub);
+DtStatus DtDfSi534X_GetClockProperties(DtDfSi534X* pDf, Int* pNumElems,
+                                                     const DtDfSi534XClockProps** pProps);
+DtStatus  DtDfSi534X_GetFreqOffsetPpt(DtDfSi534X*, Bool FracClk, Int* pOffsetPpt);
 DtStatus  DtDfSi534X_IsPllLocked(DtDfSi534X*, Int PllId, Bool* pLocked);
 DtStatus  DtDfSi534X_SetConfig(DtDfSi534X*, DtDfSi534XConfig);
 DtStatus  DtDfSi534X_SetFreqOffsetPpt(DtDfSi534X*, Int OffsetPpt,  Bool FracClk);

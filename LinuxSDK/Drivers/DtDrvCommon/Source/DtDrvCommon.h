@@ -149,6 +149,7 @@
 
 // Port related
 #define  LOG_LEVEL_PT_COMMON        LOG_ERR
+#define  LOG_LEVEL_PT_ASISDIMON     LOG_ERR
 #define  LOG_LEVEL_PT_ASISDIRX      LOG_ERR
 #define  LOG_LEVEL_PT_ASISDIRXTX    LOG_ERR
 #define  LOG_LEVEL_PT_ASISDITX      LOG_ERR

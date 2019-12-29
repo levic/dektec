@@ -352,7 +352,7 @@ DtStatus  DtCfIoCfg_Restore(DtCfIoCfg*  pCf)
         return Result;
     }
 
-    // Load stored configuratoni
+    // Load stored configuration
     Result = DtCfIoCfg_GetStoredConfig(pCf, pIoConfig);
     if (!DT_SUCCESS(Result))
     {
@@ -770,6 +770,8 @@ static DtStatus  DtCfIoCfg_ValidateSpiStd(DtCfIoCfg*, DtCfIoCfgPortConfig*,
 static DtStatus  DtCfIoCfg_ValidateTsRateSel(DtCfIoCfg*, DtCfIoCfgPortConfig*,
                                                              Int PortIndex, Int NumPorts);
 static DtStatus  DtCfIoCfg_ValidateSwS2Apsk(DtCfIoCfg*, DtCfIoCfgPortConfig*,
+                                                             Int PortIndex, Int NumPorts);
+static DtStatus  DtCfIoCfg_ValidateAutoBfGen(DtCfIoCfg*, DtCfIoCfgPortConfig*,
                                                              Int PortIndex, Int NumPorts);
 static DtStatus  DtCfIoCfg_ValidateDmaTestMode(DtCfIoCfg*, DtCfIoCfgPortConfig*,
                                                              Int PortIndex, Int NumPorts);
@@ -1876,6 +1878,9 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
     if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_SWS2APSK))
         pPortIoCfg[DT_IOCONFIG_SWS2APSK].m_Value = DT_IOCONFIG_FALSE;
 
+    // DT_IOCONFIG_AUTOBFGEN
+    if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_AUTOBFGEN))
+        pPortIoCfg[DT_IOCONFIG_AUTOBFGEN].m_Value = DT_IOCONFIG_FALSE;
     // DT_IOCONFIG_DMATESTMODEM
     if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_DMATESTMODE))
         pPortIoCfg[DT_IOCONFIG_DMATESTMODE].m_Value = DT_IOCONFIG_FALSE;
@@ -1883,7 +1888,8 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
     // DT_IOCONFIG_FAILSAFE
     if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_FAILSAFE))
     { 
-        pPortIoCfg[DT_IOCONFIG_FAILSAFE].m_Value = DT_IOCONFIG_FALSE;
+        pPortIoCfg[DT_IOCONFIG_FAILSAFE].m_Value = 
+                       DtCore_PROPS_GetInt(pCf->m_pCore, "DEFAULT_FAILSAFE", PortIdx, -1);
         pPortIoCfg[DT_IOCONFIG_FAILSAFE].m_ParXtra[0] = 0;
     }
 
@@ -1955,6 +1961,10 @@ DtStatus  DtCfIoCfg_ValidateConfig(DtCfIoCfg*  pCf, DtCfIoCfgPortConfig*  pIoCon
         if (!DT_SUCCESS(Result))
             return Result;
 
+        // Validate  DT_IOCONFIG_AUTOBFGEN
+        Result = DtCfIoCfg_ValidateAutoBfGen(pCf, pIoConfig, PortIndex, NumPorts);
+        if (!DT_SUCCESS(Result))
+            return Result;
         // Validate  DT_IOCONFIG_DMATESTMODE
         Result = DtCfIoCfg_ValidateDmaTestMode(pCf, pIoConfig, PortIndex, NumPorts);
         if (!DT_SUCCESS(Result))
@@ -2000,7 +2010,7 @@ DtStatus  DtCfIoCfg_ValidateIoDir(
     Int NumPorts)
 {
     DtStatus  Status = DT_STATUS_OK;
-    Int  i, Buddy, Isi;
+    Int  i, Buddy, DefaultBuddy, Isi;
     Bool IsNonFunctional;
     DtIoCaps  IoCaps;        // Port IO capabilities
     DtCfIoConfigValue* pCfgVal;
@@ -2039,10 +2049,12 @@ DtStatus  DtCfIoCfg_ValidateIoDir(
             return DT_STATUS_CONFIG_ERROR;
         if (pPortIoCfg[DT_IOCONFIG_IODIR].m_SubValue != DT_IOCONFIG_MONITOR)
             return DT_STATUS_CONFIG_ERROR;
+        // Only default setting allowed
         Buddy = (Int)pPortIoCfg[DT_IOCONFIG_IODIR].m_ParXtra[0];
-        // No property to check which buddy port index is valid. 
-        // Hardcode based on typenumber for now.
-        return DT_STATUS_CONFIG_ERROR;
+        DefaultBuddy = DtCore_PROPS_GetInt(pCf->m_pCore, "DEFAULT_PARXTRA0",
+                                                                           PortIndex, -1);
+        if (Buddy != DefaultBuddy)
+            return DT_STATUS_CONFIG_ERROR;
         break;
     case DT_IOCONFIG_INPUT:
         if (!DtIoCapsHasCap(&IoCaps, DT_IOCAP_INPUT))
@@ -2800,6 +2812,38 @@ DtStatus  DtCfIoCfg_ValidateSwS2Apsk(
     default:
         return DT_STATUS_CONFIG_ERROR;
     }    
+    return DT_STATUS_OK;
+}
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfIoCfg_ValidateAutoBfGen -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtCfIoCfg_ValidateAutoBfGen(
+    DtCfIoCfg*  pCf,
+    DtCfIoCfgPortConfig*  pIoConfig,
+    Int PortIndex, 
+    Int NumPorts)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtIoCaps  IoCaps;        // Port IO capabilities
+    DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
+    // Get the IO-capability of the port
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    if (!DT_SUCCESS(Status))
+        return Status;
+     DtDbgOutDf(MAX, IOCONFIG, pCf, "Configuration AUTOBFGEN Value: %d SubValue: %d",
+                                          pPortIoCfg[DT_IOCONFIG_AUTOBFGEN].m_Value,
+                                          pPortIoCfg[DT_IOCONFIG_AUTOBFGEN].m_SubValue);
+     switch (pPortIoCfg[DT_IOCONFIG_AUTOBFGEN].m_Value)
+     {
+     case DT_IOCONFIG_NONE:
+         // Not applicable should only be set when we do not support automatic blackframe
+         // generation
+         DT_ASSERT(!DtIoCapsHasCap(&IoCaps, DT_IOCAP_AUTOBFGEN));
+         break;
+     default:
+         // Not supported by BB 2.0
+         DT_ASSERT(FALSE);
+         return DT_STATUS_CONFIG_ERROR;
+     }
     return DT_STATUS_OK;
 }
 

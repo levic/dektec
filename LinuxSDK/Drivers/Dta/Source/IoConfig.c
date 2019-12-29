@@ -73,6 +73,8 @@ static DtStatus  DtaIoConfigUpdateValidateTsRateSel(DtaNonIpPort* pNonIpPort,
                                          DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
 static DtStatus  DtaIoConfigUpdateValidateSwS2Apsk(DtaNonIpPort* pNonIpPort,
                                          DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
+static DtStatus  DtaIoConfigUpdateValidateAutoBfGen(DtaNonIpPort* pNonIpPort,
+                                         DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
 static DtStatus  DtaIoConfigUpdateValidateDmaTestMode(DtaNonIpPort* pNonIpPort,
                                          DtaIoConfigNonIpPortUpdate*, DtaIoConfigUpdate*);
 static DtStatus  DtaIoConfigUpdateValidateFailSafe(DtaNonIpPort* pNonIpPort,
@@ -658,6 +660,11 @@ static DtStatus  DtaIoConfigUpdateValidate(
 
         // Validate DT_IOCONFIG_TSRATESEL
         Result = DtaIoConfigUpdateValidateTsRateSel(pNonIpPort, pPortUpdate, pUpdate);
+        if (!DT_SUCCESS(Result))
+            return Result;
+    
+        // Validate DT_IOCONFIG_AUTOBFGEN
+        Result = DtaIoConfigUpdateValidateAutoBfGen(pNonIpPort, pPortUpdate, pUpdate);
         if (!DT_SUCCESS(Result))
             return Result;
 
@@ -1468,6 +1475,40 @@ static DtStatus  DtaIoConfigUpdateValidateSwS2Apsk(
     return DT_STATUS_OK;
 }
 
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigUpdateValidateAutoBfGen -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtaIoConfigUpdateValidateAutoBfGen(
+    DtaNonIpPort* pNonIpPort, 
+    DtaIoConfigNonIpPortUpdate*  pPortUpdate,
+    DtaIoConfigUpdate* pUpdate)
+{
+    DtDbgOutPort(MAX, IOCONFIG, pNonIpPort,
+                            "Configuration AUTOBFGEN Value: %d SubValue: %d",
+                            pPortUpdate->m_CfgValue[DT_IOCONFIG_AUTOBFGEN].m_Value,
+                            pPortUpdate->m_CfgValue[DT_IOCONFIG_AUTOBFGEN].m_SubValue);
+
+    switch (pPortUpdate->m_CfgValue[DT_IOCONFIG_AUTOBFGEN].m_Value)
+    {
+    case DT_IOCONFIG_NONE:
+        // Not applicable should only be set when we do not support auto black frame gen
+        DT_ASSERT(!pNonIpPort->m_CapAutoBfGen);
+        break;
+    case DT_IOCONFIG_FALSE:
+        if (!pNonIpPort->m_CapAutoBfGen)
+            return DT_STATUS_CONFIG_ERROR;
+        break;
+    case DT_IOCONFIG_TRUE:
+        if (!pNonIpPort->m_CapAutoBfGen)
+            return DT_STATUS_CONFIG_ERROR;
+        break;
+    default:
+        return DT_STATUS_CONFIG_ERROR;
+    }
+
+    return DT_STATUS_OK;
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigUpdateValidateDmaTestMode -.-.-.-.-.-.-.-.-.-.-.-.-
 //
 static DtStatus  DtaIoConfigUpdateValidateDmaTestMode(
@@ -1491,6 +1532,7 @@ static DtStatus  DtaIoConfigUpdateValidateDmaTestMode(
 
     return DT_STATUS_OK;
 }
+
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigUpdateValidateFailSafe -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //

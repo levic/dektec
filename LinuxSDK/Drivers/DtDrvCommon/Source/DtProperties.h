@@ -87,7 +87,10 @@ typedef struct _DtPropertyHashSet
 typedef struct _DtPropertyStore 
 {
     Int  m_TypeNumber;
-    Int  m_SubDvc;
+    Int  m_SubDvcOrSubType;     // In old drivers (Dta, Dtu, DtaNw) properties strores 
+                                // are unqiue based on the combination of type-number and 
+                                // sub-device, while for new drivers (DtPcie) the unique 
+                                // combination is type-number and sub-type
     const DtPropertyHashSet*  m_pPropertyHashSets;
     UInt  m_PropertyHashSetCount;
 } DtPropertyStore;
@@ -97,7 +100,10 @@ typedef struct _DtPropertyData
 {
     const char* m_TypeName;     // DTA- or DTU-
     Int  m_TypeNumber;
-    Int  m_SubDvc;
+    Int  m_SubDvcOrSubType;     // In old drivers (Dta, Dtu, DtaNw) properties strores 
+                                // are unqiue based on the combination of type-number and 
+                                // sub-device, while for new drivers (DtPcie) the unique 
+                                // combination is type-number and sub-type
     Int  m_HardwareRevision;    // Hardware revision (e.g. 302 = 3.2)
     Int  m_FirmwareVariant;
     Int  m_FirmwareVersion;     // Firmware Version (= Altera revision), e.g. 3 for
@@ -126,13 +132,15 @@ void DtPropertiesGetAltName(const char* pName, Int* pNumAltNames,
 DtStatus  DtPropertiesStrGet(DtPropertyData* pPropData, const char* pName, Int PortIndex,
                                              char* pStr, DtPropertyScope* pScope,
                                              Int DtapiMaj, Int DtapiMin, Int DtapiBugfix);
-DtStatus  DtPropertiesGetForType(const char*  pTypeName, Int  TypeNumber, Int  SubDvc,
+DtStatus  DtPropertiesGetForType(const char*  pTypeName, Int  TypeNumber, 
+                                      Int  SubDvcOrSubType,
                                       Int  HwRev, Int  FwVer, Int FwVariant,
                                       const char* pName, Int PortIndex,
                                       DtPropertyValue* pValue, DtPropertyValueType* pType,
                                       DtPropertyScope* pScope,
                                       Int DtapiMaj, Int DtapiMin, Int DtapiBugfix);
-DtStatus  DtPropertiesStrGetForType(const char*  pTypeName, Int  TypeNumber, Int  SubDvc,
+DtStatus  DtPropertiesStrGetForType(const char*  pTypeName, Int  TypeNumber, 
+                                             Int  SubDvcOrSubType,
                                              Int  HwRev, Int  FwVer, Int FwVariant,
                                              const char* pName, Int PortIndex,
                                              char* pStr, DtPropertyScope* pScope,

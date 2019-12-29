@@ -31,12 +31,19 @@
 // Name and short-name of the SdiTxFmtSimple block (must match block ID)
 #define DT_BC_SDITXF_NAME        "SdiTxFmtSimple"
 #define DT_BC_SDITXF_SHORTNAME   "SDITXF"
+#define DT_BC_SDITXF6G12G_NAME        "SdiTxFmtSimple6G12G"
+#define DT_BC_SDITXF6G12G_SHORTNAME   "SDITXF6G12G"
 
 // MACRO: to init an block-controller-ID for the SDITXF-BC
-#define DT_BC_SDITXF_INIT_ID(ID, ROLE, INSTANCE, UUID)                                   \
+#define DT_BC_SDITXF_INIT_ID(ID, TYPE, ROLE, INSTANCE, UUID)                             \
 do                                                                                       \
 {                                                                                        \
-    DT_BC_INIT_ID(ID, DT_BC_SDITXF_NAME, DT_BC_SDITXF_SHORTNAME, ROLE, INSTANCE, UUID);  \
+    if (TYPE == DT_BLOCK_TYPE_SDITXF)                                                    \
+        DT_BC_INIT_ID(ID, DT_BC_SDITXF_NAME, DT_BC_SDITXF_SHORTNAME, ROLE, INSTANCE,     \
+                                                                                 UUID);  \
+    else                                                                                 \
+        DT_BC_INIT_ID(ID, DT_BC_SDITXF6G12G_NAME, DT_BC_SDITXF6G12G_SHORTNAME, ROLE,     \
+                                                                       INSTANCE, UUID);  \
 }                                                                                        \
 while (0)
 
@@ -65,9 +72,11 @@ typedef  struct _DtBcSDITXF
     Int  m_NumLinesPerEvent;        // Number of lines between format events (0=at SOF)
     Int  m_NumSofsBetweenTod;       // Number of frames between TOD samples
     Int  m_MaxSdiRate;              // Maximum SDI-rate
+    Int  m_StreamAlignment;         // Stream bit-alignment
 
     // Interrupts related
     DtDpc  m_IntDpc;
+    Int  m_FmtIntId;                // Format event interrupt ID
     DtEvent  m_FmtEvent;            // Event used to indicate formatter event
     Bool  m_FmtIntEnabled;          // Flag indicating format interrupt event is enabled
     DtSpinLock  m_IntDataSpinLock;  // Access protection for interrupt data
@@ -84,7 +93,7 @@ typedef  struct _DtBcSDITXF
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXF public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 void  DtBcSDITXF_Close(DtBc*);
-DtBcSDITXF*  DtBcSDITXF_Open(Int  Address, DtCore*, DtPt*  pPt, 
+DtBcSDITXF*  DtBcSDITXF_Open(Int  Address, DtCore*, DtPt*  pPt, DtBcType  Type,
                                              const char*  pRole, Int  Instance, Int  Uuid,
                                              Bool  CreateStub);
 
@@ -92,6 +101,7 @@ DtStatus  DtBcSDITXF_GetFmtEventSetting(DtBcSDITXF* pBc, Int* pNumLinesPerEvent,
                                                            Int* pNumSofsBetweenTimestamp);
 DtStatus  DtBcSDITXF_GetMaxSdiRate(DtBcSDITXF* pBc, Int* pMaxSdiRate);
 DtStatus  DtBcSDITXF_GetOperationalMode(DtBcSDITXF* pBc,  Int* pOpMode);
+DtStatus  DtBcSDITXF_GetStreamAlignment(DtBcSDITXF* pBc, Int* pStreamAlinment);
 DtStatus  DtBcSDITXF_SetFmtEventSetting(DtBcSDITXF* pBc, Int NumLinesPerEvent,
                                                              Int NumSofsBetweenTimestamp);
 DtStatus  DtBcSDITXF_SetOperationalMode(DtBcSDITXF* pBc,  Int OpMode);

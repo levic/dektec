@@ -83,6 +83,8 @@ typedef struct  _DtPTAsiSdiRxTx
     DtBcSWITCH*  m_pBcSwitchSdiTxDmxOut; // SDI mux 12G output switch
     DtBcSDIDMX12G*  m_pBcSdiTxDmx12G;    // SDI demux 12G
     DtBcSWITCH*  m_pBcSwitchSdiTxDmxIn;  // SDI mux 12G input switch
+    DtBcSWITCH*  m_pBcSwitchSdiTxFrom4LinkMaster;  // SDI from quad-link master switch
+
 
     // RX Driver functions
     DtDfAsiRx*  m_pDfAsiRx;             // ASI receiver
@@ -100,6 +102,7 @@ typedef struct  _DtPTAsiSdiRxTx
     DtBcSDIMUX12G*  m_pBcSdiRxMux12G;    // SDI mux 12G
     DtBcST425LR*  m_pBcSdiRxSt425Lr;     // ST425 Link reorder
     DtBcSWITCH*  m_pBcSwitchSdiRxMuxOut; // SDI mux 12G output switch
+    DtBcSWITCH*  m_pBcSwitchSdiRxTo4LinkMaster; // SDI to quad-link master switch
 
     // RX TX Block controllers
     DtBcCDMAC*  m_pBcCDmaC;               // DMA-controller

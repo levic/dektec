@@ -83,7 +83,7 @@ DtStatus  DtPropertiesInit(DtPropertyData* pPropData)
     for (Index=0; Index<DtPropertyStoreCount; Index++)
     {
         if (DtPropertyStores[Index].m_TypeNumber==pPropData->m_TypeNumber &&
-                                  DtPropertyStores[Index].m_SubDvc == pPropData->m_SubDvc)
+                DtPropertyStores[Index].m_SubDvcOrSubType == pPropData->m_SubDvcOrSubType)
         {
             pPropData->m_pPropertyStore = (void*)&DtPropertyStores[Index];
             break;
@@ -93,8 +93,8 @@ DtStatus  DtPropertiesInit(DtPropertyData* pPropData)
     // Check if we found a property store for our device
     if (pPropData->m_pPropertyStore == NULL)
     {
-          DtDbgOut(ERR, PROP, "PropertyStore not found DTA %d, SubDvc %d", pPropData->m_TypeNumber, 
-                                                                    pPropData->m_SubDvc);
+          DtDbgOut(ERR, PROP, "PropertyStore not found DTA %d, SubDvc/SubType %d", 
+                                   pPropData->m_TypeNumber, pPropData->m_SubDvcOrSubType);
           return DT_STATUS_NOT_FOUND;
     }
 
@@ -399,7 +399,7 @@ DtStatus  DtPropertiesStrGet(
 DtStatus  DtPropertiesGetForType(
     const char*  pTypeName,
     Int  TypeNumber,
-    Int  SubDvc,
+    Int  SubDvcOrSubType,
     Int  HwRev,
     Int  FwVer,
     Int  FwVariant,
@@ -417,7 +417,7 @@ DtStatus  DtPropertiesGetForType(
         
     // Init property data structure
     PropData.m_TypeNumber = TypeNumber;
-    PropData.m_SubDvc = SubDvc;
+    PropData.m_SubDvcOrSubType = SubDvcOrSubType;
     PropData.m_FirmwareVariant = FwVariant;
     PropData.m_FirmwareVersion = FwVer;
     PropData.m_HardwareRevision = HwRev;
@@ -442,7 +442,7 @@ DtStatus  DtPropertiesGetForType(
 DtStatus  DtPropertiesStrGetForType(
     const char*  pTypeName,
     Int  TypeNumber,
-    Int  SubDvc,
+    Int  SubDvcOrSubType,
     Int  HwRev,
     Int  FwVer,
     Int  FwVariant,
@@ -459,7 +459,7 @@ DtStatus  DtPropertiesStrGetForType(
         
     // Init property data structure
     PropData.m_TypeNumber = TypeNumber;
-    PropData.m_SubDvc = SubDvc;
+    PropData.m_SubDvcOrSubType = SubDvcOrSubType;
     PropData.m_FirmwareVariant = FwVariant;
     PropData.m_FirmwareVersion = FwVer;
     PropData.m_HardwareRevision = HwRev;
