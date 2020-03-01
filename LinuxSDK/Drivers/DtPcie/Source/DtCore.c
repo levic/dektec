@@ -331,8 +331,9 @@ DtStatus  DtCore_Ioctl(DtCore*  pCore, DtFileObject*  pFile, DtIoctlObject*  pIo
     // Check for minimum input data size
     if (pIoctl->m_InputBufferSize < DT_IOCTL_INDATA_MINSIZE)
     {
-        DtDbgOut(ERR, CORE, "IOCTL=0x%08X, In=%d (Min=%d) INPUT BUFFER TO SMALL!",
+        DtDbgOut(ERR, CORE, "IOCTL=0x%08X, FC=%d, In=%d (Min=%d) INPUT BUFFER TO SMALL!",
                                                                 pIoctl->m_IoctlCode, 
+                                                                pIoctl->m_FunctionCode,
                                                                 pIoctl->m_InputBufferSize,
                                                                 DT_IOCTL_INDATA_MINSIZE);
         return DT_STATUS_INVALID_PARAMETER;
@@ -383,8 +384,10 @@ DtStatus  DtCore_Ioctl(DtCore*  pCore, DtFileObject*  pFile, DtIoctlObject*  pIo
     
     if (pIoStub == NULL)
     {
-        DtDbgOut(ERR, CORE, "Unknown UUID (0x%08X) is used for IOCTL=0x%08X", 
-                                                    IoParams.m_Uuid, pIoctl->m_IoctlCode);
+        DtDbgOut(ERR, CORE, "Unknown UUID (0x%08X) is used for IOCTL=0x%08X, FC=%d", 
+                                                                  IoParams.m_Uuid, 
+                                                                  pIoctl->m_IoctlCode,
+                                                                  pIoctl->m_FunctionCode);
         Status = DT_STATUS_NO_IOSTUB;
     }
     
@@ -417,9 +420,15 @@ DtStatus  DtCore_Ioctl(DtCore*  pCore, DtFileObject*  pFile, DtIoctlObject*  pIo
     {
         pIoctl->m_OutputBufferBytesWritten = 0;
         if (Status == DT_STATUS_NOT_SUPPORTED) 
-            DtDbgOut(MIN, CORE, "Ioctl: %xh NOT SUPPORTED", pIoctl->m_IoctlCode);
+        {
+            DtDbgOut(MIN, CORE, "Ioctl: %xh, FC=%d NOT SUPPORTED", 
+                                             pIoctl->m_IoctlCode, pIoctl->m_FunctionCode);
+        }
         else
-            DtDbgOut(MIN, CORE, "Ioctl: %xh ERROR %xh", pIoctl->m_IoctlCode, Status);
+        {
+            DtDbgOut(MIN, CORE, "Ioctl: %xh, FC=%d ERROR %xh", pIoctl->m_IoctlCode,
+                                                          pIoctl->m_FunctionCode, Status);
+        }
     }
     return Status;
 }
@@ -589,7 +598,7 @@ DtStatus  DtIoStubCore_OnExclAccessCmd(
         
     STUB_CORE_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_EXCL_ACCESS_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_EXCL_ACCESS_CMD);
 
     // Get in-/out-data
     DT_ASSERT(pIoParams->m_pInData != NULL);
@@ -632,33 +641,33 @@ DtIoStub*  DtIoStubCore_GetChildStub(
     pCore = pStub->m_pCore;
     DT_ASSERT(pCore!=NULL && pCore->m_Size>=(sizeof(DtCore)));
 
-    switch (pIoParams->m_pIoctl->m_IoctlCode)
+    switch (pIoParams->m_pIoctl->m_FunctionCode)
     {
-    case DT_IOCTL_EVENT_CMD:
+    case DT_FUNC_CODE_EVENT_CMD:
         DT_ASSERT(pCore->m_pCfEvt != NULL);
         if (pCore->m_pCfEvt != NULL)
             pChildStub = (DtIoStub*)pCore->m_pCfEvt->m_pIoStub;
         break;
 
-    case DT_IOCTL_IOCONFIG_CMD:
+    case DT_FUNC_CODE_IOCONFIG_CMD:
         DT_ASSERT(pCore->m_pCfIoCfg != NULL);
         if (pCore->m_pCfIoCfg != NULL)
             pChildStub = (DtIoStub*)pCore->m_pCfIoCfg->m_pIoStub;
         break;
 
-    case DT_IOCTL_PROPERTY_CMD:
+    case DT_FUNC_CODE_PROPERTY_CMD:
         DT_ASSERT(pCore->m_pCfProps != NULL);
         if (pCore->m_pCfProps != NULL)
             pChildStub = (DtIoStub*)pCore->m_pCfProps->m_pIoStub;
         break;
 
-    case DT_IOCTL_TOD_CMD:
+    case DT_FUNC_CODE_TOD_CMD:
         DT_ASSERT(pCore->m_pCfTod != NULL);
         if (pCore->m_pCfTod != NULL)
             pChildStub = (DtIoStub*)pCore->m_pCfTod->m_pIoStub;
         break;
 
-    case DT_IOCTL_VPD_CMD:
+    case DT_FUNC_CODE_VPD_CMD:
         DT_ASSERT(pCore->m_pDfVpd != NULL);
         if (pCore->m_pDfVpd != NULL)
             pChildStub = (DtIoStub*)pCore->m_pDfVpd->m_pIoStub;

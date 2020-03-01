@@ -28,14 +28,6 @@
 #include "DtCore.h"
 #include "DtIoStub.h"
 
-// Macro to extract the IOCTL-command from IOCTL-code. In Linux the 
-// IOCTL-code is build up of direction, type, command and size
-#ifdef WINBUILD
-#define DT_IOCTL_TO_CMD(x)  x
-#else
-#define DT_IOCTL_TO_CMD(x)  _IOC_NR(x)
-#endif
-
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStub implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -164,9 +156,11 @@ DtStatus  DtIoStub_Ioctl(DtIoStub*  pStub, DtIoStubIoParams*  pIoParams, Int*  p
 
     for (i=0; i<pStub->m_NumIoctls; i++)
     {
-       if (DT_IOCTL_TO_CMD(pStub->m_pIoctls[i].m_IoctlCode) 
-                                     != DT_IOCTL_TO_CMD(pIoParams->m_pIoctl->m_IoctlCode))
+       if (pStub->m_pIoctls[i].m_FunctionCode != pIoParams->m_pIoctl->m_FunctionCode)
             continue;
+       // SANITY CHECK: make sure function code and IOCTL code are consistent
+       DT_ASSERT(DT_IOCTL_TO_FUNCTION(pIoParams->m_pIoctl->m_IoctlCode) == 
+                                                      pStub->m_pIoctls[i].m_FunctionCode);
 
         pIoParams->m_pIoctlProps = &pStub->m_pIoctls[i];
         break;
@@ -339,7 +333,8 @@ DtStatus  DtIoStub_IoctlCheckAndReport(const DtIoStub*  pStub,
 
     if ((Flags&DT_IOSTUB_CHECK_IOCTL)!=0 && pIoctlStr==NULL)
     {
-        DtDbgOutIoStub(ERR, CORE, pStub, "UNKNOWN IOCTL: 0x%08X", pIoctl->m_IoctlCode);
+        DtDbgOutIoStub(ERR, CORE, pStub, "UNKNOWN IOCTL: 0x%08X, FC=%d",
+                                             pIoctl->m_IoctlCode, pIoctl->m_FunctionCode);
         return DT_STATUS_NOT_SUPPORTED;
     }
     

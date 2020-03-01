@@ -101,6 +101,27 @@ DtStatus DtDfVirtGenRef_GetGenRefEnable(DtDfVirtGenRef* pDf, Bool* pEnable)
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfVirtGenRef_GetGenRefSofOffset -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfVirtGenRef_GetGenRefSofOffset(DtDfVirtGenRef* pDf, Int* pSofOffset)
+{
+    // Sanity check
+    DF_VIRTGENREF_DEFAULT_PRECONDITIONS(pDf);
+
+    // Check parameter
+    if (pSofOffset == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    DF_VIRTGENREF_MUST_BE_ENABLED(pDf);
+
+    // Return cached value
+    *pSofOffset = pDf->m_GenRefSofOffset;
+
+    return DT_STATUS_OK;
+}
+
+
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfVirtGenRef_GetGenRefVidStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtDfVirtGenRef_GetGenRefVidStd(DtDfVirtGenRef* pDf, Int* pVidStd)
@@ -145,9 +166,33 @@ DtStatus  DtDfVirtGenRef_SetGenRefEnable(DtDfVirtGenRef* pDf, Bool Enable)
     // Send one final event if disabled
     if (!Enable && pDf->m_pDfGenLockCtrl != NULL)
         DtDfGenLockCtrl_GenRefStartOfFrameHandler(pDf->m_pDfGenLockCtrl, 
-                                                     pDf->m_PortIndex, &DumySof,
+                                                     pDf->m_PortIndex, &DumySof, 0,
                                                      DT_VIDSTD_UNKNOWN, DT_VIDSTD_UNKNOWN,
                                                      DT_DF_GENLOCKCTRL_GENREF_UNDEFINED);
+    DtSpinLockRelease(&pDf->m_Lock);
+
+    return Status;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfVirtGenRef_SetGenRefSofOffset -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfVirtGenRef_SetGenRefSofOffset(DtDfVirtGenRef* pDf, Int SofOffset)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    // Sanity checks
+    DF_VIRTGENREF_DEFAULT_PRECONDITIONS(pDf);
+
+    // Must be enabled
+    DF_VIRTGENREF_MUST_BE_ENABLED(pDf);
+
+    // No change?
+    if (pDf->m_GenRefSofOffset == SofOffset)
+        return DT_STATUS_OK;
+
+    // Change m_GenRefSofOffset under spinlock protection
+    DtSpinLockAcquire(&pDf->m_Lock);
+    pDf->m_GenRefSofOffset = SofOffset;
     DtSpinLockRelease(&pDf->m_Lock);
 
     return Status;
@@ -169,7 +214,7 @@ DtStatus  DtDfVirtGenRef_SetGenRefVidStd(DtDfVirtGenRef* pDf, Int  VidStd)
     if (pDf->m_GenRefVidStd == VidStd)
         return DT_STATUS_OK;
 
-    // Change GenRefEnable under spinlock protection
+    // Change video standard under spinlock protection
     DtSpinLockAcquire(&pDf->m_Lock);
     pDf->m_GenRefVidStd = VidStd;
     DtSpinLockRelease(&pDf->m_Lock);
@@ -198,6 +243,7 @@ DtStatus  DtDfVirtGenRef_Init(DtDf* pDfBase)
 
     // Set defaults
     pDf->m_GenRefVidStd = DT_VIDSTD_UNKNOWN;
+    pDf->m_GenRefSofOffset = 0;
     pDf->m_GenRefEnabled = FALSE;
 
     // Find the device level genlock controller
@@ -230,7 +276,8 @@ void  DtDfVirtGenRef_PeriodicIntervalHandler(DtObject* pObj, DtTodTime  Time)
     if (pDf->m_GenRefEnabled && pDf->m_pDfGenLockCtrl!=NULL)
     {
         DtDfGenLockCtrl_GenRefStartOfFrameHandler(pDf->m_pDfGenLockCtrl, pDf->m_PortIndex,
-                                               &Time, pDf->m_GenRefVidStd, DetectVidStd,
+                                               &Time, pDf->m_GenRefSofOffset,
+                                               pDf->m_GenRefVidStd, DetectVidStd,
                                                DT_DF_GENLOCKCTRL_GENREF_VIRTUAL);
 
     }

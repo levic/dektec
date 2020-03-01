@@ -497,6 +497,8 @@ typedef enum  _DtFunctionType
     DT_FUNC_TYPE_VIRTGENREF,        // SDI virtual genref driver function
     DT_FUNC_TYPE_KEEPALIVE,         // Keep alive control API function
     DT_FUNC_TYPE_ASISDIMON,         // ASI/SDI monitor control API function
+    DT_FUNC_TYPE_SDIPHYONLYRX,      // SDI PHY-only receive-channel
+    DT_FUNC_TYPE_SDIPHYONLYTX,      // SDI PHY-only transmit-channel
 
     // Local DTA-2132 functions. DONOT RENUMBER!!
     DT_FUNC_TYPE_SPIM_2132 = LTYPE_SEQNUM(2132, 1),
@@ -524,12 +526,15 @@ typedef DtFunctionType  DtSubFunctionType;
 typedef enum  _DtPortType
 {
     DT_PORT_TYPE_UNKNOWN=0,
-    DT_PORT_TYPE_BASE,          // Base implementation
-    DT_PORT_TYPE_ASISDIRX,      // ASI/SDI receiver port
-    DT_PORT_TYPE_ASISDIRXTX,    // ASI/SDI receiver/transmitter port
-    DT_PORT_TYPE_ASISDITX,      // ASI/SDI transmitter port
-    DT_PORT_TYPE_SDIGENREF,     // SDI genref port
-    DT_PORT_TYPE_ASISDIMON,     // ASI/SDI monitor port
+    DT_PORT_TYPE_BASE,              // Base implementation
+    DT_PORT_TYPE_ASISDIRX,          // ASI/SDI receiver port
+    DT_PORT_TYPE_ASISDIRXTX,        // ASI/SDI receiver/transmitter port
+    DT_PORT_TYPE_ASISDITX,          // ASI/SDI transmitter port
+    DT_PORT_TYPE_SDIGENREF,         // SDI genref port
+    DT_PORT_TYPE_ASISDIMON,         // ASI/SDI monitor port
+    DT_PORT_TYPE_SDIPHYONLYRX,      // SDI PHY-only receive port
+    DT_PORT_TYPE_SDIPHYONLYTX,      // SDI PHY-only transmit port
+    DT_PORT_TYPE_SDIPHYONLYRXTX,    // SDI PHY-only receive/transmit port
 }  DtPortType;
 
 
@@ -562,58 +567,58 @@ typedef enum  _DtPortType
 // DON'T INSERT NEW VALUES BETWEEN EXISTING ONES, SO THAT NEW DRIVER VERSIONS REMAIN 
 // COMPATIBLE WITH USER APPLICATIONS THAT WERE COMPILED AGAINST AN OLDER DRIVER!!
 enum {
-    FUNC_GET_DRIVER_VERSION =  DT_IOCTL_BASE,
-    FUNC_GET_DEV_INFO,
-    FUNC_STUB_CMD,
-    FUNC_ASIRX_CMD,
-    FUNC_ASITXG_CMD,
-    FUNC_ASITXSER_CMD,
-    FUNC_CDMAC_CMD,
-    FUNC_DEBUG_CMD,
-    FUNC_EVENT_CMD,
-    FUNC_EXCL_ACCESS_CMD,
-    FUNC_I2CM_CMD,
-    FUNC_IOCONFIG_CMD,
-    FUNC_KA_CMD,
-    FUNC_LEDB_CMD,
-    FUNC_PROPERTY_CMD,
-    FUNC_REBOOT_CMD,
-    FUNC_SDIRX_CMD,
-    FUNC_SDIRXF_CMD,
-    FUNC_SDIRXP_CMD,
-    FUNC_SDITXF_CMD,
-    FUNC_SDITXP_CMD,
-    FUNC_SDITXPHY_CMD,
-    FUNC_SDIXCFG_CMD,
-    FUNC_SPIM_CMD,
-    FUNC_SPIMF_CMD,
-    FUNC_SPIPROM_CMD,
-    FUNC_SWITCH_CMD,
-    FUNC_TOD_CMD,
-    FUNC_TSRXFMT_CMD,
-    FUNC_VPD_CMD,
-    FUNC_ADS4246_CMD_2132,
-    FUNC_AD5320_CMD_2132,
-    FUNC_S2STATS_CMD_2132,
-    FUNC_S2CRDEMOD_CMD_2132,
-    FUNC_IQCGRAB_CMD_2132,
-    FUNC_IQFIR_CMD_2132,
-    FUNC_IQPWR_CMD_2132,
-    FUNC_IQSRC2132_CMD_2132,
-    FUNC_DATASTMUX_CMD_2132,
-    FUNC_LNBH25_CMD_2132,
-    FUNC_IPSECG_CMD,
-    FUNC_SENSTEMP_CMD,
-    FUNC_TEMPFANMGR_CMD,
-    FUNC_CONSTSINK_CMD,
-    FUNC_CONSTSOURCE_CMD,
-    FUNC_ACCUFIFO_CMD,
-    FUNC_BURSTFIFO_CMD,
-    FUNC_LMH1981_CMD,
-    FUNC_GENLOCKCTRL_CMD,
-    FUNC_SDIDMX12G_CMD,
-    FUNC_SDIMUX12G_CMD,
-    FUNC_ST425LR_CMD,
+    DT_FUNC_CODE_GET_DRIVER_VERSION =  DT_IOCTL_BASE,
+    DT_FUNC_CODE_GET_DEV_INFO,
+    DT_FUNC_CODE_STUB_CMD,
+    DT_FUNC_CODE_ASIRX_CMD,
+    DT_FUNC_CODE_ASITXG_CMD,
+    DT_FUNC_CODE_ASITXSER_CMD,
+    DT_FUNC_CODE_CDMAC_CMD,
+    DT_FUNC_CODE_DEBUG_CMD,
+    DT_FUNC_CODE_EVENT_CMD,
+    DT_FUNC_CODE_EXCL_ACCESS_CMD,
+    DT_FUNC_CODE_I2CM_CMD,
+    DT_FUNC_CODE_IOCONFIG_CMD,
+    DT_FUNC_CODE_KA_CMD,
+    DT_FUNC_CODE_LEDB_CMD,
+    DT_FUNC_CODE_PROPERTY_CMD,
+    DT_FUNC_CODE_REBOOT_CMD,
+    DT_FUNC_CODE_SDIRX_CMD,
+    DT_FUNC_CODE_SDIRXF_CMD,
+    DT_FUNC_CODE_SDIRXP_CMD,
+    DT_FUNC_CODE_SDITXF_CMD,
+    DT_FUNC_CODE_SDITXP_CMD,
+    DT_FUNC_CODE_SDITXPHY_CMD,
+    DT_FUNC_CODE_SDIXCFG_CMD,
+    DT_FUNC_CODE_SPIM_CMD,
+    DT_FUNC_CODE_SPIMF_CMD,
+    DT_FUNC_CODE_SPIPROM_CMD,
+    DT_FUNC_CODE_SWITCH_CMD,
+    DT_FUNC_CODE_TOD_CMD,
+    DT_FUNC_CODE_TSRXFMT_CMD,
+    DT_FUNC_CODE_VPD_CMD,
+    DT_FUNC_CODE_ADS4246_CMD_2132,
+    DT_FUNC_CODE_AD5320_CMD_2132,
+    DT_FUNC_CODE_S2STATS_CMD_2132,
+    DT_FUNC_CODE_S2CRDEMOD_CMD_2132,
+    DT_FUNC_CODE_IQCGRAB_CMD_2132,
+    DT_FUNC_CODE_IQFIR_CMD_2132,
+    DT_FUNC_CODE_IQPWR_CMD_2132,
+    DT_FUNC_CODE_IQSRC2132_CMD_2132,
+    DT_FUNC_CODE_DATASTMUX_CMD_2132,
+    DT_FUNC_CODE_LNBH25_CMD_2132,
+    DT_FUNC_CODE_IPSECG_CMD,
+    DT_FUNC_CODE_SENSTEMP_CMD,
+    DT_FUNC_CODE_TEMPFANMGR_CMD,
+    DT_FUNC_CODE_CONSTSINK_CMD,
+    DT_FUNC_CODE_CONSTSOURCE_CMD,
+    DT_FUNC_CODE_ACCUFIFO_CMD,
+    DT_FUNC_CODE_BURSTFIFO_CMD,
+    DT_FUNC_CODE_LMH1981_CMD,
+    DT_FUNC_CODE_GENLOCKCTRL_CMD,
+    DT_FUNC_CODE_SDIDMX12G_CMD,
+    DT_FUNC_CODE_SDIMUX12G_CMD,
+    DT_FUNC_CODE_ST425LR_CMD,
 };
 
 // NOP command
@@ -628,11 +633,22 @@ typedef struct _DtIoctlInputDataHdr
     Int  m_CmdEx;                   // Extended command
 }  DtIoctlInputDataHdr;
 
-// MACRO's to compute the required size of the input and output  data buffer
+// MACRO's to compute the required size of the input and output data buffer
 #define DT_IOCTL_INDATA_MINSIZE  ((Int)(sizeof(DtIoctlInputDataHdr)))
 #define DT_IOCTL_INDATA_REQSIZE(DATA_STRUCT)            \
     ((Int)(DT_IOCTL_INDATA_MINSIZE + sizeof(DATA_STRUCT)))
 #define DT_IOCTL_OUTDATA_REQSIZE(DATA_STRUCT)  ((Int)(sizeof(DATA_STRUCT)))
+
+// MACRO to extract function code from an IOCTL code.
+// Note: an IOCTL is an OR of several fields (e.g. DeviceType, RequiredAccess, FunctionCode, 
+// TransferType and on Linux also the size of the IOCTL structure is part of the code). When this
+// structure grows/shrinks the IOCTL code changes breaking backward compatibility. 
+// Therefore one should use the only the function code to determine which IOCTL is received.
+#ifdef WINBUILD 
+#define DT_IOCTL_TO_FUNCTION(IoctlCode)  ((UInt32)((IoctlCode>>2)&0xFFF))
+#else
+#define DT_IOCTL_TO_FUNCTION(IoctlCode)  ((UInt32)_IOC_NR(IoctlCode))
+#endif
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -757,7 +773,7 @@ typedef union _DtIoctlAccuFifoCmdOutput
 ASSERT_SIZE(DtIoctlAccuFifoCmdOutput, 8)
 
 #ifdef WINBUILD
-#define DT_IOCTL_ACCUFIFO_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_ACCUFIFO_CMD,         \
+#define DT_IOCTL_ACCUFIFO_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_ACCUFIFO_CMD,       \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
 typedef union _DtIoctlAccuFifoCmdInOut
@@ -766,7 +782,7 @@ typedef union _DtIoctlAccuFifoCmdInOut
     DtIoctlAccuFifoCmdOutput  m_Output;
 }  DtIoctlAccuFifoCmdInOut;
 
-#define DT_IOCTL_ACCUFIFO_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_ACCUFIFO_CMD,             \
+#define DT_IOCTL_ACCUFIFO_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_ACCUFIFO_CMD,     \
                                                                  DtIoctlAccuFifoCmdInOut)
 #endif
 
@@ -933,7 +949,7 @@ typedef union _DtIoctlAsiRxCmdOutput
     DtIoctlAsiRxCmdGetViolCountOutput  m_GetViolCount;    // AsiTsRx - Get violation count
 }  DtIoctlAsiRxCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_ASIRX_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_ASIRX_CMD,             \
+    #define DT_IOCTL_ASIRX_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_ASIRX_CMD,         \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlAsiRxCmdInOut
@@ -941,7 +957,7 @@ typedef union _DtIoctlAsiRxCmdOutput
         DtIoctlAsiRxCmdInput  m_Input;
         DtIoctlAsiRxCmdOutput  m_Output;
     }  DtIoctlAsiRxCmdInOut;
-    #define DT_IOCTL_ASIRX_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_ASIRX_CMD,               \
+    #define DT_IOCTL_ASIRX_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_ASIRX_CMD,       \
                                                                      DtIoctlAsiRxCmdInOut)
 #endif
 
@@ -1020,7 +1036,7 @@ typedef union _DtIoctlAsiTxGCmdOutput
     DtIoctlAsiTxGCmdGetOpModeOutput  m_GetOpMode;           // AsiTxG - Get op. mode
 }  DtIoctlAsiTxGCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_ASITXG_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_ASITXG_CMD,               \
+    #define DT_IOCTL_ASITXG_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_ASITXG_CMD,       \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlAsiTxGCmdInOut
@@ -1028,7 +1044,7 @@ typedef union _DtIoctlAsiTxGCmdOutput
         DtIoctlAsiTxGCmdInput  m_Input;
         DtIoctlAsiTxGCmdOutput  m_Output;
     }  DtIoctlAsiTxGCmdInOut;
-    #define DT_IOCTL_ASITXG_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_ASITXG_CMD,             \
+    #define DT_IOCTL_ASITXG_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_ASITXG_CMD,     \
                                                                     DtIoctlAsiTxGCmdInOut)
 #endif
 
@@ -1081,7 +1097,7 @@ typedef union _DtIoctlAsiTxSerCmdOutput
     DtIoctlAsiTxSerCmdGetOpModeOutput  m_GetOpMode;           // AsiTxSer - Get op. mode
 }  DtIoctlAsiTxSerCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_ASITXSER_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_ASITXSER_CMD,           \
+    #define DT_IOCTL_ASITXSER_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_ASITXSER_CMD,   \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlAsiTxSerCmdInOut
@@ -1089,7 +1105,7 @@ typedef union _DtIoctlAsiTxSerCmdOutput
         DtIoctlAsiTxSerCmdInput  m_Input;
         DtIoctlAsiTxSerCmdOutput  m_Output;
     }  DtIoctlAsiTxSerCmdInOut;
-    #define DT_IOCTL_ASITXSER_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_ASITXSER_CMD,         \
+    #define DT_IOCTL_ASITXSER_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_ASITXSER_CMD, \
                                                                   DtIoctlAsiTxSerCmdInOut)
 #endif
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -1228,7 +1244,7 @@ typedef struct _DtIoctlBurstFifoCmdSetRxFlowControlInput
 }  DtIoctlBurstFifoCmdSetRxFlowControlInput;
 ASSERT_SIZE(DtIoctlBurstFifoCmdSetRxFlowControlInput, 20)
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.- BURSTFIFO Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.- BURSTFIFO Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.
 // BURSTFIFO command - IOCTL input data
 typedef union _DtIoctlBurstFifoCmdInput
 {
@@ -1249,7 +1265,7 @@ typedef union _DtIoctlBurstFifoCmdOutput
 
 }  DtIoctlBurstFifoCmdOutput;
 #ifdef WINBUILD
-#define DT_IOCTL_BURSTFIFO_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_BURSTFIFO_CMD,             \
+#define DT_IOCTL_BURSTFIFO_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_BURSTFIFO_CMD,     \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
 typedef union _DtIoctlBurstFifoCmdInOut
@@ -1257,7 +1273,7 @@ typedef union _DtIoctlBurstFifoCmdInOut
     DtIoctlBurstFifoCmdInput  m_Input;
     DtIoctlBurstFifoCmdOutput  m_Output;
 }  DtIoctlBurstFifoCmdInOut;
-#define DT_IOCTL_BURSTFIFO_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_BURSTFIFO_CMD,           \
+#define DT_IOCTL_BURSTFIFO_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_BURSTFIFO_CMD,   \
                                                                  DtIoctlBurstFifoCmdInOut)
 #endif
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -1460,7 +1476,7 @@ typedef union _DtIoctlCDmaCCmdOutput
     DtIoctlCDmaCCmdGetTxRdOffsetOutput  m_GetTxRdOffset;    // CDmaC - Get Tx read offset
 }  DtIoctlCDmaCCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_CDMAC_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_CDMAC_CMD,                 \
+    #define DT_IOCTL_CDMAC_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_CDMAC_CMD,         \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlCDmaCCmdInOut
@@ -1468,7 +1484,7 @@ typedef union _DtIoctlCDmaCCmdOutput
         DtIoctlCDmaCCmdInput  m_Input;
         DtIoctlCDmaCCmdOutput  m_Output;
     }  DtIoctlCDmaCCmdInOut;
-    #define DT_IOCTL_CDMAC_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_CDMAC_CMD,               \
+    #define DT_IOCTL_CDMAC_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_CDMAC_CMD,       \
                                                                      DtIoctlCDmaCCmdInOut)
 #endif
 
@@ -1554,7 +1570,7 @@ typedef union _DtIoctlDebugCmdOutput
 }  DtIoctlDebugCmdOutput;
 
 #ifdef WINBUILD
-    #define DT_IOCTL_DEBUG_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_DEBUG_CMD,                 \
+    #define DT_IOCTL_DEBUG_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_DEBUG_CMD,         \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlDebugCmdInOut
@@ -1563,7 +1579,7 @@ typedef union _DtIoctlDebugCmdOutput
         DtIoctlDebugCmdOutput  m_Output;
     }  DtIoctlDebugCmdInOut;
 
-    #define DT_IOCTL_DEBUG_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_DEBUG_CMD,               \
+    #define DT_IOCTL_DEBUG_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_DEBUG_CMD,       \
                                                                      DtIoctlDebugCmdInOut)
 #endif
 
@@ -1630,7 +1646,7 @@ typedef union _DtIoctlEventCmdOutput
     DtIoctlEventCmdGetEventOutput  m_GetEvent; // EVENT - Get event
 }  DtIoctlEventCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_EVENT_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_EVENT_CMD,           \
+    #define DT_IOCTL_EVENT_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_EVENT_CMD,         \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
 // Since EVENT-IOCTL are treated in a special way in DTAPI, we cannot use
@@ -1640,8 +1656,8 @@ typedef union _DtIoctlEventCmdOutput
         DtIoctlEventCmdInput  m_Input;
         DtIoctlEventCmdOutput  m_Output;
     }  DtIoctlEventCmdInOut;
-    #define DT_IOCTL_EVENT_CMD  _IOWR(DT_IOCTL_MAGIC, \
-                                                     FUNC_EVENT_CMD, DtIoctlEventCmdInOut)
+    #define DT_IOCTL_EVENT_CMD  _IOWR(DT_IOCTL_MAGIC,                                    \
+                                             DT_FUNC_CODE_EVENT_CMD, DtIoctlEventCmdInOut)
 #endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DRIVER EVENTS +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -1685,7 +1701,8 @@ ASSERT_SIZE(DtIoctlExclAccessCmdInput, 16)
 // NO OUTPUT DATA
 
 #ifdef WINBUILD
-    #define DT_IOCTL_EXCL_ACCESS_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_EXCL_ACCESS_CMD,     \
+    #define DT_IOCTL_EXCL_ACCESS_CMD  CTL_CODE(DT_DEVICE_TYPE,                           \
+                                                        DT_FUNC_CODE_EXCL_ACCESS_CMD,    \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlExclAccessCmdInOut
@@ -1693,8 +1710,9 @@ ASSERT_SIZE(DtIoctlExclAccessCmdInput, 16)
         DtIoctlExclAccessCmdInput  m_Input;
     }  DtIoctlExclAccessCmdInOut;
 
-    #define DT_IOCTL_EXCL_ACCESS_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_EXCL_ACCESS_CMD,   \
-                                                                DtIoctlExclAccessCmdInOut)
+    #define DT_IOCTL_EXCL_ACCESS_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                         \
+                                                         DT_FUNC_CODE_EXCL_ACCESS_CMD,   \
+                                                         DtIoctlExclAccessCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -1815,14 +1833,15 @@ ASSERT_SIZE(DtIoctlGenLockCtrlCmdInput, 24)
 typedef union _DtIoctlGenLockCtrlCmdOutput
 {
     DtIoctlGenLockCtrlCmdGetStatusOutput  m_GetStatus;
-   DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput  m_GetDcoClkProps;
-   DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput  m_GetDcoFreqOffset;
+    DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput  m_GetDcoClkProps;
+    DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput  m_GetDcoFreqOffset;
 }  DtIoctlGenLockCtrlCmdOutput;
 ASSERT_SIZE(DtIoctlGenLockCtrlCmdOutput, 16)
 
 
 #ifdef WINBUILD
-    #define DT_IOCTL_GENLOCKCTRL_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_GENLOCKCTRL_CMD,    \
+    #define DT_IOCTL_GENLOCKCTRL_CMD  CTL_CODE(DT_DEVICE_TYPE,                           \
+                                                        DT_FUNC_CODE_GENLOCKCTRL_CMD,    \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtaIoctlGenLockCtrlCmdInOut {
@@ -1830,8 +1849,9 @@ ASSERT_SIZE(DtIoctlGenLockCtrlCmdOutput, 16)
         DtIoctlGenLockCtrlCmdOutput  m_Output;
     } DtaIoctlGenLockCtrlCmdInOut;
 
-    #define DT_IOCTL_GENLOCKCTRL_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_GENLOCKCTRL_CMD,   \
-                                                              DtaIoctlGenLockCtrlCmdInOut)
+    #define DT_IOCTL_GENLOCKCTRL_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                         \
+                                                         DT_FUNC_CODE_GENLOCKCTRL_CMD,   \
+                                                         DtaIoctlGenLockCtrlCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -1930,8 +1950,8 @@ typedef struct _DtIoctlGetDevInfoOutput
 ASSERT_SIZE(DtIoctlGetDevInfoOutput, 96)
 
 #ifdef WINBUILD
-    #define DT_IOCTL_GET_DEV_INFO  CTL_CODE(DT_DEVICE_TYPE, \
-                                                        FUNC_GET_DEV_INFO,         \
+    #define DT_IOCTL_GET_DEV_INFO  CTL_CODE(DT_DEVICE_TYPE,                              \
+                                                        DT_FUNC_CODE_GET_DEV_INFO,       \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlGetDevInfoInOut
@@ -1940,7 +1960,7 @@ ASSERT_SIZE(DtIoctlGetDevInfoOutput, 96)
         DtIoctlGetDevInfoOutput  m_Output;
     }  DtIoctlGetDevInfoInOut;
 
-    #define DT_IOCTL_GET_DEV_INFO  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_GET_DEV_INFO,         \
+    #define DT_IOCTL_GET_DEV_INFO  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_GET_DEV_INFO, \
                                                                    DtIoctlGetDevInfoInOut)
 #endif
 
@@ -1965,7 +1985,7 @@ ASSERT_SIZE(DtIoctlGetDriverVersionOutput, 16)
 
 #ifdef WINBUILD
     #define DT_IOCTL_GET_DRIVER_VERSION  CTL_CODE(DT_DEVICE_TYPE,                        \
-                                                        FUNC_GET_DRIVER_VERSION,         \
+                                                        DT_FUNC_CODE_GET_DRIVER_VERSION, \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlGetDriverVersionInOut
@@ -1975,7 +1995,8 @@ ASSERT_SIZE(DtIoctlGetDriverVersionOutput, 16)
     }  DtIoctlGetDriverVersionInOut;
 
     #define DT_IOCTL_GET_DRIVER_VERSION  _IOWR(DT_IOCTL_MAGIC_SIZE,                      \
-                                    FUNC_GET_DRIVER_VERSION, DtIoctlGetDriverVersionInOut)
+                                                       DT_FUNC_CODE_GET_DRIVER_VERSION,  \
+                                                       DtIoctlGetDriverVersionInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -2057,7 +2078,7 @@ typedef union _DtIoctlI2cMCmdOutput
 ASSERT_SIZE(DtIoctlI2cMCmdOutput, 4)
 
 #ifdef WINBUILD
-    #define DT_IOCTL_I2CM_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_I2CM_CMD, \
+    #define DT_IOCTL_I2CM_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_I2CM_CMD,           \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtaIoctlI2cMCmdInOut {
@@ -2065,7 +2086,7 @@ ASSERT_SIZE(DtIoctlI2cMCmdOutput, 4)
         DtIoctlI2cMCmdOutput  m_Output;
     } DtaIoctlI2cMCmdInOut;
 
-    #define DT_IOCTL_I2CM_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_I2CM_CMD,                 \
+    #define DT_IOCTL_I2CM_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_I2CM_CMD,         \
                                                                      DtaIoctlI2cMCmdInOut)
 #endif
 
@@ -2142,7 +2163,7 @@ ASSERT_SIZE(DtIoctlIpSecGCmdOutput, 16)
 
 
 #ifdef WINBUILD
-    #define DT_IOCTL_IPSECG_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_IPSECG_CMD, \
+    #define DT_IOCTL_IPSECG_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_IPSECG_CMD,       \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtaIoctlIpSecGCmdInOut {
@@ -2150,7 +2171,7 @@ ASSERT_SIZE(DtIoctlIpSecGCmdOutput, 16)
         DtIoctlIpSecGCmdOutput  m_Output;
     } DtaIoctlIpSecGCmdInOut;
 
-    #define DT_IOCTL_IPSECG_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_IPSECG_CMD,             \
+    #define DT_IOCTL_IPSECG_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_IPSECG_CMD,     \
                                                                    DtaIoctlIpSecGCmdInOut)
 #endif
 
@@ -2237,7 +2258,7 @@ typedef union _DtIoctlIoConfigCmdOutput
     DtIoctlIoConfigCmdGetIoConfigOutput  m_GetIoConfig; // IOCONFIG - Get IO-config
 }  DtIoctlIoConfigCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_IOCONFIG_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_IOCONFIG_CMD,           \
+    #define DT_IOCTL_IOCONFIG_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_IOCONFIG_CMD,   \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlIoConfigCmdInOut
@@ -2245,7 +2266,7 @@ typedef union _DtIoctlIoConfigCmdOutput
         DtIoctlIoConfigCmdInput  m_Input;
         DtIoctlIoConfigCmdOutput  m_Output;
     }  DtIoctlIoConfigCmdInOut;
-    #define DT_IOCTL_IOCONFIG_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_IOCONFIG_CMD,         \
+    #define DT_IOCTL_IOCONFIG_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_IOCONFIG_CMD, \
                                                                   DtIoctlIoConfigCmdInOut)
 #endif
 
@@ -2301,7 +2322,7 @@ typedef union _DtIoctlKaCmdOutput
     DtIoctlKaCmdGetFailSafeInfoOutput  m_GetInfo;    // Ka - Get failsafe information
 }  DtIoctlKaCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_KA_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_KA_CMD,                       \
+    #define DT_IOCTL_KA_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_KA_CMD,               \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlKaCmdInOut
@@ -2309,7 +2330,8 @@ typedef union _DtIoctlKaCmdOutput
         DtIoctlKaCmdInput  m_Input;
         DtIoctlKaCmdOutput  m_Output;
     }  DtIoctlKaCmdInOut;
-    #define DT_IOCTL_KA_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_KA_CMD, DtIoctlKaCmdInOut)
+    #define DT_IOCTL_KA_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_KA_CMD,             \
+                                                                        DtIoctlKaCmdInOut)
 #endif
 
 
@@ -2361,7 +2383,7 @@ typedef union _DtIoctlLedBCmdOutput
     DtIoctlLedBCmdGetLedControlOutput  m_GetLedControl;     // LedB - Get LED control
 }  DtIoctlLedBCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_LEDB_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_LEDB_CMD,                   \
+    #define DT_IOCTL_LEDB_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_LEDB_CMD,           \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlLedBCmdInOut
@@ -2369,7 +2391,7 @@ typedef union _DtIoctlLedBCmdOutput
         DtIoctlLedBCmdInput  m_Input;
         DtIoctlLedBCmdOutput  m_Output;
     }  DtIoctlLedBCmdInOut;
-    #define DT_IOCTL_LEDB_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_LEDB_CMD,                 \
+    #define DT_IOCTL_LEDB_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_LEDB_CMD,         \
                                                                       DtIoctlLedBCmdInOut)
 #endif
 
@@ -2421,14 +2443,14 @@ typedef union _DtIoctlLmh1981CmdOutput
     DtIoctlLmh1981CmdGetInputStatusOutput  m_GetInpStatus;  // Lmh1981 - Get input status
 }  DtIoctlLmh1981CmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_LMH1981_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_LMH1981_CMD,             \
+    #define DT_IOCTL_LMH1981_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_LMH1981_CMD,     \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlLmh1981CmdInOut
     {
         DtIoctlLmh1981CmdOutput  m_Output;
     }  DtIoctlLmh1981CmdInOut;
-    #define DT_IOCTL_LMH1981_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_LMH1981_CMD,           \
+    #define DT_IOCTL_LMH1981_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_LMH1981_CMD,   \
                                                                    DtIoctlLmh1981CmdInOut)
 #endif
 
@@ -2529,7 +2551,7 @@ typedef union _DtIoctlPropCmdOutput
 }  DtIoctlPropCmdOutput;
 
 #ifdef WINBUILD
-    #define DT_IOCTL_PROPERTY_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_PROPERTY_CMD,           \
+    #define DT_IOCTL_PROPERTY_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_PROPERTY_CMD,   \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlPropertyCmdInOut
@@ -2538,7 +2560,7 @@ typedef union _DtIoctlPropCmdOutput
         DtIoctlPropCmdOutput  m_Output;
     }  DtIoctlPropertyCmdInOut;
 
-    #define DT_IOCTL_PROPERTY_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_PROPERTY_CMD,         \
+    #define DT_IOCTL_PROPERTY_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_PROPERTY_CMD, \
                                                                   DtIoctlPropertyCmdInOut)
 #endif
 
@@ -2566,14 +2588,14 @@ typedef union _DtIoctlRebootCmdInput
     DtIoctlRebootCmdFpgaRebootInput  m_FpgaReboot;         // REBOOT - FPGA reboot
 }  DtIoctlRebootCmdInput;
 #ifdef WINBUILD
-    #define DT_IOCTL_REBOOT_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_REBOOT_CMD,               \
+    #define DT_IOCTL_REBOOT_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_REBOOT_CMD,       \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlRebootCmdInOut
     {
         DtIoctlRebootCmdInput  m_Input;
     }  DtIoctlRebootCmdInOut;
-    #define DT_IOCTL_REBOOT_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_REBOOT_CMD,             \
+    #define DT_IOCTL_REBOOT_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_REBOOT_CMD,     \
                                                                     DtIoctlRebootCmdInOut)
 #endif
 
@@ -2648,7 +2670,7 @@ typedef union _DtIoctlSdiDmx12GCmdOutput
 
 
 #ifdef WINBUILD
-    #define DT_IOCTL_SDIDMX12G_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDIDMX12G_CMD,         \
+    #define DT_IOCTL_SDIDMX12G_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SDIDMX12G_CMD, \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlSdiDmx12GCmdInOut
@@ -2656,8 +2678,9 @@ typedef union _DtIoctlSdiDmx12GCmdOutput
         DtIoctlSdiDmx12GCmdInput  m_Input;
         DtIoctlSdiDmx12GCmdOutput  m_Output;
     }  DtIoctlSdiDmx12GCmdInOut;
-    #define DT_IOCTL_SDIDMX12G_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SDIDMX12G_CMD,       \
-                                                                 DtIoctlSdiDmx12GCmdInOut)
+    #define DT_IOCTL_SDIDMX12G_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                           \
+                                                            DT_FUNC_CODE_SDIDMX12G_CMD,  \
+                                                            DtIoctlSdiDmx12GCmdInOut)
 #endif
 
 
@@ -2707,7 +2730,7 @@ typedef union _DtIoctlSdiMux12GCmdOutput
 
 
 #ifdef WINBUILD
-    #define DT_IOCTL_SDIMUX12G_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDIMUX12G_CMD,         \
+    #define DT_IOCTL_SDIMUX12G_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SDIMUX12G_CMD, \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlSdiMux12GCmdInOut
@@ -2715,8 +2738,9 @@ typedef union _DtIoctlSdiMux12GCmdOutput
         DtIoctlSdiMux12GCmdInput  m_Input;
         DtIoctlSdiMux12GCmdOutput  m_Output;
     }  DtIoctlSdiMux12GCmdInOut;
-    #define DT_IOCTL_SDIMUX12G_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SDIMUX12G_CMD,       \
-                                                                 DtIoctlSdiMux12GCmdInOut)
+    #define DT_IOCTL_SDIMUX12G_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                           \
+                                                           DT_FUNC_CODE_SDIMUX12G_CMD,   \
+                                                           DtIoctlSdiMux12GCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -2859,7 +2883,7 @@ typedef union _DtIoctlSdiRxCmdOutput
     DtIoctlSdiRxCmdGetSdiStatusOutput2  m_GetSdiStatus2;     // Get SDI-status2
 }  DtIoctlSdiRxCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_SDIRX_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDIRX_CMD,       \
+    #define DT_IOCTL_SDIRX_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SDIRX_CMD,         \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlSdiRxCmdInOut
@@ -2867,7 +2891,7 @@ typedef union _DtIoctlSdiRxCmdOutput
         DtIoctlSdiRxCmdInput  m_Input;
         DtIoctlSdiRxCmdOutput  m_Output;
     }  DtIoctlSdiRxCmdInOut;
-    #define DT_IOCTL_SDIRX_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SDIRX_CMD,               \
+    #define DT_IOCTL_SDIRX_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SDIRX_CMD,       \
                                                                    DtIoctlSdiRxCmdInOut)
 #endif
 
@@ -3018,7 +3042,7 @@ typedef union _DtIoctlSdiRxFCmdOutput
     DtIoctlSdiRxFCmdWaitForFmtEventOutput  m_WaitForFmtEvent;    // Wait for fmt event
 }  DtIoctlSdiRxFCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_SDIRXF_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDIRXF_CMD,               \
+    #define DT_IOCTL_SDIRXF_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SDIRXF_CMD,       \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlSdiRxFCmdInOut
@@ -3026,7 +3050,7 @@ typedef union _DtIoctlSdiRxFCmdOutput
         DtIoctlSdiRxFCmdInput  m_Input;
         DtIoctlSdiRxFCmdOutput  m_Output;
     }  DtIoctlSdiRxFCmdInOut;
-    #define DT_IOCTL_SDIRXF_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SDIRXF_CMD,             \
+    #define DT_IOCTL_SDIRXF_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SDIRXF_CMD,     \
                                                                   DtIoctlSdiRxFCmdInOut)
 #endif
 
@@ -3156,7 +3180,7 @@ typedef union _DtIoctlSdiRxPCmdOutput
     DtIoctlSdiRxPCmdGetSdiStatusOutput2   m_GetSdiStatus2;    // Get SDI-status
 }  DtIoctlSdiRxPCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_SDIRXP_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDIRXP_CMD,       \
+    #define DT_IOCTL_SDIRXP_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SDIRXP_CMD,       \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlSdiRxPCmdInOut
@@ -3164,7 +3188,7 @@ typedef union _DtIoctlSdiRxPCmdOutput
         DtIoctlSdiRxPCmdInput  m_Input;
         DtIoctlSdiRxPCmdOutput  m_Output;
     }  DtIoctlSdiRxPCmdInOut;
-    #define DT_IOCTL_SDIRXP_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SDIRXP_CMD,             \
+    #define DT_IOCTL_SDIRXP_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SDIRXP_CMD,     \
                                                                   DtIoctlSdiRxPCmdInOut)
 #endif
 
@@ -3285,7 +3309,7 @@ typedef union _DtIoctlSdiTxFCmdOutput
     DtIoctlSdiTxFCmdWaitForFmtEventOutput  m_WaitForFmtEvent;      // Wait for fmt event
 }  DtIoctlSdiTxFCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_SDITXF_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDITXF_CMD,       \
+    #define DT_IOCTL_SDITXF_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SDITXF_CMD,       \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlSdiTxFCmdInOut
@@ -3293,7 +3317,7 @@ typedef union _DtIoctlSdiTxFCmdOutput
         DtIoctlSdiTxFCmdInput  m_Input;
         DtIoctlSdiTxFCmdOutput  m_Output;
     }  DtIoctlSdiTxFCmdInOut;
-    #define DT_IOCTL_SDITXF_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SDITXF_CMD,             \
+    #define DT_IOCTL_SDITXF_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SDITXF_CMD,     \
                                                                     DtIoctlSdiTxFCmdInOut)
 #endif
 
@@ -3418,7 +3442,7 @@ typedef union _DtIoctlSdiTxPCmdOutput
                                                    // Get SDI rate and Level A 2 B enable
 }  DtIoctlSdiTxPCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_SDITXP_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDITXP_CMD,           \
+    #define DT_IOCTL_SDITXP_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SDITXP_CMD,       \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlSdiTxPCmdInOut
@@ -3426,7 +3450,7 @@ typedef union _DtIoctlSdiTxPCmdOutput
         DtIoctlSdiTxPCmdInput  m_Input;
         DtIoctlSdiTxPCmdOutput  m_Output;
     }  DtIoctlSdiTxPCmdInOut;
-    #define DT_IOCTL_SDITXP_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SDITXP_CMD,             \
+    #define DT_IOCTL_SDITXP_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SDITXP_CMD,     \
                                                                     DtIoctlSdiTxPCmdInOut)
 #endif
 
@@ -3449,6 +3473,9 @@ typedef enum _DtIoctlSdiTxPhyCmd
     DT_SDITXPHY_CMD_GET_GENLOCK_STATUS = 9,
     DT_SDITXPHY_CMD_SET_OPERATIONAL_MODE_TIMED = 10,
     DT_SDITXPHY_CMD_GET_MAX_SDIRATE = 11,
+    DT_SDITXPHY_CMD_GET_START_OF_FRAME_OFFSET = 12,
+    DT_SDITXPHY_CMD_SET_START_OF_FRAME_OFFSET = 13,
+
 }  DtIoctlSdiTxPhyCmd;
 
 // DT SDITXPHY  TX-mode
@@ -3516,6 +3543,16 @@ typedef struct _DtIoctlSdiTxPhyCmdGetSdiStatusOutput
 }  DtIoctlSdiTxPhyCmdGetSdiStatusOutput;
 ASSERT_SIZE(DtIoctlSdiTxPhyCmdGetSdiStatusOutput, 4)
 
+// .-.-.-.-.-.-.-.- SDITXPHY Command - Get Start-Of-Frame Offset Command -.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlSdiTxPhyCmdGetStartOfFrameOffsetInput;
+ASSERT_SIZE(DtIoctlSdiTxPhyCmdGetStartOfFrameOffsetInput, 16)
+typedef struct _DtIoctlSdiTxPhyCmdGetStartOfFrameOffsetOutput
+{
+    Int  m_StartOfFrameOffsetNs;    // Start-of-frame offset in ns
+}  DtIoctlSdiTxPhyCmdGetStartOfFrameOffsetOutput;
+ASSERT_SIZE(DtIoctlSdiTxPhyCmdGetStartOfFrameOffsetOutput, 4)
+
 //.-.-.-.-.-.-.-.-.-.-.-.- SDITXPHY Command - Get TX-Mode Command -.-.-.-.-.-.-.-.-.-.-.-.
 //
 typedef DtIoctlInputDataHdr DtIoctlSdiTxPhyCmdGetTxModeInput;
@@ -3565,6 +3602,15 @@ typedef struct _DtIoctlSdiTxPhyCmdSetSdiRateInput
 }  DtIoctlSdiTxPhyCmdSetSdiRateInput;
 ASSERT_SIZE(DtIoctlSdiTxPhyCmdSetSdiRateInput, 24)
 
+// .-.-.-.-.-.-.-.- SDITXPHY Command - Set Start-Of-Frame Offset Command -.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlSdiTxPhyCmdSetStartOfFrameOffsetInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_StartOfFrameOffsetNs;    // Start-of-frame offset in ns
+}  DtIoctlSdiTxPhyCmdSetStartOfFrameOffsetInput;
+ASSERT_SIZE(DtIoctlSdiTxPhyCmdSetStartOfFrameOffsetInput, 20)
+
 //.-.-.-.-.-.-.-.-.-.-.-.- SDITXPHY Command - Set TX-Mode Command -.-.-.-.-.-.-.-.-.-.-.-.
 //
 typedef struct _DtIoctlSdiTxPhyCmdSetTxModeInput
@@ -3582,6 +3628,7 @@ typedef union _DtIoctlSdiTxPhyCmdInput
     DtIoctlSdiTxPhyCmdSetOpModeInput  m_SetOpMode;              // Set operational mode
     DtIoctlSdiTxPhyCmdSetOpModeTimedInput  m_SetOpModeTimed;    // Set op mode timed
     DtIoctlSdiTxPhyCmdSetSdiRateInput  m_SetSdiRate;            // Set SDI rate
+    DtIoctlSdiTxPhyCmdSetStartOfFrameOffsetInput  m_SetSofOffset; // Set SOF-offset
     DtIoctlSdiTxPhyCmdSetTxModeInput  m_SetTxMode;              // Set TX mode
 }  DtIoctlSdiTxPhyCmdInput;
 // SDITXPHY command - IOCTL output data
@@ -3592,11 +3639,12 @@ typedef union _DtIoctlSdiTxPhyCmdOutput
     DtIoctlSdiTxPhyCmdGetOpModeOutput  m_GetOpMode;             // Get operational mode
     DtIoctlSdiTxPhyCmdGetSdiRateOutput  m_GetSdiRate;           // Get SDI rate
     DtIoctlSdiTxPhyCmdGetSdiStatusOutput  m_GetSdiStatus;       // Get SDI-status
+    DtIoctlSdiTxPhyCmdGetStartOfFrameOffsetOutput  m_GetSofOffset; // Get SOF-offset
     DtIoctlSdiTxPhyCmdGetTxModeOutput  m_GetTxMode;             // Get TX mode
     DtIoctlSdiTxPhyCmdGetUnderflowFlagOutput  m_GetUflFlag;     // Get underflow flag
 }  DtIoctlSdiTxPhyCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_SDITXPHY_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDITXPHY_CMD,       \
+    #define DT_IOCTL_SDITXPHY_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SDITXPHY_CMD,   \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlSdiTxPhyCmdInOut
@@ -3604,7 +3652,7 @@ typedef union _DtIoctlSdiTxPhyCmdOutput
         DtIoctlSdiTxPhyCmdInput  m_Input;
         DtIoctlSdiTxPhyCmdOutput  m_Output;
     }  DtIoctlSdiTxPhyCmdInOut;
-    #define DT_IOCTL_SDITXPHY_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SDITXPHY_CMD,         \
+    #define DT_IOCTL_SDITXPHY_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SDITXPHY_CMD, \
                                                                 DtIoctlSdiTxPhyCmdInOut)
 #endif
 
@@ -3682,7 +3730,7 @@ typedef union _DtIoctlSdiXCfgCmdOutput
     DtIoctlSdiXCfgCmdGetConfigOutput  m_GetConfig;  // Get config
 }  DtIoctlSdiXCfgCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_SDIXCFG_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDIXCFG_CMD,     \
+    #define DT_IOCTL_SDIXCFG_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SDIXCFG_CMD,     \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlSdiXCfgCmdInOut
@@ -3690,7 +3738,7 @@ typedef union _DtIoctlSdiXCfgCmdOutput
         DtIoctlSdiXCfgCmdInput  m_Input;
         DtIoctlSdiXCfgCmdOutput  m_Output;
     }  DtIoctlSdiXCfgCmdInOut;
-    #define DT_IOCTL_SDIXCFG_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SDIXCFG_CMD,           \
+    #define DT_IOCTL_SDIXCFG_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SDIXCFG_CMD,   \
                                                                    DtIoctlSdiXCfgCmdInOut)
 #endif
 
@@ -3749,7 +3797,7 @@ typedef union _DtIoctlSensTempCmdOutput
 ASSERT_SIZE(DtIoctlSensTempCmdOutput, 104)
 
 #ifdef WINBUILD
-    #define DT_IOCTL_SENSTEMP_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SENSTEMP_CMD, \
+    #define DT_IOCTL_SENSTEMP_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SENSTEMP_CMD, \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtaIoctlSensTempCmdInOut
@@ -3758,7 +3806,7 @@ ASSERT_SIZE(DtIoctlSensTempCmdOutput, 104)
         DtIoctlSensTempCmdOutput  m_Output;
     } DtaIoctlSensTempCmdInOut;
 
-    #define DT_IOCTL_SENSTEMP_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SENSTEMP_CMD,         \
+    #define DT_IOCTL_SENSTEMP_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SENSTEMP_CMD, \
                                                                  DtaIoctlSensTempCmdInOut)
 #endif
 
@@ -3873,7 +3921,7 @@ typedef union _DtIoctlSpiMCmdOutput
 ASSERT_SIZE(DtIoctlSpiMCmdOutput, 20)
 
 #ifdef WINBUILD
-    #define DT_IOCTL_SPIM_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SPIM_CMD, \
+    #define DT_IOCTL_SPIM_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SPIM_CMD,           \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtaIoctlSpiMCmdInOut {
@@ -3881,7 +3929,7 @@ ASSERT_SIZE(DtIoctlSpiMCmdOutput, 20)
         DtIoctlSpiMCmdOutput  m_Output;
     } DtaIoctlSpiMCmdInOut;
 
-    #define DT_IOCTL_SPIM_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SPIM_CMD,                 \
+    #define DT_IOCTL_SPIM_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SPIM_CMD,         \
                                                                      DtaIoctlSpiMCmdInOut)
 #endif
 
@@ -3989,7 +4037,7 @@ typedef union _DtIoctlSpiMfCmdOutput
 ASSERT_SIZE(DtIoctlSpiMfCmdOutput, 20)
 
 #ifdef WINBUILD
-    #define DT_IOCTL_SPIMF_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SPIMF_CMD, \
+    #define DT_IOCTL_SPIMF_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SPIMF_CMD,         \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtaIoctlSpiMfCmdInOut
@@ -3998,7 +4046,7 @@ ASSERT_SIZE(DtIoctlSpiMfCmdOutput, 20)
         DtIoctlSpiMfCmdOutput  m_Output;
     } DtaIoctlSpiMfCmdInOut;
 
-    #define DT_IOCTL_SPIMF_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SPIMF_CMD,               \
+    #define DT_IOCTL_SPIMF_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SPIMF_CMD,       \
                                                                     DtaIoctlSpiMfCmdInOut)
 #endif
 
@@ -4091,7 +4139,7 @@ typedef union _DtIoctlSpiPromCmdOutput
 ASSERT_SIZE(DtIoctlSpiPromCmdOutput, 8)
 
 #ifdef WINBUILD
-    #define DT_IOCTL_SPIPROM_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SPIPROM_CMD, \
+    #define DT_IOCTL_SPIPROM_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SPIPROM_CMD,     \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtaIoctlSpiPromCmdInOut
@@ -4100,7 +4148,7 @@ ASSERT_SIZE(DtIoctlSpiPromCmdOutput, 8)
         DtIoctlSpiPromCmdOutput  m_Output;
     } DtaIoctlSpiPromCmdInOut;
 
-    #define DT_IOCTL_SPIPROM_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SPIPROM_CMD,           \
+    #define DT_IOCTL_SPIPROM_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SPIPROM_CMD,   \
                                                                   DtaIoctlSpiPromCmdInOut)
 #endif
 
@@ -4163,7 +4211,7 @@ typedef union _DtIoctlStubCmdOutput
 ASSERT_SIZE(DtIoctlStubCmdOutput, 8)
 
 #ifdef WINBUILD
-    #define DT_IOCTL_STUB_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_STUB_CMD, \
+    #define DT_IOCTL_STUB_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_STUB_CMD,           \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtaIoctlStubCmdInOut {
@@ -4171,7 +4219,7 @@ ASSERT_SIZE(DtIoctlStubCmdOutput, 8)
         DtIoctlStubCmdOutput  m_Output;
     } DtaIoctlStubCmdInOut;
 
-    #define DT_IOCTL_STUB_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SPIMF_CMD,                \
+    #define DT_IOCTL_STUB_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SPIMF_CMD,        \
                                                                      DtaIoctlStubCmdInOut)
 #endif
 
@@ -4244,7 +4292,7 @@ typedef union _DtIoctlSt425LrCmdOutput
 
 
 #ifdef WINBUILD
-    #define DT_IOCTL_ST425LR_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_ST425LR_CMD,             \
+    #define DT_IOCTL_ST425LR_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_ST425LR_CMD,     \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlSt425LrCmdInOut
@@ -4252,8 +4300,8 @@ typedef union _DtIoctlSt425LrCmdOutput
         DtIoctlSt425LrCmdInput  m_Input;
         DtIoctlSt425LrCmdOutput  m_Output;
     }  DtIoctlSt425LrCmdInOut;
-    #define DT_IOCTL_ST425LR_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_ST425LR_CMD,           \
-                                                                    DtIoctlSt425LrCmdInOut)
+    #define DT_IOCTL_ST425LR_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_ST425LR_CMD,   \
+                                                                   DtIoctlSt425LrCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -4351,7 +4399,7 @@ typedef union _DtIoctlSwitchCmdOutput
 
 
 #ifdef WINBUILD
-    #define DT_IOCTL_SWITCH_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SWITCH_CMD,               \
+    #define DT_IOCTL_SWITCH_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SWITCH_CMD,       \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlSwitchCmdInOut
@@ -4359,7 +4407,7 @@ typedef union _DtIoctlSwitchCmdOutput
         DtIoctlSwitchCmdInput  m_Input;
         DtIoctlSwitchCmdOutput  m_Output;
     }  DtIoctlSwitchCmdInOut;
-    #define DT_IOCTL_SWITCH_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_SWITCH_CMD,             \
+    #define DT_IOCTL_SWITCH_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SWITCH_CMD,     \
                                                                     DtIoctlSwitchCmdInOut)
 #endif
 
@@ -4470,7 +4518,8 @@ typedef union _DtIoctlTempFanMgrCmdOutput
 ASSERT_SIZE(DtIoctlTempFanMgrCmdOutput, 104)
 
 #ifdef WINBUILD
-    #define DT_IOCTL_TEMPFANMGR_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_TEMPFANMGR_CMD,       \
+    #define DT_IOCTL_TEMPFANMGR_CMD  CTL_CODE(DT_DEVICE_TYPE,                            \
+                                                        DT_FUNC_CODE_TEMPFANMGR_CMD,     \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtaIoctlTempFanMgrCmdInOut
@@ -4479,8 +4528,9 @@ ASSERT_SIZE(DtIoctlTempFanMgrCmdOutput, 104)
         DtIoctlTempFanMgrCmdOutput  m_Output;
     } DtaIoctlTempFanMgrCmdInOut;
 
-    #define DT_IOCTL_TEMPFANMGR_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_TEMPFANMGR_CMD,     \
-                                                               DtaIoctlTempFanMgrCmdInOut)
+    #define DT_IOCTL_TEMPFANMGR_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                          \
+                                                          DT_FUNC_CODE_TEMPFANMGR_CMD,   \
+                                                          DtaIoctlTempFanMgrCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -4568,7 +4618,7 @@ typedef union _DtIoctlTodCmdOutput
     DtIoctlTodCmdGetTimeOutput  m_GetTime;              // TOD - Get time
 }  DtIoctlTodCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_TOD_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_TOD_CMD,                     \
+    #define DT_IOCTL_TOD_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_TOD_CMD,             \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlTodCmdInOut
@@ -4576,7 +4626,8 @@ typedef union _DtIoctlTodCmdOutput
         DtIoctlTodCmdInput  m_Input;
         DtIoctlTodCmdOutput  m_Output;
     }  DtIoctlTodCmdInOut;
-    #define DT_IOCTL_TOD_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_TOD_CMD, DtIoctlTodCmdInOut)
+    #define DT_IOCTL_TOD_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_TOD_CMD,           \
+                                                                       DtIoctlTodCmdInOut)
 #endif
 
 
@@ -4692,7 +4743,7 @@ typedef union _DtIoctlTsRxFmtCmdOutput
     DtIoctlTsRxFmtCmdGetSyncModeOutput  m_GetSyncMode;      // Get sync mode
 }  DtIoctlTsRxFmtCmdOutput;
 #ifdef WINBUILD
-    #define DT_IOCTL_TSRXFMT_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_TSRXFMT_CMD,             \
+    #define DT_IOCTL_TSRXFMT_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_TSRXFMT_CMD,     \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlTsRxFmtCmdInOut
@@ -4700,7 +4751,7 @@ typedef union _DtIoctlTsRxFmtCmdOutput
         DtIoctlTsRxFmtCmdInput  m_Input;
         DtIoctlTsRxFmtCmdOutput  m_Output;
     }  DtIoctlTsRxFmtCmdInOut;
-    #define DT_IOCTL_TSRXFMT_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_TSRXFMT_CMD,           \
+    #define DT_IOCTL_TSRXFMT_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_TSRXFMT_CMD,   \
                                                                    DtIoctlTsRxFmtCmdInOut)
 #endif
 
@@ -4858,7 +4909,7 @@ typedef union _DtIoctlVpdCmdOutput
 ASSERT_SIZE(DtIoctlVpdCmdOutput, 24)
 
 #ifdef WINBUILD
-    #define DT_IOCTL_VPD_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_VPD_CMD,     \
+    #define DT_IOCTL_VPD_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_VPD_CMD,             \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlVpdCmdInOut
@@ -4867,7 +4918,8 @@ ASSERT_SIZE(DtIoctlVpdCmdOutput, 24)
         DtIoctlVpdCmdOutput  m_Output;
     }  DtIoctlVpdCmdInOut;
 
-    #define DT_IOCTL_VPD_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_VPD_CMD, DtIoctlVpdCmdInOut)
+    #define DT_IOCTL_VPD_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_VPD_CMD,           \
+                                                                       DtIoctlVpdCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -4989,7 +5041,8 @@ typedef union _DtIoctlAd5320CmdOutput_2132
     DtIoctlAd5320Cmd_2132GetOpModeOutput  m_GetOpMode;         // Get operational mode
 }  DtIoctlAd5320CmdOutput_2132;
 #ifdef WINBUILD
-    #define DT_IOCTL_AD5320_CMD_2132  CTL_CODE(DT_DEVICE_TYPE, FUNC_AD5320_CMD_2132,     \
+    #define DT_IOCTL_AD5320_CMD_2132  CTL_CODE(DT_DEVICE_TYPE,                           \
+                                                        DT_FUNC_CODE_AD5320_CMD_2132,    \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlAd5320Cmd_2132InOut
@@ -4997,8 +5050,9 @@ typedef union _DtIoctlAd5320CmdOutput_2132
         DtIoctlAd5320CmdInput_2132  m_Input;
         DtIoctlAd5320CmdOutput_2132  m_Output;
     }  DtIoctlAd5320Cmd_2132InOut;
-    #define DT_IOCTL_AD5320_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_AD5320_CMD_2132,   \
-                                                               DtIoctlAd5320Cmd_2132InOut)
+    #define DT_IOCTL_AD5320_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE,                         \
+                                                         DT_FUNC_CODE_AD5320_CMD_2132,   \
+                                                         DtIoctlAd5320Cmd_2132InOut)
 #endif
     
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -5042,7 +5096,8 @@ typedef union _DtIoctlAds4246CmdOutput_2132
     DtIoctlAds4246Cmd_2132GetOpModeOutput  m_GetOpMode;     // Ads4246_2132 - Get op. mode
 }  DtIoctlAds4246CmdOutput_2132;
 #ifdef WINBUILD
-    #define DT_IOCTL_ADS4246_CMD_2132  CTL_CODE(DT_DEVICE_TYPE, FUNC_ADS4246_CMD_2132,   \
+    #define DT_IOCTL_ADS4246_CMD_2132  CTL_CODE(DT_DEVICE_TYPE,                          \
+                                                        DT_FUNC_CODE_ADS4246_CMD_2132,   \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlAds4246Cmd_2132InOut
@@ -5050,8 +5105,9 @@ typedef union _DtIoctlAds4246CmdOutput_2132
         DtIoctlAds4246CmdInput_2132  m_Input;
         DtIoctlAds4246CmdOutput_2132  m_Output;
     }  DtIoctlAds4246Cmd_2132InOut;
-    #define DT_IOCTL_ADS4246_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_ADS4246_CMD_2132, \
-                                                              DtIoctlAds4246Cmd_2132InOut)
+    #define DT_IOCTL_ADS4246_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE,                        \
+                                                        DT_FUNC_CODE_ADS4246_CMD_2132,   \
+                                                        DtIoctlAds4246Cmd_2132InOut)
 #endif
 
 
@@ -5104,7 +5160,8 @@ typedef union _DtIoctlDataStMuxCmdOutput_2132
     DtIoctlDataStMuxCmd_2132GetSelectionOutput  m_GetSelection;     // Get Selection
 }  DtIoctlDataStMuxCmdOutput_2132;
 #ifdef WINBUILD
-    #define DT_IOCTL_DATASTMUX_CMD_2132  CTL_CODE(DT_DEVICE_TYPE, FUNC_DATASTMUX_CMD_2132,\
+    #define DT_IOCTL_DATASTMUX_CMD_2132  CTL_CODE(DT_DEVICE_TYPE,                        \
+                                                        DT_FUNC_CODE_DATASTMUX_CMD_2132, \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlDataStMuxCmd_2132InOut
@@ -5112,8 +5169,9 @@ typedef union _DtIoctlDataStMuxCmdOutput_2132
         DtIoctlDataStMuxCmdInput_2132  m_Input;
         DtIoctlDataStMuxCmdOutput_2132  m_Output;
     }  DtIoctlDataStMuxCmd_2132InOut;
-    #define DT_IOCTL_DATASTMUX_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_DATASTMUX_CMD_2132,  \
-                                                            DtIoctlDataStMuxCmd_2132InOut)
+    #define DT_IOCTL_DATASTMUX_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE,                      \
+                                                      DT_FUNC_CODE_DATASTMUX_CMD_2132,   \
+                                                      DtIoctlDataStMuxCmd_2132InOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -5157,7 +5215,8 @@ typedef union _DtIoctlIqCGrabCmdOutput_2132
     DtIoctlIqCGrabCmd_2132GetIqPointsOutput  m_GetIqPoints;  // Get constellation points
 }  DtIoctlIqCGrabCmdOutput_2132;
 #ifdef WINBUILD
-    #define DT_IOCTL_IQCGRAB_CMD_2132  CTL_CODE(DT_DEVICE_TYPE, FUNC_IQCGRAB_CMD_2132,   \
+    #define DT_IOCTL_IQCGRAB_CMD_2132  CTL_CODE(DT_DEVICE_TYPE,                          \
+                                                        DT_FUNC_CODE_IQCGRAB_CMD_2132,   \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlIqCGrabCmd_2132InOut
@@ -5165,8 +5224,9 @@ typedef union _DtIoctlIqCGrabCmdOutput_2132
         DtIoctlIqCGrabCmdInput_2132  m_Input;
         DtIoctlIqCGrabCmdOutput_2132  m_Output;
     }  DtIoctlIqCGrabCmd_2132InOut;
-    #define DT_IOCTL_IQCGRAB_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_IQCGRAB_CMD_2132, \
-                                                              DtIoctlIqCGrabCmd_2132InOut)
+    #define DT_IOCTL_IQCGRAB_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE,                        \
+                                                        DT_FUNC_CODE_IQCGRAB_CMD_2132,   \
+                                                        DtIoctlIqCGrabCmd_2132InOut)
 #endif
  
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -5234,7 +5294,8 @@ typedef union _DtIoctlIqFirCmdOutput_2132
     DtIoctlIqFirCmd_2132GetCoefsOutput  m_GetCoefs;     // Get Coefficients
 }  DtIoctlIqFirCmdOutput_2132;
 #ifdef WINBUILD
-    #define DT_IOCTL_IQFIR_CMD_2132  CTL_CODE(DT_DEVICE_TYPE, FUNC_IQFIR_CMD_2132,       \
+    #define DT_IOCTL_IQFIR_CMD_2132  CTL_CODE(DT_DEVICE_TYPE,                            \
+                                                        DT_FUNC_CODE_IQFIR_CMD_2132,     \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlIqFirCmd_2132InOut
@@ -5242,8 +5303,9 @@ typedef union _DtIoctlIqFirCmdOutput_2132
         DtIoctlIqFirCmdInput_2132  m_Input;
         DtIoctlIqFirCmdOutput_2132  m_Output;
     }  DtIoctlIqFirCmd_2132InOut;
-    #define DT_IOCTL_IQFIR_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_IQFIR_CMD_2132,     \
-                                                                DtIoctlIqFirCmd_2132InOut)
+    #define DT_IOCTL_IQFIR_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE,                          \
+                                                          DT_FUNC_CODE_IQFIR_CMD_2132,   \
+                                                          DtIoctlIqFirCmd_2132InOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -5303,7 +5365,8 @@ typedef union _DtIoctlIqPwrCmdOutput_2132
     DtIoctlIqPwrCmd_2132GetEstWindowOutput  m_GetEstWindow;     // Get estimation window
 }  DtIoctlIqPwrCmdOutput_2132;
 #ifdef WINBUILD
-    #define DT_IOCTL_IQPWR_CMD_2132  CTL_CODE(DT_DEVICE_TYPE, FUNC_IQPWR_CMD_2132,       \
+    #define DT_IOCTL_IQPWR_CMD_2132  CTL_CODE(DT_DEVICE_TYPE,                            \
+                                                        DT_FUNC_CODE_IQPWR_CMD_2132,     \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlIqPwrCmd_2132InOut
@@ -5311,8 +5374,9 @@ typedef union _DtIoctlIqPwrCmdOutput_2132
         DtIoctlIqPwrCmdInput_2132  m_Input;
         DtIoctlIqPwrCmdOutput_2132  m_Output;
     }  DtIoctlIqPwrCmd_2132InOut;
-    #define DT_IOCTL_IQPWR_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_IQPWR_CMD_2132,     \
-                                                                DtIoctlIqPwrCmd_2132InOut)
+    #define DT_IOCTL_IQPWR_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE,                          \
+                                                          DT_FUNC_CODE_IQPWR_CMD_2132,   \
+                                                          DtIoctlIqPwrCmd_2132InOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -5369,7 +5433,8 @@ typedef union _DtIoctlIqSrc2132CmdOutput_2132
 }  DtIoctlIqSrc2132CmdOutput_2132;
 #ifdef WINBUILD
     #define DT_IOCTL_IQSRC2132_CMD_2132  CTL_CODE(DT_DEVICE_TYPE,                        \
-                               FUNC_IQSRC2132_CMD_2132, METHOD_OUT_DIRECT, FILE_READ_DATA)
+                                                        DT_FUNC_CODE_IQSRC2132_CMD_2132, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlIqSrc2132Cmd_2132InOut
     {
@@ -5377,7 +5442,8 @@ typedef union _DtIoctlIqSrc2132CmdOutput_2132
         DtIoctlIqSrc2132CmdOutput_2132  m_Output;
     }  DtIoctlIqSrc2132Cmd_2132InOut;
     #define DT_IOCTL_IQSRC2132_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE,                      \
-                                   FUNC_IQSRC2132_CMD_2132, DtIoctlIqSrc2132Cmd_2132InOut)
+                                                      DT_FUNC_CODE_IQSRC2132_CMD_2132,   \
+                                                      DtIoctlIqSrc2132Cmd_2132InOut)
 #endif
 
 
@@ -5454,7 +5520,8 @@ typedef union _DtIoctlLnbh25CmdOutput_2132
     DtIoctlLnbh25Cmd_2132SendReceiveMessageOutput  m_SndRcvMsg;  // Send/receive message
 }  DtIoctlLnbh25CmdOutput_2132;
 #ifdef WINBUILD
-    #define DT_IOCTL_LNBH25_CMD_2132  CTL_CODE(DT_DEVICE_TYPE, FUNC_LNBH25_CMD_2132,   \
+    #define DT_IOCTL_LNBH25_CMD_2132  CTL_CODE(DT_DEVICE_TYPE,                           \
+                                                        DT_FUNC_CODE_LNBH25_CMD_2132,    \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlLnbh25Cmd_2132InOut
@@ -5462,8 +5529,9 @@ typedef union _DtIoctlLnbh25CmdOutput_2132
         DtIoctlLnbh25CmdInput_2132  m_Input;
         DtIoctlLnbh25CmdOutput_2132  m_Output;
     }  DtIoctlLnbh25Cmd_2132InOut;
-    #define DT_IOCTL_LNBH25_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_LNBH25_CMD_2132,   \
-                                                               DtIoctlLnbh25Cmd_2132InOut)
+    #define DT_IOCTL_LNBH25_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE,                         \
+                                                         DT_FUNC_CODE_LNBH25_CMD_2132,   \
+                                                         DtIoctlLnbh25Cmd_2132InOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -5620,7 +5688,7 @@ typedef struct _DtIoctlS2CrDemodCmd_2132GetSymbolRateOutput
 }  DtIoctlS2CrDemodCmd_2132GetSymbolRateOutput;
 ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132GetSymbolRateOutput, 16)
 
-//-.-.-.-.-.-.-.-.- S2CRDEMOD_2132 Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.- S2CRDEMOD_2132 Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.
 //
 typedef struct _DtIoctlS2CrDemodCmd_2132SetOpModeInput
 {
@@ -5692,7 +5760,8 @@ typedef union _DtIoctlS2CrDemodCmdOutput_2132
 }  DtIoctlS2CrDemodCmdOutput_2132;
 #ifdef WINBUILD
     #define DT_IOCTL_S2CRDEMOD_CMD_2132  CTL_CODE(DT_DEVICE_TYPE,                        \
-                               FUNC_S2CRDEMOD_CMD_2132, METHOD_OUT_DIRECT, FILE_READ_DATA)
+                                                      DT_FUNC_CODE_S2CRDEMOD_CMD_2132,   \
+                                                      METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlS2CrDemodCmd_2132InOut
     {
@@ -5700,7 +5769,8 @@ typedef union _DtIoctlS2CrDemodCmdOutput_2132
         DtIoctlS2CrDemodCmdOutput_2132  m_Output;
     }  DtIoctlS2CrDemodCmd_2132InOut;
     #define DT_IOCTL_S2CRDEMOD_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE,                      \
-                                   FUNC_S2CRDEMOD_CMD_2132, DtIoctlS2CrDemodCmd_2132InOut)
+                                                      DT_FUNC_CODE_S2CRDEMOD_CMD_2132,   \
+                                                      DtIoctlS2CrDemodCmd_2132InOut)
 #endif
    
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -5800,7 +5870,8 @@ typedef union _DtIoctlS2StatsCmdOutput_2132
     DtIoctlS2StatsCmd_2132ReadStatisticsOutput  m_ReadStats; // Read statistics
 }  DtIoctlS2StatsCmdOutput_2132;
 #ifdef WINBUILD
-    #define DT_IOCTL_S2STATS_CMD_2132  CTL_CODE(DT_DEVICE_TYPE, FUNC_S2STATS_CMD_2132,   \
+    #define DT_IOCTL_S2STATS_CMD_2132  CTL_CODE(DT_DEVICE_TYPE,                          \
+                                                        DT_FUNC_CODE_S2STATS_CMD_2132,   \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlS2StatsCmd_2132InOut
@@ -5808,8 +5879,9 @@ typedef union _DtIoctlS2StatsCmdOutput_2132
         DtIoctlS2StatsCmdInput_2132  m_Input;
         DtIoctlS2StatsCmdOutput_2132  m_Output;
     }  DtIoctlS2StatsCmd_2132InOut;
-    #define DT_IOCTL_S2STATS_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_S2STATS_CMD_2132, \
-                                                              DtIoctlS2StatsCmd_2132InOut)
+    #define DT_IOCTL_S2STATS_CMD_2132  _IOWR(DT_IOCTL_MAGIC_SIZE,                        \
+                                                        DT_FUNC_CODE_S2STATS_CMD_2132,   \
+                                                        DtIoctlS2StatsCmd_2132InOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -6014,7 +6086,7 @@ typedef union _DtIoctlConstSinkCmdOutput
 ASSERT_SIZE(DtIoctlConstSinkCmdOutput, 8)
 
 #ifdef WINBUILD
-    #define DT_IOCTL_CONSTSINK_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_CONSTSINK_CMD,         \
+    #define DT_IOCTL_CONSTSINK_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_CONSTSINK_CMD, \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlConstSinkCmdInOut
@@ -6023,8 +6095,9 @@ ASSERT_SIZE(DtIoctlConstSinkCmdOutput, 8)
         DtIoctlConstSinkCmdOutput  m_Output;
     }  DtIoctlConstSinkCmdInOut;
 
-    #define DT_IOCTL_CONSTSINK_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_CONSTSINK_CMD,       \
-                                                                 DtIoctlConstSinkCmdInOut)
+    #define DT_IOCTL_CONSTSINK_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                           \
+                                                           DT_FUNC_CODE_CONSTSINK_CMD,   \
+                                                           DtIoctlConstSinkCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -6202,7 +6275,8 @@ typedef union _DtIoctlConstSourceCmdOutput
 ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
 
 #ifdef WINBUILD
-    #define DT_IOCTL_CONSTSOURCE_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_CONSTSOURCE_CMD,     \
+    #define DT_IOCTL_CONSTSOURCE_CMD  CTL_CODE(DT_DEVICE_TYPE,                           \
+                                                        DT_FUNC_CODE_CONSTSOURCE_CMD,    \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
     typedef union _DtIoctlConstSourceCmdInOut
@@ -6211,8 +6285,9 @@ ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
         DtIoctlConstSourceCmdOutput  m_Output;
     }  DtIoctlConstSourceCmdInOut;
 
-    #define DT_IOCTL_CONSTSOURCE_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, FUNC_CONSTSOURCE_CMD,   \
-                                                               DtIoctlConstSourceCmdInOut)
+    #define DT_IOCTL_CONSTSOURCE_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                         \
+                                                         DT_FUNC_CODE_CONSTSOURCE_CMD,   \
+                                                         DtIoctlConstSourceCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

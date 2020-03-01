@@ -71,36 +71,42 @@ static void  DtDfGenLockCtrl_InitGenRefInfo(DtDfGenLockCtrl*);
 static DtStatus DtDfGenLockCtrl_SetVideoStandard(DtDfGenLockCtrl * pDf, Int VidStd);
 static void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread*, void* pContext);
 static void  DtDfGenLockCtrl_DcoControl(DtDfGenLockCtrl*,
-                             DtDfGenLockCtrlGenRefType, const DtDfGenLockCtrlSofTods*, 
+                             DtDfGenLockCtrlGenRefType, Int  SofOffset, 
+                             const DtDfGenLockCtrlSofTods*, 
                              Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
 static void  DtDfGenLockCtrl_DcoControlInit(DtDfGenLockCtrl*,
                              DtDfGenLockCtrlDcoState*, DtDfGenLockCtrlGenRefStatus,
-                             DtDfGenLockCtrlGenRefType, const DtDfGenLockCtrlSofTods*, 
+                             DtDfGenLockCtrlGenRefType, Int  SofOffset, 
+                             const DtDfGenLockCtrlSofTods*, 
                              Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
 static void  DtDfGenLockCtrl_DcoControlCrashLockFreq(DtDfGenLockCtrl*,
                              DtDfGenLockCtrlDcoState*, DtDfGenLockCtrlGenRefStatus,
-                             DtDfGenLockCtrlGenRefType, const DtDfGenLockCtrlSofTods*, 
+                             DtDfGenLockCtrlGenRefType, Int  SofOffset, 
+                             const DtDfGenLockCtrlSofTods*, 
                              Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
 static void  DtDfGenLockCtrl_DcoControlCrashLockPhase(DtDfGenLockCtrl*,
                              DtDfGenLockCtrlDcoState*, DtDfGenLockCtrlGenRefStatus,
-                             DtDfGenLockCtrlGenRefType, const DtDfGenLockCtrlSofTods*, 
+                             DtDfGenLockCtrlGenRefType, Int  SofOffset, 
+                             const DtDfGenLockCtrlSofTods*, 
                              Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
 static void  DtDfGenLockCtrl_DcoControlLocked(DtDfGenLockCtrl*,
                              DtDfGenLockCtrlDcoState*, DtDfGenLockCtrlGenRefStatus,
-                             DtDfGenLockCtrlGenRefType, const DtDfGenLockCtrlSofTods*, 
+                             DtDfGenLockCtrlGenRefType, Int  SofOffset, 
+                             const DtDfGenLockCtrlSofTods*, 
                              Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
 static void  DtDfGenLockCtrl_DcoFreeRunning(DtDfGenLockCtrl*,
                              DtDfGenLockCtrlDcoState*, DtDfGenLockCtrlGenRefStatus,
-                             DtDfGenLockCtrlGenRefType, const DtDfGenLockCtrlSofTods*, 
+                             DtDfGenLockCtrlGenRefType, Int  SofOffset, 
+                             const DtDfGenLockCtrlSofTods*, 
                              Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
 static DtDfGenLockCtrlGenRefStatus  DtDfGenLockCtrl_DetermineGenRefStatus(
                                           DtDfGenLockCtrl*, DtDfGenLockCtrlGenRefType,
                                           const DtDfGenLockCtrlSofTods*, 
                                           Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
 static void DtDfGenLockCtrl_DcoControlAddDeltaFreq(DtDfGenLockCtrl*, Int DeltaPpt);
-static Int DtDfGenLockCtrl_DcoControlGetFrequencyHz(DtDfGenLockCtrl* pDf);
-static Int64 DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(DtDfGenLockCtrl * pDf);
-static Bool DtDfGenLockCtrl_DcoControlComputePhaseDiff(DtDfGenLockCtrl* pDf,
+static Int DtDfGenLockCtrl_DcoControlGetFrequencyHz(DtDfGenLockCtrl*);
+static Int64 DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(DtDfGenLockCtrl*);
+static Bool DtDfGenLockCtrl_DcoControlComputePhaseDiff(DtDfGenLockCtrl*, Int SofOffset,
                                 const DtDfGenLockCtrlSofTods*, Int GenRefAvgFramePeriodNs, 
                                 const DtTodTime*, Int* pPhaseDiffNs);
 static void  DtDfGenLockCtrl_GenLockStartOfFrameHandler(DtObject*, const DtTodTime*);
@@ -338,6 +344,7 @@ DtStatus DtDfGenLockCtrl_GetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int  ClockIdx,
 
     return DT_STATUS_OK;
 }
+
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_SetDcoFreqOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -745,6 +752,7 @@ void DtDfGenLockCtrl_InitGenRefInfo(DtDfGenLockCtrl* pDf)
     pDf->m_GenRefVidStd = DT_VIDSTD_UNKNOWN;
     pDf->m_GenRefFramePeriod = -1;
     pDf->m_GenRefDetectVidStd = DT_VIDSTD_UNKNOWN;
+    pDf->m_GenRefStartOfFrameOffset = 0;
     pDf->m_GenRefParChanged = TRUE;
 }
 
@@ -802,7 +810,7 @@ void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread* pThread, void* pContext)
     DtDfGenLockCtrlSofTods  GenRefSofTods;
     DtTodTime  GenLockSofTod;
     DtDfGenLockCtrlGenRefType  GenRefType;
-    Int  GenRefVidStd;
+    Int  GenRefVidStd, GenRefSofOffset=0;
     Int64  GenRefAvgFramePeriodPs;
     Bool  GenRefParChanged;
     const Int LoopTimeOut = 100;    // 100ms timeout
@@ -839,6 +847,8 @@ void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread* pThread, void* pContext)
                                                                  &pDf->m_GenRefFpMeasure);
         // GenRef video standard
         GenRefVidStd = pDf->m_GenRefVidStd;
+        // Start-of-frame offset in nano seconds
+        GenRefSofOffset = pDf->m_GenRefStartOfFrameOffset;
         // GenRef changed
         GenRefParChanged = pDf->m_GenRefParChanged;
         pDf->m_GenRefParChanged = FALSE;
@@ -864,7 +874,7 @@ void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread* pThread, void* pContext)
             // Check whether the genref has changed during updating the video standard
             // GenRef start-of-frame timstamps
             GenRefSofTods = pDf->m_GenRefSofTods;
-            // GenLock start-of-frame timstamp
+            // GenLock start-of-frame timestamp
             GenLockSofTod = pDf->m_GenLockSofTod;
             // GenRef type
             GenRefType = pDf->m_GenRefType;
@@ -873,6 +883,8 @@ void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread* pThread, void* pContext)
                                                                  &pDf->m_GenRefFpMeasure);
             // GenRef video standard
             GenRefVidStd = pDf->m_GenRefVidStd;
+            // Start-of-frame offset in nano seconds
+            GenRefSofOffset = pDf->m_GenRefStartOfFrameOffset;
             // GenRef changed
             GenRefParChanged = pDf->m_GenRefParChanged;
             pDf->m_GenRefParChanged = FALSE;
@@ -880,7 +892,7 @@ void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread* pThread, void* pContext)
         }
 
         // Control the DCO
-        DtDfGenLockCtrl_DcoControl(pDf,GenRefType, &GenRefSofTods,
+        DtDfGenLockCtrl_DcoControl(pDf,GenRefType, GenRefSofOffset, &GenRefSofTods,
                                                   GenRefAvgFramePeriodPs, &GenLockSofTod);
     }
     // We have to wait until the thread received a stop command.
@@ -891,6 +903,7 @@ void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread* pThread, void* pContext)
 //
 void  DtDfGenLockCtrl_DcoControl(DtDfGenLockCtrl* pDf, 
                                             DtDfGenLockCtrlGenRefType  GenRefType,
+                                            Int  SofOffset,
                                             const DtDfGenLockCtrlSofTods* pGenRefSofTods,
                                             Int64  GenRefAvgFramePeriodPs,
                                             const DtTodTime* pGenLockSofTod)
@@ -906,39 +919,39 @@ void  DtDfGenLockCtrl_DcoControl(DtDfGenLockCtrl* pDf,
     DtSpinLockRelease(&pDf->m_SofSpinLock);
 
     // Determine GenRef signal status using the latest timestamps
-    GenRefStatus = DtDfGenLockCtrl_DetermineGenRefStatus(pDf, GenRefType,  pGenRefSofTods,
-                                                  GenRefAvgFramePeriodPs, pGenLockSofTod);
+    GenRefStatus = DtDfGenLockCtrl_DetermineGenRefStatus(pDf, GenRefType, pGenRefSofTods,
+                                    GenRefAvgFramePeriodPs, pGenLockSofTod);
 
     switch (DcoState)
     {
     default:
     case  DT_DF_GENLOCKCTRL_STATE_INITIAL:
         DtDfGenLockCtrl_DcoControlInit(pDf, &DcoState, GenRefStatus,
-                                                  GenRefType,  pGenRefSofTods,
-                                                  GenRefAvgFramePeriodPs, pGenLockSofTod);
+                                             GenRefType,  SofOffset, pGenRefSofTods,
+                                             GenRefAvgFramePeriodPs, pGenLockSofTod);
         break;
         break;
     case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ:
     case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ_CHECK:
         DtDfGenLockCtrl_DcoControlCrashLockFreq(pDf, &DcoState, GenRefStatus,
-                                                  GenRefType,  pGenRefSofTods,
-                                                  GenRefAvgFramePeriodPs, pGenLockSofTod);
+                                             GenRefType,  SofOffset, pGenRefSofTods,
+                                             GenRefAvgFramePeriodPs, pGenLockSofTod);
         break;
     case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE:
     case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE_WAIT_FOR_DONE:
         DtDfGenLockCtrl_DcoControlCrashLockPhase(pDf, &DcoState, GenRefStatus,
-                                                  GenRefType,  pGenRefSofTods,
-                                                  GenRefAvgFramePeriodPs, pGenLockSofTod);
+                                             GenRefType,  SofOffset, pGenRefSofTods,
+                                             GenRefAvgFramePeriodPs, pGenLockSofTod);
         break;
     case DT_DF_GENLOCKCTRL_STATE_LOCKED:
         DtDfGenLockCtrl_DcoControlLocked(pDf, &DcoState, GenRefStatus,
-                                                  GenRefType,  pGenRefSofTods,
-                                                  GenRefAvgFramePeriodPs, pGenLockSofTod);
+                                             GenRefType,  SofOffset, pGenRefSofTods,
+                                             GenRefAvgFramePeriodPs, pGenLockSofTod);
         break;
     case DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING:
         DtDfGenLockCtrl_DcoFreeRunning(pDf, &DcoState, GenRefStatus,
-                                                  GenRefType,  pGenRefSofTods,
-                                                  GenRefAvgFramePeriodPs, pGenLockSofTod);
+                                             GenRefType,  SofOffset, pGenRefSofTods,
+                                             GenRefAvgFramePeriodPs, pGenLockSofTod);
         break;
     }
 
@@ -969,6 +982,7 @@ void  DtDfGenLockCtrl_DcoControlInit(DtDfGenLockCtrl* pDf,
                                              DtDfGenLockCtrlDcoState* pDcoState, 
                                              DtDfGenLockCtrlGenRefStatus GenRefStatus,
                                              DtDfGenLockCtrlGenRefType  GenRefType,
+                                             Int  SofOffset,
                                              const DtDfGenLockCtrlSofTods* pGenRefSofTods,
                                              Int64  GenRefAvgFramePeriodPs,
                                              const DtTodTime* pGenLockSofTod)
@@ -1005,6 +1019,7 @@ void  DtDfGenLockCtrl_DcoControlCrashLockFreq(DtDfGenLockCtrl* pDf,
                                              DtDfGenLockCtrlDcoState* pDcoState, 
                                              DtDfGenLockCtrlGenRefStatus GenRefStatus,
                                              DtDfGenLockCtrlGenRefType  GenRefType,
+                                             Int  SofOffset,
                                              const DtDfGenLockCtrlSofTods* pGenRefSofTods,
                                              Int64  GenRefAvgFramePeriodPs,
                                              const DtTodTime* pGenLockSofTod)
@@ -1020,8 +1035,9 @@ void  DtDfGenLockCtrl_DcoControlCrashLockFreq(DtDfGenLockCtrl* pDf,
         return;
 
     // Determine phase difference
-    ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, pGenRefSofTods,
-                                    GenRefAvgFramePeriodNs, pGenLockSofTod, &PhaseDiffNs);
+    ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, SofOffset, 
+                                                   pGenRefSofTods, GenRefAvgFramePeriodNs, 
+                                                   pGenLockSofTod, &PhaseDiffNs);
     // Wait for valid phase difference
     if (!ValidPhaseDiff)
         return;
@@ -1077,6 +1093,7 @@ void  DtDfGenLockCtrl_DcoControlCrashLockPhase(DtDfGenLockCtrl* pDf,
                                              DtDfGenLockCtrlDcoState* pDcoState, 
                                              DtDfGenLockCtrlGenRefStatus GenRefStatus,
                                              DtDfGenLockCtrlGenRefType  GenRefType,
+                                             Int  SofOffset,
                                              const DtDfGenLockCtrlSofTods* pGenRefSofTods,
                                              Int64  GenRefAvgFramePeriodPs,
                                              const DtTodTime* pGenLockSofTod)
@@ -1095,8 +1112,9 @@ void  DtDfGenLockCtrl_DcoControlCrashLockPhase(DtDfGenLockCtrl* pDf,
     }
 
     // Determine phase difference
-    ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, pGenRefSofTods, 
-                                    GenRefAvgFramePeriodNs, pGenLockSofTod, &PhaseDiffNs);
+    ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, SofOffset, 
+                                                   pGenRefSofTods, GenRefAvgFramePeriodNs, 
+                                                   pGenLockSofTod, &PhaseDiffNs);
     if (!ValidPhaseDiff)
     {
         // No valid phase => restart crash lock frequency
@@ -1140,8 +1158,8 @@ void  DtDfGenLockCtrl_DcoControlCrashLockPhase(DtDfGenLockCtrl* pDf,
             // Crashlock succeeded
             Int  PhaseDiffNs;
             Bool  ValidPhaseDiff;
-            ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, 
-                                                   pGenRefSofTods, GenRefAvgFramePeriodNs,
+            ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, SofOffset, 
+                                                   pGenRefSofTods, GenRefAvgFramePeriodNs, 
                                                    pGenLockSofTod, &PhaseDiffNs);
             if (ValidPhaseDiff)
                 DtDbgOutDf(MAX, GENLOCKCTRL, pDf, "PhaseDiff: %d ns", PhaseDiffNs);
@@ -1166,6 +1184,7 @@ void  DtDfGenLockCtrl_DcoControlLocked(DtDfGenLockCtrl* pDf,
                                              DtDfGenLockCtrlDcoState* pDcoState, 
                                              DtDfGenLockCtrlGenRefStatus GenRefStatus,
                                              DtDfGenLockCtrlGenRefType  GenRefType,
+                                             Int  SofOffset,
                                              const DtDfGenLockCtrlSofTods* pGenRefSofTods,
                                              Int64  GenRefAvgFramePeriodPs,
                                              const DtTodTime* pGenLockSofTod)
@@ -1181,8 +1200,9 @@ void  DtDfGenLockCtrl_DcoControlLocked(DtDfGenLockCtrl* pDf,
         return;
 
     // Determine phase difference
-    ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, pGenRefSofTods, 
-                                    GenRefAvgFramePeriodNs, pGenLockSofTod, &PhaseDiffNs);
+    ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, SofOffset, 
+                                                   pGenRefSofTods, GenRefAvgFramePeriodNs, 
+                                                   pGenLockSofTod, &PhaseDiffNs);
     if (!ValidPhaseDiff)
         return;
     
@@ -1243,6 +1263,7 @@ void  DtDfGenLockCtrl_DcoFreeRunning(DtDfGenLockCtrl* pDf,
                                              DtDfGenLockCtrlDcoState* pDcoState, 
                                              DtDfGenLockCtrlGenRefStatus GenRefStatus,
                                              DtDfGenLockCtrlGenRefType  GenRefType,
+                                             Int  SofOffset,
                                              const DtDfGenLockCtrlSofTods* pGenRefSofTods,
                                              Int64  GenRefAvgFramePeriodPs,
                                              const DtTodTime* pGenLockSofTod)
@@ -1318,7 +1339,7 @@ Int64  DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(DtDfGenLockCtrl* pDf)
 
 // -.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControlComputePhaseDiff -.-.-.-.-.-.-.-.-.-.-.
 //
-Bool DtDfGenLockCtrl_DcoControlComputePhaseDiff(DtDfGenLockCtrl* pDf,
+Bool DtDfGenLockCtrl_DcoControlComputePhaseDiff(DtDfGenLockCtrl* pDf, Int SofOffset,
                                           const DtDfGenLockCtrlSofTods* pGenRefSofTods,
                                           Int  GenRefAvgFramePeriodNs,
                                           const DtTodTime* pGenLockSofTod,
@@ -1330,9 +1351,10 @@ Bool DtDfGenLockCtrl_DcoControlComputePhaseDiff(DtDfGenLockCtrl* pDf,
     Bool  Valid = FALSE;
 
     // Start-of-Frame will be generated with an offset
+    SofOffset = DT_DF_GENLOCKCTRL_START_OF_FRAME_OFFSET - SofOffset;
+
     GenLockSofTod = *pGenLockSofTod;
-    GenLockSofTod = DtCore_TOD_Add(GenLockSofTod, 
-                                                -DT_DF_GENLOCKCTRL_START_OF_FRAME_OFFSET);
+    GenLockSofTod = DtCore_TOD_Add(GenLockSofTod, SofOffset);
     // Find the related GenRef Start-of-Frame timestamp
     NumGenRefSofTodsAva = DtDfGenLockCtrl_SofTodsNumAvailable(pGenRefSofTods);
     for (i=0; i<NumGenRefSofTodsAva && !Valid; i++)
@@ -1350,7 +1372,7 @@ Bool DtDfGenLockCtrl_DcoControlComputePhaseDiff(DtDfGenLockCtrl* pDf,
 // .-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenRefStartOfFrameHandler -.-.-.-.-.-.-.-.-.-.-.
 //
 void DtDfGenLockCtrl_GenRefStartOfFrameHandler(DtDfGenLockCtrl* pDf, Int PortIdx,
-                                   const DtTodTime*  pSofTod, Int VidStd, 
+                                   const DtTodTime*  pSofTod, Int SofOffset, Int VidStd,
                                    Int DetectVidStd, DtDfGenLockCtrlGenRefType GenRefType)
 {
     // Sanity check
@@ -1359,13 +1381,21 @@ void DtDfGenLockCtrl_GenRefStartOfFrameHandler(DtDfGenLockCtrl* pDf, Int PortIdx
     if (pSofTod == NULL)
         return;
 
+    // Start-of-frame offset range: +/- 20ms StartOfFrame offset
+    if (SofOffset<-20000000 || SofOffset>20000000)
+    {
+        DT_ASSERT(FALSE);
+        SofOffset = 0;
+    }
+
     DtSpinLockAcquire(&pDf->m_SofSpinLock);
     // Only when genlock control is enabled
     if (pDf->m_GenLockControlEnabled)
     {
         // Check on genref change?
         if (PortIdx!=pDf->m_GenRefPortIndex || VidStd!=pDf->m_GenRefVidStd
-                                                         || GenRefType!=pDf->m_GenRefType)
+                                   || SofOffset!=pDf->m_GenRefStartOfFrameOffset 
+                                   || GenRefType!=pDf->m_GenRefType)
         {
             // -.-.-.-.-.-.-.-.-.-.-.-.- GenRef change detected -.-.-.-.-.-.-.-.-.-.-.-.-.
             DtDbgOutDf(MIN, GENLOCKCTRL, pDf, "GenRef change detected");
@@ -1380,6 +1410,7 @@ void DtDfGenLockCtrl_GenRefStartOfFrameHandler(DtDfGenLockCtrl* pDf, Int PortIdx
             // Update other information
             pDf->m_GenRefType = GenRefType;
             pDf->m_GenRefVidStd = VidStd;
+            pDf->m_GenRefStartOfFrameOffset = SofOffset;
             pDf->m_GenRefPortIndex = PortIdx;
             pDf->m_GenRefFramePeriod = DtAvVidStd2FramePeriod(VidStd);
             // Start pessimistic
@@ -1463,7 +1494,9 @@ void DtDfGenLockCtrl_SofTodsAdd(DtDfGenLockCtrl* pDf,  DtDfGenLockCtrlSofTods* p
             // If the deviation is too much, clear the history of timestamps
             if (PpmDiff<-MAX_DEVIATION_PPM || PpmDiff>MAX_DEVIATION_PPM)
             { 
-                DtDbgOutDf(MIN, GENLOCKCTRL, pDf, "Unexpected GenRef deviation: %d",
+                if ( pDf->m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_UNDEFINED
+                                   && pDf->m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_VIRTUAL)
+                    DtDbgOutDf(MIN, GENLOCKCTRL, pDf, "Unexpected GenRef deviation: %d",
                                                                                  PpmDiff);
                 DtDfGenLockCtrl_SofTodsClear(pSofTods);
             }
@@ -1707,6 +1740,7 @@ static DtStatus  DtIoStubDfGenLockCtrl_OnCmdGetDcoFreqOffset(const DtIoStubDfGen
                                         DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput*);
 static DtStatus  DtIoStubDfGenLockCtrl_OnCmdSetDcoFreqOffset(const DtIoStubDfGenLockCtrl*,
                                        const DtIoctlGenLockCtrlCmdSetDcoFreqOffsetInput*);
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- List of supported IOCTL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // First declare IOCTL commands
 DECL_DT_IOCTL_CMD_PROPS_GENLOCKCTRL;
@@ -1763,7 +1797,7 @@ DtStatus  DtIoStubDfGenLockCtrl_AppendDynamicSize(
 
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfGenLockCtrl));
     DT_ASSERT(pIoParams != NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_GENLOCKCTRL_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_GENLOCKCTRL_CMD);
 
     // Get in-/out-data
     DT_ASSERT(pIoParams->m_pInData != NULL);
@@ -1807,7 +1841,7 @@ DtStatus  DtIoStubDfGenLockCtrl_OnCmd(
     
     GENLOCKCTRL_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_GENLOCKCTRL_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_GENLOCKCTRL_CMD);
     DT_ASSERT(*pOutSize == pIoParams->m_OutReqSize);
 
     // Do we need exlusive access?

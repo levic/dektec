@@ -250,6 +250,27 @@ DtStatus DtDfSdiTxPhy_GetSdiStatus(DtDfSdiTxPhy*  pDf, Int*  pIsTxLocked)
     return Status;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_GetStartOfFrameOffset -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSdiTxPhy_GetStartOfFrameOffset(DtDfSdiTxPhy* pDf, Int* pSofOffset)
+{
+    // Sanity check
+    DF_SDITXPHY_DEFAULT_PRECONDITIONS(pDf);
+
+    // Check parameter
+    if (pSofOffset == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    DF_SDITXPHY_MUST_BE_ENABLED(pDf);
+
+    // Return cached start-of-frame offset
+    *pSofOffset = pDf->m_PhySofOffsetNs;
+
+    return DT_STATUS_OK;
+}
+
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_GetTxMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtDfSdiTxPhy_GetTxMode(DtDfSdiTxPhy* pDf, Int* pTxMode)
@@ -461,6 +482,48 @@ DtStatus DtDfSdiTxPhy_SetVidStd(DtDfSdiTxPhy* pDf, Int VidStd)
     return Status;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_SetStartOfFrameOffset -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSdiTxPhy_SetStartOfFrameOffset(DtDfSdiTxPhy* pDf, Int SofOffset)
+{
+    Int  SofDelayClks = 0;
+
+    // Sanity checks
+    DF_SDITXPHY_DEFAULT_PRECONDITIONS(pDf);
+
+    // Operational state must be enabled
+    DF_SDITXPHY_MUST_BE_ENABLED(pDf);
+
+    // Check parameters
+    // Maximum +/- 100us
+    if (SofOffset<-100000 || SofOffset>100000)
+    {
+        DtDbgOutDf(ERR, SDITXPHY, pDf, "Invalid start-of-frame offset");
+        return DT_STATUS_INVALID_PARAMETER;
+    }
+
+    // Must be in IDLE
+    if (pDf->m_OperationalMode != DT_FUNC_OPMODE_IDLE)
+    {
+        DtDbgOutDf(ERR, SDITXPHY, pDf, "Function not in IDLE");
+        return DT_STATUS_INVALID_IN_OPMODE;
+    }
+
+    // No change?
+    if (pDf->m_PhySofOffsetNs == SofOffset)
+        return DT_STATUS_OK;
+
+    // Save new setting
+    pDf->m_PhySofOffsetNs = SofOffset;
+
+    //  Update Start-of-Frame delay
+    DT_RETURN_ON_ERROR(DtDfSdiTxPhy_ComputeSofDelay(pDf, pDf->m_VidStd, &SofDelayClks));
+    DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetSofDelay(pDf->m_pBcSdiTxPhy, SofDelayClks));
+
+
+    return DT_STATUS_OK;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiTxPhy_SetTxMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtDfSdiTxPhy_SetTxMode(DtDfSdiTxPhy* pDf, Int TxMode)
@@ -548,6 +611,7 @@ DtStatus  DtDfSdiTxPhy_Init(DtDf*  pDfBase)
     pDf->m_DelayedStart = FALSE;
     pDf->m_DelayedStartTime.m_Nanoseconds = 0;
     pDf->m_DelayedStartTime.m_Seconds = 0;
+    pDf->m_PhySofOffsetNs = 0;
     // Get the GenLocked-IO-capability of the port
     pDf->m_CapGenLocked = FALSE;
     PortIndex = DtCore_PT_GetPortIndex(pDf->m_pPt);
@@ -680,6 +744,7 @@ DtStatus DtDfSdiTxPhy_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
         pDf->m_VidStd = DT_VIDSTD_1080I50;
         pDf->m_SdiRate = DT_DRV_SDIRATE_HD;
         pDf->m_FractionalClock = FALSE;
+        pDf->m_PhySofOffsetNs = 0;
 
         //  Update Start-of-Frame delay and configure the rate
         Status = DtDfSdiTxPhy_ComputeSofDelay(pDf, pDf->m_VidStd, &SofDelayClks);
@@ -1210,7 +1275,10 @@ DtStatus  DtDfSdiTxPhy_ComputeSofDelay(DtDfSdiTxPhy* pDf, Int VidStd, Int* pSofD
 
     // GenLocking generates the Start-of-Frame too early. The SofDelay has to compensate
     // for this.
-    SofDelayNs = -DT_DF_GENLOCKCTRL_START_OF_FRAME_OFFSET;
+    SofDelayNs = DT_DF_GENLOCKCTRL_START_OF_FRAME_OFFSET;
+
+    // Add the PHY start-of-frame offset
+    SofDelayNs += pDf->m_PhySofOffsetNs;
 
     // Get properties of video standard
     Status = DtAvGetFrameProps(VidStd, &VidProps);
@@ -1280,6 +1348,8 @@ static DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetSdiRate(const DtIoStubDfSdiTxPhy*,
                                                      DtIoctlSdiTxPhyCmdGetSdiRateOutput*);
 static DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetSdiStatus(const DtIoStubDfSdiTxPhy*, 
                                                    DtIoctlSdiTxPhyCmdGetSdiStatusOutput*);
+static DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetStartOfFrameOffset(const DtIoStubDfSdiTxPhy*, 
+                                          DtIoctlSdiTxPhyCmdGetStartOfFrameOffsetOutput*);
 static DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetUnderflowFlag(const DtIoStubDfSdiTxPhy*,
                                                DtIoctlSdiTxPhyCmdGetUnderflowFlagOutput*);
 static DtStatus  DtIoStubDfSdiTxPhy_OnCmdSetOperationalMode(const DtIoStubDfSdiTxPhy*,
@@ -1289,6 +1359,8 @@ static DtStatus  DtIoStubDfSdiTxPhy_OnCmdSetOperationalModeTimed(
                                             const DtIoctlSdiTxPhyCmdSetOpModeTimedInput*);
 static DtStatus DtIoStubDfSdiTxPhy_OnCmdSetSdiRate(const DtIoStubDfSdiTxPhy*, 
                                                 const DtIoctlSdiTxPhyCmdSetSdiRateInput*);
+static DtStatus DtIoStubDfSdiTxPhy_OnCmdSetStartOfFrameOffset(const DtIoStubDfSdiTxPhy*, 
+                                     const DtIoctlSdiTxPhyCmdSetStartOfFrameOffsetInput*);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- List of supported IOCTL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // First declare IOCTL commands
@@ -1352,7 +1424,7 @@ DtStatus  DtIoStubDfSdiTxPhy_OnCmd(
     
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfSdiTxPhy));
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_SDITXPHY_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_SDITXPHY_CMD);
     DT_ASSERT(*pOutSize == pIoParams->m_OutReqSize);
 
     // Do we need exlusive access?
@@ -1409,7 +1481,11 @@ DtStatus  DtIoStubDfSdiTxPhy_OnCmd(
         Status = DtIoStubDfSdiTxPhy_OnCmdGetSdiStatus(STUB_SDITXPHY, 
                                                                &pOutData->m_GetSdiStatus);
         break;
-
+    case DT_SDITXPHY_CMD_GET_START_OF_FRAME_OFFSET:
+        DT_ASSERT(pOutData != NULL);
+        Status = DtIoStubDfSdiTxPhy_OnCmdGetStartOfFrameOffset(STUB_SDITXPHY, 
+                                                               &pOutData->m_GetSofOffset);
+        break;
     case DT_SDITXPHY_CMD_GET_UNDERFLOW_FLAG:
         DT_ASSERT(pOutData != NULL);
         Status = DtIoStubDfSdiTxPhy_OnCmdGetUnderflowFlag(STUB_SDITXPHY, 
@@ -1427,6 +1503,10 @@ DtStatus  DtIoStubDfSdiTxPhy_OnCmd(
     case DT_SDITXPHY_CMD_SET_SDIRATE:
         Status = DtIoStubDfSdiTxPhy_OnCmdSetSdiRate(STUB_SDITXPHY, 
                                                                   &pInData->m_SetSdiRate);
+        break;
+    case DT_SDITXPHY_CMD_SET_START_OF_FRAME_OFFSET:
+        Status = DtIoStubDfSdiTxPhy_OnCmdSetStartOfFrameOffset(STUB_SDITXPHY, 
+                                                                &pInData->m_SetSofOffset);
         break;
     default:
         DT_ASSERT(FALSE);
@@ -1499,6 +1579,17 @@ DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetSdiStatus(
     return DtDfSdiTxPhy_GetSdiStatus(STUB_DF, &pOutData->m_TxLock);
 }
 
+// .-.-.-.-.-.-.-.-.-.- DtIoStubDfSdiTxPhy_OnCmdGetStartOfFrameOffset -.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtIoStubDfSdiTxPhy_OnCmdGetStartOfFrameOffset(
+    const DtIoStubDfSdiTxPhy* pStub,
+    DtIoctlSdiTxPhyCmdGetStartOfFrameOffsetOutput* pOutData)
+{
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfSdiTxPhy));
+    DT_ASSERT(pOutData != NULL);
+    return DtDfSdiTxPhy_GetStartOfFrameOffset(STUB_DF, &pOutData->m_StartOfFrameOffsetNs);
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfSdiTxPhy_OnCmdGetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtIoStubDfSdiTxPhy_OnCmdGetUnderflowFlag(
@@ -1546,3 +1637,13 @@ DtStatus  DtIoStubDfSdiTxPhy_OnCmdSetSdiRate(
     return DT_STATUS_NOT_SUPPORTED; // Not supported anymore; video standard must be set
 }
 
+// .-.-.-.-.-.-.-.-.-.- DtIoStubDfSdiTxPhy_OnCmdSetStartOfFrameOffset -.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtIoStubDfSdiTxPhy_OnCmdSetStartOfFrameOffset(
+    const DtIoStubDfSdiTxPhy* pStub,
+    const DtIoctlSdiTxPhyCmdSetStartOfFrameOffsetInput* pInData)
+{
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfSdiTxPhy));
+    DT_ASSERT(pInData != NULL);
+    return DtDfSdiTxPhy_SetStartOfFrameOffset(STUB_DF, pInData->m_StartOfFrameOffsetNs);
+}

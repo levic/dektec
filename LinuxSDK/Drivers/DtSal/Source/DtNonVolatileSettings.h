@@ -31,15 +31,15 @@
 
 DtStatus DtNonVolatileManufSettingsRead(DtDrvObject* pSalDrvObj, Int Type, Char* pName, 
                                                                         Int64* pBinValue);
-DtStatus DtNonVolatileSettingsDelete(DtDrvObject* pSalDrvObj, UInt64 DvcSerial,
-                                                                           UInt NumPorts);
+DtStatus DtNonVolatileSettingsDelete(DtDrvObject* pSalDrvObj, UInt64 DvcSerial, 
+                                                          Int  FwVariant, UInt NumPorts);
 DtStatus DtNonVolatileSettingsStringRead(DtDrvObject* pSalDrvObj, UInt64 DvcSerial, 
-                         Int Port, Char* pCategory, Char* pName, Char* pValue, UInt Size);
+         Int  FwVariant, Int Port, Char* pCategory, Char* pName, Char* pValue, UInt Size);
 DtStatus DtNonVolatileSettingsStringWrite(DtDrvObject* pSalDrvObj, UInt64 DvcSerial, 
-                                    Int Port, Char* pCategory, Char* pName, Char* pValue);
+                     Int  FwVariant,Int Port, Char* pCategory, Char* pName, Char* pValue);
 DtStatus DtNonVolatileSettingsValueRead(DtDrvObject* pSalDrvObj, UInt64 DvcSerial, 
-                                   Int Port, Char* pCategory, Char* pName, Int64* pValue);
+                   Int  FwVariant, Int Port, Char* pCategory, Char* pName, Int64* pValue);
 DtStatus DtNonVolatileSettingsValueWrite(DtDrvObject* pSalDrvObj, UInt64 DvcSerial, 
-                                     Int Port, Char* pCategory, Char* pName, Int64 Value);
+                    Int  FwVariant,  Int Port, Char* pCategory, Char* pName, Int64 Value);
 #endif // SKIP_NONVOL
 #endif // __DT_NON_VOLATILE_SETTINGS_H

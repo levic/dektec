@@ -334,7 +334,7 @@ DtStatus  DtIoStubBcIQFIR_2132_AppendDynamicSize(
 
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcIQFIR_2132));
     DT_ASSERT(pIoParams != NULL);                 
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_IQFIR_CMD_2132);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_IQFIR_CMD_2132);
 
     // Get in-/out-data
     DT_ASSERT(pIoParams->m_pInData != NULL);
@@ -381,7 +381,7 @@ DtStatus  DtIoStubBcIQFIR_2132_OnCmd(const DtIoStub*  pStub,
 
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcIQFIR_2132));
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_IQFIR_CMD_2132);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_IQFIR_CMD_2132);
 
     // Do we need exlusive access?
     if (pIoParams->m_ExclAccessIsRequired)

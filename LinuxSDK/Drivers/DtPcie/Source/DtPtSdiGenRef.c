@@ -294,6 +294,7 @@ DtStatus DtPtSdiGenRef_SetIoConfigGenRef(DtPtSdiGenRef* pPt,
                                                           const DtCfIoConfigValue* pIoCfg)
 {
     Bool GenRefEnable = FALSE;
+    Int  GenRefSofOffset = 0;
     DT_ASSERT(pIoCfg != NULL);
 
     // Convert IO-parameter
@@ -304,11 +305,22 @@ DtStatus DtPtSdiGenRef_SetIoConfigGenRef(DtPtSdiGenRef* pPt,
     default:  DT_ASSERT(FALSE); return DT_STATUS_INVALID_PARAMETER;
     }
 
+    // Genref start-of-frame offset is stored in ParXtra[0]; -1 also means no offset
+    if (pIoCfg->m_ParXtra[0] != -1)
+        GenRefSofOffset =  (Int)pIoCfg->m_ParXtra[0];
+
     // Set GenRefEnable
     if (pPt->m_pDfVirtGenRef!=NULL)
-        return DtDfVirtGenRef_SetGenRefEnable(pPt->m_pDfVirtGenRef, GenRefEnable);
+    { 
+        DT_RETURN_ON_ERROR(DtDfVirtGenRef_SetGenRefEnable(pPt->m_pDfVirtGenRef,
+                                                                           GenRefEnable));
+        return DtDfVirtGenRef_SetGenRefSofOffset(pPt->m_pDfVirtGenRef, GenRefSofOffset);
+    }
     if (pPt->m_pBcLmh1981!=NULL)
-        return DtBcLMH1981_SetGenRefEnable(pPt->m_pBcLmh1981, GenRefEnable);
+    { 
+        DT_RETURN_ON_ERROR(DtBcLMH1981_SetGenRefEnable(pPt->m_pBcLmh1981, GenRefEnable));
+        return DtBcLMH1981_SetGenRefSofOffset(pPt->m_pBcLmh1981, GenRefSofOffset);
+    }
 
     DT_ASSERT(FALSE);
     return DT_STATUS_FAIL;

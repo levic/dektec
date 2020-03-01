@@ -47,13 +47,14 @@ typedef enum _DtIoCapValue
     DT_IOCAP_DISABLED,         // Port is disabled
     DT_IOCAP_INPUT,            // Uni-directional input
     DT_IOCAP_INTINPUT,         // Internal input port
+    DT_IOCAP_INTOUTPUT,        // Internal output port
     DT_IOCAP_MONITOR,          // Monitor of input or output
     DT_IOCAP_OUTPUT,           // Uni-directional output
 
     // Subcapabilities of IODIR, DTAPI_CAP_INPUT
     DT_IOCAP_SHAREDANT,        // Get antenna signal from another port
 
-    // Subcapabilities of IODIR, DTAPI_CAP_OUTPUT
+    // Subcapabilities of IODIR, DTAPI_CAP_INTOUTPUT, DTAPI_CAP_OUTPUT
     DT_IOCAP_DBLBUF,           // Double buffered output
     DT_IOCAP_LOOPS2L3,         // Loop-through of DVB-S2 in L3-frames
     DT_IOCAP_LOOPS2TS,         // Loop-through of an DVB-S(2) input

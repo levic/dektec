@@ -61,6 +61,7 @@ typedef struct  _DtDfVirtGenRef
     Bool  m_GenRefEnabled;              // GenRef is enabled. Timestamps will be sent to
                                         // GenLockCtrl.
     Int  m_GenRefVidStd;                // GenRef video standard
+    Int  m_GenRefSofOffset;             // GenRef start-of-frame offset
 }  DtDfVirtGenRef;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -68,8 +69,10 @@ void  DtDfVirtGenRef_Close(DtDf*);
 DtDfVirtGenRef*  DtDfVirtGenRef_Open(DtCore*, DtPt*  pPt, const char*  pRole,
                                              Int  Instance,  Int  Uuid, Bool  CreateStub);
 DtStatus DtDfVirtGenRef_GetGenRefEnable(DtDfVirtGenRef* pDf, Bool* pEnable);
+DtStatus DtDfVirtGenRef_GetGenRefSofOffset(DtDfVirtGenRef* pDf, Int* pSofOffset);
 DtStatus DtDfVirtGenRef_GetGenRefVidStd(DtDfVirtGenRef* pDf, Int* pVidStd);
 DtStatus DtDfVirtGenRef_SetGenRefEnable(DtDfVirtGenRef* pDf, Bool Enable);
+DtStatus DtDfVirtGenRef_SetGenRefSofOffset(DtDfVirtGenRef* pDf, Int SofOffset);
 DtStatus DtDfVirtGenRef_SetGenRefVidStd(DtDfVirtGenRef* pDf, Int VidStd);
 
 

@@ -1171,7 +1171,7 @@ DtStatus  DtIoStubBcCDMAC_AppendDynamicSize(
 
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcCDMAC));
     DT_ASSERT(pIoParams!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_CDMAC_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_CDMAC_CMD);
     
     // Do we need exlusive access?
     if (pIoParams->m_ExclAccessIsRequired)
@@ -1229,7 +1229,7 @@ DtStatus  DtIoStubBcCDMAC_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoPa
 
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcCDMAC));
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_CDMAC_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_CDMAC_CMD);
 
     // Do we need exlusive access?
     if (pIoParams->m_ExclAccessIsRequired)
@@ -1606,7 +1606,7 @@ DtStatus  DtIoStubBcCDMAC_OnExclAccessCmd(
 
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcCDMAC));
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_EXCL_ACCESS_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_EXCL_ACCESS_CMD);
 
     // Only handle the release of exclusive access command
     if (pIoParams->m_Cmd == DT_EXCLUSIVE_ACCESS_CMD_RELEASE)

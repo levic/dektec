@@ -327,7 +327,7 @@ DtStatus  DtIoStubBcASITXSER_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pI
 
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcASITXSER));
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_ASITXSER_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_ASITXSER_CMD);
 
     // Do we need exlusive access?
     if (pIoParams->m_ExclAccessIsRequired)

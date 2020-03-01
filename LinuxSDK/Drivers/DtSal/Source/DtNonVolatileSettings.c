@@ -28,18 +28,27 @@
 #ifndef SKIP_NONVOL
 #ifdef WINBUILD
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Windows Private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
-//-.-.-.-.-.-.-.-.-.-.-.-.- PathAppendSettingsSerialPortCategory -.-.-.-.-.-.-.-.-.-.-.-.-
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Windows Private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+static DtStatus  PathAppendSettingsSerialPortCategory(DtString * pPath, 
+                                 UInt64 DvcSerial, Int FwVar, Int Port, Char * pCategory);
+static DtStatus  PathAppendSettingsSerialDeviceCategory(DtString* pPath,
+                                           UInt64 DvcSerial, Int FwVar, Char * pCategory);
+
+
+// .-.-.-.-.-.-.-.-.-.-.-.- PathAppendSettingsSerialPortCategory -.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  PathAppendSettingsSerialPortCategory(
     DtString*  pPath,
     UInt64  DvcSerial,
+    Int  FwVariant,
     Int  Port,
     Char*  pCategory)
 {
     DtStatus  Status = DT_STATUS_OK;
     DT_STRING_DECL(SettingsStr, "Settings\\");
+    DT_STRING_DECL(VariantStr, "\\Variant");
     DT_STRING_DECL(PortStr, "\\Port");
         
     // Registry path starts with <\Settings\>
@@ -48,6 +57,20 @@ DtStatus  PathAppendSettingsSerialPortCategory(
     {
         // Convert serial to unicode string and append to path
         Status = DtStringUInt64ToDtStringAppend(pPath, 10, DvcSerial);
+    }
+
+    // Append firmware variant if provided
+    if (DT_SUCCESS(Status))
+    {
+        if (FwVariant > 0)
+        {
+            Status = DtStringAppendDtString(pPath, &VariantStr);
+            if (DT_SUCCESS(Status))
+            {
+                // Convert Port to unicode string
+                Status = DtStringUIntegerToDtStringAppend(pPath, 10, FwVariant);
+            }
+        }
     }
 
     if (DT_SUCCESS(Status))
@@ -62,37 +85,53 @@ DtStatus  PathAppendSettingsSerialPortCategory(
                 Status = DtStringUIntegerToDtStringAppend(pPath, 10, Port);
             }
         }
+    }
         
-        if (DT_SUCCESS(Status))
+    if (DT_SUCCESS(Status))
+    {
+        if (pCategory != NULL) 
         {
-            if (pCategory != NULL) 
-            {
-                // Append category
-                Status = DtStringAppendChars(pPath, "\\");
-                if (DT_SUCCESS(Status))
-                    Status = DtStringAppendChars(pPath, pCategory);
-            }
+            // Append category
+            Status = DtStringAppendChars(pPath, "\\");
+            if (DT_SUCCESS(Status))
+                Status = DtStringAppendChars(pPath, pCategory);
         }
     }
     return Status;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.- PathAppendSettingsSerialDeviceCategory -.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.- PathAppendSettingsSerialDeviceCategory -.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  PathAppendSettingsSerialDeviceCategory(
     DtString*  pPath,
     UInt64  DvcSerial,
+    Int  FwVariant,
     Char*  pCategory)
 {
     DtStatus  Status = DT_STATUS_OK;
     DT_STRING_DECL(SettingsStr, "Settings\\");
     DT_STRING_DECL(DeviceStr, "\\Device");
+    DT_STRING_DECL(VariantStr, "\\Variant");
         
     // Registry path starts with <\Settings\>
     Status = DtStringAppendDtString(pPath, &SettingsStr);
     if (DT_SUCCESS(Status))    
         // Convert serial to unicode string and append to path
         Status = DtStringUInt64ToDtStringAppend(pPath, 10, DvcSerial);
+
+    // Append firmware variant if provided
+    if (DT_SUCCESS(Status))
+    {
+        if (FwVariant > 0)
+        {
+            Status = DtStringAppendDtString(pPath, &VariantStr);
+            if (DT_SUCCESS(Status))
+            {
+                // Convert Port to unicode string
+                Status = DtStringUIntegerToDtStringAppend(pPath, 10, FwVariant);
+            }
+        }
+    }
 
     if (DT_SUCCESS(Status))
     {
@@ -110,7 +149,6 @@ DtStatus  PathAppendSettingsSerialDeviceCategory(
     }
     return Status;
 }
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- CheckAndCreateRegistryPath -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  CheckAndCreateRegistryPath(
@@ -482,6 +520,7 @@ NTSTATUS  DriverParametersKeyWrite(
 DtStatus  DtNonVolatileSettingsDelete(
     DtDrvObject*  pDrvObj,
     UInt64  DvcSerial,
+    Int  FwVariant,
     UInt  NumPorts)
 {
     DtStatus  Status = DT_STATUS_OK;
@@ -507,7 +546,8 @@ DtStatus  DtNonVolatileSettingsDelete(
             return Status;
         }
             
-        Status = PathAppendSettingsSerialPortCategory(&RegKeyName, DvcSerial, i, NULL);
+        Status = PathAppendSettingsSerialPortCategory(&RegKeyName, DvcSerial, FwVariant,
+                                                                                 i, NULL);
         if (!DT_SUCCESS(Status))
         {
             DtStringFree(&RegKeyName);
@@ -529,7 +569,8 @@ DtStatus  DtNonVolatileSettingsDelete(
         return Status;
     }
 
-    Status = PathAppendSettingsSerialDeviceCategory(&RegKeyName, DvcSerial, NULL);
+    Status = PathAppendSettingsSerialDeviceCategory(&RegKeyName, DvcSerial,
+                                                                         FwVariant, NULL);
     if (!DT_SUCCESS(Status))
     {
         DtStringFree(&RegKeyName);
@@ -552,7 +593,8 @@ DtStatus  DtNonVolatileSettingsDelete(
     }
 
     // Create path without port number
-    Status = PathAppendSettingsSerialPortCategory(&RegKeyName, DvcSerial, -1, NULL);
+    Status = PathAppendSettingsSerialPortCategory(&RegKeyName, DvcSerial, FwVariant, 
+                                                                                -1, NULL);
     if (!DT_SUCCESS(Status))
     {
         DtStringFree(&RegKeyName);
@@ -653,6 +695,7 @@ DtStatus DtNonVolatileManufSettingsRead(
 DtStatus  DtNonVolatileSettingsRead(
     DtDrvObject*  pDrvObj,
     UInt64  DvcSerial,
+    Int  FwVariant,
     Int  Port,
     Char*  pCategory,
     Char*  pName,
@@ -679,10 +722,10 @@ DtStatus  DtNonVolatileSettingsRead(
             // Create registry path string
             if (Port == -1)
                 Status = PathAppendSettingsSerialDeviceCategory(&RegKeyName, 
-                                                                    DvcSerial, pCategory);
+                                                         DvcSerial, FwVariant, pCategory);
             else
                 Status = PathAppendSettingsSerialPortCategory(&RegKeyName, 
-                                                              DvcSerial, Port, pCategory);
+                                                   DvcSerial, FwVariant, Port, pCategory);
 
             if (DT_SUCCESS(Status))
             {
@@ -753,6 +796,7 @@ DtStatus  DtNonVolatileSettingsRead(
 DtStatus  DtNonVolatileSettingsWrite(
     DtDrvObject*  pDrvObj,
     UInt64  DvcSerial,
+    Int  FwVariant,
     Int  Port,
     Char*  pCategory,
     Char*  pName,
@@ -776,8 +820,8 @@ DtStatus  DtNonVolatileSettingsWrite(
         if (DT_SUCCESS(Status))
         {
             // Create registry path string
-            Status = PathAppendSettingsSerialPortCategory(&RegKeyName, DvcSerial, Port, 
-                                                                               pCategory);
+            Status = PathAppendSettingsSerialPortCategory(&RegKeyName, DvcSerial, 
+                                                              FwVariant, Port, pCategory);
             if (DT_SUCCESS(Status))
             {
                 // Convert value name to DtString
@@ -840,37 +884,37 @@ DtStatus  DtNonVolatileSettingsWrite(
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtNonVolatileSettingsStringRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtNonVolatileSettingsStringRead(DtDrvObject* pSalDrvObj, UInt64 DvcSerial, 
-                          Int Port, Char* pCategory, Char* pName, Char* pValue, UInt Size)
+           Int FwVariant, Int Port, Char* pCategory, Char* pName, Char* pValue, UInt Size)
 {
-    return DtNonVolatileSettingsRead(pSalDrvObj, DvcSerial, Port, pCategory, pName, 
-                                                                      NULL, pValue, Size);
+    return DtNonVolatileSettingsRead(pSalDrvObj, DvcSerial, FwVariant, Port, pCategory, 
+                                                              pName, NULL, pValue, Size);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtNonVolatileSettingsStringWrite -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtNonVolatileSettingsStringWrite(DtDrvObject* pSalDrvObj, UInt64 DvcSerial, 
-                                    Int Port, Char* pCategory, Char* pName, Char* pValue)
+                      Int FwVariant, Int Port, Char* pCategory, Char* pName, Char* pValue)
 {
-    return DtNonVolatileSettingsWrite(pSalDrvObj, DvcSerial, Port, pCategory, pName, 
-                                                                              -1, pValue);
+    return DtNonVolatileSettingsWrite(pSalDrvObj, DvcSerial, FwVariant, Port, pCategory, 
+                                                                       pName, -1, pValue);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtNonVolatileSettingsValueRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtNonVolatileSettingsValueRead(DtDrvObject* pSalDrvObj, UInt64 DvcSerial, 
-                                   Int Port, Char* pCategory, Char* pName, Int64* pValue)
+                     Int FwVariant, Int Port, Char* pCategory, Char* pName, Int64* pValue)
 {
-    return DtNonVolatileSettingsRead(pSalDrvObj, DvcSerial, Port, pCategory, pName, 
-                                                                         pValue, NULL, 0);
+    return DtNonVolatileSettingsRead(pSalDrvObj, DvcSerial, FwVariant, Port, pCategory, 
+                                                                  pName, pValue, NULL, 0);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtNonVolatileSettingsValueWrite -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtNonVolatileSettingsValueWrite(DtDrvObject* pSalDrvObj, UInt64 DvcSerial, 
-                                     Int Port, Char* pCategory, Char* pName, Int64 Value)
+                       Int FwVariant, Int Port, Char* pCategory, Char* pName, Int64 Value)
 {
-    return DtNonVolatileSettingsWrite(pSalDrvObj, DvcSerial, Port, pCategory, pName, 
-                                                                            Value, NULL);
+    return DtNonVolatileSettingsWrite(pSalDrvObj, DvcSerial, FwVariant, Port, pCategory,
+                                                                      pName, Value, NULL);
 }
 
 

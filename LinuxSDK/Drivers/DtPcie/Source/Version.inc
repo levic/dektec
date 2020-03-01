@@ -1,8 +1,8 @@
-#//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Version.inc *#*#*#*#*#*#*#*#*#*#*# (C) 2017 DekTec
+#// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*# Version.inc *#*#*#*#*#*#*#*# (C) 2017-2020 DekTec
 #//
 
 DTPCIE_VERSION_MAJOR = 1
-DTPCIE_VERSION_MINOR = 5
+DTPCIE_VERSION_MINOR = 6
 DTPCIE_VERSION_MICRO = 0
-DTPCIE_VERSION_BUILD = 128
+DTPCIE_VERSION_BUILD = 149
 DTPCIE_VERSION = $(DTPCIE_VERSION_MAJOR).$(DTPCIE_VERSION_MINOR).$(DTPCIE_VERSION_MICRO).$(DTPCIE_VERSION_BUILD)

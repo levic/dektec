@@ -634,7 +634,7 @@ DtStatus  DtIoStubBcTOD_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoPara
     // Sanity check
     STUB_BC_TOD_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_TOD_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_TOD_CMD);
     DT_ASSERT(*pOutSize == pIoParams->m_OutReqSize);
 
     // Get in-/out-data

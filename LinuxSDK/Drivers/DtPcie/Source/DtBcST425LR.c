@@ -364,7 +364,7 @@ DtStatus  DtIoStubBcST425LR_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIo
 
     ST425LR_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_ST425LR_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_ST425LR_CMD);
 
     // Do we need exlusive access?
     if (pIoParams->m_ExclAccessIsRequired)

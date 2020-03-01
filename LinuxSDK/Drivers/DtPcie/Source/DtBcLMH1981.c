@@ -143,6 +143,22 @@ DtStatus DtBcLMH1981_GetGenRefEnable(DtBcLMH1981* pBc, Bool* pEnable)
     return DT_STATUS_OK;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcLMH1981_getGenRefSofOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcLMH1981_getGenRefSofOffset(DtBcLMH1981* pBc, Int* pOffsetNs)
+{
+    // Sanity check
+    BC_LMH1981_DEFAULT_PRECONDITIONS(pBc);
+    // Check parameter
+    if (pOffsetNs == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+    // Must be enabled
+    BC_LMH1981_MUST_BE_ENABLED(pBc);
+    // Return cached value
+    *pOffsetNs = pBc->m_GenRefSofOffset;
+    return DT_STATUS_OK;
+}
+
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcLMH1981_GetGenRefVidStd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcLMH1981_GetGenRefVidStd(DtBcLMH1981 * pBc, Int * pVidStd)
@@ -190,12 +206,34 @@ DtStatus DtBcLMH1981_SetGenRefEnable(DtBcLMH1981* pBc, Bool Enable)
         // Send one final event
         if (pBc->m_pDfGenLockCtrl != NULL)
             DtDfGenLockCtrl_GenRefStartOfFrameHandler(pBc->m_pDfGenLockCtrl, 
-                                                     pBc->m_PortIndex, &DumySof,
+                                                     pBc->m_PortIndex, &DumySof, 0,
                                                      DT_VIDSTD_UNKNOWN, DT_VIDSTD_UNKNOWN,
                                                      DT_DF_GENLOCKCTRL_GENREF_UNDEFINED);
     }
     // Cache value
     pBc->m_GenRefEnabled = Enable;
+    DtSpinLockRelease(&pBc->m_Lock);
+    return Status;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcLMH1981_SetGenRefSofOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcLMH1981_SetGenRefSofOffset(DtBcLMH1981* pBc, Int OffsetNs)
+{
+    DtStatus Status = DT_STATUS_OK;
+    // Sanity check
+    BC_LMH1981_DEFAULT_PRECONDITIONS(pBc);
+
+    // Must be enabled
+    BC_LMH1981_MUST_BE_ENABLED(pBc);
+
+    // No change?
+    if (pBc->m_GenRefSofOffset == OffsetNs)
+        return DT_STATUS_OK;
+
+    // Change genref start-of-frame offset under spinlock protection
+    DtSpinLockAcquire(&pBc->m_Lock);
+    pBc->m_GenRefSofOffset = OffsetNs;
     DtSpinLockRelease(&pBc->m_Lock);
     return Status;
 }
@@ -236,6 +274,11 @@ DtStatus  DtBcLMH1981_Init(DtBc* pBcBase)
 
     // Save port index
     pBc->m_PortIndex = DtCore_PT_GetPortIndex(pBc->m_pPt);
+    
+    // Set defaults
+    pBc->m_GenRefVidStd = DT_VIDSTD_UNKNOWN;
+    pBc->m_GenRefSofOffset = 0;
+    pBc->m_GenRefEnabled = FALSE;
 
     // Init interrupt DPC
     Status = DtDpcInit(&pBc->m_IntDpc, DtBcLMH1981_InterruptDpcStartOfFrame, TRUE);
@@ -366,7 +409,8 @@ void DtBcLMH1981_InterruptDpcStartOfFrame(DtDpcArgs* pArgs)
     if (pBc->m_GenRefEnabled && pBc->m_pDfGenLockCtrl!=NULL)
     {
         DtDfGenLockCtrl_GenRefStartOfFrameHandler(pBc->m_pDfGenLockCtrl, pBc->m_PortIndex,
-                                                      &SofTod, ConfigVidStd, DetectVidStd,
+                                                      &SofTod, pBc->m_GenRefSofOffset,
+                                                      ConfigVidStd, DetectVidStd,
                                                       DT_DF_GENLOCKCTRL_GENREF_LMH1981);
     }
     DtSpinLockRelease(&pBc->m_Lock);
@@ -579,7 +623,7 @@ static DtStatus  DtIoStubBcLMH1981_OnCmdGetInputStatus(
 
         LMH1981_STUB_DEFAULT_PRECONDITIONS(pStub);
         DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-        DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_LMH1981_CMD);
+        DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_LMH1981_CMD);
 
         // Do we need exlusive access?
         if (pIoParams->m_ExclAccessIsRequired)

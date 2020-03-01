@@ -838,6 +838,7 @@ static int  DtCorePcie_IAL_Ioctl(
 
         // Init Ioctl object
         Ioctl.m_IoctlCode = Cmd;
+        Ioctl.m_FunctionCode = DT_IOCTL_TO_FUNCTION(Cmd);
         Ioctl.m_pOutputBuffer = NULL;
         Ioctl.m_OutputBufferSize = 0;
         Ioctl.m_pInputBuffer = NULL;

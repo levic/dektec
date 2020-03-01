@@ -1978,8 +1978,7 @@ DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
                     break;
                 }
                 LineTime = ExpectedFrameTime / 1125;
-                RealFrameTime = RefClk -
-                               pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkStart;
+                RealFrameTime = RefClk - pNonIpPort->m_Matrix.m_PreviousRefClk;
                 pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_UNKNOWN;
                 if (RealFrameTime > ExpectedFrameTime+LineTime/2 &&
                                              RealFrameTime < ExpectedFrameTime+LineTime*2)

@@ -299,7 +299,7 @@ DtStatus  DtIoStubCorePcie_AppendDynamicSize(
     
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubCorePcie));
     DT_ASSERT(pIoParams != NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_GET_DEV_INFO);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_GET_DEV_INFO);
 
     // Get in-/out-data
     DT_ASSERT(pIoParams->m_pInData != NULL);
@@ -350,7 +350,7 @@ DtStatus  DtIoStubCorePcie_OnGetDevInfo(
 
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubCorePcie));
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_GET_DEV_INFO);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_GET_DEV_INFO);
     DT_ASSERT(*pOutSize == pIoParams->m_OutReqSize);
 
     pCore = (DtCorePcie*)pStub->m_pCore;
@@ -409,7 +409,7 @@ DtStatus  DtIoStubCorePcie_OnGetDriverVersion(
     
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubCorePcie));
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_GET_DRIVER_VERSION);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_GET_DRIVER_VERSION);
     DT_ASSERT(*pOutSize == pIoParams->m_OutReqSize);
 
     // Get in-/out-data

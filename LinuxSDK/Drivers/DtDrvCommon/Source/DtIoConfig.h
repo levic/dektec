@@ -48,11 +48,11 @@ typedef struct  _DtIoConfig
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #ifdef WINBUILD
 DtStatus  DtIoConfigReadFromNonVolatileStorage(DtDrvObject*  pSalDrvObj, UInt64  Serial,
-                                                       Int  PortIndex, Int  IoGroup,
-                                                       DtIoConfigValueDriver*  pCfgValue);
+                                                Int FwVariant, Int PortIndex, Int IoGroup,
+                                                DtIoConfigValueDriver*  pCfgValue);
 #else
 DtStatus  DtIoConfigReadFromIniFile(const char*  DriverName, UInt64  Serial,
-                                                       Int  TypeNumber, Int  PortNumber,
+                                                       Int TypeNumber, Int PortNumber,
                                                        DtIoConfigValueDriver* pCfgValues);
 #endif
 //DtStatus  DtaIoConfigGet(DtaDeviceData*  pDvcData, DtFileObject*  pFile, 

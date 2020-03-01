@@ -320,7 +320,7 @@ DtStatus  DtaIpDeviceLoadAdminStatusConfig(
 
     Int64  Value = 0;
     Status = DtNonVolatileSettingsValueRead(&pDvcData->m_Driver, 
-                    pDvcData->m_DevInfo.m_UniqueId, -1,"NwAdminStatus", "Ignore", &Value);
+                 pDvcData->m_DevInfo.m_UniqueId, 0, -1,"NwAdminStatus", "Ignore", &Value);
 
     *pAdminStatusConfig = FALSE;
     if (Value > 0)

@@ -34,6 +34,7 @@ typedef enum _DtDfGenLockCtrlGenRefType
 
 typedef struct _DtDfGenLockCtrl DtDfGenLockCtrl;
 void DtDfGenLockCtrl_GenRefStartOfFrameHandler(DtDfGenLockCtrl*, Int PortIdx,
-                                           const DtTodTime*, Int VidStd, Int DetectVidStd,
+                                           const DtTodTime*, Int SofOffset,
+                                           Int VidStd, Int DetectVidStd,
                                            DtDfGenLockCtrlGenRefType); 
 #endif  // #ifndef __DT_DF_GENLOCKCTRL_CALLBACK_FUNCTION_H

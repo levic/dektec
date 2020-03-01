@@ -959,7 +959,7 @@ DtStatus  DtIoStubDfAsiRx_OnCmd(
     
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfAsiRx));
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_ASIRX_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_ASIRX_CMD);
     DT_ASSERT(*pOutSize == pIoParams->m_OutReqSize);
 
     // Do we need exlusive access?

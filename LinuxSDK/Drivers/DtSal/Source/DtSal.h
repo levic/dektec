@@ -267,6 +267,7 @@ typedef struct _DtQueueObject
 struct _DtIoctlObject
 {
     UInt32  m_IoctlCode;
+    UInt32  m_FunctionCode;
     UInt  m_InputBufferSize;
     void*  m_pInputBuffer;
     UInt  m_OutputBufferSize;

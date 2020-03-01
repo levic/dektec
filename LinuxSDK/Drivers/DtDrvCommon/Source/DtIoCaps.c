@@ -108,6 +108,7 @@ const DtIoCapDef  DtIoCapDefinitions[] =
     { DT_IOCAP_DISABLED,   "CAP_DISABLED" },
     { DT_IOCAP_INPUT,      "CAP_INPUT" },
     { DT_IOCAP_INTINPUT,   "CAP_INTINPUT" },
+    { DT_IOCAP_INTOUTPUT,  "CAP_INTOUTPUT" },
     { DT_IOCAP_MONITOR,    "CAP_MONITOR" },
     { DT_IOCAP_OUTPUT,     "CAP_OUTPUT" },
 

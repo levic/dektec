@@ -317,7 +317,8 @@ Int  DtCfIoCfg_GetBuddyPort(Int  IoCfg, const DtCfIoConfigValue*  pCfg)
 {
     // Check for buddy ports
     Int Buddy = -1;
-    if (IoCfg==DT_IOCONFIG_IODIR && pCfg->m_Value==DT_IOCONFIG_OUTPUT)
+    if (IoCfg==DT_IOCONFIG_IODIR && (pCfg->m_Value==DT_IOCONFIG_OUTPUT 
+                                                 || pCfg->m_Value==DT_IOCONFIG_INTOUTPUT))
     {
         if (   pCfg->m_SubValue==DT_IOCONFIG_DBLBUF
             || pCfg->m_SubValue==DT_IOCONFIG_LOOPS2L3
@@ -582,7 +583,7 @@ DtStatus  DtIoStubCfIoCfg_AppendDynamicSize(
     
     STUB_CFIOCFG_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pIoParams != NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_IOCONFIG_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_IOCONFIG_CMD);
 
     // Get in-/out-data
     DT_ASSERT(pIoParams->m_pInData != NULL);
@@ -635,7 +636,7 @@ DtStatus  DtIoStubCfIoCfg_OnCmd(
     
     STUB_CFIOCFG_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_IOCONFIG_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_IOCONFIG_CMD);
 
     // Get in-/out-data
     DT_ASSERT(pIoParams->m_pInData != NULL);
@@ -1305,11 +1306,14 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
 
     // A non-functional port has no input and output capability
     IsNonFunctional = !DtIoCapsHasCap(&IoCaps, DT_IOCAP_INPUT) 
-                                             && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT);
+                                          && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTINPUT)
+                                          && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT)
+                                          && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT);
     // Is it a bidir port?
-    IsBidir = DtIoCapsHasCap(&IoCaps, DT_IOCAP_INPUT) 
-                                              && DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT);
-    
+    IsBidir = (DtIoCapsHasCap(&IoCaps, DT_IOCAP_INPUT)
+                                            || DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTINPUT)) 
+             && (DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT)
+                                          || DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT));
     // If the port is not a configurable input or output port,
     // we don't have a DEFAULT_IOCONFIG property.
     if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_DBLBUF) 
@@ -1332,6 +1336,11 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
             DT_ASSERT(DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTINPUT));
             pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INTINPUT;
             pPortIoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_INTINPUT;
+            break;
+        case DT_IOCONFIG_INTOUTPUT:
+            DT_ASSERT(DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT));
+            pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INTOUTPUT;
+            pPortIoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_INTOUTPUT;
             break;
         case DT_IOCONFIG_MONITOR:
             DT_ASSERT(DtIoCapsHasCap(&IoCaps, DT_IOCAP_MONITOR));
@@ -1356,7 +1365,10 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
             break;
         case DT_IOCONFIG_DBLBUF:
             DT_ASSERT(DtIoCapsHasCap(&IoCaps, DT_IOCAP_DBLBUF));
-            pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_OUTPUT;
+            if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT))
+                pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INTOUTPUT;
+            else
+                pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_OUTPUT;
             pPortIoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_DBLBUF;
             ParXtra = DtCore_PROPS_GetInt(pCf->m_pCore, "DEFAULT_PARXTRA0", PortIdx, -1);
             DT_ASSERT(ParXtra!=-1);
@@ -1364,7 +1376,10 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
             break;
         case DT_IOCONFIG_LOOPS2L3:
             DT_ASSERT(DtIoCapsHasCap(&IoCaps, DT_IOCAP_LOOPS2L3));
-            pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_OUTPUT;
+            if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT))
+                pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INTOUTPUT;
+            else
+                pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_OUTPUT;
             pPortIoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_LOOPS2L3;
             ParXtra = DtCore_PROPS_GetInt(pCf->m_pCore, "DEFAULT_PARXTRA0", PortIdx, -1);
             DT_ASSERT(ParXtra!=-1);
@@ -1372,7 +1387,10 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
             break;
         case DT_IOCONFIG_LOOPS2TS:
             DT_ASSERT(DtIoCapsHasCap(&IoCaps, DT_IOCAP_LOOPS2TS));
-            pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_OUTPUT;
+            if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT))
+                pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INTOUTPUT;
+            else
+                pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_OUTPUT;
             pPortIoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_LOOPS2TS;
             ParXtra = DtCore_PROPS_GetInt(pCf->m_pCore, "DEFAULT_PARXTRA0", PortIdx, -1);
             DT_ASSERT(ParXtra!=-1);
@@ -1383,7 +1401,10 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
             break;
         case DT_IOCONFIG_LOOPTHR:
             DT_ASSERT(DtIoCapsHasCap(&IoCaps, DT_IOCAP_LOOPTHR));
-            pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_OUTPUT;
+            if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT))
+                pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INTOUTPUT;
+            else
+                pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_OUTPUT;
             pPortIoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_LOOPTHR;
             ParXtra = DtCore_PROPS_GetInt(pCf->m_pCore, "DEFAULT_PARXTRA0", PortIdx, -1);
             DT_ASSERT(ParXtra!=-1);
@@ -1415,6 +1436,11 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
     {
         pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INTINPUT;
         pPortIoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_INTINPUT;
+    }
+    else if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT))
+    {
+        pPortIoCfg[DT_IOCONFIG_IODIR].m_Value = DT_IOCONFIG_INTOUTPUT;
+        pPortIoCfg[DT_IOCONFIG_IODIR].m_SubValue = DT_IOCONFIG_INTOUTPUT;
     }
     else if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_MONITOR))
     {
@@ -1939,6 +1965,8 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
     {
          pPortIoCfg[DT_IOCONFIG_GENREF].m_Value = 
                          DtCore_PROPS_GetInt(pCf->m_pCore, "DEFAULT_GENREF", PortIdx, -1);
+        pPortIoCfg[DT_IOCONFIG_GENREF].m_ParXtra[0] = 0;
+
     }
     
     // DT_IOCONFIG_GENLOCK
@@ -2062,8 +2090,12 @@ DtStatus  DtCfIoCfg_ValidateIoDir(
     if (!DT_SUCCESS(Status))
         return Status;
     
+    // A non-functional port has no input and output capability
     IsNonFunctional = !DtIoCapsHasCap(&IoCaps, DT_IOCAP_INPUT) 
-                                           && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT);
+                                          && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTINPUT)
+                                          && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT)
+                                          && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT);
+
     DtDbgOutDf(MAX, IOCONFIG, pCf, "Configuration IODIR Value: %d SubValue: %d",
                                    pPortIoCfg[DT_IOCONFIG_IODIR].m_Value,
                                    pPortIoCfg[DT_IOCONFIG_IODIR].m_SubValue);
@@ -2142,13 +2174,25 @@ DtStatus  DtCfIoCfg_ValidateIoDir(
         }
         break;
 
+    case DT_IOCONFIG_INTOUTPUT:
     case DT_IOCONFIG_OUTPUT:
-        if (!DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT))
+        if (pPortIoCfg[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_OUTPUT 
+                                              &&!DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT))
+            return DT_STATUS_CONFIG_ERROR;
+        if (pPortIoCfg[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_INTOUTPUT 
+                                           &&!DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT))
             return DT_STATUS_CONFIG_ERROR;
 
         switch(pPortIoCfg[DT_IOCONFIG_IODIR].m_SubValue)
         {
             case DT_IOCONFIG_OUTPUT:
+                if (!DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT))
+                    return DT_STATUS_CONFIG_ERROR;
+                break;
+
+            case DT_IOCONFIG_INTOUTPUT:
+                if (!DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT))
+                    return DT_STATUS_CONFIG_ERROR;
                 break;
 
             case DT_IOCONFIG_DBLBUF:
@@ -2250,9 +2294,11 @@ DtStatus  DtCfIoCfg_ValidateIoStd(
         return Status;
 
 
+    // A non-functional port has no input and output capability
     IsNonFunctional = !DtIoCapsHasCap(&IoCaps, DT_IOCAP_INPUT) 
-                                           && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT);
-
+                                          && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTINPUT)
+                                          && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT)
+                                          && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT);
 
     DtDbgOutDf(MAX, IOCONFIG, pCf, "Configuration IOSTD Value: %d SubValue: %d",
                                                 pPortIoCfg[DT_IOCONFIG_IOSTD].m_Value,
@@ -3022,6 +3068,7 @@ DtStatus  DtCfIoCfg_ValidateGenRef(
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
     Int  IoStdVal;
     Bool  IsNonFunctional;
+    Int64  StartOfFrameOffset = 0;
 
     
     // Get the IO-capability of the port
@@ -3029,8 +3076,11 @@ DtStatus  DtCfIoCfg_ValidateGenRef(
     if (!DT_SUCCESS(Status))
         return Status;
 
+    // A non-functional port has no input and output capability
     IsNonFunctional = !DtIoCapsHasCap(&IoCaps, DT_IOCAP_INPUT) 
-                                            && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT);
+                                          && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTINPUT)
+                                          && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_OUTPUT)
+                                          && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_INTOUTPUT);
 
     DtDbgOutDf(MAX, IOCONFIG, pCf, "Configuration GENREF Value: %d SubValue: %d",
                                   pPortIoCfg[DT_IOCONFIG_GENREF].m_Value,
@@ -3068,6 +3118,13 @@ DtStatus  DtCfIoCfg_ValidateGenRef(
                                                               IoStdVal!=DT_IOCONFIG_3GSDI)
         {
             DtDbgOutDf(ERR, IOCONFIG, pCf, "Port %i is not an input", PortIndex);
+            return DT_STATUS_CONFIG_ERROR;
+        }
+        // Check start of frame offset
+        StartOfFrameOffset =  pPortIoCfg[DT_IOCONFIG_GENREF].m_ParXtra[0];
+        if (StartOfFrameOffset<-20000000 || StartOfFrameOffset>20000000)
+        { 
+            DtDbgOutDf(ERR, IOCONFIG, pCf, "Invalid start-of-frame offset");
             return DT_STATUS_CONFIG_ERROR;
         }
         break;

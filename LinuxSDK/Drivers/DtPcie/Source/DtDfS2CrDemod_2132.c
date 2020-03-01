@@ -894,7 +894,7 @@ DtStatus  DtIoStubDfS2CrDemod_OnCmd(
     
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfS2CrDemod_2132));
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_S2CRDEMOD_CMD_2132);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_S2CRDEMOD_CMD_2132);
     DT_ASSERT(*pOutSize == pIoParams->m_OutReqSize);
 
     // Do we need exlusive access?

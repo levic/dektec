@@ -487,12 +487,12 @@ DtStatus  DtDfSpiCableDrvEq_SetGsXx90PreEmphasisControl(DtDfSpiCableDrvEq* pDf,
     switch (SdiRate)
     {
         default:
-        case DT_DRV_SDIRATE_UNKNOWN: RegData[0] = 0x070B; break;
-        case DT_DRV_SDIRATE_SD:      RegData[0] = 0x070B; break;
-        case DT_DRV_SDIRATE_HD:      RegData[0] = 0x070B; break;
-        case DT_DRV_SDIRATE_3G:      RegData[0] = 0x070B; break;
-        case DT_DRV_SDIRATE_6G:      RegData[0] = 0x070B; break;
-        case DT_DRV_SDIRATE_12G:     RegData[0] = 0x074B; break;
+        case DT_DRV_SDIRATE_UNKNOWN: RegData[0] = 0x070B; break;    // Enable
+        case DT_DRV_SDIRATE_SD:      RegData[0] = 0x070B; break;    // Enable
+        case DT_DRV_SDIRATE_HD:      RegData[0] = 0x070B; break;    // Enable
+        case DT_DRV_SDIRATE_3G:      RegData[0] = 0x070B; break;    // Enable
+        case DT_DRV_SDIRATE_6G:      RegData[0] = 0x074B; break;    // Disable
+        case DT_DRV_SDIRATE_12G:     RegData[0] = 0x074B; break;    // Disable
     }
     DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_WriteGsXx90(pDf, PRE_EMPHAS_CTRL, 1, RegData));
     DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_ReadGsXx90(pDf, PRE_EMPHAS_CTRL, 1, RegDataRb));

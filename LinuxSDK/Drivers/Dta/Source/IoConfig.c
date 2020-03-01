@@ -161,9 +161,8 @@ DtStatus  DtaIoConfigInit(DtaDeviceData* pDvcData)
 
             // Delete the registry settings for this device.
             if (!DT_SUCCESS(DtNonVolatileSettingsDelete(&pDvcData->m_Driver, 
-                                                           pDvcData->m_DevInfo.m_UniqueId,
-                                                           pDvcData->m_NumNonIpPorts+
-                                                           pDvcData->m_NumIpPorts)))
+                                       pDvcData->m_DevInfo.m_UniqueId, 0,
+                                       pDvcData->m_NumNonIpPorts+pDvcData->m_NumIpPorts)))
                 DtDbgOut(ERR, IOCONFIG, "Error deleting registry key");
         }
     }
@@ -580,7 +579,7 @@ static DtStatus  DtaIoConfigUpdateLoadNonVolatileStorage(
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
             Result = DtIoConfigReadFromNonVolatileStorage(&pDvcData->m_Driver,
-                                                      pDvcData->m_DevInfo.m_UniqueId,
+                                                      pDvcData->m_DevInfo.m_UniqueId, 0,
                                                       pNonIpPort->m_PortIndex, IoConfig,
                                                       &pPortUpdate->m_CfgValue[IoConfig]);
             if (!DT_SUCCESS(Result) && Result!=DT_STATUS_NOT_FOUND)
@@ -1777,7 +1776,8 @@ static DtStatus  DtaIoConfigWriteToNonVolatileStorage(
         return Result;
 
     Result = DtNonVolatileSettingsStringWrite(&pDvcData->m_Driver, 
-                                  pDvcData->m_DevInfo.m_UniqueId, pNonIpPort->m_PortIndex,
+                                                      pDvcData->m_DevInfo.m_UniqueId, 0,
+                                                      pNonIpPort->m_PortIndex,
                                                       GroupName, "ConfigValue", StrValue);
     if (!DT_SUCCESS(Result))
         return Result;
@@ -1788,7 +1788,8 @@ static DtStatus  DtaIoConfigWriteToNonVolatileStorage(
         return Result;
 
     Result = DtNonVolatileSettingsStringWrite(&pDvcData->m_Driver, 
-                                  pDvcData->m_DevInfo.m_UniqueId, pNonIpPort->m_PortIndex,
+                                                   pDvcData->m_DevInfo.m_UniqueId, 0,
+                                                   pNonIpPort->m_PortIndex,
                                                    GroupName, "ConfigSubValue", StrValue);
     if (!DT_SUCCESS(Result))
         return Result;
@@ -1797,7 +1798,8 @@ static DtStatus  DtaIoConfigWriteToNonVolatileStorage(
     for (ParXtraIdx=0; ParXtraIdx<DT_MAX_PARXTRA_COUNT; ParXtraIdx++)
     {
         Result = DtNonVolatileSettingsValueWrite(&pDvcData->m_Driver,
-                                  pDvcData->m_DevInfo.m_UniqueId, pNonIpPort->m_PortIndex,
+                                             pDvcData->m_DevInfo.m_UniqueId, 0,
+                                             pNonIpPort->m_PortIndex,
                                              GroupName, (Char*)IoParXtraNames[ParXtraIdx], 
                                                           CfgValue.m_ParXtra[ParXtraIdx]);
         if (!DT_SUCCESS(Result))

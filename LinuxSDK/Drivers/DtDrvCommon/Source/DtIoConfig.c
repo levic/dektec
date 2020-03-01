@@ -64,9 +64,12 @@ static const char*   IoParXtraNames[DT_MAX_PARXTRA_COUNT] = {
 
 
 
+// .-.-.-.-.-.-.-.-.-.-.-.- DtIoConfigReadFromNonVolatileStorage -.-.-.-.-.-.-.-.-.-.-.-.-
+//
 DtStatus  DtIoConfigReadFromNonVolatileStorage(
     DtDrvObject*  pSalDrvObj,
     UInt64  Serial,
+    Int  FwVariant,
     Int  PortIndex,
     Int  IoGroup,
     DtIoConfigValueDriver*  pCfgValue)
@@ -86,7 +89,7 @@ DtStatus  DtIoConfigReadFromNonVolatileStorage(
         return Result;
 
     // Get config value
-    Result = DtNonVolatileSettingsStringRead(pSalDrvObj, Serial, PortIndex,
+    Result = DtNonVolatileSettingsStringRead(pSalDrvObj, Serial, FwVariant, PortIndex,
                                     GroupName, "ConfigValue", StrValue, sizeof(StrValue));
     if (!DT_SUCCESS(Result))
         return Result;
@@ -97,7 +100,7 @@ DtStatus  DtIoConfigReadFromNonVolatileStorage(
     IoConfig.m_Value = (Int)Value;
 
     // Get config subvalue
-    Result = DtNonVolatileSettingsStringRead(pSalDrvObj, Serial, PortIndex,
+    Result = DtNonVolatileSettingsStringRead(pSalDrvObj, Serial, FwVariant, PortIndex,
                                  GroupName, "ConfigSubValue", StrValue, sizeof(StrValue));
     if (!DT_SUCCESS(Result))
         return Result;
@@ -110,7 +113,7 @@ DtStatus  DtIoConfigReadFromNonVolatileStorage(
     // Read ParXtra
     for (ParXtraIdx=0; ParXtraIdx<DT_MAX_PARXTRA_COUNT; ParXtraIdx++)
     {
-        Result = DtNonVolatileSettingsValueRead(pSalDrvObj, Serial, PortIndex,
+        Result = DtNonVolatileSettingsValueRead(pSalDrvObj, Serial, FwVariant, PortIndex,
                                  GroupName, (Char*)IoParXtraNames[ParXtraIdx], &BinValue);
         if (!DT_SUCCESS(Result))
             return DT_STATUS_CONFIG_ERROR;

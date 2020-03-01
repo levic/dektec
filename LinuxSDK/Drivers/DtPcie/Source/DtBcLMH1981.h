@@ -68,6 +68,7 @@ typedef  struct _DtBcLMH1981
     Bool  m_GenRefEnabled;              // GenRef is enabled. Timestamps will be sent to
                                         // GenLockCtrl.
     Int  m_GenRefVidStd;                // GenRef video standard
+    Int  m_GenRefSofOffset;             // GenRef start-of-frame offset
 
     // Interrupts related
     DtDpc  m_IntDpc;
@@ -83,9 +84,12 @@ DtBcLMH1981*  DtBcLMH1981_Open(Int  Address, DtCore*, DtPt*  pPt,
                                              Bool  CreateStub);
 DtStatus  DtBcLMH1981_GetInputStatus(DtBcLMH1981* pBc, DtBcLMH1981_Status* pStatus);
 DtStatus DtBcLMH1981_GetGenRefEnable(DtBcLMH1981* pBc, Bool* pEnable);
+DtStatus DtBcLMH1981_getGenRefSofOffset(DtBcLMH1981* pBc, Int* pOffsetNs);
 DtStatus DtBcLMH1981_GetGenRefVidStd(DtBcLMH1981* pBc, Int* pVidStd);
 DtStatus DtBcLMH1981_SetGenRefEnable(DtBcLMH1981* pBc, Bool Enable);
+DtStatus DtBcLMH1981_SetGenRefSofOffset(DtBcLMH1981* pBc, Int OffsetNs);
 DtStatus DtBcLMH1981_SetGenRefVidStd(DtBcLMH1981* pBc, Int VidStd);
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubBcLMH1981 definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=

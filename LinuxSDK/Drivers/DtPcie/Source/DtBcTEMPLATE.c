@@ -461,7 +461,7 @@ DtStatus  DtIoStubBcTEMPLATE_AppendDynamicSize(
 
     TEMPLATE_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pIoParams!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_TEMPLATE_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_TEMPLATE_CMD);
     
     // Get in-/out-data
     DT_ASSERT(pIoParams->m_pInData != NULL);
@@ -492,7 +492,7 @@ DtStatus  DtIoStubBcTEMPLATE_OnCmd(const DtIoStub*  pStub,
 
     TEMPLATE_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_TEMPLATE_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_TEMPLATE_CMD);
 
     // Do we need exlusive access?
     if (pIoParams->m_ExclAccessIsRequired)

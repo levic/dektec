@@ -64,6 +64,7 @@
 #define INIT_DT_IOCTL_PROPS(IOCTL, STR, CMDS, ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)    \
     {                                                                                    \
         IOCTL,                                                                           \
+        DT_IOCTL_TO_FUNCTION(IOCTL),                                                     \
         STR,                                                                             \
         DT_SIZEOF_ARRAY(CMDS),                                                           \
         CMDS,                                                                            \
@@ -102,6 +103,7 @@ typedef struct _DtIoctlPropertiesCmd
 typedef struct  _DtIoctlProperties
 {
     const UInt32  m_IoctlCode;
+    const UInt32  m_FunctionCode;
     const char*  m_pStr;
     const Int  m_NumCmds;
     const DtIoctlPropertiesCmd*  m_CmdProps;
@@ -917,7 +919,6 @@ typedef struct  _DtIoctlProperties
         FALSE,                                                                           \
         sizeof(DtIoctlGenLockCtrlCmdReLockInput),                                        \
         0)
-
 
 #define DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_DCO_CLK_PROPS                                 \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
@@ -2028,6 +2029,15 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlSdiTxPhyCmdGetSdiStatusInput),                                     \
         sizeof(DtIoctlSdiTxPhyCmdGetSdiStatusOutput))
 
+#define DT_IOCTL_CMD_PROPS_SDITXPHY_GET_START_OF_FRAME_OFFSET                            \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDITXPHY_CMD_GET_START_OF_FRAME_OFFSET,                                       \
+        "GET_START_OF_FRAME_OFFSET",                                                     \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSdiTxPhyCmdGetStartOfFrameOffsetInput),                            \
+        sizeof(DtIoctlSdiTxPhyCmdGetStartOfFrameOffsetOutput))
+
 #define DT_IOCTL_CMD_PROPS_SDITXPHY_GET_TXMODE                                           \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_SDITXPHY_CMD_GET_TXMODE,                                                      \
@@ -2074,6 +2084,15 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlSdiTxPhyCmdSetSdiRateInput),                                       \
         0)
 
+#define DT_IOCTL_CMD_PROPS_SDITXPHY_SET_START_OF_FRAME_OFFSET                            \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDITXPHY_CMD_SET_START_OF_FRAME_OFFSET,                                       \
+        "SET_START_OF_FRAME_OFFSET",                                                     \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSdiTxPhyCmdSetStartOfFrameOffsetInput),                            \
+        0)
+
 #define DT_IOCTL_CMD_PROPS_SDITXPHY_SET_TXMODE                                           \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_SDITXPHY_CMD_SET_TXMODE,                                                      \
@@ -2093,10 +2112,12 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_SDITXPHY_SET_OPERATIONAL_MODE_TIMED,                          \
         DT_IOCTL_CMD_PROPS_SDITXPHY_GET_SDIRATE,                                         \
         DT_IOCTL_CMD_PROPS_SDITXPHY_GET_SDI_STATUS,                                      \
+        DT_IOCTL_CMD_PROPS_SDITXPHY_GET_START_OF_FRAME_OFFSET,                           \
         DT_IOCTL_CMD_PROPS_SDITXPHY_GET_TXMODE,                                          \
         DT_IOCTL_CMD_PROPS_SDITXPHY_GET_UNDERFLOW_FLAG,                                  \
         DT_IOCTL_CMD_PROPS_SDITXPHY_SET_OPERATIONAL_MODE,                                \
         DT_IOCTL_CMD_PROPS_SDITXPHY_SET_SDIRATE,                                         \
+        DT_IOCTL_CMD_PROPS_SDITXPHY_SET_START_OF_FRAME_OFFSET,                           \
         DT_IOCTL_CMD_PROPS_SDITXPHY_SET_TXMODE,                                          \
     }
 

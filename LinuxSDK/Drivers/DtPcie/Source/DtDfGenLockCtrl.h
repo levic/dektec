@@ -50,9 +50,9 @@ while (0)
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-#define  DT_DF_GENLOCKCTRL_START_OF_FRAME_OFFSET (-50000) // Start-of-Frame time offset
-                                                          // in nano seconds
-
+// Start-of-Frame time offset in nano seconds; this is about half the range of the
+// GenlockSofDelay in the TXPHY
+#define  DT_DF_GENLOCKCTRL_START_OF_FRAME_OFFSET (220000)
 #define  DT_DF_GENLOCKCTRL_MAX_NUM_FRAME_PERIODS  60 // Maximum 1 second of samples
 #define  DT_DF_GENLOCKCTRL_SOFTOD_SIZE      3       // Number of start-of-frame timestamps
                                                     // saved
@@ -134,10 +134,11 @@ struct  _DtDfGenLockCtrl
     Int  m_GenRefPortIndex;                 // Port index
     Int  m_GenRefVidStd;                    // Video standard
     Int  m_GenRefFramePeriod;               // Video standard frame period in ns
+    Int  m_GenRefStartOfFrameOffset;        // Global start-of-frame offset in nanoseconds
+                                            // set through the genref port and IoCfg
     DtDfGenLockCtrlGenRefType m_GenRefType; // Genref type
     Bool  m_GenRefParChanged;               // Change in genref parameters
     Int  m_GenRefDetectVidStd;              // Detected video standard
-
 
     DtBcGENL*  m_pBcGenLock;                  // GenLock block-controller
     DtTodTime  m_GenLockSofTod;               // GENL start-of-frame timestamp 
@@ -182,7 +183,9 @@ DtStatus  DtDfGenLockCtrl_ReLock(DtDfGenLockCtrl*);
 DtStatus  DtDfGenLockCtrl_GetDcoClockProperties(DtDfGenLockCtrl*, Int, Int*,
                                                            DtIoctlGenLockCtrlClockProps*);
 DtStatus  DtDfGenLockCtrl_GetDcoFreqOffset(DtDfGenLockCtrl*, Int, Int*, Int64*);
+DtStatus  DtDfGenLockCtrl_GetStartOfFrameOffset(DtDfGenLockCtrl*, Int*);
 DtStatus  DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl*, Int, Int);
+DtStatus  DtDfGenLockCtrl_SetStartOfFrameOffset(DtDfGenLockCtrl*, Int);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubDfGenLockCtrl definitions +=+=+=+=+=+=+=+=+=+=+=+=+=

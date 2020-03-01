@@ -1880,7 +1880,7 @@ DtStatus  DtIoStubBcSPIMF_AppendDynamicSize(
 
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcSPIMF));
     DT_ASSERT(pIoParams != NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_SPIMF_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_SPIMF_CMD);
 
     // Get in-/out-data
     DT_ASSERT(pIoParams->m_pInData != NULL);
@@ -1927,7 +1927,7 @@ DtStatus  DtIoStubBcSPIMF_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoPa
     
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcSPIMF));
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_SPIMF_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_SPIMF_CMD);
     DT_ASSERT(*pOutSize == pIoParams->m_OutReqSize);
 
     // Do we need exlusive access?

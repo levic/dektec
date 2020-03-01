@@ -150,10 +150,11 @@
 // Port related
 #define  LOG_LEVEL_PT_COMMON        LOG_ERR
 #define  LOG_LEVEL_PT_ASISDIMON     LOG_ERR
-#define  LOG_LEVEL_PT_ASISDIRX      LOG_ERR
 #define  LOG_LEVEL_PT_ASISDIRXTX    LOG_ERR
-#define  LOG_LEVEL_PT_ASISDITX      LOG_ERR
-#define  LOG_LEVEL_PT_SDIGENREF     LOG_ERR
+#define  LOG_LEVEL_PT_SDIGENREF     LOG_ERR 
+#define  LOG_LEVEL_PT_SDIPHYONLYRXTX  LOG_ERR
+
+
 
 // Local driver-function related
 #define  LOG_LEVEL_DF_S2CRDEMOD_2132    LOG_ERR

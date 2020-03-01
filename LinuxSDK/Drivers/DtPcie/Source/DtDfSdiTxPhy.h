@@ -105,6 +105,7 @@ typedef struct  _DtDfSdiTxPhy
                                 // interface for SDI signals. This delay must be 
                                 // compensated for by the genlock logic to properly align
                                 // to the genlock reference signal.
+    Int  m_PhySofOffsetNs;      // Additional start-of-frame offset in nanoseconds
     Bool  m_DelayedStart;       // Delayed start is enabled
     DtTodTime  m_DelayedStartTime;  // Time-of-day to start (go to RUN)
 
@@ -120,11 +121,13 @@ DtStatus  DtDfSdiTxPhy_GetMaxSdiRate(DtDfSdiTxPhy* , Int* pMaxSdiRate);
 DtStatus  DtDfSdiTxPhy_GetOperationalMode(DtDfSdiTxPhy*, Int*  pOpMode);
 DtStatus  DtDfSdiTxPhy_GetVidStd(DtDfSdiTxPhy*,Int* pVidStd);
 DtStatus  DtDfSdiTxPhy_GetSdiStatus(DtDfSdiTxPhy*, Int*  pTxLock);
+DtStatus  DtDfSdiTxPhy_GetStartOfFrameOffset(DtDfSdiTxPhy*, Int*  pSofOffset);
 DtStatus  DtDfSdiTxPhy_GetTxMode(DtDfSdiTxPhy*, Int*  pTxMode);
 DtStatus  DtDfSdiTxPhy_GetUnderflowFlag(DtDfSdiTxPhy*, Bool*  pUflFlag);
 DtStatus  DtDfSdiTxPhy_SetOperationalMode(DtDfSdiTxPhy*, Int OpMode);
 DtStatus  DtDfSdiTxPhy_SetOperationalModeTimed(DtDfSdiTxPhy*, Int OpMode, DtTodTime);
 DtStatus  DtDfSdiTxPhy_SetVidStd(DtDfSdiTxPhy*, Int  VidStd);
+DtStatus  DtDfSdiTxPhy_SetStartOfFrameOffset(DtDfSdiTxPhy*, Int SofOffset);
 DtStatus  DtDfSdiTxPhy_SetTxMode(DtDfSdiTxPhy*, Int  TxMode);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

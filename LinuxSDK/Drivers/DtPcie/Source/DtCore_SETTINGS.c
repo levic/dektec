@@ -41,7 +41,7 @@ DtStatus  DtCore_SETTINGS_Delete(DtCore*  pCore, Int  NumPorts)
     CORE_DEFAULT_PRECONDITIONS(pCore);
 
     return DtNonVolatileSettingsDelete(&pCore->m_Driver, pCore->m_pDevInfo->m_Serial, 
-                                                                                NumPorts);
+                                          pCore->m_pDevInfo->m_FirmwareVariant, NumPorts);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_SETTINGS_ManufRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -70,7 +70,9 @@ DtStatus DtCore_SETTINGS_StringRead(
     CORE_DEFAULT_PRECONDITIONS(pCore);
 
     return DtNonVolatileSettingsStringRead(&pCore->m_Driver,
-                                                   pCore->m_pDevInfo->m_Serial, PortIndex,
+                                                   pCore->m_pDevInfo->m_Serial,
+                                                   pCore->m_pDevInfo->m_FirmwareVariant,
+                                                   PortIndex,
                                                    (char*)pCategory, (char*)pName,
                                                    (char*)pValue, Size);
 }
@@ -88,7 +90,9 @@ DtStatus  DtCore_SETTINGS_StringWrite(
     CORE_DEFAULT_PRECONDITIONS(pCore);
 
     return DtNonVolatileSettingsStringWrite(&pCore->m_Driver,
-                                                   pCore->m_pDevInfo->m_Serial, PortIndex,
+                                                   pCore->m_pDevInfo->m_Serial,
+                                                   pCore->m_pDevInfo->m_FirmwareVariant,
+                                                   PortIndex,
                                                    (char*)pCategory, (char*)pName,
                                                    (char*)pValue);
 }
@@ -106,7 +110,9 @@ DtStatus  DtCore_SETTINGS_ValueRead(
     CORE_DEFAULT_PRECONDITIONS(pCore);
 
     return DtNonVolatileSettingsValueRead(&pCore->m_Driver,
-                                                   pCore->m_pDevInfo->m_Serial, PortIndex,
+                                                   pCore->m_pDevInfo->m_Serial,
+                                                   pCore->m_pDevInfo->m_FirmwareVariant,
+                                                   PortIndex,
                                                    (char*)pCategory, (char*)pName,
                                                    pValue);
 }
@@ -124,7 +130,9 @@ DtStatus  DtCore_SETTINGS_ValueWrite(
     CORE_DEFAULT_PRECONDITIONS(pCore);
 
     return DtNonVolatileSettingsValueWrite(&pCore->m_Driver,
-                                                   pCore->m_pDevInfo->m_Serial, PortIndex,
+                                                   pCore->m_pDevInfo->m_Serial,
+                                                   pCore->m_pDevInfo->m_FirmwareVariant,
+                                                   PortIndex,
                                                    (char*)pCategory, (char*)pName,
                                                    Value);
 }

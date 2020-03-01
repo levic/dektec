@@ -212,7 +212,7 @@ DtStatus  DtIoStubBcREBOOT_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoP
     
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcREBOOT));
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_REBOOT_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_REBOOT_CMD);
 
     // Do we need exlusive access?
     if (pIoParams->m_ExclAccessIsRequired)

@@ -573,7 +573,7 @@ DtStatus  DtIoStubBcSDITXP_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoP
 
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcSDITXP));
     DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_IoctlCode == DT_IOCTL_SDITXP_CMD);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_SDITXP_CMD);
 
     // Do we need exlusive access?
     if (pIoParams->m_ExclAccessIsRequired)
@@ -626,7 +626,7 @@ DtStatus  DtIoStubBcSDITXP_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoP
                                                      &pOutData->m_GetSdiRateAndLvlA2BEna);
         break;
     case DT_SDITXP_CMD_SET_GENERATION_MODE:
-        DT_ASSERT(pOutData != NULL);
+        DT_ASSERT(pInData != NULL);
         Status = DtIoStubBcSDITXP_OnCmdSetGenerationMode(SDITXP_STUB,
                                                                   &pInData->m_SetGenMode);
         break;

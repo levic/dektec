@@ -26,6 +26,7 @@
 #include "DtPt.h"
 #include "DtPtAsiSdiMon.h"
 #include "DtPtAsiSdiRxTx.h"
+#include "DtPtSdiPhyOnlyRxTx.h"
 #include "DtPtSdiGenRef.h"
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -664,6 +665,11 @@ DtPt*  DtPt_OpenType(DtPortType  Type, DtCore*  pCore, Int  PortIndex)
     case DT_PORT_TYPE_ASISDITX:
         return (DtPt*)DtPtAsiSdiRxTx_Open(pCore, PortIndex, Type);
 
+    case DT_PORT_TYPE_SDIPHYONLYRX:
+    case DT_PORT_TYPE_SDIPHYONLYRXTX:
+    case DT_PORT_TYPE_SDIPHYONLYTX:
+        return (DtPt*)DtPtSdiPhyOnlyRxTx_Open(pCore, PortIndex, Type);
+
     case DT_PORT_TYPE_SDIGENREF:
         return (DtPt*)DtPtSdiGenRef_Open(pCore, PortIndex, Type);
 
@@ -911,6 +917,8 @@ Bool  DtPt_NeedsSetIoConfigImplementation(DtPt* pPt)
     if (DtIoCapsHasCap(pIoCaps, DT_IOCAP_SHAREDANT))
         NumDir++;
     if (DtIoCapsHasCap(pIoCaps, DT_IOCAP_INTINPUT))
+        NumDir++;
+    if (DtIoCapsHasCap(pIoCaps, DT_IOCAP_INTOUTPUT))
         NumDir++;
     if (DtIoCapsHasCap(pIoCaps, DT_IOCAP_MONITOR))
         NumDir++;
