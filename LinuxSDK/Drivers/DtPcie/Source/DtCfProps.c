@@ -196,6 +196,27 @@ DtStatus  DtCfProps_GetTable(
     return DtTableGet(&pCf->m_PropData, pTableName, PortIndex, MaxNumEntries,
                                                    pNumEntries, pTableEntry,  OutBufSize);
 }
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfProps_GetTableForType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtCfProps_GetTableForType(
+    DtCfProps*  pCf, 
+    Int  TypeNumber, 
+    Int  SubType, 
+    DtPropertyFilterCriteria  Flt,
+    const char*  pTableName, 
+    UInt  MaxNumEntries, 
+    UInt*  pNumEntries, 
+    DtTableEntry*  pTableEntry,
+    UInt  OutBufSize)
+{
+    // Sanity checks
+    CF_PROPS_DEFAULT_PRECONDITIONS(pCf);
+        
+    // Now find the table
+    return DtTableGetForType("DTA", TypeNumber, SubType, Flt.m_HwRev, Flt.m_FwVersion,
+                              Flt.m_FwVariant, pTableName, Flt.m_PortIndex, MaxNumEntries,
+                              pNumEntries, pTableEntry,  OutBufSize);
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfProps_GetBool -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -402,6 +423,8 @@ DtStatus  DtCfProps_ReInit(DtCfProps*  pCf)
     pCf->m_PropData.m_TypeNumber = pCore->m_pDevInfo->m_TypeNumber;
     pCf->m_PropData.m_SubDvcOrSubType = (Int)pCore->m_pDevInfo->m_SubType;
     pCf->m_PropData.m_HardwareRevision = pCore->m_pDevInfo->m_HardwareRevision;
+    pCf->m_PropData.m_FirmwareVersion = pCore->m_pDevInfo->m_FirmwareVersion;
+    pCf->m_PropData.m_FirmwareVariant = pCore->m_pDevInfo->m_FirmwareVariant;
 
     return DT_STATUS_OK;
 }
@@ -432,6 +455,8 @@ DtStatus  DtCfProps_Init(DtDf*  pCf)
     CF_PROPS->m_PropData.m_TypeNumber = pCore->m_pDevInfo->m_TypeNumber;
     CF_PROPS->m_PropData.m_SubDvcOrSubType = (Int)pCore->m_pDevInfo->m_SubType;
     CF_PROPS->m_PropData.m_HardwareRevision = pCore->m_pDevInfo->m_HardwareRevision;
+    CF_PROPS->m_PropData.m_FirmwareVersion = pCore->m_pDevInfo->m_FirmwareVersion;
+    CF_PROPS->m_PropData.m_FirmwareVariant = pCore->m_pDevInfo->m_FirmwareVariant;
 
     Status = DtPropertiesInit(&CF_PROPS->m_PropData);
     if (!DT_SUCCESS(Status))
@@ -673,11 +698,32 @@ DtStatus  DtIoStubCfProps_OnCmdGetTable(
     DT_ASSERT(pInData!=NULL && pOutData!=NULL);
 
     pOutData->m_NumEntries = 0;
-    return DtCfProps_GetTable(STUB_CF, pInData->m_Name, pInData->m_PortIndex, 
+    // Get for specific type or for the attached devices
+    if (pInData->m_TypeNumber == -1)
+        return DtCfProps_GetTable(STUB_CF, pInData->m_Name, pInData->m_PortIndex, 
                                            pInData->m_MaxNumEntries,
                                            &pOutData->m_NumEntries,
                                            pOutData->m_TableEntry, 
                                            pInData->m_MaxNumEntries*sizeof(DtTableEntry));
+    else
+    { 
+        // Get table for specific typenumber, subtype, firmwarevariant, ....
+        DtPropertyFilterCriteria  Filter;
+        Filter.m_PortIndex    = pInData->m_PortIndex;
+        Filter.m_HwRev        = pInData->m_HardwareRevision;
+        Filter.m_FwVersion    = pInData->m_FirmwareVersion;
+        Filter.m_FwVariant    = pInData->m_FirmwareVariant;
+        Filter.m_DtapiMaj     = pInData->m_DtapiMaj;
+        Filter.m_DtapiMin     = pInData->m_DtapiMin;
+        Filter.m_DtapiBugfix  = pInData->m_DtapiBugfix;
+        return DtCfProps_GetTableForType(STUB_CF, pInData->m_TypeNumber,
+                                           pInData->m_SubType, Filter,
+                                           pInData->m_Name, 
+                                           pInData->m_MaxNumEntries,
+                                           &pOutData->m_NumEntries,
+                                           pOutData->m_TableEntry, 
+                                           pInData->m_MaxNumEntries*sizeof(DtTableEntry));
+    }
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubCfProps_OnCmdGetValue -.-.-.-.-.-.-.-.-.-.-.-.-.-.-

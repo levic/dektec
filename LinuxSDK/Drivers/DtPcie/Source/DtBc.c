@@ -69,9 +69,7 @@ const DtBcId  DT_BC_KNOWN[] =
     { DT_BC_SDIRXP_NAME,          DT_BC_SDIRXP_SHORTNAME,          NULL, -1, -1 },
     { DT_BC_SDIRXPHY_NAME,        DT_BC_SDIRXPHY_SHORTNAME,        NULL, -1, -1 },
     { DT_BC_SDITXF_NAME,          DT_BC_SDITXF_SHORTNAME,          NULL, -1, -1 },
-    { DT_BC_SDITXF6G12G_NAME,     DT_BC_SDITXF6G12G_SHORTNAME,     NULL, -1, -1 },
     { DT_BC_SDITXP_NAME,          DT_BC_SDITXP_SHORTNAME,          NULL, -1, -1 },
-    { DT_BC_SDITXP6G12G_NAME,     DT_BC_SDITXP6G12G_SHORTNAME,     NULL, -1, -1 },
     { DT_BC_SDITXPHY_NAME,        DT_BC_SDITXPHY_SHORTNAME,        NULL, -1, -1 },
     { DT_BC_SDITXPLL_NAME,        DT_BC_SDITXPLL_SHORTNAME,        NULL, -1, -1 },
     { DT_BC_SPIM_NAME,            DT_BC_SPIM_SHORTNAME,            NULL, -1, -1 },
@@ -689,20 +687,18 @@ DtBc*  DtBc_OpenType(DtBcType  Type, Int  Address, DtCore*  pCore,
         return (DtBc*)DtBcSDIXCFG_Open(Address, pCore, pPt, pRole, Instance,
                                                                         Uuid, CreateStub);
     case DT_BLOCK_TYPE_SDIRXF:
-        return (DtBc*)DtBcSDIRXF_Open(Address, pCore, pPt, pRole, Instance,
+        return (DtBc*)DtBcSDIRXF_Open(Address, pCore, pPt, Type, pRole, Instance,
                                                                         Uuid, CreateStub);
     case DT_BLOCK_TYPE_SDIRXP:
-        return (DtBc*)DtBcSDIRXP_Open(Address, pCore, pPt, pRole, Instance,
+        return (DtBc*)DtBcSDIRXP_Open(Address, pCore, pPt, Type, pRole, Instance,
                                                                         Uuid, CreateStub);
     case DT_BLOCK_TYPE_SDIRXPHY:
         DT_ASSERT(CreateStub == FALSE);
         return (DtBc*)DtBcSDIRXPHY_Open(Address, pCore, pPt, pRole, Instance, Uuid);
     case DT_BLOCK_TYPE_SDITXF:
-    case DT_BLOCK_TYPE_SDITXF6G12G:
         return (DtBc*)DtBcSDITXF_Open(Address, pCore, pPt, Type, pRole, Instance,
                                                                         Uuid, CreateStub);
     case DT_BLOCK_TYPE_SDITXP:
-    case DT_BLOCK_TYPE_SDITXP6G12G:
         return (DtBc*)DtBcSDITXP_Open(Address, pCore, pPt, Type, pRole, Instance,
                                                                         Uuid, CreateStub);
     case DT_BLOCK_TYPE_SDITXPHY:
@@ -1179,10 +1175,8 @@ DtIoStubBc*  DtIoStubBc_OpenType(DtBc*  pBc)
     case DT_BLOCK_TYPE_SDIRXPHY:
         break;
     case DT_BLOCK_TYPE_SDITXF:
-    case DT_BLOCK_TYPE_SDITXF6G12G:
         return (DtIoStubBc*)DtIoStubBcSDITXF_Open(pBc);
     case DT_BLOCK_TYPE_SDITXP:
-    case DT_BLOCK_TYPE_SDITXP6G12G:
         return (DtIoStubBc*)DtIoStubBcSDITXP_Open(pBc);
     case DT_BLOCK_TYPE_SDITXPHY:
         break;

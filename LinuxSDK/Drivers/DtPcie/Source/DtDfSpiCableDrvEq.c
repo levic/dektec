@@ -54,6 +54,12 @@ static DtStatus  DtDfSpiCableDrvEq_OpenChildren(DtDfSpiCableDrvEq*);
 // Cable driver/equalizer type specific operations
 static DtStatus  DtDfSpiCableDrvEq_SetGsXx90Direction(DtDfSpiCableDrvEq*, Int Direction);
 static DtStatus  DtDfSpiCableDrvEq_SetGsXx90SdiRate(DtDfSpiCableDrvEq*, Int SdiRate);
+static DtStatus  DtDfSpiCableDrvEq_SetGsXx90PllLoopBandwidth(DtDfSpiCableDrvEq*,
+                                                                             Int SdiRate);
+static DtStatus  DtDfSpiCableDrvEq_SetGsXx90PreEmphasisControl(DtDfSpiCableDrvEq*,
+                                                                             Int SdiRate);
+static DtStatus  DtDfSpiCableDrvEq_SetGsXx90AmplitudeControl(DtDfSpiCableDrvEq*,
+                                                                             Int SdiRate);
 static DtStatus  DtDfSpiCableDrvEq_ReadGsXx90(DtDfSpiCableDrvEq*, Int StartAddress,
                                                             Int NumToRead, UInt16 * pBuf);
 static DtStatus  DtDfSpiCableDrvEq_WriteGsXx90(DtDfSpiCableDrvEq*, Int StartAddress,
@@ -221,6 +227,12 @@ DtStatus DtDfSpiCableDrvEq_SetSdiRate(DtDfSpiCableDrvEq* pDf, Int SdiRate)
     case DT_SPIM_SPIDVC_GS3590:
     case DT_SPIM_SPIDVC_GS12090:
         Status = DtDfSpiCableDrvEq_SetGsXx90SdiRate(pDf, SdiRate);
+        if (DT_SUCCESS(Status))
+            Status = DtDfSpiCableDrvEq_SetGsXx90PllLoopBandwidth(pDf, SdiRate);
+        if (DT_SUCCESS(Status))
+            Status = DtDfSpiCableDrvEq_SetGsXx90PreEmphasisControl(pDf, SdiRate);
+        if (DT_SUCCESS(Status))
+            Status = DtDfSpiCableDrvEq_SetGsXx90AmplitudeControl(pDf, SdiRate);
         break;
     case DT_SPIM_SPIDVC_UNDEFINED:
     default:
@@ -285,27 +297,23 @@ DtStatus DtDfSpiCableDrvEq_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         DtDbgOutDf(AVG, SPICABLEDRVEQ, pDf, "DISABLE -> ENABLE");
         DT_RETURN_ON_ERROR(DtBcSPIM_GetProperties(pDf->m_pBcSpiM, &pDf->m_SpiDeviceId,
                                                  &DuplexMode, &MaxTfTime, &SpiClockRate));
-
         switch (pDf->m_SpiDeviceId)
         {
-        case DT_SPIM_SPIDVC_GS3590:
-            pDf->m_Supports12G = FALSE;
-            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90Direction(pDf, 
-                                                                       pDf->m_Direction));
-            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90SdiRate(pDf, pDf->m_SdiRate));
-            break;
-        case DT_SPIM_SPIDVC_GS12090:
-            pDf->m_Supports12G = TRUE;
-            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90Direction(pDf, 
-                                                                       pDf->m_Direction));
-            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90SdiRate(pDf, pDf->m_SdiRate));
-            break;
+        case DT_SPIM_SPIDVC_GS3590:     pDf->m_Supports12G = FALSE; break;
+        case DT_SPIM_SPIDVC_GS12090:    pDf->m_Supports12G = TRUE; break;
         case DT_SPIM_SPIDVC_UNDEFINED:
-        default:
-            DT_ASSERT(FALSE);
-            Status = DT_STATUS_NOT_SUPPORTED;
-            break;
+        default: DT_ASSERT(FALSE);      Status = DT_STATUS_NOT_SUPPORTED; break;
         }
+        // Initialize cable driver/equalizer
+        DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90Direction(pDf, pDf->m_Direction));
+        DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90SdiRate(pDf, pDf->m_SdiRate));
+        // Cable driver setttings
+         DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90PllLoopBandwidth(pDf, 
+                                                                         pDf->m_SdiRate));
+         DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90PreEmphasisControl(pDf, 
+                                                                         pDf->m_SdiRate));
+         DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90AmplitudeControl(pDf, 
+                                                                         pDf->m_SdiRate));
     }
     return Status;
 }
@@ -426,6 +434,95 @@ DtStatus  DtDfSpiCableDrvEq_SetGsXx90SdiRate(DtDfSpiCableDrvEq* pDf, Int SdiRate
     }
     DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_WriteGsXx90(pDf, RATE_DETECT_MODE, 1, RegData));
     DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_ReadGsXx90(pDf, RATE_DETECT_MODE, 1, RegDataRb));
+    DT_ASSERT((RegData[0] == RegDataRb[0]));
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_SetGsXx90PllLoopBandwidth -.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtDfSpiCableDrvEq_SetGsXx90PllLoopBandwidth(DtDfSpiCableDrvEq* pDf, Int SdiRate)
+{
+    const Int PLL_LOOP_BW = 0x0A;
+    UInt16  RegData[1] = {0};
+    UInt16  RegDataRb[1] = {0};
+    // RSVD:        b15..b13: 0
+    // LBW_12G      b12..b8: 1:0.0625x; 8:0.5x
+    // RSVD:         b7..b5: 0
+    // LBW_6G        b4..b0: 8
+    
+    // Only supported by 12G
+    if (!pDf->m_Supports12G)
+        return DT_STATUS_OK;
+
+    switch (SdiRate)
+    {
+        default:
+        case DT_DRV_SDIRATE_UNKNOWN: RegData[0] = 0x0808; break;
+        case DT_DRV_SDIRATE_SD:      RegData[0] = 0x0808; break;
+        case DT_DRV_SDIRATE_HD:      RegData[0] = 0x0808; break;
+        case DT_DRV_SDIRATE_3G:      RegData[0] = 0x0808; break;
+        case DT_DRV_SDIRATE_6G:      RegData[0] = 0x0808; break;
+        case DT_DRV_SDIRATE_12G:     RegData[0] = 0x0108; break;
+    }
+    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_WriteGsXx90(pDf, PLL_LOOP_BW, 1, RegData));
+    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_ReadGsXx90(pDf, PLL_LOOP_BW, 1, RegDataRb));
+    DT_ASSERT((RegData[0] == RegDataRb[0]));
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_SetGsXx90PreEmphasisControl -.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtDfSpiCableDrvEq_SetGsXx90PreEmphasisControl(DtDfSpiCableDrvEq* pDf, 
+                                                                              Int SdiRate)
+{
+    const Int PRE_EMPHAS_CTRL = 0x32;
+    UInt16  RegData[1] = {0};
+    UInt16  RegDataRb[1] = {0};
+    // RSVD:        b15..b13: 0
+    // WIDTH         b12..b8: 7
+    // RSVD:              b7: 0
+    // PWRDWN:            b6: 0 : enable pre-emphasis;  1 : disable pre-emphasis
+    // AMPL:          b5..b0: B
+    
+    switch (SdiRate)
+    {
+        default:
+        case DT_DRV_SDIRATE_UNKNOWN: RegData[0] = 0x070B; break;
+        case DT_DRV_SDIRATE_SD:      RegData[0] = 0x070B; break;
+        case DT_DRV_SDIRATE_HD:      RegData[0] = 0x070B; break;
+        case DT_DRV_SDIRATE_3G:      RegData[0] = 0x070B; break;
+        case DT_DRV_SDIRATE_6G:      RegData[0] = 0x070B; break;
+        case DT_DRV_SDIRATE_12G:     RegData[0] = 0x074B; break;
+    }
+    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_WriteGsXx90(pDf, PRE_EMPHAS_CTRL, 1, RegData));
+    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_ReadGsXx90(pDf, PRE_EMPHAS_CTRL, 1, RegDataRb));
+    DT_ASSERT((RegData[0] == RegDataRb[0]));
+    return DT_STATUS_OK;
+}
+
+
+// -.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_SetGsXx90AmplitudeControl -.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtDfSpiCableDrvEq_SetGsXx90AmplitudeControl(DtDfSpiCableDrvEq* pDf, Int SdiRate)
+{
+    const Int AMPL_CTRL = 0x33;
+    UInt16  RegData[1] = {0};
+    UInt16  RegDataRb[1] = {0};
+    // RSVD:    b15..b14: 0
+    // SWING    b13..b8: 0x18 : 800mVpp 30mVpp per step
+    // RSVD:     b7..b0: 0x60
+    switch (SdiRate)
+    {
+        default:
+        case DT_DRV_SDIRATE_UNKNOWN: RegData[0] = 0x1860; break;    // 800mVpp
+        case DT_DRV_SDIRATE_SD:      RegData[0] = 0x1860; break;    // 800mVpp
+        case DT_DRV_SDIRATE_HD:      RegData[0] = 0x1860; break;    // 800mVpp
+        case DT_DRV_SDIRATE_3G:      RegData[0] = 0x1860; break;    // 800mVpp
+        case DT_DRV_SDIRATE_6G:      RegData[0] = 0x1760; break;    // 770mVpp
+        case DT_DRV_SDIRATE_12G:     RegData[0] = 0x1960; break;    // 830mVpp
+    }
+    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_WriteGsXx90(pDf, AMPL_CTRL, 1, RegData));
+    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_ReadGsXx90(pDf, AMPL_CTRL, 1, RegDataRb));
     DT_ASSERT((RegData[0] == RegDataRb[0]));
     return DT_STATUS_OK;
 }

@@ -34,6 +34,8 @@
 #define  SI534X_ROLE_NONE    NULL
 #define  MAX_DEVIATION_PPM   120       // Maximum 120ppm deviation
 #define  MAX_CRASHLOCK_STEP_PPM   1    // Maximum 1ppm step
+#define  DIV64(x, y)      DtDivideS64((x), (y))
+#define  MOD64(x, y)      DtModuloS64((x), (y))
 
 static const Int64  Exp12 = 1000LL*1000LL*1000LL*1000LL; 
 static const Int64  Exp11 = 100LL*1000LL*1000LL*1000LL; 
@@ -319,16 +321,16 @@ DtStatus DtDfGenLockCtrl_GetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int  ClockIdx,
     // Compute output frequency in micro Hertz
     if  (FreqOffsetPpt < 0)
     { 
-        DT_ASSERT((BaseFreq/Exp9)<(3*Exp9) && -FreqOffsetPpt<(3*Exp9));
-        DeltaFreq =  (BaseFreq/Exp9) * -FreqOffsetPpt;
-        DeltaFreq += ((BaseFreq%Exp9) * -FreqOffsetPpt + 5*Exp8) / Exp9;
-        DeltaFreq = (DeltaFreq + 500) / Exp3;
+        DT_ASSERT(DIV64(BaseFreq, Exp9)<(3*Exp9) && -FreqOffsetPpt<(3*Exp9));
+        DeltaFreq =  DIV64(BaseFreq, Exp9) * -FreqOffsetPpt;
+        DeltaFreq += DIV64(MOD64(BaseFreq,Exp9) * -FreqOffsetPpt + 5*Exp8, Exp9);
+        DeltaFreq = DIV64(DeltaFreq + 500, Exp3);
         OutFreq = BaseFreq - DeltaFreq;
     } else {
-        DT_ASSERT((BaseFreq/Exp9)<(3*Exp9) && FreqOffsetPpt<(3*Exp9));
-        DeltaFreq =  (BaseFreq/Exp9) * FreqOffsetPpt;
-        DeltaFreq += ((BaseFreq%Exp9) * FreqOffsetPpt + 5*Exp8) / Exp9;
-        DeltaFreq = (DeltaFreq + 500) / Exp3;
+        DT_ASSERT(DIV64(BaseFreq, Exp9)<(3*Exp9) && FreqOffsetPpt<(3*Exp9));
+        DeltaFreq =  DIV64(BaseFreq, Exp9) * FreqOffsetPpt;
+        DeltaFreq += DIV64(MOD64(BaseFreq,Exp9) * FreqOffsetPpt + 5*Exp8, Exp9);
+        DeltaFreq = DIV64(DeltaFreq + 500, Exp3);
         OutFreq = BaseFreq + DeltaFreq;
     }
     *pFrequencyMicroHz = OutFreq;
@@ -1009,7 +1011,7 @@ void  DtDfGenLockCtrl_DcoControlCrashLockFreq(DtDfGenLockCtrl* pDf,
 {
     Int64  DcoClockFreqMilliHz, RefClockFreqHz, Remainder, FreqDiffPpb, FreqAdjustPpt;
     Int64  RefClockFreqMilliHz;
-    Int  GenRefAvgFramePeriodNs = (Int)((GenRefAvgFramePeriodPs+500)/1000);
+    Int  GenRefAvgFramePeriodNs = (Int)DIV64(GenRefAvgFramePeriodPs+500, 1000);
     Int  PhaseDiffNs;
     Bool  ValidPhaseDiff;
 
@@ -1028,21 +1030,22 @@ void  DtDfGenLockCtrl_DcoControlCrashLockFreq(DtDfGenLockCtrl* pDf,
     DcoClockFreqMilliHz = DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(pDf);
 
     // Compute GenRef (148.5MHz) clock in milliHz
-    RefClockFreqHz = pDf->m_FrameLength*Exp12 / GenRefAvgFramePeriodPs;
+    RefClockFreqHz = DIV64(pDf->m_FrameLength*Exp12, GenRefAvgFramePeriodPs);
     Remainder = pDf->m_FrameLength*Exp12 - RefClockFreqHz*GenRefAvgFramePeriodPs;
-    RefClockFreqMilliHz = RefClockFreqHz*1000 + (Remainder*1000)/GenRefAvgFramePeriodPs;
+    RefClockFreqMilliHz = RefClockFreqHz*1000 + DIV64(Remainder*1000,
+                                                                  GenRefAvgFramePeriodPs);
 
     // Compute frequency deviation in ppb
-    FreqDiffPpb = ((RefClockFreqMilliHz-DcoClockFreqMilliHz)*Exp9) / RefClockFreqMilliHz;
-
+    FreqDiffPpb = DIV64((RefClockFreqMilliHz-DcoClockFreqMilliHz)*Exp9,
+                                                                     RefClockFreqMilliHz);
     DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "PpbDiff: %d", (Int)FreqDiffPpb);
 
     FreqAdjustPpt = FreqDiffPpb*1000;
 
     // Limitate the step size during crashlock
-    if (FreqAdjustPpt/Exp6 > MAX_CRASHLOCK_STEP_PPM)
+    if (DIV64(FreqAdjustPpt, Exp6) > MAX_CRASHLOCK_STEP_PPM)
         FreqAdjustPpt = MAX_CRASHLOCK_STEP_PPM*Exp6;
-    else if (FreqAdjustPpt/Exp6 < -MAX_CRASHLOCK_STEP_PPM)
+    else if (DIV64(FreqAdjustPpt, Exp6) < -MAX_CRASHLOCK_STEP_PPM)
         FreqAdjustPpt = -MAX_CRASHLOCK_STEP_PPM*Exp6;
 
     // Update DCO-frequency
@@ -1078,7 +1081,7 @@ void  DtDfGenLockCtrl_DcoControlCrashLockPhase(DtDfGenLockCtrl* pDf,
                                              Int64  GenRefAvgFramePeriodPs,
                                              const DtTodTime* pGenLockSofTod)
 {
-    Int  GenRefAvgFramePeriodNs = (Int)((GenRefAvgFramePeriodPs+500)/1000);
+    Int  GenRefAvgFramePeriodNs = (Int)DIV64(GenRefAvgFramePeriodPs+500, 1000);
     Int  PhaseDiffNs;
     Bool  ValidPhaseDiff;
 
@@ -1093,7 +1096,7 @@ void  DtDfGenLockCtrl_DcoControlCrashLockPhase(DtDfGenLockCtrl* pDf,
 
     // Determine phase difference
     ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, pGenRefSofTods, 
-                                   GenRefAvgFramePeriodNs, pGenLockSofTod, &PhaseDiffNs);
+                                    GenRefAvgFramePeriodNs, pGenLockSofTod, &PhaseDiffNs);
     if (!ValidPhaseDiff)
     {
         // No valid phase => restart crash lock frequency
@@ -1114,7 +1117,7 @@ void  DtDfGenLockCtrl_DcoControlCrashLockPhase(DtDfGenLockCtrl* pDf,
 
         // Convert nanoseconds to clockticks
         DcoFreqHz = DtDfGenLockCtrl_DcoControlGetFrequencyHz(pDf);
-        Adjustment = (DcoFreqHz * PhaseDiffNs) / Exp9;
+        Adjustment = DIV64(DcoFreqHz * PhaseDiffNs, Exp9);
         DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DcoFreq: %d Adjustment: %d", 
                                                          (Int)DcoFreqHz, (Int)Adjustment);
         Status = DtBcGENL_SetCrashLockAdjust(pDf->m_pBcGenLock, (Int)Adjustment);
@@ -1171,7 +1174,7 @@ void  DtDfGenLockCtrl_DcoControlLocked(DtDfGenLockCtrl* pDf,
     Int  PhaseDiffNs, PhaseBoost;
     Bool ValidPhaseDiff;
     Int64  DcoClockFreqMilliHz, RefClockFreqMilliHz, RefClockFreqHz, Remainder;
-    Int  GenRefAvgFramePeriodNs = (Int)((GenRefAvgFramePeriodPs+500)/1000);
+    Int  GenRefAvgFramePeriodNs = (Int)DIV64(GenRefAvgFramePeriodPs+500, 1000);
 
     // Invalid GenRef? 
     if (GenRefStatus != DT_DF_GENLOCKCTRL_GENREFSTATUS_OK)
@@ -1200,9 +1203,10 @@ void  DtDfGenLockCtrl_DcoControlLocked(DtDfGenLockCtrl* pDf,
     DcoClockFreqMilliHz = DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(pDf);
 
     // Compute GenRef (148.5MHz) clock in milliHz
-    RefClockFreqHz = pDf->m_FrameLength*Exp12 / GenRefAvgFramePeriodPs;
+    RefClockFreqHz = DIV64(pDf->m_FrameLength*Exp12, GenRefAvgFramePeriodPs);
     Remainder = pDf->m_FrameLength*Exp12 - RefClockFreqHz*GenRefAvgFramePeriodPs;
-    RefClockFreqMilliHz = RefClockFreqHz*1000 + (Remainder*1000)/GenRefAvgFramePeriodPs;
+    RefClockFreqMilliHz = RefClockFreqHz*1000 + DIV64(Remainder*1000,
+                                                                  GenRefAvgFramePeriodPs);
 
     // Compute frequency difference
     FreqDiffMilliHz = RefClockFreqMilliHz - DcoClockFreqMilliHz;
@@ -1213,8 +1217,9 @@ void  DtDfGenLockCtrl_DcoControlLocked(DtDfGenLockCtrl* pDf,
         PhaseBoost = 5;
 
     // Compute frequency adjustment
-    FreqAdjustPpt =  FreqDiffMilliHz*pDf->m_DcoControlPars.m_FreqMult/1000 
-                   + (Int64)PhaseBoost*PhaseDiffNs*pDf->m_DcoControlPars.m_PhaseMult/1000;
+    FreqAdjustPpt =  
+            DIV64(FreqDiffMilliHz*pDf->m_DcoControlPars.m_FreqMult, 1000) 
+          + DIV64((Int64)PhaseBoost*PhaseDiffNs*pDf->m_DcoControlPars.m_PhaseMult, 1000);
 
     // Clip the step size
     if (FreqAdjustPpt > pDf->m_DcoControlPars.m_MaxStepPpt)
@@ -1228,8 +1233,8 @@ void  DtDfGenLockCtrl_DcoControlLocked(DtDfGenLockCtrl* pDf,
     pDf->m_Count++;
     if (pDf->m_Count%100 == 1)
         DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "FreqDiff: %d Hz; PhaseDiff: %d ns; Offset: %d", 
-                                                 (Int)(FreqDiffMilliHz/1000), PhaseDiffNs,
-                                                 (Int)(pDf->m_DcoFreqOffsetPpt/1000));
+                                            (Int)DIV64(FreqDiffMilliHz,1000), PhaseDiffNs,
+                                            (Int)DIV64(pDf->m_DcoFreqOffsetPpt,1000));
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoFreeRunning -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1287,27 +1292,27 @@ void  DtDfGenLockCtrl_DcoControlAddDeltaFreq(DtDfGenLockCtrl* pDf, Int DeltaPpt)
 //
 Int  DtDfGenLockCtrl_DcoControlGetFrequencyHz(DtDfGenLockCtrl* pDf)
 {
-    Int64  Freq;
+    Int64  Freq = 0;
     if  (pDf->m_DcoFreqOffsetPpt > 0)
-        Freq = 148500000LL + (1485LL * pDf->m_DcoFreqOffsetPpt + 5*Exp6)/(10*Exp6);
+        Freq = 148500000LL + DIV64(1485LL * pDf->m_DcoFreqOffsetPpt + 5*Exp6, 10*Exp6);
     else
-        Freq = 148500000LL + (1485LL * pDf->m_DcoFreqOffsetPpt - 5*Exp6)/(10*Exp6);
+        Freq = 148500000LL + DIV64(1485LL * pDf->m_DcoFreqOffsetPpt - 5*Exp6, 10*Exp6);
     if (pDf->m_FractionalClock)
-        Freq = (Freq*1000)/1001;
+        Freq = DIV64(Freq*1000, 1001);
     return (Int)Freq;
 }
 
-// .-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControlGetFrequencyHz -.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.- <DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz -.-.-.-.-.-.-.-.-.-.
 //
 Int64  DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(DtDfGenLockCtrl* pDf)
 {
-    Int64  Freq;
-    if  (pDf->m_DcoFreqOffsetPpt > 0)
-        Freq = 148500000000LL + (1485LL * pDf->m_DcoFreqOffsetPpt + 5*Exp3)/(10*Exp3);
+    Int64  Freq = 0;
+    if  (pDf->m_DcoFreqOffsetPpt > 0)  
+        Freq = 148500000000LL + DIV64(1485LL * pDf->m_DcoFreqOffsetPpt + 5*Exp3, 10*Exp3);
     else
-        Freq = 148500000000LL + (1485LL * pDf->m_DcoFreqOffsetPpt - 5*Exp3)/(10*Exp3);
+        Freq = 148500000000LL + DIV64(1485LL * pDf->m_DcoFreqOffsetPpt - 5*Exp3, 10*Exp3);
     if (pDf->m_FractionalClock)
-        Freq = (Freq*1000)/1001;
+        Freq = DIV64(Freq*1000, 1001);
     return Freq;
 }
 
@@ -1454,7 +1459,7 @@ void DtDfGenLockCtrl_SofTodsAdd(DtDfGenLockCtrl* pDf,  DtDfGenLockCtrlSofTods* p
         if (ExpectFramePeriod > 0)
         {
             // Compute deviation in ppm
-            PpmDiff = (FramePeriod*Exp6)/ExpectFramePeriod - 1*Exp6;
+            PpmDiff = DIV64(FramePeriod*Exp6, ExpectFramePeriod) - 1*Exp6;
             // If the deviation is too much, clear the history of timestamps
             if (PpmDiff<-MAX_DEVIATION_PPM || PpmDiff>MAX_DEVIATION_PPM)
             { 
@@ -1558,7 +1563,7 @@ Int64 DtDfGenLockCtrl_FramePeriodMeasureGetAverage(
 {
     DT_ASSERT(pFpMeasure != NULL);
     if (pFpMeasure->m_NumValid > 0)
-        return  (pFpMeasure->m_TotalFramePeriods*1000) / pFpMeasure->m_NumValid;
+        return  DIV64(pFpMeasure->m_TotalFramePeriods*1000, pFpMeasure->m_NumValid);
     else
         return 0;
 }

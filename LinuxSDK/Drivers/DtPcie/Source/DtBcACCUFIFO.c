@@ -97,7 +97,7 @@ DtStatus DtBcACCUFIFO_GetAccuPeriod(DtBcACCUFIFO * pBc, Int * pPeriodNs)
     BC_ACCUFIFO_MUST_BE_ENABLED(pBc);
 
     // Return cached value
-    *pPeriodNs = (Int)(((Int64)pBc->m_AccuPeriodNumClks * 1000LL*1000*1000) /
+    *pPeriodNs = (Int)DtDivideS64((Int64)pBc->m_AccuPeriodNumClks * 1000LL*1000*1000,
                                                                    pBc->m_ClockFrequency);
     return DT_STATUS_OK;
 }
@@ -225,7 +225,7 @@ DtStatus DtBcACCUFIFO_SetAccuPeriod(DtBcACCUFIFO* pBc, Int PeriodNs)
     BC_ACCUFIFO_MUST_BE_ENABLED(pBc);
 
     // Compute number of clock frequency ticks
-    NumClks = (Int)((pBc->m_ClockFrequency * PeriodNs) / (1000LL*1000*1000));
+    NumClks = (Int)DtDivideS64(pBc->m_ClockFrequency * PeriodNs, 1000LL*1000*1000);
 
     // No change?
     if (pBc->m_AccuPeriodNumClks == NumClks)
@@ -287,8 +287,9 @@ DtStatus  DtBcACCUFIFO_Init(DtBc* pBcBase)
     
     // Set defaults
     pBc->m_NumMeasurements = pBc->m_MaxNumMeasurements;
-    pBc->m_AccuPeriodNumClks = (Int)((pBc->m_ClockFrequency*5000) / (1000LL*1000*1000));
-
+    pBc->m_AccuPeriodNumClks = (Int)DtDivideS64(pBc->m_ClockFrequency*5000, 
+                                                                        1000LL*1000*1000);
+    
     // Set control registers
     DtBcACCUFIFO_SetControlRegs(pBc, FALSE, pBc->m_AccuPeriodNumClks);
     RegControl2 = ACCUFIFO_Control2_READ(pBc);

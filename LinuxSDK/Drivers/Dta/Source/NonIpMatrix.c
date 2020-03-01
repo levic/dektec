@@ -1883,6 +1883,7 @@ DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
             NextFrame = pNonIpPort->m_Matrix.m_NextFrame;
             DT_ASSERT(NextFrame != -1);
             pNonIpPort->m_Matrix.m_CurFrame = NextFrame - 1;
+            pNonIpPort->m_Matrix.m_PreviousRefClk = 0;
 
             DtDbgOutPort(AVG, NONIP, pNonIpPort,
                                  "Enter run state; Starting with frame: %lld", NextFrame);
@@ -2007,16 +2008,11 @@ DtStatus  DtaNonIpMatrixLastFrameIntHandler(DtaNonIpPort*  pNonIpPort)
                 pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_TopHalf = DTA_3GB_UNKNOWN;
             }
 
-            // For the start time of the current frame there are two options, namely:
-            // 1. Repeat the same frame => use the previous end time as start time
-            // 2. New frame => end time of just rx-/tx-ed frame is start time
-            if (CurFrmIdx == LastFrmIdx)
-                pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClkStart = 
-                pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkEnd;
-            else
-                pNonIpPort->m_Matrix.m_FrameInfo[CurFrmIdx].m_RefClkStart = RefClk;
-            // Set end time reference clock for just the rx-/tx-ed frame
+            // Save start and end time of last rx-/tx-ed frame
+            pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkStart = 
+                                                    pNonIpPort->m_Matrix.m_PreviousRefClk;
             pNonIpPort->m_Matrix.m_FrameInfo[LastFrmIdx].m_RefClkEnd = RefClk;
+            pNonIpPort->m_Matrix.m_PreviousRefClk = RefClk;
         }
 
         if (NewState>=MATRIX_PORT_IDLE && (ChangeToRun || NewState!=MATRIX_PORT_RUN_MAN))

@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPcieTableStore.c *#*#*#*#*#*#*#*#*# (C) 2019 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPcieTableStore.c *#*#*#*#*#*#*#*#*# (C) 2020 DekTec
 //
 // CapParser - Device Table Store - Tables with calibration data, filter coefficients, ...
 //
@@ -802,9 +802,40 @@ static const DtTableLink  DtTableLink2132_0[] =
     { "DEMOD_FREQ_COMP_TABLES", 0, -1, 0, 0, 5, DtTable2132_0_000 }
 };
 
-const Int  DtTableStoreCount = 2;
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2174; Sub-device=2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static const DtTableEntry  DtTable2174_2_001[] =
+{
+    { 0, 1 }
+};
+static const DtTableEntry  DtTable2174_2_000[] =
+{
+    { 0, 0 }
+};
+
+static const DtTableLink  DtTableLink2174_2[] = 
+{
+    { "DVC_FW_VARIANTS", -1, -1, 0, 0, 1, DtTable2174_2_001 },
+    { "FIRMWARE_PACKAGE_HISTORY", -1, 1, 0, 0, 1, DtTable2174_2_000 }
+};
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2178; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static const DtTableEntry  DtTable2178_0_000[] =
+{
+    { 0, 1 }
+};
+
+static const DtTableLink  DtTableLink2178_0[] = 
+{
+    { "DVC_FW_VARIANTS", -1, -1, 0, 0, 1, DtTable2178_0_000 }
+};
+
+const Int  DtTableStoreCount = 4;
 const DtTableStore  DtTableStores[] = 
 {
     { 2139, 2, 60, DtTableLink2139_2 },
-    { 2132, 0, 6, DtTableLink2132_0 }
+    { 2132, 0, 6, DtTableLink2132_0 },
+    { 2174, 2, 2, DtTableLink2174_2 },
+    { 2178, 0, 1, DtTableLink2178_0 }
 };

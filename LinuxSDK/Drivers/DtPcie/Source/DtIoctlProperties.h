@@ -1521,6 +1521,15 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlSdiRxCmdGetSdiStatusInput),                                        \
         sizeof(DtIoctlSdiRxCmdGetSdiStatusOutput))
 
+#define DT_IOCTL_CMD_PROPS_SDIRX_GET_SDI_STATUS2                                         \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDIRX_CMD_GET_SDI_STATUS2,                                                    \
+        "GET_SDI_STATUS2",                                                               \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSdiRxCmdGetSdiStatusInput),                                        \
+        sizeof(DtIoctlSdiRxCmdGetSdiStatusOutput2))
+
 #define DT_IOCTL_CMD_PROPS_SDIRX_SET_OPERATIONAL_MODE                                    \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_SDIRX_CMD_SET_OPERATIONAL_MODE,                                               \
@@ -1556,6 +1565,7 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_SDIRX_GET_RXMODE,                                             \
         DT_IOCTL_CMD_PROPS_SDIRX_GET_SDIRATE,                                            \
         DT_IOCTL_CMD_PROPS_SDIRX_GET_SDI_STATUS,                                         \
+        DT_IOCTL_CMD_PROPS_SDIRX_GET_SDI_STATUS2,                                        \
         DT_IOCTL_CMD_PROPS_SDIRX_SET_OPERATIONAL_MODE,                                   \
         DT_IOCTL_CMD_PROPS_SDIRX_SET_RXMODE,                                             \
         DT_IOCTL_CMD_PROPS_SDIRX_SET_SDIRATE,                                            \
@@ -1726,6 +1736,15 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlSdiRxPCmdGetSdiStatusInput),                                       \
         sizeof(DtIoctlSdiRxPCmdGetSdiStatusOutput))
 
+#define DT_IOCTL_CMD_PROPS_SDIRXP_GET_SDI_STATUS2                                        \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SDIRXP_CMD_GET_SDI_STATUS2,                                                   \
+        "GET_SDI_STATUS2",                                                               \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSdiRxPCmdGetSdiStatusInput),                                       \
+        sizeof(DtIoctlSdiRxPCmdGetSdiStatusOutput2))
+
 #define DT_IOCTL_CMD_PROPS_SDIRXP_SET_OPERATIONAL_MODE                                   \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_SDIRXP_CMD_SET_OPERATIONAL_MODE,                                              \
@@ -1752,6 +1771,7 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_SDIRXP_GET_OPERATIONAL_MODE,                                  \
         DT_IOCTL_CMD_PROPS_SDIRXP_GET_SDIRATE,                                           \
         DT_IOCTL_CMD_PROPS_SDIRXP_GET_SDI_STATUS,                                        \
+        DT_IOCTL_CMD_PROPS_SDIRXP_GET_SDI_STATUS2,                                        \
         DT_IOCTL_CMD_PROPS_SDIRXP_SET_OPERATIONAL_MODE,                                  \
         DT_IOCTL_CMD_PROPS_SDIRXP_SET_SDIRATE,                                           \
     }

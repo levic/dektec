@@ -9,6 +9,8 @@ SALSRCDIR = $(SALDIR)/Source
 
 COMMON_DIR := ../../../../Common/Source
 
+NUMLBITS = $(shell getconf LONG_BIT)
+
 # ========================================================================================
 # KERNELDIR can be speficied on the command line or in the environment. Below you will
 # find the most common paths (undefine the correct one)
@@ -108,7 +110,7 @@ PWD = $(shell pwd)
 # Default option
 
 all:
-	make MYPWD=$(PWD) -C $(KERNELDIR) KBUILD_MODPOST_NOFINAL=1 M=$(PWD) modules 
+	make MYPWD=$(PWD) -C $(KERNELDIR) KBUILD_MODPOST_NOFINAL=1 KBUILD_MODPOST_WARN=1 M=$(PWD) modules 
 
 # ========================================================================================
 # Clean all option

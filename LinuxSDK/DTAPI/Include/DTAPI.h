@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI.h *#*#*#*#*#*#*#*#*#* (C) 2000-2019 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI.h *#*#*#*#*#*#*#*#*#* (C) 2000-2020 DekTec
 //
 // DTAPI - C++ API for DekTec PCI/PCI-Express cards, USB adapters and network devices
 //
@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        36
-#define DTAPI_VERSION_BUGFIX       3
-#define DTAPI_VERSION_BUILD        130
+#define DTAPI_VERSION_MINOR        37
+#define DTAPI_VERSION_BUGFIX       0
+#define DTAPI_VERSION_BUILD        134
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -158,6 +158,7 @@ struct DtAtscStreamSelPars;
 struct DtAtsc3DemodL1Data;
 struct DtAtsc3TxIdInfo;
 struct DtAtsc3StreamSelPars;
+struct DtAtsc3ParamInfo;
 struct DtDabEnsembleInfo;
 struct DtDabEtiStreamSelPars;
 struct DtDabStreamSelPars;
@@ -681,6 +682,29 @@ enum DtFirmwareStatus
     DTAPI_FWSTATUS_OBSOLETE,        // Firmware version is not supported anymore
 };
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtFirmwareVariantDesc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+//  Firmware variant description
+//
+struct DtFirmwareVariantDesc
+{
+    int  m_Variant;                 // Firmware variant identifier
+    int   m_Version;                // Firmware version number
+    DtFwBuildDateTime  m_BuildDate; // Firmware build date
+    std::wstring  m_Description;    // Description of the variant
+};
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtFirmwarePackageDesc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// This structure describes a firmware package
+//
+struct DtFirmwarePackageDesc
+{
+    int  m_Version;                 // Firmware package version number
+    DtFwBuildDateTime  m_BuildDate; // Firmware package build date
+    // Firmware variants in this package. Key: firmware variant identifier
+    std::map<int, DtFirmwareVariantDesc>  m_Variants; 
+};
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDeviceDesc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // This structure describes a DekTec device
@@ -702,7 +726,9 @@ struct DtDeviceDesc
     int  m_HardwareRevision;        // Hardware revision (e.g. 302 = 3.2)
     int  m_FirmwareVersion;         // Firmware version
     int  m_FirmwareVariant;         // Firmware variant
-    int  m_FwPackageVersion;        // Firmware package version (-1 if not applicable)
+    // Firmware package version (-1 if not applicable)
+    DTAPI_DEPRECATED(int  m_FwPackageVersion,
+               "Deprecated (will be removed!): Use DtDevice::FwPackageVersion() instead");
     DtFirmwareStatus  m_FirmwareStatus; // Firmware status
     DtFwBuildDateTime  m_FwBuildDate;   // Firmware build date and time
     int  m_NumDtInpChan;            // Number of input channels (max)
@@ -865,6 +891,8 @@ struct DtFractionInt
     int  m_Num, m_Den;
 
     double  ToDouble() const { return (m_Den==0) ? 0.0 : (double(m_Num)/double(m_Den)); }
+    bool operator==(const DtFractionInt&) const;
+    bool operator!=(const DtFractionInt&) const;
 
     DtFractionInt()                  { m_Num = 0;  m_Den = 1; }
     DtFractionInt(int  Val)          { m_Num = Val;  m_Den = 1; }
@@ -1599,7 +1627,10 @@ struct DtStatistic
         STAT_IDXTRA_ISDBT_LAYER,     // IdXtra is a ISDBT layer id.
         STAT_IDXTRA_ISI,             // IdXtra is DTAPI_STAT_IDXTRA_ISI_OVERALL 
                                      // or a DvbS2 stream id.
-        STAT_IDXTRA_TIME_WINDOW      // IdXtra is a time frame.
+        STAT_IDXTRA_TIME_WINDOW,     // IdXtra is a time frame.
+        STAT_IDXTRA_PLPID,           // IdXtra is a Plp ID.
+        STAT_IDXTRA_SUBCH,           // IdXtra is DAB's sub-channel start address (in CUs)
+                                     // or -1 for the FIC.
     };
 
     enum TimeWindowType
@@ -2847,6 +2878,7 @@ public:
     virtual int  ChanType(int Port);
     virtual int  FirmwareVersion(void);
     virtual int  FwPackageVersion();
+    virtual DtFirmwareStatus  FwPackageStatus();
     virtual bool  IsAttached(void);
     virtual int  TypeNumber(void);
     virtual bool  HasCaps(int  Port, const DtCaps  Caps) const;
@@ -2876,6 +2908,7 @@ public:
     virtual DTAPI_RESULT  GetFailsafeConfig(int Port, bool& Enable, int& Timeout);
     virtual DTAPI_RESULT  GetFanSpeed(int Fan, int& Rpm);
     virtual DTAPI_RESULT  GetFirmwareVariant(int& FirmwareVariant);
+    virtual DTAPI_RESULT  GetFirmwarePackageDesc(DtFirmwarePackageDesc& FwPackageDesc);
     virtual DTAPI_RESULT  GetFirmwareVersion(int& FirmwareVersion);
     virtual DTAPI_RESULT  GetFwPackageVersion(int& FwPackVersion);
     virtual DTAPI_RESULT  GetTemperature(int TempSens, int& Temp);
@@ -5564,7 +5597,7 @@ public:
     DTAPI_RESULT  CheckValidity(int& SubframeIdx, int& PlpIdx1, int& PlpIdx2);
     DTAPI_RESULT  CheckValidity(std::string& ParName, int& SubframeIdx, int& PlpIdx1,
                                                                             int& PlpIdx2);
-     DTAPI_RESULT  GetParamInfo(struct DtAtsc3ParamInfo& Atsc3Info);
+    DTAPI_RESULT  GetParamInfo(DtAtsc3ParamInfo& Atsc3Info);
     void Init();
     void  SetDefaultPars(void);
     bool  IsEqual(DtAtsc3Pars& Atsc3Pars);
@@ -7999,6 +8032,8 @@ public:
     bool  IsPlanar() const;
     static bool  IsPlanar(DtMxPixelFormat);
     const char* ToName() const;
+    bool operator==(const DtMxPixelFormatProps&) const;
+    bool operator!=(const DtMxPixelFormatProps&) const;
 
     // Data / Attributes
 public:
@@ -10456,6 +10491,62 @@ DTAPI_RESULT  DtapiVidStd2IoStd(int VidStd, int  LinkStd, int& Value, int& SubVa
 const char*  DtapiVidStd2Str(int VidStd);
 const char*  DtapiLinkStd2Str(int LinkStd);
 const char*  DtapiMxFrameStatus2Str(DtMxFrameStatus  Status);
+
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- Pixel conversion utility functions -.-.-.-.-.-.-.-.-.-.-.-.-.
+// NOTE: the below functions are undocumented and unsupported and may change at anytime
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- enum DtColorSpace -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+enum DtColorSpace
+{
+    DT_CS_AUTO,             // Select colorspace depending on signal type.
+    DT_CS_BT601,            // Used for SD signals
+    DT_CS_BT709,            // For HD-SDI and 3G-SDI
+    DT_CS_BT2020,           // For 4K
+};
+
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlaneDesc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+struct  DtPlaneDesc
+{
+    unsigned char*  m_pBuf;         // Pointer to buffer
+    int  m_LineNumS;        // Width in symbols
+    int  m_Height;          // Number of lines
+    int  m_Stride;          // Stride in number of bytes
+    DtColorSpace  m_ColorSpace;
+    bool  m_TopDown;        // True (default) for top-down buffers, false for bottom-up.
+                            // Bottom-up is only supported for RGB pixel formats
+
+    DtPlaneDesc();
+    DtPlaneDesc(const class MxAncBuf& AncBuf, int Plane);
+    DtPlaneDesc(const DtMxVideoBuf& VidBuf, int Plane);
+    DtPlaneDesc(const DtMxRawDataSdi& SdiBuf);
+};
+typedef std::vector<DtPlaneDesc>  DtPlaneDescVecT;
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- enum DtMxDeinterlaceMethod -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+enum DtMxDeinterlaceMethod
+{
+    DT_DEINT_WEAVE,
+    DT_DEINT_BOB,
+    DT_DEINT_BLEND,
+};
+
+DTAPI_RESULT  DtapiPxFmtTransform(const DtPlaneDescVecT& In, DtMxPixelFormat FmtIn,
+                                            DtPlaneDescVecT& Out, DtMxPixelFormat FmtOut);
+DTAPI_RESULT  Dtapi4kMerge(const DtPlaneDescVecT& In, DtMxPixelFormat FmtIn,
+                               DtPlaneDescVecT& Out, DtMxPixelFormat FmtOut, int LinkStd);
+DTAPI_RESULT  Dtapi4kSplit(const DtPlaneDescVecT& In, DtMxPixelFormat FmtIn,
+                              DtPlaneDescVecT& Out, DtMxPixelFormat FmtOut, int  LinkStd);
+DTAPI_RESULT  DtapiDeinterlace(const DtPlaneDescVecT& In, DtMxPixelFormat FmtIn,
+                                             DtPlaneDescVecT& Out, DtMxPixelFormat FmtOut,
+                                             DtMxDeinterlaceMethod Method);
+DTAPI_RESULT  DtapiInterlace(const DtPlaneDescVecT& In, DtMxPixelFormat FmtIn,
+                                            DtPlaneDescVecT& Out, DtMxPixelFormat FmtOut);
+
 
 } // namespace Dtapi
 

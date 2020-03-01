@@ -66,6 +66,14 @@ DtStatus  DtCfProps_Get(DtCfProps*, const char*, DtPropertyFilterCriteria,
                                               Bool  IsOptional, DtPropertyValue  Default);
 DtStatus  DtCfProps_GetStr(DtCfProps*, const char*, DtPropertyFilterCriteria,
                                                      char* pStr, DtPropertyScope* pScope);
+DtStatus  DtCfProps_GetTable(DtCfProps*, const char* pTableName, Int PortIndex, 
+                                                    UInt MaxNumEntries, UInt* pNumEntries,
+                                                    DtTableEntry*, UInt OutBufSize);
+DtStatus  DtCfProps_GetTableForType(DtCfProps*, Int TypeNumber, Int SubType, 
+                                                    DtPropertyFilterCriteria,
+                                                    const char* pTableName, 
+                                                    UInt MaxNumEntries, UInt* pNumEntries, 
+                                                    DtTableEntry*, UInt OutBufSize);
 Bool      DtCfProps_GetBool(DtCfProps*, const char*, Int, Bool  Default);
 Int       DtCfProps_GetInt(DtCfProps*, const char*, Int, Int  Default);
 Int8      DtCfProps_GetInt8(DtCfProps*, const char*, Int, Int8  Default);

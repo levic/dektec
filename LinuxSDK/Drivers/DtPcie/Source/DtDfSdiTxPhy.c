@@ -957,7 +957,10 @@ DtStatus DtDfSdiTxPhy_ConfigureRateC10A10(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool
             DT_ASSERT(DT_SUCCESS(Status));
         }
         if (!CalDone)
+        { 
+            DtDbgOutDf(ERR, SDITXPHY, pDf, "Calibration timeout");
             return DT_STATUS_TIMEOUT;
+        }
     }
 
     // Calibration completed deassert clock-reset
@@ -977,7 +980,10 @@ DtStatus DtDfSdiTxPhy_ConfigureRateC10A10(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool
         DT_ASSERT(DT_SUCCESS(Status));
     }
     if (IsResetInProgress)
+    {
+        DtDbgOutDf(ERR, SDITXPHY, pDf, "Reset in progress timeout");
         return DT_STATUS_TIMEOUT;
+    }
     return Status;
 }
 

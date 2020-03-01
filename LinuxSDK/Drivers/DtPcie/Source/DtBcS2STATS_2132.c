@@ -526,6 +526,14 @@ void DtBcS2STATS_2132_UpdateFrameStatus(DtBcS2STATS_2132* pBc)
     }
     
     NumToCopy = (FifoLoad < NumFree) ? FifoLoad : NumFree;
+
+    // TT#3279: Workaround for invalid last item. When receiving 2 different streams, the
+    // last framestat in the buffer sometimes contains a PLS-value from the first stream.
+    // Probably the FIFO-counter is wrong (1 too big): If the last item is not read, 
+    // the next read normally would deliver the skipped last faulty item, but it doesn't.
+    // TODO: Remove workaround when the firmware is fixed!
+    if(NumToCopy>0)
+        NumToCopy--;
     for (i=0; i<NumToCopy; i++)
     {
         // Read Frame status

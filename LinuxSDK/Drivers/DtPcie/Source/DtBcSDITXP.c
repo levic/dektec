@@ -74,7 +74,7 @@ DtBcSDITXP*  DtBcSDITXP_Open(Int  Address, DtCore*  pCore, DtPt*  pPt, DtBcType 
     DtBcOpenParams  OpenParams;
     
     DT_ASSERT(pCore!=NULL && pCore->m_Size>=sizeof(DtCore));
-    DT_ASSERT(Type== DT_BLOCK_TYPE_SDITXP || Type==DT_BLOCK_TYPE_SDITXP6G12G);
+    DT_ASSERT(Type== DT_BLOCK_TYPE_SDITXP);
     
     // Init open parameters
     DT_BC_SDITXP_INIT_ID(Id, Type, pRole, Instance, Uuid);

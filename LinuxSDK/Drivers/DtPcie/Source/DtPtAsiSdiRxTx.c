@@ -93,6 +93,8 @@ static DtStatus DtPtAsiSdiRxTx_SetRxIoConfigGenLock(DtPtAsiSdiRxTx*,
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
+static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStdDblBuf(DtPtAsiSdiRxTx*, 
+                                                                const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigDmaTestMode(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigFailSafe(DtPtAsiSdiRxTx*, 
@@ -158,7 +160,8 @@ DtStatus DtPtAsiSdiRxTx_Init(DtPt* pPtBase)
     const char* SdiRxMuxInRoleName = "SDI_MUX_IN";
     const char* SdiTxFrom4LinkMaster ="FROM_QUAD_LINK_MASTER";
     const char* SdiRxTo4LinkMaster ="TO_QUAD_LINK_MASTER";
-
+    const char* TxDblBufRoleName = "TX_DBL_BUF";
+ 
     // Sanity check
     PT_ASISDIRXTX_DEFAULT_PRECONDITIONS(pPt);
 
@@ -177,13 +180,7 @@ DtStatus DtPtAsiSdiRxTx_Init(DtPt* pPtBase)
     pPt->m_pBcSwitchTestModeTx = (DtBcSWITCH*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SWITCH, 
                                                                       TestModeTxRoleName);
     pPt->m_pBcSdiTxF = (DtBcSDITXF*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDITXF, NULL);
-    if (pPt->m_pBcSdiTxF == NULL)
-        pPt->m_pBcSdiTxF = (DtBcSDITXF*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDITXF6G12G,
-                                                                                    NULL);
     pPt->m_pBcSdiTxP = (DtBcSDITXP*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDITXP, NULL);
-    if (pPt->m_pBcSdiTxP == NULL)
-        pPt->m_pBcSdiTxP = (DtBcSDITXP*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDITXP6G12G,
-                                                                                    NULL);
     pPt->m_pBcConstSink = (DtBcCONSTSINK*)DtPt_FindBc(pPtBase, 
                                                            DT_BLOCK_TYPE_CONSTSINK, NULL);
 
@@ -213,6 +210,7 @@ DtStatus DtPtAsiSdiRxTx_Init(DtPt* pPtBase)
     pPt->m_pBcSwitchTestModeRx = (DtBcSWITCH*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SWITCH, 
                                                                       TestModeRxRoleName);
     pPt->m_pBcSdiRxF = (DtBcSDIRXF*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDIRXF, NULL);
+
     pPt->m_pBcConstSource = (DtBcCONSTSOURCE*)DtPt_FindBc(pPtBase,
                                                          DT_BLOCK_TYPE_CONSTSOURCE, NULL);
     //.-.-.-.-.-.-.-.-.-.-.-.- Find optional RX-block controllers -.-.-.-.-.-.-.-.-.-.-.-.
@@ -236,6 +234,10 @@ DtStatus DtPtAsiSdiRxTx_Init(DtPt* pPtBase)
     // Find the RX/TX driver functions
     pPt->m_pDfSpiCableDrvEq = (DtDfSpiCableDrvEq*)DtPt_FindDf(pPtBase, 
                                                         DT_FUNC_TYPE_SPICABLEDRVEQ, NULL);
+
+    // Find the double-buffered switch
+    pPt->m_pBcSwitchTxDblBuf = (DtBcSWITCH*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SWITCH, 
+                                                                        TxDblBufRoleName);
 
     // Check the driver functions and blockcontrollers that were found
     DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_CheckRxPrerequisites(pPt));
@@ -316,6 +318,7 @@ DtStatus DtPtAsiSdiRxTx_CheckTxPrerequisites(DtPtAsiSdiRxTx* pPt)
    Bool OutpCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_OUTPUT);
    Bool FailSafeCap = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_FAILSAFE);
    Bool RateTestCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_DMATESTMODE);
+   Bool DblBufCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_DBLBUF);
 
    if (!OutpCap)
        return DT_STATUS_OK;
@@ -382,6 +385,13 @@ DtStatus DtPtAsiSdiRxTx_CheckTxPrerequisites(DtPtAsiSdiRxTx* pPt)
         DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: CONSTSOURCE/SWITCH not found");
         return DT_STATUS_FAIL;
     }
+    
+    // In case of double-buffered output a buddy port selector switch is required
+    if (DblBufCap && pPt->m_pBcSwitchTxDblBuf==NULL)
+    {
+        DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: double-buffer switch not found");
+        return DT_STATUS_FAIL;
+    }
 
     return DT_STATUS_OK;
 }
@@ -446,6 +456,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
     Int  IoCfg=0;
     DtPtAsiSdiRxTx* pPt = (DtPtAsiSdiRxTx*)pPtBase;
     Bool IsInput = FALSE;
+    Bool IsDblBufOutput = FALSE;
 
     // Sanity check
     PT_ASISDIRXTX_DEFAULT_PRECONDITIONS(pPt);
@@ -501,6 +512,9 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
     DT_ASSERT(pIoCfgs[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_INPUT
                                || pIoCfgs[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_OUTPUT);
     IsInput = (pIoCfgs[DT_IOCONFIG_IODIR].m_Value == DT_IOCONFIG_INPUT);
+    IsDblBufOutput = (pIoCfgs[DT_IOCONFIG_IODIR].m_Value==DT_IOCONFIG_OUTPUT && 
+                               pIoCfgs[DT_IOCONFIG_IODIR].m_SubValue==DT_IOCONFIG_DBLBUF);
+
 
     // Perform IO-Config setting IOSTD. Dependent on direction
     if (DT_IOCONFIG_IOSTD >= NumIoCfgs)
@@ -508,8 +522,11 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
     if (IsInput)
         DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetRxIoConfigIoStd(pPt, 
                                                             &pIoCfgs[DT_IOCONFIG_IOSTD]));
-    else
+    else if (!IsDblBufOutput)
         DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetTxIoConfigIoStd(pPt,
+                                                            &pIoCfgs[DT_IOCONFIG_IOSTD]));
+    else
+        DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetTxIoConfigIoStdDblBuf(pPt,
                                                             &pIoCfgs[DT_IOCONFIG_IOSTD]));
 
     // Perform IO-Config setting DMATESTMODE; dependent on direction
@@ -518,16 +535,17 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
     if (IsInput)
         DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetRxIoConfigDmaTestMode(pPt, 
                                                       &pIoCfgs[DT_IOCONFIG_DMATESTMODE]));
-    else
+    else if (!IsDblBufOutput)
         DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetTxIoConfigDmaTestMode(pPt, 
                                                       &pIoCfgs[DT_IOCONFIG_DMATESTMODE]));
+
     // Perform IO-Config setting FAILSAFE
     if (DT_IOCONFIG_FAILSAFE >= NumIoCfgs)
         return DT_STATUS_INVALID_PARAMETER;
     if (IsInput)
         DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetRxIoConfigFailSafe(pPt, 
                                                          &pIoCfgs[DT_IOCONFIG_FAILSAFE]));
-    else
+    else if (!IsDblBufOutput)
         DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetTxIoConfigFailSafe(pPt, 
                                                          &pIoCfgs[DT_IOCONFIG_FAILSAFE]));
     // Perform IO-Config setting GENLOCKED
@@ -536,7 +554,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
     if (IsInput)
         DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetRxIoConfigGenLock(pPt, 
                                                         &pIoCfgs[DT_IOCONFIG_GENLOCKED]));
-    else
+    else if (!IsDblBufOutput)
         DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetTxIoConfigGenLock(pPt, 
                                                         &pIoCfgs[DT_IOCONFIG_GENLOCKED]));
 
@@ -550,14 +568,72 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
 {
    Bool InpCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_INPUT);
    Bool OutpCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_OUTPUT);
+   Bool DblBufCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_DBLBUF);
 
     DT_ASSERT(pIoCfg != NULL);
-    DT_ASSERT((OutpCap && pIoCfg->m_Value==DT_IOCONFIG_OUTPUT 
-                                               && pIoCfg->m_SubValue==DT_IOCONFIG_OUTPUT)
+    DT_ASSERT((OutpCap && pIoCfg->m_Value==DT_IOCONFIG_OUTPUT)
            || (InpCap && pIoCfg->m_Value==DT_IOCONFIG_INPUT 
                                                && pIoCfg->m_SubValue==DT_IOCONFIG_INPUT));
 
-    if (pIoCfg->m_Value == DT_IOCONFIG_OUTPUT)
+    if (pIoCfg->m_Value==DT_IOCONFIG_OUTPUT && pIoCfg->m_SubValue==DT_IOCONFIG_DBLBUF)
+    {
+        // Configured for double-buffered output
+        // Determine buddy port and double-buffer switch position
+        Int  PortIndex = pPt->m_PortIndex+1;
+        Int  Buddy = (Int)pIoCfg->m_ParXtra[0];
+        Int  DblBufSelect = Buddy%4;
+        if (Buddy < PortIndex)
+            DblBufSelect++;
+        DT_ASSERT(DblBufSelect>0 && DblBufSelect<=3);
+
+        if (InpCap)
+        { 
+            // Disable all available RX driver-functions/blocks
+            ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfAsiRx, FALSE);
+            ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiRx, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchFrontEndRx, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchBackEndRx, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchTestModeRx, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcConstSource, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiRxF, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxMuxOut, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiRxMux12G, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiRxSt425Lr, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxMuxIn, FALSE);
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxTo4LinkMaster, FALSE);
+        }
+        // Disable all TX-driver functions/blocks that are not used in double buffered
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcAsiTxG, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcAsiTxSer, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchFrontEndTx, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchBackEndTx, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchTestModeTx, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcConstSink, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiTxF, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiTxP, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxDmxOut, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSdiTxDmx12G, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxDmxIn, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxFrom4LinkMaster, FALSE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcKeepAlive, FALSE);
+
+        // Enable and set double buffered switch position
+        DT_ASSERT(pPt->m_pBcSwitchTxDblBuf != NULL);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchTxDblBuf, TRUE);
+        DT_RETURN_ON_ERROR(DtBcSWITCH_SetPosition(pPt->m_pBcSwitchTxDblBuf,
+                                                                        DblBufSelect, 0));
+        DT_RETURN_ON_ERROR(DtBcSWITCH_SetOperationalMode(pPt->m_pBcSwitchTxDblBuf,
+                                                                    DT_BLOCK_OPMODE_RUN));
+
+        // Enable all other TX-driver functions/blocks that are used in double buffered
+        ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiTxPhy, TRUE);
+        ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcGs2988, TRUE);
+        ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSpiCableDrvEq, TRUE);
+        if (pPt->m_pDfSpiCableDrvEq != NULL)
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetDirection(pPt->m_pDfSpiCableDrvEq,
+                                                             DT_DF_SPICABLEDRVEQ_DIR_TX));
+    }
+    else if (pIoCfg->m_Value == DT_IOCONFIG_OUTPUT)
     {
         // Configured for output
         if (InpCap)
@@ -576,6 +652,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxMuxIn, FALSE);
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiRxTo4LinkMaster, FALSE);
         }
+
         // Enable TX-driver functions/blocks that do not dependent on IOSTD or other
         // IO configs
         ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiTxPhy, TRUE);
@@ -587,6 +664,14 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcBURSTFIFO, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcKeepAlive, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcGs2988, TRUE);
+        if (pPt->m_pBcSwitchTxDblBuf != NULL)
+        { 
+            // Pass own channel and enable double-buffer switch
+            ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchTxDblBuf, TRUE);
+            DT_RETURN_ON_ERROR(DtBcSWITCH_SetPosition(pPt->m_pBcSwitchTxDblBuf, 0, 0));
+            DT_RETURN_ON_ERROR(DtBcSWITCH_SetOperationalMode(pPt->m_pBcSwitchTxDblBuf,
+                                                                    DT_BLOCK_OPMODE_RUN));
+        }
         // Set direction
         DT_RETURN_ON_ERROR(DtBcBURSTFIFO_SetDirection(pPt->m_pBcBURSTFIFO, 
                                                                     DT_BURSTFIFO_DIR_TX));
@@ -615,7 +700,15 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchSdiTxFrom4LinkMaster, FALSE);
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcKeepAlive, FALSE);
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcGs2988, FALSE);
+            if (pPt->m_pBcSwitchTxDblBuf != NULL)
+            { 
+                // Pass own channel and disable double-buffer switch
+                ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchTxDblBuf, TRUE);
+                DT_RETURN_ON_ERROR(DtBcSWITCH_SetPosition(pPt->m_pBcSwitchTxDblBuf, 0,0));
+                ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchTxDblBuf, FALSE);
+            }
         }
+
         // Enable RX-driver functions/blocks that do not dependent on IOSTD or other
         // IO configs
         ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiRx, TRUE);
@@ -625,6 +718,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchTestModeRx, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcCDmaC, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcBURSTFIFO, TRUE);
+
         // Set direction
         DT_RETURN_ON_ERROR(DtBcBURSTFIFO_SetDirection(pPt->m_pBcBURSTFIFO, 
                                                                     DT_BURSTFIFO_DIR_RX));
@@ -943,7 +1037,89 @@ DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
         // If we have GS2988 cable driver, set it for SD or HD/3G mode
         if (pPt->m_pBcGs2988 != NULL)
         {
-            Int  Mode = (pIoCfg->m_Value==DT_IOCONFIG_SDI) ? 
+            Int  Mode = (SdiRate==DT_DRV_SDIRATE_SD) ? 
+                                           DT_GS2988_SDIMODE_SD : DT_GS2988_SDIMODE_HD_3G;
+            DT_RETURN_ON_ERROR(DtBcGS2988_SetSdiMode(pPt->m_pBcGs2988, Mode));
+        }
+
+        // If we have SPI-cable driver, set SDI-rate
+        if (pPt->m_pDfSpiCableDrvEq != NULL)
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetSdiRate(pPt->m_pDfSpiCableDrvEq, 
+                                                                                SdiRate));
+    }
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetTxIoConfigIoStdDblBuf -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStdDblBuf(DtPtAsiSdiRxTx* pPt,
+                                                          const DtCfIoConfigValue* pIoCfg)
+{
+    Int  SdiRate, VidStd;
+    Int  CurOpMode;
+    DT_ASSERT(pIoCfg != NULL);
+
+    // ASI or SDI?
+    if (pIoCfg->m_Value == DT_IOCONFIG_ASI)
+    {
+        // Set the transmitter in ASI  mode (switch to IDLE during setting)
+        if (pPt->m_pDfSdiTxPhy != NULL)
+        {
+            DT_RETURN_ON_ERROR(DtDfSdiTxPhy_GetOperationalMode(pPt->m_pDfSdiTxPhy,
+                                                                             &CurOpMode));
+            DT_RETURN_ON_ERROR(DtDfSdiTxPhy_SetOperationalMode(pPt->m_pDfSdiTxPhy,
+                                                                    DT_FUNC_OPMODE_IDLE));
+            DT_RETURN_ON_ERROR(DtDfSdiTxPhy_SetTxMode(pPt->m_pDfSdiTxPhy,
+                                                                 DT_SDITXPHY_TXMODE_ASI));
+            DT_RETURN_ON_ERROR(DtDfSdiTxPhy_SetOperationalMode(pPt->m_pDfSdiTxPhy,
+                                                                              CurOpMode));
+        }
+
+        // If we have GS2988 cable driver, set it for SD operation now
+        if (pPt->m_pBcGs2988 != NULL)
+            DT_RETURN_ON_ERROR(DtBcGS2988_SetSdiMode(pPt->m_pBcGs2988, 
+                                                                   DT_GS2988_SDIMODE_SD));
+        // If we have SPI-cable driver, set SDI-rate to SD
+        if (pPt->m_pDfSpiCableDrvEq != NULL)
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetSdiRate(pPt->m_pDfSpiCableDrvEq, 
+                                                                      DT_DRV_SDIRATE_SD));
+    } 
+    else
+    {
+        //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SDI -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+        // Determine video standard
+        VidStd = DtAvIoStd2VidStd(pIoCfg->m_Value, pIoCfg->m_SubValue);
+        DT_ASSERT(VidStd != DT_VIDSTD_UNKNOWN);
+        
+        // Determine SDI-rate
+        switch (pIoCfg->m_Value)
+        {
+        case DT_IOCONFIG_SDI:    SdiRate = DT_DRV_SDIRATE_SD; break;
+        case DT_IOCONFIG_HDSDI:  SdiRate = DT_DRV_SDIRATE_HD; break;
+        case DT_IOCONFIG_3GSDI:  SdiRate = DT_DRV_SDIRATE_3G; break;
+        case DT_IOCONFIG_6GSDI:  SdiRate = DT_DRV_SDIRATE_6G; break;
+        case DT_IOCONFIG_12GSDI: SdiRate = DT_DRV_SDIRATE_12G; break;
+        default: DT_ASSERT(FALSE); return DT_STATUS_FAIL;
+        }
+
+        // Save current opmode
+        DT_RETURN_ON_ERROR(DtDfSdiTxPhy_GetOperationalMode(pPt->m_pDfSdiTxPhy,
+                                                                             &CurOpMode));
+        DT_RETURN_ON_ERROR(DtDfSdiTxPhy_SetOperationalMode(pPt->m_pDfSdiTxPhy,
+                                                                    DT_FUNC_OPMODE_IDLE));
+        // Set the transmitter in SDI transmitter mode
+        DT_RETURN_ON_ERROR(DtDfSdiTxPhy_SetTxMode(pPt->m_pDfSdiTxPhy,
+                                                                 DT_SDITXPHY_TXMODE_SDI));
+        // Set the new video standard
+        DT_RETURN_ON_ERROR(DtDfSdiTxPhy_SetVidStd(pPt->m_pDfSdiTxPhy, VidStd));
+
+        DT_RETURN_ON_ERROR(DtDfSdiTxPhy_SetOperationalMode(pPt->m_pDfSdiTxPhy,
+                                                                              CurOpMode));
+
+        // If we have GS2988 cable driver, set it for SD or HD/3G mode
+        if (pPt->m_pBcGs2988 != NULL)
+        {
+            Int  Mode = (SdiRate==DT_DRV_SDIRATE_SD) ? 
                                            DT_GS2988_SDIMODE_SD : DT_GS2988_SDIMODE_HD_3G;
             DT_RETURN_ON_ERROR(DtBcGS2988_SetSdiMode(pPt->m_pBcGs2988, Mode));
         }
@@ -990,6 +1166,59 @@ DtStatus DtPtAsiSdiRxTx_SetTxIoConfigDmaTestMode(DtPtAsiSdiRxTx* pPt,
         return DT_STATUS_INVALID_PARAMETER;
     }
     return DT_STATUS_OK;
+}
+
+
+// .-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetTxIoConfigFailSafe -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtPtAsiSdiRxTx_SetTxIoConfigFailSafe(DtPtAsiSdiRxTx* pPt, 
+                                                          const DtCfIoConfigValue* pIoCfg)
+{
+    DT_ASSERT(pIoCfg != NULL);
+
+    // Nothing to configure?
+    if (pIoCfg->m_Value == DT_IOCONFIG_NONE)
+    {
+        DT_ASSERT(pPt->m_pBcKeepAlive == NULL);
+        return DT_STATUS_OK;
+    }
+
+    DT_ASSERT(pPt->m_pBcKeepAlive != NULL);
+    // If failsafe is enabled, disable the automatic keep-alive
+    if (pIoCfg->m_Value == DT_IOCONFIG_TRUE)
+        return DtBcKA_SetAutoKeepAlive(pPt->m_pBcKeepAlive, FALSE,
+                                                               (Int)pIoCfg->m_ParXtra[0]);
+    else if (pIoCfg->m_Value == DT_IOCONFIG_FALSE)
+        return DtBcKA_SetAutoKeepAlive(pPt->m_pBcKeepAlive, TRUE, 0);
+    else
+    { 
+        DT_ASSERT(FALSE);
+        return DT_STATUS_INVALID_PARAMETER;
+    }
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetTxIoConfigGenLock -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtPtAsiSdiRxTx_SetTxIoConfigGenLock(DtPtAsiSdiRxTx* pPt, 
+                                                          const DtCfIoConfigValue* pIoCfg)
+{
+    // Nothing to configure?
+    if (pIoCfg->m_Value==DT_IOCONFIG_NONE)
+    {
+        DT_ASSERT(!DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_GENLOCKED));
+        return DT_STATUS_OK;
+    }
+
+    DT_ASSERT(DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_GENLOCKED));
+
+    // Check genlocked values; no action is needed
+    if (pIoCfg->m_Value==DT_IOCONFIG_TRUE || pIoCfg->m_Value==DT_IOCONFIG_FALSE)
+        return DT_STATUS_OK;
+    else
+    { 
+        DT_ASSERT(FALSE);
+        return DT_STATUS_INVALID_PARAMETER;
+    }
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetIoConfigPrepare -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1125,57 +1354,6 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigPrepare(DtPt* pPtBase,
     return Status;
 }
 
-// .-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetTxIoConfigFailSafe -.-.-.-.-.-.-.-.-.-.-.-.-
-//
-DtStatus DtPtAsiSdiRxTx_SetTxIoConfigFailSafe(DtPtAsiSdiRxTx* pPt, 
-                                                          const DtCfIoConfigValue* pIoCfg)
-{
-    DT_ASSERT(pIoCfg != NULL);
-
-    // Nothing to configure?
-    if (pIoCfg->m_Value == DT_IOCONFIG_NONE)
-    {
-        DT_ASSERT(pPt->m_pBcKeepAlive == NULL);
-        return DT_STATUS_OK;
-    }
-
-    DT_ASSERT(pPt->m_pBcKeepAlive != NULL);
-    // If failsafe is enabled, disable the automatic keep-alive
-    if (pIoCfg->m_Value == DT_IOCONFIG_TRUE)
-        return DtBcKA_SetAutoKeepAlive(pPt->m_pBcKeepAlive, FALSE,
-                                                               (Int)pIoCfg->m_ParXtra[0]);
-    else if (pIoCfg->m_Value == DT_IOCONFIG_FALSE)
-        return DtBcKA_SetAutoKeepAlive(pPt->m_pBcKeepAlive, TRUE, 0);
-    else
-    { 
-        DT_ASSERT(FALSE);
-        return DT_STATUS_INVALID_PARAMETER;
-    }
-}
-
-// -.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetTxIoConfigGenLock -.-.-.-.-.-.-.-.-.-.-.-.-
-//
-DtStatus DtPtAsiSdiRxTx_SetTxIoConfigGenLock(DtPtAsiSdiRxTx* pPt, 
-                                                          const DtCfIoConfigValue* pIoCfg)
-{
-    // Nothing to configure?
-    if (pIoCfg->m_Value==DT_IOCONFIG_NONE)
-    {
-        DT_ASSERT(!DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_GENLOCKED));
-        return DT_STATUS_OK;
-    }
-
-    DT_ASSERT(DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_GENLOCKED));
-
-    // Check genlocked values; no action is needed
-    if (pIoCfg->m_Value==DT_IOCONFIG_TRUE || pIoCfg->m_Value==DT_IOCONFIG_FALSE)
-        return DT_STATUS_OK;
-    else
-    { 
-        DT_ASSERT(FALSE);
-        return DT_STATUS_INVALID_PARAMETER;
-    }
-}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetIoConfigFinish -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //

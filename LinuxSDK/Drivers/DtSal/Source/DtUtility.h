@@ -339,7 +339,35 @@ static __inline UInt64  DtDivide64(UInt64 Num, UInt64 Denom, UInt64* pRest)
     //return Answer;
 #endif
 }
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDivideS64 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// 64 bit integer division returns num/denom
+//
+static __inline Int64  DtDivideS64(Int64 Num, Int64 Denom)
+{
+#ifdef WINBUILD
+    return Num / Denom;
+#else
+    return div64_s64(Num, Denom);
+#endif
+}
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtModuloS64 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// returns remainder of 64 bit integer division of num/denom;
+//
+static __inline Int64  DtModuloS64(Int64 Num, Int64 Denom)
+{
+#ifdef WINBUILD
+    return Num % Denom;
+#else
+    Int64 Rest = Num - div64_s64(Num, Denom)*Denom;
+    if (Rest < 0)
+        return -Rest;
+    else
+        return Rest;
+#endif
+}
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAtomicCompareExchange -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // This function returns the original value

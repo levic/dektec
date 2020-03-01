@@ -80,6 +80,7 @@ typedef  struct _DtBcCDMAC
     DmaDirectBuffer  m_PtrTable; // DMA pointer table buffer
     UInt8*  m_pDmaBuffer;       // DMA buffer (shared with user)
     Int  m_DmaBufferSize;       // DMA buffer size
+    DmaOsSgl  m_OsSgList;       // Scatter gather list
     DtPageList  m_DmaBufferPageList; // Pagelist of DMA buffer
     // Cached settings
     Bool  m_BlockEnabled;       // Block enabled

@@ -68,17 +68,19 @@ void  DtBcSDIRXF_Close(DtBc*  pBc)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXF_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtBcSDIRXF*  DtBcSDIRXF_Open(Int  Address, DtCore*  pCore, DtPt*  pPt,
+DtBcSDIRXF*  DtBcSDIRXF_Open(Int  Address, DtCore*  pCore, DtPt*  pPt, DtBcType  Type,
                            const char*  pRole, Int  Instance, Int  Uuid, Bool  CreateStub)
 {
     DtBcId  Id;
     DtBcOpenParams  OpenParams;
     
     DT_ASSERT(pCore!=NULL && pCore->m_Size>=sizeof(DtCore));
+    DT_ASSERT(Type== DT_BLOCK_TYPE_SDIRXF);
+
     
     // Init open parameters
-    DT_BC_SDIRXF_INIT_ID(Id, pRole, Instance, Uuid);
-    DT_BC_INIT_OPEN_PARAMS(OpenParams, DtBcSDIRXF, Id, DT_BLOCK_TYPE_SDIRXF, Address,
+    DT_BC_SDIRXF_INIT_ID(Id, Type, pRole, Instance, Uuid);
+    DT_BC_INIT_OPEN_PARAMS(OpenParams, DtBcSDIRXF, Id, Type, Address,
                                                                   pPt, CreateStub, pCore);
     // Register the callbacks
     OpenParams.m_CloseFunc = DtBcSDIRXF_Close;
@@ -253,7 +255,7 @@ DtStatus DtBcSDIRXF_SetFmtEventTiming(DtBcSDIRXF* pBc, Int Interval, Int Delay,
     pBc->m_InterruptsPerFrame = IntPerFrame;
 
     // Format event timing is set
-    pBc->m_FramePropsSet = TRUE;
+    pBc->m_FmtEvtTimingSet = TRUE;
 
     return DT_STATUS_OK;
 }
@@ -347,7 +349,7 @@ DtStatus DtBcSDIRXF_SetOperationalMode(DtBcSDIRXF* pBc, Int OpMode)
     if (OpMode == DT_BLOCK_OPMODE_RUN)
     {
         // Check whether required parameters are set
-        if (!pBc->m_FramePropsSet || !pBc->m_FramePropsSet)
+        if (!pBc->m_FmtEvtTimingSet || !pBc->m_FramePropsSet)
         {
             DtDbgOutBc(ERR, SDIRXF, pBc, 
                             "Format event timing and/or FrameProperties are not yet set");
@@ -356,14 +358,14 @@ DtStatus DtBcSDIRXF_SetOperationalMode(DtBcSDIRXF* pBc, Int OpMode)
 
         // Enable formatter event interrupt
         pBc->m_FmtIntEnabled = TRUE;
-        Status = DtBc_InterruptEnable((DtBc*)pBc, DT_INTERRUPT_SDIRXF_FMTEVENT);
+        Status = DtBc_InterruptEnable((DtBc*)pBc, pBc->m_FmtIntId);
         DT_ASSERT(DT_SUCCESS(Status));
     }
     // RUN -> IDLE or RUN -> STANDBY?
     else if (pBc->m_OperationalMode == DT_BLOCK_OPMODE_RUN)
     {
         // Disable formatter event interrupt
-        Status = DtBc_InterruptDisable((DtBc*)pBc, DT_INTERRUPT_SDIRXF_FMTEVENT);
+        Status = DtBc_InterruptDisable((DtBc*)pBc,  pBc->m_FmtIntId);
         DT_ASSERT(DT_SUCCESS(Status));
 
         // Make sure that WaitForFmtEvent doesn't wait forever
@@ -469,20 +471,19 @@ DtStatus  DtBcSDIRXF_Init(DtBc*  pBcBase)
 
     // Get stream-alignement
     pBc->m_StreamAlignment = 32;
-    //if (pBc->m_Version > 0)  TODOTD
-    //{
-    //    UInt32  FwAlignment = SDIRXF_Config_READ_Alignment(pBc);
-    //    switch (FwAlignment)
-    //    {
-    //    case SDIRXF_STREAMALIGNMENT_32b:   pBc->m_StreamAlignment = 32; break;
-    //    case SDIRXF_STREAMALIGNMENT_64b:   pBc->m_StreamAlignment = 64; break;
-    //    case SDIRXF_STREAMALIGNMENT_128b:  pBc->m_StreamAlignment = 128; break;
-    //    case SDIRXF_STREAMALIGNMENT_256b:  pBc->m_StreamAlignment = 256; break;
-    //    case SDIRXF_STREAMALIGNMENT_512b:  pBc->m_StreamAlignment = 512; break;
-    //    default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
-    //    }
-    //}
-
+    if (pBc->m_Version > 0)
+    {
+        UInt32  FwAlignment = SDIRXF_Config_READ_Alignment(pBc);
+        switch (FwAlignment)
+        {
+        case SDIRXF_STREAMALIGNMENT_32b:   pBc->m_StreamAlignment = 32; break;
+        case SDIRXF_STREAMALIGNMENT_64b:   pBc->m_StreamAlignment = 64; break;
+        case SDIRXF_STREAMALIGNMENT_128b:  pBc->m_StreamAlignment = 128; break;
+        case SDIRXF_STREAMALIGNMENT_256b:  pBc->m_StreamAlignment = 256; break;
+        case SDIRXF_STREAMALIGNMENT_512b:  pBc->m_StreamAlignment = 512; break;
+        default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+        }
+    }
     // For format event timing and frame properties we don't have good defaults
     pBc->m_FramePropsSet = FALSE;
     pBc->m_FmtEvtTimingSet = FALSE;
@@ -602,7 +603,7 @@ void DtBcSDIRXF_InterruptDpcFmtEvent(DtDpcArgs* pArgs)
     // Sanity check
 #ifdef DEBUG
     UInt32  IntId = pArgs->m_Data1.m_UInt32_1;
-    DT_ASSERT(IntId == DT_INTERRUPT_SDIRXF_FMTEVENT);
+    DT_ASSERT(IntId==DT_INTERRUPT_SDIRXF_FMTEVENT);
 #endif  // #ifdef DEBUG
     BC_SDIRXF_DEFAULT_PRECONDITIONS(pBc);
 
@@ -664,8 +665,10 @@ DtStatus  DtBcSDIRXF_RegisterIntHandlers(DtBcSDIRXF*  pBc)
     // Sanity check
     BC_SDIRXF_DEFAULT_PRECONDITIONS(pBc);
 
+
     // Register interrupt callbacks, but do not enable the interrupts. We will enable 
     // them on demand
+    pBc->m_FmtIntId = -1;
     for(i=0; i<pBc->m_NumInterrupts; i++)
     {
         const Int  Id = pBc->m_IntProps[i].m_Id;
@@ -674,6 +677,8 @@ DtStatus  DtBcSDIRXF_RegisterIntHandlers(DtBcSDIRXF*  pBc)
         switch(Id)
         {
         case DT_INTERRUPT_SDIRXF_FMTEVENT:
+            // Store format event interrupt ID 
+            pBc->m_FmtIntId = Id;
             // NOTE: the SDIRXF uses one handler for all interrupt sources
             Status = DtBc_IntHandlerRegister((DtBc*)pBc, Id, 
                                                      DtBcSDIRXF_InterruptHandler, NULL);

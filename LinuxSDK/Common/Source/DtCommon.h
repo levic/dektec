@@ -417,8 +417,7 @@ typedef enum  _DtBcType
     DT_BLOCK_TYPE_SDIDMX12G,    // SdiDemux12G
     DT_BLOCK_TYPE_SDIMUX12G,    // SdiMux12G
     DT_BLOCK_TYPE_ST425LR,      // St425LinkReorder
-    DT_BLOCK_TYPE_SDITXF6G12G,  // SdiTxFmtSimple 6G 12G
-    DT_BLOCK_TYPE_SDITXP6G12G,  // SdiTxProtocol 6G 12G
+
 
     // Local DTA-2132 blocks. DONOT RENUMBER!!
     DT_BLOCK_TYPE_AD5320_2132   = LTYPE_SEQNUM(2132, 1),
@@ -2735,6 +2734,7 @@ typedef enum _DtIoctlSdiRxCmd
     DT_SDIRX_CMD_SET_OPERATIONAL_MODE = 5,
     DT_SDIRX_CMD_SET_RXMODE = 6,
     DT_SDIRX_CMD_SET_SDIRATE = 7,
+    DT_SDIRX_CMD_GET_SDI_STATUS2 = 8,
 }  DtIoctlSdiRxCmd;
 
 // DT SDIRX  RX-mode
@@ -2785,21 +2785,33 @@ ASSERT_SIZE(DtIoctlSdiRxCmdGetSdiRateOutput, 4)
 //
 typedef DtIoctlInputDataHdr DtIoctlSdiRxCmdGetSdiStatusInput;
 ASSERT_SIZE(DtIoctlSdiRxCmdGetSdiStatusInput, 16)
+
+// Common for Get SDI-Status Output
+#define DT_IOCTL_SDIRX_CMD_GET_SDI_STATUS_OUTPUT                                         \
+    Int  m_CarrierDetect;       /* ASI/SDI carrier detect                             */ \
+    Int  m_SdiLock;             /* SDI-overall lock (TRUE or FALSE)                   */ \
+    Int  m_LineLock;            /* SDI-line lock (TRUE or FALSE)                      */ \
+    Int  m_Valid;               /* SDI-parameters are valid (TRUE or FALSE)           */ \
+    Int  m_NumSymsHanc;         /* Number of HANC symbols per line                    */ \
+    Int  m_NumSymsVidVanc;      /* Number of Video/VANC symbols per line              */ \
+    Int  m_NumLinesF1;          /* Number of lines in field 1                         */ \
+    Int  m_NumLinesF2;          /* Number of lines in field 2                         */ \
+    Int  m_IsLevelB;            /* TRUE if received stream HD-SDI format.is Level B   */ \
+    UInt  m_PayloadId;          /* Payload ID                                         */ \
+    Int  m_FramePeriod;         /* Frame period in nanoseconds                        */
 typedef struct _DtIoctlSdiRxCmdGetSdiStatusOutput
 {
-    Int  m_CarrierDetect;       // ASI/SDI carrier detect
-    Int  m_SdiLock;             // SDI-overall lock (TRUE or FALSE)
-    Int  m_LineLock;            // SDI-line lock (TRUE or FALSE)
-    Int  m_Valid;               // SDI-parameters are valid (TRUE or FALSE)
-    Int  m_NumSymsHanc;         // Number of HANC symbols per line 
-    Int  m_NumSymsVidVanc;      // Number of Video/VANC symbols per line
-    Int  m_NumLinesF1;          // Number of lines in field 1 
-    Int  m_NumLinesF2;          // Number of lines in field 2
-    Int  m_IsLevelB;            // TRUE if received stream HD-SDI format.is Level B
-    UInt  m_PayloadId;          // Payload ID
-    Int  m_FramePeriod;         // Frame period in nanoseconds
+    DT_IOCTL_SDIRX_CMD_GET_SDI_STATUS_OUTPUT
 }  DtIoctlSdiRxCmdGetSdiStatusOutput;
 ASSERT_SIZE(DtIoctlSdiRxCmdGetSdiStatusOutput, 44)
+
+//  Get SDI-Status Output extended with SDI-rate
+typedef struct _DtIoctlSdiRxCmdGetSdiStatusOutput2
+{
+    DT_IOCTL_SDIRX_CMD_GET_SDI_STATUS_OUTPUT
+    Int  m_SdiRate;             // Current SDI-rate
+}  DtIoctlSdiRxCmdGetSdiStatusOutput2;
+ASSERT_SIZE(DtIoctlSdiRxCmdGetSdiStatusOutput2, 48)
 
 //-.-.-.-.-.-.-.-.-.-.- SDIRX Command - Set Operational Mode Command -.-.-.-.-.-.-.-.-.-.-
 //
@@ -2844,6 +2856,7 @@ typedef union _DtIoctlSdiRxCmdOutput
     DtIoctlSdiRxCmdGetRxModeOutput  m_GetRxMode;             // Get RX-mode
     DtIoctlSdiRxCmdGetSdiRateOutput  m_GetSdiRate;           // Get SDI-rate
     DtIoctlSdiRxCmdGetSdiStatusOutput  m_GetSdiStatus;       // Get SDI-status
+    DtIoctlSdiRxCmdGetSdiStatusOutput2  m_GetSdiStatus2;     // Get SDI-status2
 }  DtIoctlSdiRxCmdOutput;
 #ifdef WINBUILD
     #define DT_IOCTL_SDIRX_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDIRX_CMD,       \
@@ -3032,6 +3045,7 @@ typedef enum _DtIoctlSdiRxPCmd
     DT_SDIRXP_CMD_GET_SDI_STATUS = 4,
     DT_SDIRXP_CMD_SET_OPERATIONAL_MODE = 5,
     DT_SDIRXP_CMD_SET_SDIRATE = 6,
+    DT_SDIRXP_CMD_GET_SDI_STATUS2 = 7,
 }  DtIoctlSdiRxPCmd;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- SDIRXP Command - Get CRC-Error Count -.-.-.-.-.-.-.-.-.-.-.-.-
@@ -3078,20 +3092,33 @@ ASSERT_SIZE(DtIoctlSdiRxPCmdGetSdiRateOutput, 4)
 //
 typedef DtIoctlInputDataHdr DtIoctlSdiRxPCmdGetSdiStatusInput;
 ASSERT_SIZE(DtIoctlSdiRxPCmdGetSdiStatusInput, 16)
+
+// Common for Get SDI-Status Output
+#define DT_IOCTL_SDIRXP_CMD_GET_SDI_STATUS_OUTPUT                                        \
+    Int  m_SdiLock;             /* SDI-overall lock                                   */ \
+    Int  m_LineLock;            /* SDI-line lock                                      */ \
+    Int  m_Valid;               /* Fields below are valid                             */ \
+    Int  m_NumSymsHanc;         /* Number of HANC symbols per line                    */ \
+    Int  m_NumSymsVidVanc;      /* Number of Video/VANC symbols per line              */ \
+    Int  m_NumLinesF1;          /* Number of lines in field 1                         */ \
+    Int  m_NumLinesF2;          /* Number of lines in field 2                         */ \
+    Int  m_IsLevelB;            /* TRUE if received stream HD-SDI format.is Level B   */ \
+    UInt  m_PayloadId;          /* Payload ID                                         */ \
+    Int  m_FramePeriod;         /* Frame period in nanoseconds                        */
+
 typedef struct _DtIoctlSdiRxPCmdGetSdiStatusOutput
 {
-    Int  m_SdiLock;             // SDI-overall lock
-    Int  m_LineLock;            // SDI-line lock
-    Int  m_Valid;               // Fields below are valid
-    Int  m_NumSymsHanc;         // Number of HANC symbols per line 
-    Int  m_NumSymsVidVanc;      // Number of Video/VANC symbols per line
-    Int  m_NumLinesF1;          // Number of lines in field 1 
-    Int  m_NumLinesF2;          // Number of lines in field 2
-    Int  m_IsLevelB;            // TRUE if received stream HD-SDI format.is Level B
-    UInt  m_PayloadId;          // Payload ID
-    Int  m_FramePeriod;         // Frame period in nanoseconds
+    DT_IOCTL_SDIRXP_CMD_GET_SDI_STATUS_OUTPUT
 }  DtIoctlSdiRxPCmdGetSdiStatusOutput;
 ASSERT_SIZE(DtIoctlSdiRxPCmdGetSdiStatusOutput, 40)
+
+// Get SDI-Status Output extended with SDI-rate
+typedef struct _DtIoctlSdiRxPCmdGetSdiStatusOutput2
+{
+    DT_IOCTL_SDIRXP_CMD_GET_SDI_STATUS_OUTPUT
+    Int  m_SdiRate;             // Current SDI-rate
+}  DtIoctlSdiRxPCmdGetSdiStatusOutput2;
+ASSERT_SIZE(DtIoctlSdiRxPCmdGetSdiStatusOutput2, 44)
 
 //.-.-.-.-.-.-.-.-.-.- SDIRXP Command - Set Operational Mode Command -.-.-.-.-.-.-.-.-.-.-
 //
@@ -3126,6 +3153,7 @@ typedef union _DtIoctlSdiRxPCmdOutput
     DtIoctlSdiRxPCmdGetOpModeOutput  m_GetOpMode;             // Get operational mode
     DtIoctlSdiRxPCmdGetSdiRateOutput  m_GetSdiRate;           // Get SDI-rate
     DtIoctlSdiRxPCmdGetSdiStatusOutput  m_GetSdiStatus;       // Get SDI-status
+    DtIoctlSdiRxPCmdGetSdiStatusOutput2   m_GetSdiStatus2;    // Get SDI-status
 }  DtIoctlSdiRxPCmdOutput;
 #ifdef WINBUILD
     #define DT_IOCTL_SDIRXP_CMD  CTL_CODE(DT_DEVICE_TYPE, FUNC_SDIRXP_CMD,       \

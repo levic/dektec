@@ -191,9 +191,9 @@ DtStatus DtDfSdiRx_GetSdiRate(DtDfSdiRx* pDf, Int* pSdiRate)
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_GetSdiStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtDfSdiRx_GetSdiStatus(DtDfSdiRx* pDf, Int* pCarrierDetect, Int* pSdiLock,
-                                Int* pLineLock, Int* pValid, Int* pNumSymsHanc, 
-                                Int* pNumSymsVidVanc, Int*  pNumLinesF1, Int* pNumLinesF2,
-                                Int* pIsLevelB, UInt32* pPayloadId, Int* pFramePeriod)
+                            Int* pLineLock, Int* pValid, Int* pSdiRate, Int* pNumSymsHanc, 
+                            Int* pNumSymsVidVanc, Int*  pNumLinesF1, Int* pNumLinesF2,
+                            Int* pIsLevelB, UInt32* pPayloadId, Int* pFramePeriod)
 {
     DtStatus  Status = DT_STATUS_OK;
     Bool CarrierDetected;
@@ -219,16 +219,17 @@ DtStatus DtDfSdiRx_GetSdiStatus(DtDfSdiRx* pDf, Int* pCarrierDetect, Int* pSdiLo
         *pSdiLock = *pLineLock = *pValid  =  *pIsLevelB =  (Int)FALSE;
         *pNumSymsHanc = *pNumSymsVidVanc = *pNumLinesF1 = *pNumLinesF2 = *pPayloadId 
                                                                       = *pFramePeriod = 0;
+        *pSdiRate =DT_DRV_SDIRATE_UNKNOWN;
         return DT_STATUS_OK;
     }
 
     // Get SDI status
     Status = DtBcSDIRXP_GetSdiStatus(pDf->m_pBcSdiRxProt, pSdiLock, pLineLock, pValid,
-                                        pNumSymsHanc, pNumSymsVidVanc, pNumLinesF1,
-                                        pNumLinesF2, pIsLevelB, pPayloadId, pFramePeriod);
-    DtDbgOutDf(MIN, SDIRX, pDf, "SDILOCK:%d; LineLock:%d; Valid:%d; NumH:%d; NumV:%d; "
-                                    "F1:%d; F2:%d; LvlB:%d; PID:0x%x; Fp:%d; Carrier:%d",
-                                    *pSdiLock, *pLineLock, *pValid,
+                                     pSdiRate, pNumSymsHanc, pNumSymsVidVanc, pNumLinesF1,
+                                     pNumLinesF2, pIsLevelB, pPayloadId, pFramePeriod);
+    DtDbgOutDf(MIN, SDIRX, pDf, "SDILOCK:%d; LineLock:%d; Valid:%d; Rate:%d, NumH:%d; "
+                            "NumV:%d; F1:%d; F2:%d; LvlB:%d; PID:0x%x; Fp:%d; Carrier:%d",
+                                    *pSdiLock, *pLineLock, *pValid, *pSdiRate,
                                     *pNumSymsHanc, *pNumSymsVidVanc, *pNumLinesF1,
                                     *pNumLinesF2, *pIsLevelB, *pPayloadId, *pFramePeriod,
                                     *pCarrierDetect);
@@ -359,7 +360,8 @@ DtStatus DtDfSdiRx_SetRxMode(DtDfSdiRx* pDf, Int RxMode)
         pDf->m_RxMode = RxMode;
         // Logging
         DtCore_TOD_GetTime(pDf->m_pCore, &Time);
-        TimeDiffMs = (Int)(DtCore_TOD_TimeDiff(Time, pDf->m_StateTime)/(1000*1000));
+        TimeDiffMs = (Int)DtDivideS64(DtCore_TOD_TimeDiff(Time, pDf->m_StateTime),
+                                                                               1000*1000);
         pDf->m_StateTime = Time;
         DtDbgOutDf(MIN, SDIRX, pDf, "Entered: STATE_INIT_XCVR; Rate: %d RxMode: %d"
                               " Duration: %d", pDf->m_CurrentSdiRate, RxMode, TimeDiffMs);
@@ -410,7 +412,8 @@ DtStatus DtDfSdiRx_SetSdiRate(DtDfSdiRx* pDf, Int SdiRate)
 
         // Logging
         DtCore_TOD_GetTime(pDf->m_pCore, &Time);
-        TimeDiffMs = (Int)(DtCore_TOD_TimeDiff(Time, pDf->m_StateTime)/(1000*1000));
+        TimeDiffMs = (Int)DtDivideS64(DtCore_TOD_TimeDiff(Time, pDf->m_StateTime),
+                                                                               1000*1000);
         pDf->m_StateTime = Time;
         DtDbgOutDf(MIN, SDIRX, pDf, "Entered: STATE_INIT_XCVR; SetSdiRate: %d"
                               " Duration: %d", pDf->m_CurrentSdiRate, TimeDiffMs);
@@ -854,8 +857,8 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
 {
     DtStatus  Status = DT_STATUS_OK;
     Bool  Done=FALSE, LockedToRef=FALSE,LineLock = FALSE, CarrierDetected = FALSE;
-    DT_UNUSED Int  TimeDiffMs = (Int)(DtCore_TOD_TimeDiff(Time, pDf->m_StateTime) 
-                                                                           / (1000*1000));
+    DT_UNUSED Int  TimeDiffMs = (Int)DtDivideS64(
+                                DtCore_TOD_TimeDiff(Time, pDf->m_StateTime), (1000*1000));
 #ifdef CONFIGURE_SDIRATE_DISABLED
     return;
 #endif
@@ -1022,14 +1025,14 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
 
     case SDIRX_STATE_SDI_LOCKED:
     {
-        Int SdiLock, Valid, LineLockInt, NumSymsHanc, NumSymsVidVanc, NumLinesF1, 
+        Int SdiLock, Valid, SdiRate, LineLockInt, NumSymsHanc, NumSymsVidVanc, NumLinesF1,
                                                         NumLinesF2, IsLevelB, FramePeriod;
         UInt32 PayloadId;
         // Get SDI status
         Status = DtBcSDIRXP_GetSdiStatus(pDf->m_pBcSdiRxProt, &SdiLock, &LineLockInt,
-                                                    &Valid, &NumSymsHanc, &NumSymsVidVanc,
-                                                    &NumLinesF1, &NumLinesF2,
-                                                    &IsLevelB, &PayloadId, &FramePeriod);
+                                                &Valid, &SdiRate, &NumSymsHanc, 
+                                                &NumSymsVidVanc, &NumLinesF1, &NumLinesF2,
+                                                &IsLevelB, &PayloadId, &FramePeriod);
         DT_ASSERT(DT_SUCCESS(Status));
         if (!DT_SUCCESS(Status) || LineLockInt==0)
         {
@@ -1278,9 +1281,9 @@ Bool DtDfSdiRx_UsesLockToData(Int Rate)
 #define STUB_SDIRX   ((DtIoStubDfSdiRx*)pStub)
 #define STUB_DF  ((DtDfSdiRx*)STUB_SDIRX->m_pDf)
 
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-static DtStatus DtIoStubDfSdiRx_OnCmd(const DtIoStub* pStub, 
-                                             DtIoStubIoParams* pIoParams, Int * pOutSize);
+static DtStatus  DtIoStubDfSdiRx_OnCmd(const DtIoStub*, DtIoStubIoParams*, Int* pOutSize);
 static DtStatus  DtIoStubDfSdiRx_OnCmdGetMaxSdiRate(const DtIoStubDfSdiRx*,
                                                      DtIoctlSdiRxCmdGetMaxSdiRateOutput*);
 static DtStatus  DtIoStubDfSdiRx_OnCmdGetOperationalMode(const DtIoStubDfSdiRx*,
@@ -1291,6 +1294,8 @@ static DtStatus  DtIoStubDfSdiRx_OnCmdGetSdiRate(const DtIoStubDfSdiRx*,
                                                         DtIoctlSdiRxCmdGetSdiRateOutput*);
 static DtStatus  DtIoStubDfSdiRx_OnCmdGetSdiStatus(const DtIoStubDfSdiRx*, 
                                                       DtIoctlSdiRxCmdGetSdiStatusOutput*);
+static DtStatus  DtIoStubDfSdiRx_OnCmdGetSdiStatus2(const DtIoStubDfSdiRx*, 
+                                                     DtIoctlSdiRxCmdGetSdiStatusOutput2*);
 static DtStatus  DtIoStubDfSdiRx_OnCmdSetOperationalMode(const DtIoStubDfSdiRx*,
                                                     const DtIoctlSdiRxCmdSetOpModeInput*);
 static DtStatus DtIoStubDfSdiRx_OnCmdSetRxMode(const DtIoStubDfSdiRx*, 
@@ -1408,10 +1413,13 @@ DtStatus  DtIoStubDfSdiRx_OnCmd(
         break;
     case DT_SDIRX_CMD_GET_SDI_STATUS:
         DT_ASSERT(pOutData != NULL);
-        Status = DtIoStubDfSdiRx_OnCmdGetSdiStatus(STUB_SDIRX, 
-                                                               &pOutData->m_GetSdiStatus);
+        Status = DtIoStubDfSdiRx_OnCmdGetSdiStatus(STUB_SDIRX, &pOutData->m_GetSdiStatus);
         break;
-
+    case DT_SDIRX_CMD_GET_SDI_STATUS2:
+        DT_ASSERT(pOutData != NULL);
+        Status = DtIoStubDfSdiRx_OnCmdGetSdiStatus2(STUB_SDIRX, 
+                                                              &pOutData->m_GetSdiStatus2);
+        break;
     case DT_SDIRX_CMD_SET_OPERATIONAL_MODE:
         Status = DtIoStubDfSdiRx_OnCmdSetOperationalMode(STUB_SDIRX, 
                                                                    &pInData->m_SetOpMode);
@@ -1483,17 +1491,32 @@ DtStatus  DtIoStubDfSdiRx_OnCmdGetSdiStatus(
     const DtIoStubDfSdiRx*  pStub, 
     DtIoctlSdiRxCmdGetSdiStatusOutput* pOutData)
 {
+    Int SdiRate = 0;
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfSdiRx));
     DT_ASSERT(pOutData != NULL);
 
     return DtDfSdiRx_GetSdiStatus(STUB_DF, &pOutData->m_CarrierDetect, 
-                        &pOutData->m_SdiLock, &pOutData->m_LineLock, &pOutData->m_Valid,
-                        &pOutData->m_NumSymsHanc, &pOutData->m_NumSymsVidVanc,
-                        &pOutData->m_NumLinesF1, &pOutData->m_NumLinesF2, 
-                        &pOutData->m_IsLevelB, &pOutData->m_PayloadId,
-                        &pOutData->m_FramePeriod);
+                          &pOutData->m_SdiLock, &pOutData->m_LineLock, &pOutData->m_Valid,
+                          &SdiRate, &pOutData->m_NumSymsHanc, &pOutData->m_NumSymsVidVanc,
+                          &pOutData->m_NumLinesF1, &pOutData->m_NumLinesF2, 
+                          &pOutData->m_IsLevelB, &pOutData->m_PayloadId,
+                          &pOutData->m_FramePeriod);
 }
-
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfSdiRx_OnCmdGetSdiStatus2 -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtIoStubDfSdiRx_OnCmdGetSdiStatus2(
+    const DtIoStubDfSdiRx*  pStub, 
+    DtIoctlSdiRxCmdGetSdiStatusOutput2* pOutData)
+{
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfSdiRx));
+    DT_ASSERT(pOutData != NULL);
+    return DtDfSdiRx_GetSdiStatus(STUB_DF, &pOutData->m_CarrierDetect, 
+              &pOutData->m_SdiLock, &pOutData->m_LineLock, &pOutData->m_Valid,
+              &pOutData->m_SdiRate, &pOutData->m_NumSymsHanc, &pOutData->m_NumSymsVidVanc,
+              &pOutData->m_NumLinesF1, &pOutData->m_NumLinesF2, 
+              &pOutData->m_IsLevelB, &pOutData->m_PayloadId,
+              &pOutData->m_FramePeriod);
+}
 //-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfSdiRx_OnCmdSetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtIoStubDfSdiRx_OnCmdSetOperationalMode(

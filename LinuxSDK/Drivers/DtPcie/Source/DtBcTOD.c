@@ -430,9 +430,9 @@ DtStatus  DtBcTOD_Init(DtBc*  pBc)
 
      // Print configuration
     DtDbgOutBc(AVG, REBOOT, pBc, "Configuration: sys_clock=%dkHz, clock_acc=%dppm, "
-                           "clock_incr=%d,  periodic_interval=%dms",
-                           BC_TOD->m_SysClockFreqHz/1000, BC_TOD->m_SysClockAccuracy,
-                           BC_TOD->m_ClockPhaseIncr, DEFAULT_PERIODIC_INTERRUPT_INTERVAL);
+                   "clock_incr=%d,  periodic_interval=%dms",
+                   DtDivideS64(BC_TOD->m_SysClockFreqHz,1000), BC_TOD->m_SysClockAccuracy,
+                   BC_TOD->m_ClockPhaseIncr, DEFAULT_PERIODIC_INTERRUPT_INTERVAL);
 
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Init other attributes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 

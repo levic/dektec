@@ -107,10 +107,10 @@ DtStatus  DtDfSdiRx_GetMaxSdiRate(DtDfSdiRx*,Int* pMaxSdiRate);
 DtStatus  DtDfSdiRx_GetOperationalMode(DtDfSdiRx*, Int* pOpMode);
 DtStatus  DtDfSdiRx_GetRxMode(DtDfSdiRx*, Int* pRxMode);
 DtStatus  DtDfSdiRx_GetSdiRate(DtDfSdiRx*,Int* pSdiRate);
-DtStatus  DtDfSdiRx_GetSdiStatus(DtDfSdiRx*, Int* pCarrierDetect, Int* pSdiLock, 
-                                Int* pLineLock,  Int* pValid, Int* pNumSymsHanc, 
-                                Int* pNumSymsVidVanc, Int* pNumLinesF1, Int* pNumLinesF2, 
-                                Int* pIsLevelB, UInt32* pPayloadId, Int* pFramePeriod);
+DtStatus DtDfSdiRx_GetSdiStatus(DtDfSdiRx* pDf, Int* pCarrierDetect, Int* pSdiLock,
+                            Int* pLineLock, Int* pValid, Int* pSdiRate, Int* pNumSymsHanc, 
+                            Int* pNumSymsVidVanc, Int*  pNumLinesF1, Int* pNumLinesF2,
+                            Int* pIsLevelB, UInt32* pPayloadId, Int* pFramePeriod);
 DtStatus  DtDfSdiRx_SetOperationalMode(DtDfSdiRx*, Int OpMode);
 DtStatus  DtDfSdiRx_SetRxMode(DtDfSdiRx*, Int RxMode);
 DtStatus  DtDfSdiRx_SetSdiRate(DtDfSdiRx*, Int SdiRate);

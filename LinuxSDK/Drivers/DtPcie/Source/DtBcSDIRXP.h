@@ -28,19 +28,17 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtBc.h"
 
-// Name and short-name of the SdiRxProtocol block (must match block ID)
-#define DT_BC_SDIRXP_NAME        "SdiRxProtocol"
-#define DT_BC_SDIRXP_SHORTNAME   "SDIRXP"
-
+#define DT_BC_SDIRXP_NAME           "SdiRxProtocol"
+#define DT_BC_SDIRXP_SHORTNAME      "SDIRXP"
 
 // MACRO: to init an block-controller-ID for the SDIRXP-BC
-#define DT_BC_SDIRXP_INIT_ID(ID, ROLE, INSTANCE, UUID)                                   \
+#define DT_BC_SDIRXP_INIT_ID(ID, TYPE, ROLE, INSTANCE, UUID)                             \
 do                                                                                       \
 {                                                                                        \
-    DT_BC_INIT_ID(ID, DT_BC_SDIRXP_NAME, DT_BC_SDIRXP_SHORTNAME, ROLE, INSTANCE, UUID);  \
+        DT_BC_INIT_ID(ID, DT_BC_SDIRXP_NAME, DT_BC_SDIRXP_SHORTNAME, ROLE, INSTANCE,     \
+                                                                                 UUID);  \
 }                                                                                        \
 while (0)
-
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDIRXP definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -62,16 +60,16 @@ typedef  struct _DtBcSDIRXP
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXP public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 void  DtBcSDIRXP_Close(DtBc*);
-DtBcSDIRXP*  DtBcSDIRXP_Open(Int  Address, DtCore*, DtPt*  pPt, 
+DtBcSDIRXP*  DtBcSDIRXP_Open(Int  Address, DtCore*, DtPt*  pPt, DtBcType  Type,
                          const char*  pRole, Int  Instance, Int  Uuid, Bool  CreateStub);
 DtStatus  DtBcSDIRXP_GetMaxSdiRate(DtBcSDIRXP*,Int* pMaxSdiRate);
 DtStatus  DtBcSDIRXP_GetOperationalMode(DtBcSDIRXP*, Int* pOpMode);
 DtStatus  DtBcSDIRXP_GetSdiLineLock(DtBcSDIRXP*, Bool* pLineLock);
 DtStatus  DtBcSDIRXP_GetSdiRate(DtBcSDIRXP*,Int* pSdiRate);
-DtStatus  DtBcSDIRXP_GetSdiStatus(DtBcSDIRXP*, Int* pSdiLock, Int* pLineLock,
-                                  Int* pValid, Int* pNumSymsHanc, Int* pNumSymsVidVanc, 
-                                  Int*  pNumLinesF1, Int* pNumLinesF2, 
-                                  Int* pIsLevelB, UInt32* pPayloadId, Int* pFramePeriod);
+DtStatus DtBcSDIRXP_GetSdiStatus(DtBcSDIRXP* pBc, Int* pSdiLock, Int* pLineLock,
+                                 Int* pValid, Int* pSdiRate, Int* pNumSymsHanc, 
+                                 Int* pNumSymsVidVanc, Int* pNumLinesF1, Int* pNumLinesF2, 
+                                 Int* pIsLevelB, UInt32* pPayloadId, Int* pFramePeriod);
 DtStatus  DtBcSDIRXP_GetCrcErrorCount(DtBcSDIRXP*, UInt* pCrcErrorCnt);
 DtStatus  DtBcSDIRXP_SetOperationalMode(DtBcSDIRXP*, Int OpMode);
 DtStatus  DtBcSDIRXP_SetSdiRate(DtBcSDIRXP*, Int SdiRate);

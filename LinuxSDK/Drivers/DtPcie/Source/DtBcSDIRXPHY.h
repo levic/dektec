@@ -69,12 +69,15 @@ typedef  struct _DtBcSDIRXPHY
     Int  m_DeviceFamily;       // Device family
     Int  m_MaxSdiRate;         // Maximum SDI-rate
     Int  m_SdiRate;            // SDI-rate
+    Bool  m_SetSdiRateBusy;    // Set SDI-rate is in progress
 }  DtBcSDIRXPHY;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void  DtBcSDIRXPHY_Close(DtBc*);
 DtBcSDIRXPHY*  DtBcSDIRXPHY_Open(Int  Address, DtCore*, DtPt*  pPt, 
                                             const char*  pRole, Int  Instance, Int  Uuid);
+DtStatus  DtBcSDIRXPHY_ClearCdcFifoOverflow(DtBcSDIRXPHY*);
+DtStatus  DtBcSDIRXPHY_GetCdcFifoStatus(DtBcSDIRXPHY*, Int* pFifoLoad, Bool*  pOverflow);
 DtStatus  DtBcSDIRXPHY_GetClockReset(DtBcSDIRXPHY* pBc,  Bool*  pClkReset);
 DtStatus  DtBcSDIRXPHY_GetDeviceFamily(DtBcSDIRXPHY* pBc,  Int* pDeviceFamily);
 DtStatus  DtBcSDIRXPHY_GetMaxSdiRate(DtBcSDIRXPHY* pBc,  Int* pMaxSdiRate);

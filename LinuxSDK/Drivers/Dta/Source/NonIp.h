@@ -179,6 +179,7 @@ typedef struct _DtaMatrixPort
     volatile Int64  m_SofFrame; // Frame transmitted/received @SOF-interrupt-event
     volatile Int  m_SofLine;    // Line transmitted/received @SOF-interrupt-event
     volatile Int64  m_FrmIntCnt; // Frame interrupt counter
+    UInt64  m_PreviousRefClk;   // Previous ref clock count
     Int  m_ForceRestart;        // Force restart in interrupt routine
 
     UInt32  m_Vpid1;            // VPID forced by API

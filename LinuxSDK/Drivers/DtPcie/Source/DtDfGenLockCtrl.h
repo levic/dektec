@@ -123,7 +123,7 @@ DtStatus DtDfGenLockCtrl_LockChangedUnregister(DtDfGenLockCtrl*, const DtObject*
 
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-typedef struct  _DtDfGenLockCtrl
+struct  _DtDfGenLockCtrl
 {
     // NOTE: common func data must be the first members to allow casting to DtDf
     DT_DF_COMMON_DATA;
@@ -169,7 +169,7 @@ typedef struct  _DtDfGenLockCtrl
     Int  m_FrameLength;             // Frame length in clock ticks
     Int  m_FramePeriod;             // Frame period in nanoseconds
     Bool  m_FractionalClock;        // Fractional clock is used
-}  DtDfGenLockCtrl;
+};
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void  DtDfGenLockCtrl_Close(DtDf*);

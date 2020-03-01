@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2019 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2020 DekTec
 //
 // CapParser - Property Store - Tables storing device properties
 //
@@ -22376,7 +22376,7 @@ static const DtProperty  DtProperties2195_0_00[] =
 };
 static const DtProperty  DtProperties2195_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 4, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 5, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2195_0_04[] =
@@ -23322,6 +23322,9 @@ static const DtProperty  DtProperties2195_0_51[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 256, NULL, PROPERTY_VALUE_TYPE_UINT16, 10, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N5_0", DT_PVE,
+      "Support for latest SMPTE ST 2108-1:201x data format for HDR in SDI",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MATRIX_RAM_SIZE", 1024, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
@@ -23341,6 +23344,9 @@ static const DtProperty  DtProperties2195_0_52[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 10, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N5_1", DT_PVE,
+      "Bug fix: For some Linux setups data transfer was failing sometimes",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "TEMP_SENS_TYPE", TEMP_SENS_TYPE_MAX6639, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0,
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -23607,8 +23613,8 @@ static const DtPropertyHashSet  DtPropertyHashSets2195_0[] =
     { DtProperties2195_0_48, 2 },
     { DtProperties2195_0_49, 9 },
     { DtProperties2195_0_50, 2 },
-    { DtProperties2195_0_51, 17 },
-    { DtProperties2195_0_52, 8 },
+    { DtProperties2195_0_51, 18 },
+    { DtProperties2195_0_52, 9 },
     { NULL, 0 },
     { DtProperties2195_0_54, 12 },
     { DtProperties2195_0_55, 20 },

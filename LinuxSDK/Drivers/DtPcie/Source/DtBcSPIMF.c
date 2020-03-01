@@ -260,7 +260,7 @@ DtStatus  DtBcSPIMF_Read(DtBcSPIMF*  pBc, Int StartAddress, Int NumToRead, UInt8
     BC_SPIMF_DEFAULT_PRECONDITIONS(pBc);
 
     // Check for parameter errors.
-    if (pBuf==NULL || ((UInt64)pBuf%4)!=0 
+    if (pBuf==NULL || ((UIntPtr)pBuf&0x3)!=0 
                    || (StartAddress+NumToRead)>pBc->m_ConfMemorySize
                    || (StartAddress%4)!=0 || (NumToRead%4)!=0)
     {
@@ -296,7 +296,7 @@ DtStatus  DtBcSPIMF_Write(DtBcSPIMF* pBc, Int StartAddress, Int NumToWrite,
     BC_SPIMF_DEFAULT_PRECONDITIONS(pBc);
 
     // Check for parameter errors.
-    if (pBuf==NULL || ((UInt64)pBuf%4)!=0 
+    if (pBuf==NULL || ((UIntPtr)pBuf&0x3)!=0 
                    || (StartAddress+NumToWrite)>pBc->m_ConfMemorySize
                    || (StartAddress%pBc->m_ConfPageSize)!=0
                    || (NumToWrite%pBc->m_ConfPageSize)!=0)
@@ -1476,7 +1476,7 @@ UInt64  DtBcSPIMF_GetMemorySize(UInt8* pBuffer)
         MemSize  = DtBcSPIMF_Exp2(DWord2 & BFP_DW2_DENSITY_MASK);
     // Should contain a whole number of bytes
     DT_ASSERT((MemSize & 0x7) == 0);
-    return (MemSize/8);
+    return (MemSize>>3);
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSPIMF_GetPageSize -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

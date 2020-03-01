@@ -31,19 +31,13 @@
 // Name and short-name of the SdiTxFmtSimple block (must match block ID)
 #define DT_BC_SDITXF_NAME        "SdiTxFmtSimple"
 #define DT_BC_SDITXF_SHORTNAME   "SDITXF"
-#define DT_BC_SDITXF6G12G_NAME        "SdiTxFmtSimple6G12G"
-#define DT_BC_SDITXF6G12G_SHORTNAME   "SDITXF6G12G"
 
 // MACRO: to init an block-controller-ID for the SDITXF-BC
 #define DT_BC_SDITXF_INIT_ID(ID, TYPE, ROLE, INSTANCE, UUID)                             \
 do                                                                                       \
 {                                                                                        \
-    if (TYPE == DT_BLOCK_TYPE_SDITXF)                                                    \
         DT_BC_INIT_ID(ID, DT_BC_SDITXF_NAME, DT_BC_SDITXF_SHORTNAME, ROLE, INSTANCE,     \
                                                                                  UUID);  \
-    else                                                                                 \
-        DT_BC_INIT_ID(ID, DT_BC_SDITXF6G12G_NAME, DT_BC_SDITXF6G12G_SHORTNAME, ROLE,     \
-                                                                       INSTANCE, UUID);  \
 }                                                                                        \
 while (0)
 
@@ -58,10 +52,6 @@ typedef  struct _DtBcSDITXF
 {
     // NOTE: common block data must be the first members to allow casting to DtBc
     DT_BC_COMMON_DATA;
-
-
-    Bool  m_FramePropsSet;          // True if the user has set frame properties
-    Bool  m_FmtEvtTimingSet;        // True if the user has set format event timing 
 
     // Cached settings
     Int  m_InterruptsPerFrame;      // Number of format-event interrupts per frame

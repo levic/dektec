@@ -885,21 +885,13 @@ DtStatus  DtGetUserBuffer(DtIoctlObject* pIoctl, UInt8** pBuffer, Int* pSize,
     {
         DtUserBufferPort*  pUserBuf = (DtUserBufferPort*)pIoctl->m_pInputBuffer;
         *pSize = pUserBuf->m_NumBytes;
-#if defined(LIN32)
-        *pBuffer = (void*)(UInt32)pUserBuf->m_BufferAddr;
-#else
-        *pBuffer = (void*)(UInt64)pUserBuf->m_BufferAddr;
-#endif
+        *pBuffer = (void*)(UIntPtr)pUserBuf->m_BufferAddr;
     }
     else if (pIoctl->m_InputBufferSize == sizeof(DtUserBuffer))
     {
         DtUserBuffer*  pUserBuf = (DtUserBuffer*)pIoctl->m_pInputBuffer;
         *pSize = pUserBuf->m_NumBytes;
-#if defined(LIN32)
-        *pBuffer = (void*)(UInt32)pUserBuf->m_BufferAddr;
-#else
-        *pBuffer = (void*)(UInt64)pUserBuf->m_BufferAddr;
-#endif
+        *pBuffer = (void*)(UIntPtr)pUserBuf->m_BufferAddr;
     }
     else
         return DT_STATUS_INVALID_PARAMETER;

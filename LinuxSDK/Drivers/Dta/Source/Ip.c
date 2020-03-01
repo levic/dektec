@@ -978,7 +978,7 @@ DtStatus  DtaIpIoctl(
             DtaSetPhyRegister(&pIpPort->m_PhyMac, 
                                             pIpCmdInput->m_Data.m_SetPhyRegister.m_Offset,
                                             pIpCmdInput->m_Data.m_SetPhyRegister.m_Value);
-
+            break;
         case DTA_IP_CMD_ENABLELOOPBACK:
                 Status = DtaIpEnableLoopback(pIpPort,
                                            pIpCmdInput->m_Data.m_EnableLoopback.m_Enable);

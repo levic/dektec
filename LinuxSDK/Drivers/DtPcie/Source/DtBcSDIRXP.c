@@ -64,17 +64,18 @@ void  DtBcSDIRXP_Close(DtBc*  pBc)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXP_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtBcSDIRXP*  DtBcSDIRXP_Open(Int  Address, DtCore*  pCore, DtPt*  pPt,
+DtBcSDIRXP*  DtBcSDIRXP_Open(Int  Address, DtCore*  pCore, DtPt*  pPt, DtBcType  Type,
                            const char*  pRole, Int  Instance, Int  Uuid, Bool  CreateStub)
 {
     DtBcId  Id;
     DtBcOpenParams  OpenParams;
     
     DT_ASSERT(pCore!=NULL && pCore->m_Size>=sizeof(DtCore));
+    DT_ASSERT(Type== DT_BLOCK_TYPE_SDIRXP);
     
     // Init open parameters
-    DT_BC_SDIRXP_INIT_ID(Id, pRole, Instance, Uuid);
-    DT_BC_INIT_OPEN_PARAMS(OpenParams, DtBcSDIRXP, Id, DT_BLOCK_TYPE_SDIRXP, Address,
+    DT_BC_SDIRXP_INIT_ID(Id, Type, pRole, Instance, Uuid);
+    DT_BC_INIT_OPEN_PARAMS(OpenParams, DtBcSDIRXP, Id, Type, Address,
                                                                   pPt, CreateStub, pCore);
     // Register the callbacks
     OpenParams.m_CloseFunc = DtBcSDIRXP_Close;
@@ -171,9 +172,9 @@ DtStatus DtBcSDIRXP_GetSdiRate(DtBcSDIRXP* pBc, Int* pSdiRate)
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXP_GetSdiStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcSDIRXP_GetSdiStatus(DtBcSDIRXP* pBc, Int* pSdiLock, Int* pLineLock,
-                                   Int* pValid, Int* pNumSymsHanc, Int* pNumSymsVidVanc,
-                                   Int* pNumLinesF1, Int* pNumLinesF2, 
-                                   Int* pIsLevelB, UInt32* pPayloadId, Int* pFramePeriod)
+                                 Int* pValid, Int* pSdiRate, Int* pNumSymsHanc, 
+                                 Int* pNumSymsVidVanc, Int* pNumLinesF1, Int* pNumLinesF2, 
+                                 Int* pIsLevelB, UInt32* pPayloadId, Int* pFramePeriod)
 {
     UInt32 CurrentSdiStatus, SdiStatus1, SdiStatus2, SdiStatus3, SdiStatus4;
 
@@ -181,9 +182,10 @@ DtStatus DtBcSDIRXP_GetSdiStatus(DtBcSDIRXP* pBc, Int* pSdiLock, Int* pLineLock,
     BC_SDIRXP_DEFAULT_PRECONDITIONS(pBc);
 
     // Check parameters
-    if (pSdiLock==NULL || pLineLock==NULL  || pValid==NULL || pNumSymsHanc==NULL
-                        || pNumSymsVidVanc==NULL || pNumLinesF1==NULL || pNumLinesF2==NULL 
-                        || pIsLevelB==NULL || pPayloadId==NULL || pFramePeriod==NULL)
+    if (pSdiLock==NULL || pLineLock==NULL  || pValid==NULL || pSdiRate==NULL 
+                       || pNumSymsHanc==NULL || pNumSymsVidVanc==NULL || pNumLinesF1==NULL
+                       || pNumLinesF2==NULL || pIsLevelB==NULL || pPayloadId==NULL 
+                       || pFramePeriod==NULL)
         return DT_STATUS_INVALID_PARAMETER;
 
     // Must be enabled
@@ -237,7 +239,7 @@ DtStatus DtBcSDIRXP_GetSdiStatus(DtBcSDIRXP* pBc, Int* pSdiLock, Int* pLineLock,
         *pNumSymsVidVanc = (Int)SDIRXP_SdiStatus1_GET_NumSymVideo(SdiStatus1);
         *pIsLevelB = (Int)(SDIRXP_SdiStatus1_GET_LevelAorB(SdiStatus1) 
                                                               == SDIRXP_SDILEVEL_LEVEL_B);
-
+        *pSdiRate = pBc->m_SdiRate;
         *pNumLinesF1 = (Int)SDIRXP_SdiStatus2_GET_NumLinesField1(SdiStatus2);
         *pNumLinesF2 = (Int)SDIRXP_SdiStatus2_GET_NumLinesField2(SdiStatus2);
         *pPayloadId = SDIRXP_SdiStatus4_GET_PayloadIdHigh(SdiStatus4)<<16;
@@ -249,6 +251,9 @@ DtStatus DtBcSDIRXP_GetSdiStatus(DtBcSDIRXP* pBc, Int* pSdiLock, Int* pLineLock,
         if (SymCount > 0)
         {
             Int64  FramePeriod = DtDivide64((SymsPerFrame *10*1000000), SymCount, NULL);
+            // In 6G/12G we have a frame per link
+            if (pBc->m_SdiRate==DT_DRV_SDIRATE_6G || pBc->m_SdiRate==DT_DRV_SDIRATE_12G)
+                FramePeriod *= 4;
             // Check for unexpected values
             if (FramePeriod < (1LL<<31))
                 *pFramePeriod = (Int)FramePeriod;
@@ -263,6 +268,7 @@ DtStatus DtBcSDIRXP_GetSdiStatus(DtBcSDIRXP* pBc, Int* pSdiLock, Int* pLineLock,
         *pIsLevelB  = (Int)FALSE;
         *pNumSymsHanc = *pNumSymsVidVanc = *pNumLinesF1 = *pNumLinesF2 
                                                          = *pPayloadId = *pFramePeriod= 0;
+        *pSdiRate = DT_DRV_SDIRATE_UNKNOWN;
     }
     return DT_STATUS_OK;
 }
@@ -533,6 +539,8 @@ static DtStatus DtIoStubBcSDIRXP_OnCmdGetSdiRate(const DtIoStubBcSDIRXP*,
                                                        DtIoctlSdiRxPCmdGetSdiRateOutput*);
 static DtStatus DtIoStubBcSDIRXP_OnCmdGetSdiStatus(const DtIoStubBcSDIRXP*, 
                                                      DtIoctlSdiRxPCmdGetSdiStatusOutput*);
+static DtStatus DtIoStubBcSDIRXP_OnCmdGetSdiStatus2(const DtIoStubBcSDIRXP*, 
+                                                    DtIoctlSdiRxPCmdGetSdiStatusOutput2*);
 static DtStatus DtIoStubBcSDIRXP_OnCmdSetOperationalMode(const DtIoStubBcSDIRXP*,
                                                  const DtIoctlSdiRxPCmdSetOpModeInput*);
 static DtStatus DtIoStubBcSDIRXP_OnCmdSetSdiRate(const DtIoStubBcSDIRXP*,
@@ -551,7 +559,7 @@ static const DtIoctlProperties  IOSTUB_BC_SDIRXP_IOCTLS[] =
         NULL, NULL),
     DT_IOCTL_PROPS_SDIRXP_CMD(
         DtIoStubBcSDIRXP_OnCmd,
-        NULL,  NULL),
+        NULL, NULL),
 };
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubBcSDIRXP - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -647,8 +655,13 @@ DtStatus  DtIoStubBcSDIRXP_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoP
         break;
     case DT_SDIRXP_CMD_GET_SDI_STATUS:
         DT_ASSERT(pOutData != NULL);
-        Status = DtIoStubBcSDIRXP_OnCmdGetSdiStatus(SDIRXP_STUB, 
+        Status = DtIoStubBcSDIRXP_OnCmdGetSdiStatus(SDIRXP_STUB,
                                                                &pOutData->m_GetSdiStatus);
+        break;
+    case DT_SDIRXP_CMD_GET_SDI_STATUS2:
+        DT_ASSERT(pOutData != NULL);
+        Status = DtIoStubBcSDIRXP_OnCmdGetSdiStatus2(SDIRXP_STUB,
+                                                              &pOutData->m_GetSdiStatus2);
         break;
     case DT_SDIRXP_CMD_SET_OPERATIONAL_MODE:
         DT_ASSERT(pInData != NULL);
@@ -729,19 +742,37 @@ DtStatus  DtIoStubBcSDIRXP_OnCmdGetSdiStatus(
     const DtIoStubBcSDIRXP* pStub,
     DtIoctlSdiRxPCmdGetSdiStatusOutput* pOutData)
 {
-
+    Int SdiRate=0;
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcSDIRXP));
     DT_ASSERT(pOutData != NULL);
 
     // Get SDI-status
     return DtBcSDIRXP_GetSdiStatus(SDIRXP_BC, &pOutData->m_SdiLock,
-                                    &pOutData->m_LineLock, &pOutData->m_Valid,
+                                    &pOutData->m_LineLock, &pOutData->m_Valid, &SdiRate,
                                     &pOutData->m_NumSymsHanc, &pOutData->m_NumSymsVidVanc,
                                     &pOutData->m_NumLinesF1, &pOutData->m_NumLinesF2,
                                     &pOutData->m_IsLevelB, &pOutData->m_PayloadId, 
                                     &pOutData->m_FramePeriod);
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcSDIRXP_OnCmdGetSdiStatus2 -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtIoStubBcSDIRXP_OnCmdGetSdiStatus2(
+    const DtIoStubBcSDIRXP* pStub,
+    DtIoctlSdiRxPCmdGetSdiStatusOutput2* pOutData)
+{
+
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubBcSDIRXP));
+    DT_ASSERT(pOutData != NULL);
+
+    // Get SDI-status
+    return DtBcSDIRXP_GetSdiStatus(SDIRXP_BC, &pOutData->m_SdiLock,
+                          &pOutData->m_LineLock, &pOutData->m_Valid, &pOutData->m_SdiRate,
+                          &pOutData->m_NumSymsHanc, &pOutData->m_NumSymsVidVanc,
+                          &pOutData->m_NumLinesF1, &pOutData->m_NumLinesF2,
+                          &pOutData->m_IsLevelB, &pOutData->m_PayloadId, 
+                          &pOutData->m_FramePeriod);
+}
 //.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcSDIRXP_OnCmdSetOperationalMode -.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtIoStubBcSDIRXP_OnCmdSetOperationalMode(

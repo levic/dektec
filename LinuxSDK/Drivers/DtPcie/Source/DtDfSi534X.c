@@ -37,6 +37,8 @@
 #define SI5354X_MIN_OFFSET_PPT  (-200*1000*1000)     // -200 ppm
 #define SI5354X_MAX_OFFSET_PPT  (200*1000*1000)      // +200 ppm
 
+#define  DIV64(x, y)      DtDivideS64((x), (y))
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfSi534X implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -179,11 +181,11 @@ DtStatus DtDfSi534X_GetFreqOffsetPpt(DtDfSi534X* pDf, Bool FracClk, Int* pOffset
     // To prevent Int64 overflows:
     // Offset = ((1E12*MaxMult)/(CurNxNum - 2*InitNxNum)) * (CurNxNum - InitNxNum)/MaxMult
     // And prevent division by zero
-    MaxMult = (Int64)((1ULL<<63) - 1)/Exp12;
+    MaxMult = DIV64((Int64)((1ULL<<63) - 1), Exp12);
     Offset = 0;
     if (CurNxNum != 2*InitNxNum)
-        Offset = (((Exp12*MaxMult)/(CurNxNum - 2*InitNxNum)) 
-                                                      * (CurNxNum - InitNxNum)) / MaxMult;
+        Offset = DIV64(DIV64(Exp12*MaxMult, (CurNxNum - 2*InitNxNum)) 
+                                                       * (CurNxNum - InitNxNum), MaxMult);
     *pOffsetPpt = (Int)Offset;
     return DT_STATUS_OK;
 }
@@ -261,9 +263,9 @@ DtStatus DtDfSi534X_SetFreqOffsetPpt(DtDfSi534X* pDf, Int OffsetPpt, Bool FracCl
         DtFastMutexRelease(&pDf->m_AccessMutex);
         return DT_STATUS_FAIL;
     }
-    MaxMult = (Int64)((1ULL<<63) - 1)/InitNxNum;
-    NewNxNum = InitNxNum + (((InitNxNum * MaxMult)/(Exp12 - OffsetPpt)) * -OffsetPpt)
-                                                                                / MaxMult;
+    MaxMult = DIV64((Int64)((1ULL<<63) - 1), InitNxNum);
+    NewNxNum = InitNxNum + DIV64(DIV64(InitNxNum * MaxMult, (Exp12 - OffsetPpt))
+                                                                   * -OffsetPpt, MaxMult);
     // Set new Nx Numerator
     Status =  DtDfSi534X_SetNxNumerator(pDf, ClkPortIdx, NewNxNum);
 

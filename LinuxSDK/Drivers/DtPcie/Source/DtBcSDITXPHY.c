@@ -552,6 +552,9 @@ DtStatus DtBcSDITXPHY_C10A10_StartCalibration(DtBcSDITXPHY* pBc)
         WaitRequest = SDITXPHY_Status_READ_WaitRequest(pBc);
     }
     DT_ASSERT(WaitRequest == 0);
+    if (WaitRequest != 0)
+        DtDbgOutBc(ERR, SDITXPHY, pBc, "Wait request timeout");
+
 
     // CalEnable.TxCalEn = 1; CalEnable.RxCalEn = 0; CalEnable.AdaptEn = 0;
     RegData = SDITXPHY_C10A10_CalEnable_READ(pBc);
@@ -739,7 +742,7 @@ DtStatus  DtBcSDITXPHY_Init(DtBc*  pBcBase)
 
     // Device family specific initialization
     if (pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10 
-                                        || pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10)
+                                        || pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_C10)
         // Select clock
         DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_SetPllSelect(pBc, 
                                                         pBc->m_C10A10FractClock ? 1 : 0));
@@ -806,7 +809,7 @@ DtStatus DtBcSDITXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
                                                   pBc->m_SofDelay, pBc->m_UpsampleFactor);
     // Device family specific initialization
     if (pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10 
-                                        || pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10)
+                                        || pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_C10)
         // Select clock
         DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_SetPllSelect(pBc, 
                                                         pBc->m_C10A10FractClock ? 1 : 0));
@@ -859,6 +862,7 @@ DtStatus DtBcSDITXPHY_CheckSdiRate(DtBcSDITXPHY* pBc, Int SdiRate)
         return DT_STATUS_NOT_SUPPORTED;
     return DT_STATUS_OK;
 }
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,
@@ -868,6 +872,11 @@ void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,
 
     // Convert block enable to BB-type
     FldBlkEnable = BlkEnable ? SDITXPHY_BLKENA_ENABLED : SDITXPHY_BLKENA_DISABLED;
+
+    // Fix for DTA-2274B 3G-outputs (MediaKind) where SofDelay is specified in 
+    // 74.25MHz ticks instead of 148.5MHz ticks TT3292
+    if (pBc->m_Version==2 && pBc->m_MaxSdiRate==DT_DRV_SDIRATE_3G)
+        SofDelay = SofDelay/2;
 
     // Convert operational mode to BB-type
     switch (OpMode)

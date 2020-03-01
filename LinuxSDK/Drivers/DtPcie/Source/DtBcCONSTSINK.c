@@ -27,6 +27,7 @@
 #include "DtBcCONSTSINK.h"
 #include "DtBcCONSTSINK_RegAccess.h"
 
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcCONSTSINK implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -380,8 +381,8 @@ DtStatus DtBcCONSTSINK_SetCheckData(DtBcCONSTSINK* pBc, Int CheckData)
 //
 DtStatus DtBcCONSTSINK_SetDataRate(DtBcCONSTSINK* pBc, Int64 DataRate)
 {
-    const UInt64  MaxPhaseIncr = 1LL<<23;
-    UInt64  DataRatePhaseIncr;
+    const Int64  MaxPhaseIncr = 1LL<<23;
+    Int64  DataRatePhaseIncr;
 
     // Sanity check
     BC_CONSTSINK_DEFAULT_PRECONDITIONS(pBc);
@@ -399,8 +400,8 @@ DtStatus DtBcCONSTSINK_SetDataRate(DtBcCONSTSINK* pBc, Int64 DataRate)
     else
     { 
         // Compute Data Rate Phase Increment
-        DataRatePhaseIncr = MaxPhaseIncr * (UInt64)DataRate /
-                                         ((UInt64)pBc->m_SysClockFreq * pBc->m_DataWidth);
+        DataRatePhaseIncr = DtDivideS64(MaxPhaseIncr * (Int64)DataRate,
+                                           (Int64)pBc->m_SysClockFreq * pBc->m_DataWidth);
         // DataRatePhaseIncr is a 24 bit register
         if (DataRatePhaseIncr > MaxPhaseIncr)
             return DT_STATUS_INVALID_PARAMETER;

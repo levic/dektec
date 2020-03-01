@@ -495,7 +495,7 @@ DtStatus DtCorePcie_DEVICE_BulkRead32(DtCore* pCore, UInt32 Offset, Int NumToRea
 
     // Parameter check
     if ((Offset%8)!=0 || NumToRead<0 || (NumToRead%2)!=0 || pBuffer==NULL 
-                                                                || ((UInt64)pBuffer)%8!=0)
+                                                               || ((UIntPtr)pBuffer)%8!=0)
         return DT_STATUS_INVALID_PARAMETER;
 
     if ((Offset+NumToRead*sizeof(UInt32)) > ((DtCorePcie*)pCore)->m_DtPcieRegs.m_Length)

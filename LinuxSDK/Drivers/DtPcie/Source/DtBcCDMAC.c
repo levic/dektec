@@ -118,7 +118,7 @@ DtStatus DtBcCDMAC_AllocateBuffer(DtBcCDMAC* pBc, Int Direction, UInt8 * pDmaBuf
     if (Direction!=DT_CDMAC_DIR_RX && Direction!=DT_CDMAC_DIR_TX)
         return DT_STATUS_INVALID_PARAMETER;
     // DMA buffer must start at page boudary
-    if (pDmaBuffer==NULL || (((UInt64)pDmaBuffer) & (CDMAC_PAGE_SIZE-1))!=0)
+    if (pDmaBuffer==NULL || (((UIntPtr)pDmaBuffer) & (CDMAC_PAGE_SIZE-1))!=0)
         return DT_STATUS_INVALID_PARAMETER;
     // Size must be multiple of page size * prefetch size
     if (DmaBufferSize<=0 || (DmaBufferSize%(CDMAC_PAGE_SIZE*pBc->m_PrefetchSize))!=0)
@@ -195,7 +195,8 @@ DtStatus DtBcCDMAC_ClearReorderBufMinMax(DtBcCDMAC* pBc)
 //
 DtStatus DtBcCDMAC_FreeBuffer(DtBcCDMAC* pBc)
 {
-     DtStatus  Status = DT_STATUS_OK;
+    DtStatus  Status = DT_STATUS_OK;
+    Int  DmaDirection;
 
     // Sanity check    
     BC_CDMAC_DEFAULT_PRECONDITIONS(pBc);
@@ -227,6 +228,11 @@ DtStatus DtBcCDMAC_FreeBuffer(DtBcCDMAC* pBc)
     DtDeletePageList(&pBc->m_DmaBufferPageList);
     pBc->m_pDmaBuffer = NULL;
     pBc->m_DmaBufferSize = 0;
+
+    // Delete scatter gather list
+    DmaDirection = (pBc->m_Direction==DT_CDMAC_DIR_RX) ? DT_DMA_DIRECTION_FROM_DEVICE
+                                                       : DT_DMA_DIRECTION_TO_DEVICE;
+    DtDmaFreeSgList(&pBc->m_pCore->m_Device, &pBc->m_OsSgList, DmaDirection);
 
     DtFastMutexRelease(&pBc->m_DmaMutex);
     return Status;
@@ -774,7 +780,6 @@ DtStatus  DtBcCDMAC_PrepareBuffers(
     Int   RxOrTx)
 {
     DtStatus  Status;
-    DmaOsSgl  OsSgList;
     UInt  PtrTableBufSize;
     UInt64* pPtrTable;
     UInt  NumSgls, SglIdx, TblIdx, NumTblEntries;
@@ -849,10 +854,10 @@ DtStatus  DtBcCDMAC_PrepareBuffers(
     // Create SGList from buffer
     DmaDirection = (RxOrTx==DT_CDMAC_DIR_RX) ? DT_DMA_DIRECTION_FROM_DEVICE
                                              : DT_DMA_DIRECTION_TO_DEVICE;
-    DtMemZero(&OsSgList, sizeof(OsSgList));
-    OsSgList.m_PageList = pBc->m_DmaBufferPageList;
+    DtMemZero(&pBc->m_OsSgList, sizeof(&pBc->m_OsSgList));
+    pBc->m_OsSgList.m_PageList = pBc->m_DmaBufferPageList;
     Status = DtDmaCreateSgList(&pBc->m_pCore->m_Device, &pBc->m_DmaDevice, pDmaBuffer,
-                                                  DmaBufferSize, DmaDirection, &OsSgList);
+                                           DmaBufferSize, DmaDirection, &pBc->m_OsSgList);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOutBc(ERR, CDMAC, pBc, "ERROR: failed to create SG list");
@@ -867,11 +872,11 @@ DtStatus  DtBcCDMAC_PrepareBuffers(
     // Initialize the pointer table
     pPtrTable =  (UInt64*)pBc->m_PtrTable.m_pVirtualAddress;
     TblIdx = 0;
-    NumSgls = DtDmaOsSglGetNumElements(&OsSgList);
+    NumSgls = DtDmaOsSglGetNumElements(&pBc->m_OsSgList);
     for (SglIdx=0; SglIdx<NumSgls && TblIdx<NumTblEntries; SglIdx++)
     {
-        DtPhysicalAddress PciAddress = DtDmaOsSglGetAddress(&OsSgList, SglIdx);
-        UInt Length = DtDmaOsSglGetLength(&OsSgList, SglIdx);
+        DtPhysicalAddress PciAddress = DtDmaOsSglGetAddress(&pBc->m_OsSgList, SglIdx);
+        UInt Length = DtDmaOsSglGetLength(&pBc->m_OsSgList, SglIdx);
         UInt i=0;
         DT_ASSERT((Length%CDMAC_PAGE_SIZE) == 0);
         for (i=0; i<Length/CDMAC_PAGE_SIZE; i++)
@@ -884,9 +889,6 @@ DtStatus  DtBcCDMAC_PrepareBuffers(
     }
 
     DT_ASSERT(SglIdx==NumSgls && TblIdx==NumTblEntries);
-
-    // Scatter gather list not needed anymore
-    DtDmaFreeSgList(&pBc->m_pCore->m_Device, &OsSgList, DmaDirection);
 
     DtDbgOutBc(AVG, CDMAC, pBc, "Successfully prepared DMA buffers");
     return DT_STATUS_OK;

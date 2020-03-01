@@ -50,6 +50,8 @@ typedef struct _DtCfIoCfgPortUpdates
 {
     Bool  m_pConfigValueUpdateNeeded[DT_IOCONFIG_COUNT];   // IO-cfg value updates
     Bool  m_PortUpdateNeeded;                              // IO-cfg port update needed
+    Bool  m_PortLockNeeded;                                // Port needs to be locked 
+                                                           // during IO-Config
 }DtCfIoCfgPortUpdates;
 
 
@@ -66,6 +68,7 @@ static DtStatus  DtCfIoCfg_ApplyConfigPrepare(DtCfIoCfg*, const DtExclAccessObje
 static DtStatus  DtCfIoCfg_ApplyConfigFinish(DtCfIoCfg*, const DtExclAccessObject*,
                                                      DtCfIoCfgPortUpdates*, Int NumPorts);
 static DtStatus  DtCfIoCfg_ClearConfig(DtCfIoCfg* , DtCfIoCfgPortConfig*);
+static Int  DtCfIoCfg_GetBuddyPort(Int IoCfg, const DtCfIoConfigValue* pCfg);
 static DtStatus  DtCfIoCfg_GetCachedConfig(DtCfIoCfg* , DtCfIoCfgPortConfig*);
 static DtStatus  DtCfIoCfg_GetStoredConfig(DtCfIoCfg*, DtCfIoCfgPortConfig*);
 static DtStatus  DtCfIoCfg_SetDefaultConfig(DtCfIoCfg* , DtCfIoCfgPortConfig*);
@@ -238,16 +241,32 @@ DtStatus  DtCfIoCfg_Set(
             IsChanged |= pPortIoCfg[IoCfg].m_ParXtra[j] != pCfgs[i].m_ParXtra[j];
         if (IsChanged)
         {
-            pPortUpdate->m_PortUpdateNeeded = TRUE;
-            pPortUpdate->m_pConfigValueUpdateNeeded[IoCfg] = TRUE;
-
+            Int BuddyOld,  BuddyNew;
+            DtCfIoConfigValue  IoCfgValNew;
             // Copy setting
-            pPortIoCfg[IoCfg].m_Value = pCfgs[i].m_Value;
-            pPortIoCfg[IoCfg].m_SubValue = pCfgs[i].m_SubValue;
+            IoCfgValNew.m_Value = pCfgs[i].m_Value;
+            IoCfgValNew.m_SubValue = pCfgs[i].m_SubValue;
             for (j=0; j<DT_MAX_PARXTRA_COUNT; j++)
             {
-                pPortIoCfg[IoCfg].m_ParXtra[j] = pCfgs[i].m_ParXtra[j];
+                IoCfgValNew.m_ParXtra[j] = pCfgs[i].m_ParXtra[j];
             }
+
+            // Port update and lock needed
+            pPortUpdate->m_PortUpdateNeeded = TRUE;
+            pPortUpdate->m_PortLockNeeded = TRUE;
+            pPortUpdate->m_pConfigValueUpdateNeeded[IoCfg] = TRUE;
+
+            // If buddy ports are involved, they need to be locked too
+            BuddyOld =  DtCfIoCfg_GetBuddyPort(IoCfg, &pPortIoCfg[IoCfg]);
+            if (BuddyOld>=0 && BuddyOld<NumPorts)
+                pConfigUpdates[BuddyOld].m_PortLockNeeded = TRUE;
+            BuddyNew = DtCfIoCfg_GetBuddyPort(IoCfg, &IoCfgValNew);
+            if (BuddyNew>=0 && BuddyNew<NumPorts)
+                pConfigUpdates[BuddyNew].m_PortLockNeeded = TRUE;
+
+            // Copy new setting
+            pPortIoCfg[IoCfg] = IoCfgValNew;
+
         }
     }
 
@@ -292,7 +311,29 @@ DtStatus  DtCfIoCfg_Set(
 
     return Status;
 }
-
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfIoCfg_GetBuddyPort -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int  DtCfIoCfg_GetBuddyPort(Int  IoCfg, const DtCfIoConfigValue*  pCfg)
+{
+    // Check for buddy ports
+    Int Buddy = -1;
+    if (IoCfg==DT_IOCONFIG_IODIR && pCfg->m_Value==DT_IOCONFIG_OUTPUT)
+    {
+        if (   pCfg->m_SubValue==DT_IOCONFIG_DBLBUF
+            || pCfg->m_SubValue==DT_IOCONFIG_LOOPS2L3
+            || pCfg->m_SubValue==DT_IOCONFIG_LOOPS2TS
+            || pCfg->m_SubValue==DT_IOCONFIG_LOOPTHR)
+        {
+            Buddy = (Int)pCfg->m_ParXtra[0];
+        }
+    }
+    if (IoCfg==DT_IOCONFIG_IODIR && pCfg->m_Value==DT_IOCONFIG_MONITOR
+        &&  pCfg->m_SubValue==DT_IOCONFIG_MONITOR)
+    {
+        Buddy = (Int)pCfg->m_ParXtra[0];
+    }
+    return Buddy;
+}
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfIoCfg_Restore -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtCfIoCfg_Restore(DtCfIoCfg*  pCf)
@@ -389,6 +430,7 @@ DtStatus  DtCfIoCfg_Restore(DtCfIoCfg*  pCf)
         DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
         DtCfIoCfgPortUpdates* pPortUpdate = &pConfigUpdates[PortIndex];
         pPortUpdate->m_PortUpdateNeeded = TRUE;
+        pPortUpdate->m_PortLockNeeded = TRUE;
         for (IoConfig=0; IoConfig<DT_IOCONFIG_COUNT; IoConfig++)
         {
             // Skip IO configs not applicable to the current port type
@@ -910,11 +952,11 @@ DtStatus  DtCfIoCfg_ApplyConfigPrepare(DtCfIoCfg* pCf,
     Int  PortIndex;
     DtPt* pPt;
 
-    // Apply settings port after port
+    // Prepare ports for IO-config setting (e.g. make sure we have exclusive access)
     for (PortIndex=0; PortIndex<NumPorts && DT_SUCCESS(Status); PortIndex++)
     {
         DtCfIoCfgPortUpdates*  pPortUpdate = &pConfigUpdates[PortIndex];
-        if (!pPortUpdate->m_PortUpdateNeeded)
+        if (!pPortUpdate->m_PortLockNeeded)
             continue;
 
         pPt = DtCore_PT_Find(pCf->m_pCore, PortIndex);
@@ -936,7 +978,6 @@ DtStatus  DtCfIoCfg_ApplyConfigPrepare(DtCfIoCfg* pCf,
     return Status;
 }
 
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfIoCfg_ApplyConfigFinish -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtCfIoCfg_ApplyConfigFinish(DtCfIoCfg* pCf,
@@ -947,11 +988,11 @@ DtStatus  DtCfIoCfg_ApplyConfigFinish(DtCfIoCfg* pCf,
     DtStatus  Status=DT_STATUS_OK, StatusTemp=DT_STATUS_OK;
     Int  PortIndex;
     DtPt* pPt;
-
+    // Finish IO-config setting (e.g. release exclusive access if we have it)
     for (PortIndex=0; PortIndex<NumPorts; PortIndex++)
     {
         DtCfIoCfgPortUpdates*  pPortUpdate = &pConfigUpdates[PortIndex];
-        if (!pPortUpdate->m_PortUpdateNeeded)
+        if (!pPortUpdate->m_PortLockNeeded)
             continue;
 
         pPt = DtCore_PT_Find(pCf->m_pCore, PortIndex);
@@ -2083,11 +2124,11 @@ DtStatus  DtCfIoCfg_ValidateIoDir(
                 return DT_STATUS_CONFIG_ERROR;
 
             Buddy = (Int)pPortIoCfg[DT_IOCONFIG_IODIR].m_ParXtra[0];
-            // buddy is never our own index
+                // Cannot be its own buddy
             if (Buddy == PortIndex)
                 return DT_STATUS_CONFIG_ERROR;
 
-            // check if the buddy port exists
+            // Check if the buddy port exists
             if (Buddy<0 || Buddy>=NumPorts)
                 return DT_STATUS_CONFIG_ERROR;
 
@@ -2113,28 +2154,23 @@ DtStatus  DtCfIoCfg_ValidateIoDir(
             case DT_IOCONFIG_DBLBUF:
                 if (!DtIoCapsHasCap(&IoCaps, DT_IOCAP_DBLBUF))
                     return DT_STATUS_CONFIG_ERROR;
-                // Check provided buddy is a valid output port
+                // Check provided buddy is a valid port
                 Buddy = (Int)pPortIoCfg[DT_IOCONFIG_IODIR].m_ParXtra[0];
-                if (Buddy>=0 && Buddy<NumPorts)
-                {
-                    // Matrix capable ports can only double-up in pairs (i.e. port 2 can
-                    // be a copy of port 1, port 4 of port 3, port 6 of port 5, etc).
-                    if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_MATRIX))
-                    {
-                         if ((Buddy+1) != PortIndex)
-                        {
-                            DtDbgOutDf(ERR, IOCONFIG, pCf, 
-                                            "Matrix capable double-up in pairs "
-                                            "(port=%d, buddy=%d)", PortIndex+1, Buddy+1);
-                            return DT_STATUS_CONFIG_ERROR;
-                        }
-                    }
+                if (Buddy<0 || Buddy>=NumPorts)
+                    return DT_STATUS_CONFIG_ERROR;
 
-                    pCfgVal = &pIoConfig[Buddy].m_CfgValue[DT_IOCONFIG_IODIR];
-                    if (pCfgVal->m_Value != DT_IOCONFIG_OUTPUT
-                                             || pCfgVal->m_SubValue != DT_IOCONFIG_OUTPUT)
-                        return DT_STATUS_CONFIG_ERROR;
-                } else
+                // Cannot be its own buddy
+                if (Buddy == PortIndex)
+                    return DT_STATUS_CONFIG_ERROR;
+
+                // Buddy port must be configured as output
+                pCfgVal = &pIoConfig[Buddy].m_CfgValue[DT_IOCONFIG_IODIR];
+                if (pCfgVal->m_Value!=DT_IOCONFIG_OUTPUT
+                                               || pCfgVal->m_SubValue!=DT_IOCONFIG_OUTPUT)
+                    return DT_STATUS_CONFIG_ERROR;
+
+                // Port and budy port must be in a group of 4
+                if ((PortIndex/4) != (Buddy/4))
                     return DT_STATUS_CONFIG_ERROR;
                 break;
 

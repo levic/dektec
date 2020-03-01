@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuTableStore.c *#*#*#*#*#*#*#*#*#*# (C) 2019 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuTableStore.c *#*#*#*#*#*#*#*#*#*# (C) 2020 DekTec
 //
 // CapParser - Device Table Store - Tables with calibration data, filter coefficients, ...
 //

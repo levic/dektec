@@ -103,6 +103,43 @@ DtBcSDIRXPHY*  DtBcSDIRXPHY_Open(Int  Address, DtCore* pCore, DtPt*  pPt,
     return (DtBcSDIRXPHY*)DtBc_Open(&OpenParams);
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_ClearCdcFifoOverflow -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_ClearCdcFifoOverflow(DtBcSDIRXPHY* pBc)
+{
+    // Sanity check
+    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Must be enabled
+    BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
+
+    // Clear overflow flag
+    SDIRXPHY_CdcFifoStatus_CLEAR_Overflow(pBc);
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_GetCdcFifoStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_GetCdcFifoStatus(DtBcSDIRXPHY* pBc, Int* pFifoLoad, Bool* pOverflow)
+{
+    UInt32  RegStatus = 0;
+    // Sanity check
+    BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check parameters
+    if (pFifoLoad==NULL || pOverflow==NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
+
+    // Return carrier detect status
+    RegStatus = SDIRXPHY_CdcFifoStatus_READ(pBc);
+    *pFifoLoad =  (Int)SDIRXPHY_CdcFifoStatus_GET_Load(RegStatus);
+    *pOverflow = (SDIRXPHY_CdcFifoStatus_GET_Overflow(RegStatus) != 0);
+    return DT_STATUS_OK;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_GetClockReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcSDIRXPHY_GetClockReset(DtBcSDIRXPHY * pBc, Bool* pClkReset)
@@ -395,6 +432,10 @@ DtStatus DtBcSDIRXPHY_SetOperationalMode(DtBcSDIRXPHY * pBc, Int OpMode)
     if (pBc->m_OperationalMode == OpMode)
         return DT_STATUS_OK;
 
+    // Clear overflow
+    if (OpMode==DT_BLOCK_OPMODE_STANDBY || OpMode==DT_BLOCK_OPMODE_RUN)
+        SDIRXPHY_CdcFifoStatus_CLEAR_Overflow(pBc);
+
     // Save operational mode
     pBc->m_OperationalMode = OpMode;
     // Make settings in register
@@ -445,6 +486,7 @@ DtStatus DtBcSDIRXPHY_SetLockMode(DtBcSDIRXPHY* pBc, Int LockMode)
 //
 DtStatus DtBcSDIRXPHY_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
 {
+    DtStatus  Status=DT_STATUS_OK;
     // Sanity check
     BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
 
@@ -464,7 +506,6 @@ DtStatus DtBcSDIRXPHY_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     if (pBc->m_SdiRate == SdiRate)
         return DT_STATUS_OK;
 
-
     // Update cache
     pBc->m_SdiRate = SdiRate;
     // Make settings in register
@@ -476,14 +517,21 @@ DtStatus DtBcSDIRXPHY_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     switch (pBc->m_DeviceFamily)
     {
     case DT_BC_SDIRXPHY_FAMILY_A10:
-                                return DtBcSDIRXPHY_C10A10_StartSetSdiRate(pBc, SdiRate);
+        Status = DtBcSDIRXPHY_C10A10_StartSetSdiRate(pBc, SdiRate);
+        break;
     case DT_BC_SDIRXPHY_FAMILY_C10:
-                                return DtBcSDIRXPHY_C10A10_StartSetSdiRate(pBc, SdiRate);
+        Status = DtBcSDIRXPHY_C10A10_StartSetSdiRate(pBc, SdiRate);
+        break;
     case DT_BC_SDIRXPHY_FAMILY_CV:
-                                return DtBcSDIRXPHY_CV_StartSetSdiRate(pBc, SdiRate);
-    default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+        Status = DtBcSDIRXPHY_CV_StartSetSdiRate(pBc, SdiRate);
+        break;
+    default: DT_ASSERT(FALSE);
+        Status = DT_STATUS_FAIL;
+        break;
     }
-    return DT_STATUS_OK;
+    if (DT_SUCCESS(Status))
+        pBc->m_SetSdiRateBusy = TRUE;
+    return Status;
 }
 
 
@@ -520,6 +568,7 @@ DtStatus DtBcSDIRXPHY_GetSetSdiRateDone(DtBcSDIRXPHY* pBc, Bool* pDone)
 //
 DtStatus DtBcSDIRXPHY_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
 {
+    DtStatus  Status=DT_STATUS_OK;
     // Sanity check
     BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
 
@@ -529,12 +578,21 @@ DtStatus DtBcSDIRXPHY_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
     // Device family specific function
     switch (pBc->m_DeviceFamily)
     {
-    case DT_BC_SDIRXPHY_FAMILY_A10: return DtBcSDIRXPHY_C10A10_FinishSetSdiRate(pBc);
-    case DT_BC_SDIRXPHY_FAMILY_C10: return DtBcSDIRXPHY_C10A10_FinishSetSdiRate(pBc);
-    case DT_BC_SDIRXPHY_FAMILY_CV:  return DtBcSDIRXPHY_CV_FinishSetSdiRate(pBc);
-    default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+    case DT_BC_SDIRXPHY_FAMILY_A10:
+        Status = DtBcSDIRXPHY_C10A10_FinishSetSdiRate(pBc);
+        break;
+    case DT_BC_SDIRXPHY_FAMILY_C10:
+        Status = DtBcSDIRXPHY_C10A10_FinishSetSdiRate(pBc);
+        break;
+    case DT_BC_SDIRXPHY_FAMILY_CV:
+        Status = DtBcSDIRXPHY_CV_FinishSetSdiRate(pBc);
+        break;
+    default: DT_ASSERT(FALSE);
+        Status = DT_STATUS_FAIL;
+        break;
     }
-    return DT_STATUS_OK;
+    pBc->m_SetSdiRateBusy = FALSE;
+    return Status;
 }
 
 
@@ -584,6 +642,7 @@ DtStatus  DtBcSDIRXPHY_Init(DtBc*  pBcBase)
     pBc->m_ClockReset = TRUE;
     pBc->m_LockMode = DT_BC_SDIRXPHY_LOCKMODE_LOCK_TO_REF;
     pBc->m_DownsamplerEnable = FALSE;
+    pBc->m_SetSdiRateBusy = FALSE;
     pBc->m_SdiRate = DT_DRV_SDIRATE_HD;
     DT_ASSERT(DT_SUCCESS(DtBcSDIRXPHY_CheckSdiRate(pBc, pBc->m_SdiRate)));
 
@@ -618,6 +677,7 @@ DtStatus DtBcSDIRXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
         pBc->m_ClockReset = TRUE;
         pBc->m_LockMode = DT_BC_SDIRXPHY_LOCKMODE_LOCK_TO_REF;
         pBc->m_DownsamplerEnable = FALSE;
+        pBc->m_SetSdiRateBusy = FALSE;
 
         // Save block enable
         pBc->m_BlockEnabled = Enable;
@@ -637,6 +697,8 @@ DtStatus DtBcSDIRXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
             RegResetBusy = SDIRXPHY_Status_READ_ResetInProgress(pBc);
         }
         DT_ASSERT(RegResetBusy == 0);
+        if (RegResetBusy != 0)
+            DtDbgOutBc(ERR, SDIRXPHY, pBc, "Reset in progress timeout");
 
         // Wait till power-up calibration is completed
         RegCalBusy = SDIRXPHY_Status_READ_CalBusy(pBc);
@@ -648,6 +710,8 @@ DtStatus DtBcSDIRXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
             RegCalBusy = SDIRXPHY_Status_READ_CalBusy(pBc);
         }
         DT_ASSERT(RegCalBusy == 0);
+        if (RegCalBusy != 0)
+            DtDbgOutBc(ERR, SDIRXPHY, pBc, "Cal busy timeout");
 
         // Device family specific initialisation
         if (pBc->m_DeviceFamily==DT_BC_SDIRXPHY_FAMILY_A10
@@ -662,7 +726,7 @@ DtStatus DtBcSDIRXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
 
             // Wait till completed
             Status = DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(pBc, &Done);
-            TimeoutCount = 100;
+            TimeoutCount = 200;
             while (!Done && DT_SUCCESS(Status) && TimeoutCount>0)
             {
                 DtSleep(1);
@@ -670,7 +734,10 @@ DtStatus DtBcSDIRXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
                 Status = DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(pBc, &Done);
             }
             if (!Done)
+            { 
+                DtDbgOutBc(ERR, SDIRXPHY, pBc, "Calibration timeout");
                 Status = DT_STATUS_TIMEOUT;
+            }
             // Finish setting SDI-rate
             DtBcSDIRXPHY_C10A10_FinishSetSdiRate(pBc);
         }
@@ -678,6 +745,26 @@ DtStatus DtBcSDIRXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
     else
     {
         // ENABLED -> DISABLED?
+        // Make sure set SDI-rate is completed
+        Bool Done = FALSE;
+        if (pBc->m_SetSdiRateBusy)
+        {
+            // Wait till set SDI-rate is completed
+            Status = DtBcSDIRXPHY_GetSetSdiRateDone(pBc, &Done);
+            TimeoutCount = 200;
+            while (!Done && DT_SUCCESS(Status) && TimeoutCount>0)
+            {
+                DtSleep(1);
+                TimeoutCount--;
+                Status = DtBcSDIRXPHY_GetSetSdiRateDone(pBc, &Done);
+            }
+            if (!Done)
+                DtDbgOutBc(ERR, SDIRXPHY, pBc, "Calibration timeout");
+
+            // Finish setting SDI-rate
+            DtBcSDIRXPHY_FinishSetSdiRate(pBc);
+        }
+
         // Operational mode to IDLE
         Status = DtBcSDIRXPHY_SetOperationalMode(pBc, DT_BLOCK_OPMODE_IDLE);
         if (!DT_SUCCESS(Status))
@@ -694,6 +781,7 @@ DtStatus DtBcSDIRXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
         pBc->m_ClockReset = TRUE;
         pBc->m_LockMode = DT_BC_SDIRXPHY_LOCKMODE_LOCK_TO_REF;
         pBc->m_DownsamplerEnable = FALSE;
+        pBc->m_SetSdiRateBusy = FALSE;
 
         // Make settings in register
         DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
@@ -920,6 +1008,8 @@ DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
         WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
     }
     DT_ASSERT(WaitRequest == 0);
+    if (WaitRequest != 0)
+        DtDbgOutBc(ERR, SDIRXPHY, pBc, "Wait request timeout");
 
     // 3. Reconfigure
     // Read registers
@@ -1339,6 +1429,8 @@ DtStatus  DtBcSDIRXPHY_V2_C10A10_StartUserCalibration(DtBcSDIRXPHY* pBc)
         WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
     }
     DT_ASSERT(WaitRequest == 0);
+    if (WaitRequest != 0)
+        DtDbgOutBc(ERR, SDIRXPHY, pBc, "Wait request timeout");
 
     // 5.3 CalEnable.RxCalEn =1  CalEnable.AdaptEn = 0 
     RegData = SDIRXPHY_C10A10_CalEnable_READ(pBc);

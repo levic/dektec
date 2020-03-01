@@ -107,6 +107,9 @@ typedef struct  _DtPTAsiSdiRxTx
     // RX TX Block controllers
     DtBcCDMAC*  m_pBcCDmaC;               // DMA-controller
     DtBcBURSTFIFO*  m_pBcBURSTFIFO;       // Burst FIFO
+    
+    // Doubly buffered output controller
+    DtBcSWITCH*  m_pBcSwitchTxDblBuf;     // Double-buffered buddy channel selector
 
     // RX TX Driver functions
     DtDfSpiCableDrvEq*  m_pDfSpiCableDrvEq; // Cable driver/equalizer

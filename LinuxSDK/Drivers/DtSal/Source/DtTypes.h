@@ -47,6 +47,11 @@
     typedef unsigned __int32 UInt32;
     typedef unsigned __int64 UInt64;
     typedef UInt64  UInt64A;
+#ifdef _WIN32
+    typedef unsigned __int32 UIntPtr;
+#else
+    typedef unsigned __int64 UIntPtr;
+#endif
 
     typedef BOOLEAN Bool;
 
@@ -68,6 +73,11 @@
     typedef u32 UInt32;
     typedef u64 UInt64;
     typedef UInt64 UInt64A __attribute__ ((aligned (8)));
+#ifdef LIN32
+    typedef u32 UIntPtr;
+#else
+    typedef u64 UIntPtr;
+#endif
 
     typedef UInt8 Bool;
     #ifndef FALSE

@@ -75,7 +75,7 @@ DtBcSDITXF*  DtBcSDITXF_Open(Int  Address, DtCore*  pCore, DtPt*  pPt, DtBcType 
     DtBcOpenParams  OpenParams;
     
     DT_ASSERT(pCore!=NULL && pCore->m_Size>=sizeof(DtCore));
-    DT_ASSERT(Type== DT_BLOCK_TYPE_SDITXF || Type==DT_BLOCK_TYPE_SDITXF6G12G);
+    DT_ASSERT(Type== DT_BLOCK_TYPE_SDITXF);
 
     // Init open parameters
     DT_BC_SDITXF_INIT_ID(Id, Type, pRole, Instance, Uuid);
@@ -509,8 +509,7 @@ void DtBcSDITXF_InterruptDpcFmtEvent(DtDpcArgs* pArgs)
     // Sanity check
 #ifdef DEBUG
     UInt32  IntId = pArgs->m_Data1.m_UInt32_1;
-    DT_ASSERT(IntId==DT_INTERRUPT_SDITXF_FMTEVENT 
-                                             || IntId==DT_INTERRUPT_SDITXF6G12G_FMTEVENT);
+    DT_ASSERT(IntId==DT_INTERRUPT_SDITXF_FMTEVENT);
 #endif  // #ifdef DEBUG
     BC_SDITXF_DEFAULT_PRECONDITIONS(pBc);
 
@@ -567,7 +566,6 @@ DtStatus  DtBcSDITXF_InterruptHandler(DtBc*  pBc, Int  Id, Int  Index, void*  pC
     switch (Id)
     {
     case DT_INTERRUPT_SDITXF_FMTEVENT:
-    case DT_INTERRUPT_SDITXF6G12G_FMTEVENT:
         break;
 
         // Not a SDITXF interrupt
@@ -610,7 +608,6 @@ DtStatus  DtBcSDITXF_RegisterIntHandlers(DtBcSDITXF*  pBc)
         switch(Id)
         {
         case DT_INTERRUPT_SDITXF_FMTEVENT:
-        case DT_INTERRUPT_SDITXF6G12G_FMTEVENT:
             // Store format event interrupt ID 
             pBc->m_FmtIntId = Id;
             // NOTE: the SDITXF uses one handler for all interrupt sources

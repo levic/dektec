@@ -29,17 +29,17 @@
 #include "DtBc.h"
 
 // Name and short-name of the SdiRxFmtSimple block (must match block ID)
-#define DT_BC_SDIRXF_NAME        "SdiRxFmtSimple"
-#define DT_BC_SDIRXF_SHORTNAME   "SDIRXF"
+#define DT_BC_SDIRXF_NAME           "SdiRxFmtSimple"
+#define DT_BC_SDIRXF_SHORTNAME      "SDIRXF"
 
 // MACRO: to init an block-controller-ID for the SDIRXF-BC
-#define DT_BC_SDIRXF_INIT_ID(ID, ROLE, INSTANCE, UUID)                                   \
+#define DT_BC_SDIRXF_INIT_ID(ID, TYPE, ROLE, INSTANCE, UUID)                             \
 do                                                                                       \
 {                                                                                        \
-    DT_BC_INIT_ID(ID, DT_BC_SDIRXF_NAME, DT_BC_SDIRXF_SHORTNAME, ROLE, INSTANCE, UUID);  \
+        DT_BC_INIT_ID(ID, DT_BC_SDIRXF_NAME, DT_BC_SDIRXF_SHORTNAME, ROLE, INSTANCE,     \
+                                                                                 UUID);  \
 }                                                                                        \
 while (0)
-
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDIRXF definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -72,6 +72,7 @@ typedef  struct _DtBcSDIRXF
 
     // Interrupts related
     DtDpc  m_IntDpc;
+    Int  m_FmtIntId;                // Format event interrupt ID
     DtEvent  m_FmtEvent;            // Event used to indicate formatter event
     Bool  m_FmtIntEnabled;          // Flag indicating format interrupt event is enabled
     DtSpinLock  m_IntDataSpinLock;  // Access protection for interrupt data
@@ -83,7 +84,7 @@ typedef  struct _DtBcSDIRXF
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXF public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 void  DtBcSDIRXF_Close(DtBc*);
-DtBcSDIRXF*  DtBcSDIRXF_Open(Int  Address, DtCore*, DtPt*  pPt, 
+DtBcSDIRXF*  DtBcSDIRXF_Open(Int  Address, DtCore*, DtPt*  pPt, DtBcType  Type,
                                              const char*  pRole, Int  Instance, Int  Uuid,
                                              Bool  CreateStub);
 
