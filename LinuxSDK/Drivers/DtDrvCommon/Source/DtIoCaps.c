@@ -214,6 +214,10 @@ const DtIoCapDef  DtIoCapDefinitions[] =
     { DT_IOCAP_SPI525I59_94, "CAP_SPI525I59_94" },
     { DT_IOCAP_SPI625I50,  "CAP_SPI625I50" },
 
+    // Capability group IODOWNSCALE - I/O down-scaling
+    { DT_IOCAP_SCALE_12GTO3G,  "CAP_SCALE_12GTO3G" },
+    { DT_IOCAP_SCALE_BYPASS,   "CAP_SCALE_BYPASS" },
+
     // Capability group PWRMODE - Power mode
     { DT_IOCAP_MODHQ,      "CAP_MODHQ" },
     { DT_IOCAP_LOWPWR,     "CAP_LOWPWR" },

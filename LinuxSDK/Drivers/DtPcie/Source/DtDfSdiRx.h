@@ -29,6 +29,7 @@
 #include "DtDf.h"
 #include "DtBcSDIRXP.h"
 #include "DtBcSDIRXPHY.h"
+#include "DtBcS12GTO3G.h"
 #include "DtDfSdiXCfgMgr.h"
 
 // Name + short-name for the SDIRX function. NOTE: must match names in 
@@ -77,6 +78,7 @@ typedef struct  _DtDfSdiRx
     // Block controllers
     DtBcSDIRXP*  m_pBcSdiRxProt;        // SdiRxProtocol block-controller
     DtBcSDIRXPHY*  m_pBcSdiRxPhy;       // SdiRxPhy block-controller
+    DtBcS12GTO3G*  m_pBcS12GTo3G;       // Sdi12Gto3G block-controller
     DtDfSdiXCfgMgr*  m_pDfSdiXCfgMgr;   // SDI Transceiver Reconfig Manager
 
     DtSpinLock  m_SpinLock;             // Lock to protect against mutual access of 
@@ -94,6 +96,7 @@ typedef struct  _DtDfSdiRx
     Int  m_CurrentSdiRate;      // Current SDI-rate
     Int  m_LastLockedSdiRate;   // Last locked SDI-rate
     Int  m_RxMode;              // ASI or SDI
+    Int  m_DownscaleMode;       // Downscale mode FALSE or TRUE
     Int  m_ConfigSdiRate;       // Configured SDI-rate
     Int  m_PhyMaxSdiRate;       // Phy maximum SDI-rate
     Int  m_PhyDeviceFamily;     // Phy device family
@@ -103,14 +106,16 @@ typedef struct  _DtDfSdiRx
 void  DtDfSdiRx_Close(DtDf*);
 DtDfSdiRx*  DtDfSdiRx_Open(DtCore*, DtPt*  pPt, const char*  pRole, Int  Instance, 
                                                              Int  Uuid, Bool  CreateStub);
+DtStatus  DtDfSdiRx_GetDownscaleMode(DtDfSdiRx*, Int* pDownscaleMode);
 DtStatus  DtDfSdiRx_GetMaxSdiRate(DtDfSdiRx*,Int* pMaxSdiRate);
 DtStatus  DtDfSdiRx_GetOperationalMode(DtDfSdiRx*, Int* pOpMode);
 DtStatus  DtDfSdiRx_GetRxMode(DtDfSdiRx*, Int* pRxMode);
 DtStatus  DtDfSdiRx_GetSdiRate(DtDfSdiRx*,Int* pSdiRate);
-DtStatus DtDfSdiRx_GetSdiStatus(DtDfSdiRx* pDf, Int* pCarrierDetect, Int* pSdiLock,
+DtStatus  DtDfSdiRx_GetSdiStatus(DtDfSdiRx* pDf, Int* pCarrierDetect, Int* pSdiLock,
                             Int* pLineLock, Int* pValid, Int* pSdiRate, Int* pNumSymsHanc, 
                             Int* pNumSymsVidVanc, Int*  pNumLinesF1, Int* pNumLinesF2,
                             Int* pIsLevelB, UInt32* pPayloadId, Int* pFramePeriod);
+DtStatus  DtDfSdiRx_SetDownscaleMode(DtDfSdiRx*, Int DownscaleMode);
 DtStatus  DtDfSdiRx_SetOperationalMode(DtDfSdiRx*, Int OpMode);
 DtStatus  DtDfSdiRx_SetRxMode(DtDfSdiRx*, Int RxMode);
 DtStatus  DtDfSdiRx_SetSdiRate(DtDfSdiRx*, Int SdiRate);

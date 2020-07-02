@@ -87,10 +87,18 @@ static irqreturn_t  DtaInterrupt(Int Irq, void* pContext);
 // Character device interface
 static int  DtaIoctl(struct inode* pInode, struct file* pFile, unsigned int Cmd, 
                                                                        unsigned long Arg);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0) // just to be safe
+#ifndef ioremap_nocache // removed in kernel v5.6
+    #define ioremap_nocache ioremap 
+#endif
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,4)
+    #define HAVE_COMPAT_PTR_IOCTL
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
 static long  DtaUnlockedIoctl(struct file* pFile, unsigned int Cmd, unsigned long Arg);
 #endif
-#ifdef CONFIG_COMPAT
+#if defined(CONFIG_COMPAT) && !defined(HAVE_COMPAT_PTR_IOCTL)
 // 32-bit applications using 64-bit driver
 static long  DtaIoctlCompat(struct file *filp, unsigned int cmd, unsigned long arg);
 #endif
@@ -178,7 +186,11 @@ static struct file_operations  DtaFileOps = {
     .unlocked_ioctl = DtaUnlockedIoctl,
 #endif
 #ifdef CONFIG_COMPAT
+#ifdef HAVE_COMPAT_PTR_IOCTL
+    .compat_ioctl   = compat_ptr_ioctl,
+#else
     .compat_ioctl   = DtaIoctlCompat,
+#endif
 #endif
     .open           = DtaOpen,
     .release        = DtaClose,
@@ -997,7 +1009,7 @@ static irqreturn_t  DtaInterrupt(Int Irq, void* pContext)
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Character interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-#ifdef CONFIG_COMPAT
+#if defined(CONFIG_COMPAT) && !defined(HAVE_COMPAT_PTR_IOCTL)
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctlCompat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Compatibility function for 32-bit applications using a 64-bit driver
@@ -1033,6 +1045,12 @@ static long  DtaUnlockedIoctl(struct file* pFile, unsigned int Cmd, unsigned lon
 #endif
     return DtaIoctl(pInode, pFile, Cmd, Arg);
 }
+#endif
+
+#if defined(RHEL_RELEASE_CODE)
+#if RHEL_RELEASE_CODE>=RHEL_RELEASE_VERSION(8,1)
+#define NEW_ACCESS_OK_MACRO_RHEL
+#endif
 #endif
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1080,7 +1098,7 @@ static int  DtaIoctl(
             UInt*  pBufSizeLoc = (UInt*)Arg;
 
             ReservedForSizeParam = 2*sizeof(UInt);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
             if (access_ok(VERIFY_READ, (void*)Arg, ReservedForSizeParam) == 0)
 #else
             if (access_ok((void*)Arg, ReservedForSizeParam) == 0)
@@ -1128,7 +1146,7 @@ static int  DtaIoctl(
             DtDbgOut(MAX, IAL, "Output buffer size %d", Ioctl.m_OutputBufferSize);
 
             // Ioctl reads --> driver needs write access for user memory
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
             if (access_ok(VERIFY_WRITE, (void*)Arg, Ioctl.m_OutputBufferSize) == 0)
 #else
             if (access_ok((void*)Arg, Ioctl.m_OutputBufferSize) == 0)
@@ -1164,8 +1182,8 @@ static int  DtaIoctl(
             DtDbgOut(MAX, IAL, "Input buffer size %d", Ioctl.m_InputBufferSize);
             
             // Ioctl writes --> driver needs read access for user memory
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
-            if (access_ok(VERIFY_READ, (void*)Arg, 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
+            if (access_ok(VERIFY_READ, (void*)Arg,
                                        Ioctl.m_InputBufferSize+ReservedForSizeParam) == 0)
 #else
             if (access_ok((void*)Arg,

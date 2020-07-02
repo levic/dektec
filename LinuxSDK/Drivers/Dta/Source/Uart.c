@@ -161,11 +161,7 @@ DtStatus  DtaUartRead(
     Int  NumBytesAvail, NumCanRead, FifoSize, i;
     Int Idx = 0;
     volatile UInt8* pFwbRegs = pUart->m_pFwbRegs;
-#ifdef WINBUILD
-    LARGE_INTEGER  StartTime, CurTime;
-#else
-    struct timespec  StartTime, CurTime;
-#endif
+    UInt64  StartTime, CurTime;
     Int  TimeElapsed;
     Int  OrigTimeout = Timeout;
 
@@ -175,12 +171,7 @@ DtStatus  DtaUartRead(
     if (Timeout < -1)
         return DT_STATUS_INVALID_PARAMETER;
 
-
-#ifdef WINBUILD
-    KeQueryTickCount(&StartTime);
-#else
-    getnstimeofday(&StartTime);
-#endif
+    StartTime = DtGetTickCount();
 
     FifoSize = DtaFwbRegRead(pFwbRegs,  &pUart->m_pFwbUart->Config_RxFifoSize);
     NumBytesAvail = DtaFwbRegRead(pFwbRegs, &pUart->m_pFwbUart->RxStat_FifoLoad);
@@ -214,16 +205,9 @@ DtStatus  DtaUartRead(
         if (Timeout == -1)
             continue;
 
-#ifdef WINBUILD
-        KeQueryTickCount(&CurTime);
-        TimeElapsed = (Int)((CurTime.QuadPart - StartTime.QuadPart)*KeQueryTimeIncrement()
-                                                                                 / 10000);
-#else
-        getnstimeofday(&CurTime);
-        TimeElapsed = DtDivide64(((CurTime.tv_sec-StartTime.tv_sec)*1000000000LL
-                                   + (CurTime.tv_nsec-StartTime.tv_nsec)), 1000000, NULL);
-#endif
-
+        CurTime = DtGetTickCount();
+        TimeElapsed = (Int)(CurTime - StartTime);
+        
         Timeout = OrigTimeout - TimeElapsed;
     } while (Timeout > 0);
     
@@ -250,18 +234,10 @@ DtStatus  DtaUartWrite(
     DtStatus  Status = DT_STATUS_OK;
     Int  FifoSize, FifoFree;
     volatile UInt8* pFwbRegs = pUart->m_pFwbRegs;
-#ifdef WINBUILD
-    LARGE_INTEGER  StartTime, CurTime;
-#else
-    struct timespec  StartTime, CurTime;
-#endif
+    UInt64  StartTime, CurTime;
     Int  TimeElapsed = 0;
 
-#ifdef WINBUILD
-    KeQueryTickCount(&StartTime);
-#else
-    getnstimeofday(&StartTime);
-#endif
+    StartTime = DtGetTickCount();
 
     if (pTimeout==NULL || *pTimeout<=0)
         return DT_STATUS_INVALID_PARAMETER;
@@ -280,15 +256,10 @@ DtStatus  DtaUartWrite(
         }
         DtaFwbRegWrite(pFwbRegs, &pUart->m_pFwbUart->TxCtrl_HalfEmptyIntEnable, 1);
         Status = DtEventWaitUnInt(&pUart->m_TxEvent, *pTimeout - TimeElapsed);
-#ifdef WINBUILD
-        KeQueryTickCount(&CurTime);
-        TimeElapsed = (Int)((CurTime.QuadPart - StartTime.QuadPart)*KeQueryTimeIncrement()
-                                                                                 / 10000);
-#else
-        getnstimeofday(&CurTime);
-        TimeElapsed = DtDivide64(((CurTime.tv_sec-StartTime.tv_sec)*1000000000LL
-                                   + (CurTime.tv_nsec-StartTime.tv_nsec)), 1000000, NULL);
-#endif
+        
+        CurTime = DtGetTickCount();
+        TimeElapsed = (Int)(CurTime - StartTime);
+
         if (TimeElapsed > *pTimeout)
             return DT_STATUS_TIMEOUT;
 
@@ -300,15 +271,9 @@ DtStatus  DtaUartWrite(
         DtaFwbRegWrite(pFwbRegs, &pUart->m_pFwbUart->TxData, *pBuf++);
     }
     
-#ifdef WINBUILD
-        KeQueryTickCount(&CurTime);
-        TimeElapsed = (Int)((CurTime.QuadPart - StartTime.QuadPart)*KeQueryTimeIncrement()
-                                                                                 / 10000);
-#else
-        getnstimeofday(&CurTime);
-        TimeElapsed = DtDivide64(((CurTime.tv_sec-StartTime.tv_sec)*1000000000LL
-                                   + (CurTime.tv_nsec-StartTime.tv_nsec)), 1000000, NULL);
-#endif
+    CurTime = DtGetTickCount();
+    TimeElapsed = (Int)(CurTime - StartTime);
+
     if (TimeElapsed > *pTimeout)
         return DT_STATUS_TIMEOUT;
 
@@ -319,15 +284,9 @@ DtStatus  DtaUartWrite(
 
     if (!DT_SUCCESS(Status))
     {
-#ifdef WINBUILD
-        KeQueryTickCount(&CurTime);
-        TimeElapsed = (Int)((CurTime.QuadPart - StartTime.QuadPart)*KeQueryTimeIncrement()
-                                                                                 / 10000);
-#else
-        getnstimeofday(&CurTime);
-        TimeElapsed = DtDivide64(((CurTime.tv_sec-StartTime.tv_sec)*1000000000LL
-                                   + (CurTime.tv_nsec-StartTime.tv_nsec)), 1000000, NULL);
-#endif
+        CurTime = DtGetTickCount();
+        TimeElapsed = (Int)(CurTime - StartTime);
+
         *pTimeout -= TimeElapsed;
         return Status;
     }

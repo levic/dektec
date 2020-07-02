@@ -336,11 +336,7 @@ static DtStatus  DtaRs422Read(
     DtStatus  Status = DT_STATUS_OK;
     DtaRs422Port*  pRs422 = &pNonIpPort->m_Rs422;
     Int  i, Offset;
-#ifdef WINBUILD
-    LARGE_INTEGER  StartTime, CurTime;
-#else
-    struct timespec  StartTime, CurTime;
-#endif
+    UInt64  StartTime, CurTime;
     Int  TimeElapsed;
     Int  OrigTimeout = Timeout;
 
@@ -375,12 +371,8 @@ static DtStatus  DtaRs422Read(
 
     if (Timeout == 0)
         return DT_STATUS_OK;
-    
-#ifdef WINBUILD
-    KeQueryTickCount(&StartTime);
-#else
-    getnstimeofday(&StartTime);
-#endif
+
+    StartTime = DtGetTickCount();
     do {
         Status = DtEventWait(&pRs422->m_RxDataAvailEvent, Timeout);
         if (DT_SUCCESS(Status))
@@ -395,15 +387,8 @@ static DtStatus  DtaRs422Read(
             pRs422->m_RxNumBytes -= Offset;
             DtSpinLockRelease(&pRs422->m_StateLock);
         }
-#ifdef WINBUILD
-        KeQueryTickCount(&CurTime);
-        TimeElapsed = (Int)((CurTime.QuadPart - StartTime.QuadPart)*KeQueryTimeIncrement()
-                                                                                 / 10000);
-#else
-        getnstimeofday(&CurTime);
-        TimeElapsed = DtDivide64(((CurTime.tv_sec-StartTime.tv_sec)*1000000000LL
-                                   + (CurTime.tv_nsec-StartTime.tv_nsec)), 1000000, NULL);
-#endif
+        CurTime = DtGetTickCount();
+        TimeElapsed = (Int)(CurTime - StartTime);
 
         Timeout = OrigTimeout - TimeElapsed;
     } while (*NumBytesRead<BytesToRead && DT_SUCCESS(Status) && Timeout>0);

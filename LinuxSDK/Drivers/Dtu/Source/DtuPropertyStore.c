@@ -4406,113 +4406,116 @@ const char*  IoConfigCodeStrings[] =
 {
 /*  0 */ "IODIR",
 /*  1 */ "IOSTD",
-/*  2 */ "PWRMODE",
-/*  3 */ "RFCLKSEL",
-/*  4 */ "SPICLKSEL",
-/*  5 */ "SPIMODE",
-/*  6 */ "SPISTD",
-/*  7 */ "TSRATESEL",
-/*  8 */ "AUTOBFGEN",
-/*  9 */ "BW",
-/* 10 */ "DMATESTMODE",
-/* 11 */ "FAILSAFE",
-/* 12 */ "FRACMODE",
-/* 13 */ "GENLOCKED",
-/* 14 */ "GENREF",
-/* 15 */ "SWS2APSK",
-/* 16 */ "TRUE",
-/* 17 */ "FALSE",
-/* 18 */ "DISABLED",
-/* 19 */ "INPUT",
-/* 20 */ "INTINPUT",
-/* 21 */ "INTOUTPUT",
-/* 22 */ "MONITOR",
-/* 23 */ "OUTPUT",
-/* 24 */ "SHAREDANT",
-/* 25 */ "DBLBUF",
-/* 26 */ "LOOPS2L3",
-/* 27 */ "LOOPS2TS",
-/* 28 */ "LOOPTHR",
-/* 29 */ "12GSDI",
-/* 30 */ "3GSDI",
-/* 31 */ "6GSDI",
-/* 32 */ "ASI",
-/* 33 */ "AVENC",
-/* 34 */ "DEKTECST",
-/* 35 */ "DEMOD",
-/* 36 */ "GPSTIME",
-/* 37 */ "HDMI",
-/* 38 */ "HDSDI",
-/* 39 */ "IFADC",
-/* 40 */ "IP",
-/* 41 */ "MOD",
-/* 42 */ "PHASENOISE",
-/* 43 */ "RS422",
-/* 44 */ "SDIRX",
-/* 45 */ "SDI",
-/* 46 */ "SPI",
-/* 47 */ "SPISDI",
-/* 48 */ "2160P50",
-/* 49 */ "2160P50B",
-/* 50 */ "2160P59_94",
-/* 51 */ "2160P59_94B",
-/* 52 */ "2160P60",
-/* 53 */ "2160P60B",
-/* 54 */ "1080P50",
-/* 55 */ "1080P50B",
-/* 56 */ "1080P59_94",
-/* 57 */ "1080P59_94B",
-/* 58 */ "1080P60",
-/* 59 */ "1080P60B",
-/* 60 */ "2160P23_98",
-/* 61 */ "2160P24",
-/* 62 */ "2160P25",
-/* 63 */ "2160P29_97",
-/* 64 */ "2160P30",
-/* 65 */ "1080I50",
-/* 66 */ "1080I59_94",
-/* 67 */ "1080I60",
-/* 68 */ "1080P23_98",
-/* 69 */ "1080P24",
-/* 70 */ "1080P25",
-/* 71 */ "1080P29_97",
-/* 72 */ "1080P30",
-/* 73 */ "1080PSF23_98",
-/* 74 */ "1080PSF24",
-/* 75 */ "1080PSF25",
-/* 76 */ "1080PSF29_97",
-/* 77 */ "1080PSF30",
-/* 78 */ "720P23_98",
-/* 79 */ "720P24",
-/* 80 */ "720P25",
-/* 81 */ "720P29_97",
-/* 82 */ "720P30",
-/* 83 */ "720P50",
-/* 84 */ "720P59_94",
-/* 85 */ "720P60",
-/* 86 */ "525I59_94",
-/* 87 */ "625I50",
-/* 88 */ "SPI525I59_94",
-/* 89 */ "SPI625I50",
-/* 90 */ "MODHQ",
-/* 91 */ "LOWPWR",
-/* 92 */ "RFCLKEXT",
-/* 93 */ "RFCLKINT",
-/* 94 */ "SPICLKEXT",
-/* 95 */ "SPICLKINT",
-/* 96 */ "SPIFIXEDCLK",
-/* 97 */ "SPIDVBMODE",
-/* 98 */ "SPISER8B",
-/* 99 */ "SPISER10B",
-/* 100 */ "SPILVDS1",
-/* 101 */ "SPILVDS2",
-/* 102 */ "SPILVTTL",
-/* 103 */ "EXTTSRATE",
-/* 104 */ "EXTRATIO",
-/* 105 */ "INTTSRATE",
-/* 106 */ "LOCK2INP"
+/*  2 */ "IODOWNSCALE",
+/*  3 */ "PWRMODE",
+/*  4 */ "RFCLKSEL",
+/*  5 */ "SPICLKSEL",
+/*  6 */ "SPIMODE",
+/*  7 */ "SPISTD",
+/*  8 */ "TSRATESEL",
+/*  9 */ "AUTOBFGEN",
+/* 10 */ "BW",
+/* 11 */ "DMATESTMODE",
+/* 12 */ "FAILSAFE",
+/* 13 */ "FRACMODE",
+/* 14 */ "GENLOCKED",
+/* 15 */ "GENREF",
+/* 16 */ "SWS2APSK",
+/* 17 */ "TRUE",
+/* 18 */ "FALSE",
+/* 19 */ "DISABLED",
+/* 20 */ "INPUT",
+/* 21 */ "INTINPUT",
+/* 22 */ "INTOUTPUT",
+/* 23 */ "MONITOR",
+/* 24 */ "OUTPUT",
+/* 25 */ "SHAREDANT",
+/* 26 */ "DBLBUF",
+/* 27 */ "LOOPS2L3",
+/* 28 */ "LOOPS2TS",
+/* 29 */ "LOOPTHR",
+/* 30 */ "12GSDI",
+/* 31 */ "3GSDI",
+/* 32 */ "6GSDI",
+/* 33 */ "ASI",
+/* 34 */ "AVENC",
+/* 35 */ "DEKTECST",
+/* 36 */ "DEMOD",
+/* 37 */ "GPSTIME",
+/* 38 */ "HDMI",
+/* 39 */ "HDSDI",
+/* 40 */ "IFADC",
+/* 41 */ "IP",
+/* 42 */ "MOD",
+/* 43 */ "PHASENOISE",
+/* 44 */ "RS422",
+/* 45 */ "SDIRX",
+/* 46 */ "SDI",
+/* 47 */ "SPI",
+/* 48 */ "SPISDI",
+/* 49 */ "2160P50",
+/* 50 */ "2160P50B",
+/* 51 */ "2160P59_94",
+/* 52 */ "2160P59_94B",
+/* 53 */ "2160P60",
+/* 54 */ "2160P60B",
+/* 55 */ "1080P50",
+/* 56 */ "1080P50B",
+/* 57 */ "1080P59_94",
+/* 58 */ "1080P59_94B",
+/* 59 */ "1080P60",
+/* 60 */ "1080P60B",
+/* 61 */ "2160P23_98",
+/* 62 */ "2160P24",
+/* 63 */ "2160P25",
+/* 64 */ "2160P29_97",
+/* 65 */ "2160P30",
+/* 66 */ "1080I50",
+/* 67 */ "1080I59_94",
+/* 68 */ "1080I60",
+/* 69 */ "1080P23_98",
+/* 70 */ "1080P24",
+/* 71 */ "1080P25",
+/* 72 */ "1080P29_97",
+/* 73 */ "1080P30",
+/* 74 */ "1080PSF23_98",
+/* 75 */ "1080PSF24",
+/* 76 */ "1080PSF25",
+/* 77 */ "1080PSF29_97",
+/* 78 */ "1080PSF30",
+/* 79 */ "720P23_98",
+/* 80 */ "720P24",
+/* 81 */ "720P25",
+/* 82 */ "720P29_97",
+/* 83 */ "720P30",
+/* 84 */ "720P50",
+/* 85 */ "720P59_94",
+/* 86 */ "720P60",
+/* 87 */ "525I59_94",
+/* 88 */ "625I50",
+/* 89 */ "SPI525I59_94",
+/* 90 */ "SPI625I50",
+/* 91 */ "SCALE_12GTO3G",
+/* 92 */ "SCALE_BYPASS",
+/* 93 */ "MODHQ",
+/* 94 */ "LOWPWR",
+/* 95 */ "RFCLKEXT",
+/* 96 */ "RFCLKINT",
+/* 97 */ "SPICLKEXT",
+/* 98 */ "SPICLKINT",
+/* 99 */ "SPIFIXEDCLK",
+/* 100 */ "SPIDVBMODE",
+/* 101 */ "SPISER8B",
+/* 102 */ "SPISER10B",
+/* 103 */ "SPILVDS1",
+/* 104 */ "SPILVDS2",
+/* 105 */ "SPILVTTL",
+/* 106 */ "EXTTSRATE",
+/* 107 */ "EXTRATIO",
+/* 108 */ "INTTSRATE",
+/* 109 */ "LOCK2INP"
 };
-const Int  IoConfigCodeStringCount = 107;
+const Int  IoConfigCodeStringCount = 110;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IoConfigCodes_XX[] -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -4521,263 +4524,266 @@ const Int  IoConfigCodeStringCount = 107;
 //
 static const IoConfigCode  IoConfigCodes_0[] =
 {
-    { "FAILSAFE", 11 },
-    { "INTINPUT", 20 }
+    { "FAILSAFE", 12 },
+    { "INTINPUT", 21 }
 };
 static const IoConfigCode  IoConfigCodes_1[] =
 {
-    { "INTOUTPUT", 21 },
-    { "1080P30", 72 }
+    { "INTOUTPUT", 22 },
+    { "1080P30", 73 }
 };
 static const IoConfigCode  IoConfigCodes_2[] =
 {
-    { "RS422", 43 }
+    { "RS422", 44 }
 };
 static const IoConfigCode  IoConfigCodes_3[] =
 {
-    { "PWRMODE", 2 },
-    { "LOOPS2L3", 26 },
-    { "1080P50", 54 },
-    { "720P23_98", 78 }
+    { "PWRMODE", 3 },
+    { "LOOPS2L3", 27 },
+    { "1080P50", 55 },
+    { "720P23_98", 79 }
 };
 static const IoConfigCode  IoConfigCodes_4[] =
 {
-    { "2160P60", 52 },
-    { "2160P24", 61 }
+    { "2160P60", 53 },
+    { "2160P24", 62 }
 };
 static const IoConfigCode  IoConfigCodes_5[] =
 {
-    { "SDI", 45 },
-    { "2160P50B", 49 },
-    { "2160P25", 62 }
+    { "SDI", 46 },
+    { "2160P50B", 50 },
+    { "2160P25", 63 }
 };
 static const IoConfigCode  IoConfigCodes_6[] =
 {
-    { "FRACMODE", 12 },
-    { "2160P60B", 53 }
+    { "FRACMODE", 13 },
+    { "2160P60B", 54 }
 };
 static const IoConfigCode  IoConfigCodes_7[] =
 {
-    { "HDMI", 37 },
-    { "SPILVTTL", 102 }
+    { "HDMI", 38 },
+    { "SPILVTTL", 105 }
 };
 static const IoConfigCode  IoConfigCodes_8[] =
 {
     { "IOSTD", 1 },
-    { "720P29_97", 81 },
-    { "720P59_94", 84 }
+    { "720P29_97", 82 },
+    { "720P59_94", 85 }
 };
 static const IoConfigCode  IoConfigCodes_12[] =
 {
-    { "1080PSF23_98", 73 }
+    { "1080PSF23_98", 74 }
 };
 static const IoConfigCode  IoConfigCodes_14[] =
 {
-    { "DEMOD", 35 }
+    { "DEMOD", 36 }
 };
 static const IoConfigCode  IoConfigCodes_15[] =
 {
-    { "12GSDI", 29 }
+    { "12GSDI", 30 }
 };
 static const IoConfigCode  IoConfigCodes_16[] =
 {
-    { "FALSE", 17 },
-    { "625I50", 87 }
+    { "FALSE", 18 },
+    { "625I50", 88 }
 };
 static const IoConfigCode  IoConfigCodes_17[] =
 {
-    { "GENLOCKED", 13 },
-    { "HDSDI", 38 },
-    { "SPI", 46 },
-    { "SPISDI", 47 },
-    { "1080I59_94", 66 },
-    { "1080PSF29_97", 76 },
-    { "720P30", 82 }
+    { "GENLOCKED", 14 },
+    { "HDSDI", 39 },
+    { "SPI", 47 },
+    { "SPISDI", 48 },
+    { "1080I59_94", 67 },
+    { "1080PSF29_97", 77 },
+    { "720P30", 83 }
 };
 static const IoConfigCode  IoConfigCodes_18[] =
 {
-    { "AVENC", 33 },
-    { "SPIDVBMODE", 97 }
+    { "AVENC", 34 },
+    { "SPIDVBMODE", 100 }
 };
 static const IoConfigCode  IoConfigCodes_19[] =
 {
-    { "2160P23_98", 60 },
-    { "720P50", 83 }
+    { "2160P23_98", 61 },
+    { "720P50", 84 },
+    { "SCALE_12GTO3G", 91 }
 };
 static const IoConfigCode  IoConfigCodes_20[] =
 {
-    { "DBLBUF", 25 }
+    { "DBLBUF", 26 }
 };
 static const IoConfigCode  IoConfigCodes_21[] =
 {
-    { "INPUT", 19 },
-    { "EXTRATIO", 104 }
+    { "INPUT", 20 },
+    { "EXTRATIO", 107 }
 };
 static const IoConfigCode  IoConfigCodes_22[] =
 {
-    { "SPIMODE", 5 },
-    { "SPICLKINT", 95 }
+    { "SPIMODE", 6 },
+    { "SPICLKINT", 98 }
 };
 static const IoConfigCode  IoConfigCodes_24[] =
 {
-    { "2160P59_94", 50 },
-    { "2160P29_97", 63 }
+    { "2160P59_94", 51 },
+    { "2160P29_97", 64 }
 };
 static const IoConfigCode  IoConfigCodes_26[] =
 {
-    { "2160P59_94B", 51 }
+    { "2160P59_94B", 52 }
 };
 static const IoConfigCode  IoConfigCodes_27[] =
 {
-    { "SPIFIXEDCLK", 96 }
+    { "SPIFIXEDCLK", 99 }
 };
 static const IoConfigCode  IoConfigCodes_28[] =
 {
     { "IODIR", 0 },
-    { "SPISTD", 6 },
-    { "TSRATESEL", 7 },
-    { "SPI625I50", 89 },
-    { "SPICLKEXT", 94 }
+    { "SPISTD", 7 },
+    { "TSRATESEL", 8 },
+    { "SPI625I50", 90 },
+    { "SPICLKEXT", 97 }
 };
 static const IoConfigCode  IoConfigCodes_29[] =
 {
-    { "1080I60", 67 },
-    { "1080PSF24", 74 }
+    { "1080I60", 68 },
+    { "1080PSF24", 75 }
 };
 static const IoConfigCode  IoConfigCodes_30[] =
 {
-    { "BW", 9 },
-    { "GPSTIME", 36 },
-    { "1080PSF25", 75 }
+    { "BW", 10 },
+    { "GPSTIME", 37 },
+    { "1080PSF25", 76 },
+    { "SCALE_BYPASS", 92 }
 };
 static const IoConfigCode  IoConfigCodes_31[] =
 {
-    { "3GSDI", 30 }
+    { "3GSDI", 31 }
 };
 static const IoConfigCode  IoConfigCodes_32[] =
 {
-    { "AUTOBFGEN", 8 }
+    { "AUTOBFGEN", 9 }
 };
 static const IoConfigCode  IoConfigCodes_33[] =
 {
-    { "2160P30", 64 }
+    { "2160P30", 65 }
 };
 static const IoConfigCode  IoConfigCodes_34[] =
 {
-    { "6GSDI", 31 },
-    { "ASI", 32 },
-    { "RFCLKINT", 93 }
+    { "6GSDI", 32 },
+    { "ASI", 33 },
+    { "RFCLKINT", 96 }
 };
 static const IoConfigCode  IoConfigCodes_35[] =
 {
-    { "SWS2APSK", 15 },
-    { "2160P50", 48 },
-    { "INTTSRATE", 105 }
+    { "SWS2APSK", 16 },
+    { "2160P50", 49 },
+    { "INTTSRATE", 108 }
 };
 static const IoConfigCode  IoConfigCodes_36[] =
 {
-    { "1080P60", 58 },
-    { "1080P24", 69 },
-    { "525I59_94", 86 }
+    { "1080P60", 59 },
+    { "1080P24", 70 },
+    { "525I59_94", 87 }
 };
 static const IoConfigCode  IoConfigCodes_37[] =
 {
-    { "TRUE", 16 },
-    { "MOD", 41 },
-    { "1080P50B", 55 },
-    { "1080P25", 70 }
+    { "TRUE", 17 },
+    { "MOD", 42 },
+    { "1080P50B", 56 },
+    { "1080P25", 71 }
 };
 static const IoConfigCode  IoConfigCodes_38[] =
 {
-    { "1080P60B", 59 }
+    { "1080P60B", 60 }
 };
 static const IoConfigCode  IoConfigCodes_39[] =
 {
-    { "LOCK2INP", 106 }
+    { "LOCK2INP", 109 }
 };
 static const IoConfigCode  IoConfigCodes_40[] =
 {
-    { "RFCLKEXT", 92 }
+    { "RFCLKEXT", 95 }
 };
 static const IoConfigCode  IoConfigCodes_41[] =
 {
-    { "EXTTSRATE", 103 }
+    { "EXTTSRATE", 106 }
 };
 static const IoConfigCode  IoConfigCodes_43[] =
 {
-    { "LOOPS2TS", 27 }
+    { "LOOPS2TS", 28 }
 };
 static const IoConfigCode  IoConfigCodes_45[] =
 {
-    { "MONITOR", 22 },
-    { "LOOPTHR", 28 }
+    { "MONITOR", 23 },
+    { "LOOPTHR", 29 }
 };
 static const IoConfigCode  IoConfigCodes_47[] =
 {
-    { "SPICLKSEL", 4 },
-    { "SDIRX", 44 }
+    { "SPICLKSEL", 5 },
+    { "SDIRX", 45 }
 };
 static const IoConfigCode  IoConfigCodes_48[] =
 {
-    { "SPI525I59_94", 88 },
-    { "LOWPWR", 91 }
+    { "SPI525I59_94", 89 },
+    { "LOWPWR", 94 }
 };
 static const IoConfigCode  IoConfigCodes_51[] =
 {
-    { "1080P23_98", 68 }
+    { "1080P23_98", 69 }
 };
 static const IoConfigCode  IoConfigCodes_52[] =
 {
-    { "PHASENOISE", 42 },
-    { "720P24", 79 },
-    { "720P60", 85 }
+    { "PHASENOISE", 43 },
+    { "720P24", 80 },
+    { "720P60", 86 }
 };
 static const IoConfigCode  IoConfigCodes_53[] =
 {
-    { "720P25", 80 },
-    { "SPISER8B", 98 }
+    { "720P25", 81 },
+    { "SPISER8B", 101 }
 };
 static const IoConfigCode  IoConfigCodes_54[] =
 {
-    { "OUTPUT", 23 }
+    { "OUTPUT", 24 }
 };
 static const IoConfigCode  IoConfigCodes_56[] =
 {
-    { "1080P59_94", 56 },
-    { "1080P29_97", 71 }
+    { "1080P59_94", 57 },
+    { "1080P29_97", 72 }
 };
 static const IoConfigCode  IoConfigCodes_58[] =
 {
-    { "1080P59_94B", 57 },
-    { "1080PSF30", 77 }
+    { "1080P59_94B", 58 },
+    { "1080PSF30", 78 }
 };
 static const IoConfigCode  IoConfigCodes_59[] =
 {
-    { "RFCLKSEL", 3 },
-    { "SPILVDS1", 100 }
+    { "RFCLKSEL", 4 },
+    { "SPILVDS1", 103 }
 };
 static const IoConfigCode  IoConfigCodes_60[] =
 {
-    { "DMATESTMODE", 10 },
-    { "GENREF", 14 },
-    { "DEKTECST", 34 },
-    { "IFADC", 39 },
-    { "1080I50", 65 },
-    { "SPILVDS2", 101 }
+    { "DMATESTMODE", 11 },
+    { "GENREF", 15 },
+    { "DEKTECST", 35 },
+    { "IFADC", 40 },
+    { "1080I50", 66 },
+    { "SPILVDS2", 104 }
 };
 static const IoConfigCode  IoConfigCodes_61[] =
 {
-    { "DISABLED", 18 }
+    { "IODOWNSCALE", 2 },
+    { "DISABLED", 19 }
 };
 static const IoConfigCode  IoConfigCodes_62[] =
 {
-    { "IP", 40 },
-    { "MODHQ", 90 },
-    { "SPISER10B", 99 }
+    { "IP", 41 },
+    { "MODHQ", 93 },
+    { "SPISER10B", 102 }
 };
 static const IoConfigCode  IoConfigCodes_63[] =
 {
-    { "SHAREDANT", 24 }
+    { "SHAREDANT", 25 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IoConfigCodeHashSets[] -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -4805,7 +4811,7 @@ const IoConfigCodeHashSet  IoConfigCodeHashSets[] =
     { IoConfigCodes_16, 2 },
     { IoConfigCodes_17, 7 },
     { IoConfigCodes_18, 2 },
-    { IoConfigCodes_19, 2 },
+    { IoConfigCodes_19, 3 },
     { IoConfigCodes_20, 1 },
     { IoConfigCodes_21, 2 },
     { IoConfigCodes_22, 2 },
@@ -4816,7 +4822,7 @@ const IoConfigCodeHashSet  IoConfigCodeHashSets[] =
     { IoConfigCodes_27, 1 },
     { IoConfigCodes_28, 5 },
     { IoConfigCodes_29, 2 },
-    { IoConfigCodes_30, 3 },
+    { IoConfigCodes_30, 4 },
     { IoConfigCodes_31, 1 },
     { IoConfigCodes_32, 1 },
     { IoConfigCodes_33, 1 },
@@ -4847,7 +4853,7 @@ const IoConfigCodeHashSet  IoConfigCodeHashSets[] =
     { IoConfigCodes_58, 2 },
     { IoConfigCodes_59, 2 },
     { IoConfigCodes_60, 6 },
-    { IoConfigCodes_61, 1 },
+    { IoConfigCodes_61, 2 },
     { IoConfigCodes_62, 3 },
     { IoConfigCodes_63, 1 }
 };

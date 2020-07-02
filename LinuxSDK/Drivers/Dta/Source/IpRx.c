@@ -2943,9 +2943,21 @@ UInt  DtaIpRxGetChannelsForDVB(DtaIpPort* pIpPort, UInt32 IdTag, UInt8* pIpSrc,
     DtMutexAcquire(&pFirstPort->m_IpPortType2.m_AddrMatcherMutex, -1);
 
     // Get the channel list for this IdTag
-    pIpRxChannel = pIpPort->m_pDvcData->m_IpDevice.m_pAddrMatchLUTable[IdTag];
-    StreamType = pIpPort->m_pDvcData->m_IpDevice.m_AddrMatchLUTableType[IdTag];
+    if (IdTag > (DTA_MAX_ADDR_MATCHER_ENTRIES-1))
+        pIpRxChannel = NULL;
+    else 
+    {
+        pIpRxChannel = pIpPort->m_pDvcData->m_IpDevice.m_pAddrMatchLUTable[IdTag];
+        StreamType = pIpPort->m_pDvcData->m_IpDevice.m_AddrMatchLUTableType[IdTag];
+
+    }
     
+    if (pIpRxChannel != NULL)
+    {
+        // Check if the entry is not NULL, just to be safe.
+        if (pIpRxChannel->m_AddrMatcherEntry[pIpPort->m_IpPortIndex & 1] == NULL)
+            pIpRxChannel = NULL;
+    }
     if (pIpRxChannel != NULL)
         SSMIpV6 = pIpRxChannel->m_AddrMatcherEntry[pIpPort->m_IpPortIndex&1] \
                                                             [StreamType].m_Gen.m_SSM==1 &&

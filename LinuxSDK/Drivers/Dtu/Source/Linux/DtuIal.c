@@ -128,6 +128,10 @@ static DEVICE_ATTR(serial, S_IRUGO, DtuShowSerial, NULL);
 // device_create_file / device_remove_file
 // The attribute itself is declared with the DEVICE_ATTR macro.
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,4)
+#define HAVE_COMPAT_PTR_IOCTL
+#endif
+
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Interface declarations +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -145,7 +149,11 @@ struct file_operations  DtuFileOps =
     .unlocked_ioctl = DtuUnlockedIoctl,
 #endif
 #ifdef CONFIG_COMPAT
+#ifdef HAVE_COMPAT_PTR_IOCTL
+    .compat_ioctl = compat_ptr_ioctl,
+#else
     .compat_ioctl = DtuIoctlCompat,
+#endif
 #endif
     .open = DtuOpen,
     .release = DtuClose,
@@ -384,7 +392,7 @@ static void  DtuDeviceStopSeq(DtuDeviceData* pDvcData, Bool Initializing)
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Character interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-#ifdef CONFIG_COMPAT
+#if defined(CONFIG_COMPAT) && !defined(HAVE_COMPAT_PTR_IOCTL)
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuIoctlCompat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Compatibility function for 32-bit applications using a 64-bit driver
@@ -419,6 +427,11 @@ long  DtuUnlockedIoctl(struct file* pFile, unsigned int Cmd, unsigned long Arg)
     return DtuIoctl(pInode, pFile, Cmd, Arg);
 }
 
+#if defined(RHEL_RELEASE_CODE)
+#if RHEL_RELEASE_CODE>=RHEL_RELEASE_VERSION(8,1)
+#define NEW_ACCESS_OK_MACRO_RHEL
+#endif
+#endif
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuIoctl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -464,7 +477,7 @@ static long  DtuIoctl(
             UInt*  pBufSizeLoc = (UInt*)Arg;
 
             ReservedForSizeParam = 2*sizeof(UInt);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
             if (access_ok(VERIFY_READ, (void*)Arg, ReservedForSizeParam) == 0)
 #else
             if (access_ok((void*)Arg, ReservedForSizeParam) == 0)
@@ -512,7 +525,7 @@ static long  DtuIoctl(
             DtDbgOut(MAX, IAL, "Output buffer size %d", Ioctl.m_OutputBufferSize);
 
             // Ioctl reads --> driver needs write access for user memory
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
             if (access_ok(VERIFY_WRITE, (void*)Arg, Ioctl.m_OutputBufferSize) == 0)
 #else
             if (access_ok((void*)Arg, Ioctl.m_OutputBufferSize) == 0)
@@ -548,8 +561,8 @@ static long  DtuIoctl(
             DtDbgOut(MAX, IAL, "Input buffer size %d", Ioctl.m_InputBufferSize);
             
             // Ioctl writes --> driver needs read access for user memory
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
-            if (access_ok(VERIFY_READ, (void*)Arg, 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
+            if (access_ok(VERIFY_READ, (void*)Arg,
                                        Ioctl.m_InputBufferSize+ReservedForSizeParam) == 0)
 #else
             if (access_ok((void*)Arg,

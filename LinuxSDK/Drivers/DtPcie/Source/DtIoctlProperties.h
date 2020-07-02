@@ -1337,6 +1337,65 @@ typedef struct  _DtIoctlProperties
     )
 
 
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_S12GTO3G_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_S12GTO3G_GET_OPERATIONAL_MODE                                 \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_S12GTO3G_CMD_GET_OPERATIONAL_MODE,                                            \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlS12Gto3GCmdGetOpModeInput),                                        \
+        sizeof(DtIoctlS12Gto3GCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_S12GTO3G_GET_SCALING_ENABLE                                   \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_S12GTO3G_CMD_GET_SCALING_ENABLE,                                              \
+        "GET_SCALING_ENABLE",                                                            \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlS12Gto3GCmdGetScalingEnableInput),                                 \
+        sizeof(DtIoctlS12Gto3GCmdGetScalingEnableOutput))
+
+#define DT_IOCTL_CMD_PROPS_S12GTO3G_SET_OPERATIONAL_MODE                                 \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_S12GTO3G_CMD_SET_OPERATIONAL_MODE,                                            \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlS12Gto3GCmdSetOpModeInput),                                        \
+        0)
+
+#define DT_IOCTL_CMD_PROPS_S12GTO3G_SET_SCALING_ENABLE                                   \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_S12GTO3G_CMD_SET_SCALING_ENABLE,                                              \
+        "SET_SCALING_ENABLE",                                                            \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlS12Gto3GCmdSetScalingEnableInput),                                 \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_S12GTO3G                                                 \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_S12GTO3G[] =                   \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_S12GTO3G_GET_OPERATIONAL_MODE,                                \
+        DT_IOCTL_CMD_PROPS_S12GTO3G_GET_SCALING_ENABLE,                                  \
+        DT_IOCTL_CMD_PROPS_S12GTO3G_SET_OPERATIONAL_MODE,                                \
+        DT_IOCTL_CMD_PROPS_S12GTO3G_SET_SCALING_ENABLE,                                  \
+    }
+
+#define DT_IOCTL_PROPS_S12GTO3G_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)              \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_S12GTO3G_CMD,                                                           \
+        "DT_IOCTL_S12GTO3G_CMD",                                                         \
+        DT_IOCTL_CMD_PROPS_S12GTO3G,                                                     \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_SDIDMX12G_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

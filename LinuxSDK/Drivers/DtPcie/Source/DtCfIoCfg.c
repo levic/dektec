@@ -1289,7 +1289,7 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
 {
     DtStatus  Status = DT_STATUS_OK;
     Bool IsNonFunctional, IsBidir;
-    Int ParXtra, DefIoStd;
+    Int ParXtra, DefIoStd, DefDownScale;
     DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIdx].m_CfgValue;
     DtIoCaps  IoCaps;
 
@@ -1903,6 +1903,32 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
         // IOSTD must have a value
         DT_ASSERT(FALSE);
     }
+
+    // DT_IODOWNSCALE
+    DefDownScale = DtCore_PROPS_GetInt(pCf->m_pCore, "DEFAULT_IODOWNSCALE",  PortIdx, -1);
+    if (DefDownScale != -1)
+    {
+        switch (DefDownScale)
+        {
+        case DT_IOCONFIG_SCALE_12GTO3G:
+            DT_ASSERT(DtIoCapsHasCap(&IoCaps, DT_IOCAP_SCALE_12GTO3G));
+            pPortIoCfg[DT_IOCONFIG_IODOWNSCALE].m_Value = DT_IOCONFIG_SCALE_12GTO3G;
+            break;
+        case DT_IOCONFIG_SCALE_BYPASS:
+            DT_ASSERT(DtIoCapsHasCap(&IoCaps, DT_IOCAP_SCALE_BYPASS));
+            pPortIoCfg[DT_IOCONFIG_IODOWNSCALE].m_Value = DT_IOCONFIG_SCALE_BYPASS;
+            break;
+        default:
+            DtDbgOutDf(ERR, IOCONFIG, pCf, "Unsupported DEFAULT_IODOWNSCALE for"
+                                            " port: %d", PortIdx+1);
+            DT_ASSERT(1==0);
+            break;
+        }
+    }
+    if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_SCALE_BYPASS))
+        pPortIoCfg[DT_IOCONFIG_IODOWNSCALE].m_Value = DT_IOCONFIG_SCALE_BYPASS;
+    else if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_SCALE_12GTO3G))
+        pPortIoCfg[DT_IOCONFIG_IODOWNSCALE].m_Value = DT_IOCONFIG_SCALE_12GTO3G;
 
     // DT_IOCONFIG_RFCLKSEL
     if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_RFCLKINT))

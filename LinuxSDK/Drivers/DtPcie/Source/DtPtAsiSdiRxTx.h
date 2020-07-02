@@ -36,18 +36,19 @@
 #include "DtBcCDMAC.h"
 #include "DtBcCONSTSINK.h"
 #include "DtBcCONSTSOURCE.h"
+#include "DtBcGS2988.h"
+#include "DtBcKA.h"
+#include "DtBcSDIDMX12G.h"
+#include "DtBcSDIMUX12G.h"
 #include "DtBcSDIRXF.h"
 #include "DtBcSDITXF.h"
 #include "DtBcSDITXP.h"
+#include "DtBcST425LR.h"
 #include "DtBcSWITCH.h"
-#include "DtBcKA.h"
-#include "DtBcGS2988.h"
 #include "DtDfAsiRx.h"
 #include "DtDfSdiRx.h"
 #include "DtDfSpiCableDrvEq.h"
-#include "DtBcSDIDMX12G.h"
-#include "DtBcSDIMUX12G.h"
-#include "DtBcST425LR.h"
+
 
 // Name for the AsiSdiRxTx port.
 #define DT_DF_ASISDIRXTX_NAME   "ASISDIRXTX"
@@ -98,7 +99,7 @@ typedef struct  _DtPTAsiSdiRxTx
     DtBcCONSTSOURCE*  m_pBcConstSource;   // Constant rate source block controller
 
     // 12G RX Block controllers
-    DtBcSWITCH*  m_pBcSwitchSdiRxMuxIn;   // SDI mux 12G input switch
+    DtBcSWITCH*  m_pBcSwitchSdiRxMuxIn;  // SDI mux 12G input switch
     DtBcSDIMUX12G*  m_pBcSdiRxMux12G;    // SDI mux 12G
     DtBcST425LR*  m_pBcSdiRxSt425Lr;     // ST425 Link reorder
     DtBcSWITCH*  m_pBcSwitchSdiRxMuxOut; // SDI mux 12G output switch

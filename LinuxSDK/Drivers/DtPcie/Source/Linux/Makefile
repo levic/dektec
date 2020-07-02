@@ -109,6 +109,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcLMH1981.o              \
          $(SRCDIR)/DtBcMSIX.o                 \
          $(SRCDIR)/DtBcREBOOT.o               \
+         $(SRCDIR)/DtBcS12GTO3G.o             \
          $(SRCDIR)/DtBcSDIDMX12G.o            \
          $(SRCDIR)/DtBcSDIMUX12G.o            \
          $(SRCDIR)/DtBcSDIRXF.o               \

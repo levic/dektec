@@ -391,6 +391,7 @@ DtStatus  DtBcSPIM_Init(DtBc*  pBc)
     case SPIM_SPIDVC_LMH0394:   BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_LMH0394; break;
     case SPIM_SPIDVC_GS3590:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_GS3590; break;
     case SPIM_SPIDVC_GS12090:   BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_GS12090; break;
+    case SPIM_SPIDVC_ADC342X:   BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_GS12090; break;
     default: DT_ASSERT(FALSE); return DT_STATUS_FAIL; 
     }
 

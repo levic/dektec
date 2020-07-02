@@ -34,6 +34,7 @@
         
 #define SDIRXPHY_ROLE_NONE      NULL
 #define SDIRXP_ROLE_NONE        NULL
+#define S12GTO3G_ROLE_NONE      NULL
 #define SDIXCFGMGR_ROLE_NONE    NULL
 
 
@@ -109,6 +110,25 @@ DtDfSdiRx*  DtDfSdiRx_Open(DtCore*  pCore, DtPt*  pPt,
     return (DtDfSdiRx*)DtDf_Open(&OpenParams);
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_GetDownscaleMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSdiRx_GetDownscaleMode(DtDfSdiRx* pDf,  Int* pDownscaleMode)
+{
+    // Sanity check
+    DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
+
+    // Check parameter
+    if (pDownscaleMode == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    DF_SDIRX_MUST_BE_ENABLED(pDf);
+
+    // Return cached downscale-mode
+    *pDownscaleMode = pDf->m_DownscaleMode;
+
+    return DT_STATUS_OK;
+}
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_GetMaxSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtDfSdiRx_GetMaxSdiRate(DtDfSdiRx* pDf, Int* pMaxSdiRate)
@@ -224,6 +244,7 @@ DtStatus DtDfSdiRx_GetSdiStatus(DtDfSdiRx* pDf, Int* pCarrierDetect, Int* pSdiLo
     }
 
     // Get SDI status
+    DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
     Status = DtBcSDIRXP_GetSdiStatus(pDf->m_pBcSdiRxProt, pSdiLock, pLineLock, pValid,
                                      pSdiRate, pNumSymsHanc, pNumSymsVidVanc, pNumLinesF1,
                                      pNumLinesF2, pIsLevelB, pPayloadId, pFramePeriod);
@@ -235,6 +256,65 @@ DtStatus DtDfSdiRx_GetSdiStatus(DtDfSdiRx* pDf, Int* pCarrierDetect, Int* pSdiLo
                                     *pCarrierDetect);
     return Status;
 }
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_SetDownscaleMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSdiRx_SetDownscaleMode(DtDfSdiRx* pDf, Int DownscaleMode)
+{
+    DtStatus  Status=DT_STATUS_OK;
+    Int  TimeDiffMs = 0;
+    DtTodTime  Time;
+
+    // Sanity checks
+    DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
+
+    // Operational state must be enabled
+    DF_SDIRX_MUST_BE_ENABLED(pDf);
+
+    // Check parameters
+    if (DownscaleMode!=FALSE && DownscaleMode!=TRUE)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be in IDLE
+    if (pDf->m_OperationalMode != DT_FUNC_OPMODE_IDLE)
+    {
+        DtDbgOutDf(ERR, SDIRX, pDf, "Function not in IDLE");
+        return DT_STATUS_INVALID_IN_OPMODE;
+    }
+
+    // No change?
+    if (pDf->m_DownscaleMode == DownscaleMode)
+        return DT_STATUS_OK;
+
+    // Cannot change downscale if RX-Mode is ASI
+    if (pDf->m_RxMode == DT_SDIRX_RXMODE_ASI)
+    {
+        pDf->m_DownscaleMode = DownscaleMode;
+        return DT_STATUS_OK;
+    }
+
+    // Cannot switch-on downscaling if there is no scaler
+    if (pDf->m_pBcS12GTo3G == NULL)
+        return DT_STATUS_NOT_SUPPORTED;
+
+    DtSpinLockAcquire(&pDf->m_SpinLock);
+
+    // Restart locking
+    pDf->m_LockState = SDIRX_STATE_INIT_XCVR;
+    pDf->m_DownscaleMode = DownscaleMode;
+
+    // Logging
+    DtCore_TOD_GetTime(pDf->m_pCore, &Time);
+    TimeDiffMs = (Int)DtDivideS64(DtCore_TOD_TimeDiff(Time, pDf->m_StateTime), 1000*1000);
+    pDf->m_StateTime = Time;
+    DtDbgOutDf(MIN, SDIRX, pDf, "Entered: STATE_INIT_XCVR; SetSdiRate: %d"
+                                " Duration: %d", pDf->m_CurrentSdiRate, TimeDiffMs);
+
+    DtSpinLockRelease(&pDf->m_SpinLock);
+
+    return Status;
+}
+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_SetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -266,6 +346,7 @@ DtStatus  DtDfSdiRx_SetOperationalMode(DtDfSdiRx*  pDf, Int  OpMode)
     {
         // To IDLE
         // Set operational mode of SDIRXP to STANDBY
+        DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
         Status = DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt,
                                                                  DT_BLOCK_OPMODE_STANDBY);
         if (!DT_SUCCESS(Status))
@@ -273,16 +354,43 @@ DtStatus  DtDfSdiRx_SetOperationalMode(DtDfSdiRx*  pDf, Int  OpMode)
             DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: DtBcSDIRXP_SetOperationalMode failed");
             DT_ASSERT(FALSE);
         }
+        // Set operational mode of S12GTO3G to STANDBY
+        if (pDf->m_pBcS12GTo3G!=NULL && DT_SUCCESS(Status))
+        {
+            Status = DtBcS12GTO3G_SetOperationalMode(pDf->m_pBcS12GTo3G, 
+                                                                 DT_BLOCK_OPMODE_STANDBY);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: DtBcS12G_SetOperationalMode failed");
+                DT_ASSERT(FALSE);
+            }
+        }
     }
     else if (OpMode==DT_FUNC_OPMODE_RUN && pDf->m_RxMode==DT_SDIRX_RXMODE_SDI)
     {   
         // To RUN
-        // Set operational mode of SDIRXP to RUN
-        Status = DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt, DT_BLOCK_OPMODE_RUN);
-        if (!DT_SUCCESS(Status))
+        // Set operational mode of S12GTO3G to RUN
+        if (pDf->m_pBcS12GTo3G != NULL)
         {
-            DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: DtBcSDIRXP_SetOperationalMode failed");
-            DT_ASSERT(FALSE);
+            Status = DtBcS12GTO3G_SetOperationalMode(pDf->m_pBcS12GTo3G,
+                                                                     DT_BLOCK_OPMODE_RUN);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: DtBcS12G_SetOperationalMode failed");
+                DT_ASSERT(FALSE);
+            }
+        }
+        // Set operational mode of SDIRXP to RUN
+        if (DT_SUCCESS(Status))
+        {
+            DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
+            Status = DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt, 
+                                                                     DT_BLOCK_OPMODE_RUN);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOutDf(ERR, SDIRX, pDf, "ERROR DtBcSDIRXP_SetOperationalMode failed");
+                DT_ASSERT(FALSE);
+            }
         }
     }
     // Save new operational mode
@@ -333,8 +441,18 @@ DtStatus DtDfSdiRx_SetRxMode(DtDfSdiRx* pDf, Int RxMode)
     if (RxMode==DT_SDIRX_RXMODE_SDI)
     {
         // SDI receive  mode
+        // Enable S12GTO3G
+        if (pDf->m_pBcS12GTo3G != NULL)
+            Status = pDf->m_pBcS12GTo3G->m_EnableFunc((DtBc*)(pDf->m_pBcS12GTo3G), TRUE);
+        // Set operational mode of SDIRXP to STANDBY
+        if (pDf->m_pBcS12GTo3G!=NULL && DT_SUCCESS(Status))
+            Status = DtBcS12GTO3G_SetOperationalMode(pDf->m_pBcS12GTo3G,
+                                                                 DT_BLOCK_OPMODE_STANDBY);
+
         // Enable SDIRXP
-        Status = DF_SDIRX->m_pBcSdiRxProt->m_EnableFunc(
+        DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
+        if (DT_SUCCESS(Status))
+            Status = pDf->m_pBcSdiRxProt->m_EnableFunc(
                                                       (DtBc*)(pDf->m_pBcSdiRxProt), TRUE);
         // Set operational mode of SDIRXP to STANDBY
         if (DT_SUCCESS(Status))
@@ -344,6 +462,10 @@ DtStatus DtDfSdiRx_SetRxMode(DtDfSdiRx* pDf, Int RxMode)
     else
     {
         // ASI receive mode
+        // Disable S12GTO3G
+        if (pDf->m_pBcS12GTo3G != NULL)
+            Status = pDf->m_pBcS12GTo3G->m_EnableFunc((DtBc*)(pDf->m_pBcS12GTo3G), FALSE);
+
         // Disable SDIRXP (if present)
         if (pDf->m_pBcSdiRxProt != NULL)
             Status = DF_SDIRX->m_pBcSdiRxProt->m_EnableFunc(
@@ -556,7 +678,9 @@ DtStatus DtDfSdiRx_FinishConfigureRate(DtDfSdiRx* pDf, Int SdiRate)
 {
     DtStatus  Status=DT_STATUS_OK;
     Bool DownsamplerEnable = FALSE;
-
+    Int DownscaleMode = FALSE;
+        if (SdiRate==DT_DRV_SDIRATE_6G || SdiRate==DT_DRV_SDIRATE_12G)
+            DownscaleMode = pDf->m_DownscaleMode;
     // Sanity checks
     DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
     DT_ASSERT(DtDfSdiRx_CheckSdiRate(pDf, SdiRate) == DT_STATUS_OK);
@@ -566,18 +690,23 @@ DtStatus DtDfSdiRx_FinishConfigureRate(DtDfSdiRx* pDf, Int SdiRate)
     {
     case DT_DRV_SDIRATE_SD:
         DownsamplerEnable = TRUE;
+        DownscaleMode = FALSE;
         break;
     case DT_DRV_SDIRATE_HD:
         DownsamplerEnable = FALSE;
+        DownscaleMode = FALSE;
         break;
     case DT_DRV_SDIRATE_3G:
         DownsamplerEnable = FALSE;
+        DownscaleMode = FALSE;
         break;
     case DT_DRV_SDIRATE_6G:
         DownsamplerEnable = FALSE;
+        DownscaleMode = pDf->m_DownscaleMode;
         break;
     case DT_DRV_SDIRATE_12G:
         DownsamplerEnable = FALSE;
+        DownscaleMode = pDf->m_DownscaleMode;
         break;
     }   
     // Finish SetSdiRate
@@ -595,15 +724,27 @@ DtStatus DtDfSdiRx_FinishConfigureRate(DtDfSdiRx* pDf, Int SdiRate)
     if (pDf->m_RxMode == DT_SDIRX_RXMODE_SDI)
     { 
         DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
-        // Change the operational mode of SDIRXP in idle such that it can be configured
+        // Change the operational mode of SDIRXP and S12GTO3G in idle such that it
+        // can be configured
         if (DT_SUCCESS(Status))
             Status = DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt,
                                                                     DT_BLOCK_OPMODE_IDLE);
+        if (pDf->m_pBcS12GTo3G!=NULL && DT_SUCCESS(Status))
+            Status = DtBcS12GTO3G_SetOperationalMode(pDf->m_pBcS12GTo3G,
+                                                                     DT_BLOCK_OPMODE_IDLE);
+
+        //  Determine downscale mode
+        if (pDf->m_pBcS12GTo3G!=NULL && DT_SUCCESS(Status))
+            Status = DtBcS12GTO3G_SetScalingEnable(pDf->m_pBcS12GTo3G, DownscaleMode);
+
         // Set SDI-rate in SDIRXP
         if (DT_SUCCESS(Status))
             Status = DtBcSDIRXP_SetSdiRate(pDf->m_pBcSdiRxProt, SdiRate);
 
-        // Set the SDIRXP in standby
+        // Set the S12GTO3G and SDIRXP in standby
+        if (pDf->m_pBcS12GTo3G!=NULL && DT_SUCCESS(Status))
+            Status = DtBcS12GTO3G_SetOperationalMode(pDf->m_pBcS12GTo3G,
+                                                                 DT_BLOCK_OPMODE_STANDBY);
         if (DT_SUCCESS(Status))
             Status = DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt,
                                                                  DT_BLOCK_OPMODE_STANDBY);
@@ -633,6 +774,7 @@ DtStatus  DtDfSdiRx_Init(DtDf*  pDfBase)
     pDf->m_CurrentSdiRate = DT_DRV_SDIRATE_HD;
     pDf->m_ConfigSdiRate = DT_DRV_SDIRATE_HD;
     pDf->m_LastLockedSdiRate = DT_DRV_SDIRATE_HD;
+    pDf->m_DownscaleMode = FALSE;
     // Set default PHY configuration
     pDf->m_PhyMaxSdiRate = DT_DRV_SDIRATE_HD;
     pDf->m_PhyDeviceFamily = DT_BC_SDIRXPHY_FAMILY_UNKNOWN;
@@ -716,20 +858,41 @@ DtStatus  DtDfSdiRx_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
                                                                 &pDf->m_PhyDeviceFamily));
         // Maximum SDI-rate is minimum of SdiTxP and SdiTxPhy
         DT_RETURN_ON_ERROR(DtBcSDIRXPHY_GetMaxSdiRate(pDf->m_pBcSdiRxPhy, &MaxSdiRate1)); 
-        DT_RETURN_ON_ERROR(DtBcSDIRXP_GetMaxSdiRate(pDf->m_pBcSdiRxProt, &MaxSdiRate2)); 
+        MaxSdiRate2 = DT_DRV_SDIRATE_SD;
+        if (pDf->m_pBcSdiRxProt != NULL)
+            DT_RETURN_ON_ERROR(DtBcSDIRXP_GetMaxSdiRate(pDf->m_pBcSdiRxProt,
+                                                                           &MaxSdiRate2));
         pDf->m_PhyMaxSdiRate = (MaxSdiRate1 < MaxSdiRate2) ? MaxSdiRate1 : MaxSdiRate2;
 
         // Operational mode must be IDLE
         DT_ASSERT(pDf->m_OperationalMode == DT_FUNC_OPMODE_IDLE);
-        // Disable SDIRXP if RX-Mode is ASI
-        if (pDf->m_RxMode == DT_SDIRX_RXMODE_ASI)
+        // Disable S12GTO3G if RX-Mode is ASI
+        if (pDf->m_RxMode==DT_SDIRX_RXMODE_ASI && pDf->m_pBcS12GTo3G!=NULL)
+            DT_RETURN_ON_ERROR(pDf->m_pBcS12GTo3G->m_EnableFunc(
+                                                     (DtBc*)(pDf->m_pBcS12GTo3G), FALSE));
+
+        if (pDf->m_RxMode==DT_SDIRX_RXMODE_ASI && pDf->m_pBcSdiRxProt!=NULL)
             DT_RETURN_ON_ERROR(pDf->m_pBcSdiRxProt->m_EnableFunc(
                                                     (DtBc*)(pDf->m_pBcSdiRxProt), FALSE));
         //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Start in IDLE -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+        // Set operational mode of S12GTO3G to IDLE if RX-Mode is SDI
+        if (pDf->m_RxMode==DT_SDIRX_RXMODE_SDI && pDf->m_pBcS12GTo3G!=NULL)
+        {
+            DT_RETURN_ON_ERROR(pDf->m_pBcS12GTo3G->m_EnableFunc(
+                                                     (DtBc*)(pDf->m_pBcS12GTo3G), TRUE));
+            DT_RETURN_ON_ERROR(DtBcS12GTO3G_SetOperationalMode(pDf->m_pBcS12GTo3G,
+                                                                   DT_BLOCK_OPMODE_IDLE));
+        }
+
         // Set operational mode of SDIRXP to IDLE if RX-Mode is SDI
-        if (pDf->m_RxMode == DT_SDIRX_RXMODE_SDI)
+        if (pDf->m_RxMode==DT_SDIRX_RXMODE_SDI && pDf->m_pBcSdiRxProt!=NULL)
+        {
+            DT_RETURN_ON_ERROR(pDf->m_pBcSdiRxProt->m_EnableFunc(
+                                                    (DtBc*)(pDf->m_pBcSdiRxProt), TRUE));
             DT_RETURN_ON_ERROR(DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt,
                                                                    DT_BLOCK_OPMODE_IDLE));
+        }
+
         // Set operational mode of SDIRXPHY to IDLE
         DT_RETURN_ON_ERROR(DtBcSDIRXPHY_SetOperationalMode(pDf->m_pBcSdiRxPhy,
                                                                    DT_BLOCK_OPMODE_IDLE));
@@ -787,7 +950,9 @@ DtStatus  DtDfSdiRx_OpenChildren(DtDfSdiRx*  pDf)
     {
         //  ObjectType,  BC or DF/CF Type,  Name,  Role,  Shortcut,  IsMandatory
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_SDIRXP, DT_BC_SDIRXP_NAME,
-                        SDIRXP_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcSdiRxProt), TRUE},
+                       SDIRXP_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcSdiRxProt), FALSE},
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_S12GTO3G, DT_BC_S12GTO3G_NAME,
+                      S12GTO3G_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcS12GTo3G), FALSE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_SDIRXPHY, DT_BC_SDIRXPHY_NAME,
                        SDIRXPHY_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcSdiRxPhy), TRUE},
     };
@@ -805,7 +970,6 @@ DtStatus  DtDfSdiRx_OpenChildren(DtDfSdiRx*  pDf)
                                            DT_FUNC_TYPE_SDIXCFGMGR, SDIXCFGMGR_ROLE_NONE);
 
     // Check mandatory children have been loaded (i.e. shortcut is valid)
-    DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
     DT_ASSERT(pDf->m_pBcSdiRxPhy != NULL);
     return DT_STATUS_OK;
 }
@@ -960,6 +1124,7 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
 
     case SDIRX_STATE_CHECK_SDI_LOCK1:
         // Check SDI-line-lock
+        DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
         Status = DtBcSDIRXP_GetSdiLineLock(pDf->m_pBcSdiRxProt, &LineLock);
         DT_ASSERT(DT_SUCCESS(Status));
         if (DT_SUCCESS(Status) && LineLock)
@@ -967,7 +1132,18 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
             // In running mode?
             if (pDf->m_OperationalMode == DT_FUNC_OPMODE_RUN)
             {
-                // SDIRXP.OperationalMode = RUN
+                // S12GTO3G.OperationalMode to RUN if applicable
+                if (pDf->m_pBcS12GTo3G != NULL)
+                {
+                    // S12GTO3G.OperationalMode to RUN
+                    Status = DtBcS12GTO3G_SetOperationalMode(pDf->m_pBcS12GTo3G,
+                                                                     DT_BLOCK_OPMODE_RUN);
+                    if (!DT_SUCCESS(Status))
+                        DtDbgOutDf(ERR, SDIRX, pDf, 
+                                           "ERROR: DtBcS12GTO3G_SetOperationalMode failed"
+                                           " (Status=0x%08X)", Status);
+                }
+                // SDIRXP.OperationalMode to RUN
                 Status = DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt,
                                                                      DT_BLOCK_OPMODE_RUN);
                 if (!DT_SUCCESS(Status))
@@ -978,6 +1154,7 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
             if (DT_SUCCESS(Status))
             {
                 pDf->m_LastLockedSdiRate = pDf->m_CurrentSdiRate;
+               
                 // State = LOCKED
                 pDf->m_LockState = SDIRX_STATE_SDI_LOCKED;
                 pDf->m_StateTime = Time;
@@ -1029,6 +1206,7 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
                                                         NumLinesF2, IsLevelB, FramePeriod;
         UInt32 PayloadId;
         // Get SDI status
+        DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
         Status = DtBcSDIRXP_GetSdiStatus(pDf->m_pBcSdiRxProt, &SdiLock, &LineLockInt,
                                                 &Valid, &SdiRate, &NumSymsHanc, 
                                                 &NumSymsVidVanc, &NumLinesF1, &NumLinesF2,
@@ -1064,6 +1242,7 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
 
     case SDIRX_STATE_SDI_VALID:
         // Check linelock
+        DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
         Status = DtBcSDIRXP_GetSdiLineLock(pDf->m_pBcSdiRxProt, &LineLock);
         DT_ASSERT(DT_SUCCESS(Status));
 
@@ -1173,6 +1352,7 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
 
     case SDIRX_STATE_CHECK_SDI_LOCK2:
         // Check line-lock
+        DT_ASSERT(pDf->m_pBcSdiRxProt != NULL);
         Status = DtBcSDIRXP_GetSdiLineLock(pDf->m_pBcSdiRxProt, &LineLock);
         DT_ASSERT(DT_SUCCESS(Status));
         if (DT_SUCCESS(Status) && LineLock)
@@ -1180,7 +1360,19 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
             // In running mode?
             if (pDf->m_OperationalMode == DT_FUNC_OPMODE_RUN)
             {
-                // SDIRXP.OperationalMode = RUN
+             // S12GTO3G.OperationalMode to RUN if applicable
+                if (pDf->m_pBcS12GTo3G != NULL)
+                {
+                    // S12GTO3G.OperationalMode to RUN
+                    Status = DtBcS12GTO3G_SetOperationalMode(pDf->m_pBcS12GTo3G,
+                                                                     DT_BLOCK_OPMODE_RUN);
+                    if (!DT_SUCCESS(Status))
+                        DtDbgOutDf(ERR, SDIRX, pDf, 
+                                           "ERROR: DtBcS12GTO3G_SetOperationalMode failed"
+                                           " (Status=0x%08X)", Status);
+                }
+
+                // SDIRXP.OperationalMode to RUN
                 Status = DtBcSDIRXP_SetOperationalMode(pDf->m_pBcSdiRxProt,
                                                                      DT_BLOCK_OPMODE_RUN);
                 if (!DT_SUCCESS(Status))
@@ -1191,6 +1383,7 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
             if (DT_SUCCESS(Status))
             {
                 pDf->m_LastLockedSdiRate = pDf->m_CurrentSdiRate;
+
                 // State = LOCKED
                 pDf->m_LockState = SDIRX_STATE_SDI_LOCKED;
                 pDf->m_StateTime = Time;

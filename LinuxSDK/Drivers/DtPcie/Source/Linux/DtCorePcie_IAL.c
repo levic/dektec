@@ -24,6 +24,9 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <DtPcieIncludes.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // Compile time defaults
@@ -100,6 +103,9 @@ static void  DtCorePcie_IAL_Remove(struct pci_dev* pPciDev);
 Int  DtCorePcie_IAL_Suspend(struct pci_dev* pPciDev, pm_message_t State);
 Int  DtCorePcie_IAL_Resume(struct pci_dev* pPciDev);
 
+// Notification interface
+static Int  DtCorePcie_IAL_RebootNotify(struct notifier_block *this, unsigned long Code,
+                                                                            void *Unused);
 // Child devices interface
 DtStatus  DtCorePcie_IAL_IoctlChild(UInt32 IoctlCode, UInt InputBufferSize, void* pInputBuffer,
                                          UInt OutputBufferSize, void* pOutputBuffer, 
@@ -158,6 +164,15 @@ static const struct attribute_group *DtPcieAttributesGroups[] = {
 #endif
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0) // just to be safe
+#ifndef ioremap_nocache // removed in kernel v5.6
+#define ioremap_nocache ioremap 
+#endif
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,4)
+#define HAVE_COMPAT_PTR_IOCTL
+#endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Interface declarations +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -171,7 +186,11 @@ static struct file_operations  DtPcieFileOps = {
     .unlocked_ioctl = DtCorePcie_IAL_UnlockedIoctl,
 #endif
 #ifdef CONFIG_COMPAT
+#ifdef HAVE_COMPAT_PTR_IOCTL
+    .compat_ioctl   = compat_ptr_ioctl,
+#else
     .compat_ioctl   = DtCorePcie_IAL_IoctlCompat,
+#endif
 #endif
     .open           = DtCorePcie_IAL_Open,
     .release        = DtCorePcie_IAL_Close,
@@ -194,6 +213,14 @@ static struct pci_driver  DtPciePciOps_ops =
     .remove = DtCorePcie_IAL_Remove,
     .suspend = DtCorePcie_IAL_Suspend,
     .resume = DtCorePcie_IAL_Resume,
+    .shutdown = DtCorePcie_IAL_Remove,
+};
+
+// Notifier data block for reboot notification
+static struct notifier_block  DtPcie_RebootNotifierBlock = 
+{
+    .notifier_call = DtCorePcie_IAL_RebootNotify,
+    .priority = 0,
 };
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private helper functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -431,6 +458,7 @@ static Int  DtCorePcie_IAL_DevicePowerUpSeq(DtCorePcie* pCore)
 {
     DtStatus  Status;
     
+    DtDbgOut(MIN, IAL, "Start");
     switch (pCore->m_IalData.m_PowerSeqState)
     {
     case DEVICE_POWERSEQ_STATE_DOWN:
@@ -478,7 +506,7 @@ static Int  DtCorePcie_IAL_DevicePowerUpSeq(DtCorePcie* pCore)
         // Nothing to do, fully powered up
     break;
     }
-
+    DtDbgOut(MIN, IAL, "Exit");
     return 0;
 }
 
@@ -487,6 +515,7 @@ static Int  DtCorePcie_IAL_DevicePowerUpSeq(DtCorePcie* pCore)
 static Int  DtCorePcie_IAL_DevicePowerDownSeq(DtCorePcie* pCore, Bool IgnoreErrors)
 {
     DtStatus  Status;
+    DtDbgOut(MIN, IAL, "Start");
     
     switch (pCore->m_IalData.m_PowerSeqState)
     {
@@ -543,6 +572,7 @@ static Int  DtCorePcie_IAL_DevicePowerDownSeq(DtCorePcie* pCore, Bool IgnoreErro
         // If errors are ignored, final state is allways down
         pCore->m_IalData.m_PowerSeqState = DEVICE_POWERSEQ_STATE_DOWN;
     }
+    DtDbgOut(MIN, IAL, "Exit");
 
     return 0;
 }
@@ -554,7 +584,7 @@ static Int  DtCorePcie_IAL_DeviceStartSeq(DtCorePcie* pCore)
     Int  Result;
     DtStatus  Status;
     dev_t  DevNum;
-    
+    DtDbgOut(MIN, IAL, "Start");    
     switch (pCore->m_IalData.m_StartSeqState)
     {
     case DEVICE_STARTSEQ_STATE_IDLE:
@@ -653,7 +683,7 @@ static Int  DtCorePcie_IAL_DeviceStartSeq(DtCorePcie* pCore)
         // Start sequence is done
         break;
     }
-    
+    DtDbgOut(MIN, IAL, "Exit");    
     return 0;
 }
 
@@ -661,6 +691,7 @@ static Int  DtCorePcie_IAL_DeviceStartSeq(DtCorePcie* pCore)
 //
 static void DtCorePcie_IAL_DeviceStopSeq(DtCorePcie* pCore)
 {
+    DtDbgOut(MIN, IAL, "Start");
     switch (pCore->m_IalData.m_StartSeqState)
     {
         case DEVICE_STARTSEQ_STATE_DEV_CREATED:
@@ -702,6 +733,7 @@ static void DtCorePcie_IAL_DeviceStopSeq(DtCorePcie* pCore)
     
     // After DeviceStopSeq all resources are free
     pCore->m_IalData.m_StartSeqState = DEVICE_STARTSEQ_STATE_IDLE;
+    DtDbgOut(MIN, IAL, "Exit");
 }
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Interrupt handler +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -723,7 +755,7 @@ static irqreturn_t  DtCorePcie_IAL_Interrupt(Int Irq, void* pContext)
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Character interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-#ifdef CONFIG_COMPAT
+#if defined(CONFIG_COMPAT) && !defined(HAVE_COMPAT_PTR_IOCTL)
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_IoctlCompat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Compatibility function for 32-bit applications using a 64-bit driver
@@ -760,6 +792,12 @@ static long  DtCorePcie_IAL_UnlockedIoctl(struct file* pFile, unsigned int Cmd,
 #endif
     return DtCorePcie_IAL_Ioctl(pInode, pFile, Cmd, Arg);
 }
+#endif
+
+#if defined(RHEL_RELEASE_CODE)
+#if RHEL_RELEASE_CODE>=RHEL_RELEASE_VERSION(8,1)
+#define NEW_ACCESS_OK_MACRO_RHEL
+#endif
 #endif
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_Ioctl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -807,7 +845,7 @@ static int  DtCorePcie_IAL_Ioctl(
             UInt*  pBufSizeLoc = (UInt*)Arg;
 
             ReservedForSizeParam = 2*sizeof(UInt);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
             if (access_ok(VERIFY_READ, (void*)Arg, ReservedForSizeParam) == 0)
 #else
             if (access_ok((void*)Arg, ReservedForSizeParam) == 0)
@@ -856,7 +894,7 @@ static int  DtCorePcie_IAL_Ioctl(
             DtDbgOut(MAX, IAL, "Output buffer size %d", Ioctl.m_OutputBufferSize);
 
             // Ioctl reads --> driver needs write access for user memory
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
             if (access_ok(VERIFY_WRITE, (void*)Arg, Ioctl.m_OutputBufferSize) == 0)
 #else
             if (access_ok((void*)Arg, Ioctl.m_OutputBufferSize) == 0)
@@ -891,8 +929,8 @@ static int  DtCorePcie_IAL_Ioctl(
             DtDbgOut(MAX, IAL, "Input buffer size %d", Ioctl.m_InputBufferSize);
             
             // Ioctl writes --> driver needs read access for user memory
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0))
-            if (access_ok(VERIFY_READ, (void*)Arg, 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
+            if (access_ok(VERIFY_READ, (void*)Arg,
                                        Ioctl.m_InputBufferSize+ReservedForSizeParam) == 0)
 #else
             if (access_ok((void*)Arg,
@@ -1259,6 +1297,15 @@ Int  DtCorePcie_IAL_Resume(struct pci_dev *pPciDev)
     return Result;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_RebootNotify -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int DtCorePcie_IAL_RebootNotify(struct notifier_block *this, unsigned long Code,
+                                                                            void* NotUsed)
+{
+    if (Code == SYS_RESTART)
+        pci_unregister_driver(&DtPciePciOps_ops);
+    return NOTIFY_DONE;
+}
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Module init / exit +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ModuleInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1284,6 +1331,9 @@ static Int  DtCorePcie_IAL_ModuleInit(void)
     if (Result < 0)
         DtDbgOut(ERR, IAL, "Can't get major %d", g_DtPcieMajor);
 
+    // Register the reboot notification
+    if (Result >= 0)
+        Result = register_reboot_notifier(&DtPcie_RebootNotifierBlock);
     // Only proceed if no errors
     if (Result >= 0)
     {
@@ -1349,6 +1399,8 @@ static void  DtCorePcie_IAL_ModuleExit(void)
         
     DtDbgOut(MAX, IAL, "Start");
 
+    // Unregister the reboot notification
+    unregister_reboot_notifier(&DtPcie_RebootNotifierBlock);
     // Unregister our system interface in the PCI driver
     pci_unregister_driver(&DtPciePciOps_ops);
     
@@ -1376,7 +1428,3 @@ static void  DtCorePcie_IAL_ModuleExit(void)
 
 module_init(DtCorePcie_IAL_ModuleInit);
 module_exit(DtCorePcie_IAL_ModuleExit);
-
-
-
-

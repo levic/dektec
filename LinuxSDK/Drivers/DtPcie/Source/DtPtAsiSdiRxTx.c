@@ -91,6 +91,8 @@ static DtStatus DtPtAsiSdiRxTx_SetRxIoConfigFailSafe(DtPtAsiSdiRxTx*,
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetRxIoConfigGenLock(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
+static DtStatus DtPtAsiSdiRxTx_SetRxIoConfigIoDownscale(DtPtAsiSdiRxTx*, 
+                                                                const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStdDblBuf(DtPtAsiSdiRxTx*, 
@@ -100,6 +102,8 @@ static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigDmaTestMode(DtPtAsiSdiRxTx*,
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigFailSafe(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigGenLock(DtPtAsiSdiRxTx*, 
+                                                                const DtCfIoConfigValue*);
+static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoDownscale(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
 //=+=+=+=+=+=+=+=+=+=+=+=+=+DtPtAsiSdiRxTx - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -484,6 +488,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
         case DT_IOCONFIG_DMATESTMODE:
         case DT_IOCONFIG_FAILSAFE:
         case DT_IOCONFIG_GENLOCKED:
+        case DT_IOCONFIG_IODOWNSCALE:
             // Optional IO-configs; will be tested later
             break;
 
@@ -557,6 +562,16 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
     else if (!IsDblBufOutput)
         DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetTxIoConfigGenLock(pPt, 
                                                         &pIoCfgs[DT_IOCONFIG_GENLOCKED]));
+
+    // Perform IO-Config setting IO-Downscale
+    if (DT_IOCONFIG_IODOWNSCALE >= NumIoCfgs)
+        return DT_STATUS_INVALID_PARAMETER;
+    if (IsInput)
+        DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetRxIoConfigIoDownscale(pPt, 
+                                                      &pIoCfgs[DT_IOCONFIG_IODOWNSCALE]));
+    else 
+        DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetTxIoConfigIoDownscale(pPt, 
+                                                      &pIoCfgs[DT_IOCONFIG_IODOWNSCALE]));
 
     return DT_STATUS_OK;
 }
@@ -903,6 +918,34 @@ DtStatus DtPtAsiSdiRxTx_SetRxIoConfigGenLock(DtPtAsiSdiRxTx* pPt,
     // For inputs GenLocked must be switched off; but just ignore the setting
     return DT_STATUS_OK;
 }
+
+// -.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetRxIoConfigIoDownscale -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtPtAsiSdiRxTx_SetRxIoConfigIoDownscale(DtPtAsiSdiRxTx* pPt, 
+                                                          const DtCfIoConfigValue* pIoCfg)
+{
+    Int  CurOpMode, DownscaleMode;
+    // Nothing to configure?
+    if (pIoCfg->m_Value == DT_IOCONFIG_NONE)
+        return DT_STATUS_OK;
+
+    switch (pIoCfg->m_Value)
+    {
+        case DT_IOCONFIG_SCALE_12GTO3G: DownscaleMode = TRUE; break;
+        case DT_IOCONFIG_SCALE_BYPASS:  DownscaleMode = FALSE; break;
+        default: DT_ASSERT(FALSE);      DownscaleMode = FALSE; break;
+    }
+
+    // Temporarilly switch to IDLE
+    DT_RETURN_ON_ERROR(DtDfSdiRx_GetOperationalMode(pPt->m_pDfSdiRx, &CurOpMode));
+    DT_RETURN_ON_ERROR(DtDfSdiRx_SetOperationalMode(pPt->m_pDfSdiRx, 
+                                                                DT_FUNC_OPMODE_IDLE));
+    DT_RETURN_ON_ERROR(DtDfSdiRx_SetDownscaleMode(pPt->m_pDfSdiRx, DownscaleMode));
+    DT_RETURN_ON_ERROR(DtDfSdiRx_SetOperationalMode(pPt->m_pDfSdiRx, CurOpMode));
+
+    return DT_STATUS_OK;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetTxIoConfigIoStd -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoStd(DtPtAsiSdiRxTx* pPt,
@@ -1219,6 +1262,18 @@ DtStatus DtPtAsiSdiRxTx_SetTxIoConfigGenLock(DtPtAsiSdiRxTx* pPt,
         DT_ASSERT(FALSE);
         return DT_STATUS_INVALID_PARAMETER;
     }
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetTxIoConfigIoDownscale -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoDownscale(DtPtAsiSdiRxTx* pPt, 
+                                                          const DtCfIoConfigValue* pIoCfg)
+{
+    DT_ASSERT(pIoCfg != NULL);
+    
+    // Ignore this setting for the output
+
+    return DT_STATUS_OK;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetIoConfigPrepare -.-.-.-.-.-.-.-.-.-.-.-.-.-

@@ -99,6 +99,7 @@
 #define SPIM_SPIDVC_GS3590    0x6  // Gennum GS3590 3G-SDI/ASI Cable Driver/Equalizer
 #define SPIM_SPIDVC_25AA640A  0x7  // Microchip 25AA640A 64K SPI bus serial EEPROM
 #define SPIM_SPIDVC_GS12090   0x8  // Gennum GS12090 12G-SDI/ASI Cable Driver/Equalizer
+#define SPIM_SPIDVC_ADC342X   0x9  // TI Quad-Channel 12-Bit, 25..125-MSPS ADC
 
 // Value map 'DuplexMode'
 #define SPIM_DPX_FULL_DUPLEX  0x0  // Send and receive simultaneously

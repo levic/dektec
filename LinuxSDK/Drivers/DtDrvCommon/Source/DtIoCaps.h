@@ -153,6 +153,10 @@ typedef enum _DtIoCapValue
     DT_IOCAP_SPI525I59_94,     // SPI 525i/59.94
     DT_IOCAP_SPI625I50,        // SPI 625i/50
 
+    // Capability group IODOWNSCALE - I/O down-scaling
+    DT_IOCAP_SCALE_12GTO3G,     // 12G to 3G downscaling
+    DT_IOCAP_SCALE_BYPASS,      // Bypass the downscaler
+
     // Capability group PWRMODE - Power mode
     DT_IOCAP_MODHQ,            // High-quality modulation
     DT_IOCAP_LOWPWR,           // Low-power mode

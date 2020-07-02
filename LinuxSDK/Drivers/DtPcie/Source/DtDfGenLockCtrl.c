@@ -569,7 +569,8 @@ DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         DT_ASSERT(!pDf->m_GenLockControlEnabled);
 
         // Set operational mode of children to IDLE
-        DT_RETURN_ON_ERROR(DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock,
+        if (pDf->m_pBcGenLock != NULL)
+            DT_RETURN_ON_ERROR(DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock,
                                                                    DT_BLOCK_OPMODE_IDLE));
 
         // Get the clock properties
@@ -582,19 +583,24 @@ DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         pDf->m_FramePeriod = DtAvVidStd2FramePeriod(pDf->m_VideoStandard);
         pDf->m_DcoControlPars = DtDfGenLockCtrl_GetDcoControlPars(pDf->m_VideoStandard);
         pDf->m_DcoFreqOffsetPpt = 0;
-        DT_RETURN_ON_ERROR(DtBcGENL_SetFrameLength(pDf->m_pBcGenLock,
-                                             pDf->m_FrameLength, pDf->m_FractionalClock));
         DT_RETURN_ON_ERROR(DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, FALSE));
         DT_RETURN_ON_ERROR(DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, TRUE));
-        // Register Genlock start-of-frame handler
-        GenlockRegData.m_OnStartOfFrameFunc = DtDfGenLockCtrl_GenLockStartOfFrameHandler;
-        GenlockRegData.m_pObject = (DtObject*)pDf;
-        Status = DtBcGENL_StartOfFrameRegister(pDf->m_pBcGenLock, &GenlockRegData);
-        if (!DT_SUCCESS(Status))
+
+        if (pDf->m_pBcGenLock != NULL)
         {
-            DtDbgOutDf(ERR, GENLOCKCTRL, pDf,
+            DT_RETURN_ON_ERROR(DtBcGENL_SetFrameLength(pDf->m_pBcGenLock,
+                                            pDf->m_FrameLength, pDf->m_FractionalClock));
+            // Register Genlock start-of-frame handler
+            GenlockRegData.m_OnStartOfFrameFunc 
+                                             = DtDfGenLockCtrl_GenLockStartOfFrameHandler;
+            GenlockRegData.m_pObject = (DtObject*)pDf;
+            Status = DtBcGENL_StartOfFrameRegister(pDf->m_pBcGenLock, &GenlockRegData);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOutDf(ERR, GENLOCKCTRL, pDf,
                                       "ERROR: failed to register start-of-frame handler");
-            return Status;
+                return Status;
+            }
         }
 
         // Start the DCO-control thread
@@ -608,11 +614,14 @@ DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         }
 
         // Start genlocking
-        Status = DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock, DT_BLOCK_OPMODE_RUN);
-        if (!DT_SUCCESS(Status))
+        if (pDf->m_pBcGenLock != NULL)
         {
-            DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: failed to set GENL opmode");
-            return Status;
+            Status = DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock, DT_BLOCK_OPMODE_RUN);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: failed to set GENL opmode");
+                return Status;
+            }
         }
 
         // Init GenRef info
@@ -656,15 +665,19 @@ DtStatus DtDfGenLockCtrl_OnEnablePreChildren(DtDf* pDfBase, Bool Enable)
         DtSpinLockRelease(&pDf->m_SofSpinLock);
 
         // Stop genlocking
-        Status = DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock, DT_BLOCK_OPMODE_IDLE);
-        if (!DT_SUCCESS(Status))
+        if (pDf->m_pBcGenLock != NULL)
         {
-            DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: failed to set GENL opmode");
-            return Status;
+            Status = DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock, DT_BLOCK_OPMODE_IDLE);
+            if (!DT_SUCCESS(Status))
+            {
+                DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: failed to set GENL opmode");
+                return Status;
+            }
         }
 
         // Unregister start of frame handlers
-        DtBcGENL_StartOfFrameUnregister(pDf->m_pBcGenLock, (DtObject*)pDf);
+        if (pDf->m_pBcGenLock != NULL)
+            DtBcGENL_StartOfFrameUnregister(pDf->m_pBcGenLock, (DtObject*)pDf);
 
         // Stop DCO-control thread
         pDf->m_StopDcoControlThread = TRUE;
@@ -705,7 +718,7 @@ DtStatus  DtDfGenLockCtrl_OpenChildren(DtDfGenLockCtrl*  pDf)
     {
         //  ObjectType,  BC or DF/CF Type,  Name,  Role,  Shortcut,  IsMandatory
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_GENL, DT_BC_GENL_NAME,
-                            GENL_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcGenLock), TRUE},
+                           GENL_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcGenLock), FALSE},
         { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_SI534X, DT_DF_SI534X_NAME,
                            SI534X_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pDfSi534X), TRUE},
     };
@@ -719,7 +732,6 @@ DtStatus  DtDfGenLockCtrl_OpenChildren(DtDfGenLockCtrl*  pDf)
         return Status;
 
     // Children should be present
-    DT_ASSERT(pDf->m_pBcGenLock != NULL);
     DT_ASSERT(pDf->m_pDfSi534X != NULL);
 
     return DT_STATUS_OK;
@@ -776,6 +788,10 @@ DtStatus DtDfGenLockCtrl_SetVideoStandard(DtDfGenLockCtrl* pDf, Int  VidStd)
     // No change?
     if (VidStd == pDf->m_VideoStandard)
         return DT_STATUS_OK;
+
+    // Only supported if there is a genlock block
+    if (pDf->m_pBcGenLock == NULL)
+       return DT_STATUS_NOT_SUPPORTED;
 
     // First go to IDLE
     DT_RETURN_ON_ERROR(DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock,
@@ -1101,6 +1117,10 @@ void  DtDfGenLockCtrl_DcoControlCrashLockPhase(DtDfGenLockCtrl* pDf,
     Int  GenRefAvgFramePeriodNs = (Int)DIV64(GenRefAvgFramePeriodPs+500, 1000);
     Int  PhaseDiffNs;
     Bool  ValidPhaseDiff;
+
+    DT_ASSERT(pDf->m_pBcGenLock != NULL);
+    if (pDf->m_pBcGenLock == NULL)
+        return;
 
     // Invalid GenRef?
     if (GenRefStatus != DT_DF_GENLOCKCTRL_GENREFSTATUS_OK)

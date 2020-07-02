@@ -33,6 +33,7 @@ ifndef KERNELDIR
 	#KERNELDIR = /usr/include/linux
 endif
 
+KBUILD_EXTRA_SYMBOLS := $(MYPWD)/$(DTA_LINUX)/Module.symvers
 # ========================================================================================
 # kbuild part of makefile
 # ========================================================================================

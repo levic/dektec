@@ -62,6 +62,7 @@ const DtBcId  DT_BC_KNOWN[] =
     { DT_BC_LMH1981_NAME,         DT_BC_LMH1981_SHORTNAME,         NULL, -1, -1 },
     { DT_BC_MSIX_NAME,            DT_BC_MSIX_SHORTNAME,            NULL, -1, -1 },
     { DT_BC_REBOOT_NAME,          DT_BC_REBOOT_SHORTNAME,          NULL, -1, -1 },
+    { DT_BC_S12GTO3G_NAME,        DT_BC_S12GTO3G_SHORTNAME,        NULL, -1, -1 },
     { DT_BC_SDIDMX12G_NAME,       DT_BC_SDIDMX12G_SHORTNAME,       NULL, -1, -1 },
     { DT_BC_SDIMUX12G_NAME,       DT_BC_SDIMUX12G_SHORTNAME,       NULL, -1, -1 },
     { DT_BC_SDIXCFG_NAME,         DT_BC_SDIXCFG_SHORTNAME,         NULL, -1, -1 },
@@ -671,6 +672,9 @@ DtBc*  DtBc_OpenType(DtBcType  Type, Int  Address, DtCore*  pCore,
     case DT_BLOCK_TYPE_REBOOT:
         return (DtBc*)DtBcREBOOT_Open(Address, pCore, pPt, pRole, Instance, 
                                                                         Uuid, CreateStub);
+    case DT_BLOCK_TYPE_S12GTO3G:
+        return (DtBc*)DtBcS12GTO3G_Open(Address, pCore, pPt, pRole, Instance,
+                                                                        Uuid, CreateStub);
     case DT_BLOCK_TYPE_SPIM:
         return (DtBc*)DtBcSPIM_Open(Address, pCore, pPt, pRole, Instance,
                                                                         Uuid, CreateStub);
@@ -1162,6 +1166,8 @@ DtIoStubBc*  DtIoStubBc_OpenType(DtBc*  pBc)
         break;
     case DT_BLOCK_TYPE_REBOOT:
         return (DtIoStubBc*)DtIoStubBcREBOOT_Open(pBc);
+    case DT_BLOCK_TYPE_S12GTO3G:
+        return (DtIoStubBc*)DtIoStubBcS12GTO3G_Open(pBc);
     case DT_BLOCK_TYPE_SDIDMX12G:
         return (DtIoStubBc*)DtIoStubBcSDIDMX12G_Open(pBc);
     case DT_BLOCK_TYPE_SDIMUX12G:

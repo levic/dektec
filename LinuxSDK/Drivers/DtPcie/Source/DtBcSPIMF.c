@@ -528,13 +528,9 @@ DtStatus  DtBcSPIMF_Init(DtBc*  pBcBase)
     // Supports V1 interface (SFDP)
     pBc->m_SupportsV1 = (pBc->m_Version >= 1);
 
-    // Device should not be busy, but if busy try to reset the device 
-    RegControl = SPIMF_Control_READ(pBc);
-    if (SPIMF_Status_READ_IsBusy(pBc) != 0)
-    {
+    // Reset the flash device
         RegControl = SPIMF_Control_SET_Command(RegControl, SPIMF_CMD_RESET);
         SPIMF_Control_WRITE(pBc, RegControl);
-    }
 
     // Lock the device
     RegControl = SPIMF_Control_SET_Command(RegControl, SPIMF_CMD_NOP);
@@ -1259,7 +1255,8 @@ DtStatus  DtBcSPIMF_ReadParamTable(DtBcSPIMF*  pBc, Int TableId, Int Major, Int 
     
     if (!SfdpHdrFound)
     {
-        DtDbgOutBc(ERR, SPIMF, pBc, "ERROR: flash parameters not found");
+        DtDbgOutBc(ERR, SPIMF, pBc, "ERROR: flash parameters table not found;"
+                                    " TableId: 0x%x", TableId);
         return DT_STATUS_FAIL;
     }
     if (SfdpNumDWords < 1)
@@ -1467,7 +1464,7 @@ UInt64  DtBcSPIMF_GetMemorySize(UInt8* pBuffer)
     UInt64 MemSize = 0;
     // For densities 2 gigabits or less, bit-31 is set to 0b.  The field 30:0 defines 
     // the size in bits. Example: 00FFFFFFh = 16 megabits 
-    // For densities 4 gigabits and above, bit-31 is set to 1. The field 30:0 defines ‘N’
+    // For densities 4 gigabits and above, bit-31 is set to 1. The field 30:0 defines 'N'
     // where the density is computed as 2^N bits (N must be >= 32). 
     // Example: 80000021h = 2^33 = 8 gigabits 
     if ((DWord2&BFP_DW2_DENSITY_4G_FLAG) == 0)
@@ -1606,8 +1603,8 @@ UInt  DtBcSPIMF_GetTypicalPageProgramTimeUs(UInt8* pBuffer)
 {
     UInt32  DWord11 =  DtBcSPIMF_ReadDWord(pBuffer, 11);
     UInt ProgTimeout=0, Count=0;
-    //Formula: typical page program time = (count + 1)*units The range is 8 µs to 2048 µs 
-    //in two groups: 8 µs to 256 µs and 64 µs to 2048 µs 
+    //Formula: typical page program time = (count + 1)*units The range is 8 us to 2048 us 
+    //in two groups: 8 us to 256 us and 64 us to 2048 us 
     // Typical page program time                
     if ((DWord11 & BFP_DW11_PAGE_PROG_TIME_MASK) == BFP_DW11_PAGE_PROG_TIME_16US)
         ProgTimeout = 16;

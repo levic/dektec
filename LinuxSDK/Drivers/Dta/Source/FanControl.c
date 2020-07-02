@@ -65,6 +65,20 @@ DtStatus  DtaFanControlInit(DtaDeviceData* pDvcData)
         return DT_STATUS_OK;
     }
 
+    // Get correction foctor for computing the rotations per minute
+    // Do not set an error if not defined
+    pDvcData->m_FanControl.m_RpmDiv = DtPropertiesGetInt(pPropData, "FAN_RPM_DIVISOR",
+                                                                                      -1);
+    pDvcData->m_FanControl.m_RpmMult = DtPropertiesGetInt(pPropData, "FAN_RPM_MULTIPLIER",
+                                                                                      -1);
+    pDvcData->m_FanControl.m_RpmMinimum = DtPropertiesGetInt(pPropData, "FAN_RPM_MINIMUM",
+                                                                                      -1);
+    pPropData->m_PropertyNotFoundCounter = OldPropertyNotFoundCounter;
+    // Set defaults when properties are not found
+    if (pDvcData->m_FanControl.m_RpmDiv <= 0)
+        pDvcData->m_FanControl.m_RpmDiv = 1;
+    if (pDvcData->m_FanControl.m_RpmMult <= 0)
+        pDvcData->m_FanControl.m_RpmMult = 1;
     // Call fan specific initialization
     if (pDvcData->m_FanControl.m_FanType == FAN_TYPE_MAX6639)
     {

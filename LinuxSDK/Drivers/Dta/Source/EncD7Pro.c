@@ -504,16 +504,27 @@ void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext)
     UInt32  MinFanRotation;
     volatile UInt8* pFwbRegs = pNonIpPort->m_pFwbRegs;
     Int FanType = pNonIpPort->m_pDvcData->m_FanControl.m_FanType;
+    Int RpmDiv = pNonIpPort->m_pDvcData->m_FanControl.m_RpmDiv;
+    Int RpmMult = pNonIpPort->m_pDvcData->m_FanControl.m_RpmMult;
+    Int RpmMinimum = pNonIpPort->m_pDvcData->m_FanControl.m_RpmMinimum;
     volatile UInt8* pFanRegs = pNonIpPort->m_pDvcData->m_FanControl.m_pFwbFanRegs;
+
 
     // Initialize Fan variables / Fan controller
     DtMutexAcquire(&pNonIpPort->m_EncD7Pro.m_StatusLock, -1);
     if (FanType == FAN_TYPE_FANM)       // Monitored Fan (e.g. Dta 2180)
     {
-        // The minimum acceptable observed fan rotation rpm is specified in firmware.
-        //
-        MinFanRotation =
-            DtaFwbRegRead(pFanRegs, &FwbFanMonitor.Control_MinimumRotationRate);
+        // Get the minimum acceptable observed fan rotation rpm
+        if (RpmMinimum > 0)
+        {
+            MinFanRotation = (UInt32)((RpmMinimum * RpmDiv) / RpmMult);
+            DtaFwbRegWrite(pFanRegs, &FwbFanController.Control_MinimumRotationRate,
+                                                                          MinFanRotation);
+        }
+        else
+            MinFanRotation = DtaFwbRegRead(pFanRegs,
+                                              &FwbFanMonitor.Control_MinimumRotationRate);
+
     }
     else if (FanType == FAN_TYPE_FANC)  // Controlled Fan (e.g. Dta 2182)
     {
@@ -521,6 +532,8 @@ void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext)
         // result in a MeasuredRotationRate of roughly 0x13E0.
         //
         const UInt32 CurrentFanRate = 0x350;
+        DtaFwbRegWrite(pFanRegs, &FwbFanController.Control_CurrentFanRate,
+                                                                          CurrentFanRate);
 
         // The minimum acceptable observed fan rotation rpm is specified in software.  The
         // firmware monitors the fan speed and considers an observed rotation rate below
@@ -529,11 +542,10 @@ void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext)
         // the firmware (perhaps 5 seconds) in an attempt to shut down gracefully.
         //
         MinFanRotation = 0x1000;
-
-        DtaFwbRegWrite(pFanRegs, &FwbFanController.Control_CurrentFanRate,
-                       CurrentFanRate);
+        if (RpmMinimum > 0)
+            MinFanRotation = (UInt32)((RpmMinimum * RpmDiv) / RpmMult);
         DtaFwbRegWrite(pFanRegs, &FwbFanController.Control_MinimumRotationRate,
-                       MinFanRotation);
+                                                                          MinFanRotation);
     }
     else
         DT_ASSERT(0);
@@ -567,6 +579,8 @@ void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext)
             else
                 MeasuredRotationRate = DtaFwbRegRead(pFanRegs, 
                                            &FwbFanController.Status_MeasuredRotationRate);
+            // Apply RPM correction factors
+            MeasuredRotationRate = (MeasuredRotationRate*RpmMult) / RpmDiv;
 
             // Is 12V absent? Wait for 12V presence in EXT_12_FAIL state
             if (!IsExt12VPresent)
@@ -652,6 +666,8 @@ void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext)
             else
                 MeasuredRotationRate = DtaFwbRegRead(pFanRegs, 
                                            &FwbFanController.Status_MeasuredRotationRate);
+            // Apply RPM correction factors
+            MeasuredRotationRate = (MeasuredRotationRate*RpmMult) / RpmDiv;
 
             // Check fan speed and count up to threshold before going to init state
             if (MeasuredRotationRate >= MinFanRotation)

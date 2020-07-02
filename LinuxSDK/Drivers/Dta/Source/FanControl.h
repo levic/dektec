@@ -40,6 +40,9 @@ typedef struct _DtaFanControl
     Bool  m_SwControlled;               // Fan control is controlled by this driver
     Int  m_FanType;                     // Fan control type
     Int  m_FanCount;                    // Number of fans
+    Int  m_RpmDiv;                      // Rotation divisor correction factor
+    Int  m_RpmMult;                     // Rotation multiplier correction factor
+    Int  m_RpmMinimum;                  // Minimum acceptable rotation rate
 
     // Specific controllers
     DtaMax6639  m_Max6639;              // MAX6639 controller

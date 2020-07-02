@@ -51,7 +51,7 @@ typedef struct _DtIoStubIoParams  DtIoStubIoParams;
 #endif // WINBUILD
 
 #if (defined(_MSC_VER) && (_MSC_VER >= 1600))
-    // Use nativer version when available.
+    // Use native version when available.
     #define ASSERT_SIZE(name, size) static_assert(sizeof(name) == size, \
                                                         "Size mismatch on struct " #name);
 #else
@@ -417,6 +417,7 @@ typedef enum  _DtBcType
     DT_BLOCK_TYPE_SDIDMX12G,    // SdiDemux12G
     DT_BLOCK_TYPE_SDIMUX12G,    // SdiMux12G
     DT_BLOCK_TYPE_ST425LR,      // St425LinkReorder
+    DT_BLOCK_TYPE_S12GTO3G,     // Sdi12Gto3G
 
 
     // Local DTA-2132 blocks. DONOT RENUMBER!!
@@ -499,7 +500,9 @@ typedef enum  _DtFunctionType
     DT_FUNC_TYPE_ASISDIMON,         // ASI/SDI monitor control API function
     DT_FUNC_TYPE_SDIPHYONLYRX,      // SDI PHY-only receive-channel
     DT_FUNC_TYPE_SDIPHYONLYTX,      // SDI PHY-only transmit-channel
-
+    DT_FUNC_TYPE_I2CM,
+    DT_FUNC_TYPE_SPIM,
+    
     // Local DTA-2132 functions. DONOT RENUMBER!!
     DT_FUNC_TYPE_SPIM_2132 = LTYPE_SEQNUM(2132, 1),
     DT_FUNC_TYPE_I2CM_2132 = LTYPE_SEQNUM(2132, 2),
@@ -619,6 +622,7 @@ enum {
     DT_FUNC_CODE_SDIDMX12G_CMD,
     DT_FUNC_CODE_SDIMUX12G_CMD,
     DT_FUNC_CODE_ST425LR_CMD,
+    DT_FUNC_CODE_S12GTO3G_CMD,
 };
 
 // NOP command
@@ -2601,6 +2605,87 @@ typedef union _DtIoctlRebootCmdInput
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_S12GTO3G_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- S12Gto3G Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlS12Gto3GCmd
+{
+    DT_S12GTO3G_CMD_GET_OPERATIONAL_MODE = 0,
+    DT_S12GTO3G_CMD_GET_SCALING_ENABLE = 1,
+    DT_S12GTO3G_CMD_SET_OPERATIONAL_MODE = 2,
+    DT_S12GTO3G_CMD_SET_SCALING_ENABLE = 3,
+}  DtIoctlS12Gto3GCmd;
+
+// -.-.-.-.-.-.-.-.-.- S12GTO3G Command - Get Operational Mode Command -.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlS12Gto3GCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlS12Gto3GCmdGetOpModeInput, 16)
+typedef struct _DtIoctlS12Gto3GCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlS12Gto3GCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlS12Gto3GCmdGetOpModeOutput, 4)
+
+// .-.-.-.-.-.-.-.-.-.- S12GTO3G Command - Set ScalingEnable Command -.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlS12Gto3GCmdSetScalingEnableInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_ScalingEnable;           // Scaling enable (TRUE or FALSE)
+}  DtIoctlS12Gto3GCmdSetScalingEnableInput;
+ASSERT_SIZE(DtIoctlS12Gto3GCmdSetScalingEnableInput, 20)
+
+// .-.-.-.-.-.-.-.-.-.- S12GTO3G Command - Get ScalingEnable Command -.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlS12Gto3GCmdGetScalingEnableInput;
+ASSERT_SIZE(DtIoctlS12Gto3GCmdGetScalingEnableInput, 16)
+typedef struct _DtIoctlS12Gto3GCmdGetScalingEnableOutput
+{
+    Int  m_ScalingEnable;           // Scaling enable (TRUE or FALSE)
+}  DtIoctlS12Gto3GCmdGetScalingEnableOutput;
+ASSERT_SIZE(DtIoctlS12Gto3GCmdGetScalingEnableOutput, 4)
+
+// .-.-.-.-.-.-.-.-.- S12GTO3G Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlS12Gto3GCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlS12Gto3GCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlS12Gto3GCmdSetOpModeInput, 20)
+
+// .-.-.-.-.-.-.-.-.-.-.-.- S12GTO3G Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-
+// S12GTO3G command - IOCTL input data
+typedef union _DtIoctlS12Gto3GCmdInput
+{
+    DtIoctlS12Gto3GCmdSetScalingEnableInput  m_SetScalingEna;  // Set ScalingEnable
+    DtIoctlS12Gto3GCmdSetOpModeInput  m_SetOpMode;             // Set operational mode
+}  DtIoctlS12Gto3GCmdInput;
+
+// S12GTO3G command - IOCTL output data
+typedef union _DtIoctlS12Gto3GCmdOutput
+{
+    DtIoctlS12Gto3GCmdGetScalingEnableOutput  m_GetScalingEna;  // Get ScalingEnable
+    DtIoctlS12Gto3GCmdGetOpModeOutput  m_GetOpMode;             // Get operational mode
+}  DtIoctlS12Gto3GCmdOutput;
+
+
+#ifdef WINBUILD
+    #define DT_IOCTL_S12GTO3G_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_S12GTO3G_CMD,   \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlS12Gto3GCmdInOut
+    {
+        DtIoctlS12Gto3GCmdInput  m_Input;
+        DtIoctlS12Gto3GCmdOutput  m_Output;
+    }  DtIoctlS12Gto3GCmdInOut;
+    #define DT_IOCTL_S12GTO3G_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_S12GTO3G_CMD, \
+                                                                  DtIoctlS12Gto3GCmdInOut)
+#endif
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_SDIDMX12G_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SdiDmx12G Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -3836,6 +3921,7 @@ typedef enum _DtIoctlSpiMCmd
 #define DT_SPIM_SPIDVC_GS3590    5  // Gennum GS3590 3G-SDI/ASI Cable Driver/Equalizer
 #define DT_SPIM_SPIDVC_25AA640A  6  // Microchip 25AA640 64K SPI bus serial EEPROM
 #define DT_SPIM_SPIDVC_GS12090   7  // Gennum GS12090 12G-SDI/ASI Cable Driver/Equalizer
+#define DT_SPIM_SPIDVC_ADC342X   8  // TI Quad-Channel 12-Bit, 25..125-MSPS ADC
 
 // SPIM duplex Mode
 #define DT_SPIM_DPX_FULL_DUPLEX  0x0    // Send and receive simultaneously
@@ -6316,6 +6402,7 @@ ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
     DtIoctlKaCmdInput  m_KaCmd;                                                          \
     DtIoctlLedBCmdInput  m_LedBCmd;                                                      \
     DtIoctlRebootCmdInput  m_Reboot;                                                     \
+    DtIoctlS12Gto3GCmdInput  m_S12Gto3GCmd;                                              \
     DtIoctlSdiXCfgCmdInput  m_SdiXCfgCmd;                                                \
     DtIoctlSdiDmx12GCmdInput  m_SdiDmx12GCmd;                                            \
     DtIoctlSdiMux12GCmdInput  m_SdiMux12GCmd;                                            \
@@ -6374,6 +6461,7 @@ typedef union _DtIoctlInputData
     DtIoctlLedBCmdOutput  m_LedBCmd;                                                     \
     DtIoctlLmh1981CmdOutput  m_Lmh1981Cmd;                                               \
     DtIoctlPropCmdOutput  m_PropCmd;                                                     \
+    DtIoctlS12Gto3GCmdOutput  m_S12Gto3GCmd;                                             \
     DtIoctlSdiDmx12GCmdOutput  m_SdiDmx12GCmd;                                           \
     DtIoctlSdiMux12GCmdOutput  m_SdiMux12GCmd;                                           \
     DtIoctlSdiXCfgCmdOutput  m_SdiXCfgCmd;                                               \

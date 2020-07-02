@@ -207,7 +207,7 @@ DtStatus DtBcSDITXPLL_C10A10_ResetClock(DtBcSDITXPLL* pBc)
     SDITXPLL_C10A10_PllCalibrationControl_WRITE(pBc, RegControl);
 
     // Wait till calibration is done
-    TimeoutCnt = 100;  // Wait maximum 100ms
+    TimeoutCnt = 500;  // Wait maximum 500ms
     for (; TimeoutCnt>0; TimeoutCnt--)
     {   
          RegStatus = SDITXPLL_Status_READ_CalBusy(pBc);

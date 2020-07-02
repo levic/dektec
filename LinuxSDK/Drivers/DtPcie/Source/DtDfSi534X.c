@@ -346,8 +346,8 @@ DtStatus DtDfSi534X_SetConfigInt(DtDfSi534X*  pDf, DtDfSi534XConfig  Config)
         DtSleep(10);
         Timeout--;
     }
-    if (DT_SUCCESS(Status))
-        DtDbgOutDf(ERR, SI534X, pDf, "Get status failed");
+    if (!DT_SUCCESS(Status))
+        DtDbgOutDf(ERR, SI534X, pDf, "Get status failed (status=0x%X)", Status);
     if (Timeout == 0)
     { 
         DtDbgOutDf(ERR, SI534X, pDf, "Lock timeout");

@@ -587,8 +587,13 @@ UInt64  DtGetTickCount()
    // Convert to ms (NOTE: KeQueryTimeIncrement return number of 100ns in one tick)
    return (UInt64)((TickCount.QuadPart * KeQueryTimeIncrement()) / 10000LL);
 #else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0)
+    struct timespec64  TickCount;
+    ktime_get_ts64(&TickCount);
+#else
     struct timespec  TickCount;
     ktime_get_ts(&TickCount);
+#endif
     return (UInt64)DtDivide64(((TickCount.tv_sec)*1000000000LL + (TickCount.tv_nsec)),
                                                                            1000000, NULL);
 #endif
@@ -609,8 +614,13 @@ UInt64  DtGetTickCountUSec()
     //// Convert to us (NOTE: KeQueryTimeIncrement return number of 100ns in one tick)
     //return (UInt64)((TickCount.QuadPart * KeQueryTimeIncrement()) / 10LL);
 #else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0)
+    struct timespec64  TickCount;
+    ktime_get_ts64(&TickCount);
+#else
     struct timespec  TickCount;
     ktime_get_ts(&TickCount);
+#endif
     return (UInt64)DtDivide64(((TickCount.tv_sec)*1000000000LL + (TickCount.tv_nsec)),
                                                                               1000, NULL);
 #endif
