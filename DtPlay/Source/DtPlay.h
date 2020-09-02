@@ -47,6 +47,19 @@ struct PcapPckHeader
     unsigned int  m_OrigLen;            // Original length of packet
 };
 
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DCP-file -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+struct DcpTagLength
+{
+    char  m_Name[4];            // Tag name
+    unsigned char m_Length[4];  // Tag length in bits
+    unsigned int Length()       // Length in number of bytes
+          { return (m_Length[0]<<24 | m_Length[1]<<24 | m_Length[2]<<8 | m_Length[3])/8; }
+    bool  IsTagName(char* Name) { return m_Name[0]==Name[0] && m_Name[1]==Name[1] 
+                                            && m_Name[2]==Name[2] && m_Name[3]==Name[3]; }
+};
+
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class Exc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 class Exc
@@ -130,6 +143,7 @@ public:
     DtOpt  m_DvbS2GoldSeqInit;  // -mI: DVB-S2 gold sequence initialisation value
     DtOpt  m_DvbS2Pilots;       // -mP: DVB-S2 pilots
     DtOpt  m_DvbS2FecFrameLength; // -mF: DVB-S2 FEC frame length
+    DtOpt  m_DrmMode;           // -mM: DRM-mode ABCD or E
 
     DtOpt  m_DtmbFrameHdrMode;  // -mH: DTMB frame header mode
 
@@ -148,6 +162,7 @@ public:
 
     bool m_PlayDtSdiFile;       // Play .dtsdi file
     bool m_PlayPcapFile;        // Play .pcap file
+    bool m_PlayDcpFile;         // Play .dcp file
 
 protected:
 
@@ -183,6 +198,7 @@ protected:
     void AttachToOutput();
     void AutoDetectSdiFormat();
     void DetectPcapFormat();
+    void DetectDcpFormat();
     void DisplayPlayInfo();
     bool HasOutputPort();
     void InitIsdbtPars(DtIsdbtPars& IsdbtPars);

@@ -54,7 +54,7 @@ int  _kbhit()
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlay Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DTPLAY_VERSION_MAJOR        4
-#define DTPLAY_VERSION_MINOR        12
+#define DTPLAY_VERSION_MINOR        13
 #define DTPLAY_VERSION_BUGFIX       0
 
 const int c_BufSize = 1*1024*1024;      // Data transfer buffer size
@@ -86,6 +86,7 @@ const char c_ErrFailToGetIoStd[]        = "DtapiVidStd2IoStd failed (ERROR: %s)"
 const char c_ErrFailToGetVidStdInfo[]   = "DtapiGetVidStdInfo failed (ERROR: %s)";
 const char c_ErrFailToOpenFile[]        = "Can't open '%ls' for reading";
 const char c_ErrReadFile[]              = "File read error";
+const char c_ErrDcpFormat[]             = "DCP format error";
 const char c_ErrPcapFormat[]            = "PCAP format error";
 const char c_ErrIsdbS3TlvFormat[]       = "Invalid ISDB-S3 TLV stream format";
 const char c_ErrFailSetTxControl[]      = "SetTxControl failed (ERROR: %s)";
@@ -97,6 +98,7 @@ const char c_ErrFailSetTsRate[]         = "SetTsrateBps failed (ERROR: %s)";
 const char c_ErrFailWrite[]             = "Write failed (ERROR: %s)";
 const char c_ErrInvalidFileSize[]       = "Invalid file size";
 const char c_ErrInvalidDtSdiFileHdr[]   = "Invalid DTSDI file header";
+const char c_ErrInvalidDcpFileHdr[]     = "Invalid DCP file header";
 const char c_ErrInvalidPcapFileHdr[]    = "Invalid PCAP file header";
 const char c_ErrInvalidPcapLinkType[]   = "Invalid PCAP link-type";
 const char c_ErrFailedToSetOutputLevel[]= "Failed to set output level (ERROR: %s)";
@@ -150,6 +152,7 @@ void CommandLineParams::Init()
 {
     m_PlayDtSdiFile = false;
     m_PlayPcapFile = false;
+    m_PlayDcpFile = false;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- CommandLineParams::ParseCommandLine -.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -177,6 +180,7 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         {L"ATSC",         DTAPI_MOD_ATSC,          L"ATSC modulation"},
         {L"CMMB",         DTAPI_MOD_CMMB,          L"CMMB modulation"},
         {L"DAB",          DTAPI_MOD_DAB,           L"DAB modulation"},
+        {L"DRM",          DTAPI_MOD_DRM,           L"DRM(+) modulation"},
         {L"DTMB",         DTAPI_MOD_DMBTH,         L"DTMB modulation"},
         {L"DVBS",         DTAPI_MOD_DVBS_QPSK,     L"DVB-S QPSK modulation"},
         {L"DVBS2_16APSK", DTAPI_MOD_DVBS2_16APSK,  L"DVB-S.2 16APSK modulation"},
@@ -319,6 +323,13 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         OPT_PAIR_END,
     };
 
+    static const DtEnumOptPair  DrmMode[] = {
+        {L"ABCD",       DtDrmPars::MODE_ABCD,       L"Mode A..D"},
+        {L"E",          DtDrmPars::MODE_E,          L"Mode E"},
+
+        OPT_PAIR_END,
+    };
+
     static DtOptItem CmdOptions[] = {
         DtOptItem(L"l",   m_LoopCnt, 1, L"Number of times to loop the file (0=loop infinitely)", 0, INT_MAX),
         DtOptItem(L"r",   m_TxRate, -1, L"Transport-Stream Rate in bps or sample rate in case of IQ-modulation mode\n"
@@ -359,6 +370,7 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         DtOptItem(L"mF",  m_DvbS2FecFrameLength, DTAPI_MOD_S2_LONGFRM, L"Long/short FEC frame in DVB-S2 (default: LONG)", DvbS2FecFrames),
         DtOptItem(L"mI",  m_DvbS2GoldSeqInit, 0, L"Gold sequence initialisation value (default: 0)\n"
                 L"  0 ... 262143", 0, 262143),
+        DtOptItem(L"dm",  m_DrmMode, DtDrmPars::MODE_ABCD, L"DRM Mode (default: MODE ABCD)", DrmMode),
         DtOptItem(L"msi", m_SpecInvers, false, L"Invert spectrum"),
         DtOptItem(L"if",  m_IqInterpFilter, DTAPI_MOD_INTERPOL_OFDM, L"Interpolation filter used in IQ mode (default: OFDM)", IqInterpolFilter),
         DtOptItem(L"snr", m_Snr, -1.0, L"Enable noise generation and set SNR in dB (e.g. -snr 26.0)", 0.0, 36.0),
@@ -392,6 +404,10 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
     
     // ISDB-S3 uses PCAP input containing TLV data packets
     m_PlayPcapFile = (m_ModType == DTAPI_MOD_ISDBS3);
+
+    // DRM uses DCP input containing TLV data packets
+    m_PlayDcpFile = (m_ModType == DTAPI_MOD_DRM);
+
     // Carrier defined?
     if (!m_CarrierFreq.IsSet())
     {
@@ -568,6 +584,7 @@ const char* CommandLineParams::ModType2Str() const
     case DTAPI_MOD_ATSC:            return "ATSC";
     case DTAPI_MOD_CMMB:            return "CMMB";
     case DTAPI_MOD_DAB:             return "DAB";
+    case DTAPI_MOD_DRM:             return "DRM(+)";
     case DTAPI_MOD_DVBS_BPSK:       return "BPSK";
     case DTAPI_MOD_DVBS_QPSK:       return "QPSK";
     case DTAPI_MOD_DMBTH:           return "DTMB";
@@ -1109,6 +1126,28 @@ void Player::DetectPcapFormat()
     }
     m_PcapEthernetLinkType = (FileHdr.m_Network == 1);
 }
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Player::DetectDcpFormat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void Player::DetectDcpFormat()
+{
+    // DCP-file according ETSI TS 102 821 Annex B.3
+    // Load the TAG from the file
+    DcpTagLength Tag;
+    int NumBytesRead = (int)fread(&Tag, 1, sizeof(Tag), m_pFile);
+    // Sanity check
+    if ( NumBytesRead != sizeof(Tag) )
+        throw Exc(c_ErrInvalidFileSize);
+
+    // Check if we have a valid file header
+    if (!Tag.IsTagName("fio_"))
+        throw Exc(c_ErrInvalidDcpFileHdr);
+
+    // Reset the file pointer
+    ::fseek(m_pFile, 0, SEEK_SET);
+
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Player::DisplayPlayInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void Player::DisplayPlayInfo()
@@ -1125,6 +1164,7 @@ void Player::DisplayPlayInfo()
                 && (   m_CmdLineParams.m_ModType==DTAPI_MOD_DVBT
                     || m_CmdLineParams.m_ModType==DTAPI_MOD_CMMB
                     || m_CmdLineParams.m_ModType==DTAPI_MOD_DAB
+                    || m_CmdLineParams.m_ModType==DTAPI_MOD_DRM
                     || m_CmdLineParams.m_ModType==DTAPI_MOD_ISDBS
                     || m_CmdLineParams.m_ModType==DTAPI_MOD_ISDBS3
                     || m_CmdLineParams.m_ModType==DTAPI_MOD_ISDBT
@@ -1141,9 +1181,11 @@ void Player::DisplayPlayInfo()
     {
         LogF("- Sample rate           : %d Hz", m_CmdLineParams.m_TxRate.ToInt());
     }
-    // Don't log Transmit Mode for ISDB-S3
-    if (m_CmdLineParams.m_ModType!=DTAPI_MOD_ISDBS3)
-    LogF("- Transmit Mode         : %s", m_CmdLineParams.TxMode2Str() );
+    // Don't log Transmit Mode for DAB/DRM/ISDB-S3
+    if (m_CmdLineParams.m_ModType!=DTAPI_MOD_DAB 
+                                        && m_CmdLineParams.m_ModType!=DTAPI_MOD_DRM
+                                        && m_CmdLineParams.m_ModType!=DTAPI_MOD_ISDBS3)
+        LogF("- Transmit Mode         : %s", m_CmdLineParams.TxMode2Str() );
     
     if ( m_DtDvc.Category() == DTAPI_CAT_USB )
         sprintf(sz, "DTU-%d", m_DtDvc.TypeNumber() );
@@ -1241,6 +1283,7 @@ void Player::DisplayPlayInfo()
                   && m_CmdLineParams.m_ModType!=DTAPI_MOD_IQDIRECT
                   && m_CmdLineParams.m_ModType!=DTAPI_MOD_CMMB
                   && m_CmdLineParams.m_ModType!=DTAPI_MOD_DAB
+                  && m_CmdLineParams.m_ModType!=DTAPI_MOD_DRM
                   && m_CmdLineParams.m_ModType!=DTAPI_MOD_T2MI
                   && m_CmdLineParams.m_ModType!=DTAPI_MOD_DVBS_QPSK
                   && m_CmdLineParams.m_ModType!=DTAPI_MOD_DVBS_BPSK )
@@ -1407,9 +1450,15 @@ void Player::InitOutput()
             if (dr == DTAPI_OK)
                 dr = m_DtOutp.SetModControl( CmmbPars );
         }
-        else if ( m_CmdLineParams.m_ModType==DTAPI_MOD_DAB )
+        else if ( m_CmdLineParams.m_ModType==DTAPI_MOD_DRM )
         {
-            dr = m_DtOutp.SetModControl( m_CmdLineParams.m_ModType, -1, -1, -1);
+            DtDrmPars DrmPars;
+            DrmPars.m_Mode = (DtDrmPars::DrmMode)m_CmdLineParams.m_DrmMode.ToInt();
+            dr = m_DtOutp.SetModControl(DrmPars);
+        }
+        else if (m_CmdLineParams.m_ModType==DTAPI_MOD_DAB)
+        {
+            dr = m_DtOutp.SetModControl(m_CmdLineParams.m_ModType, -1, -1, -1);
         }
         else if ( m_CmdLineParams.m_ModType==DTAPI_MOD_T2MI )
         {
@@ -1755,6 +1804,38 @@ void Player::LoopFile()
             else if (NumBytesRead != ISDBS3_TLV_PACKET_SIZE)
                 throw Exc(c_ErrIsdbS3TlvFormat);
         }
+        else if (m_CmdLineParams.m_PlayDcpFile)
+        {
+            // DRM  DCP-file according ETSI TS 102 821 Annex B.3
+            DcpTagLength  Tag;
+            bool Afpacket = false;
+            while (!EoF && !Afpacket)
+            { 
+                if (fread(&Tag, 1, sizeof(DcpTagLength), m_pFile) != sizeof(DcpTagLength))
+                    EoF = true;
+                else if (Tag.IsTagName("afpf"))
+                    Afpacket = true;
+                else if (Tag.IsTagName("fio_"))
+                    ;  // Ignore the fio_ tag
+                else
+                    // Skip the other tags
+                    fread(m_pBuf, 1, Tag.Length(), m_pFile) ;
+            }
+ 
+            if (Afpacket)
+            {
+                // Sanity check
+                if (Tag.Length()>(unsigned int)c_BufSize)
+                    throw Exc(c_ErrDcpFormat);
+                // Read the data part of the packet
+                NumBytesRead = (int)Tag.Length();
+                if (fread(m_pBuf, 1,NumBytesRead, m_pFile) != NumBytesRead)
+                    EoF = true;
+            }
+            // Only read complete packets of right length
+            if (EoF)
+                NumBytesRead = 0;
+        }
         else
         { 
         // Read as much bytes as possible into our buffer
@@ -1884,7 +1965,7 @@ int Player::Play(int argc, char* argv[])
 
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Print start message -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-        LogF("DtPlay player V%d.%d.%d (c) 2000-2019 DekTec Digital Video B.V.\n",
+        LogF("DtPlay player V%d.%d.%d (c) 2000-2020 DekTec Digital Video B.V.\n",
               DTPLAY_VERSION_MAJOR, DTPLAY_VERSION_MINOR, DTPLAY_VERSION_BUGFIX);
 
         LogF("DTAPI compile version: V%d.%d.%d.%d\n",
@@ -1914,6 +1995,8 @@ int Player::Play(int argc, char* argv[])
             AutoDetectSdiFormat();
         else if ( m_CmdLineParams.m_PlayPcapFile )
             DetectPcapFormat();
+        else if ( m_CmdLineParams.m_PlayDcpFile )
+            DetectDcpFormat();
 
         //-.-.-.-.-.-.-.-.-.-.-.-.- Attach to the output channel -.-.-.-.-.-.-.-.-.-.-.-.-
         AttachToOutput();
@@ -1969,7 +2052,7 @@ void Player::ShowHelp()
          "          [-m mode] [-mt type] [-mf freq] [-mc coderate] [-ma annex]\n" \
          "          [-mC constellation] [-mB bandwidth] [-mT txmode] [-mG gaurditv]\n" \
          "          [-mH hdrmode] [-mP Pilots] [-mF fecframe] [-mI initval]\n" \
-         "          [-ml level_dbm] [-snr snr_db]\n" \
+         "          [-dm drm_mode] [-ml level_dbm] [-snr snr_db]\n" \
          "          [-ipa ip_address_pair] [-ipp protocol] [-ipn num_tp_per_ip]\n" \
          "          [-mS Stuffing]\n" \
          "          [-s] [-?]");
