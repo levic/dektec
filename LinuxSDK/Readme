@@ -13,7 +13,8 @@ The Linux SDK consists of:
                   DTA-2136, DTA-2137, DTA-2138, DTA-2139, DTA-2142,
                   DTA-2144, DTA-2145, DTA-2152, DTA-2154, DTA-2160,
                   DTA-2162, DTA-2174, DTA-2179, DTA-2180, DTA-2182, DTA-2195;
- - DtPcie:        DTA-2132, DTA-2139B/C, DTA-2172, DTA-2175, DTA-2178-ASI;
+ - DtPcie:        DTA-2132, DTA-2139B/C, DTA-2172, DTA-2174B, DTA-2175,
+                  DTA-2178-ASI, DTA-2178;
  - DtaNw:         Network driver for DTA-160, DTA-2160 and DTA-2162;
  - Dtu:           Linux driver for DTU-205, DTU-215, DTU-225, DTU-234, DTU-235,
                   DTU-236, DTU-238, DTU-245 and DTU-351;

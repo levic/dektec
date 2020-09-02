@@ -43,6 +43,7 @@ static DtStatus  DtBcST425LR_Init(DtBc*);
 static DtStatus  DtBcST425LR_OnEnable(DtBc*, Bool);
 static void  DtBcST425LR_SetControlRegs(DtBcST425LR*, Bool BlkEna, Int OpMode, 
                                                                   const UInt8 pLinkIn[4]);
+static Bool DtBcST425LR_AreQuadLinksSwapped(DtBcST425LR* pBc);
 
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcST425LR - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -273,11 +274,39 @@ void DtBcST425LR_SetControlRegs(DtBcST425LR* pBc, Bool BlkEnable, Int OpMode,
     RegData = ST425LR_Control_READ(pBc);
     RegData = ST425LR_Control_SET_BlockEnable(RegData, FwBlkEnable);
     RegData = ST425LR_Control_SET_OperationalMode(RegData, FwOpMode);
-    RegData = ST425LR_Control_SET_LinkIn0(RegData, pLinkIn[0]);
-    RegData = ST425LR_Control_SET_LinkIn1(RegData, pLinkIn[1]);
-    RegData = ST425LR_Control_SET_LinkIn2(RegData, pLinkIn[2]);
-    RegData = ST425LR_Control_SET_LinkIn3(RegData, pLinkIn[3]);
+    if (DtBcST425LR_AreQuadLinksSwapped(pBc))
+    {
+        // Workaround for TT#3422 and TT#3423
+        RegData = ST425LR_Control_SET_LinkIn0(RegData, pLinkIn[3]);
+        RegData = ST425LR_Control_SET_LinkIn1(RegData, pLinkIn[2]);
+        RegData = ST425LR_Control_SET_LinkIn2(RegData, pLinkIn[1]);
+        RegData = ST425LR_Control_SET_LinkIn3(RegData, pLinkIn[0]);
+    } else {
+        RegData = ST425LR_Control_SET_LinkIn0(RegData, pLinkIn[0]);
+        RegData = ST425LR_Control_SET_LinkIn1(RegData, pLinkIn[1]);
+        RegData = ST425LR_Control_SET_LinkIn2(RegData, pLinkIn[2]);
+        RegData = ST425LR_Control_SET_LinkIn3(RegData, pLinkIn[3]);
+    }
     ST425LR_Control_WRITE(pBc, RegData);
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcST425LR_AreQuadLinksSwapped -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtBcST425LR_AreQuadLinksSwapped(DtBcST425LR* pBc)
+{
+    // See TT#3422 and TT#3423
+    // Odd and even lines from a SMPTE 425-5 quad-link input are swapped
+    // in the resulting 4k picture
+    Int  TypeNumber = DtCore_DEVICE_GetTypeNumber(pBc->m_pCore);
+    Int  SubType = DtCore_DEVICE_GetSubType(pBc->m_pCore);
+    Int  Variant =  DtCore_DEVICE_GetFirmwareVariant(pBc->m_pCore);
+    Int  FwVersion =  DtCore_DEVICE_GetFirmwareVersion(pBc->m_pCore);
+    if (   (TypeNumber==2174 && SubType==2 && Variant==2 && FwVersion==0)
+        || (TypeNumber==2178 && SubType==0 && Variant==2 && FwVersion==0))
+    {
+        return TRUE;
+    }
+    return FALSE;
 }
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

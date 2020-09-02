@@ -28,9 +28,12 @@ The DtPcie driver is a char driver for DekTec's DTA-series of PCIe cards.
 Currently the driver provides support for the following cards:
 - DTA-2132	(High-End Satellite Receiver for PCIe)
 - DTA-2139B	(12-Channel Cable/Terrestrial Receiver for PCIe)
+- DTA-2139C	(12-Channel Cable/Terrestrial Receiver for PCIe)
+- DTA-2172	(Dual 3G-SDI/ASI Ports for PCIe)
 - DTA-2174B	(Quad 3G-SDI/ASI Ports (1x12G) with Genlock for PCIe)
 - DTA-2175	(HD-SDI/ASI Input+Output with Relay Bypass for PCIe)
-
+- DTA-2178-ASI	(Octal ASI Ports for PCIe)
+- DTA-2178      (Octal 12G-SDI/ASI Ports with Genlock for PCIe)
  
 --------------------------------------------------------------------------------
 - 3. Installation Instructions

@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        41
-#define DTAPI_VERSION_BUGFIX       1
-#define DTAPI_VERSION_BUILD        144
+#define DTAPI_VERSION_MINOR        42
+#define DTAPI_VERSION_BUGFIX       0
+#define DTAPI_VERSION_BUILD        146
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -237,18 +237,6 @@ public:
 public:
     DtExc(DTAPI_RESULT e) : m_Error(e) {}
     virtual ~DtExc() {}
-};
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBufferInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-struct DtBufferInfo
-{
-    int  m_VidStd;                  // Video standard 
-    int  m_NumColumns;              // Number of columns 
-    __int64  m_NumReceived;         // Number of frames received
-    __int64  m_NumDropped;          // Number of frames dropped
-    __int64  m_NumTransmitted;      // Number of frames transmitted
-    __int64  m_NumDuplicated;       // Number of frames duplicated
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCaps - Capabilities -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -911,19 +899,6 @@ struct DtFractionInt
     DtFractionInt()                  { m_Num = 0;  m_Den = 1; }
     DtFractionInt(int  Val)          { m_Num = Val;  m_Den = 1; }
     DtFractionInt(int Num, int Den)  { m_Num = Num;  m_Den = Den; }
-};
-
-
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtFrameInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-struct DtFrameInfo
-{
-    int  m_VidStd;                  // Video standard 
-    __int64  m_Timestamp;           // 64-bit timestamp
-    __int64  m_FrameNumber;         // 64-bit frame number
-    __int64  m_Rp188;               // RP188 timestamp
-    int  m_RxMode;                  // RX mode at the time this frame was received
-    int  m_Status;                  // One of DTAPI_FRAME_STATUS_*
 };
 
 //-.-.-.-.-.-.-.-.-.-.- DtHwFuncDesc - Hardware Function Descriptor -.-.-.-.-.-.-.-.-.-.-.
@@ -2179,11 +2154,56 @@ struct DtTxClockProperties
     std::vector<int>  m_Ports;      // Associated ports
 };
 
+
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtVideoStandard -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef int  DtVideoStandardCode;
+struct DtVideoStandard
+{
+    DtVideoStandardCode  m_StdCode;  // The video standard code (i.e. DTAPI_VIDSTD_XXX)
+    enum Variant
+    {
+        VARIANT_DEFAULT=0,         // Default variant
+        VARIANT_525_512I,          // 525i59.94 with 512 active video lines
+        VARIANT_625_608I,          // 625i50 with 608 active video lines
+    }  m_Variant;  // Variant of the standard
+
+    // Operations
+    inline bool operator==(const DtVideoStandard& Oth) const
+    {
+        return (m_StdCode==Oth.m_StdCode && m_Variant==Oth.m_Variant);
+    }
+    inline bool operator!=(const DtVideoStandard& Oth) const
+    {
+        return !(*this == Oth);
+    }
+
+    // Allow comparison with a video standard code (integer) for backward compatibility
+    // with a DTAPI_VIDSTD_XXX integer value
+    inline bool operator==(const DtVideoStandardCode StdCode) const
+    {
+        return (m_StdCode == StdCode);
+    }
+    inline bool operator!=(const DtVideoStandardCode StdCode) const
+    {
+        return !(*this == StdCode);
+    }
+    // Allow casting to video standard code again for backward compatibility
+    inline operator DtVideoStandardCode() { return m_StdCode; }
+
+    DtVideoStandard(DtVideoStandardCode StdCode=-1/*DTAPI_VIDSTD_UNKNOWN*/, 
+                                                           Variant Var=VARIANT_DEFAULT)
+        : m_StdCode(StdCode),
+          m_Variant(Var)
+    {}
+};
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtVidStdInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 struct DtVidStdInfo
 {
-    int  m_VidStd;                  // Video Standard
+    DtVideoStandard  m_VidStd;      // Video Standard
     int  m_LinkStd;                 // Link standard
     bool  m_IsHd;                   // true: is an HD format: false: is SD format
     bool  m_Is4k;                   // true: is a 4k resolution
@@ -2220,6 +2240,30 @@ struct DtVidStdInfo
 
     // Utility predicates
     bool  IsFrameRate(double R) { return R-1e-3<m_Fps && m_Fps<R+1e-3; }
+};
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBufferInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+struct DtBufferInfo
+{
+    DtVideoStandard  m_VidStd;      // Video standard 
+    int  m_NumColumns;              // Number of columns 
+    __int64  m_NumReceived;         // Number of frames received
+    __int64  m_NumDropped;          // Number of frames dropped
+    __int64  m_NumTransmitted;      // Number of frames transmitted
+    __int64  m_NumDuplicated;       // Number of frames duplicated
+};
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtFrameInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct DtFrameInfo
+{
+    DtVideoStandard  m_VidStd;      // Video standard 
+    __int64  m_Timestamp;           // 64-bit timestamp
+    __int64  m_FrameNumber;         // 64-bit frame number
+    __int64  m_Rp188;               // RP188 timestamp
+    int  m_RxMode;                  // RX mode at the time this frame was received
+    int  m_Status;                  // One of DTAPI_FRAME_STATUS_*
 };
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DEMODULATION PARAMETERS +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -2712,7 +2756,7 @@ enum DtAspectRatio
 //
 struct DtDetVidStd
 {
-    int  m_VidStd;                  // Detected video standard
+    DtVideoStandard  m_VidStd;      // Detected video standard
     int  m_LinkStd;                 // Detected link standard
     int  m_LinkNr;                  // Link number, -1 for single-link standards
     unsigned int  m_Vpid;           // Raw VPID extracted from stream, 0 if not available
@@ -2720,7 +2764,7 @@ struct DtDetVidStd
     DtAspectRatio  m_AspectRatio;   // Picture Aspect Ratio
 
     // Original properties (i.e. before hardware preprocessing, such as scaling)
-    int  m_OriginalVidStd;          // Video standard before preprocessing
+    DtVideoStandard  m_OriginalVidStd;  // Video standard before preprocessing
     int  m_OriginalLinkStd;         // Link standard before preprocessing
 };
 
@@ -8259,7 +8303,7 @@ public:
     // Operations
 public:
     DtMxVideoProps  GetScaled(int  Scaling) const;
-    bool  InitEx(int  VidStd, DtMxPixelFormat);
+    bool  InitEx(const DtVideoStandard&, DtMxPixelFormat);
     bool  InitEx(DtMxPixelFormat, int  NumFields, int  Width, int  Height, 
                                             const DtFractionInt&  Fps=DtFractionInt(0,1));
     bool  IsInterlaced() const;
@@ -8278,7 +8322,7 @@ public:
     // Constructor / Destructor
 public:
     DtMxVideoProps();
-    DtMxVideoProps(int  VidStd, DtMxPixelFormat);
+    DtMxVideoProps(const DtVideoStandard&, DtMxPixelFormat);
     DtMxVideoProps(const class MxVidStdPropsSdi&, DtMxPixelFormat);
 };
 
@@ -8288,14 +8332,14 @@ class DtMxHancProps : public DtMxFramePieceProps
 {
     // Operations
 public:
-    bool  InitEx(int  VidStd, DtMxPixelFormat);
+    bool  InitEx(const DtVideoStandard&, DtMxPixelFormat);
     bool  InitEx(const class MxFramePropsSdi&, DtMxPixelFormat);
 protected:
 
     // Constructor / Destructor
 public:
     DtMxHancProps();
-    DtMxHancProps(int  VidStd, DtMxPixelFormat);
+    DtMxHancProps(const DtVideoStandard&, DtMxPixelFormat);
     DtMxHancProps(const class MxFramePropsSdi&, DtMxPixelFormat);
 };
 
@@ -8607,7 +8651,7 @@ public:
     int  m_Height;              // Height in pixels
 
     // Initialize the raw SDI-buffers with a specific pattern in an efficient way.
-    DTAPI_RESULT  InitBuf(DtMxVidPattern  Pattern, int VidStd, int LinkStd);
+    DTAPI_RESULT  InitBuf(DtMxVidPattern Pattern, const DtVideoStandard&, int LinkStd);
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxRawData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -9157,7 +9201,7 @@ public:
 
     // Configured video standard, or for fixed-rate rows the actual received rate.
     // For fixed rate output rows this has to be set by callback.
-    int  m_VidStd;
+    DtVideoStandard  m_VidStd;
 
     // For input and input/output rows this can contain a pointer to the data of an input
     // frame that was received before this frame but not processed to maintain clock sync.
@@ -9301,7 +9345,7 @@ public:
     // link standard are not explicitly set and will be determined from IOConfig.
     DtMxPort(DtDevice*, int  Port, int  ClockPriority=0, int  PixelOffset=0);
     // 3. Constructor that initializes the object for a multi-link structure.
-    DtMxPort(int  VidStd, int  LinkStd);
+    DtMxPort(const DtVideoStandard&, int  LinkStd);
     // 4. Copy constructor
     DtMxPort(const DtMxPort&);
     // Destructor
@@ -9311,7 +9355,7 @@ public:
     
     DTAPI_RESULT  AddPhysicalPort(DtDevice*, int  Port, int  ClockPriority=0, 
                                                                       int  PixelOffset=0);
-    DTAPI_RESULT  SetVideoStandard(int  VidStd, int  LinkStd=-1);
+    DTAPI_RESULT  SetVideoStandard(const DtVideoStandard&, int LinkStd=-1);
 
 private:
     class MxPortImpl*  m_pImpl;
@@ -9375,19 +9419,19 @@ public:
     // usage but need to react very quickly to various events. They shall have the
     // highest priority of all threads in the system.
     // Default priority windows: THREAD_PRIORITY_TIME_CRITICAL
-    // Default priority linux: SCHED_FIFO 80
+    // Default priority Linux: SCHED_FIFO 80
     DtMxSchedulingArgs  m_EventThreads;
     // The worker threads are CPU intensive but can tolerate a bit more scheduling latency
     // than the event threads. In general those threads should be run at a fairly high
     // priority to make sure no frames are dropped.
     // Default priority windows: THREAD_PRIORITY_HIGHEST
-    // Default priority linux: SCHED_FIFO 20
+    // Default priority Linux: SCHED_FIFO 20
     DtMxSchedulingArgs  m_WorkerThreads;
     // The callback threads are the ones that run the callback functions. The priority
     // of these threads depends on the kind of work the callback does. It should not
     // be higher than the priority of the worker threads.
     // Default priority windows: THREAD_PRIORITY_ABOVE_NORMAL
-    // Default priority linux: SCHED_OTHER -10
+    // Default priority Linux: SCHED_OTHER -10
     DtMxSchedulingArgs  m_CallbackThreads;
 
 public:
@@ -9444,7 +9488,7 @@ public:
     DTAPI_RESULT  SetRowConfig(int Row, const DtMxRowConfig& Config);
 
     // Function to change the video standard for all ports attached to the given row.
-    DTAPI_RESULT  SetVidStd(int Row, int VidStd);
+    DTAPI_RESULT  SetVidStd(int Row, const DtVideoStandard&);
 
     // Set a callback function the framework can use to free user-provided video buffers.
     DTAPI_RESULT  SetVidBufFreeCb(DtMxVidBufFreeCallback* pFunc);
@@ -10575,14 +10619,18 @@ DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, int ModType, int ParXtr
                                 int ParXtra1, int ParXtra2, void* pXtraPars, int SymRate);
 
 // HD-SDI functions
-DTAPI_RESULT  DtapiGetRequiredUsbBandwidth(int VidStd, int RxMode, long long&  Bandwidth);
-DTAPI_RESULT  DtapiGetVidStdInfo(int VidStd, DtVidStdInfo& Info);
-DTAPI_RESULT  DtapiGetVidStdInfo(int VidStd, int  LinkStd, DtVidStdInfo& Info);
-DTAPI_RESULT  DtapiIoStd2VidStd(int Value, int SubValue, int& VidStd);
-DTAPI_RESULT  DtapiIoStd2VidStd(int Value, int SubValue, int& VidStd, int& LinkStd);
-DTAPI_RESULT  DtapiVidStd2IoStd(int VidStd, int& Value, int& SubValue);
-DTAPI_RESULT  DtapiVidStd2IoStd(int VidStd, int  LinkStd, int& Value, int& SubValue);
-const char*  DtapiVidStd2Str(int VidStd);
+DTAPI_RESULT  DtapiGetRequiredUsbBandwidth(const DtVideoStandard&, int RxMode,
+                                                                   long long&  Bandwidth);
+DTAPI_RESULT  DtapiGetVidStdInfo(const DtVideoStandard&, DtVidStdInfo& Info);
+DTAPI_RESULT  DtapiGetVidStdInfo(const DtVideoStandard&, int LinkStd, DtVidStdInfo& Info);
+DTAPI_RESULT  DtapiIoStd2VidStd(int Value, int SubValue, DtVideoStandard&);
+DTAPI_RESULT  DtapiIoStd2VidStd(int Value, int SubValue, int& VidStdCode);
+DTAPI_RESULT  DtapiIoStd2VidStd(int Value, int SubValue, DtVideoStandard&, int& LinkStd);
+DTAPI_RESULT  DtapiIoStd2VidStd(int Value, int SubValue, int& VidStdCode, int& LinkStd);
+DTAPI_RESULT  DtapiVidStd2IoStd(const DtVideoStandard&, int& Value, int& SubValue);
+DTAPI_RESULT  DtapiVidStd2IoStd(const DtVideoStandard&, int LinkStd, 
+                                                               int& Value, int& SubValue);
+const char*  DtapiVidStd2Str(const DtVideoStandard&);
 const char*  DtapiLinkStd2Str(int LinkStd);
 const char*  DtapiMxFrameStatus2Str(DtMxFrameStatus  Status);
 

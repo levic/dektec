@@ -829,11 +829,44 @@ void  DtCore_DEVICE_Exit(DtCore*  pCore)
     DtDbgOut(MAX, CORE, "Exit");
 }
 
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_DEVICE_GetFirmwareVariant -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int DtCore_DEVICE_GetFirmwareVariant(DtCore* pCore)
+{
+    DT_ASSERT(pCore->m_pDevInfo != NULL);
+    if (pCore->m_pDevInfo != NULL)
+        return pCore->m_pDevInfo->m_FirmwareVariant;
+    else
+        return -1;
+}
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_DEVICE_GetFirmwareVersion -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int DtCore_DEVICE_GetFirmwareVersion(DtCore* pCore)
+{
+    DT_ASSERT(pCore->m_pDevInfo != NULL);
+    if (pCore->m_pDevInfo != NULL)
+        return pCore->m_pDevInfo->m_FirmwareVersion;
+    else
+        return -1;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_DEVICE_GetNumPorts -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 Int DtCore_DEVICE_GetNumPorts(DtCore* pCore)
 {
     return pCore->m_NumPorts;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_DEVICE_GetSubType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int DtCore_DEVICE_GetSubType(DtCore* pCore)
+{
+    DT_ASSERT(pCore->m_pDevInfo != NULL);
+    if (pCore->m_pDevInfo != NULL)
+        return pCore->m_pDevInfo->m_SubType;
+    else
+        return -1;
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_DEVICE_GetTypeNumber -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
