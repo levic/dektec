@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBcDfCommon.h *#*#*#*#*#*#*#*#*#*# (C) 2017 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBcDfCommon.h *#*#*#*#*#*#*#* (C) 2017-2020 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -40,8 +40,8 @@ typedef struct  _DtBcOrDfId
     const char*  m_pName;           // Name of the BC/DF
     const char*  m_pShortName;      // Optional: Short-name of the BC/DF
     const char*  m_pRole;           // Optional: DF/DF role
-    Int  m_Instance;                // BC/DF instance number (i.e. Nth occurance of BC/DF)
-    Int  m_Uuid;                    // Unique ID of the the BC/DF
+    Int  m_Instance;                // BC/DF instance number (i.e. Nth BC/DF occurrence)
+    Int  m_Uuid;                    // Unique ID of the BC/DF
 }  DtBcOrDfId;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtObjectBcOrDf -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

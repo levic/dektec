@@ -659,6 +659,7 @@ DtStatus DtBcSDITXPHY_SetSdiRate(DtBcSDITXPHY* pBc, Int SdiRate)
                                                   pBc->m_SofDelay, pBc->m_UpsampleFactor);
     // Update slew rate
     DtBcSDITXPHY_SetSlewRateControl(pBc, SdiRate);
+
     return DT_STATUS_OK;
 }
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetSofDelay -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

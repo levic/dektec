@@ -21,7 +21,9 @@ typedef struct _TMessage
 #define DTPCIE_LOG_PROP_STORE_NOT_FOUND	4
 #define DTPCIE_LOG_FAKE_DMA_INT	5
 #define DTPCIE_LOG_UNSUPP_FWVARIANT	6
-#define DTPCIE_MSG_COUNT	7
+#define DTPCIE_LOG_ERROR_GENERIC	7
+#define DTPCIE_LOG_INFO_GENERIC	8
+#define DTPCIE_MSG_COUNT	9
 
 Bool EventGetMessage(Int MsgId, const char** pLevel, const char** pMsg);
 

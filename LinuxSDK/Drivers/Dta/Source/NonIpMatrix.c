@@ -429,19 +429,15 @@ DtStatus  DtaNonIpMatrixConfigure(DtaNonIpPort* pNonIpPort, Bool  ForceConfig)
     if (IoStdValue == DT_IOCONFIG_ASI)
     {
         Status = DtaNonIpMatrixConfigureForAsi(pNonIpPort, ConfigMode);
-        // DTA-2152 FW2/FW3/FW4/FW5, DTA-2154 FW5 and DTA-2174 FW2 have a firmware bug:
+        // DTA-2152 FW2/FW3/FW4/FW5/FW6,DTA-2154 FW5 and DTA-2174 FW2 have a firmware bug:
         // double-buffering for ASI depends on the TxCtrl register. We set it to SEND 
         // immediately. In this mode applications cannot attach to the port and change it.
         if (DT_SUCCESS(Status) && IsDblBuf &&
-                               ((pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2152 &&
-                                pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==2) ||
+                               (((pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2152 &&
+                                pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion>=2) &&
                                 (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2152 &&
-                                pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==3) ||
-                                (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2152 &&
-                                pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==4) ||
-                                (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2152 &&
-                                pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==5) ||
-                               (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2154 &&
+                                pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion<=6)) ||
+                                (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2154 &&
                                 pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==5) ||
                                (pNonIpPort->m_pDvcData->m_DevInfo.m_TypeNumber==2174 &&
                                 pNonIpPort->m_pDvcData->m_DevInfo.m_FirmwareVersion==2)))

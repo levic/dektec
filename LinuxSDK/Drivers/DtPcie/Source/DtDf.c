@@ -53,6 +53,7 @@ const DtDfId  DT_DF_KNOWN[] =
     { DT_DF_SPIPROM_NAME,         DT_DF_SPIPROM_SHORTNAME,        NULL, -1, -1 },
     { DT_DF_SPICABLEDRVEQ_NAME,   DT_DF_SPICABLEDRVEQ_SHORTNAME,  NULL, -1, -1 },
     { DT_DF_TEMPFANMGR_NAME,      DT_DF_TEMPFANMGR_SHORTNAME,     NULL, -1, -1 },
+    { DT_DF_TXPLLMGR_NAME,        DT_DF_TXPLLMGR_SHORTNAME,       NULL, -1, -1 },
     { DT_DF_VIRTGENREF_NAME,      DT_DF_VIRTGENREF_SHORTNAME,     NULL, -1, -1 },
     { DT_DF_VPD_NAME,             DT_DF_VPD_SHORTNAME,            NULL, -1, -1 },
     { DT_DF_S2CRDEMOD_2132_NAME,  DT_DF_S2CRDEMOD_2132_SHORTNAME, NULL, -1, -1 },
@@ -928,6 +929,9 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
      case DT_FUNC_TYPE_TEMPFANMGR:
         return (DtDf*)DtDfTempFanMgr_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
+    case DT_FUNC_TYPE_TXPLLMGR:
+        return (DtDf*)DtDfTxPllMgr_Open(pCore, pPt, pId->m_pRole, 
+                                                            pId->m_Instance, pId->m_Uuid);
      case DT_FUNC_TYPE_VIRTGENREF:
         return (DtDf*)DtDfVirtGenRef_Open(pCore, pPt, pId->m_pRole, 
                                                      pId->m_Instance, pId->m_Uuid, FALSE);

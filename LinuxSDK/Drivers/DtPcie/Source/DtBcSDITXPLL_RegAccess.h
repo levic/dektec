@@ -293,7 +293,7 @@ static __inline UInt32  SDITXPLL_C10A10_PllCalibrationStatus_READ(DtBcSDITXPLL* 
 // Field GET functions
 static __inline UInt32  SDITXPLL_C10A10_PllCalibrationStatus_GET_ConfigBusBusy(UInt32 PllCalibrationStatus)
 {
-    return PllCalibrationStatus & 0x1;
+    return (PllCalibrationStatus & 0x4) >> 2;
 }
 static __inline UInt32  SDITXPLL_C10A10_PllCalibrationStatus_GET_Busy(UInt32 PllCalibrationStatus)
 {
@@ -303,7 +303,7 @@ static __inline UInt32  SDITXPLL_C10A10_PllCalibrationStatus_GET_Busy(UInt32 Pll
 // Field READ functions
 static __inline UInt32  SDITXPLL_C10A10_PllCalibrationStatus_READ_ConfigBusBusy(DtBcSDITXPLL* pBc)
 {
-    return DtBc_RegRead32((DtBc*)pBc, 0x28) & 0x1;
+    return (DtBc_RegRead32((DtBc*)pBc, 0x28) & 0x4) >> 2;
 }
 static __inline UInt32  SDITXPLL_C10A10_PllCalibrationStatus_READ_Busy(DtBcSDITXPLL* pBc)
 {

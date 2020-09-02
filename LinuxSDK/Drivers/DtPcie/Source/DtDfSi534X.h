@@ -28,7 +28,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtDf.h"
 #include "DtBcI2CM.h"
-#include "DtBcSDITXPLL.h"
+#include "DtDfTxPllMgr.h"
 
 // Name + short-name for the SI534X function. NOTE: must match names in 
 // FunctionDescriptionsXxx.xml
@@ -67,12 +67,6 @@ typedef enum _DtDfSi534XConfig
     DT_DF_SI534X_CFG_FREE_RUN_FRAC_CLOCK,
 } DtDfSi534XConfig;
 
-// Structure that stores the SDITXPLL block controller and the PLL-Id
-typedef struct  _DtDfSi534XSdiTxPll
-{
-    DtBcSDITXPLL*  m_pSdiTxPll;
-    Int  m_PllId;
-}DtDfSi534XSdiTxPll;
 
 // Clock types
 typedef enum _DtDfSi534XClkType
@@ -109,8 +103,7 @@ typedef struct  _DtDfSi534X
     DtDfSi534XConfig  m_CurConfig;      // Current loaded configuration
     const DtDfSi534XRegister*  m_pCurConfigItems; // Current configured items
     Int  m_CurConfigNumItems;           // Number of configured items
-    DtVectorBc*  m_pBcSdiTxPlls;         // SDITXPLL block controllers
-    DtVector*  m_pSdiTxPllTable;         // SDITXPLL look-up table
+    DtDfTxPllMgr*  m_pDfTxPllMgr;       // TX-PLL manager
     Int64  m_InitNxNum[DT_DF_SI534X_MAX_NUM_CLOCKS];  //Initial Nx Numerator value
     Int64  m_CurNxNum[DT_DF_SI534X_MAX_NUM_CLOCKS];   //Current Nx Numerator value
 }  DtDfSi534X;
@@ -122,7 +115,6 @@ DtDfSi534X*  DtDfSi534X_Open(DtCore*, DtPt*  pPt, const char*  pRole, Int  Insta
 DtStatus DtDfSi534X_GetClockProperties(DtDfSi534X* pDf, Int* pNumElems,
                                                      const DtDfSi534XClockProps** pProps);
 DtStatus  DtDfSi534X_GetFreqOffsetPpt(DtDfSi534X*, Bool FracClk, Int* pOffsetPpt);
-DtStatus  DtDfSi534X_IsPllLocked(DtDfSi534X*, Int PllId, Bool* pLocked);
 DtStatus  DtDfSi534X_SetConfig(DtDfSi534X*, DtDfSi534XConfig);
 DtStatus  DtDfSi534X_SetFreqOffsetPpt(DtDfSi534X*, Int OffsetPpt,  Bool FracClk);
 

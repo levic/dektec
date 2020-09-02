@@ -26,6 +26,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtBcSDITXPLL.h"
 #include "DtBcSDITXPLL_RegAccess.h"
+#include "Messages.h"
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDITXPLL implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -48,6 +49,7 @@ static DtStatus  DtBcSDITXPLL_Init(DtBc*);
 static DtStatus  DtBcSDITXPLL_OnEnable(DtBc*, Bool);
 static DtStatus  DtBcSDITXPLL_CV_ResetClock(DtBcSDITXPLL* pBc);
 static DtStatus  DtBcSDITXPLL_C10A10_ResetClock(DtBcSDITXPLL* pBc);
+static DtStatus  DtBcSDITXPLL_C10A10_Calibrate(DtBcSDITXPLL* pBc);
 static void  DtBcSDITXPLL_SetControlRegs(DtBcSDITXPLL*, Bool BlkEnable, Bool TxClkReset);
 
 
@@ -163,12 +165,37 @@ DtStatus DtBcSDITXPLL_CV_ResetClock(DtBcSDITXPLL* pBc)
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPLL_C10A10_ResetClock -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-//  This function recalibrates the PLL-clock
+//  This function reset and (re-)calibrates the PLL-clock
 //
 DtStatus DtBcSDITXPLL_C10A10_ResetClock(DtBcSDITXPLL* pBc)
 {
-    Int TimeoutCnt;
-    UInt32 RegControl, RegCalEnable, RegStatus;
+    DtStatus Status = DT_STATUS_FAIL;
+
+    // Sanity check
+    BC_SDITXPLL_DEFAULT_PRECONDITIONS(pBc);
+
+    // Reset the PLL prior to performing calibration. Use enable to reset so that we can 
+    // hold the PLL in reset for a minimum of 70us.
+    DtBcSDITXPLL_SetControlRegs(pBc, FALSE, FALSE);
+    DtWaitBlock(70);
+    DtBcSDITXPLL_SetControlRegs(pBc, pBc->m_BlockEnabled, FALSE);
+
+    // Now that the block is in reset (disabled) perform the calibration
+    Status = DtBcSDITXPLL_C10A10_Calibrate(pBc);
+
+    // Return the status from the calibration
+    return Status;
+};
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPLL_C10A10_Calibrate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// This function performs the calibration process. Note, it assumes the PLL is held in 
+// reset already
+//
+DtStatus  DtBcSDITXPLL_C10A10_Calibrate(DtBcSDITXPLL* pBc)
+{
+    UInt32 RegCalEnable;
+    UInt64  TimeStart=0, TimeEnd=0;
 
      // Sanity check
     BC_SDITXPLL_DEFAULT_PRECONDITIONS(pBc);
@@ -176,21 +203,28 @@ DtStatus DtBcSDITXPLL_C10A10_ResetClock(DtBcSDITXPLL* pBc)
      // Sanity check
     BC_SDITXPLL_DEFAULT_PRECONDITIONS(pBc);
 
-    // Request user access to the bus
-    RegControl = SDITXPLL_C10A10_PllCalibrationControl_READ(pBc);
-    RegControl = SDITXPLL_C10A10_PllCalibrationControl_SET_Operation(RegControl, 
-                                                                        SDITXPLL_OP_USER);
-    SDITXPLL_C10A10_PllCalibrationControl_WRITE(pBc, RegControl);
-    TimeoutCnt = 1000;  // Wait maximum 1ms
-    for (; TimeoutCnt>0; TimeoutCnt--)
+    // Request user access to the bus (do not use a read-modify-write)
+    SDITXPLL_C10A10_PllCalibrationControl_WRITE(pBc, SDITXPLL_OP_USER);
+    
+
+    // Wait a maximum of 1ms
+    TimeStart = TimeEnd = DtGetTickCountUSec();
+    while ((TimeEnd-TimeStart) < (1*1000))
     {   
         if (SDITXPLL_C10A10_PllCalibrationStatus_READ_ConfigBusBusy(pBc) == 0)
             break;
+
         DtWaitBlock(1);
+        TimeEnd  = DtGetTickCountUSec();
     }
+    TimeEnd  = DtGetTickCountUSec();
+
     // Still busy?
     if (SDITXPLL_C10A10_PllCalibrationStatus_READ_ConfigBusBusy(pBc) != 0)
+    {
+        SDITXPLL_C10A10_PllCalibrationControl_WRITE(pBc, 3);
         return DT_STATUS_TIMEOUT;
+    }
 
     // Enable calibration (must be done through read-modify-write)
     RegCalEnable = SDITXPLL_C10A10_PllCalibrationEnable_READ(pBc);
@@ -200,27 +234,59 @@ DtStatus DtBcSDITXPLL_C10A10_ResetClock(DtBcSDITXPLL* pBc)
        RegCalEnable = SDITXPLL_C10A10_PllCalibrationEnable_SET_Fpll(RegCalEnable, 1);
     SDITXPLL_C10A10_PllCalibrationEnable_WRITE(pBc, RegCalEnable);
 
-    // Request PreSICE calibration start
-    RegControl = SDITXPLL_C10A10_PllCalibrationControl_READ(pBc);
-    RegControl = SDITXPLL_C10A10_PllCalibrationControl_SET_Operation(RegControl, 
-                                                                         SDITXPLL_OP_CAL);
-    SDITXPLL_C10A10_PllCalibrationControl_WRITE(pBc, RegControl);
+    // Request PreSICE calibration start (do not use a read-modify-write)
+    SDITXPLL_C10A10_PllCalibrationControl_WRITE(pBc, SDITXPLL_OP_CAL);
+
+    // Wait shortly to allow calibration request to be acknowledged (takes a few clocks)
+    DtWaitBlock(5);
 
     // Wait till calibration is done
-    TimeoutCnt = 500;  // Wait maximum 500ms
-    for (; TimeoutCnt>0; TimeoutCnt--)
+    TimeStart = DtGetTickCountUSec();
+
+    // Wait a maximum of 100ms. 
+    // NOTE: typical calibration times are: fPLL=1.3ms and ATX=25.5ms
+    TimeStart = TimeEnd = DtGetTickCountUSec();
+    while ((TimeEnd-TimeStart) < (100*1000))
     {   
-         RegStatus = SDITXPLL_Status_READ_CalBusy(pBc);
         if (SDITXPLL_Status_READ_CalBusy(pBc) == 0)
             break;
         DtSleep(1);
+        TimeEnd  = DtGetTickCountUSec();
     }
+    TimeEnd  = DtGetTickCountUSec();
 
     // Still busy?
     if (SDITXPLL_Status_READ_CalBusy(pBc) != 0)
+    {
+        DtString  Str;
+        DtStringAlloc(&Str, 256);
+
+        DtStringAppendChars(&Str, "[SN=");
+        DtStringUInt64ToDtStringAppend(&Str, 10, pBc->m_pCore->m_pDevInfo->m_Serial);
+        DtStringAppendChars(&Str, "] ");
+        DtStringAppendChars(&Str, "SDI TX PLL calibration has timed out");
+        DtEvtLogReport(&pBc->m_pCore->m_Device.m_EvtObject, 
+                                              DTPCIE_LOG_ERROR_GENERIC, &Str, NULL, NULL);
+
         return DT_STATUS_TIMEOUT;
+    }
+    else
+    {
+        DtString  Str;
+        DtStringAlloc(&Str, 256);
+
+        DtStringAppendChars(&Str, "[SN=");
+        DtStringUInt64ToDtStringAppend(&Str, 10, pBc->m_pCore->m_pDevInfo->m_Serial);
+        DtStringAppendChars(&Str, "] ");
+        DtStringAppendChars(&Str, "SDI TX PLL calibration has been completed in: ");
+        DtStringUInt64ToDtStringAppend(&Str, 10, (TimeEnd-TimeStart)/1000);
+        DtStringAppendChars(&Str, "ms");
+
+        DtEvtLogReport(&pBc->m_pCore->m_Device.m_EvtObject, 
+                                              DTPCIE_LOG_INFO_GENERIC, &Str, NULL, NULL);
+    }
     return DT_STATUS_OK;
-};
+}
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDITXPLL - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -238,7 +304,7 @@ DtStatus  DtBcSDITXPLL_Init(DtBc*  pBcBase)
     // Get PLL-Id
     pBc->m_PllId = (Int)SDITXPLL_Config_READ_PllId(pBc);
 
-   // Set defaults
+    // Set defaults
     pBc->m_BlockEnabled = FALSE;
     pBc->m_DeviceFamily = DT_BC_SDITXPLL_FAMILY_CV;
     pBc->m_PllType = DT_BC_SDITXPLL_PLLTYPE_CMU;

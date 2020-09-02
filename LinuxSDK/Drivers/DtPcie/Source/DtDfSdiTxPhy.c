@@ -235,7 +235,13 @@ DtStatus DtDfSdiTxPhy_GetSdiStatus(DtDfSdiTxPhy*  pDf, Int*  pIsTxLocked)
     case DT_BC_SDITXPHY_FAMILY_C10:
         Status = DtBcSDITXPHY_GetTxPllId(pDf->m_pBcSdiTxPhy, &PllId);
         if (DT_SUCCESS(Status))
-            Status = DtDfSi534X_IsPllLocked(pDf->m_pDfSi534X, PllId, &IsPllLocked);
+        {
+            if (pDf->m_pDfTxPllMgr != NULL)
+                Status = DtDfTxPllMgr_IsPllLocked(pDf->m_pDfTxPllMgr, PllId,
+                                                                            &IsPllLocked);
+            else
+                Status = DT_STATUS_NOT_SUPPORTED;
+        }
         break;
     case DT_BC_SDITXPHY_FAMILY_CV:
         Status = DtBcSDITXPLL_IsPllLocked(pDf->m_pBcSdiTxPll, &IsPllLocked);
@@ -894,6 +900,10 @@ DtStatus  DtDfSdiTxPhy_OpenChildren(DtDfSdiTxPhy*  pDf)
     // Find device level clock generator (optional)
     pDf->m_pDfSi534X  = (DtDfSi534X*)DtCore_DF_Find(pDf->m_pCore, NULL,
                                                                DT_FUNC_TYPE_SI534X, NULL);
+    // Find device level TX-PLL manager (optional)
+    pDf->m_pDfTxPllMgr  = (DtDfTxPllMgr*)DtCore_DF_Find(pDf->m_pCore, NULL,
+                                                             DT_FUNC_TYPE_TXPLLMGR, NULL);
+
     // Find device level GenLock controller (optional)
     pDf->m_pDfGenLockCtrl  = (DtDfGenLockCtrl*)DtCore_DF_Find(pDf->m_pCore, NULL,
                                                           DT_FUNC_TYPE_GENLOCKCTRL, NULL);
@@ -976,8 +986,8 @@ DtStatus DtDfSdiTxPhy_ConfigureRate(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool  Frac
 DtStatus DtDfSdiTxPhy_ConfigureRateC10A10(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool  FracClk)
 {
     DtStatus  Status = DT_STATUS_OK;
-    Int PllId=0, Timeout=0;
-    Bool  IsPllLocked=FALSE,  IsResetInProgress=FALSE;
+    Int  Timeout=0;
+    Bool IsResetInProgress=FALSE;
 
     // Sanity checks
     DF_SDITXPHY_DEFAULT_PRECONDITIONS(pDf);
@@ -994,15 +1004,20 @@ DtStatus DtDfSdiTxPhy_ConfigureRateC10A10(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool
     // Set SDI fractional clock rate
     DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_SetSdiFractionalClock(pDf->m_pBcSdiTxPhy,
                                                                                 FracClk));
-
     // Check PLL-lock
-    Status = DtBcSDITXPHY_GetTxPllId(pDf->m_pBcSdiTxPhy, &PllId);
-    DT_ASSERT(DT_SUCCESS(Status));
-    Status = DtDfSi534X_IsPllLocked(pDf->m_pDfSi534X,  PllId, &IsPllLocked);
-    DT_ASSERT(DT_SUCCESS(Status));
-    DT_ASSERT(IsPllLocked);
-    if (!DT_SUCCESS(Status) || !IsPllLocked)
-        return DT_STATUS_NOT_INITIALISED;
+    if (pDf->m_pDfTxPllMgr != NULL)
+    {
+        Int  PllId=0;
+        Bool IsPllLocked=FALSE;
+
+        Status = DtBcSDITXPHY_GetTxPllId(pDf->m_pBcSdiTxPhy, &PllId);
+        DT_ASSERT(DT_SUCCESS(Status));
+        Status = DtDfTxPllMgr_IsPllLocked(pDf->m_pDfTxPllMgr, PllId, &IsPllLocked);
+        DT_ASSERT(DT_SUCCESS(Status));
+        DT_ASSERT(IsPllLocked);
+        if (!DT_SUCCESS(Status) || !IsPllLocked)
+            return DT_STATUS_NOT_INITIALISED;
+    }
 
     // Perform calibration initially and after fractional/non-fractional rate change
     if (FracClk!=pDf->m_FractionalClock || !DtDf_IsEnabled((DtDf*)pDf))

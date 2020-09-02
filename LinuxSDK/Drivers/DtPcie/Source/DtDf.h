@@ -377,6 +377,7 @@ DtStatus  DtIoStubDf_OnExclAccessCmd(const DtIoStub*, DtIoStubIoParams*, Int*  p
 #include "DtDfSpiProm.h"        // SPI-prom driver function
 #include "DtDfSensTemp.h"       // Sensor temperature-function
 #include "DtDfTempFanMgr.h"     // Temperature and fanspeed manager-function
+#include "DtDfTxPllMgr.h"       // TX-PLL manager function
 #include "DtDfVirtGenRef.h"     // SDI virtual genref function
 #include "DtDfVpd.h"            // Device-level VPD function
 #include "DtCfEvt.h"            // Events core-function

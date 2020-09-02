@@ -103,6 +103,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcGENL.o                 \
          $(SRCDIR)/DtBcGS2988.o               \
          $(SRCDIR)/DtBcI2CM.o                 \
+         $(SRCDIR)/DtBcIOSERIN.o              \
          $(SRCDIR)/DtBcIPSECG.o               \
          $(SRCDIR)/DtBcKA.o                   \
          $(SRCDIR)/DtBcLEDB.o                 \
@@ -144,6 +145,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtDfSpiCableDrvEq.o        \
          $(SRCDIR)/DtDfSpiProm.o              \
          $(SRCDIR)/DtDfTempFanMgr.o           \
+         $(SRCDIR)/DtDfTxPllMgr.o             \
          $(SRCDIR)/DtDfVirtGenRef.o           \
          $(SRCDIR)/DtDfVpd.o                  \
          $(SRCDIR)/DtPt.o                     \

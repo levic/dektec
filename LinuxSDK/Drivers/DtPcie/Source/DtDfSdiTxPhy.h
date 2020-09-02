@@ -33,6 +33,7 @@
 #include "DtBcSDITXP.h"
 #include "DtDfSdiXCfgMgr.h"
 #include "DtDfSi534X.h"
+#include "DtDfTxPllMgr.h"
 #include "DtDfGenLockCtrl.h"
 
 // Name + short-name for the SDITXPHY function. NOTE: must match names in 
@@ -72,9 +73,10 @@ typedef struct  _DtDfSdiTxPhy
 
     // Block controllers
     DtBcSDITXPHY*    m_pBcSdiTxPhy;     // SdiTxPhy block-controller
-    DtBcSDITXPLL*    m_pBcSdiTxPll;     // SdiTxPll block-controller
-    DtDfSdiXCfgMgr*  m_pDfSdiXCfgMgr;   // SDI Transceiver Reconfig Manager
-    DtDfSi534X*  m_pDfSi534X;           // Silabs SI534X clock controller
+    DtBcSDITXPLL*    m_pBcSdiTxPll;     // SdiTxPll block-controller  (CV only)
+    DtDfSdiXCfgMgr*  m_pDfSdiXCfgMgr;   // SDI Transceiver Reconfig Manager (CV only)
+    DtDfSi534X*  m_pDfSi534X;           // Silabs SI534X clock controller (CV only)
+    DtDfTxPllMgr*  m_pDfTxPllMgr;       // TX-PLL manager
     DtDfGenLockCtrl*  m_pDfGenLockCtrl; // GenLock control device driver
     DtBcGENL*  m_pBcGenLock;            // GenLock block-controller
 

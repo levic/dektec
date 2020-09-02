@@ -46,7 +46,7 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 static DtStatus  DtDfSpiCableDrvEq_Init(DtDf*);
-
+static DtStatus  DtDfSpiCableDrvEq_LoadParameters(DtDf*);
 static DtStatus  DtDfSpiCableDrvEq_OnCloseFile(DtDf*, const DtFileObject*);
 static DtStatus  DtDfSpiCableDrvEq_OnEnablePostChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfSpiCableDrvEq_OnEnablePreChildren(DtDf*, Bool  Enable);
@@ -60,6 +60,8 @@ static DtStatus  DtDfSpiCableDrvEq_SetGsXx90PreEmphasisControl(DtDfSpiCableDrvEq
                                                                              Int SdiRate);
 static DtStatus  DtDfSpiCableDrvEq_SetGsXx90AmplitudeControl(DtDfSpiCableDrvEq*,
                                                                              Int SdiRate);
+static DtStatus  DtDfSpiCableDrvEq_SetGsXx90TraceEqualizer(DtDfSpiCableDrvEq*,
+                                                                             Int TraceEq);
 static DtStatus  DtDfSpiCableDrvEq_ReadGsXx90(DtDfSpiCableDrvEq*, Int StartAddress,
                                                             Int NumToRead, UInt16 * pBuf);
 static DtStatus  DtDfSpiCableDrvEq_WriteGsXx90(DtDfSpiCableDrvEq*, Int StartAddress,
@@ -97,6 +99,7 @@ DtDfSpiCableDrvEq*  DtDfSpiCableDrvEq_Open(DtCore* pCore, DtPt* pPt, const char*
     // Register the callbacks
     OpenParams.m_CloseFunc = DtDfSpiCableDrvEq_Close;
     OpenParams.m_InitFunc = DtDfSpiCableDrvEq_Init;
+    OpenParams.m_LoadParsFunc = DtDfSpiCableDrvEq_LoadParameters;
     OpenParams.m_OnCloseFileFunc = DtDfSpiCableDrvEq_OnCloseFile;
     OpenParams.m_OnEnablePostChildrenFunc = DtDfSpiCableDrvEq_OnEnablePostChildren;
     OpenParams.m_OnEnablePreChildrenFunc = DtDfSpiCableDrvEq_OnEnablePreChildren;
@@ -279,6 +282,40 @@ DtStatus  DtDfSpiCableDrvEq_Init(DtDf* pDfBase)
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_LoadParameters -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Note: LoadParameters() is called before the Init(). The loaded parameters can be used
+// in the Init().
+//
+DtStatus  DtDfSpiCableDrvEq_LoadParameters(DtDf*  pDfBase)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtDfSpiCableDrvEq* pDf = (DtDfSpiCableDrvEq*)pDfBase;
+
+    // List of SpiCableDrvEq function parameters
+    DtDfParameters  DFSPICABLEDRVEQ_PARS[] =
+    {
+        // Name,  Value Type,  Value*
+        { "TRACE_EQUALIZER", PROPERTY_VALUE_TYPE_INT, &(pDf->m_TraceEqualizer) },
+    };
+    // Sanity checks
+    DF_SPICABLEDRVEQ_DEFAULT_PRECONDITIONS(pDf);
+
+    // Set defaults
+    pDf->m_TraceEqualizer = -1;
+    
+    // Load parameters from property store
+    Status = DtDf_LoadParameters(pDfBase, DT_SIZEOF_ARRAY(DFSPICABLEDRVEQ_PARS), 
+                                                                    DFSPICABLEDRVEQ_PARS);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    if (pDf->m_TraceEqualizer<-1 || pDf->m_TraceEqualizer>8)
+        return DT_STATUS_CONFIG_ERROR;
+
+    return Status;
+}
+
 // -.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_OnEnablePostChildren -.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtDfSpiCableDrvEq_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
@@ -291,7 +328,6 @@ DtStatus DtDfSpiCableDrvEq_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
 
     if (Enable)
     {
-
         Int DuplexMode, MaxTfTime, SpiClockRate;
         // DISABLE -> ENABLE
         DtDbgOutDf(AVG, SPICABLEDRVEQ, pDf, "DISABLE -> ENABLE");
@@ -302,7 +338,7 @@ DtStatus DtDfSpiCableDrvEq_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         case DT_SPIM_SPIDVC_GS3590:     pDf->m_Supports12G = FALSE; break;
         case DT_SPIM_SPIDVC_GS12090:    pDf->m_Supports12G = TRUE; break;
         case DT_SPIM_SPIDVC_UNDEFINED:
-        default: DT_ASSERT(FALSE);      Status = DT_STATUS_NOT_SUPPORTED; break;
+        default: DT_ASSERT(FALSE);      return DT_STATUS_NOT_SUPPORTED;
         }
         // Initialize cable driver/equalizer
         DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90Direction(pDf, pDf->m_Direction));
@@ -314,6 +350,9 @@ DtStatus DtDfSpiCableDrvEq_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
                                                                          pDf->m_SdiRate));
          DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90AmplitudeControl(pDf, 
                                                                          pDf->m_SdiRate));
+         if (pDf->m_TraceEqualizer >= 0)
+             DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetGsXx90TraceEqualizer(pDf,
+                                                                  pDf->m_TraceEqualizer));
     }
     return Status;
 }
@@ -523,6 +562,28 @@ DtStatus  DtDfSpiCableDrvEq_SetGsXx90AmplitudeControl(DtDfSpiCableDrvEq* pDf, In
     }
     DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_WriteGsXx90(pDf, AMPL_CTRL, 1, RegData));
     DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_ReadGsXx90(pDf, AMPL_CTRL, 1, RegDataRb));
+    DT_ASSERT((RegData[0] == RegDataRb[0]));
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_SetGsXx90TraceEqualizer -.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfSpiCableDrvEq_SetGsXx90TraceEqualizer(DtDfSpiCableDrvEq* pDf, Int TraceEq)
+{
+    const Int TREQ0_INP_BOOST = 0x1E;
+    UInt16  RegData[1] = {0};
+    UInt16  RegDataRb[1] = {0};
+    // RSVD:            b15..b5: 0
+    // TREQ0_BOOST      b4..b1: Trace equalizer boost 0..8
+    // TREQ0_CD_BOOST:  b0: Trace equalizer boost for carrier detect : 0= boost level 8
+
+    DT_ASSERT(TraceEq>=0 && TraceEq<=8);
+    
+    // Set boost level
+    RegData[0] = TraceEq<<1;
+
+    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_WriteGsXx90(pDf, TREQ0_INP_BOOST, 1, RegData));
+    DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_ReadGsXx90(pDf, TREQ0_INP_BOOST, 1, RegDataRb));
     DT_ASSERT((RegData[0] == RegDataRb[0]));
     return DT_STATUS_OK;
 }

@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        40
-#define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        141
+#define DTAPI_VERSION_MINOR        41
+#define DTAPI_VERSION_BUGFIX       1
+#define DTAPI_VERSION_BUILD        144
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -160,6 +160,7 @@ struct DtAtsc3DemodL1Data;
 struct DtAtsc3TxIdInfo;
 struct DtAtsc3StreamSelPars;
 struct DtAtsc3ParamInfo;
+struct DtCmmbPars;
 struct DtDabEnsembleInfo;
 struct DtDabEtiStreamSelPars;
 struct DtDabStreamSelPars;
@@ -180,6 +181,7 @@ struct DtDemodLdpcStats;
 struct DtDemodMaLayerData;
 struct DtDemodMaLayerStats;
 struct DtDemodPlpBlocks;
+struct DtDrmPars;
 struct DtDvbC2DemodL1Part2Data;
 struct DtDvbC2DemodL1PlpSigData;
 struct DtDvbC2ModStatus;
@@ -1472,6 +1474,7 @@ struct DtModPars
     // Member functions
     DtAtsc3Pars*  pAtsc3Pars()    { return (DtAtsc3Pars*)m_pXtraPars; }
     DtCmmbPars*  pCmmbPars()    { return (DtCmmbPars*)m_pXtraPars; }
+    DtDrmPars*  pDrmPars()  { return (DtDrmPars*)m_pXtraPars; }
     DtDvbC2Pars*  pDvbC2Pars()  { return (DtDvbC2Pars*)m_pXtraPars; }
     DtDvbS2Pars*  pDvbS2Pars()  { return (DtDvbS2Pars*)m_pXtraPars; }
     DtDvbT2Pars*  pDvbT2Pars()  { return (DtDvbT2Pars*)m_pXtraPars; }
@@ -1485,7 +1488,7 @@ struct DtModPars
     bool  HasSymRate();
     bool  IsAdtbT(), IsAdtbtDtmb(), IsAtsc(), IsAtsc3(), IsAtscMh(), IsCmmb();
     bool  IsChanAttenEnable(), IsCmEnable(int i=0);
-    bool  IsDab(), IsDtmb(), IsDvbC2(), IsDvbCidEnable(), IsDvbS(), IsDvbS2();
+    bool  IsDab(), IsDrm(), IsDtmb(), IsDvbC2(), IsDvbCidEnable(), IsDvbS(), IsDvbS2();
     bool  IsDvbS2Apsk(), IsDvbS2L3(), IsDvbS2X(), IsDvbS2XL3(), IsDvbS2Mux();
     bool  IsDvbT(), IsDvbT2(), IsIqDirect(), IsIsdbS(), IsIsdbS3(), IsIsdbT(), IsIsdbTmm();
     bool  IsModTypeSet(), IsOfdm(), IsQam(), IsQamA(), IsQamB(), IsQamC(), IsQamAC();
@@ -2934,6 +2937,7 @@ public:
     virtual DTAPI_RESULT  GetFirmwareVersion(int& FirmwareVersion);
     virtual DTAPI_RESULT  GetFwPackageVersion(int& FwPackVersion);
     virtual DTAPI_RESULT  GetTemperature(int TempSens, int& Temp);
+    virtual DTAPI_RESULT  GetGenlockState(int& State, int& RefVidStd, int& DetVidStd);
     virtual DTAPI_RESULT  GetGenlockState(int& State, int& RefVidStd);
     virtual DTAPI_RESULT  GetGenlockState(int& State);
     virtual DTAPI_RESULT  GetGpsStatus(int& Status, int& Error);
@@ -3564,6 +3568,7 @@ public:
     virtual DTAPI_RESULT  SetIsdbtCaptFile(void* IsdbtFile);
     virtual DTAPI_RESULT  SetModControl(DtAtsc3Pars&);
     virtual DTAPI_RESULT  SetModControl(DtCmmbPars&);
+    virtual DTAPI_RESULT  SetModControl(DtDrmPars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbC2Pars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbCidPars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbS2Pars&);
@@ -3680,6 +3685,7 @@ public:
     virtual DTAPI_RESULT  SetIsdbtCaptFile(void* IsdbtFile);
     virtual DTAPI_RESULT  SetModControl(DtAtsc3Pars&);
     virtual DTAPI_RESULT  SetModControl(DtCmmbPars&);
+    virtual DTAPI_RESULT  SetModControl(DtDrmPars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbC2Pars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbCidPars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbS2Pars&);
@@ -3933,6 +3939,7 @@ private:
 #define DTAPI_MOD_DVBS2X_L3         68           // L3 modulation with S2X support
 #define DTAPI_MOD_ATSC3             69           // ATSC 3.0
 #define DTAPI_MOD_ISDBS3            70           // ISDB-S3
+#define DTAPI_MOD_DRM               71           // DRM(+)
 #define DTAPI_MOD_TYPE_AUTO         -1           // Auto detect modulation type
 #define DTAPI_MOD_TYPE_UNK          -1           // Unknown modulation type
 
@@ -6086,6 +6093,27 @@ struct DtDabTransmitterIdInfo
 {
     std::vector<DtDabTransmitterId>  m_Transmitters;
 };
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDrmPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// DRM(+) parameters
+//
+struct DtDrmPars
+{
+    enum DrmMode
+    {
+        MODE_ABCD,      // DRM Mode A, B, C or D
+        MODE_E,         // DRM+ Mode E
+    };
+    DrmMode  m_Mode;
+
+    DtDrmPars();
+    DTAPI_RESULT  CheckValidity(void);
+    bool  operator == (DtDrmPars& Rhs);
+    bool  operator != (DtDrmPars& Rhs);
+};
+
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DVB-C2 Parameters +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 // Maxima

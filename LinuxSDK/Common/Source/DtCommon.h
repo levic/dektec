@@ -418,6 +418,7 @@ typedef enum  _DtBcType
     DT_BLOCK_TYPE_SDIMUX12G,    // SdiMux12G
     DT_BLOCK_TYPE_ST425LR,      // St425LinkReorder
     DT_BLOCK_TYPE_S12GTO3G,     // Sdi12Gto3G
+    DT_BLOCK_TYPE_IOSERIN,      // IoSerialInput
 
 
     // Local DTA-2132 blocks. DONOT RENUMBER!!
@@ -502,6 +503,7 @@ typedef enum  _DtFunctionType
     DT_FUNC_TYPE_SDIPHYONLYTX,      // SDI PHY-only transmit-channel
     DT_FUNC_TYPE_I2CM,
     DT_FUNC_TYPE_SPIM,
+    DT_FUNC_TYPE_TXPLLMGR,          // TX-PLL manager
     
     // Local DTA-2132 functions. DONOT RENUMBER!!
     DT_FUNC_TYPE_SPIM_2132 = LTYPE_SEQNUM(2132, 1),
@@ -1883,6 +1885,8 @@ typedef struct  _DtDrvFwBuildDateTime
 #define  DT_FWSTATUS_TAINTED    4       // Firmware is an intermediate version which is 
                                         // not supported by the current driver
 #define  DT_FWSTATUS_OBSOLETE   5       // Firmware version is not supported anymore
+#define  DT_FWSTATUS_FAILED     DT_FWSTATUS_TAINTED
+                                        // Driver failed to initialize the firmware
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoctlDevInfoPcie -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // PCIE specific device info

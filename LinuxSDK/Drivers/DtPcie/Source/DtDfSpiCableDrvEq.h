@@ -66,6 +66,7 @@ typedef struct  _DtDfSpiCableDrvEq
     Int  m_Direction;                   // Direction TX-driver / RX-equalizer
     Int  m_SpiDeviceId;                 // Cable driver/equalizer SPI device ID
     Bool  m_Supports12G;                // Supports 12G
+    Int   m_TraceEqualizer;             // Trace equalizer setting
 }  DtDfSpiCableDrvEq;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

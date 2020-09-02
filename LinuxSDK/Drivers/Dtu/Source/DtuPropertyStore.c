@@ -501,6 +501,11 @@ static const DtProperty  DtProperties215_0_37[] =
     { "CAP_TX_DVBT2", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties215_0_38[] =
+{
+    { "CAP_TX_DRM", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties215_0_39[] =
 {
     { "EEPROM_SIZE", 512, NULL, PROPERTY_VALUE_TYPE_UINT, -1, -1, 0, 0, -1,
@@ -676,7 +681,7 @@ static const DtPropertyHashSet  DtPropertyHashSets215_0[] =
     { DtProperties215_0_35, 2 },
     { DtProperties215_0_36, 2 },
     { DtProperties215_0_37, 1 },
-    { NULL, 0 },
+    { DtProperties215_0_38, 1 },
     { DtProperties215_0_39, 1 },
     { DtProperties215_0_40, 3 },
     { DtProperties215_0_41, 2 },
@@ -3285,6 +3290,11 @@ static const DtProperty  DtProperties315_0_37[] =
     { "CAP_TX_DVBT2", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties315_0_38[] =
+{
+    { "CAP_TX_DRM", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties315_0_39[] =
 {
     { "EEPROM_SIZE", 4096, NULL, PROPERTY_VALUE_TYPE_UINT, -1, -1, 0, 0, -1,
@@ -3559,7 +3569,7 @@ static const DtPropertyHashSet  DtPropertyHashSets315_0[] =
     { DtProperties315_0_35, 5 },
     { DtProperties315_0_36, 6 },
     { DtProperties315_0_37, 1 },
-    { NULL, 0 },
+    { DtProperties315_0_38, 1 },
     { DtProperties315_0_39, 1 },
     { DtProperties315_0_40, 3 },
     { DtProperties315_0_41, 2 },
