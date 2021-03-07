@@ -94,7 +94,12 @@ To install the driver, perform the following steps:
    Again, replace "eth1" by the name of the network interface and fill in
    HWADDR as appropriate.
 
-
+   For VLAN setup, see the 
+   'Application note DT-AN-IP-2: VLAN for DekTec Network Adapters'
+   
+   If the default VLAN name type is not set to DEV_PLUS_VID_NOPAD 'eth0.vlanid'
+   the user need read rights to the following directory: /proc/net/vlan/config
+   
 --------------------------------------------------------------------------------
 - 5. Advanced setup
 --------------------------------------------------------------------------------

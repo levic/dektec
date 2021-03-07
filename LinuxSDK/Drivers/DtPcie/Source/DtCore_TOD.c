@@ -98,7 +98,7 @@ DtStatus  DtCore_TOD_PeriodicItvUnregister(DtCore*  pCore, const DtObject*  pObj
 DtTodTime DtCore_TOD_Add(DtTodTime Time, Int64 Offset)
 {
     UInt64 T, Rest;
-    DT_ASSERT(Time.m_Nanoseconds<1000*1000*1000 && Time.m_Nanoseconds<1000*1000*1000);
+    DT_ASSERT(Time.m_Nanoseconds < 1000*1000*1000);
     T = Time.m_Seconds*1000LL*1000*1000 + Time.m_Nanoseconds;
     T = T + (UInt64)Offset;
     Time.m_Seconds = (UInt32)DtDivide64(T, 1000LL*1000*1000, &Rest);

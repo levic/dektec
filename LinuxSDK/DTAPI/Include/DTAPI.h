@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI.h *#*#*#*#*#*#*#*#*#* (C) 2000-2020 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI.h *#*#*#*#*#*#*#*#*#* (C) 2000-2021 DekTec
 //
 // DTAPI - C++ API for DekTec PCI/PCI-Express cards, USB adapters and network devices
 //
@@ -9,8 +9,8 @@
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
 #define DTAPI_VERSION_MINOR        43
-#define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        147
+#define DTAPI_VERSION_BUGFIX       2
+#define DTAPI_VERSION_BUILD        149
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -9306,6 +9306,8 @@ enum DtMxFrameStatus
     DT_FRMSTATUS_DEV_DISCONNECTED, // Input (usb) device has been disconnected. Frame data
                                    // not available.
     DT_FRMSTATUS_ERROR_INTERNAL,   // Internal error. Frame data is not available.
+    DT_FRMSTATUS_INVALID,          // Frame data was dropped the reason is undefined.
+                                   // Frame data is not available.
 };
 static const DtMxFrameStatus  DTAPI_DEPRECATED(DT_FRMSTATUS_DROPPED,
       "Deprecated (will be removed!): Use DT_FRMSTATUS_LATE instead") = DT_FRMSTATUS_LATE;
