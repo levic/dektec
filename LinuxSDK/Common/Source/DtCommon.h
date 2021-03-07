@@ -339,6 +339,12 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define DT_DRV_SDIRATE_6G       3   // 6G SDI
 #define DT_DRV_SDIRATE_12G      4   // 12G SDI
 
+// PacketStream data types
+#define DT_PACKETSTREAM_DATATYPE_UNSEPEC     0 // Unspecified
+#define DT_PACKETSTREAM_DATATYPE_CONTINUOUS  1 // Continuous data
+#define DT_PACKETSTREAM_DATATYPE_TS          2 // Transport stream packets
+#define DT_PACKETSTREAM_DATATYPE_SI2166GSE   3 // Si2166 GSE-packet data
+
 // PCIe bridges
 #define PCIE_BRIDGE_TYPE_PEX87XX     0           // PLX PEX 87XX chip
 #define PCIE_BRIDGE_TYPE_PEX811X     1           // PLX PEX 8711/8712 chip
@@ -419,7 +425,7 @@ typedef enum  _DtBcType
     DT_BLOCK_TYPE_ST425LR,      // St425LinkReorder
     DT_BLOCK_TYPE_S12GTO3G,     // Sdi12Gto3G
     DT_BLOCK_TYPE_IOSERIN,      // IoSerialInput
-
+    DT_BLOCK_TYPE_SI2166ITF,    // Si2166Itf
 
     // Local DTA-2132 blocks. DONOT RENUMBER!!
     DT_BLOCK_TYPE_AD5320_2132   = LTYPE_SEQNUM(2132, 1),
@@ -504,6 +510,10 @@ typedef enum  _DtFunctionType
     DT_FUNC_TYPE_I2CM,
     DT_FUNC_TYPE_SPIM,
     DT_FUNC_TYPE_TXPLLMGR,          // TX-PLL manager
+
+    // Local DTA-2127 functions. DONOT RENUMBER!!
+    DT_FUNC_TYPE_DEMODCHANNEL_2127 = LTYPE_SEQNUM(2127, 1),
+    DT_FUNC_TYPE_CIDCHANNEL_2127 = LTYPE_SEQNUM(2127, 2),
     
     // Local DTA-2132 functions. DONOT RENUMBER!!
     DT_FUNC_TYPE_SPIM_2132 = LTYPE_SEQNUM(2132, 1),
@@ -541,6 +551,19 @@ typedef enum  _DtPortType
     DT_PORT_TYPE_SDIPHYONLYTX,      // SDI PHY-only transmit port
     DT_PORT_TYPE_SDIPHYONLYRXTX,    // SDI PHY-only receive/transmit port
 }  DtPortType;
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Port data types -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// NOTE: to maintain backwards compatibility, new types shall be added to the end only!!
+typedef enum  _DtPortDataType
+{
+    DT_PORT_DATATYPE_UNDEF=0,       // Not defined (must be deduced through other ways)
+    DT_PORT_DATATYPE_IQSAMPLES,     // Port consumes/produces a stream of IQ samples
+    DT_PORT_DATATYPE_L3FRAMES,      // Port consumes/produces a stream of L3 frames
+    DT_PORT_DATATYPE_PACKETSTREAM,  // Port consumes/produces a packet stream
+    DT_PORT_DATATYPE_SDIRXFMTSIMPLE,  // Port produces a SdiRxFmtSimple stream
+    DT_PORT_DATATYPE_SDITXFMTSIMPLE,  // Port consumes a SdiTxFmtSimple stream
+    DT_PORT_DATATYPE_TRANSPARENTPACKETS,  // Port consumes/produces transparent packets
+}  DtPortDataType;
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -625,6 +648,7 @@ enum {
     DT_FUNC_CODE_SDIMUX12G_CMD,
     DT_FUNC_CODE_ST425LR_CMD,
     DT_FUNC_CODE_S12GTO3G_CMD,
+    DT_FUNC_CODE_SI2166ITF_CMD,
 };
 
 // NOP command
@@ -1850,14 +1874,14 @@ ASSERT_SIZE(DtIoctlGenLockCtrlCmdOutput, 16)
                                                         DT_FUNC_CODE_GENLOCKCTRL_CMD,    \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
-    typedef union _DtaIoctlGenLockCtrlCmdInOut {
+    typedef union _DtIoctlGenLockCtrlCmdInOut {
         DtIoctlGenLockCtrlCmdInput  m_Input;
         DtIoctlGenLockCtrlCmdOutput  m_Output;
-    } DtaIoctlGenLockCtrlCmdInOut;
+    } DtIoctlGenLockCtrlCmdInOut;
 
     #define DT_IOCTL_GENLOCKCTRL_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                         \
                                                          DT_FUNC_CODE_GENLOCKCTRL_CMD,   \
-                                                         DtaIoctlGenLockCtrlCmdInOut)
+                                                         DtIoctlGenLockCtrlCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -2089,13 +2113,13 @@ ASSERT_SIZE(DtIoctlI2cMCmdOutput, 4)
     #define DT_IOCTL_I2CM_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_I2CM_CMD,           \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
-    typedef union _DtaIoctlI2cMCmdInOut {
+    typedef union _DtIoctlI2cMCmdInOut {
         DtIoctlI2cMCmdInput  m_Input;
         DtIoctlI2cMCmdOutput  m_Output;
-    } DtaIoctlI2cMCmdInOut;
+    } DtIoctlI2cMCmdInOut;
 
     #define DT_IOCTL_I2CM_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_I2CM_CMD,         \
-                                                                     DtaIoctlI2cMCmdInOut)
+                                                                      DtIoctlI2cMCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -2174,13 +2198,13 @@ ASSERT_SIZE(DtIoctlIpSecGCmdOutput, 16)
     #define DT_IOCTL_IPSECG_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_IPSECG_CMD,       \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
-    typedef union _DtaIoctlIpSecGCmdInOut {
+    typedef union _DtIoctlIpSecGCmdInOut {
         DtIoctlIpSecGCmdInput  m_Input;
         DtIoctlIpSecGCmdOutput  m_Output;
-    } DtaIoctlIpSecGCmdInOut;
+    } DtIoctlIpSecGCmdInOut;
 
     #define DT_IOCTL_IPSECG_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_IPSECG_CMD,     \
-                                                                   DtaIoctlIpSecGCmdInOut)
+                                                                    DtIoctlIpSecGCmdInOut)
 #endif
 
 
@@ -3889,14 +3913,105 @@ ASSERT_SIZE(DtIoctlSensTempCmdOutput, 104)
     #define DT_IOCTL_SENSTEMP_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SENSTEMP_CMD, \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
-    typedef union _DtaIoctlSensTempCmdInOut
+    typedef union _DtIoctlSensTempCmdInOut
     {
         DtIoctlSensTempCmdInput  m_Input;
         DtIoctlSensTempCmdOutput  m_Output;
-    } DtaIoctlSensTempCmdInOut;
+    } DtIoctlSensTempCmdInOut;
 
     #define DT_IOCTL_SENSTEMP_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SENSTEMP_CMD, \
-                                                                 DtaIoctlSensTempCmdInOut)
+                                                                  DtIoctlSensTempCmdInOut)
+#endif
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_SI2166ITF_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SI2166ITF commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlSi2166ItfCmd
+{
+    DT_SI2166ITF_CMD_GET_OPERATIONAL_MODE = 0,  // Get operational mode
+    DT_SI2166ITF_CMD_SET_OPERATIONAL_MODE = 1,  // Set operational mode
+    DT_SI2166ITF_CMD_GET_CONFIGURATION = 2,     // Get current configuration
+    DT_SI2166ITF_CMD_SET_CONFIGURATION = 3,     // Set new configuration
+}  DtIoctlSi2166ItfCmd;
+
+// Si2166 Mode
+#define DT_SI2166ITF_SI2166MODE_TS   0  // Transport Stream
+#define DT_SI2166ITF_SI2166MODE_GSE  1  // GSE-HEM/GP/GC
+
+// .-.-.-.-.-.-.-.-.- SI2166ITF Command - Get Operational Mode Command -.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlSi2166ItfCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlSi2166ItfCmdGetOpModeInput, 16)
+typedef struct _DtIoctlSi2166ItfCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlSi2166ItfCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlSi2166ItfCmdGetOpModeOutput, 4)
+
+// .-.-.-.-.-.-.-.-.- SI2166ITF Command - Set Operational Mode Command -.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlSi2166ItfCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode: IDLE/RUN
+} DtIoctlSi2166ItfCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlSi2166ItfCmdSetOpModeInput, 20)
+
+// .-.-.-.-.-.-.-.- SI2166ITF Command - Get Current Configuration Command -.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlSi2166ItfCmdGetConfigInput;
+ASSERT_SIZE(DtIoctlSi2166ItfCmdGetConfigInput, 16)
+typedef struct _DtIoctlSi2166ItfCmdGetConfigOutput
+{
+    Int  m_Si2166Mode;          // Si2166 Mode: TS or GSE
+    Int  m_DataType;            // Packet stream data type
+}  DtIoctlSi2166ItfCmdGetConfigOutput;
+ASSERT_SIZE(DtIoctlSi2166ItfCmdGetConfigOutput, 8)
+
+// .-.-.-.-.-.-.-.-.- SI2166ITF Command - Set New Configuration Command -.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlSi2166ItfCmdSetConfigInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_Si2166Mode;          // Si2166 Mode: TS or GSE
+    Int  m_DataType;            // Packet stream data type
+} DtIoctlSi2166ItfCmdSetConfigInput;
+ASSERT_SIZE(DtIoctlSi2166ItfCmdSetConfigInput, 24)
+
+// .-.-.-.-.-.-.-.-.-.-.-.- SI2166ITF command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.
+// SI2166ITF command - Input data
+typedef union _DtIoctlSi2166ItfCmdInput
+{
+    DtIoctlSi2166ItfCmdGetOpModeInput  m_GetOpMode;
+    DtIoctlSi2166ItfCmdGetConfigInput  m_GetConfig;
+    DtIoctlSi2166ItfCmdSetOpModeInput  m_SetOpMode;
+    DtIoctlSi2166ItfCmdSetConfigInput  m_SetConfig;
+} DtIoctlSi2166ItfCmdInput;
+ASSERT_SIZE(DtIoctlSi2166ItfCmdInput, 24)
+
+// SI2166ITF command - Output data
+typedef union _DtIoctlSi2166ItfCmdOutput
+{
+    DtIoctlSi2166ItfCmdGetOpModeOutput  m_GetOpMode;
+    DtIoctlSi2166ItfCmdGetConfigOutput  m_GetConfig;
+}  DtIoctlSi2166ItfCmdOutput;
+ASSERT_SIZE(DtIoctlSi2166ItfCmdOutput, 8)
+
+#ifdef WINBUILD
+    #define DT_IOCTL_SI2166ITF_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SI2166ITF_CMD, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlSi2166ItfCmdInOut {
+        DtIoctlSi2166ItfCmdInput  m_Input;
+        DtIoctlSi2166ItfCmdOutput  m_Output;
+    } DtIoctlSi2166ItfCmdInOut;
+
+    #define DT_IOCTL_SI2166ITF_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                           \
+                                                            DT_FUNC_CODE_SI2166ITF_CMD,  \
+                                                                 DtIoctlSi2166ItfCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -4014,13 +4129,13 @@ ASSERT_SIZE(DtIoctlSpiMCmdOutput, 20)
     #define DT_IOCTL_SPIM_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SPIM_CMD,           \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
-    typedef union _DtaIoctlSpiMCmdInOut {
+    typedef union _DtIoctlSpiMCmdInOut {
         DtIoctlSpiMCmdInput  m_Input;
         DtIoctlSpiMCmdOutput  m_Output;
-    } DtaIoctlSpiMCmdInOut;
+    } DtIoctlSpiMCmdInOut;
 
     #define DT_IOCTL_SPIM_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SPIM_CMD,         \
-                                                                     DtaIoctlSpiMCmdInOut)
+                                                                      DtIoctlSpiMCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -4130,14 +4245,14 @@ ASSERT_SIZE(DtIoctlSpiMfCmdOutput, 20)
     #define DT_IOCTL_SPIMF_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SPIMF_CMD,         \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
-    typedef union _DtaIoctlSpiMfCmdInOut
+    typedef union _DtIoctlSpiMfCmdInOut
     {
         DtIoctlSpiMfCmdInput  m_Input;
         DtIoctlSpiMfCmdOutput  m_Output;
-    } DtaIoctlSpiMfCmdInOut;
+    } DtIoctlSpiMfCmdInOut;
 
     #define DT_IOCTL_SPIMF_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SPIMF_CMD,       \
-                                                                    DtaIoctlSpiMfCmdInOut)
+                                                                     DtIoctlSpiMfCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -4232,14 +4347,14 @@ ASSERT_SIZE(DtIoctlSpiPromCmdOutput, 8)
     #define DT_IOCTL_SPIPROM_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_SPIPROM_CMD,     \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
-    typedef union _DtaIoctlSpiPromCmdInOut
+    typedef union _DtIoctlSpiPromCmdInOut
     {
         DtIoctlSpiPromCmdInput  m_Input;
         DtIoctlSpiPromCmdOutput  m_Output;
-    } DtaIoctlSpiPromCmdInOut;
+    } DtIoctlSpiPromCmdInOut;
 
     #define DT_IOCTL_SPIPROM_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SPIPROM_CMD,   \
-                                                                  DtaIoctlSpiPromCmdInOut)
+                                                                   DtIoctlSpiPromCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -4304,13 +4419,13 @@ ASSERT_SIZE(DtIoctlStubCmdOutput, 8)
     #define DT_IOCTL_STUB_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_STUB_CMD,           \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
-    typedef union _DtaIoctlStubCmdInOut {
+    typedef union _DtIoctlStubCmdInOut {
         DtIoctlStubCmdInput  m_Input;
         DtIoctlStubCmdOutput  m_Output;
-    } DtaIoctlStubCmdInOut;
+    } DtIoctlStubCmdInOut;
 
     #define DT_IOCTL_STUB_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_SPIMF_CMD,        \
-                                                                     DtaIoctlStubCmdInOut)
+                                                                      DtIoctlStubCmdInOut)
 #endif
 
 
@@ -4612,15 +4727,15 @@ ASSERT_SIZE(DtIoctlTempFanMgrCmdOutput, 104)
                                                         DT_FUNC_CODE_TEMPFANMGR_CMD,     \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
-    typedef union _DtaIoctlTempFanMgrCmdInOut
+    typedef union _DtIoctlTempFanMgrCmdInOut
     {
         DtIoctlTempFanMgrCmdInput  m_Input;
         DtIoctlTempFanMgrCmdOutput  m_Output;
-    } DtaIoctlTempFanMgrCmdInOut;
+    } DtIoctlTempFanMgrCmdInOut;
 
     #define DT_IOCTL_TEMPFANMGR_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                          \
                                                           DT_FUNC_CODE_TEMPFANMGR_CMD,   \
-                                                          DtaIoctlTempFanMgrCmdInOut)
+                                                          DtIoctlTempFanMgrCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -6417,6 +6532,7 @@ ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
     DtIoctlSdiTxPCmdInput  m_SdiTxPCmd;                                                  \
     DtIoctlSdiTxFCmdInput  m_SdiTxFCmd;                                                  \
     DtIoctlSensTempCmdInput  m_SensTempCmd;                                              \
+    DtIoctlSi2166ItfCmdInput  m_Si2166ItfCmd;                                            \
     DtIoctlSpiMCmdInput  m_SpiMCmd;                                                      \
     DtIoctlSpiMfCmdInput  m_SpiMfCmd;                                                    \
     DtIoctlSpiPromCmdInput  m_SpiPromCmd;                                                \
@@ -6476,6 +6592,7 @@ typedef union _DtIoctlInputData
     DtIoctlSdiTxPCmdOutput  m_SdiTxPCmd;                                                 \
     DtIoctlSdiTxFCmdOutput  m_SdiTxFCmd;                                                 \
     DtIoctlSensTempCmdOutput  m_SensTempCmd;                                             \
+    DtIoctlSi2166ItfCmdOutput  m_Si2166ItfCmd;                                           \
     DtIoctlSpiMCmdOutput  m_SpiMCmd;                                                     \
     DtIoctlSpiMfCmdOutput  m_SpiMfCmd;                                                   \
     DtIoctlSpiPromCmdOutput  m_SpiPromCmd;                                               \

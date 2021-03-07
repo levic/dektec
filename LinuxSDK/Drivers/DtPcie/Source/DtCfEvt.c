@@ -37,11 +37,11 @@
 #define CF_EVT      ((DtCfEvt*)pCf)
 
 // Structure for storing driver events
-typedef  struct _DtCfEvtData 
+struct _DtCfEvtData
 {
     DtSpinLock  m_EventsSpinlock;
     DtDriverEvents*  m_pEvents;
-} DtCfEvtData;
+};
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 static DtStatus  DtCfEvt_Init(DtDf*);

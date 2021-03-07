@@ -4171,8 +4171,17 @@ Bool  DtaIpRxRtpIsTimestampLess(UInt32 Timestamp1, UInt32 Timestamp2)
 //
 UInt32 DtaIpRxRtpGetTimestampDelta(UInt32 Timestamp1, UInt32 Timestamp2)
 {
+    UInt32  Wrapping;
     if (Timestamp1 > Timestamp2)
-        return (0xFFFFFFFF-Timestamp1+Timestamp2);
+    {
+        // Check if we have a wrapping value
+        Wrapping = (0xFFFFFFFF-Timestamp1+Timestamp2);
+        if (Wrapping < 0xFFFFFFF)
+            return Wrapping;
+
+        // Not a wrapping value, must be a non-monotonic timestamp
+        return Timestamp1 - Timestamp2;
+    }
     return Timestamp2 - Timestamp1;
 }
 
@@ -4181,25 +4190,106 @@ UInt32 DtaIpRxRtpGetTimestampDelta(UInt32 Timestamp1, UInt32 Timestamp2)
 Bool  DtaIpRxRtpIsSeqNumLess2(UInt16 SeqNum1, UInt32 TimeStamp1,
                                                         UInt16 SeqNum2, UInt32 TimeStamp2)
 {
+    Bool  Result = FALSE;
+
+    // If timestamp is equal, check sequence numbers
     if (TimeStamp1 == TimeStamp2)
+        return DtaIpRxRtpIsSeqNumLess(SeqNum1, SeqNum2);
+
+    if (TimeStamp1 < TimeStamp2)
     {
-        if (SeqNum2 > SeqNum1)
-            if (SeqNum2-SeqNum1 < 0x1FFF) return TRUE; else return FALSE;
-        else if (SeqNum1 > SeqNum2) 
-        {   
-            if (SeqNum1-SeqNum2 < 0x7FFF) return FALSE;
-            if (0xFFFF-SeqNum1+SeqNum2 < 0x1FFF) return TRUE; else return FALSE;
+        // If it is a wrapping case for non-monotonic timestamps
+        // check the sequence number.
+        if (0xFFFFFFFF - TimeStamp2 + TimeStamp1 < 0x1FFFFFFF)
+        {
+            Result = DtaIpRxRtpIsSeqNumLess(SeqNum1, SeqNum2);
+#ifdef _DEBUG
+            if (Result)
+            {
+                DtDbgOut(MAX, IP_RX,
+                    "WRAPPING timestamp:"
+                    "SeqNum1:%i TimeStamp1:%x SeqNum2:%i TimeStamp2:%x",
+                    SeqNum1, TimeStamp1, SeqNum2, TimeStamp2);
+            } else {
+                DtDbgOut(MAX, IP_RX,
+                    "WRAPPING+NON-MONOTONIC timestamp:"
+                    "SeqNum1:%i TimeStamp1:%x SeqNum2:%i TimeStamp2:%x",
+                    SeqNum1, TimeStamp1, SeqNum2, TimeStamp2);
+            }
+#endif
+            return Result;
+        }
+
+        // Common situation, but if SeqNum1 > SeqNum2 we have a non-monotonic timestamp
+        if (TimeStamp2 - TimeStamp1 < 0x1FFFFFFF)
+        {
+            // if SeqNum1 == SeqNum2 we presume monotonic behavior of the timestamp
+            if (SeqNum1 == SeqNum2)
+                return TRUE;
+
+            Result = DtaIpRxRtpIsSeqNumLess(SeqNum1, SeqNum2);
+#ifdef _DEBUG
+            if (Result == FALSE)
+            {
+                DtDbgOut(MAX, IP_RX,
+                   "NON-MONOTONIC timestamp:"
+                   "SeqNum1:%i TimeStamp1:%x SeqNum2:%i TimeStamp2:%x",
+                   SeqNum1, TimeStamp1, SeqNum2, TimeStamp2);
+            }
+#endif
+            return Result;
+        }
+        return TRUE;
+    }
+
+    if (TimeStamp1 > TimeStamp2)
+    {
+        // If it is a wrapping case for non-monotonic timestamps
+        // check the sequence number.
+        if (0xFFFFFFFF - TimeStamp1 + TimeStamp2 < 0x1FFFFFFF)
+        {
+            // If SeqNum1 == SeqNum2 we presume monotonic behavior of the timestamp
+            if (SeqNum1 == SeqNum2)
+                return TRUE;
+
+            Result = DtaIpRxRtpIsSeqNumLess(SeqNum1, SeqNum2);
+#ifdef _DEBUG
+            if (Result)
+            {
+                DtDbgOut(MAX, IP_RX,
+                    "WRAPPING timestamp:"
+                    "SeqNum1:%i TimeStamp1:%x SeqNum2:%i TimeStamp2:%x",
+                    SeqNum1, TimeStamp1, SeqNum2, TimeStamp2);
+
+            } else {
+                DtDbgOut(MAX, IP_RX,
+                    "WRAPPING+NON-MONOTONIC timestamp:"
+                    "SeqNum1:%i TimeStamp1:%x SeqNum2:%i TimeStamp2:%x",
+                    SeqNum1, TimeStamp1, SeqNum2, TimeStamp2);
+            }
+#endif
+            return Result;
+        }
+
+        // Could be a non-monotonic timestamp:  Decide with sequencenumber
+        if ((TimeStamp1 - TimeStamp2 < 0x1FFFFFFF))
+        {
+            Result = DtaIpRxRtpIsSeqNumLess(SeqNum1, SeqNum2);
+#ifdef _DEBUG
+            if (Result == TRUE)
+            {
+                DtDbgOut(MAX, IP_RX,
+                    "NON-MONOTONIC timestamp:"
+                    "SeqNum1:%i TimeStamp1:%x SeqNum2:%i TimeStamp2:%x",
+                    SeqNum1, TimeStamp1, SeqNum2, TimeStamp2);
+            }
+#endif
+            return Result;
         }
         return FALSE;
     }
 
-    if (TimeStamp2 > TimeStamp1)
-        if (TimeStamp2-TimeStamp1 < 0x1FFFFFFF) return TRUE; else return FALSE;
-    else if (TimeStamp1 > TimeStamp2) 
-    {   
-        if (TimeStamp1-TimeStamp2 < 0x7FFFFFFF) return FALSE;
-        if (0xFFFFFFFF-TimeStamp1+TimeStamp2 < 0x1FFFFFFF) return TRUE; else return FALSE;
-    }
+    // everything else
     return FALSE;
 }
 
@@ -6651,12 +6741,14 @@ UInt32  DtaIpRxGetSequenceNumberGap2(UInt16 SequenceNum1, UInt32 RtpTimestamp1,
     Gap = DtaIpRxGetSequenceNumberGap(SequenceNum1, SequenceNum2);
     if (RtpTimestamp1 == RtpTimestamp2)
         return Gap;
-    if (DtaIpRxRtpIsTimestampLess(RtpTimestamp2, RtpTimestamp1))
+
+    if (!DtaIpRxRtpIsSeqNumLess2(SequenceNum1, RtpTimestamp1, SequenceNum2, 
+                                                                           RtpTimestamp2))
     {
         // Message is no error when removing FEC packets
-        DtDbgOut(ERR, IP_RX, "ERR RtpTimestamp2(%08xh)<RtpTimestamp1(%08xh)", 
-                                                            RtpTimestamp2, RtpTimestamp1);
-        
+        DtDbgOut(ERR, IP_RX, "ERR RtpPacket2 (Timestamp2=%08xh,SequenceNum2=%i)<"
+                                " RtpPacket1 (Timestamp1=%08xh, SequenceNum1=%i)", 
+                                RtpTimestamp2, SequenceNum2, RtpTimestamp1, SequenceNum1);
         return 0x1ffff;   // old data
     }
     // Calculate number of wraps

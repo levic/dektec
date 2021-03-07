@@ -1673,23 +1673,23 @@ static const DtTableEntry  DtTable2174_2_000[] =
 };
 static const DtTableEntry  DtTable2174_2_001[] =
 {
-    { 1, 1 }, { 0, 0 }
+    { 2, 2 }, { 1, 1 }, { 0, 0 }
 };
 static const DtTableEntry  DtTable2174_2_002[] =
 {
-    { 1, 0 }, { 0, -1 }
+    { 2, 1 }, { 1, 0 }, { 0, -1 }
 };
 static const DtTableEntry  DtTable2174_2_003[] =
 {
-    { 1, 0 }, { 0, -1 }
+    { 2, 1 }, { 1, 0 }, { 0, -1 }
 };
 
 static const DtTableLink  DtTableLink2174_2[] = 
 {
     { "DVC_FW_VARIANTS", -1, -1, 0, 0, 3, DtTable2174_2_000 },
-    { "FIRMWARE_PACKAGE_HISTORY", -1, 1, 0, 0, 2, DtTable2174_2_001 },
-    { NULL, -1, 2, 0, 0, 2, DtTable2174_2_002 },
-    { NULL, -1, 3, 0, 0, 2, DtTable2174_2_003 }
+    { "FIRMWARE_PACKAGE_HISTORY", -1, 1, 0, 0, 3, DtTable2174_2_001 },
+    { NULL, -1, 2, 0, 0, 3, DtTable2174_2_002 },
+    { NULL, -1, 3, 0, 0, 3, DtTable2174_2_003 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2178; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1700,23 +1700,23 @@ static const DtTableEntry  DtTable2178_0_000[] =
 };
 static const DtTableEntry  DtTable2178_0_001[] =
 {
-    { 0, 0 }
+    { 1, 1 }, { 0, 0 }
 };
 static const DtTableEntry  DtTable2178_0_002[] =
 {
-    { 0, 0 }
+    { 1, 1 }, { 0, 0 }
 };
 static const DtTableEntry  DtTable2178_0_003[] =
 {
-    { 0, 0 }
+    { 1, 1 }, { 0, 0 }
 };
 
 static const DtTableLink  DtTableLink2178_0[] = 
 {
     { "DVC_FW_VARIANTS", -1, -1, 0, 0, 3, DtTable2178_0_000 },
-    { "FIRMWARE_PACKAGE_HISTORY", -1, 1, 0, 0, 1, DtTable2178_0_001 },
-    { NULL, -1, 2, 0, 0, 1, DtTable2178_0_002 },
-    { NULL, -1, 3, 0, 0, 1, DtTable2178_0_003 }
+    { "FIRMWARE_PACKAGE_HISTORY", -1, 1, 0, 0, 2, DtTable2178_0_001 },
+    { NULL, -1, 2, 0, 0, 2, DtTable2178_0_002 },
+    { NULL, -1, 3, 0, 0, 2, DtTable2178_0_003 }
 };
 
 const Int  DtTableStoreCount = 5;

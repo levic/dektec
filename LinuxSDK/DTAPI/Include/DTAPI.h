@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        42
+#define DTAPI_VERSION_MINOR        43
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        146
+#define DTAPI_VERSION_BUILD        147
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -137,6 +137,7 @@ class AdvDemod;
 class DemodInpChannel_Bb2;
 class DtaPlusDevice;
 class DtAtsc3Pars;
+class DtAtsc3StltpPars;
 class DtDemodPars;
 class DtDevice;
 class DtDvbT2Pars;
@@ -190,6 +191,7 @@ struct DtDvbC2PlpPars;
 struct DtDvbC2StreamSelPars;
 struct DtDvbC2XFecFrameHeader;
 struct DtDvbCidPars;
+struct DtDvbSStreamSelPars;
 struct DtDvbS2ModStatus;
 struct DtDvbS2ModCod;
 struct DtDvbS2Pars;
@@ -1448,6 +1450,7 @@ struct DtModPars
 
     // Member functions
     DtAtsc3Pars*  pAtsc3Pars()    { return (DtAtsc3Pars*)m_pXtraPars; }
+    DtAtsc3StltpPars*  pAtsc3StltpPars()    { return (DtAtsc3StltpPars*)m_pXtraPars; }
     DtCmmbPars*  pCmmbPars()    { return (DtCmmbPars*)m_pXtraPars; }
     DtDrmPars*  pDrmPars()  { return (DtDrmPars*)m_pXtraPars; }
     DtDvbC2Pars*  pDvbC2Pars()  { return (DtDvbC2Pars*)m_pXtraPars; }
@@ -1461,8 +1464,8 @@ struct DtModPars
 
     // Predicates
     bool  HasSymRate();
-    bool  IsAdtbT(), IsAdtbtDtmb(), IsAtsc(), IsAtsc3(), IsAtscMh(), IsCmmb();
-    bool  IsChanAttenEnable(), IsCmEnable(int i=0);
+    bool  IsAdtbT(), IsAdtbtDtmb(), IsAtsc(), IsAtsc3(), IsAtsc3Stltp(), IsAtscMh();
+    bool  IsCmmb(), IsChanAttenEnable(), IsCmEnable(int i=0);
     bool  IsDab(), IsDrm(), IsDtmb(), IsDvbC2(), IsDvbCidEnable(), IsDvbS(), IsDvbS2();
     bool  IsDvbS2Apsk(), IsDvbS2L3(), IsDvbS2X(), IsDvbS2XL3(), IsDvbS2Mux();
     bool  IsDvbT(), IsDvbT2(), IsIqDirect(), IsIsdbS(), IsIsdbS3(), IsIsdbT(), IsIsdbTmm();
@@ -3282,6 +3285,7 @@ public:
     DTAPI_RESULT  GetStreamSelection(DtDabEtiStreamSelPars& StreamSel);
     DTAPI_RESULT  GetStreamSelection(DtDabStreamSelPars& StreamSel);
     DTAPI_RESULT  GetStreamSelection(DtDvbC2StreamSelPars& StreamSel);
+    DTAPI_RESULT  GetStreamSelection(DtDvbSStreamSelPars& StreamSel);
     DTAPI_RESULT  GetStreamSelection(DtDvbS2StreamSelPars& StreamSel);
     DTAPI_RESULT  GetStreamSelection(DtDvbTStreamSelPars& StreamSel);
     DTAPI_RESULT  GetStreamSelection(DtDvbT2StreamSelPars& StreamSel);
@@ -3329,6 +3333,7 @@ public:
     DTAPI_RESULT  SetStreamSelection(DtDabEtiStreamSelPars& StreamSel);
     DTAPI_RESULT  SetStreamSelection(DtDabStreamSelPars& StreamSel);
     DTAPI_RESULT  SetStreamSelection(DtDvbC2StreamSelPars& StreamSel);
+    DTAPI_RESULT  SetStreamSelection(DtDvbSStreamSelPars& StreamSel);
     DTAPI_RESULT  SetStreamSelection(DtDvbS2StreamSelPars& StreamSel);
     DTAPI_RESULT  SetStreamSelection(DtDvbTStreamSelPars& StreamSel);
     DTAPI_RESULT  SetStreamSelection(DtDvbT2StreamSelPars& StreamSel);
@@ -3611,6 +3616,7 @@ public:
     virtual DTAPI_RESULT  SetIpPars(DtIpPars2* pIpPars);
     virtual DTAPI_RESULT  SetIsdbtCaptFile(void* IsdbtFile);
     virtual DTAPI_RESULT  SetModControl(DtAtsc3Pars&);
+    virtual DTAPI_RESULT  SetModControl(DtAtsc3StltpPars&);
     virtual DTAPI_RESULT  SetModControl(DtCmmbPars&);
     virtual DTAPI_RESULT  SetModControl(DtDrmPars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbC2Pars&);
@@ -3728,6 +3734,7 @@ public:
     virtual DTAPI_RESULT  SetIpPars(DtIpPars2* pIpPars);
     virtual DTAPI_RESULT  SetIsdbtCaptFile(void* IsdbtFile);
     virtual DTAPI_RESULT  SetModControl(DtAtsc3Pars&);
+    virtual DTAPI_RESULT  SetModControl(DtAtsc3StltpPars&);
     virtual DTAPI_RESULT  SetModControl(DtCmmbPars&);
     virtual DTAPI_RESULT  SetModControl(DtDrmPars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbC2Pars&);
@@ -3984,6 +3991,7 @@ private:
 #define DTAPI_MOD_ATSC3             69           // ATSC 3.0
 #define DTAPI_MOD_ISDBS3            70           // ISDB-S3
 #define DTAPI_MOD_DRM               71           // DRM(+)
+#define DTAPI_MOD_ATSC3_STLTP       72           // ATSC 3.0 STLTP
 #define DTAPI_MOD_TYPE_AUTO         -1           // Auto detect modulation type
 #define DTAPI_MOD_TYPE_UNK          -1           // Unknown modulation type
 
@@ -5726,6 +5734,21 @@ struct DtAtsc3ParamInfo
     std::vector<DtAtsc3SubframeInfo> m_Subframes;   // Subframe information
 };
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAtsc3StltpPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Class for specifying the ATSC 3.0 STLTP parameters
+//
+class DtAtsc3StltpPars
+{
+public:
+    int  m_Bandwidth;           // Bandwidth DTAPI_ATSC3_XMHZ
+
+    DtAtsc3StltpPars();
+    DTAPI_RESULT  CheckValidity(void);
+    bool  operator == (DtAtsc3StltpPars& Rhs);
+    bool  operator != (DtAtsc3StltpPars& Rhs);
+};
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ ATSC 3.0 Demodulation  +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAtsc3DemodL1PlpData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -6138,6 +6161,36 @@ struct DtDabTransmitterIdInfo
     std::vector<DtDabTransmitterId>  m_Transmitters;
 };
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct DtDrmInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+struct DtDrmInfo
+{
+    enum DrmRobustnessMode
+    {
+        RB_MODE_A,         // DRM Robustness Mode A
+        RB_MODE_B,         // DRM Robustness Mode B
+        RB_MODE_C,         // DRM Robustness Mode C
+        RB_MODE_D,         // DRM Robustness Mode D
+        RB_MODE_E,         // DRM+ Robustness Mode E
+    };
+    enum MscModulation
+    {
+        MOD_64QAM_SM,       // 64-QAM, Standard Mapping (SM)
+        MOD_64QAM_HM_MIX,   // 64-QAM, Mixed Mapping (SM)
+        MOD_64QAM_HM_SYM,   // 64-QAM, Symmetrical Hierarchical Mapping (HMsym)
+        MOD_16QAM_SM,       // 16-QAM, Standard Mapping (SM)
+        MOD_QPSK_SM,        // QPSK, Standard Mapping (SM)
+    };
+    bool m_Locked;                  // True if the modulator is locked. The
+                                    // following info is valid in this case 
+    DrmRobustnessMode  m_RbMode;    // Robustness mode
+    int m_SpectrumOccupancy;        // Spectrum occupancy in Hz
+    MscModulation m_MscMode;        // Modulation mode for the MSC 
+    int m_SdcMode;                  // Modulation mode and code rate for the SDC  (0, 1)
+    int m_InterleaverDepthFlag;     // Indicates the depth of the time interleaving (0, 1)
+    DtDrmInfo() : m_Locked(false), m_RbMode(RB_MODE_A), m_SpectrumOccupancy(0)
+                , m_MscMode(MOD_64QAM_SM), m_SdcMode(0), m_InterleaverDepthFlag(0)
+    {}
+};
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDrmPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // DRM(+) parameters
@@ -6150,11 +6203,16 @@ struct DtDrmPars
         MODE_E,         // DRM+ Mode E
     };
     DrmMode  m_Mode;
-
+    int m_SpectrumOccupancy;        // Spectrum occupancy in Hz: 0=unknown,
+                                    // 4500, 5000, 9000, 10000, 18000, 20000 or 100000Hz
+                                    // Relevant when inserting AWGN
     DtDrmPars();
     DTAPI_RESULT  CheckValidity(void);
     bool  operator == (DtDrmPars& Rhs);
     bool  operator != (DtDrmPars& Rhs);
+    // Helper function to retrieve DRM information
+    static DTAPI_RESULT  RetrieveDrmInfoFromStream(const unsigned char* pBuffer,
+                                                           int NumBytes, DtDrmInfo& Info);
 };
 
 
@@ -7718,6 +7776,7 @@ enum DtStreamType
     STREAM_DVBC2,                   // DVB-C2 stream (Transport Stream packets)
     STREAM_DVBC2_BBFRAME,           // DVB-C2 stream base-band frames
     STREAM_DVBC2_GSE,               // DVB-C2 stream GSE-packets
+    STREAM_DVBS,                    // DVB-S stream
     STREAM_DVBT,                    // DVB-T stream
     STREAM_DVBT2,                   // DVB-T2 stream (Transport Stream packets)
     STREAM_DVBT2_BBFRAME,           // DVB-T2 stream base band frames
@@ -7747,6 +7806,14 @@ struct DtConstelPars
     int  m_MaxNumPoints;            // Maximum number of constellation points
 };
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbSStreamSelPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// This structure specifies the selection parameters for a DVB-S transport stream
+//
+struct DtDvbSStreamSelPars
+{
+    // No selection parameters yet
+};
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbTStreamSelPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // This structure specifies the selection parameters for a DVB-T transport stream
@@ -7904,6 +7971,7 @@ struct DtStreamSelPars
         DtAtsc3StreamSelPars  m_Atsc3;
         DtQamStreamSelPars  m_Qam;
         DtDvbC2StreamSelPars  m_DvbC2;
+        DtDvbSStreamSelPars  m_DvbS;
         DtDvbTStreamSelPars  m_DvbT;
         DtDvbT2StreamSelPars  m_DvbT2;
         DtIsdbtStreamSelPars  m_Isdbt;
@@ -8521,6 +8589,29 @@ public:
                                 // NOTE: -1, means use default
 };
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxAuxObjConfigVitc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+class DtMxAuxObjConfigVitc : public DtMxAuxObjConfig
+{
+public:
+    static const int  LINE1_DEFAULT_525 = 11;
+    static const int  LINE2_DEFAULT_525 = 274;
+    static const int  LINE1_DEFAULT_625 = 9;
+    static const int  LINE2_DEFAULT_625 = 322;
+
+public:
+    int  m_Line1;               // Line in field 1 to extract or insert the video-index
+                                // from/to. Valid lines are:
+                                // - 525: 7..16 (default=11)
+                                // - 625: 6..22 (default=9)
+                                // NOTE: -1, means use default
+    int  m_Line2;               // Line in field 2 to extract or insert the video-index
+                                // from/to. Valid lines are:
+                                // - 525: 270..279 (default=274)
+                                // - 625: 319..335 (default=322)
+                                // NOTE: -1, means use default
+};
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxAuxConfigSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 class DtMxAuxConfigSdi
@@ -8534,12 +8625,10 @@ public:
     DtMxAuxObjConfig  m_Wss;         // Settings for (SD only) Wide Screen Signaling
     DtMxAuxObjConfig  m_Line21;      // Settings for (SD only) analog CEA-608 line 21 data
     DtMxAuxObjConfig  m_Teletext;    // Settings for (PAL only) teletext
+    DtMxAuxObjConfigVitc  m_Vitc;    // Settings for (SD only) VITC
     VpidList  m_Vpid;                // VPID(s) to insert in output signal
     bool  m_DisableVpidProcessing;   // If true, user must add VPID ancillary data
-    //DtMxAuxObjConfig  m_Rp188;
-    //DtMxAuxObjConfig  m_Vitc;
-    //DtMxAuxObjConfig  m_Eia608;
-    //DtMxAuxObjConfig  m_Eia708;
+
     DtMxAuxConfigSdi();
 };
 
@@ -8843,6 +8932,45 @@ public:
     DtMxSdVideoIndex();
 };
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxSdVitc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+class DtMxSdVitc
+{
+public:
+    struct DtVitcInfo
+    {
+        int  m_Hours;                   // Hours; range: 0..23
+        int  m_Minutes;                 // Minutes; range: 0..59
+        int  m_Seconds;                 // Seconds; range: 0..59
+        int  m_Frames;                  // Frames; range: 0..29
+        int  m_DropFrameFlag;           // Drop frame flag, 525i59 only: 0 or 1
+        int  m_ColorFrameFlag;          // Color frame flag: 0 or 1
+        int  m_FieldFlag;               // Field mark flag: 0 or 1
+        int  m_BinaryGroup;             // Binary group; range: 0..7
+        unsigned int  m_BinaryGroupData; // 32-bits binary group data
+
+        DTAPI_RESULT CheckValidity() const;
+        static unsigned char ComputeCrc(const std::vector<unsigned char>& VitcRaw);
+        DTAPI_RESULT FromRaw(const std::vector<unsigned char>& VitcRaw, 
+                                                                     bool Is30FpsFormat);
+        DTAPI_RESULT ToRaw(std::vector<unsigned char>& VitcRaw, bool Is30FpsFormat) const;
+
+        DtVitcInfo();
+    };
+
+    DTAPI_RESULT  GetVitcInfo(DtVitcInfo&  Vitc) const;
+    DTAPI_RESULT  SetVitcInfo(const DtVitcInfo&  Vitc);
+
+public:
+    bool  m_Valid;              // True if m_VitcInfo contains valid data
+    int  m_Line;                // Line number in which the VITC was found
+    DtMxSdVitc();
+    
+private:
+    DtVitcInfo  m_VitcInfo;
+};
+    
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxSdWss -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 class DtMxSdWss
@@ -8976,6 +9104,7 @@ public:
     // Closed captioning
 
     DtMxSdVideoIndex  m_VidIndex[2];
+    DtMxSdVitc  m_Vitc[2];
     DtMxSdWss  m_Wss[2];
     DtMxLine21  m_Line21[2];
     std::vector<DtMxTeletextPacket>  m_Teletext;

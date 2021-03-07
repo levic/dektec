@@ -2226,6 +2226,63 @@ typedef struct  _DtIoctlProperties
         ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
     )
 
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_SI2166ITF_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+#define DT_IOCTL_CMD_PROPS_SI2166ITF_GET_CONFIGUARTION                                   \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SI2166ITF_CMD_GET_CONFIGURATION,                                              \
+        "GET_CONFIGUARTION",                                                             \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSi2166ItfCmdGetConfigInput),                                       \
+        sizeof(DtIoctlSi2166ItfCmdGetConfigOutput))
+
+#define DT_IOCTL_CMD_PROPS_SI2166ITF_SET_CONFIGUARTION                                   \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SI2166ITF_CMD_SET_CONFIGURATION,                                              \
+        "SET_CONFIGUARTION",                                                             \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlSi2166ItfCmdSetConfigInput),                                       \
+        0)
+
+#define DT_IOCTL_CMD_PROPS_SI2166ITF_GET_OPERATIONAL_MODE                                \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SI2166ITF_CMD_GET_OPERATIONAL_MODE,                                           \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlSi2166ItfCmdGetOpModeInput),                                       \
+        sizeof(DtIoctlSi2166ItfCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_SI2166ITF_SET_OPERATIONAL_MODE                                \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_SI2166ITF_CMD_SET_OPERATIONAL_MODE,                                           \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlSi2166ItfCmdSetOpModeInput),                                       \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_SI2166ITF                                                \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_SI2166ITF[] =                  \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_SI2166ITF_GET_CONFIGUARTION,                                  \
+        DT_IOCTL_CMD_PROPS_SI2166ITF_GET_OPERATIONAL_MODE,                               \
+        DT_IOCTL_CMD_PROPS_SI2166ITF_SET_CONFIGUARTION,                                  \
+        DT_IOCTL_CMD_PROPS_SI2166ITF_SET_OPERATIONAL_MODE,                               \
+    }
+
+#define DT_IOCTL_PROPS_SI2166ITF_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)             \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_SI2166ITF_CMD,                                                          \
+        "DT_IOCTL_SI2166ITF_CMD",                                                        \
+        DT_IOCTL_CMD_PROPS_SI2166ITF,                                                    \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_SPIM_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

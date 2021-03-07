@@ -309,6 +309,7 @@ DtStatus  DtIoStubBc_OnExclAccessCmd(const DtIoStub*, DtIoStubIoParams*, Int*  p
 #include "DtBcSDITXP.h"
 #include "DtBcSDITXPHY.h"
 #include "DtBcSDITXPLL.h"
+#include "DtBcSI2166ITF.h"
 #include "DtBcSPIM.h"
 #include "DtBcSPIMF.h"
 #include "DtBcST425LR.h"

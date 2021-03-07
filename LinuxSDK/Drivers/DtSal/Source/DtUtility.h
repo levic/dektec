@@ -41,12 +41,12 @@
 #define  DT_ASSERT  ASSERT
 #else
 #define  INFINITE  ((UInt32)-1)
-#ifdef DEBUG
+#ifdef _DEBUG
 #define  DT_ASSERT(e) if (!(e)) printk(KERN_DEBUG "Assertion failed in file " __FILE__ ", \
                                                             line %d ("  #e ").", __LINE__)
 #else
 #define  DT_ASSERT(e)  do {} while (0)
-#endif // DEBUG
+#endif // _DEBUG
 #endif // WINBUILD
 
 
@@ -263,7 +263,6 @@ UInt32  DtDjb2(const char* pStr);
     #define DtContainingRecord container_of
 #endif
 
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDivide64 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // 64 bit division returns num/denom and rest
@@ -274,71 +273,44 @@ static __inline UInt64  DtDivide64(UInt64 Num, UInt64 Denom, UInt64* pRest)
     if (pRest != NULL)
         *pRest = Num % Denom;
     return Num / Denom;
-#else
+#else // WINBUILD
     UInt32  Rest;
     Rest = do_div(Num, Denom);
     if (pRest != NULL)
         *pRest = Rest;
     return Num;
-
-    //Int  DenomBits, NumBits ;
-    //Int64  RestBits, RestMask, Rest;
-    //Int64  Answer = 0;
-    //Int  Sign = 0;
-
-    //if (Num < 0)
-    //{
-    //    Num = -Num;
-    //    Sign = 1;
-    //}
-    //if (Denom < 0)
-    //{
-    //    Denom = -Denom;
-    //    Sign ^= 1;
-    //}
-
-    //if (Num < Denom)
-    //    return 0;
-
-    //DenomBits = 0;
-    //while ((Int64)1<<DenomBits < Denom)
-    //    DenomBits++;
-
-    //NumBits = DenomBits;
-    //while ((Int64)1<<NumBits < Num)
-    //    NumBits++;
-
-    //RestBits = NumBits - DenomBits;
-    //RestMask = ((Int64)1<<RestBits) - 1;
-    //Rest = Num >> RestBits;
-    //Num = Num & RestMask;
-
-    //while (TRUE)
-    //{
-    //    Answer <<= 1;
-    //    if (Rest >= Denom)
-    //    {
-    //        Answer |= 1;
-    //        Rest -= Denom;
-    //    }
-
-    //    if (RestBits == 0)
-    //        break;
-    //    RestBits--;
-    //    RestMask >>= 1;
-    //    Rest = (Rest<<1) | (Num>>RestBits);
-    //    Num = Num & RestMask;
-    //}
-
-    //if (pRest != NULL)
-    //    *pRest = Rest;
-
-    //if (Sign != 0)
-    //    return -Answer;
-    //
-    //return Answer;
-#endif
+#endif // WINBUILD
 }
+
+#ifdef LINBUILD
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- div64_s64 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0) 
+// Debian 6.0  Linux kernel 2.6.32-5
+#ifdef LIN64
+static inline s64 div64_s64_DT(s64 dividend, s64 divisor)
+{
+    return dividend / divisor;
+}
+#else
+#ifndef abs64
+#define abs64(x) ({                 \
+        s64 __x = (x);              \
+        (__x < 0) ? -__x : __x;     \
+    })
+#endif
+static inline s64 div64_s64_DT(s64 dividend, s64 divisor)
+{
+    s64 quot, t;
+
+    quot = div64_u64(abs64(dividend), abs64(divisor));
+    t = (dividend ^ divisor) >> 63;
+
+    return (quot ^ t) - t;
+}
+#endif // LIN64
+#endif // KERNEL_VERSION < 3.0.0
+#endif // LINBUILD
+
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDivideS64 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // 64 bit integer division returns num/denom
@@ -348,7 +320,11 @@ static __inline Int64  DtDivideS64(Int64 Num, Int64 Denom)
 #ifdef WINBUILD
     return Num / Denom;
 #else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+    return div64_s64_DT(Num, Denom);
+#else
     return div64_s64(Num, Denom);
+#endif
 #endif
 }
 
@@ -361,7 +337,11 @@ static __inline Int64  DtModuloS64(Int64 Num, Int64 Denom)
 #ifdef WINBUILD
     return Num % Denom;
 #else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
+    Int64 Rest = Num - div64_s64_DT(Num, Denom)*Denom;
+#else 
     Int64 Rest = Num - div64_s64(Num, Denom)*Denom;
+#endif
     if (Rest < 0)
         return -Rest;
     else

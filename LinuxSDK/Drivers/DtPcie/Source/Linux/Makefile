@@ -121,6 +121,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcSDITXPHY.o             \
          $(SRCDIR)/DtBcSDITXPLL.o             \
          $(SRCDIR)/DtBcSDIXCFG.o              \
+         $(SRCDIR)/DtBcSI2166ITF.o            \
          $(SRCDIR)/DtBcSPIM.o                 \
          $(SRCDIR)/DtBcSPIMF.o                \
          $(SRCDIR)/DtBcST425LR.o              \

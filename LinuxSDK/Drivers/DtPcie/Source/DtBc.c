@@ -74,6 +74,7 @@ const DtBcId  DT_BC_KNOWN[] =
     { DT_BC_SDITXP_NAME,          DT_BC_SDITXP_SHORTNAME,          NULL, -1, -1 },
     { DT_BC_SDITXPHY_NAME,        DT_BC_SDITXPHY_SHORTNAME,        NULL, -1, -1 },
     { DT_BC_SDITXPLL_NAME,        DT_BC_SDITXPLL_SHORTNAME,        NULL, -1, -1 },
+    { DT_BC_SI2166ITF_NAME,       DT_BC_SI2166ITF_SHORTNAME,       NULL, -1, -1 },
     { DT_BC_SPIM_NAME,            DT_BC_SPIM_SHORTNAME,            NULL, -1, -1 },
     { DT_BC_SPIMF_NAME,           DT_BC_SPIMF_SHORTNAME,           NULL, -1, -1 },
     { DT_BC_ST425LR_NAME,         DT_BC_ST425LR_SHORTNAME,         NULL, -1, -1 },
@@ -717,6 +718,11 @@ DtBc*  DtBc_OpenType(DtBcType  Type, Int  Address, DtCore*  pCore,
     case DT_BLOCK_TYPE_SDITXPLL:
         DT_ASSERT(CreateStub == FALSE);
         return (DtBc*)DtBcSDITXPLL_Open(Address, pCore, pPt, pRole, Instance, Uuid);
+
+    case DT_BLOCK_TYPE_SI2166ITF:
+        return (DtBc*)DtBcSI2166ITF_Open(Address, pCore, pPt, pRole, Instance, 
+                                                                        Uuid, CreateStub);
+
     case DT_BLOCK_TYPE_ST425LR:
         return (DtBc*)DtBcST425LR_Open(Address, pCore, pPt, pRole, Instance,
                                                                         Uuid, CreateStub);
@@ -1193,6 +1199,8 @@ DtIoStubBc*  DtIoStubBc_OpenType(DtBc*  pBc)
         break;
     case DT_BLOCK_TYPE_SDITXPLL:
         break;
+    case DT_BLOCK_TYPE_SI2166ITF:
+        return (DtIoStubBc*)DtIoStubBcSI2166ITF_Open(pBc);
     case DT_BLOCK_TYPE_SPIM:
         return (DtIoStubBc*)DtIoStubBcSPIM_Open(pBc);
     case DT_BLOCK_TYPE_SPIMF:

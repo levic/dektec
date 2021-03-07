@@ -279,7 +279,7 @@ DtStatus  DtBcSDITXPLL_C10A10_Calibrate(DtBcSDITXPLL* pBc)
         DtStringUInt64ToDtStringAppend(&Str, 10, pBc->m_pCore->m_pDevInfo->m_Serial);
         DtStringAppendChars(&Str, "] ");
         DtStringAppendChars(&Str, "SDI TX PLL calibration has been completed in: ");
-        DtStringUInt64ToDtStringAppend(&Str, 10, (TimeEnd-TimeStart)/1000);
+        DtStringUInt64ToDtStringAppend(&Str, 10, ((UInt32)(TimeEnd-TimeStart))/1000);
         DtStringAppendChars(&Str, "ms");
 
         DtEvtLogReport(&pBc->m_pCore->m_Device.m_EvtObject, 
