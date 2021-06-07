@@ -29,6 +29,12 @@
 #include <wdmguid.h>            // Required for GUID in interface queries.
 #endif
 
+// ADDED TO PREVENT ERROR DURING BUILD. THIS MODULE CAN BE USED FREELY (SEE LICENSE
+// STATEMENT ABOVE).
+#ifdef LINBUILD
+MODULE_LICENSE("GPL";)
+#endif
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Debug logging +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 

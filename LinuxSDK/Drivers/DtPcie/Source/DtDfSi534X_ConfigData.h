@@ -35,13 +35,13 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SI534X Configuration Data -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 // SI534X  Hard reset
-const DtDfSi534XRegister SI534X_CONFIG_HARDRST[] =
+static const DtDfSi534XRegister SI534X_CONFIG_HARDRST[] =
 {
     {0x001E,0x02},
 };
 
 // SI534X  Preamble
-const DtDfSi534XRegister SI534X_CONFIG_PREAMBLE[] =
+static const DtDfSi534XRegister SI534X_CONFIG_PREAMBLE[] =
 {
     {0x0B24,0xC0},
     {0x0B25,0x00},
@@ -49,7 +49,7 @@ const DtDfSi534XRegister SI534X_CONFIG_PREAMBLE[] =
 };
 
 // SI534X  Postamble
-const DtDfSi534XRegister SI534X_CONFIG_POSTAMBLE[] =
+static const DtDfSi534XRegister SI534X_CONFIG_POSTAMBLE[] =
 {
     {0x0514,0x01},
     {0x001C,0x01},
@@ -63,7 +63,7 @@ const DtDfSi534XRegister SI534X_CONFIG_POSTAMBLE[] =
 // for the SI5342 fractional clock on N0 non fractional clock on N1.
 
 // Properties
-const DtDfSi534XClockProps SI5342_CONFIG_FREE_RUN_DUAL_CLOCK_PROPS[2] =
+static const DtDfSi534XClockProps SI5342_CONFIG_FREE_RUN_DUAL_CLOCK_PROPS[2] =
 {
     { 0,                                                // Clock output port index 0
       DT_DF_SI534X_CLK_FRACTIONAL,                      // Fractional clock
@@ -199,7 +199,7 @@ const DtDfSi534XClockProps SI5342_CONFIG_FREE_RUN_DUAL_CLOCK_PROPS[2] =
 //          Max Freq:      148.529699999183... MHz
 
 // Register settings
-const DtDfSi534XRegister SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
+static const DtDfSi534XRegister SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
 {
     { 0x0006, 0x00 },
     { 0x0007, 0x00 },
@@ -613,7 +613,7 @@ const DtDfSi534XRegister SI5342_CONFIG_FREE_RUN_DUAL_CLOCK[] =
 // for the SI5344 fractional clock on N0 non fractional clock on N2.
 
 // Properties
-const DtDfSi534XClockProps SI5344_CONFIG_FREE_RUN_DUAL_CLOCK_PROPS[2] =
+static const DtDfSi534XClockProps SI5344_CONFIG_FREE_RUN_DUAL_CLOCK_PROPS[2] =
 {
     { 0,                                                // Clock output port index 0
       DT_DF_SI534X_CLK_FRACTIONAL,                      // Fractional clock
@@ -630,7 +630,7 @@ const DtDfSi534XClockProps SI5344_CONFIG_FREE_RUN_DUAL_CLOCK_PROPS[2] =
 };
 
 // Register settings
-const DtDfSi534XRegister SI5344_CONFIG_FREE_RUN_DUAL_CLOCK[] =
+static const DtDfSi534XRegister SI5344_CONFIG_FREE_RUN_DUAL_CLOCK[] =
 {
     /* Start configuration registers */
     { 0x0006, 0x00 },
@@ -1099,7 +1099,7 @@ const DtDfSi534XRegister SI5344_CONFIG_FREE_RUN_DUAL_CLOCK[] =
 // SI534X  free-running single 148.5MHz Output Clock Defaulting to 27MHz input
 
 // Properties
-const DtDfSi534XClockProps SI5342_CONFIG_FREE_RUN_SINGLE_CLOCK_PROPS[2] =
+static const DtDfSi534XClockProps SI5342_CONFIG_FREE_RUN_SINGLE_CLOCK_PROPS[2] =
 {
     { 0,                                                // Clock output port index 0
       DT_DF_SI534X_CLK_FRACTIONAL,                      // Fractional clock
@@ -1116,7 +1116,7 @@ const DtDfSi534XClockProps SI5342_CONFIG_FREE_RUN_SINGLE_CLOCK_PROPS[2] =
 };
 
 // SI534X  free-running single 148.5MHz Output Clock Defaulting to 27MHz input
-const DtDfSi534XRegister SI534X_CONFIG_FREE_RUN_148_5MHZ[] =
+static const DtDfSi534XRegister SI534X_CONFIG_FREE_RUN_148_5MHZ[] =
 {
     { 0x0006, 0x00 },
     { 0x0007, 0x00 },
@@ -1530,7 +1530,7 @@ const DtDfSi534XRegister SI534X_CONFIG_FREE_RUN_148_5MHZ[] =
 
 
 // Register settings
-const DtDfSi534XRegister SI534X_CONFIG_FREE_RUN_148_35MHZ[] =
+static const DtDfSi534XRegister SI534X_CONFIG_FREE_RUN_148_35MHZ[] =
 {             
     { 0x0006, 0x00 },
     { 0x0007, 0x00 },

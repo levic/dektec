@@ -231,6 +231,8 @@ static void  DtCorePcie_IAL_InitDeviceData(DtCorePcie* pCore)
 {
     // Default all 0
     memset(pCore, 0, sizeof(DtCorePcie));
+    // Set size of struct
+    pCore->m_Size = (Int)sizeof(DtCorePcie);
 
     // Set type name
     pCore->m_TypeName = "DTA";

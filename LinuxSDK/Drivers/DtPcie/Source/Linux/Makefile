@@ -175,6 +175,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcS2DEMOD_2132.o         \
          $(SRCDIR)/DtBcS2STATS_2132.o         \
          $(SRCDIR)/DtDfS2CrDemod_2132.o       \
+         $(SRCDIR)/DtDfTxClkCtrl_2178A.o      \
          Messages.o
 
 EXTRA_CFLAGS += -I$(MYPWD) -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR)

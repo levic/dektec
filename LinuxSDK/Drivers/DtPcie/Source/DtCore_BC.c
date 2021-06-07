@@ -29,6 +29,8 @@
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtCore_BC implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+static DtStatus DtCore_BC_OpenInstances(DtCore* pCore, DtPt* pPt, DtBcId Id);
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtCore_BC - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_BC_Close -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -204,50 +206,82 @@ DtStatus  DtCore_BC_OpenAll(DtCore*  pCore, DtPt*  pPt)
     // Loop over all known block IDs and load properties 
     for (i=0; i<DT_BC_NUM_KNOWN; i++)
     {
-        Int  Instance=1;
-        Bool  FoundProps = FALSE;
-        do
-        {
-            DtBc*  pBc = NULL;
-            DtBcCommonProps  BcProps;
             DtBcId  Id = DT_BC_KNOWN[i];    // Init ID
-            Id.m_Instance = Instance++;
-
-            //.-.-.-.-.-.-.-.-.-.- Step 1: load block properties -.-.-.-.-.-.-.-.-.-.-
-
-            FoundProps = FALSE;     // Assume the worst
-            Status = DtBcCommonProps_Load(&BcProps, &Id, PortIndex, pCore);
-            if (!DT_SUCCESS(Status))
-                continue;
-            FoundProps = TRUE;
-
-            // Fill in missing details in the ID
-            Id.m_pRole = BcProps.m_pRole;   // Set role
-            Id.m_Uuid = BcProps.m_Uuid;
-
-            //.-.-.-.-.-.-.-.-.-.- Step 2: load the block itself -.-.-.-.-.-.-.-.-.-.-
-            // Now that we have all the properties we can load the block. But first 
-            // check if did not load the block already
-
-            // Do we already have this block in our block list. If not, load it
-            pBc = DtCore_BC_FindByAddress(pCore, pPt, BcProps.m_Address);
-            if (pBc == NULL)
-            {
-                // Load the block and add it to block list
-                pBc = DtCore_BC_Open(pCore, BcProps.m_Type, BcProps.m_Address,
-                                                                pPt, &Id, 
-                                                                BcProps.m_CreateStub);
-                if(pBc == NULL)
-                {
-                    DtDbgOut(ERR, CORE, "Failed load BC '%s'", Id.m_pName);
-                    return DT_STATUS_FAIL;
-                }
-            }
-        }
-        while (FoundProps);
+            DT_RETURN_ON_ERROR(DtCore_BC_OpenInstances(pCore, pPt, Id));
     }
     return DT_STATUS_OK;
 }
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_BC_OpenEssentials -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtCore_BC_OpenEssentials(DtCore* pCore)
+{
+    DtBcId  Id;
+
+    // Sanity checks
+    CORE_DEFAULT_PRECONDITIONS(pCore);
+
+    // Open SPIMF
+    DT_BC_SPIMF_INIT_ID(Id, NULL, -1, -1);
+    DtCore_BC_OpenInstances(pCore, NULL, Id);
+
+    // Open IPSECG
+    DT_BC_IPSECG_INIT_ID(Id, NULL, -1, -1);
+    DtCore_BC_OpenInstances(pCore, NULL, Id);
+
+    // Open Reboot
+    DT_BC_REBOOT_INIT_ID(Id, NULL, -1, -1);
+    DtCore_BC_OpenInstances(pCore, NULL, Id);
+
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_BC_OpenInstances -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtCore_BC_OpenInstances(DtCore* pCore, DtPt* pPt, DtBcId Id)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    Int  PortIndex = (pPt!=NULL) ? pPt->m_PortIndex : -1;
+    Int  Instance = 1;
+    Bool  FoundProps = FALSE;
+    do
+    {
+        DtBc*  pBc = NULL;
+        DtBcCommonProps  BcProps;
+        Id.m_Instance = Instance++;
+
+        // .-.-.-.-.-.-.-.-.-.-.-.- Step 1: load block properties -.-.-.-.-.-.-.-.-.-.-.-.
+
+        FoundProps = FALSE;     // Assume the worst
+        Status = DtBcCommonProps_Load(&BcProps, &Id, PortIndex, pCore);
+        if (!DT_SUCCESS(Status))
+            continue;
+        FoundProps = TRUE;
+
+        // Fill in missing details in the ID
+        Id.m_pRole = BcProps.m_pRole;   // Set role
+        Id.m_Uuid = BcProps.m_Uuid;
+
+        // .-.-.-.-.-.-.-.-.-.-.-.- Step 2: load the block itself -.-.-.-.-.-.-.-.-.-.-.-.
+        // Now that we have all the properties we can load the block. But first 
+        // check if did not load the block already
+
+        // Do we already have this block in our block list. If not, load it
+        pBc = DtCore_BC_FindByAddress(pCore, pPt, BcProps.m_Address);
+        if (pBc == NULL)
+        {
+            // Load the block and add it to block list
+            pBc = DtCore_BC_Open(pCore, BcProps.m_Type, BcProps.m_Address,
+                                                          pPt, &Id, BcProps.m_CreateStub);
+            if (pBc == NULL)
+            {
+                DtDbgOut(ERR, CORE, "Failed load BC '%s'", Id.m_pName);
+                return DT_STATUS_FAIL;
+            }
+        }
+    } while (FoundProps);
+    return DT_STATUS_OK;
+}
+
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_BC_OpenVvi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //

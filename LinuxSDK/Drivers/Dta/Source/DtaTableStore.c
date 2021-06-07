@@ -383,11 +383,11 @@ static const DtTableEntry  DtTable2115_0_038[] =
 };
 static const DtTableEntry  DtTable2115_0_039[] =
 {
-    { 2, 2 }, { 1, 1 }, { 0, 0 }
+    { 3, 2 }, { 2, 2 }, { 1, 1 }, { 0, 0 }
 };
 static const DtTableEntry  DtTable2115_0_040[] =
 {
-    { 2, 1 }, { 1, 1 }, { 0, -1 }
+    { 3, 1 }, { 2, 1 }, { 1, 1 }, { 0, -1 }
 };
 static const DtTableEntry  DtTable2115_0_001[] =
 {
@@ -1941,8 +1941,8 @@ static const DtTableEntry  DtTable2115_0_021[] =
 static const DtTableLink  DtTableLink2115_0[] = 
 {
     { "DVC_FW_VARIANTS", -1, -1, 0, 0, 2, DtTable2115_0_038 },
-    { "FIRMWARE_PACKAGE_HISTORY", -1, 0, 0, 0, 3, DtTable2115_0_039 },
-    { NULL, -1, 1, 0, 0, 3, DtTable2115_0_040 },
+    { "FIRMWARE_PACKAGE_HISTORY", -1, 0, 0, 0, 4, DtTable2115_0_039 },
+    { NULL, -1, 1, 0, 0, 4, DtTable2115_0_040 },
     { "MOD_FREQ_COMP_MAIN", 0, -1, 0, 0, 9, DtTable2115_0_001 },
     { NULL, 1, -1, 0, 0, 9, DtTable2115_0_001 },
     { NULL, 2, -1, 0, 0, 9, DtTable2115_0_001 },

@@ -532,6 +532,10 @@ typedef enum  _DtFunctionType
 
     // Local DTA-2139 functions. DONOT RENUMBER!!
     DT_FUNC_TYPE_I2CM_2139 = LTYPE_SEQNUM(2139, 1),
+
+    // Local DTA-2178(A) functions. DONOT RENUMBER!!
+    DT_FUNC_TYPE_TXCLKCTRL_2178 = LTYPE_SEQNUM(2178, 1),
+
 }  DtFunctionType;
 // Sub-function and functions are the same
 typedef DtFunctionType  DtSubFunctionType;
@@ -1753,21 +1757,22 @@ ASSERT_SIZE(DtIoctlExclAccessCmdInput, 16)
 // NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
 typedef enum _DtIoctlGenLockCtrlCmd
 {
-    DT_GENLOCKCTRL_CMD_GET_STATUS        = 0,  // Get status
+    DT_GENLOCKCTRL_CMD_GET_STATE         = 0,  // Get state
     DT_GENLOCKCTRL_CMD_RELOCK            = 1,  // Re-lock
     // UNUSED DT_GENLOCKCTRL_CMD_GET_DCO_FREQ_OFFSET    = 2,
     // UNUSED DT_GENLOCKCTRL_CMD_SET_DCO_FREQ_OFFSET    = 3,
     DT_GENLOCKCTRL_CMD_GET_DCO_CLK_PROPS    = 4,  // Get DCO clock propties
     DT_GENLOCKCTRL_CMD_GET_DCO_FREQ_OFFSET  = 5,  // Get DCO frequency offset
     DT_GENLOCKCTRL_CMD_SET_DCO_FREQ_OFFSET  = 6,  // Set DCO frequency offset
+    DT_GENLOCKCTRL_CMD_GET_STATE2           = 7,  // Get state v2
 }  DtIoctlGenLockCtrlCmd;
 
 // GenLock states
-#define  DT_GENLOCKCTRL_STATUS_NO_REF        0
-#define  DT_GENLOCKCTRL_STATUS_INVALID_REF   1
-#define  DT_GENLOCKCTRL_STATUS_LOCKING       2
-#define  DT_GENLOCKCTRL_STATUS_LOCKED        3
-#define  DT_GENLOCKCTRL_STATUS_FREE_RUN      4
+#define  DT_GENLOCKCTRL_STATE_NO_REF        0
+#define  DT_GENLOCKCTRL_STATE_INVALID_REF   1
+#define  DT_GENLOCKCTRL_STATE_LOCKING       2
+#define  DT_GENLOCKCTRL_STATE_LOCKED        3
+#define  DT_GENLOCKCTRL_STATE_FREE_RUN      4
 
 // Clock properties:clock types
 #define  DT_GENLOCKCTR_CLKTYPE_NON_FRACTIONAL    0
@@ -1784,21 +1789,43 @@ typedef struct _DtIoctlGenLockCtrlClockProps
 } DtIoctlGenLockCtrlClockProps;
 
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL - Get Status Command -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL - Get State Command -.-.-.-.-.-.-.-.-.-.-.-.-.-
 
-typedef struct _DtIoctlGenLockCtrlCmdGetStatusInput
+typedef struct _DtIoctlGenLockCtrlCmdGetStateInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
-}  DtIoctlGenLockCtrlCmdGetStatusInput;
-ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetStatusInput, 16)
+}  DtIoctlGenLockCtrlCmdGetStateInput;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetStateInput, 16)
 
-typedef struct _DtIoctlGenLockCtrlCmdGetStatusOutput
+typedef struct _DtIoctlGenLockCtrlCmdGetStateOutput
 {
-    Int  m_GenLockStatus;   // GenLock status
+    Int  m_GenLockState;   // GenLock status
     Int  m_RefVidStd;       // Reference video standard
     Int  m_DetVidStd;       // Detected video standard
-}  DtIoctlGenLockCtrlCmdGetStatusOutput;
-ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetStatusOutput, 12)
+}  DtIoctlGenLockCtrlCmdGetStateOutput;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetStateOutput, 12)
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL - Get State Command -.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+typedef struct _DtIoctlGenLockCtrlCmdGetState2Input
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+}  DtIoctlGenLockCtrlCmdGetState2Input;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetState2Input, 16)
+
+typedef struct _DtIoctlGenLockCtrlCmdGetState2Output
+{
+    Int  m_GenLockState;   // GenLock status
+    Int  m_RefVidStd;       // Reference video standard
+    Int  m_DetVidStd;       // Detected video standard
+    UInt64A m_SofCount;     // Sequence number of last SOF detected at the genlock 
+                            // reference input
+    Int  m_IsSofValid;      // Is SOF timestamp valid TRUE or FALSE
+    DtTodTime m_SofTime;    // Time of the last Start-of-Frame detected at the input
+    Int m_TimeSinceLastSof; // Time (in ns) expired since last SOF 
+
+}  DtIoctlGenLockCtrlCmdGetState2Output;
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetState2Output, 40)
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- GENLOCKCTRL - Re-Lock Command -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -1862,11 +1889,12 @@ ASSERT_SIZE(DtIoctlGenLockCtrlCmdInput, 24)
 // GENLOCKCTRL command - Output data
 typedef union _DtIoctlGenLockCtrlCmdOutput
 {
-    DtIoctlGenLockCtrlCmdGetStatusOutput  m_GetStatus;
+    DtIoctlGenLockCtrlCmdGetStateOutput  m_GetState;
+    DtIoctlGenLockCtrlCmdGetState2Output  m_GetState2;
     DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput  m_GetDcoClkProps;
     DtIoctlGenLockCtrlCmdGetDcoFreqOffsetOutput  m_GetDcoFreqOffset;
 }  DtIoctlGenLockCtrlCmdOutput;
-ASSERT_SIZE(DtIoctlGenLockCtrlCmdOutput, 16)
+ASSERT_SIZE(DtIoctlGenLockCtrlCmdOutput, 40)
 
 
 #ifdef WINBUILD

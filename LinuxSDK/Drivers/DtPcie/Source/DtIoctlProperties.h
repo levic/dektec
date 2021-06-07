@@ -902,14 +902,24 @@ typedef struct  _DtIoctlProperties
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_GENLOCKCTRL_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-#define DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_STATUS                                        \
+#define DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_STATE                                         \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
-        DT_GENLOCKCTRL_CMD_GET_STATUS,                                                   \
-        "GET_STATUS",                                                                    \
+        DT_GENLOCKCTRL_CMD_GET_STATE,                                                    \
+        "GET_STATE",                                                                     \
         TRUE,                                                                            \
         FALSE,                                                                           \
-        sizeof(DtIoctlGenLockCtrlCmdGetStatusInput),                                     \
-        sizeof(DtIoctlGenLockCtrlCmdGetStatusOutput))
+        sizeof(DtIoctlGenLockCtrlCmdGetStateInput),                                      \
+        sizeof(DtIoctlGenLockCtrlCmdGetStateOutput))
+
+#define DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_STATE2                                        \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_GENLOCKCTRL_CMD_GET_STATE2,                                                   \
+        "GET_STATE2",                                                                    \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlGenLockCtrlCmdGetState2Input),                                     \
+        sizeof(DtIoctlGenLockCtrlCmdGetState2Output))
+
 
 #define DT_IOCTL_CMD_PROPS_GENLOCKCTRL_RELOCK                                            \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
@@ -950,7 +960,8 @@ typedef struct  _DtIoctlProperties
 #define DECL_DT_IOCTL_CMD_PROPS_GENLOCKCTRL                                              \
     static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_GENLOCKCTRL[] =                \
     {                                                                                    \
-        DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_STATUS,                                       \
+        DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_STATE,                                        \
+        DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_STATE2,                                       \
         DT_IOCTL_CMD_PROPS_GENLOCKCTRL_RELOCK,                                           \
         DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_DCO_CLK_PROPS,                                \
         DT_IOCTL_CMD_PROPS_GENLOCKCTRL_GET_DCO_FREQ_OFFSET,                              \

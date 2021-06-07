@@ -57,6 +57,7 @@ const DtDfId  DT_DF_KNOWN[] =
     { DT_DF_VIRTGENREF_NAME,      DT_DF_VIRTGENREF_SHORTNAME,     NULL, -1, -1 },
     { DT_DF_VPD_NAME,             DT_DF_VPD_SHORTNAME,            NULL, -1, -1 },
     { DT_DF_S2CRDEMOD_2132_NAME,  DT_DF_S2CRDEMOD_2132_SHORTNAME, NULL, -1, -1 },
+    { DT_DF_TXCLKCTRL_2178A_NAME, DT_DF_TXCLKCTRL_2178A_SHORTNAME, NULL, -1, -1 },
 };
 const Int  DT_DF_NUM_KNOWN = DT_SIZEOF_ARRAY(DT_DF_KNOWN);
 
@@ -961,7 +962,9 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
     case DT_FUNC_TYPE_S2CRDEMOD_2132:
         return (DtDf*)DtDfS2CrDemod_2132_Open(pCore, pPt, pId->m_pRole,
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
-
+    case DT_FUNC_TYPE_TXCLKCTRL_2178:
+        return (DtDf*)DtDfTxClkCtrl_2178A_Open(pCore, pPt, pId->m_pRole,
+                                                            pId->m_Instance, pId->m_Uuid);
     default:
         DT_ASSERT(FALSE);
         break;

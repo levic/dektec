@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        43
-#define DTAPI_VERSION_BUGFIX       2
-#define DTAPI_VERSION_BUILD        149
+#define DTAPI_VERSION_MINOR        44
+#define DTAPI_VERSION_BUGFIX       1
+#define DTAPI_VERSION_BUILD        162
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -104,14 +104,14 @@
 //.-.-.-.-.-.-.-.-.-.-.- Unsupported Visual Studio Versions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 #ifdef _MSC_VER
-#if (_MSC_VER<1500)
+#if (_MSC_VER<=1600)
     #pragma message("ERROR: This version of Visual Studio is not supported") 
 #endif
-#if (_MSC_VER==1500)
-    #pragma message("WARNING: Visual Studio 2008 support will be deprecated in 2018") 
+#if (_MSC_VER==1700)
+    #pragma message("WARNING: Visual Studio 2012 support will be deprecated in 2021.Q3")
 #endif
-#if (_MSC_VER==1600)
-    #pragma message("WARNING: Visual Studio 2010 support will be deprecated in 2018") 
+#if (_MSC_VER==1800)
+    #pragma message("WARNING: Visual Studio 2013 support will be deprecated in 2021.Q3")
 #endif
 #if (_MSC_VER<1800)
     #pragma message("WARNING: Support for latest boards requires Visual Studio 2013 or higher") 
@@ -2926,6 +2926,28 @@ struct DtRdd6Data
     bool operator != (const DtRdd6Data& Rhs) const { return !(*this==Rhs); }
 };
 
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Genlock state +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// Current genlock state
+#define DTAPI_GENL_NO_REF           1
+#define DTAPI_GENL_LOCKING          2
+#define DTAPI_GENL_LOCKED           3
+#define DTAPI_GENL_INVALID          4
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct DtGenlockState -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct DtGenlockState
+{
+    int m_State;            // Current state: DTAPI_GENL_NO_REF, DTAPI_GENL_NO_REF_XXX
+    int m_RefVidStd;        // Configured video standard
+    int m_DetVidStd;        // Video standard detected at the genlock reference input 
+    bool m_TofTimeValid;    // true if Top-of-Frame time is valid
+    DtTimeOfDay m_TofTime;  // Time of the last Top-of-Frame detected at the input
+    int m_TimeSinceLastTof; // Time (in ns) expired since last TOF 
+    __int64 m_RefFrameNum;  // Sequence number of last TOF detected at the genlock 
+                            // reference input
+};
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ MAIN DTAPI CLASSES +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -2984,6 +3006,7 @@ public:
     virtual DTAPI_RESULT  GetFirmwareVersion(int& FirmwareVersion);
     virtual DTAPI_RESULT  GetFwPackageVersion(int& FwPackVersion);
     virtual DTAPI_RESULT  GetTemperature(int TempSens, int& Temp);
+    virtual DTAPI_RESULT  GetGenlockState(DtGenlockState&);
     virtual DTAPI_RESULT  GetGenlockState(int& State, int& RefVidStd, int& DetVidStd);
     virtual DTAPI_RESULT  GetGenlockState(int& State, int& RefVidStd);
     virtual DTAPI_RESULT  GetGenlockState(int& State);
@@ -3118,12 +3141,6 @@ public:                             // TODOSD should be protected
 #define DTAPI_HWF2STR_TYPE_AND_PORT2  5
 // String conversion - Device serial number in canonical form (e.g. "2180.000.022")
 #define DTAPI_HWF2STR_SN              6
-
-// Current genlock state
-#define DTAPI_GENL_NO_REF           1
-#define DTAPI_GENL_LOCKING          2
-#define DTAPI_GENL_LOCKED           3
-#define DTAPI_GENL_INVALID          4
 
 // Status and error flags for GPS-Synchronisation
 #define DTAPI_GPS_1PPS_SYNC         0x000001
@@ -3329,6 +3346,7 @@ public:
     DTAPI_RESULT  SetPars(int Count, DtPar* pPars); 
     DTAPI_RESULT  SetRxControl(int RxControl);
     DTAPI_RESULT  SetRxMode(int RxMode);
+    DTAPI_RESULT  SetSpectrumInversion(bool SpecInv);
     DTAPI_RESULT  SetStreamSelection(DtAtsc3StreamSelPars& StreamSel);
     DTAPI_RESULT  SetStreamSelection(DtDabEtiStreamSelPars& StreamSel);
     DTAPI_RESULT  SetStreamSelection(DtDabStreamSelPars& StreamSel);
@@ -8074,6 +8092,7 @@ public:
                                             __int64 ParXtra0 = -1, __int64 ParXtra1 = -1);
     DTAPI_RESULT  SetPars(int Count, DtPar* pPars); 
     DTAPI_RESULT  SetRxControl(int RxControl);
+    DTAPI_RESULT  SetSpectrumInversion(bool SpecInv);
     DTAPI_RESULT  SetTunerFrequency(__int64 FreqHz);
     DTAPI_RESULT  Tune(__int64 FreqHz, int ModType,
                                                 int ParXtra0, int ParXtra1, int ParXtra2);
@@ -8651,10 +8670,6 @@ public:
 //
 class DtMxRowConfig
 {
-    // Constants
-public:
-    static const int  MAX_NUM_AUDIO_CHANNELS = 16; // Max. # audio channels supported
-
 public:
     DtMxRowConfig();
     virtual ~DtMxRowConfig();
@@ -8663,7 +8678,7 @@ public:
     bool  m_Enable;             // Global flag to enable/disable to the complete row.
                                 // When disabled input rows will not provide data and all
                                 // output ports will generate black frames.
-                                // Wnen set to false all further configuration below
+                                // When set to false all further configuration below
                                 // is not taken into account.
 
     int  m_RowSize;             // Number of frame buffers available in the callback
@@ -9125,6 +9140,10 @@ public:
     int  m_Cs;                      // Check sum
     unsigned short*  m_pUdw;        // User data words
     int  m_Line;                    // Line number in which packet was found
+    int  m_HorzOffset;              // Defines the location of the ANC packet relative to
+                                    // SAV. 0 means that the ADF sequence begins 
+                                    // immediately following SAV. -1, means location is 
+                                    // unknown.
 
     // Operations
 public:
@@ -9372,6 +9391,14 @@ public:
     // Auxiliary data
     bool  m_AuxDataValid;       // True, if the aux data is valid; False if invalid
     DtMxAuxData  m_AuxData;
+
+    struct
+    {
+        __int64 m_TimeInPreProcUs;    // Time in preprocessing phase (in us)
+        __int64 m_TimeInCallbackUs;   // Time in user callback phase (in us)
+        __int64 m_TimeInPostProcUs;   // Time in post-processing phase (in us)
+    } m_ProfilingPrevFrame;     // Profiling timing for the previous frame
+    bool m_ProfilingIsValid;    // True, if profiling information is valid
 
     // Access functions for raw ANC packets
     virtual DTAPI_RESULT  AncAddPacket(DtMxAncPacket&  AncPacket, int HancVanc,

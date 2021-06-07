@@ -7762,7 +7762,9 @@ static const DtProperty  DtProperties2115_0_11[] =
     { "CAP_SNR", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1, PROPERTY_SCOPE_DTAPI,
                                                                                 0, 0, 0 },
     { "CAP_TX_ISDBS3", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
-                                                         PROPERTY_SCOPE_DTAPI, 5, 29, 2 } 
+                                                         PROPERTY_SCOPE_DTAPI, 5, 29, 2 },
+    { "FIRMWARE_PACKAGE_BUILD_DATE_3", DT_PVE, "2021.04.22T08:31",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2115_0_12[] =
 {
@@ -8450,7 +8452,7 @@ static const DtProperty  DtProperties2115_0_44[] =
 {
     { "CAP_S2APSK", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_PACKAGE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_PACKAGE_LAST_VER", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "INTERRUPT_HAS_PER_INT_ITV_REG", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0,
                                                      -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
@@ -8918,7 +8920,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2115_0[] =
     { DtProperties2115_0_08, 49 },
     { DtProperties2115_0_09, 12 },
     { DtProperties2115_0_10, 13 },
-    { DtProperties2115_0_11, 2 },
+    { DtProperties2115_0_11, 3 },
     { DtProperties2115_0_12, 9 },
     { NULL, 0 },
     { DtProperties2115_0_14, 20 },

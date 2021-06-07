@@ -81,9 +81,10 @@ typedef enum DtDfGenLockCtrlGenRefStatus
 typedef struct _DtDfGenLockCtrlSofTods
 {
     DtTodTime  m_SofTods[DT_DF_GENLOCKCTRL_SOFTOD_SIZE]; // Last start-of-frame timestamps
-    Int64  m_TotalSofTods;      // Total number of start-of-frames
+    Int  m_NumSofTods;          // Number of start-of-frames stored
     Int  m_SofTodIdx;           // Next index to write start-of-frame timestamp
     Int  m_LastFramePeriod;     // Last frame period
+    Int64  m_TotalNumSofTods;   // Total number of start-of-frames
 }DtDfGenLockCtrlSofTods;
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrlFramePeriodMeasure -.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -105,11 +106,11 @@ typedef struct _DtDfGenLockCtrlDcoControlPars
     Int  m_MaxPhaseDiffNs;      // Maximum phase difference in nanoseconds
 }DtDfGenLockCtrlDcoControlPars;
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrlStatusChangedFunc -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrlLockChangedFunc -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // Signature of the GenLock lock changed callback function
 typedef void  (*DtDfGenLockCtrlLockChangedFunc)(DtObject*, Bool Locked);
 
-// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrlStatusChangedRegData -.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrlLockChangedRegData -.-.-.-.-.-.-.-.-.-.-.-.-.
 // Registration data for GenLock lock changed callback
 typedef struct  _DtDfGenLockCtrlLockChangedRegData
 {
@@ -141,8 +142,10 @@ struct  _DtDfGenLockCtrl
     Int  m_GenRefDetectVidStd;              // Detected video standard
 
     DtBcGENL*  m_pBcGenLock;                  // GenLock block-controller
-    DtTodTime  m_GenLockSofTod;               // GENL start-of-frame timestamp 
-                                              // protected by m_SofSpinLock
+    // 2 GENL start-of-frame timestamps protected by m_SofSpinLock
+    // For genref there are 3 start-of-frame timestamps stored. This means that for the
+    // oldest GENL SOF we can find a nearest genref SOF that can be used for controlling.
+    DtTodTime  m_GenLockSofTod[2];
 
     // Driver function
     DtDfSi534X* m_pDfSi534X;                  // Si534X Clock Oscillator
@@ -176,8 +179,9 @@ struct  _DtDfGenLockCtrl
 void  DtDfGenLockCtrl_Close(DtDf*);
 DtDfGenLockCtrl*  DtDfGenLockCtrl_Open(DtCore*, DtPt*  pPt, const char*  pRole,
                                              Int  Instance,  Int  Uuid, Bool  CreateStub);
-DtStatus  DtDfGenLockCtrl_GetGenLockStatus(DtDfGenLockCtrl*, Int* pGenLockState,
-                                                        Int* pRefVidStd, Int* pDetVidStd);
+DtStatus  DtDfGenLockCtrl_GetGenLockState(DtDfGenLockCtrl*, Int* pGenLockState,
+                    Int* pRefVidStd, Int* pDetVidStd, Int64* pSofCount,
+                    Int* pIsSofTodValid, DtTodTime* pLastSofTod, Int* pTimeSinceLastSof);
 DtStatus  DtDfGenLockCtrl_IsLocked(DtDfGenLockCtrl*, Bool* pLocked);
 DtStatus  DtDfGenLockCtrl_ReLock(DtDfGenLockCtrl*);
 DtStatus  DtDfGenLockCtrl_GetDcoClockProperties(DtDfGenLockCtrl*, Int, Int*,

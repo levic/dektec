@@ -104,10 +104,10 @@
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 #ifndef __section
-#define  __section(S)  __attribute__ ((__section__(#S)))
+#define  __section(S)  __attribute__ ((__section__(S)))
 #endif
 #ifndef __devinitconst
-#define  __devinitconst  __section(.devinit.rodata)
+#define  __devinitconst  __section(".devinit.rodata")
 #endif
 #ifndef DEFINE_PCI_DEVICE_TABLE
 #define  DEFINE_PCI_DEVICE_TABLE(_table)  const struct pci_device_id _table[] __devinitconst

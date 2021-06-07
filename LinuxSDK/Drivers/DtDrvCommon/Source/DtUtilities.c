@@ -28,6 +28,11 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <DtDrvCommon.h>
 
+// ADDED TO PREVENT ERROR DURING BUILD. THIS MODULE CAN BE USED FREELY (SEE LICENSE
+// STATEMENT ABOVE).
+#ifdef LINBUILD
+MODULE_LICENSE("GPL";)
+#endif
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtUtilitiesDeduceHardwareRevision -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //

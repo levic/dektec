@@ -388,6 +388,7 @@ DtStatus  DtIoStubDf_OnExclAccessCmd(const DtIoStub*, DtIoStubIoParams*, Int*  p
 
 // Local functions
 #include "DtDfS2CrDemod_2132.h" // Creonix DVB-S2 demodulator and decoder function
+#include "DtDfTxClkCtrl_2178A.h" // DTA-2178-ASI clock control
 
 // List with of well-known driver-functions IDs
 extern const DtDfId  DT_DF_KNOWN[];

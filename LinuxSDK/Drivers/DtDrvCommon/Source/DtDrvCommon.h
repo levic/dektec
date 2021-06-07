@@ -161,5 +161,6 @@
 
 // Local driver-function related
 #define  LOG_LEVEL_DF_S2CRDEMOD_2132    LOG_ERR
+#define  LOG_LEVEL_DF_TXCLKCTRL_2178    LOG_ERR
 
 #endif // __DT_DRV_COMMON_H

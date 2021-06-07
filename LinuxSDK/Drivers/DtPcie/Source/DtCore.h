@@ -279,6 +279,7 @@ DtStatus  DtCore_BC_Close(DtBc*);
 DtBc*     DtCore_BC_Open(DtCore*, DtBcType, Int  Address, DtPt*  pPt, const DtBcId*,
                                                                         Bool  CreateStub);
 DtStatus  DtCore_BC_OpenAll(DtCore*, DtPt*  pPt);
+DtStatus  DtCore_BC_OpenEssentials(DtCore*);
 DtStatus  DtCore_BC_OpenVvi(DtCore*);
 DtBc*     DtCore_BC_Find(DtCore*, DtPt*  pPt, DtBcType, const char*  pRole);
 DtBc*     DtCore_BC_FindByAddress(DtCore*, DtPt*  pPt, Int  Address);

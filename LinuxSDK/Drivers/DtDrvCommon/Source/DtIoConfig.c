@@ -28,8 +28,35 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <DtDrvCommon.h>
 
-// Implement kstrtos64 for kernel versions which don't include it.
 #ifdef LINBUILD
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0)
+// New kernel file read functions in kernel >=5.10
+// Fedora33 is missing include file: <linux/kernel_read_file.h>
+#ifndef __kernel_read_file_id
+#define __kernel_read_file_id(id)           \
+    id(UNKNOWN, unknown)                    \
+    id(FIRMWARE, firmware)                  \
+    id(MODULE, kernel-module)               \
+    id(KEXEC_IMAGE, kexec-image)            \
+    id(KEXEC_INITRAMFS, kexec-initramfs)    \
+    id(POLICY, security-policy)             \
+    id(X509_CERTIFICATE, x509-certificate)  \
+    id(MAX_ID, )
+
+#define __fid_enumify(ENUM, dummy) READING_ ## ENUM,
+enum kernel_read_file_id {
+    __kernel_read_file_id(__fid_enumify)
+};
+#endif
+
+int kernel_read_file_from_path(const char* path, loff_t offset,
+    void** buf, size_t buf_size,
+    size_t* file_size,
+    enum kernel_read_file_id id);
+#endif
+
+// Implement kstrtos64 for kernel versions which don't include it.
 #if defined(RHEL_RELEASE_CODE)
 #if RHEL_RELEASE_CODE>=RHEL_RELEASE_VERSION(6,4)
 #define SKIP_KSTRTOS_FOR_RHEL
@@ -133,10 +160,8 @@ DtStatus  DtIoConfigReadFromNonVolatileStorage(
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoConfigParseIniFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-static void  DtaIoConfigParseIniFile(
-    DtIoConfigValueDriver* pCfgValues,
-    char*  FileBuf,
-    char*  FileEnd)
+static void  DtaIoConfigParseIniFile(DtIoConfigValueDriver* pCfgValues, char* FileBuf,
+                                                                            char* FileEnd)
 {
     Int  ConfigCode = -1;
     char*  p = FileBuf;
@@ -278,82 +303,108 @@ static void  DtaIoConfigParseIniFile(
                 return;
             }
         }
-
-
         p = pLineEnd+1;
     }
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoConfigReadFromIniFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- KernelReadFileFromPath -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtIoConfigReadFromIniFile(
-    const char*  DriverName,
-    UInt64  Serial,
-    Int  TypeNumber,
-    Int  PortNumber,
-    DtIoConfigValueDriver* pCfgValues)
+// The ppBuf will be allocated by this function. 
+// if ppBuf!=NULL, the caller must free the buffer with vfree after use.
+// If return value > 0, the number of bytes read from file is returned.
+//
+Int  KernelReadFileFromPath(const char* Filename, void** ppBuf, size_t BufSize)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0)
+    size_t  FileSize;
+    *ppBuf = NULL;
+    return kernel_read_file_from_path(Filename, 0, ppBuf, BufSize, &FileSize, 
+                                                                        READING_FIRMWARE);
+#else
+    struct file* File = NULL;
+    mm_segment_t  OldFs;
+    int  Err = 0;
+    loff_t  Offset = 0;
+
+    *ppBuf = vmalloc(BufSize);
+    if (*ppBuf == NULL)
+        return -ENOMEM;
+    OldFs = get_fs();
+    set_fs(get_ds());
+    File = filp_open(Filename, O_RDONLY, 0);
+    if (!IS_ERR(File))
+    {
+        // Read data and parse it
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+        Err = kernel_read(File, *ppBuf, BufSize - 1, &Offset);
+#else
+        Err = vfs_read(File, *ppBuf, BufSize - 1, &Offset);
+#endif
+        if (Err < 0)
+        {
+            vfree(*ppBuf);
+            *ppBuf = NULL;
+        }
+        filp_close(File, NULL);
+    }
+    else {
+        vfree(*ppBuf);
+        *ppBuf = NULL;
+        Err = -EIO;
+    }
+    set_fs(OldFs);
+    return Err;
+#endif
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoConfigReadFromIniFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtIoConfigReadFromIniFile(const char* DriverName, UInt64 Serial, Int TypeNumber,
+                                        Int PortNumber, DtIoConfigValueDriver* pCfgValues)
 {
     char  Filename[256];
     Int  Length;
-    struct file*  File = NULL;
-    mm_segment_t  OldFs;
-    int  Err = 0;
-    char*  FileBuf = NULL;
-    loff_t  Offset = 0;
-
-    FileBuf = DtMemAllocPool(DtPoolNonPaged, CONFIG_MAX_FILE_SIZE, COMMON_TAG);
-
-    OldFs = get_fs();
-    set_fs(get_ds());
+    Int  Err = 0;
+    char*  pFileBuf = NULL;
+    
     Length = snprintf(Filename, sizeof(Filename), "/etc/DekTec/%s/%d/Port%d.ini",
                                                       DriverName, TypeNumber, PortNumber);
-    File = filp_open(Filename, O_RDONLY, 0);
-    if(!IS_ERR(File))
+    Err = KernelReadFileFromPath(Filename, (void**)&pFileBuf, CONFIG_MAX_FILE_SIZE);
+    if (Err > 0 && Err < (CONFIG_MAX_FILE_SIZE - 1))
     {
-        // Read data and parse it
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
-        Err = kernel_read(File, FileBuf, CONFIG_MAX_FILE_SIZE-1, &Offset);
-#else
-        Err = vfs_read(File, FileBuf, CONFIG_MAX_FILE_SIZE-1, &Offset);
-#endif
-        if (Err >= 0)
-        {
-            DtDbgOut(AVG, IOCONFIG, "Succesfully read file %s. Filesize %d bytes",
-                                                                           Filename, Err);
-            FileBuf[Err] = '\0';
-            DtaIoConfigParseIniFile(pCfgValues, FileBuf, FileBuf+Err);
-        } else {
-            DtDbgOut(ERR, IOCONFIG, "Error reading config file %s. Error: %d",
-                                                                          Filename, -Err);
-        }
-        filp_close(File, NULL);
+        DtDbgOut(AVG, IOCONFIG, "Succesfully read file %s. Filesize %d bytes", Filename, 
+                                                                                     Err);
+        pFileBuf[Err] = '\0';
+        DtaIoConfigParseIniFile(pCfgValues, pFileBuf, pFileBuf + Err);
     }
+    else 
+    {
+        DtDbgOut(ERR, IOCONFIG, "Error reading config file %s. Error: %xh", Filename, 
+                                                                                     Err);
+    }
+    if (pFileBuf != NULL)
+        vfree(pFileBuf);
+    pFileBuf = NULL;
+
     Length = snprintf(Filename, sizeof(Filename), "/etc/DekTec/%s/%llu/Port%d.ini",
                                                           DriverName, Serial, PortNumber);
-    File = filp_open(Filename, O_RDONLY, 0);
-    if(!IS_ERR(File))
+    Err = KernelReadFileFromPath(Filename, (void**)&pFileBuf, CONFIG_MAX_FILE_SIZE);
+    if (Err > 0 && Err < (CONFIG_MAX_FILE_SIZE - 1))
     {
-        Int  Size = CONFIG_MAX_FILE_SIZE;
-        // Read data and parse it
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
-        Err = kernel_read(File, FileBuf, Size, &Offset);
-#else
-        Err = vfs_read(File, FileBuf, Size, &Offset);
-#endif
-        if (Err >= 0)
-        {
-            DtDbgOut(AVG, IOCONFIG, "Succesfully read file %s. Filesize %d bytes",
-                                                                           Filename, Err);
-            FileBuf[Err] = '\0';
-            DtaIoConfigParseIniFile(pCfgValues, FileBuf, FileBuf+Err);
-        } else {
-            DtDbgOut(ERR, IOCONFIG, "Error reading config file %s. Error: %d",
-                                                                          Filename, -Err);
-        }
-        filp_close(File, NULL);
+        DtDbgOut(AVG, IOCONFIG, "Succesfully read file %s. Filesize %d bytes", Filename, 
+                                                                                     Err);
+        pFileBuf[Err] = '\0';
+        DtaIoConfigParseIniFile(pCfgValues, pFileBuf, pFileBuf + Err);
     }
-    set_fs(OldFs);
-    DtMemFreePool(FileBuf, COMMON_TAG);
+    else 
+    {
+        DtDbgOut(ERR, IOCONFIG, "Error reading config file %s. Error: %xh", Filename,
+                                                                                     Err);
+    }
+    if (pFileBuf != NULL)
+        vfree(pFileBuf);
+    pFileBuf = NULL;
     return DT_STATUS_OK;
 }
 #endif
+

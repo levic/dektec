@@ -791,9 +791,9 @@ DtStatus DtDfSdiTxPhy_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
             if (!DT_SUCCESS(Status))
             {
                 DtDbgOutDf(ERR, SDITXPHY, pDf,
-                                      "ERROR: failed to register start-of-frame handler");
+                    "ERROR: failed to register start-of-frame handler");
                 return Status;
-    }
+            }
         }
     }
     return Status;

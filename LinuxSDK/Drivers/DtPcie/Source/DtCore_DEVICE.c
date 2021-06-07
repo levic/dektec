@@ -179,32 +179,6 @@ DtStatus  DtCore_DEVICE_PowerUp(DtCore*  pCore)
     Status = DtBcVVI_InitFirmwareVersionInfo(pCore->m_pBcVvi, pCore->m_pDevInfo);
     DT_ASSERT(DT_SUCCESS(Status));
 
-    // Init the PROPS core-module
-    //Status = DtCore_EVENTS_Init(pCore);
-    //if (!DT_SUCCESS(Status))
-    //{
-    //    DtDbgOut(ERR, CORE, "ERROR: failed to init the EVENTS core-module");
-    //    return Status;
-    //}
-    //Status = DtCore_SETTINGS_Init(pCore);
-    //if (!DT_SUCCESS(Status))
-    //{
-    //    DtDbgOut(ERR, CORE, "ERROR: failed to init the SETTINGS core-module");
-    //    return Status;
-    //}
-    //Status = DtCore_IOCONFIG_Init(pCore);
-    //if (!DT_SUCCESS(Status))
-    //{
-    //    DtDbgOut(ERR, CORE, "ERROR: failed to init the IOCONFIG core-module");
-    //    return Status;
-    //}
-    //Status = DtCore_DEBUG_Init(pCore);
-    //if (!DT_SUCCESS(Status))
-    //{
-    //    DtDbgOut(ERR, CORE, "ERROR: failed to init the DEBUG core-module");
-    //    return Status;
-    //}
-
     //.-.-.-.-.-.-.-.-.-.-.-.-.- Step 2: load core DFs and BCs  -.-.-.-.-.-.-.-.-.-.-.-.-.
 
     // Has the derived class registered it's own implementation?
@@ -218,8 +192,27 @@ DtStatus  DtCore_DEVICE_PowerUp(DtCore*  pCore)
         DtDbgOut(ERR, CORE, "ERROR: failed to open core-children");
         return Status;
     }
+        //.-.-.-.-.-.-.-.-.-.-.-.- Step 3: determine firmware status -.-.-.-.-.-.-.-.-.-.-.-.-
+    Status = DtCore_Device_InitFirmwareStatus((DtCore*)pCore);
+    if(!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, CORE, "Failed to init firmware status (ERROR: 0x%08X)", Status);
+        return Status;
+    }
+    // If firmware status is tainted or obsolete, only try to load the essential block
+    // controllers
+    if (pCore->m_pDevInfo->m_FirmwareStatus==DT_FWSTATUS_TAINTED
+                             || pCore->m_pDevInfo->m_FirmwareStatus==DT_FWSTATUS_OBSOLETE)
+    {
+        // Open non-core device block-controllers
+        Status = DtCore_BC_OpenEssentials((DtCore*)pCore);
+        if (!DT_SUCCESS(Status))
+            DtDbgOut(ERR, CORE, "Failed to open essential BCs (ERROR: 0x%08X)", Status);
+        DtDbgOut(MAX, CORE, "Exit because firmware is tainted or obsolete");
+        return DT_STATUS_OK;
+    }
 
-    //-.-.-.-.-.-.-.-.-.-.- Step 3: load non-core device DFs and BCs -.-.-.-.-.-.-.-.-.-.-
+    //-.-.-.-.-.-.-.-.-.-.- Step 4: load non-core device DFs and BCs -.-.-.-.-.-.-.-.-.-.-
     // Open non-core device driver-functions
     Status = DtCore_DF_OpenAll((DtCore*)pCore,  NULL);
     if(!DT_SUCCESS(Status))
@@ -233,20 +226,6 @@ DtStatus  DtCore_DEVICE_PowerUp(DtCore*  pCore)
     {
         DtDbgOut(ERR, CORE, "Failed to open BCs (ERROR: 0x%08X)", Status);
         return Status;
-    }
-
-    //.-.-.-.-.-.-.-.-.-.-.-.- Step 4: determine firmware status -.-.-.-.-.-.-.-.-.-.-.-.-
-    Status = DtCore_Device_InitFirmwareStatus((DtCore*)pCore);
-    if(!DT_SUCCESS(Status))
-    {
-        DtDbgOut(ERR, CORE, "Failed to init firmware status (ERROR: 0x%08X)", Status);
-        return Status;
-    }
-    // Don't continue if the firmware status is tainted
-    if (pCore->m_pDevInfo->m_FirmwareStatus == DT_FWSTATUS_TAINTED)
-    {
-        DtDbgOut(MAX, CORE, "Exit because firmware is tainted");
-        return DT_STATUS_OK;
     }
 
     //.-.-.-.-.-.-.-.-.-.-.- Step 5 load PTs with their DFs and BCs -.-.-.-.-.-.-.-.-.-.-.
@@ -580,7 +559,8 @@ DtStatus  DtCore_DEVICE_PowerUpPost(DtCore* pCore)
     { 
         DtDbgOut(ERR, CORE, "ERROR: Could not restore the IO-configuration");
         // Restore can only fail if firmware status is tainted
-        DT_ASSERT(pCore->m_pDevInfo->m_FirmwareStatus == DT_FWSTATUS_TAINTED);
+        DT_ASSERT(   pCore->m_pDevInfo->m_FirmwareStatus==DT_FWSTATUS_TAINTED
+                  || pCore->m_pDevInfo->m_FirmwareStatus==DT_FWSTATUS_OBSOLETE);
     }
 
     DtDbgOut(MAX, CORE, "Exit");
