@@ -1355,7 +1355,12 @@ DtStatus  DtDf_LoadChildPropsAllFromString(
             return Status;
 
         Status = DtDf_LoadChildPropsFromString(Id, pCore, PortIndex, &ChildProps);
-        if (Status == DT_STATUS_NOT_FOUND)
+        if (Status == DT_STATUS_NOT_FOUND_INCOMP_FW)
+        { 
+            Status = DT_STATUS_OK;
+            continue;               // More children but skip this one
+        }
+        else if (Status == DT_STATUS_NOT_FOUND)
             return DT_STATUS_OK;   // No more children => we are done
         else if (!DT_SUCCESS(Status))
             return Status;

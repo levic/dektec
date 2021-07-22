@@ -1029,7 +1029,7 @@ long DtaIoctlCompat(
     
     // Just call the regular IOCTL handler; it should be 32-/64-bit clean
     DtDbgOut(MAX, IAL, "Exit");
-    return DtaIoctl(pInode, pFile, Cmd, (unsigned long)compat_ptr(Arg));
+    return DtaIoctl(pInode, pFile, Cmd, (unsigned long)Arg);
 }
 #endif  // #ifdef CONFIG_COMPAT
 

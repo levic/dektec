@@ -777,7 +777,7 @@ long DtCorePcie_IAL_IoctlCompat(
     
     // Just call the regular IOCTL handler; it should be 32-/64-bit clean
     DtDbgOut(MAX, IAL, "Exit");
-    return DtCorePcie_IAL_Ioctl(pInode, pFile, Cmd, (unsigned long)compat_ptr(Arg));
+    return DtCorePcie_IAL_Ioctl(pInode, pFile, Cmd, (unsigned long)Arg);
 }
 #endif  // #ifdef CONFIG_COMPAT
 

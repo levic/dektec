@@ -133,7 +133,7 @@ else
 # Check udev version
 UDEV_VERSION := $(shell udevinfo -V 2>/dev/null | cut -d " " -f 3)
 ifeq ($(UDEV_VERSION),)
-	UDEV_VERSION := $(shell udevadm --version)
+	UDEV_VERSION := $(shell udevadm --version | cut -d " " -f 1)
 endif
 
 UDEV_FILE := $(shell [ $(UDEV_VERSION) -le 98 ] && echo 51-dtu-old.rules || \

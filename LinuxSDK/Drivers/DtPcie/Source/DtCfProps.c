@@ -83,11 +83,25 @@ DtStatus  DtCfProps_Find(
     DtPropertyFilterCriteria  Flt,
     const DtProperty**  ppProperty)
 {
+    DtStatus Status;
     // Sanity checks
     CF_PROPS_DEFAULT_PRECONDITIONS(pCf);
 
-    return DtPropertiesFind(&pCf->m_PropData, pName, Flt.m_PortIndex, ppProperty,
+
+    Status =  DtPropertiesFind(&pCf->m_PropData, pName, Flt.m_PortIndex, ppProperty,
                                        Flt.m_DtapiMaj, Flt.m_DtapiMin, Flt.m_DtapiBugfix);
+    if (Status == DT_STATUS_NOT_FOUND)
+    {
+        // Try again without firmware version check
+        DtStatus RetryStatus;
+        DtPropertyData PropData = pCf->m_PropData;
+        PropData.m_FirmwareVersion = -1;
+        RetryStatus = DtPropertiesFind(&PropData, pName, Flt.m_PortIndex, ppProperty,
+                                       Flt.m_DtapiMaj, Flt.m_DtapiMin, Flt.m_DtapiBugfix);
+        if (DT_SUCCESS(RetryStatus))
+            Status = DT_STATUS_NOT_FOUND_INCOMP_FW;
+    }
+    return Status;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfProps_Get -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -111,6 +125,18 @@ DtStatus  DtCfProps_Get(
     Status = DtPropertiesGet(&pCf->m_PropData, pName, Flt.m_PortIndex,
                                        pValue, pType, pScope, 
                                        Flt.m_DtapiMaj, Flt.m_DtapiMin, Flt.m_DtapiBugfix);
+    if (Status == DT_STATUS_NOT_FOUND)
+    {
+        // Try again without firmware version check
+        DtStatus RetryStatus;
+        DtPropertyData PropData = pCf->m_PropData;
+        PropData.m_FirmwareVersion = -1;
+        RetryStatus = DtPropertiesGet(&PropData, pName, Flt.m_PortIndex, pValue, pType,
+                               pScope, Flt.m_DtapiMaj, Flt.m_DtapiMin, Flt.m_DtapiBugfix);
+        if (DT_SUCCESS(RetryStatus))
+            Status = DT_STATUS_NOT_FOUND_INCOMP_FW;
+    }
+
     if (!DT_SUCCESS(Status))
     {
         // If optional set to default
@@ -133,13 +159,26 @@ DtStatus  DtCfProps_GetForType(
     DtPropertyValueType*  pType,
     DtPropertyScope*  pScope)
 {
+    DtStatus  Status = DT_STATUS_OK;
     // Sanity checks
     CF_PROPS_DEFAULT_PRECONDITIONS(pCf);
 
-    return DtPropertiesGetForType(pTypeName, TypeNumber, SubType, Flt.m_HwRev, 
+    Status = DtPropertiesGetForType(pTypeName, TypeNumber, SubType, Flt.m_HwRev, 
                                        Flt.m_FwVersion, Flt.m_FwVariant,
                                        pName, Flt.m_PortIndex, pValue, pType, pScope, 
                                        Flt.m_DtapiMaj, Flt.m_DtapiMin, Flt.m_DtapiBugfix);
+    if (Status == DT_STATUS_NOT_FOUND)
+    {
+        // Try again without firmware version check
+        DtStatus RetryStatus;
+        RetryStatus = DtPropertiesGetForType(pTypeName, TypeNumber, SubType, Flt.m_HwRev, 
+                                       -1, Flt.m_FwVariant,
+                                       pName, Flt.m_PortIndex, pValue, pType, pScope, 
+                                       Flt.m_DtapiMaj, Flt.m_DtapiMin, Flt.m_DtapiBugfix);
+        if (DT_SUCCESS(RetryStatus))
+            Status = DT_STATUS_NOT_FOUND_INCOMP_FW;
+    }
+    return Status;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfProps_GetStr -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -151,13 +190,25 @@ DtStatus  DtCfProps_GetStr(
     char*  pStr,
     DtPropertyScope*  pScope)
 {
+    DtStatus  Status = DT_STATUS_OK;
     // Sanity checks
     CF_PROPS_DEFAULT_PRECONDITIONS(pCf);
 
-    return DtPropertiesStrGet(&pCf->m_PropData, pName, Flt.m_PortIndex, pStr, 
+    Status = DtPropertiesStrGet(&pCf->m_PropData, pName, Flt.m_PortIndex, pStr, 
                                pScope, Flt.m_DtapiMaj, Flt.m_DtapiMin, Flt.m_DtapiBugfix);
+    if (Status == DT_STATUS_NOT_FOUND)
+    {
+        // Try again without firmware version check
+        DtStatus RetryStatus;
+        DtPropertyData PropData = pCf->m_PropData;
+        PropData.m_FirmwareVersion = -1;
+        RetryStatus = DtPropertiesStrGet(&PropData, pName, Flt.m_PortIndex, pStr, 
+                               pScope, Flt.m_DtapiMaj, Flt.m_DtapiMin, Flt.m_DtapiBugfix);
+        if (DT_SUCCESS(RetryStatus))
+            Status = DT_STATUS_NOT_FOUND_INCOMP_FW;
+    }
+    return Status;
 }
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfProps_GetStrForType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtCfProps_GetStrForType(
@@ -170,13 +221,26 @@ DtStatus  DtCfProps_GetStrForType(
     char*  pStr,
     DtPropertyScope*  pScope)
 {
+    DtStatus  Status = DT_STATUS_OK;
     // Sanity checks
     CF_PROPS_DEFAULT_PRECONDITIONS(pCf);
 
-    return DtPropertiesStrGetForType(pTypeName, TypeNumber, SubType, Flt.m_HwRev, 
+    Status = DtPropertiesStrGetForType(pTypeName, TypeNumber, SubType, Flt.m_HwRev, 
                                        Flt.m_FwVersion, Flt.m_FwVariant,
                                        pName, Flt.m_PortIndex, pStr, pScope, 
                                        Flt.m_DtapiMaj, Flt.m_DtapiMin, Flt.m_DtapiBugfix);
+    if (Status == DT_STATUS_NOT_FOUND)
+    {
+        // Try again without firmware version check
+        DtStatus RetryStatus;
+        RetryStatus = DtPropertiesStrGetForType(pTypeName, TypeNumber, SubType, 
+                                       Flt.m_HwRev, -1, Flt.m_FwVariant,
+                                       pName, Flt.m_PortIndex, pStr, pScope, 
+                                       Flt.m_DtapiMaj, Flt.m_DtapiMin, Flt.m_DtapiBugfix);
+        if (DT_SUCCESS(RetryStatus))
+            Status = DT_STATUS_NOT_FOUND_INCOMP_FW;
+    }
+    return Status;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfProps_GetTable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -190,11 +254,24 @@ DtStatus  DtCfProps_GetTable(
     DtTableEntry*  pTableEntry,
     UInt  OutBufSize)
 {
+    DtStatus  Status = DT_STATUS_OK;
     // Sanity checks
     CF_PROPS_DEFAULT_PRECONDITIONS(pCf);
 
-    return DtTableGet(&pCf->m_PropData, pTableName, PortIndex, MaxNumEntries,
+    Status = DtTableGet(&pCf->m_PropData, pTableName, PortIndex, MaxNumEntries,
                                                    pNumEntries, pTableEntry,  OutBufSize);
+    if (Status == DT_STATUS_NOT_FOUND)
+    {
+        // Try again without firmware version check
+        DtStatus RetryStatus;
+        DtPropertyData PropData = pCf->m_PropData;
+        PropData.m_FirmwareVersion = -1;
+        RetryStatus = DtTableGet(&PropData, pTableName, PortIndex, MaxNumEntries,
+                                                   pNumEntries, pTableEntry,  OutBufSize);
+        if (DT_SUCCESS(RetryStatus))
+            Status = DT_STATUS_NOT_FOUND_INCOMP_FW;
+    }
+    return Status;
 }
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfProps_GetTableForType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -209,13 +286,25 @@ DtStatus  DtCfProps_GetTableForType(
     DtTableEntry*  pTableEntry,
     UInt  OutBufSize)
 {
+    DtStatus  Status = DT_STATUS_OK;
     // Sanity checks
     CF_PROPS_DEFAULT_PRECONDITIONS(pCf);
         
     // Now find the table
-    return DtTableGetForType("DTA", TypeNumber, SubType, Flt.m_HwRev, Flt.m_FwVersion,
+    Status = DtTableGetForType("DTA", TypeNumber, SubType, Flt.m_HwRev, Flt.m_FwVersion,
                               Flt.m_FwVariant, pTableName, Flt.m_PortIndex, MaxNumEntries,
                               pNumEntries, pTableEntry,  OutBufSize);
+    if (Status == DT_STATUS_NOT_FOUND)
+    {
+        // Try again without firmware version check
+        DtStatus RetryStatus;
+        RetryStatus = DtTableGetForType("DTA", TypeNumber, SubType, Flt.m_HwRev, -1,
+                              Flt.m_FwVariant, pTableName, Flt.m_PortIndex, MaxNumEntries,
+                              pNumEntries, pTableEntry,  OutBufSize);
+        if (DT_SUCCESS(RetryStatus))
+            Status = DT_STATUS_NOT_FOUND_INCOMP_FW;
+    }
+    return Status;
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfProps_GetBool -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

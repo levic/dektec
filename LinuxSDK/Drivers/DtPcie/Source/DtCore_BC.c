@@ -253,10 +253,15 @@ DtStatus DtCore_BC_OpenInstances(DtCore* pCore, DtPt* pPt, DtBcId Id)
 
         FoundProps = FALSE;     // Assume the worst
         Status = DtBcCommonProps_Load(&BcProps, &Id, PortIndex, pCore);
-        if (!DT_SUCCESS(Status))
+        if (Status==DT_STATUS_NOT_FOUND_INCOMP_FW)
+        { 
+            FoundProps = TRUE;      // Found but skip this one
+            continue;
+        }
+        else if (!DT_SUCCESS(Status))
             continue;
         FoundProps = TRUE;
-
+        
         // Fill in missing details in the ID
         Id.m_pRole = BcProps.m_pRole;   // Set role
         Id.m_Uuid = BcProps.m_Uuid;

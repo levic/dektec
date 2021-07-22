@@ -1170,7 +1170,7 @@ static const DtProperty  DtProperties2132_0_00[] =
 {
     { "AF_REBOOT#1_UUID", 0x00020003, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_I2CM#3_UUID", 0x00010014, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_I2CM#3_UUID", 0x00010013, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2132_0_01[] =
@@ -1192,7 +1192,7 @@ static const DtProperty  DtProperties2132_0_02[] =
 {
     { "BC_ACCUFIFO#1_ADDRESS", 0x1A0, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_AD5320#1_UUID", 0x00010015, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_AD5320#1_UUID", 0x00010014, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_RX_DVBS2", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -1206,7 +1206,7 @@ static const DtProperty  DtProperties2132_0_03[] =
 };
 static const DtProperty  DtProperties2132_0_04[] =
 {
-    { "BC_S2DEC#1_UUID", 0x0001001A, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_S2DEC#1_UUID", 0x00010019, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_TOD#1", DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
@@ -1235,7 +1235,7 @@ static const DtProperty  DtProperties2132_0_07[] =
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_IQSRC2132#1", DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_S2STATS#1_UUID", 0x00010011, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_S2STATS#1_UUID", 0x00010010, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2132_0_08[] =
@@ -1330,7 +1330,7 @@ static const DtProperty  DtProperties2132_0_14[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_IPSECG#1_UUID", 0x00010004, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_IQFIR#1_UUID", 0x00010012, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_IQFIR#1_UUID", 0x00010011, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2132_0_15[] =
@@ -1384,8 +1384,8 @@ static const DtProperty  DtProperties2132_0_18[] =
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_S2STATS#1_TYPE", DT_BLOCK_TYPE_S2STATS_2132, NULL, PROPERTY_VALUE_TYPE_INT, 0,
                      0, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "DF_TEMPFANMGR#1.1", DT_PVE, "BC_FANC#1", PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0,
-                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+    { "DF_TEMPFANMGR#1.1", DT_PVE, "DF_SENSTEMP#1", PROPERTY_VALUE_TYPE_STRING, -1, 0, 0,
+                           0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2132_0_19[] =
 {
@@ -1402,9 +1402,7 @@ static const DtProperty  DtProperties2132_0_19[] =
     { "CAP_TRPMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, 0, -1,
-                                 PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 5, 43, 3 },
-    { "DF_TEMPFANMGR#1.2", DT_PVE, "DF_SENSTEMP#1", PROPERTY_VALUE_TYPE_STRING, -1, 0, 0,
-                           0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                 PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 5, 43, 3 } 
 };
 static const DtProperty  DtProperties2132_0_20[] =
 {
@@ -1477,8 +1475,6 @@ static const DtProperty  DtProperties2132_0_26[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0x600, NULL, PROPERTY_VALUE_TYPE_INT, 2, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_FANC#1_ADDRESS", 0x1C0, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
-                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_TOD#1_UUID", 0x00010003, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "PCI_SUB_SYSTEM_ID", 0x0, NULL, PROPERTY_VALUE_TYPE_UINT16, -1, -1, 0, 0, -1,
@@ -1488,7 +1484,7 @@ static const DtProperty  DtProperties2132_0_26[] =
 };
 static const DtProperty  DtProperties2132_0_27[] =
 {
-    { "BC_ADS4246#1_UUID", 0x0001000C, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_ADS4246#1_UUID", 0x0001000B, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_RX_IQ", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -1536,7 +1532,7 @@ static const DtProperty  DtProperties2132_0_31[] =
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "AF_SPIMF#1_TYPE", DT_FUNC_TYPE_SPIMF, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0,
                                                       -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_I2CM#2_UUID", 0x0001000E, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_I2CM#2_UUID", 0x0001000D, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2132_0_32[] =
@@ -1548,7 +1544,7 @@ static const DtProperty  DtProperties2132_0_32[] =
 };
 static const DtProperty  DtProperties2132_0_33[] =
 {
-    { "BC_S2DEMOD#1_UUID", 0x0001001B, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_S2DEMOD#1_UUID", 0x0001001A, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2132_0_34[] =
@@ -1585,20 +1581,20 @@ static const DtProperty  DtProperties2132_0_38[] =
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_ADS4246#1_TYPE", DT_BLOCK_TYPE_ADS4246_2132, NULL, PROPERTY_VALUE_TYPE_INT, 0,
                      0, 0, 0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_IQPWR#1_UUID", 0x00010017, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_IQPWR#1_UUID", 0x00010016, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "DF_VPD#1_RO_SIZE", 768, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2132_0_39[] =
 {
-    { "BC_BURSTFIFO#1_UUID", 0x00010018, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_BURSTFIFO#1_UUID", 0x00010017, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0x0001001D, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x0001001C, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0x0001001F, NULL, PROPERTY_VALUE_TYPE_INT, 2, 0, 0, 0, -1,
+    { NULL, 0x0001001E, NULL, PROPERTY_VALUE_TYPE_INT, 2, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_FPGATEMP#1_UUID", 0x0001000B, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
+    { "BC_FPGATEMP#1_UUID", 0x0001000A, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_SENSTEMP#1_UUID", 0x00040001, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
@@ -1656,14 +1652,12 @@ static const DtProperty  DtProperties2132_0_43[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "AF_LNBH25#1_TYPE", DT_FUNC_TYPE_LNBH25_2132, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0,
                                                 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_CDMAC#1_UUID", 0x00010019, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_CDMAC#1_UUID", 0x00010018, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0x0001001C, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x0001001B, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0x0001001E, NULL, PROPERTY_VALUE_TYPE_INT, 2, 0, 0, 0, -1,
+    { NULL, 0x0001001D, NULL, PROPERTY_VALUE_TYPE_INT, 2, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_FANC#1_UUID", 0x0001000A, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
-                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_S2DEMOD#1", DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_CORE#1.2", DT_PVE, "BC_TOD#1", PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0, -1,
@@ -1677,7 +1671,7 @@ static const DtProperty  DtProperties2132_0_44[] =
 {
     { "BC_AD5320#1", DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_IQCGRAB#1_UUID", 0x00010010, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_IQCGRAB#1_UUID", 0x0001000F, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_IQSRC2132#1_ADDRESS", 0x4C0, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -1685,7 +1679,7 @@ static const DtProperty  DtProperties2132_0_44[] =
                                             0, 0, 0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_SPIM#1_UUID", 0x00010005, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x0001000F, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { NULL, 0x0001000E, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "DF_CORE#1.3", DT_PVE, "BC_MSIX#1", PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
@@ -1814,8 +1808,6 @@ static const DtProperty  DtProperties2132_0_53[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, 2, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_FANC#1", DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0, -1,
-                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_IQPWR#1_ADDRESS", 0x500, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -1829,8 +1821,6 @@ static const DtProperty  DtProperties2132_0_54[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, DT_BLOCK_TYPE_CDMAC, NULL, PROPERTY_VALUE_TYPE_INT, 2, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_FANC#1_TYPE", DT_BLOCK_TYPE_FANC, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0,
-                                                     -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_S2STATS#1_ADDRESS", 0x340, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MAIN_PORT_COUNT", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
@@ -1912,7 +1902,7 @@ static const DtProperty  DtProperties2132_0_61[] =
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "AF_LEDBOARD#1_TYPE", DT_FUNC_TYPE_LEDBOARD, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0,
                                                 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_IQSRC2132#1_UUID", 0x00010016, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_IQSRC2132#1_UUID", 0x00010015, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_SPIMF#1_TYPE", DT_BLOCK_TYPE_SPIMF, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -1924,9 +1914,9 @@ static const DtProperty  DtProperties2132_0_62[] =
 {
     { "AF_SPIMF#1", DT_PVE, "FPGA_FIRMWARE", PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_I2CM#1_UUID", 0x0001000D, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_I2CM#1_UUID", 0x0001000C, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_LNBH25#1_UUID", 0x00010013, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_LNBH25#1_UUID", 0x00010012, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_RELEASE_BUILD_DATE_1", DT_PVE, "2019.07.09T10:40",
       PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
@@ -1966,14 +1956,14 @@ static const DtPropertyHashSet  DtPropertyHashSets2132_0[] =
     { DtProperties2132_0_16, 6 },
     { DtProperties2132_0_17, 6 },
     { DtProperties2132_0_18, 6 },
-    { DtProperties2132_0_19, 8 },
+    { DtProperties2132_0_19, 7 },
     { DtProperties2132_0_20, 2 },
     { DtProperties2132_0_21, 2 },
     { DtProperties2132_0_22, 7 },
     { DtProperties2132_0_23, 4 },
     { NULL, 0 },
     { DtProperties2132_0_25, 6 },
-    { DtProperties2132_0_26, 10 },
+    { DtProperties2132_0_26, 9 },
     { DtProperties2132_0_27, 4 },
     { DtProperties2132_0_28, 3 },
     { DtProperties2132_0_29, 4 },
@@ -1990,7 +1980,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2132_0[] =
     { DtProperties2132_0_40, 2 },
     { DtProperties2132_0_41, 9 },
     { DtProperties2132_0_42, 7 },
-    { DtProperties2132_0_43, 11 },
+    { DtProperties2132_0_43, 10 },
     { DtProperties2132_0_44, 9 },
     { DtProperties2132_0_45, 5 },
     { DtProperties2132_0_46, 3 },
@@ -2000,8 +1990,8 @@ static const DtPropertyHashSet  DtPropertyHashSets2132_0[] =
     { DtProperties2132_0_50, 10 },
     { DtProperties2132_0_51, 2 },
     { DtProperties2132_0_52, 6 },
-    { DtProperties2132_0_53, 5 },
-    { DtProperties2132_0_54, 7 },
+    { DtProperties2132_0_53, 4 },
+    { DtProperties2132_0_54, 6 },
     { DtProperties2132_0_55, 3 },
     { DtProperties2132_0_56, 7 },
     { DtProperties2132_0_57, 4 },
@@ -4967,7 +4957,7 @@ static const DtProperty  DtProperties2172_0_01[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "DF_CORE#1_UUID", 0x00000000, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2172_0_02[] =
@@ -5011,7 +5001,7 @@ static const DtProperty  DtProperties2172_0_05[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0x00010010, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x00010024, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010025, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2172_0_06[] =
@@ -5055,7 +5045,7 @@ static const DtProperty  DtProperties2172_0_07[] =
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_SWITCH#3_UUID", 0x0001001A, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x0001002E, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x0001002F, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "CAP_720P24", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -5117,9 +5107,9 @@ static const DtProperty  DtProperties2172_0_09[] =
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_I2CM#1_TYPE", DT_BLOCK_TYPE_I2CM, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0,
                                                      -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "BC_SWITCH#5_UUID", 0x00010016, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_SWITCH#5_UUID", 0x0001001E, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 1, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x0001002A, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010033, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 1, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "CAP_OUTPUT", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -5140,7 +5130,7 @@ static const DtProperty  DtProperties2172_0_10[] =
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_ASIRXP#1_UUID", 0x00010012, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x00010026, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010027, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_LEDB#1_UUID", 0x00010002, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
@@ -5149,6 +5139,10 @@ static const DtProperty  DtProperties2172_0_11[] =
 {
     { "AF_REBOOT#1_TYPE", DT_FUNC_TYPE_REBOOT, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                                    0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "BC_SWITCH#7_UUID", 0x00010018, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, 0x0001002D, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "CAP_1080P29_97", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, 0, -1,
@@ -5213,7 +5207,7 @@ static const DtProperty  DtProperties2172_0_15[] =
 {
     { "BC_CONSTSINK#1_UUID", 0x00010019, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0x0001002D, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x0001002E, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_SWITCH#1", DT_PVE, "DMA_ACCU_SWITCH", PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -5331,9 +5325,9 @@ static const DtProperty  DtProperties2172_0_19[] =
                                                       -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_ACCUFIFO#1_UUID", 0x0001000B, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_SWITCH#5", DT_PVE, "RX_TEST_MODE", PROPERTY_VALUE_TYPE_STRING, 0, 0, 0, 0, -1,
+    { "BC_SWITCH#5", DT_PVE, "TX_DBL_BUF", PROPERTY_VALUE_TYPE_STRING, 0, 0, 1, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, DT_PVE, "RX_TEST_MODE", PROPERTY_VALUE_TYPE_STRING, 1, 0, 0, 0, -1,
+    { NULL, DT_PVE, "TX_DBL_BUF", PROPERTY_VALUE_TYPE_STRING, 1, 0, 1, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_VVI#1_TYPE", DT_BLOCK_TYPE_VVI, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
@@ -5350,13 +5344,13 @@ static const DtProperty  DtProperties2172_0_20[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0x1280, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_SWITCH#5_TYPE", DT_BLOCK_TYPE_SWITCH, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0,
+    { "BC_SWITCH#5_TYPE", DT_BLOCK_TYPE_SWITCH, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 1,
                                                   0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, DT_BLOCK_TYPE_SWITCH, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, DT_BLOCK_TYPE_SWITCH, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 1, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "BC_SWITCH#6", DT_PVE, "TX_TEST_MODE", PROPERTY_VALUE_TYPE_STRING, 0, 0, 0, 0, -1,
+    { "BC_SWITCH#6", DT_PVE, "RX_TEST_MODE", PROPERTY_VALUE_TYPE_STRING, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, DT_PVE, "TX_TEST_MODE", PROPERTY_VALUE_TYPE_STRING, 1, 0, 0, 0, -1,
+    { NULL, DT_PVE, "RX_TEST_MODE", PROPERTY_VALUE_TYPE_STRING, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_VIRTGENREF#1_UUID", 0x00040010, NULL, PROPERTY_VALUE_TYPE_INT, 3, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -5377,6 +5371,10 @@ static const DtProperty  DtProperties2172_0_21[] =
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_LEDB#1_TYPE", DT_BLOCK_TYPE_LEDB, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "BC_SWITCH#7", DT_PVE, "TX_TEST_MODE", PROPERTY_VALUE_TYPE_STRING, 0, 0, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_PVE, "TX_TEST_MODE", PROPERTY_VALUE_TYPE_STRING, 1, 0, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "CAP_ASI", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, 0, -1,
@@ -5401,6 +5399,10 @@ static const DtProperty  DtProperties2172_0_22[] =
     { NULL, DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, 1, 0, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { "BC_SWITCH#7_TYPE", DT_BLOCK_TYPE_SWITCH, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0,
+                                                  0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, DT_BLOCK_TYPE_SWITCH, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2172_0_23[] =
@@ -5555,8 +5557,12 @@ static const DtProperty  DtProperties2172_0_30[] =
                                                      -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, DT_PVE, "BC_SDITXPHY#1", PROPERTY_VALUE_TYPE_STRING, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "DF_SDITXPHY#1_TX_PHY_DELAY_SD", 300, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0,
+    { "DF_SDITXPHY#1_TX_PHY_DELAY_SD", 518, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 1, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 518, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 1, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 300, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 300, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "PCIE_REQUIRED_BW", 11880, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
@@ -5598,7 +5604,11 @@ static const DtProperty  DtProperties2172_0_34[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0x0004000D, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "DF_SDITXPHY#1_TX_PHY_DELAY3G", 105, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "DF_SDITXPHY#1_TX_PHY_DELAY3G", 235, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 1, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 235, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 1, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 105, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 105, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -5609,13 +5619,13 @@ static const DtProperty  DtProperties2172_0_35[] =
 {
     { "BC_ASITXG#1_UUID", 0x0001001B, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0x0001002F, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010030, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_GENL#1", DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_SDIRXF#1_UUID", 0x00010014, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0x00010028, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010029, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_625I50", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -5661,7 +5671,7 @@ static const DtProperty  DtProperties2172_0_37[] =
 {
     { "BC_SDITXF#1_UUID", 0x0001001C, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0x00010030, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010031, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_TOD#1_TYPE", DT_BLOCK_TYPE_TOD, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
@@ -5674,7 +5684,7 @@ static const DtProperty  DtProperties2172_0_38[] =
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_SWITCH#2_UUID", 0x00010015, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x00010029, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x0001002A, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "CAP_720P50", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -5689,13 +5699,17 @@ static const DtProperty  DtProperties2172_0_38[] =
 };
 static const DtProperty  DtProperties2172_0_39[] =
 {
-    { "BC_BURSTFIFO#1_UUID", 0x00010021, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_BURSTFIFO#1_UUID", 0x00010022, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0x00010035, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010037, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_FPGATEMP#1_UUID", 0x00010006, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "BC_LMH1981#1_UUID", 0x00010037, NULL, PROPERTY_VALUE_TYPE_INT, 2, 0, 0, 0, -1,
+    { "BC_LMH1981#1_UUID", 0x00010039, NULL, PROPERTY_VALUE_TYPE_INT, 2, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_DBLBUF", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 1, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 1, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "DF_SENSTEMP#1_UUID", 0x00040002, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
@@ -5714,9 +5728,9 @@ static const DtProperty  DtProperties2172_0_40[] =
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_SDITXPLL#2_UUID", 0x0001000E, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "BC_SWITCH#4_UUID", 0x0001001E, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_SWITCH#4_UUID", 0x0001001F, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x00010032, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010034, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_SI534X#1_UUID", 0x00040003, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
@@ -5742,9 +5756,9 @@ static const DtProperty  DtProperties2172_0_42[] =
 {
     { "AF_REBOOT#1", DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_SWITCH#6_UUID", 0x00010018, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_SWITCH#6_UUID", 0x00010016, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x0001002C, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x0001002B, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_ASIRX#1_TYPE", DT_FUNC_TYPE_ASIRX, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -5755,17 +5769,17 @@ static const DtProperty  DtProperties2172_0_42[] =
 };
 static const DtProperty  DtProperties2172_0_43[] =
 {
-    { "BC_CDMAC#1_UUID", 0x00010020, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_CDMAC#1_UUID", 0x00010021, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0x00010034, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010036, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_CONSTSOURCE#1_UUID", 0x00010017, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0x0001002B, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x0001002C, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_TSRXFMT#1_UUID", 0x00010011, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x00010025, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010026, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_CORE#1.2", DT_PVE, "BC_TOD#1", PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
@@ -5790,9 +5804,9 @@ static const DtProperty  DtProperties2172_0_44[] =
 {
     { "BC_SPIM#1_UUID", 0x00010005, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x00010022, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { NULL, 0x00010023, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x00010036, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010038, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_CORE#1.3", DT_PVE, "BC_MSIX#1", PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
@@ -5819,7 +5833,7 @@ static const DtProperty  DtProperties2172_0_45[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_SDIRXP#1_UUID", 0x00010013, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x00010027, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010028, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "CAP_1080P59_94B", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -5854,7 +5868,7 @@ static const DtProperty  DtProperties2172_0_46[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_SDIRXPHY#1_UUID", 0x0001000F, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x00010023, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010024, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_VPD#1_RW_SIZE", 4096, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
@@ -5869,7 +5883,7 @@ static const DtProperty  DtProperties2172_0_47[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_SDITXP#1_UUID", 0x0001001D, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0x00010031, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010032, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_1080I50", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -5882,7 +5896,10 @@ static const DtProperty  DtProperties2172_0_47[] =
     { "CAP_DMATESTMODE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, 0, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Support for configuring a double-buffered output", PROPERTY_VALUE_TYPE_STRING, -1,
+                                            -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2172_0_48[] =
 {
@@ -5898,12 +5915,15 @@ static const DtProperty  DtProperties2172_0_48[] =
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, DT_BLOCK_TYPE_SDITXF, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_SDITXPHY#1_UUID", 0x0001001F, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_SDITXPHY#1_UUID", 0x00010020, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x00010033, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
+    { NULL, 0x00010035, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_GENLOCKCTRL#1_UUID", 0x00040001, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0,
-                              -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                              -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_1", DT_PVE,
+      "Updated PCI(e) class code to 0x048000 (Multimedia-controller)",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2172_0_49[] =
 {
@@ -5928,7 +5948,10 @@ static const DtProperty  DtProperties2172_0_49[] =
     { "DF_SENSTEMP#1_NAME", DT_PVE, "FPGA", PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_SI534X#1.1", DT_PVE, "BC_I2CM#1", PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0, -1,
-                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_2", DT_PVE,
+      "Fixes rare issue were valid software licenses would not be detected/accepted",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2172_0_50[] =
 {
@@ -5956,6 +5979,9 @@ static const DtProperty  DtProperties2172_0_50[] =
                                                      -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_TXPLLMGR#1_UUID", 0x00040006, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_3", DT_PVE,
+      "Fixes bug with potential to corrupt the stored firmware image during a PC reboot",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "PORT_COUNT", 4, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -5971,14 +5997,21 @@ static const DtProperty  DtProperties2172_0_51[] =
                                                   0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, DT_BLOCK_TYPE_SWITCH, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "DF_SDITXPHY#1_TX_PHY_DELAY_HD", 130, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0,
+    { "DF_SDITXPHY#1_TX_PHY_DELAY_HD", 250, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 1, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 250, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 1, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 130, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 130, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "DF_SI534X#1_TYPE", DT_FUNC_TYPE_SI534X, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0,
                                                   0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_TEMPFANMGR#1", DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, -1, 0, 0, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_4", DT_PVE,
+      "Fixes bug where underflows in transmit path were not always reported",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2172_0_52[] =
 {
@@ -6106,9 +6139,9 @@ static const DtProperty  DtProperties2172_0_56[] =
                                                   0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, DT_BLOCK_TYPE_SDIRXP, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "BC_SWITCH#5_ADDRESS", 0x9d0, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_SWITCH#5_ADDRESS", 0xaf0, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 1, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x11d0, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+    { NULL, 0x12f0, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 1, 0, -1, PROPERTY_SCOPE_DRIVER,
                                                                                 0, 0, 0 },
     { "CAP_1080P50B", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -6137,9 +6170,9 @@ static const DtProperty  DtProperties2172_0_57[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_SWITCH#6_ADDRESS", 0xa00, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_SWITCH#6_ADDRESS", 0x9d0, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { NULL, 0x1200, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+    { NULL, 0x11d0, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
                                                                                 0, 0, 0 },
     { "CAP_1080P60B", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -6156,6 +6189,10 @@ static const DtProperty  DtProperties2172_0_58[] =
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, DT_BLOCK_TYPE_SDITXP, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "BC_SWITCH#7_ADDRESS", 0xa00, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { NULL, 0x1200, NULL, PROPERTY_VALUE_TYPE_INT, 1, 0, 0, 0, -1, PROPERTY_SCOPE_DRIVER,
+                                                                                0, 0, 0 },
     { "DF_GENLOCKCTRL#1.2", DT_PVE, "DF_SI534X#1", PROPERTY_VALUE_TYPE_STRING, -1, 0, 0,
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -6244,6 +6281,9 @@ static const DtProperty  DtProperties2172_0_62[] =
     { "BC_I2CM#1_UUID", 0x00010009, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_VIRTGENREF#1", DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, 3, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_BUILD_DATE_1", DT_PVE, "2021.06.24T11:17",
+      PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2172_0_63[] =
@@ -6282,7 +6322,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2172_0[] =
     { DtProperties2172_0_08, 13 },
     { DtProperties2172_0_09, 13 },
     { DtProperties2172_0_10, 5 },
-    { DtProperties2172_0_11, 11 },
+    { DtProperties2172_0_11, 13 },
     { DtProperties2172_0_12, 11 },
     { DtProperties2172_0_13, 2 },
     { DtProperties2172_0_14, 2 },
@@ -6292,8 +6332,8 @@ static const DtPropertyHashSet  DtPropertyHashSets2172_0[] =
     { DtProperties2172_0_18, 18 },
     { DtProperties2172_0_19, 7 },
     { DtProperties2172_0_20, 9 },
-    { DtProperties2172_0_21, 10 },
-    { DtProperties2172_0_22, 7 },
+    { DtProperties2172_0_21, 12 },
+    { DtProperties2172_0_22, 9 },
     { DtProperties2172_0_23, 16 },
     { DtProperties2172_0_24, 7 },
     { DtProperties2172_0_25, 8 },
@@ -6301,16 +6341,16 @@ static const DtPropertyHashSet  DtPropertyHashSets2172_0[] =
     { NULL, 0 },
     { DtProperties2172_0_28, 5 },
     { DtProperties2172_0_29, 6 },
-    { DtProperties2172_0_30, 11 },
+    { DtProperties2172_0_30, 13 },
     { DtProperties2172_0_31, 10 },
     { DtProperties2172_0_32, 2 },
     { NULL, 0 },
-    { DtProperties2172_0_34, 5 },
+    { DtProperties2172_0_34, 7 },
     { DtProperties2172_0_35, 10 },
     { DtProperties2172_0_36, 13 },
     { DtProperties2172_0_37, 3 },
     { DtProperties2172_0_38, 9 },
-    { DtProperties2172_0_39, 7 },
+    { DtProperties2172_0_39, 9 },
     { DtProperties2172_0_40, 9 },
     { DtProperties2172_0_41, 5 },
     { DtProperties2172_0_42, 6 },
@@ -6318,22 +6358,22 @@ static const DtPropertyHashSet  DtPropertyHashSets2172_0[] =
     { DtProperties2172_0_44, 8 },
     { DtProperties2172_0_45, 17 },
     { DtProperties2172_0_46, 8 },
-    { DtProperties2172_0_47, 10 },
-    { DtProperties2172_0_48, 9 },
-    { DtProperties2172_0_49, 11 },
-    { DtProperties2172_0_50, 13 },
-    { DtProperties2172_0_51, 9 },
+    { DtProperties2172_0_47, 11 },
+    { DtProperties2172_0_48, 10 },
+    { DtProperties2172_0_49, 12 },
+    { DtProperties2172_0_50, 14 },
+    { DtProperties2172_0_51, 12 },
     { DtProperties2172_0_52, 12 },
     { DtProperties2172_0_53, 12 },
     { DtProperties2172_0_54, 21 },
     { DtProperties2172_0_55, 8 },
     { DtProperties2172_0_56, 11 },
     { DtProperties2172_0_57, 11 },
-    { DtProperties2172_0_58, 4 },
+    { DtProperties2172_0_58, 6 },
     { DtProperties2172_0_59, 19 },
     { DtProperties2172_0_60, 5 },
     { DtProperties2172_0_61, 6 },
-    { DtProperties2172_0_62, 7 },
+    { DtProperties2172_0_62, 8 },
     { DtProperties2172_0_63, 10 }
 };
 
@@ -6426,11 +6466,11 @@ static const DtProperty  DtProperties2174_2_01[] =
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, 0x00000000, NULL, PROPERTY_VALUE_TYPE_INT, -1, 3, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "FIRMWARE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, 1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, 1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 2, 0, 0, -1,
+    { NULL, 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, 2, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 3, 0, 0, -1,
+    { NULL, 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, 3, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2174_2_02[] =
@@ -7169,7 +7209,9 @@ static const DtProperty  DtProperties2174_2_11[] =
     { NULL, DT_PVE, "DF_SPIPROM#1", PROPERTY_VALUE_TYPE_STRING, -1, 2, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, DT_PVE, "DF_SPIPROM#1", PROPERTY_VALUE_TYPE_STRING, -1, 3, 0, 0, -1,
-                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { "FIRMWARE_PACKAGE_BUILD_DATE_3", DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, -1, -1,
+                                                0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2174_2_12[] =
 {
@@ -9506,7 +9548,7 @@ static const DtProperty  DtProperties2174_2_44[] =
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, -1, 3, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "FIRMWARE_PACKAGE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_PACKAGE_LAST_VER", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2174_2_45[] =
@@ -9901,7 +9943,11 @@ static const DtProperty  DtProperties2174_2_48[] =
              PROPERTY_VALUE_TYPE_STRING, -1, 3, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_RELEASE_N2_0", DT_PVE,
       "Fixes bug with potential to corrupt the stored firmware image during a PC reboot",
-             PROPERTY_VALUE_TYPE_STRING, -1, 1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+             PROPERTY_VALUE_TYPE_STRING, -1, 1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, DT_PVE, "Updated PCI(e) class code to 0x048000 (Multimedia-controller)",
+             PROPERTY_VALUE_TYPE_STRING, -1, 2, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, DT_PVE, "Updated PCI(e) class code to 0x048000 (Multimedia-controller)",
+             PROPERTY_VALUE_TYPE_STRING, -1, 3, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2174_2_49[] =
 {
@@ -9981,7 +10027,10 @@ static const DtProperty  DtProperties2174_2_49[] =
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "FIRMWARE_RELEASE_N1_2", DT_PVE,
       "Fixes bug where 12G-SDI signal was not always detected after a cable reconnect",
-             PROPERTY_VALUE_TYPE_STRING, -1, 2, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+             PROPERTY_VALUE_TYPE_STRING, -1, 2, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N3_0", DT_PVE,
+      "Updated PCI(e) class code to 0x048000 (Multimedia-controller)",
+             PROPERTY_VALUE_TYPE_STRING, -1, 1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2174_2_50[] =
 {
@@ -11351,7 +11400,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2174_2[] =
     { DtProperties2174_2_08, 50 },
     { DtProperties2174_2_09, 49 },
     { DtProperties2174_2_10, 19 },
-    { DtProperties2174_2_11, 53 },
+    { DtProperties2174_2_11, 54 },
     { DtProperties2174_2_12, 44 },
     { DtProperties2174_2_13, 8 },
     { DtProperties2174_2_14, 6 },
@@ -11388,8 +11437,8 @@ static const DtPropertyHashSet  DtPropertyHashSets2174_2[] =
     { DtProperties2174_2_45, 73 },
     { DtProperties2174_2_46, 30 },
     { DtProperties2174_2_47, 45 },
-    { DtProperties2174_2_48, 40 },
-    { DtProperties2174_2_49, 38 },
+    { DtProperties2174_2_48, 42 },
+    { DtProperties2174_2_49, 39 },
     { DtProperties2174_2_50, 49 },
     { DtProperties2174_2_51, 35 },
     { DtProperties2174_2_52, 58 },
@@ -24030,7 +24079,7 @@ static const DtProperty  DtProperties2178_1_62[] =
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_I2CM#1_UUID", 0x00010008, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "FIRMWARE_RELEASE_BUILD_DATE_1", DT_PVE, "2021.03.08T11:40",
+    { "FIRMWARE_RELEASE_BUILD_DATE_1", DT_PVE, "2021.06.24T10:06",
       PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };

@@ -187,8 +187,9 @@ DtStatus  DtPropertiesFind(DtPropertyData* pPropData, const char* pName, Int Por
                     if (PortIndex==pProp->m_PortIndex && FwVariant==pProp->m_FwVariant)
                     {
                         // Check minimal firmware version and hardware version
-                        if (FwVersion>=pProp->m_MinFw && HwRevision>=pProp->m_MinHw &&
-                                        (pProp->m_MaxHw==-1 || HwRevision<pProp->m_MaxHw))
+                        if ((FwVersion==-1 || FwVersion>=pProp->m_MinFw) 
+                                     && HwRevision>=pProp->m_MinHw
+                                     && (pProp->m_MaxHw==-1 || HwRevision<pProp->m_MaxHw))
                         {
                             Bool  DtapiVerOk = FALSE;
                             // -1 means the request came from the driver

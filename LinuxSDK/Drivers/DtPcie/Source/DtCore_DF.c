@@ -216,8 +216,14 @@ DtStatus  DtCore_DF_OpenAll_Impl(DtCore*  pCore,  DtPt*  pPt, const DtDfId*  pId
 
             FoundProps = FALSE;     // Assume the worst
             Status = DtDfCommonProps_Load(&DfProps, &Id, PortIndex, pCore);
-            if (!DT_SUCCESS(Status))
+            if (Status==DT_STATUS_NOT_FOUND_INCOMP_FW)
+            {
+                FoundProps = TRUE;      // Found but skip this one
                 continue;
+            }
+            else if (!DT_SUCCESS(Status))
+                continue;
+
             FoundProps = TRUE;
 
             // Fill in missing details in the ID

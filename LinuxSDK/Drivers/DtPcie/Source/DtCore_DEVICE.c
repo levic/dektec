@@ -362,7 +362,7 @@ DtStatus  DtCore_Device_GetFirmwareReleaseBuildDate(
         // Free string buffer
         DtStringFree(&PropString);
 
-        if (Status == DT_STATUS_NOT_FOUND)
+        if (Status==DT_STATUS_NOT_FOUND || Status==DT_STATUS_NOT_FOUND_INCOMP_FW)
             Status = DT_STATUS_OK;
         return Status;
     }

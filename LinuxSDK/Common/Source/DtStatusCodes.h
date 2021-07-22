@@ -106,5 +106,6 @@ typedef UInt32  DtStatus;
 #define  DT_STATUS_NOT_ENABLED          DT_STATUS_ERROR(28)
 #define  DT_STATUS_EOF                  DT_STATUS_ERROR(29)
 #define  DT_STATUS_INVALID_IN_OPMODE    DT_STATUS_ERROR(30)
-
+#define  DT_STATUS_NOT_FOUND_INCOMP_FW  DT_STATUS_ERROR(31) // Not found because
+                                                             // incompatible fwversion
 #endif // __DT_STATUS_CODES_H
