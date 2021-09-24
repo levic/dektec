@@ -50,6 +50,7 @@ static DtStatus  DtBcSDITXPLL_OnEnable(DtBc*, Bool);
 static DtStatus  DtBcSDITXPLL_CV_ResetClock(DtBcSDITXPLL* pBc);
 static DtStatus  DtBcSDITXPLL_C10A10_ResetClock(DtBcSDITXPLL* pBc);
 static DtStatus  DtBcSDITXPLL_C10A10_Calibrate(DtBcSDITXPLL* pBc);
+static Bool DtBcSDITXPLL_C10A10_WaitRequest(DtBcSDITXPLL* pBc);
 static void  DtBcSDITXPLL_SetControlRegs(DtBcSDITXPLL*, Bool BlkEnable, Bool TxClkReset);
 
 
@@ -205,13 +206,12 @@ DtStatus  DtBcSDITXPLL_C10A10_Calibrate(DtBcSDITXPLL* pBc)
 
     // Request user access to the bus (do not use a read-modify-write)
     SDITXPLL_C10A10_PllCalibrationControl_WRITE(pBc, SDITXPLL_OP_USER);
-    
 
     // Wait a maximum of 1ms
     TimeStart = TimeEnd = DtGetTickCountUSec();
     while ((TimeEnd-TimeStart) < (1*1000))
     {   
-        if (SDITXPLL_C10A10_PllCalibrationStatus_READ_ConfigBusBusy(pBc) == 0)
+        if (!DtBcSDITXPLL_C10A10_WaitRequest(pBc))
             break;
 
         DtWaitBlock(1);
@@ -220,7 +220,7 @@ DtStatus  DtBcSDITXPLL_C10A10_Calibrate(DtBcSDITXPLL* pBc)
     TimeEnd  = DtGetTickCountUSec();
 
     // Still busy?
-    if (SDITXPLL_C10A10_PllCalibrationStatus_READ_ConfigBusBusy(pBc) != 0)
+    if (DtBcSDITXPLL_C10A10_WaitRequest(pBc))
     {
         SDITXPLL_C10A10_PllCalibrationControl_WRITE(pBc, 3);
         return DT_STATUS_TIMEOUT;
@@ -268,6 +268,7 @@ DtStatus  DtBcSDITXPLL_C10A10_Calibrate(DtBcSDITXPLL* pBc)
         DtEvtLogReport(&pBc->m_pCore->m_Device.m_EvtObject, 
                                               DTPCIE_LOG_ERROR_GENERIC, &Str, NULL, NULL);
 
+        DtStringFree(&Str);
         return DT_STATUS_TIMEOUT;
     }
     else
@@ -284,8 +285,22 @@ DtStatus  DtBcSDITXPLL_C10A10_Calibrate(DtBcSDITXPLL* pBc)
 
         DtEvtLogReport(&pBc->m_pCore->m_Device.m_EvtObject, 
                                               DTPCIE_LOG_INFO_GENERIC, &Str, NULL, NULL);
+        DtStringFree(&Str);
     }
     return DT_STATUS_OK;
+}
+
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPLL_C10A10_WaitRequest -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool DtBcSDITXPLL_C10A10_WaitRequest(DtBcSDITXPLL* pBc)
+{
+    // TXPLL version 2 and lower don't have a waitrequest field. Use the config bus busy
+    // field instead
+    if (pBc->m_Version < 3)
+        return SDITXPLL_C10A10_PllCalibrationStatus_READ_ConfigBusBusy(pBc) != 0;
+    else
+        return SDITXPLL_Status_READ_WaitRequest(pBc) != 0;
 }
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDITXPLL - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -360,7 +375,6 @@ DtStatus DtBcSDITXPLL_OnEnable(DtBc* pBcBase, Bool Enable)
     return DT_STATUS_OK;
 }
 
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPLL_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtBcSDITXPLL_SetControlRegs(DtBcSDITXPLL* pBc, Bool BlkEnable, Bool TxClkReset)
@@ -372,4 +386,3 @@ void  DtBcSDITXPLL_SetControlRegs(DtBcSDITXPLL* pBc, Bool BlkEnable, Bool TxClkR
     RegData = SDITXPLL_Control_SET_Reset(RegData, TxClkReset ?  1 : 0);
     SDITXPLL_Control_WRITE(BC_SDITXPLL, RegData);
 }
-

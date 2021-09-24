@@ -25,6 +25,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtBcSDIRXPHY.h"
 #include "DtBcSDIRXPHY_RegAccess.h"
+#include "Messages.h"
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDIRXPHY implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -47,6 +48,7 @@ static DtStatus  DtBcSDIRXPHY_Init(DtBc*);
 static DtStatus  DtBcSDIRXPHY_OnEnable(DtBc*, Bool);
 static DtStatus  DtBcSDIRXPHY_OnCloseFile(DtBc*, const DtFileObject*);
 static DtStatus  DtBcSDIRXPHY_CheckSdiRate(DtBcSDIRXPHY*, Int SdiRate);
+static DtStatus  DtBcSDIRXPHY_WaitPhyReady(DtBcSDIRXPHY*);
 static DtStatus DtBcSDIRXPHY_C10A10_StartSetSdiRate(DtBcSDIRXPHY*, Int SdiRate);
 static DtStatus DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(DtBcSDIRXPHY*, Bool* pDone);
 static DtStatus DtBcSDIRXPHY_C10A10_FinishSetSdiRate(DtBcSDIRXPHY*);
@@ -64,7 +66,8 @@ static DtStatus DtBcSDIRXPHY_V2_C10A10_StartUserCalibration(DtBcSDIRXPHY*);
 static void  DtBcSDIRXPHY_SetControlRegs(DtBcSDIRXPHY*, Bool BlkEnable,  Int OpMode,
                                       Bool RxClkReset,  Bool PllReset,  Bool XcvrReset,
                                       Int LockMode, Bool  DownsamplerEnable, Int SdiRate);
-
+static DtStatus DtBcSDIRXPHY_C10A10_RequestAccess(DtBcSDIRXPHY*, Bool AllowLongSleep);
+static void DtBcSDIRXPHY_C10A10_ReleaseAccess(DtBcSDIRXPHY*, Bool TriggerCalibration);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDIRXPHY - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -702,7 +705,7 @@ DtStatus DtBcSDIRXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
 
         // Wait till power-up calibration is completed
         RegCalBusy = SDIRXPHY_Status_READ_CalBusy(pBc);
-        TimeoutCount = 100;
+        TimeoutCount = 1000;
         while (RegCalBusy!=0 && TimeoutCount>0)
         {
             DtSleep(1);
@@ -712,6 +715,9 @@ DtStatus DtBcSDIRXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
         DT_ASSERT(RegCalBusy == 0);
         if (RegCalBusy != 0)
             DtDbgOutBc(ERR, SDIRXPHY, pBc, "Cal busy timeout");
+
+        // Wait till RX PHY is ready
+        DT_RETURN_ON_ERROR(DtBcSDIRXPHY_WaitPhyReady(pBc));
 
         // Device family specific initialisation
         if (pBc->m_DeviceFamily==DT_BC_SDIRXPHY_FAMILY_A10
@@ -840,6 +846,25 @@ DtStatus DtBcSDIRXPHY_CheckSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_WaitPhyReady -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_WaitPhyReady(DtBcSDIRXPHY* pBc)
+{
+    switch (pBc->m_DeviceFamily)
+    {
+    case SDIRXPHY_FAMILY_A10:
+    case SDIRXPHY_FAMILY_C10:
+        DT_RETURN_ON_ERROR(DtBcSDIRXPHY_C10A10_RequestAccess(pBc, TRUE));
+        DtBcSDIRXPHY_C10A10_ReleaseAccess(pBc, FALSE);
+        return DT_STATUS_OK;
+    case SDIRXPHY_FAMILY_CV:
+        return DT_STATUS_OK;
+    default:
+        DT_ASSERT(FALSE);
+        return DT_STATUS_FAIL;
+    }
+}
+
 // -.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_C10A10_StartSetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcSDIRXPHY_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
@@ -924,6 +949,8 @@ DtStatus DtBcSDIRXPHY_V1_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     // Sanity check
     BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
     
+    // No wait request field available in v1 !!!!
+
     // Read registers
     RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_READ(pBc);
     RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_READ(pBc);
@@ -946,6 +973,7 @@ DtStatus DtBcSDIRXPHY_V1_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     // Write registers
     SDIRXPHY_C10A10_CdrPllSettings4_WRITE(pBc, RegCdrPllSettings4);
     SDIRXPHY_C10A10_CdrPllSettings9_WRITE(pBc, RegCdrPllSettings9);
+
 
     return DT_STATUS_OK;
 }
@@ -982,7 +1010,7 @@ DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
             RegRxPcs8G5, RegRxPcs8G6, RegRxPcs8G7, RegRxPcs10G0, RegRxPcs10G1, 
             RegRxPcs10G2, RegRxPcs10G3, RegRxPcs10G4, RegRxPcs10G5, RegRxPcsFifo, 
             RegCdrPllSettings8, RegCdrPllSettings10, RegPmaRxDeser, RegPmaEqBw, 
-            RegCalBusy, WaitRequest, TimeoutCount;
+            RegCalBusy;
 
     // Sanity check
     BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
@@ -996,20 +1024,10 @@ DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
                        pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, TRUE,
                        pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
+
     // 2. Check for internal configuration bus arbitration. Check that 
     // “reconfig_waitrequest” is not high before writing to the reconfiguration interface.
-    DtWaitBlock(1);
-    WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
-    TimeoutCount = 100;
-    while (WaitRequest!=0 && TimeoutCount>0)
-    {
-        DtWaitBlock(1);
-        TimeoutCount--;
-        WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
-    }
-    DT_ASSERT(WaitRequest == 0);
-    if (WaitRequest != 0)
-        DtDbgOutBc(ERR, SDIRXPHY, pBc, "Wait request timeout");
+    DT_RETURN_ON_ERROR(DtBcSDIRXPHY_C10A10_RequestAccess(pBc, FALSE));
 
     // 3. Reconfigure
     // Read registers
@@ -1073,6 +1091,7 @@ DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     else
     {
         DT_ASSERT(FALSE);
+        DtBcSDIRXPHY_C10A10_ReleaseAccess(pBc, FALSE);
         return DT_STATUS_NOT_SUPPORTED;
     }
 
@@ -1347,9 +1366,9 @@ DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     else
     {
         DT_ASSERT(FALSE);
+        DtBcSDIRXPHY_C10A10_ReleaseAccess(pBc, FALSE);
         return DT_STATUS_NOT_SUPPORTED;
     }
-
 
     // Write registres
     SDIRXPHY_C10A10_CdrPllSettings4_WRITE(pBc, RegCdrPllSettings4);
@@ -1409,28 +1428,10 @@ DtStatus DtBcSDIRXPHY_V2_C10A10_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
 //
 DtStatus  DtBcSDIRXPHY_V2_C10A10_StartUserCalibration(DtBcSDIRXPHY* pBc)
 {
-    UInt32  RegData=0,  WaitRequest=0, TimeoutCount=0;
+    UInt32  RegData=0;
 
     // 5.1 Request access to calibration registers.
-    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_READ(pBc);
-    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_ArbiterCtrlPma(RegData, 
-                                                                  SDIRXPHY_ARBOWNER_User);
-    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_CalDonePma(RegData, 
-                                                                  SDIRXPHY_CALDONE_Done);
-    SDIRXPHY_C10A10_ArbitrationCtrl_WRITE(pBc, RegData);
-
-    // 5.2 Wait for access to calibration registers.
-    WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
-    TimeoutCount = 100;
-    while (WaitRequest!=0 && TimeoutCount>0)
-    {
-        DtWaitBlock(1);
-        TimeoutCount--;
-        WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
-    }
-    DT_ASSERT(WaitRequest == 0);
-    if (WaitRequest != 0)
-        DtDbgOutBc(ERR, SDIRXPHY, pBc, "Wait request timeout");
+    DT_RETURN_ON_ERROR(DtBcSDIRXPHY_C10A10_RequestAccess(pBc, FALSE));
 
     // 5.3 CalEnable.RxCalEn =1  CalEnable.AdaptEn = 0 
     RegData = SDIRXPHY_C10A10_CalEnable_READ(pBc);
@@ -1447,12 +1448,7 @@ DtStatus  DtBcSDIRXPHY_V2_C10A10_StartUserCalibration(DtBcSDIRXPHY* pBc)
     SDIRXPHY_C10A10_PmaSettings_WRITE(pBc, RegData);
 
     // 5.5 Release configuration bus to PreSICE to perform calibration
-    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_READ(pBc);
-    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_ArbiterCtrlPma(RegData, 
-                                                               SDIRXPHY_ARBOWNER_PreSICE);
-    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_CalDonePma(RegData, 
-                                                                   SDIRXPHY_CALDONE_Busy);
-    SDIRXPHY_C10A10_ArbitrationCtrl_WRITE(pBc, RegData);
+    DtBcSDIRXPHY_C10A10_ReleaseAccess(pBc, TRUE);
 
     return DT_STATUS_OK;
 }
@@ -1522,3 +1518,86 @@ void  DtBcSDIRXPHY_SetControlRegs(DtBcSDIRXPHY* pBc, Bool BlkEnable, Int OpMode,
     SDIRXPHY_Control_WRITE(BC_SDIRXPHY, RegData);
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_C10A10_RequestAccess -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDIRXPHY_C10A10_RequestAccess(DtBcSDIRXPHY* pBc, Bool AllowLongSleep)
+{
+    UInt32  RegData=0,  WaitRequest=0, TimeoutCount=0;
+    
+    // Request access to PHY registers.
+    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_ArbiterCtrlPma(0, 
+                                                                  SDIRXPHY_ARBOWNER_User);
+    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_CalDonePma(RegData, 
+                                                                  SDIRXPHY_CALDONE_Done);
+    SDIRXPHY_C10A10_ArbitrationCtrl_WRITE(pBc, RegData);
+
+    // Wait for 20ms to get access to PHY registers.
+    WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
+    TimeoutCount = 20000;
+    while (WaitRequest!=0 && TimeoutCount>0)
+    {
+        DtWaitBlock(1);
+        TimeoutCount--;
+        WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
+    }
+    if (WaitRequest == 0)
+        return DT_STATUS_OK;
+    if (!AllowLongSleep)
+        return DT_STATUS_TIMEOUT;
+
+    // It takes a bit longer. Use a sleep if allowed
+    TimeoutCount = 1000;    // Maximum 10 seconds
+    while (WaitRequest!=0 && TimeoutCount>0)
+    {
+        DtSleep(10);
+        TimeoutCount--;
+        WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
+    }
+    if (WaitRequest != 0)
+    {
+        // Timeout
+        DtString  Str;
+        DtStringAlloc(&Str, 256);
+
+        DtStringAppendChars(&Str, "[SN=");
+        DtStringUInt64ToDtStringAppend(&Str, 10, pBc->m_pCore->m_pDevInfo->m_Serial);
+        DtStringAppendChars(&Str, "] ");
+        DtStringAppendChars(&Str, "SDI RX PHY RequestAccess has timed out");
+        DtEvtLogReport(&pBc->m_pCore->m_Device.m_EvtObject, 
+                                              DTPCIE_LOG_ERROR_GENERIC, &Str, NULL, NULL);
+
+        DtStringFree(&Str);
+        DtDbgOutBc(ERR, SDIRXPHY, pBc, "Wait request timeout");
+        return DT_STATUS_TIMEOUT;
+    } else {
+        DtString  Str;
+        DtStringAlloc(&Str, 256);
+
+        DtStringAppendChars(&Str, "[SN=");
+        DtStringUInt64ToDtStringAppend(&Str, 10, pBc->m_pCore->m_pDevInfo->m_Serial);
+        DtStringAppendChars(&Str, "] ");
+        DtStringAppendChars(&Str, "SDI RX PHY RequestAcces granted in: ");
+        DtStringUInt64ToDtStringAppend(&Str, 10, (UInt32)(1000 - TimeoutCount)*10);
+        DtStringAppendChars(&Str, "ms");
+
+        DtEvtLogReport(&pBc->m_pCore->m_Device.m_EvtObject, 
+                                              DTPCIE_LOG_INFO_GENERIC, &Str, NULL, NULL);
+        DtStringFree(&Str);
+    }
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_C10A10_ReleaseAccess -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void DtBcSDIRXPHY_C10A10_ReleaseAccess(DtBcSDIRXPHY* pBc, Bool TriggerCalibration)
+{
+    // Write SDIRXPHY_CALDONE_Done to avoid triggering calibration.
+    // Write SDIRXPHY_CALDONE_Busy to trigger calibration.
+    UInt32 CalDone = TriggerCalibration ? SDIRXPHY_CALDONE_Busy : SDIRXPHY_CALDONE_Done;
+
+    // Release configuration bus to PreSICE to perform calibration
+    UInt32 RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_ArbiterCtrlPma(0, 
+                                                               SDIRXPHY_ARBOWNER_PreSICE);
+    RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_CalDonePma(RegData, CalDone);
+    SDIRXPHY_C10A10_ArbitrationCtrl_WRITE(pBc, RegData);
+}

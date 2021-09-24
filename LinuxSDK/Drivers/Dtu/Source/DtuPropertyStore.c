@@ -2147,7 +2147,7 @@ static const DtProperty  DtProperties245_0_00[] =
 };
 static const DtProperty  DtProperties245_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 600, -1,
+    { "FIRMWARE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 600, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 9, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, 600,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
@@ -2382,6 +2382,11 @@ static const DtProperty  DtProperties245_0_47[] =
     { "FIRMWARE_RELEASE_N1_0", DT_PVE, "Bug fix: Loopthrough mode",
           PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 600, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties245_0_48[] =
+{
+    { "FIRMWARE_RELEASE_N2_0", DT_PVE, "Bug fix: 188+16 mode",
+          PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 600, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties245_0_50[] =
 {
     { "PORT_COUNT", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -2513,7 +2518,7 @@ static const DtPropertyHashSet  DtPropertyHashSets245_0[] =
     { NULL, 0 },
     { DtProperties245_0_46, 5 },
     { DtProperties245_0_47, 1 },
-    { NULL, 0 },
+    { DtProperties245_0_48, 1 },
     { NULL, 0 },
     { DtProperties245_0_50, 1 },
     { DtProperties245_0_51, 2 },

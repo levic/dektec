@@ -28,6 +28,7 @@
 #include "DtDf.h"
 #include "DtBc.h"
 #include "DtBc_RegAccess.h"
+#include "Messages.h"
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBc implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -104,6 +105,10 @@ const Int  DT_BC_NUM_KNOWN = DT_SIZEOF_ARRAY(DT_BC_KNOWN);
 static DtBcInterruptProps*  DtBc_FindInterruptProps(DtBc*, Int  Id);
 static DtStatus  DtBc_InitInterruptProps(DtBc*);
 static DtStatus  DtBc_Enable(DtBc*, Bool  Enable);
+static void DtBc_EvtLog3Txt1Par(DtBc* pBc, const Char* Txt1, const Char* Txt2,
+                                                              const Char* Txt3, Int Par1);
+
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBc - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBc_CheckBlockId -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -112,11 +117,12 @@ DtStatus  DtBc_CheckBlockId(DtBc*  pBc)
 {
     Int  i=0;
     DtString  Str1, Str2;
+    DtStatus Status = DT_STATUS_OK;
     DtStringChar  Str1Buf[DT_BC_ID_MAX_SIZE+1], Str2Buf[DT_BC_ID_MAX_SIZE+1];
     char  BlockId[DT_BC_ID_MAX_SIZE+1];
     BC_DEFAULT_PRECONDITIONS(pBc);
     DT_ASSERT(pBc->m_Id.m_pName != NULL);
-
+        
     for(i=0; i<(sizeof(BlockId)-1); i++)
     {
         // Get next char
@@ -134,7 +140,15 @@ DtStatus  DtBc_CheckBlockId(DtBc*  pBc)
     DT_STRING_INIT(Str2, Str2Buf, sizeof(Str2Buf)/sizeof(Str2Buf[0]));
     DtStringAppendChars(&Str2, pBc->m_Id.m_pName);
 
-    return DtStringCompare(&Str1, &Str2) ? DT_STATUS_OK : DT_STATUS_FAIL;
+    Status = DtStringCompare(&Str1, &Str2) ? DT_STATUS_OK : DT_STATUS_FAIL;
+    if (!DT_SUCCESS(Status))
+    {
+        // Log expected block
+        DtBc_EvtLog3Txt1Par(pBc, "BlockId check failed for: ", pBc->m_Id.m_pName,
+                                                          "; Address: 0x", pBc->m_Address);
+    }
+
+    return Status;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBc_Close -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -548,7 +562,6 @@ DtBc*  DtBc_Open(const  DtBcOpenParams*  pParams)
     else
         pBc->m_OnCloseFileFunc = DtBc_OnCloseFile;      // Use default function
 
-
     // Check block ID
     Status = DtBc_CheckBlockId(pBc);
     if(!DT_SUCCESS(Status))
@@ -560,6 +573,7 @@ DtBc*  DtBc_Open(const  DtBcOpenParams*  pParams)
         DtBc_Close(pBc);
         return NULL;
     }
+
     // Get block version
     pBc->m_Version = BC_BlockId_READ_Version(pBc);
 
@@ -880,7 +894,7 @@ DtStatus  DtBc_ToPropertyNameFromStrings(
         DtDbgOut(ERR, BC_COMMON, "ERROR: failed to allocate string-object");
         return Status;
     }
-    
+
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- Construct full property name -.-.-.-.-.-.-.-.-.-.-.-.-.-
     // Format: <bc_instance_id>[_<property>] (e.g. BC_SPIMF#1_ADDRESS)
     
@@ -970,7 +984,6 @@ DtStatus  DtBc_Enable(DtBc*  pBc, Bool  Enable)
 
 }
 
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBc_FindInterruptProps -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Finds the interrupt properties for the specified interrupt ID
@@ -1055,6 +1068,34 @@ DtStatus  DtBc_InitInterruptProps(DtBc*  pBc)
                                                          pBc->m_IntProps[i].m_AddrOffset);
     }
     return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBc_EvtLog3Txt1Par -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void DtBc_EvtLog3Txt1Par(DtBc* pBc, const Char* Txt1, const Char* Txt2, const Char* Txt3,
+                                                                                 Int Par1)
+{
+#ifdef WINBUILD
+    DtString  Str;
+    DtStringAlloc(&Str, 256);
+    DtStringAppendChars(&Str, "[SN=");
+    DtStringUInt64ToDtStringAppend(&Str, 10, pBc->m_pCore->m_pDevInfo->m_Serial);
+    DtStringAppendChars(&Str, "]  Port:");
+    DtStringUInt64ToDtStringAppend(&Str, 10, DtCore_PT_GetPortIndex(pBc->m_pPt)+1);
+    DtStringAppendChars(&Str, " BC ");
+    DtStringAppendChars(&Str, Txt1);
+    DtStringAppendChars(&Str, Txt2);
+    DtStringAppendChars(&Str, Txt3);
+    DtStringUInt64ToDtStringAppend(&Str, 16, Par1);
+    DtEvtLogReport(&pBc->m_pCore->m_Device.m_EvtObject, DTPCIE_LOG_INFO_GENERIC, &Str,
+                                                                              NULL, NULL);
+    DtStringFree(&Str);
+#else
+    printk("DtPcie: [SN=%lld] Port:%d BC %s %s %s 0x%x",
+                                                     pBc->m_pCore->m_pDevInfo->m_Serial,
+                                                     DtCore_PT_GetPortIndex(pBc->m_pPt)+1,
+                                                     Txt1, Txt2, Txt3, Par1);
+#endif
 }
 
 
