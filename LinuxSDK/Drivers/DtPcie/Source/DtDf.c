@@ -53,6 +53,7 @@ const DtDfId  DT_DF_KNOWN[] =
     { DT_DF_SPIPROM_NAME,         DT_DF_SPIPROM_SHORTNAME,        NULL, -1, -1 },
     { DT_DF_SPICABLEDRVEQ_NAME,   DT_DF_SPICABLEDRVEQ_SHORTNAME,  NULL, -1, -1 },
     { DT_DF_TEMPFANMGR_NAME,      DT_DF_TEMPFANMGR_SHORTNAME,     NULL, -1, -1 },
+    { DT_DF_TODCLOCKCTRL_NAME,    DT_DF_TODCLOCKCTRL_SHORTNAME,   NULL, -1, -1 },
     { DT_DF_TXPLLMGR_NAME,        DT_DF_TXPLLMGR_SHORTNAME,       NULL, -1, -1 },
     { DT_DF_VIRTGENREF_NAME,      DT_DF_VIRTGENREF_SHORTNAME,     NULL, -1, -1 },
     { DT_DF_VPD_NAME,             DT_DF_VPD_SHORTNAME,            NULL, -1, -1 },
@@ -930,7 +931,10 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
      case DT_FUNC_TYPE_TEMPFANMGR:
         return (DtDf*)DtDfTempFanMgr_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
-    case DT_FUNC_TYPE_TXPLLMGR:
+     case DT_FUNC_TYPE_TODCLKCTRL:
+        return (DtDf*)DtDfTodClockCtrl_Open(pCore, pPt, pId->m_pRole, 
+                                                pId->m_Instance, pId->m_Uuid, CreateStub);
+     case DT_FUNC_TYPE_TXPLLMGR:
         return (DtDf*)DtDfTxPllMgr_Open(pCore, pPt, pId->m_pRole, 
                                                             pId->m_Instance, pId->m_Uuid);
      case DT_FUNC_TYPE_VIRTGENREF:
@@ -1734,6 +1738,8 @@ DtIoStubDf*  DtIoStubDf_OpenType(DtDf*  pDf)
         return (DtIoStubDf*)DtIoStubDfSensTemp_Open(pDf);
     case DT_FUNC_TYPE_TEMPFANMGR:
         return (DtIoStubDf*)DtIoStubDfTempFanMgr_Open(pDf);
+    case DT_FUNC_TYPE_TODCLKCTRL:
+        return (DtIoStubDf*)DtIoStubDfTodClockCtrl_Open(pDf);
     case DT_FUNC_TYPE_VPD:
         return (DtIoStubDf*)DtIoStubDfVpd_Open(pDf);
 

@@ -909,7 +909,7 @@ void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread* pThread, void* pContext)
         pDf->m_GenRefParChanged = FALSE;
         DtSpinLockRelease(&pDf->m_SofSpinLock);
 
-        // Unknown video standard? Nothing todo
+        // Unknown video standard? Nothing to do
         if (GenRefVidStd == DT_VIDSTD_UNKNOWN)
             continue;
 
@@ -932,6 +932,10 @@ void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread* pThread, void* pContext)
             DtSpinLockRelease(&pDf->m_SofSpinLock);
             continue;
         }
+        
+        // No valid Genlock SOF-timestamp? Nothing to do
+        if (GenLockSofTod.m_Seconds==-1 || GenLockSofTod.m_Nanoseconds==-1)
+            continue;
 
         // Control the DCO
         DtDfGenLockCtrl_DcoControl(pDf,GenRefType, GenRefSofOffset, &GenRefSofTods,

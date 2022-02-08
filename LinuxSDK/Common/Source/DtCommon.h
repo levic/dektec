@@ -510,6 +510,8 @@ typedef enum  _DtFunctionType
     DT_FUNC_TYPE_I2CM,
     DT_FUNC_TYPE_SPIM,
     DT_FUNC_TYPE_TXPLLMGR,          // TX-PLL manager
+    DT_FUNC_TYPE_TODCLKCTRL,        // TOD clock control
+    DT_FUNC_TYPE_TODCLKCTRL_AF,     // TOD clock control API function
 
     // Local DTA-2127 functions. DONOT RENUMBER!!
     DT_FUNC_TYPE_DEMODCHANNEL_2127 = LTYPE_SEQNUM(2127, 1),
@@ -653,6 +655,7 @@ enum {
     DT_FUNC_CODE_ST425LR_CMD,
     DT_FUNC_CODE_S12GTO3G_CMD,
     DT_FUNC_CODE_SI2166ITF_CMD,
+    DT_FUNC_CODE_TODCLOCKCTRL_CMD,
 };
 
 // NOP command
@@ -4863,6 +4866,86 @@ typedef union _DtIoctlTodCmdOutput
                                                                        DtIoctlTodCmdInOut)
 #endif
 
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_TODCLOCKCTRL_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- TODCLOCKCTRL commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlTodClockCtrlCmd
+{
+    DT_TODCLOCKCTRL_CMD_GET_STATE         = 0,  // Get state
+    DT_TODCLOCKCTRL_CMD_SET_REFERENCE     = 1   // Set TOD clock reference
+}  DtIoctlTodClockCtrlCmd;
+
+// TOD clock control states
+#define  DT_TODCLOCKCTRL_STATE_INVALID_REF  0
+#define  DT_TODCLOCKCTRL_STATE_LOCKING      1
+#define  DT_TODCLOCKCTRL_STATE_LOCKED       2
+#define  DT_TODCLOCKCTRL_STATE_FREE_RUN     3
+
+// TOD clock reference
+#define  DT_TODCLOCKCTRL_REF_INTERNAL       0
+#define  DT_TODCLOCKCTRL_REF_STEADYCLOCK    1
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- TODCLOCKCTRL - Get State Command -.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+typedef struct _DtIoctlTodClockCtrlCmdGetStateInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+}  DtIoctlTodClockCtrlCmdGetStateInput;
+ASSERT_SIZE(DtIoctlTodClockCtrlCmdGetStateInput, 16)
+
+typedef struct _DtIoctlTodClockCtrlCmdGetStateOutput
+{
+    Int  m_TodClockCtrlState;   // TOD Clock Control  state
+    Int  m_DeviationPpm;        // Deviation in ppm
+    Int  m_TodReference;        // Current TOD clock reference
+    Int64A  m_TodTimestamp;     // TimeOfDay timestamp
+    Int64A  m_RefTimestamp;     // Reference clock timestamp
+}  DtIoctlTodClockCtrlCmdGetStateOutput;
+ASSERT_SIZE(DtIoctlTodClockCtrlCmdGetStateOutput, 32)
+
+// -.-.-.-.-.-.-.-.-.-.-.- TODCLOCKCTRL - Set TOD clock reference -.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtIoctlTodClockCtrlCmdSetTodReferenceInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_TodReference;        // TOD clock reference
+}  DtIoctlTodClockCtrlCmdSetTodReferenceInput;
+ASSERT_SIZE(DtIoctlTodClockCtrlCmdSetTodReferenceInput, 20)
+
+// .-.-.-.-.-.-.-.-.-.-.- TODCLOCKCTRL command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-
+// TODCLOCKCTRL command - Input data
+typedef union _DtIoctlTodClockCtrlCmdInput
+{
+    DtIoctlTodClockCtrlCmdGetStateInput  m_GetState;
+    DtIoctlTodClockCtrlCmdSetTodReferenceInput  m_SetReference;
+} DtIoctlTodClockCtrlCmdInput;
+ASSERT_SIZE(DtIoctlTodClockCtrlCmdInput, 20)
+
+// TODCLOCKCTRL command - Output data
+typedef union _DtIoctlTodClockCtrlCmdOutput
+{
+    DtIoctlTodClockCtrlCmdGetStateOutput  m_GetState;
+}  DtIoctlTodClockCtrlCmdOutput;
+ASSERT_SIZE(DtIoctlTodClockCtrlCmdOutput, 32)
+
+
+#ifdef WINBUILD
+    #define DT_IOCTL_TODCLOCKCTRL_CMD  CTL_CODE(DT_DEVICE_TYPE,                          \
+                                                        DT_FUNC_CODE_TODCLOCKCTRL_CMD,   \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlTodClockCtrlCmdInOut {
+        DtIoctlTodClockCtrlCmdInput  m_Input;
+        DtIoctlTodClockCtrlCmdOutput  m_Output;
+    } DtIoctlTodClockCtrlCmdInOut;
+
+    #define DT_IOCTL_TODCLOCKCTRL_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                        \
+                                                         DT_FUNC_CODE_TODCLOCKCTRL_CMD,  \
+                                                         DtIoctlTodClockCtrlCmdInOut)
+#endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_TSRXFMT_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -4882,7 +4965,7 @@ typedef enum _DtIoctlTsRxFmtCmd
 
 
 // DT TSRXFMT packetization mode
-#define DT_TSRXFMT_PCKMODE_AUTO     0   // Automitic packetization
+#define DT_TSRXFMT_PCKMODE_AUTO     0   // Automatic packetization
 #define DT_TSRXFMT_PCKMODE_RAW      1   // Raw packetization
 
 // DT TSRXFMT packetsize
@@ -6568,6 +6651,7 @@ ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
     DtIoctlSwitchCmdInput  m_SwitchCmd;                                                  \
     DtIoctlTempFanMgrCmdInput  m_TempFanMgrCmd;                                          \
     DtIoctlTodCmdInput  m_TodCmd;                                                        \
+    DtIoctlTodClockCtrlCmdInput  m_TodClkCtrlCmd;                                        \
     DtIoctlTsRxFmtCmdInput  m_TsRxFmtCmd;                                                \
     DtIoctlVpdCmdInput  m_VpdCmd;                                                        \
     DtIoctlAd5320CmdInput_2132  m_Ad5320Cmd_2132;                                        \
@@ -6628,6 +6712,7 @@ typedef union _DtIoctlInputData
     DtIoctlSwitchCmdOutput  m_SwitchCmd;                                                 \
     DtIoctlTempFanMgrCmdOutput  m_TempFanMgrCmd;                                         \
     DtIoctlTodCmdOutput  m_TodCmd;                                                       \
+    DtIoctlTodClockCtrlCmdOutput  m_TodClkCtrlCmd;                                       \
     DtIoctlTsRxFmtCmdOutput  m_TsRxFmtCmd;                                               \
     DtIoctlVpdCmdOutput  m_VpdCmd;                                                       \
     DtIoctlAd5320CmdOutput_2132  m_Ad5320Cmd_2132;                                       \

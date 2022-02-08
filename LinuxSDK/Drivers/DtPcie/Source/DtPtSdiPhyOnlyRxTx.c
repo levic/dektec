@@ -144,8 +144,7 @@ DtStatus DtPtSdiPhyOnlyRxTx_Init(DtPt* pPtBase)
     PT_SDIPHYONLYRXTX_DEFAULT_PRECONDITIONS(pPt);
 
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- Find the TX-driver functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
-    pPt->m_pDfSdiTxPhy = (DtDfSdiTxPhy*)DtPt_FindDf(pPtBase, 
-                                                           DT_FUNC_TYPE_SDITXPHY, NULL);
+    pPt->m_pDfSdiTxPhy = (DtDfSdiTxPhy*)DtPt_FindDf(pPtBase, DT_FUNC_TYPE_SDITXPHY, NULL);
 
     // Find the TX-block controllers
     pPt->m_pBcSdiTxP = (DtBcSDITXP*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SDITXP, NULL);

@@ -48,6 +48,7 @@
 #include "DtDfAsiRx.h"
 #include "DtDfSdiRx.h"
 #include "DtDfSpiCableDrvEq.h"
+#include "DtDfTodClockCtrl.h"
 
 
 // Name for the AsiSdiRxTx port.
@@ -114,6 +115,9 @@ typedef struct  _DtPTAsiSdiRxTx
 
     // RX TX Driver functions
     DtDfSpiCableDrvEq*  m_pDfSpiCableDrvEq; // Cable driver/equalizer
+    
+    // Common for all ports
+    DtDfTodClockCtrl*  m_pDfTodClockCtrl;   // TimeOfDay clock control
 } DtPtAsiSdiRxTx;
 
 

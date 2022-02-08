@@ -83,6 +83,8 @@ static DtStatus DtPtAsiSdiRxTx_SetIoConfigFinish(DtPt*, const DtExclAccessObject
 
 static DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
+static DtStatus DtPtAsiSdiRxTx_SetIoConfigTodRefSel(DtPtAsiSdiRxTx*, 
+                                                                const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetRxIoConfigIoStd(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetRxIoConfigDmaTestMode(DtPtAsiSdiRxTx*, 
@@ -243,6 +245,13 @@ DtStatus DtPtAsiSdiRxTx_Init(DtPt* pPtBase)
     pPt->m_pBcSwitchTxDblBuf = (DtBcSWITCH*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SWITCH, 
                                                                         TxDblBufRoleName);
 
+    // Find the TimeOfDay clock control
+    if (DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_TODREF_INTERNAL))
+        pPt->m_pDfTodClockCtrl = (DtDfTodClockCtrl*)DtCore_DF_Find(pPt->m_pCore, NULL,
+                                                           DT_FUNC_TYPE_TODCLKCTRL, NULL);
+    else
+        pPt->m_pDfTodClockCtrl = NULL;
+
     // Check the driver functions and blockcontrollers that were found
     DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_CheckRxPrerequisites(pPt));
     DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_CheckTxPrerequisites(pPt));
@@ -258,7 +267,8 @@ DtStatus DtPtAsiSdiRxTx_CheckRxPrerequisites(DtPtAsiSdiRxTx* pPt)
    Bool SdiCap = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_SDI);
    Bool InpCap = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_INPUT);
    Bool RateTestCap = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_DMATESTMODE);
-
+   Bool TodClkCtrlCap = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_TODREF_INTERNAL) 
+                        || DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_TODREF_STEADYCLOCK); 
    if (!InpCap)
        return DT_STATUS_OK;
 
@@ -310,6 +320,12 @@ DtStatus DtPtAsiSdiRxTx_CheckRxPrerequisites(DtPtAsiSdiRxTx* pPt)
         return DT_STATUS_FAIL;
     }
 
+    // Check TimeOfDay clock control
+    if (TodClkCtrlCap && pPt->m_pDfTodClockCtrl==NULL)
+    {
+        DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: TODCLKCTRL not found");
+        return DT_STATUS_FAIL;
+    }
     return DT_STATUS_OK;
 }
 
@@ -323,6 +339,8 @@ DtStatus DtPtAsiSdiRxTx_CheckTxPrerequisites(DtPtAsiSdiRxTx* pPt)
    Bool FailSafeCap = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_FAILSAFE);
    Bool RateTestCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_DMATESTMODE);
    Bool DblBufCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_DBLBUF);
+   Bool TodClkCtrlCap = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_TODREF_INTERNAL) 
+                        || DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_TODREF_STEADYCLOCK); 
 
    if (!OutpCap)
        return DT_STATUS_OK;
@@ -397,6 +415,12 @@ DtStatus DtPtAsiSdiRxTx_CheckTxPrerequisites(DtPtAsiSdiRxTx* pPt)
         return DT_STATUS_FAIL;
     }
 
+    // Check TimeOfDay clock control
+    if (TodClkCtrlCap && pPt->m_pDfTodClockCtrl==NULL)
+    {
+        DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: TODCLKCTRL not found");
+        return DT_STATUS_FAIL;
+    }
     return DT_STATUS_OK;
 }
 
@@ -489,6 +513,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
         case DT_IOCONFIG_FAILSAFE:
         case DT_IOCONFIG_GENLOCKED:
         case DT_IOCONFIG_IODOWNSCALE:
+        case DT_IOCONFIG_TODREFSEL:
             // Optional IO-configs; will be tested later
             break;
 
@@ -572,6 +597,12 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfig(DtPt* pPtBase, const DtCfIoConfigValue* pIoC
     else 
         DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetTxIoConfigIoDownscale(pPt, 
                                                       &pIoCfgs[DT_IOCONFIG_IODOWNSCALE]));
+
+    // Perform TimeOfDay reference clock selection
+    if (DT_IOCONFIG_TODREFSEL >= NumIoCfgs)
+        return DT_STATUS_INVALID_PARAMETER;
+    DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_SetIoConfigTodRefSel(pPt, 
+                                                        &pIoCfgs[DT_IOCONFIG_TODREFSEL]));
 
     return DT_STATUS_OK;
 }
@@ -742,6 +773,29 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
                                                              DT_DF_SPICABLEDRVEQ_DIR_RX));
     }
     return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetIoConfigTodRefSel -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtPtAsiSdiRxTx_SetIoConfigTodRefSel(DtPtAsiSdiRxTx* pPt, 
+                                                          const DtCfIoConfigValue* pIoCfg)
+{
+    Int TodRefClk;
+    DT_ASSERT(pIoCfg != NULL);
+
+    // Nothing to configure?
+    if (pIoCfg->m_Value == DT_IOCONFIG_NONE)
+        return DT_STATUS_OK;
+
+    switch (pIoCfg->m_Value)
+    {
+    case DT_IOCONFIG_TODREF_INTERNAL:  TodRefClk = DT_TODCLOCKCTRL_REF_INTERNAL; break;
+    case DT_IOCONFIG_TODREF_STEADYCLOCK: 
+                                       TodRefClk = DT_TODCLOCKCTRL_REF_STEADYCLOCK; break;
+    default: DT_ASSERT(FALSE);         TodRefClk = DT_TODCLOCKCTRL_REF_INTERNAL; break;
+    }
+    DT_ASSERT(pPt->m_pDfTodClockCtrl!=NULL);
+    return DtDfTodClockCtrl_SetTodReference(pPt->m_pDfTodClockCtrl, TodRefClk);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetRxIoConfigIoStd -.-.-.-.-.-.-.-.-.-.-.-.-.-

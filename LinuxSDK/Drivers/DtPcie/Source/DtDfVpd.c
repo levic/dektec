@@ -33,6 +33,7 @@ typedef struct
     const char*  m_pKeyword;
     UInt16  m_ItemSize;
     const char*  m_pItem;
+    const UInt8*  m_pStart;
     const UInt8*  m_pNext;
 } DtVpdItemPars;
 
@@ -583,6 +584,7 @@ static Bool  DtDfVpd_CheckVpdItem(
     default:
         return FALSE;
     }
+    pVpdItemPars->m_pStart = p;
 
     // keyword_size
     KeyLen = (*p&VPD_ITEMTAG_KEYLEN_MASK) >> VPD_ITEMTAG_KEYLEN_POS; 
@@ -616,7 +618,7 @@ static Bool  DtDfVpd_CheckVpdItem(
     CheckSum += *p++;
     pVpdItemPars->m_ItemSize = (UInt16)ItemSize;
 
-    // item
+    // item data
     pVpdItemPars->m_pItem = p;
     if (p+ItemSize+1 > pSectionPars->m_pEnd) // Check if check_sum is within resource
         return FALSE;
@@ -655,18 +657,18 @@ static DtStatus  DtDfVpd_DeleteVpdItem(
     // Delete resource in a loop, so that multiple instances are deleted too.
     do {
         // Copy all memory after this item, which is to be deleted, to this item
-        UInt8*  pVpdData = (UInt8*)VpdItemPars.m_pItem;
+        UInt8*  pVpdItem = (UInt8*)VpdItemPars.m_pStart;
         n = pSectionPars->m_pEnd - VpdItemPars.m_pNext + 1;
         if (n > 0) 
-            DtMemMove(pVpdData, (void*)VpdItemPars.m_pNext, (UInt)n);
+            DtMemMove(pVpdItem, (void*)VpdItemPars.m_pNext, (UInt)n);
         else
             n=0;
-        pVpdData += n;
+        pVpdItem += n;
 
         // Erase remaining memory in resource
-        n = pSectionPars->m_pEnd - pVpdData + 1;
+        n = pSectionPars->m_pEnd - pVpdItem + 1;
         if (n > 0)
-            memset(pVpdData, 0xFF, (Int)n);
+            memset(pVpdItem, 0xFF, (Int)n);
 
         // Find next item
         Status = DtDfVpd_SearchVpdItem(KeyLen, pKeyword, pSectionPars, &VpdItemPars);

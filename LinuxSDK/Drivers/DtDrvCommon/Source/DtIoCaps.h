@@ -179,6 +179,10 @@ typedef enum _DtIoCapValue
     DT_IOCAP_SPILVDS1,         // LVDS1
     DT_IOCAP_SPILVDS2,         // LVDS2
     DT_IOCAP_SPILVTTL,         // LVTTL
+    
+    // Capability group TODREFSEL - TimeOfDay reference selection
+    DT_IOCAP_TODREF_INTERNAL,     // Internal TimeOfDay reference
+    DT_IOCAP_TODREF_STEADYCLOCK,  // Steady clock
 
     // Capability group TSRATESEL - Transport-stream rate selection
     DT_IOCAP_EXTTSRATE,        // External TS rate clock input

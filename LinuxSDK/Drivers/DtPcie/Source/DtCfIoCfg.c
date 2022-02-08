@@ -71,6 +71,8 @@ static DtStatus  DtCfIoCfg_ClearConfig(DtCfIoCfg* , DtCfIoCfgPortConfig*);
 static Int  DtCfIoCfg_GetBuddyPort(Int IoCfg, const DtCfIoConfigValue* pCfg);
 static DtStatus  DtCfIoCfg_GetCachedConfig(DtCfIoCfg* , DtCfIoCfgPortConfig*);
 static DtStatus  DtCfIoCfg_GetStoredConfig(DtCfIoCfg*, DtCfIoCfgPortConfig*);
+static DtStatus  DtCfIoCfg_ProcessNewTodRefSel(DtCfIoCfg*, const DtIoConfig*, Int Count, 
+                                DtCfIoCfgPortConfig* pNewIoConfig, DtCfIoCfgPortUpdates*);
 static DtStatus  DtCfIoCfg_SetDefaultConfig(DtCfIoCfg* , DtCfIoCfgPortConfig*);
 static DtStatus  DtCfIoCfg_ValidateConfig(DtCfIoCfg*, DtCfIoCfgPortConfig*);
 
@@ -194,7 +196,6 @@ DtStatus  DtCfIoCfg_Set(
     }
     DtMemZero(pConfigUpdates, AllocSize);
 
-
     // Allocate memory for IO-config settings
     AllocSize = NumPorts * sizeof(DtCfIoCfgPortConfig);
     pNewIoConfig = DtMemAllocPool(DtPoolNonPaged, AllocSize, DF_TAG);
@@ -210,9 +211,13 @@ DtStatus  DtCfIoCfg_Set(
     Status = DtCfIoCfg_AcquireExclAccess(pCf);
     DT_ASSERT(DT_SUCCESS(Status));
 
-    // Get cached IO-configuratoin
+    // Get cached IO-configuration
     Status = DtCfIoCfg_GetCachedConfig(pCf, pNewIoConfig);
 
+    // Process possible new TimeOfDay reference clock selection
+    if (DT_SUCCESS(Status))
+        Status = DtCfIoCfg_ProcessNewTodRefSel(pCf, pCfgs, Count, pNewIoConfig,
+                                                                          pConfigUpdates);
     // Merge new IoConfigs
     for (i=0; i<Count && DT_SUCCESS(Status); i++)
     {
@@ -227,7 +232,6 @@ DtStatus  DtCfIoCfg_Set(
         {
             DtDbgOutDf(ERR, IOCONFIG, pCf, "ERROR: Invalid IO-config (%d) for port: %d", 
                                                                         IoCfg, PortIdx+1);
-
             Status = DT_STATUS_INVALID_PARAMETER;
             break;
         }
@@ -266,7 +270,6 @@ DtStatus  DtCfIoCfg_Set(
 
             // Copy new setting
             pPortIoCfg[IoCfg] = IoCfgValNew;
-
         }
     }
 
@@ -311,6 +314,8 @@ DtStatus  DtCfIoCfg_Set(
 
     return Status;
 }
+
+
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfIoCfg_GetBuddyPort -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 Int  DtCfIoCfg_GetBuddyPort(Int  IoCfg, const DtCfIoConfigValue*  pCfg)
@@ -812,6 +817,8 @@ static DtStatus  DtCfIoCfg_ValidateSpiStd(DtCfIoCfg*, DtCfIoCfgPortConfig*,
                                                              Int PortIndex, Int NumPorts);
 static DtStatus  DtCfIoCfg_ValidateTsRateSel(DtCfIoCfg*, DtCfIoCfgPortConfig*,
                                                              Int PortIndex, Int NumPorts);
+static DtStatus  DtCfIoCfg_ValidateTodRefSel(DtCfIoCfg*, DtCfIoCfgPortConfig*,
+                                                             Int PortIndex, Int NumPorts);
 static DtStatus  DtCfIoCfg_ValidateSwS2Apsk(DtCfIoCfg*, DtCfIoCfgPortConfig*,
                                                              Int PortIndex, Int NumPorts);
 static DtStatus  DtCfIoCfg_ValidateAutoBfGen(DtCfIoCfg*, DtCfIoCfgPortConfig*,
@@ -1257,6 +1264,65 @@ DtStatus  DtCfIoCfg_GetStoredConfig(
     return Result;
 }
 
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfIoCfg_ProcessNewTodRefSel -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Checks whether there is a TimeOfDay clock reference select and if so makes it 
+// consistent over all ports
+//
+DtStatus  DtCfIoCfg_ProcessNewTodRefSel(
+    DtCfIoCfg*  pCf, 
+    const DtIoConfig*  pCfgs,
+    Int  Count,
+    DtCfIoCfgPortConfig*  pNewIoConfig,
+    DtCfIoCfgPortUpdates*  pConfigUpdates      // Updates for all ports
+    )
+{
+    // Is there a setting for the TimeOfDay clock reference selection?
+    Int NewTodClkRef = -1;
+    Int i, PortIdx;
+    for(i=0; i<Count; i++)
+    {
+        Int IoCfg = pCfgs[i].m_Group;
+        Int Value = pCfgs[i].m_Value;
+        if (IoCfg==DT_IOCONFIG_TODREFSEL && Value!=DT_IOCONFIG_NONE)
+        {
+            if (NewTodClkRef!=-1 && NewTodClkRef!=Value)
+                return DT_STATUS_CONFIG_ERROR;
+            NewTodClkRef = Value;
+        }
+    }
+    // No new setting?
+    if (NewTodClkRef == -1)
+        return DT_STATUS_OK;
+
+    for (PortIdx=0; PortIdx<pCf->m_NumPorts; PortIdx++)
+    {
+        DtCfIoConfigValue* pPortIoCfg =  pNewIoConfig[PortIdx].m_CfgValue;
+        DtCfIoCfgPortUpdates* pPortUpdate = &pConfigUpdates[PortIdx];
+        DtIoCaps PortCaps;
+
+        // Check whether supports TimeOfDay reference selection
+        DT_RETURN_ON_ERROR(DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIdx, &PortCaps));
+        if (!DtIoCapsHasCap(&PortCaps, DT_IOCAP_TODREF_INTERNAL)
+                               && !DtIoCapsHasCap(&PortCaps, DT_IOCAP_TODREF_STEADYCLOCK))
+            continue;
+
+
+        // TimeOfDay reference selection changed?
+        if (pPortIoCfg[DT_IOCONFIG_TODREFSEL].m_Value != NewTodClkRef)
+        {
+            // Copy new setting
+            pPortIoCfg[DT_IOCONFIG_TODREFSEL].m_Value = NewTodClkRef;
+
+            // Port update and lock needed
+            pPortUpdate->m_PortUpdateNeeded = TRUE;
+            pPortUpdate->m_PortLockNeeded = TRUE;
+            pPortUpdate->m_pConfigValueUpdateNeeded[DT_IOCONFIG_TODREFSEL] = TRUE;
+        }
+    }
+    return DT_STATUS_OK;
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfIoCfg_SetDefaultConfig -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -1967,6 +2033,12 @@ DtStatus  DtCfIoCfg_SetDefaultPortConfig(DtCfIoCfg* pCf,  DtCfIoCfgPortConfig* p
     else if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_LOCK2INP))
         pPortIoCfg[DT_IOCONFIG_TSRATESEL].m_Value = DT_IOCONFIG_LOCK2INP;
 
+    // DT_IOCONFIG_TODREFSEL
+    if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_TODREF_INTERNAL))
+        pPortIoCfg[DT_IOCONFIG_TODREFSEL].m_Value = DT_IOCONFIG_TODREF_INTERNAL;
+    else if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_TODREF_STEADYCLOCK))
+        pPortIoCfg[DT_IOCONFIG_TODREFSEL].m_Value = DT_IOCONFIG_TODREF_STEADYCLOCK;
+
     // DT_IOCONFIG_SWS2APSK
     if (DtIoCapsHasCap(&IoCaps, DT_IOCAP_SWS2APSK))
         pPortIoCfg[DT_IOCONFIG_SWS2APSK].m_Value = DT_IOCONFIG_FALSE;
@@ -2052,7 +2124,12 @@ DtStatus  DtCfIoCfg_ValidateConfig(DtCfIoCfg*  pCf, DtCfIoCfgPortConfig*  pIoCon
             return Result;
 
         // Validate DT_IOCONFIG_TSRATESEL
-        Result = DtCfIoCfg_ValidateTsRateSel(pCf, pIoConfig, PortIndex,NumPorts);
+        Result = DtCfIoCfg_ValidateTsRateSel(pCf, pIoConfig, PortIndex, NumPorts);
+        if (!DT_SUCCESS(Result))
+            return Result;
+        
+        // Validate DT_IOCONFIG_TODREFSEL
+        Result = DtCfIoCfg_ValidateTodRefSel(pCf, pIoConfig, PortIndex, NumPorts);
         if (!DT_SUCCESS(Result))
             return Result;
 
@@ -2851,6 +2928,74 @@ DtStatus  DtCfIoCfg_ValidateTsRateSel(
         break;
     default:
         return DT_STATUS_CONFIG_ERROR;
+    }
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfIoCfg_ValidateTodRefSel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtCfIoCfg_ValidateTodRefSel(
+    DtCfIoCfg*  pCf,
+    DtCfIoCfgPortConfig*  pIoConfig,
+    Int PortIndex,
+    Int NumPorts)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtIoCaps  IoCaps;        // Port IO capabilities
+    DtCfIoConfigValue*  pPortIoCfg =  pIoConfig[PortIndex].m_CfgValue;
+    Int i;
+
+    // Get the IO-capability of the port
+    Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, PortIndex, &IoCaps);
+    if (!DT_SUCCESS(Status))
+        return Status;
+    
+    DtDbgOutDf(MAX, IOCONFIG, pCf, "Configuration TODREFSEL Value: %d SubValue: %d",
+                               pPortIoCfg[DT_IOCONFIG_TODREFSEL].m_Value,
+                               pPortIoCfg[DT_IOCONFIG_TODREFSEL].m_SubValue);
+
+    switch (pPortIoCfg[DT_IOCONFIG_TODREFSEL].m_Value)
+    {
+    case DT_IOCONFIG_NONE:
+        DT_ASSERT(   !DtIoCapsHasCap(&IoCaps, DT_IOCAP_TODREF_INTERNAL)
+                  && !DtIoCapsHasCap(&IoCaps, DT_IOCAP_TODREF_STEADYCLOCK));
+        break;
+    case DT_IOCONFIG_TODREF_INTERNAL:
+        if (!DtIoCapsHasCap(&IoCaps, DT_IOCAP_TODREF_INTERNAL))
+            return DT_STATUS_CONFIG_ERROR;
+        break;
+    case DT_IOCONFIG_TODREF_STEADYCLOCK:
+        if (!DtIoCapsHasCap(&IoCaps, DT_IOCAP_TODREF_STEADYCLOCK))
+            return DT_STATUS_CONFIG_ERROR;
+        break;
+    default:
+        return DT_STATUS_CONFIG_ERROR;
+    }
+
+    if (pPortIoCfg[DT_IOCONFIG_TODREFSEL].m_Value == DT_IOCONFIG_NONE)
+        return DT_STATUS_OK;
+
+    // All other ports should be configured the same
+    for (i=0; i<NumPorts; i++)
+    {
+        DtIoCaps  OtherPortCaps;
+        // Skip this port
+        if (i == PortIndex)
+            continue;
+
+        // Get the IO-capability of the other port
+        Status = DtCore_PT_GetPortIoCaps(pCf->m_pCore, i, &OtherPortCaps);
+        if (!DT_SUCCESS(Status))
+            return Status;
+
+        // If it supports TODREF-selection the selection should be the same
+        if (!DtIoCapsHasCap(&OtherPortCaps, DT_IOCAP_TODREF_INTERNAL)
+                          && !DtIoCapsHasCap(&OtherPortCaps, DT_IOCAP_TODREF_STEADYCLOCK))
+            continue;
+
+        if (pIoConfig[i].m_CfgValue[DT_IOCONFIG_TODREFSEL].m_Value 
+                                             != pPortIoCfg[DT_IOCONFIG_TODREFSEL].m_Value)
+            return DT_STATUS_CONFIG_ERROR;
     }
     return DT_STATUS_OK;
 }

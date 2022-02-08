@@ -241,6 +241,11 @@ const DtIoCapDef  DtIoCapDefinitions[] =
     { DT_IOCAP_SPILVDS2,     "CAP_SPILVDS2" },
     { DT_IOCAP_SPILVTTL,     "CAP_SPILVTTL" },
 
+
+    // Capability group TODREFSEL - TimeOfDay reference selection
+    { DT_IOCAP_TODREF_INTERNAL,     "CAP_TODREF_INTERNAL" },
+    { DT_IOCAP_TODREF_STEADYCLOCK,  "CAP_TODREF_STEADYCLOCK" },
+
     // Capability group TSRATE
     { DT_IOCAP_EXTTSRATE,  "CAP_EXTTSRATE" },
     { DT_IOCAP_EXTRATIO,   "CAP_EXTRATIO" },

@@ -25,3 +25,7 @@ Module.symvers
 
 # windows build target
 DtPlay/DtPlay.exe
+
+# downloaded archives
+DtPlay_v*.zip
+LinuxSDK_v*.tar.gz

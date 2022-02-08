@@ -714,9 +714,9 @@
 #define DT_TXTSYNCSTAT_TOOEARLY_SH     4
 #define DT_TXTSYNCSTAT_TOOLATE_MSK     0x00000F00
 #define DT_TXTSYNCSTAT_TOOLATE_SH      8
-#define DT_TXTSYNCSTAT_OUTSYNC_MSK     0x00000F00
+#define DT_TXTSYNCSTAT_OUTSYNC_MSK     0x0000F000
 #define DT_TXTSYNCSTAT_OUTSYNC_SH      12
-#define DT_TXTSYNCSTAT_ERRINV_MSK      0x0000F000
+#define DT_TXTSYNCSTAT_ERRINV_MSK      0x000F0000
 #define DT_TXTSYNCSTAT_ERRINV_SH       16
 
 //-.-.-.-.-.-.-.- Tx Phase noise modulation controls register: Bit fields -.-.-.-.-.-.-.-.

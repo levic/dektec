@@ -2799,6 +2799,45 @@ typedef struct  _DtIoctlProperties
         ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
     )
 
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_TODCLOCKCTRL_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_TODCLOCKCTRL_GET_STATE                                        \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_TODCLOCKCTRL_CMD_GET_STATE,                                                   \
+        "GET_STATE",                                                                     \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlTodClockCtrlCmdGetStateInput),                                     \
+        sizeof(DtIoctlTodClockCtrlCmdGetStateOutput))
+
+#define DT_IOCTL_CMD_PROPS_TODCLOCKCTRL_SET_REFERENCE                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_TODCLOCKCTRL_CMD_SET_REFERENCE,                                               \
+        "SET_PHASE_INCR",                                                                \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlTodClockCtrlCmdSetTodReferenceInput),                              \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_TODCLOCKCTRL                                             \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_TODCLOCKCTRL[] =               \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_TODCLOCKCTRL_GET_STATE,                                       \
+        DT_IOCTL_CMD_PROPS_TODCLOCKCTRL_SET_REFERENCE,                                   \
+    }
+
+#define DT_IOCTL_PROPS_TODCLOCKCTRL_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)          \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_TODCLOCKCTRL_CMD,                                                       \
+        "DT_IOCTL_TODCLOCKCTRL_CMD",                                                     \
+        DT_IOCTL_CMD_PROPS_TODCLOCKCTRL,                                                 \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_TSRXFMT_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

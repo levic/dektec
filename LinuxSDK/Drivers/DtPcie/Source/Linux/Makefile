@@ -145,6 +145,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtDfSi534X.o               \
          $(SRCDIR)/DtDfSpiCableDrvEq.o        \
          $(SRCDIR)/DtDfSpiProm.o              \
+         $(SRCDIR)/DtDfTodClockCtrl.o         \
          $(SRCDIR)/DtDfTempFanMgr.o           \
          $(SRCDIR)/DtDfTxPllMgr.o             \
          $(SRCDIR)/DtDfVirtGenRef.o           \
