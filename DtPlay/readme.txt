@@ -1,4 +1,4 @@
-To compile with Visual Studio 2010/2012/2013/2015/2017/2019:
+To compile with Visual Studio 2015/2017/2019/2022:
 - Download latest WinSDK installer: http://www.dektec.com/Products/SDK/WinSDK/Downloads/WinSDK.zip
 - Run the WinSDK installer to install latest DTAPI libraries and drivers
 - Open the project file and compile

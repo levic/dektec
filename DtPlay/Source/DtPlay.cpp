@@ -54,7 +54,7 @@ int  _kbhit()
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlay Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DTPLAY_VERSION_MAJOR        4
-#define DTPLAY_VERSION_MINOR        13
+#define DTPLAY_VERSION_MINOR        15
 #define DTPLAY_VERSION_BUGFIX       0
 
 const int c_BufSize = 1*1024*1024;      // Data transfer buffer size
@@ -169,8 +169,6 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         {L"MIN16",      DTAPI_TXMODE_MIN16,    L"204-byte packets in file, 188-byte packets transmitted\n"
                                                L"(last 16 bytes are invalidated)"},
         {L"RAW",        DTAPI_TXMODE_RAW,      L"No notion of packets, data is transmitted as is"},
-        {L"SDI8B_625",  DTAPI_TXMODE_SDI_FULL, L"8-Bit/625-line SDI in file, 8-bit SDI transmitted"},
-        {L"SDI8B_525",  DTAPI_TXMODE_SDI_FULL, L"8-Bit/525-line SDI in file, 8-bit SDI transmitted"},
         {L"DTSDI",      0,                     L".dtsdi file, SDI format is auto detected"},
         {L"RAWASI",     DTAPI_TXMODE_RAWASI,   L"Play-out of RAW ASI symbols (270Mbit/s)"},
         OPT_PAIR_END,
@@ -178,6 +176,7 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
 
     static const DtEnumOptPair  ModTypes[] = {
         {L"ATSC",         DTAPI_MOD_ATSC,          L"ATSC modulation"},
+        {L"ATSC3_STLTP",  DTAPI_MOD_ATSC3_STLTP,   L"ATSC 3.0 STLTP modulation"},
         {L"CMMB",         DTAPI_MOD_CMMB,          L"CMMB modulation"},
         {L"DAB",          DTAPI_MOD_DAB,           L"DAB modulation"},
         {L"DRM",          DTAPI_MOD_DRM,           L"DRM(+) modulation"},
@@ -307,6 +306,13 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         OPT_PAIR_END,
     };
 
+    static const DtEnumOptPair  BandwithAtsc3[] = {
+        {L"6",              DTAPI_ATSC3_6MHZ,   L"6 Mhz"},
+        {L"7",              DTAPI_ATSC3_7MHZ,   L"7 Mhz"},
+        {L"8",              DTAPI_ATSC3_8MHZ,   L"8 Mhz"},
+        OPT_PAIR_END,
+    };
+
     static const DtEnumOptPair  BandwithDvbt[] = {
         {L"5",              DTAPI_MOD_DVBT_5MHZ,   L"5 Mhz"},
         {L"6",              DTAPI_MOD_DVBT_6MHZ,   L"6 Mhz"},
@@ -370,8 +376,9 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         DtOptItem(L"mF",  m_DvbS2FecFrameLength, DTAPI_MOD_S2_LONGFRM, L"Long/short FEC frame in DVB-S2 (default: LONG)", DvbS2FecFrames),
         DtOptItem(L"mI",  m_DvbS2GoldSeqInit, 0, L"Gold sequence initialisation value (default: 0)\n"
                 L"  0 ... 262143", 0, 262143),
-        DtOptItem(L"dm",  m_DrmMode, DtDrmPars::MODE_ABCD, L"DRM Mode (default: MODE ABCD)", DrmMode),
+        DtOptItem(L"mIpDp", m_PcapIpDestPort, -1, L"PCAP IP destination port filter"),
         DtOptItem(L"msi", m_SpecInvers, false, L"Invert spectrum"),
+        DtOptItem(L"dm",  m_DrmMode, DtDrmPars::MODE_ABCD, L"DRM Mode (default: MODE ABCD)", DrmMode),
         DtOptItem(L"if",  m_IqInterpFilter, DTAPI_MOD_INTERPOL_OFDM, L"Interpolation filter used in IQ mode (default: OFDM)", IqInterpolFilter),
         DtOptItem(L"snr", m_Snr, -1.0, L"Enable noise generation and set SNR in dB (e.g. -snr 26.0)", 0.0, 36.0),
         DtOptItem(L"ipa", m_Ipa, L"IP address/port (e.g. 192.168.0.1[:5768], port is optional)"),
@@ -392,18 +399,14 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
 
     if (m_TxMode.IsSet())
     {
-        if (m_TxMode.ToString() == L"SDI8B_525")
-            m_SdiSubValue = DTAPI_IOCONFIG_525I59_94;
-        else if (m_TxMode.ToString() == L"SDI8B_625")
-            m_SdiSubValue = DTAPI_IOCONFIG_625I50;
-        else if (m_TxMode.ToString() == L"DTSDI")
+        if (m_TxMode.ToString() == L"DTSDI")
             m_PlayDtSdiFile = true;
     }
     else if (m_ModType == DTAPI_MOD_ISDBT)
         m_TxMode = DTAPI_TXMODE_204;
     
-    // ISDB-S3 uses PCAP input containing TLV data packets
-    m_PlayPcapFile = (m_ModType == DTAPI_MOD_ISDBS3);
+    // ATSC 3.0 STLTP and ISDB-S3 uses PCAP input
+    m_PlayPcapFile = (m_ModType==DTAPI_MOD_ISDBS3 || m_ModType==DTAPI_MOD_ATSC3_STLTP);
 
     // DRM uses DCP input containing TLV data packets
     m_PlayDcpFile = (m_ModType == DTAPI_MOD_DRM);
@@ -455,11 +458,15 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
             m_Bandwidth.ParseEnum(BandwithDvbt, L"mB");
         else if (m_ModType == DTAPI_MOD_DMBTH)
             m_Bandwidth.ParseEnum(BandwithDmbth, L"mB");
+        else if (m_ModType == DTAPI_MOD_ATSC3_STLTP)
+            m_Bandwidth.ParseEnum(BandwithAtsc3, L"mB");
     } else {
         if (m_ModType == DTAPI_MOD_DVBT)
             m_Bandwidth.MakeInt(DTAPI_MOD_DVBT_8MHZ);
         else if (m_ModType == DTAPI_MOD_DMBTH)
             m_Bandwidth.MakeInt(DTAPI_MOD_DTMB_8MHZ);
+        else if (m_ModType == DTAPI_MOD_ATSC3_STLTP)
+            m_Bandwidth.MakeInt(DTAPI_ATSC3_6MHZ);
     }
 
     if (m_Ipa.IsSet())
@@ -554,23 +561,15 @@ const char* CommandLineParams::TxMode2Str() const
     }
     else
     {
-        if ( m_TxMode & DTAPI_TXMODE_SDI )            
-            if ( m_SdiSubValue == DTAPI_IOCONFIG_625I50)
-               return "SDI8B_625";
-            else
-                return "SDI8B_525";     
-        else
+        switch( m_TxMode & DTAPI_TXMODE_TS_MASK )
         {
-            switch( m_TxMode & DTAPI_TXMODE_TS_MASK )
-            {
-            case DTAPI_TXMODE_188:      return "188";
-            case DTAPI_TXMODE_ADD16:    return "ADD16";
-            case DTAPI_TXMODE_192:      return "192";
-            case DTAPI_TXMODE_204:      return "204";
-            case DTAPI_TXMODE_RAW:      return "RAW";
-            case DTAPI_TXMODE_MIN16:    return "MIN16";
-            default:                    return "?";
-            }
+        case DTAPI_TXMODE_188:      return "188";
+        case DTAPI_TXMODE_ADD16:    return "ADD16";
+        case DTAPI_TXMODE_192:      return "192";
+        case DTAPI_TXMODE_204:      return "204";
+        case DTAPI_TXMODE_RAW:      return "RAW";
+        case DTAPI_TXMODE_MIN16:    return "MIN16";
+        default:                    return "?";
         }
     }
 }
@@ -582,6 +581,7 @@ const char* CommandLineParams::ModType2Str() const
     switch( m_ModType )
     {
     case DTAPI_MOD_ATSC:            return "ATSC";
+    case DTAPI_MOD_ATSC3_STLTP:     return "ATSC 3.0 STLTP";
     case DTAPI_MOD_CMMB:            return "CMMB";
     case DTAPI_MOD_DAB:             return "DAB";
     case DTAPI_MOD_DRM:             return "DRM(+)";
@@ -673,7 +673,7 @@ const char* CommandLineParams::OfdmBandwidth2Str() const
         }
 
     } 
-    else
+    else if ( m_ModType == DTAPI_MOD_DVBT )
     {
         switch( m_Bandwidth )
         {
@@ -684,6 +684,17 @@ const char* CommandLineParams::OfdmBandwidth2Str() const
         default:                    return "?";
         }
     }
+    else if (m_ModType == DTAPI_MOD_ATSC3_STLTP)
+    {
+        switch( m_Bandwidth )
+        {
+        case DTAPI_ATSC3_6MHZ:   return "6MHz";
+        case DTAPI_ATSC3_7MHZ:   return "7MHz";
+        case DTAPI_ATSC3_8MHZ:   return "8MHz";
+        default:                 return "?";
+        }
+    }
+    return "?";
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- CommandLineParams::Constellation2Str -.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1162,6 +1173,7 @@ void Player::DisplayPlayInfo()
     // Skip bit-rate for DVB-H/DVB-T/ISDBT/IQ/CMMB/DTMB modulator and in case of SDI
     if ( !(   ( m_Modulator
                 && (   m_CmdLineParams.m_ModType==DTAPI_MOD_DVBT
+                    || m_CmdLineParams.m_ModType==DTAPI_MOD_ATSC3_STLTP
                     || m_CmdLineParams.m_ModType==DTAPI_MOD_CMMB
                     || m_CmdLineParams.m_ModType==DTAPI_MOD_DAB
                     || m_CmdLineParams.m_ModType==DTAPI_MOD_DRM
@@ -1181,8 +1193,9 @@ void Player::DisplayPlayInfo()
     {
         LogF("- Sample rate           : %d Hz", m_CmdLineParams.m_TxRate.ToInt());
     }
-    // Don't log Transmit Mode for DAB/DRM/ISDB-S3
-    if (m_CmdLineParams.m_ModType!=DTAPI_MOD_DAB 
+    // Don't log Transmit Mode for ATSC3.0/DAB/DRM/ISDB-S3
+    if (m_CmdLineParams.m_ModType!=DTAPI_MOD_ATSC3_STLTP 
+                                        && m_CmdLineParams.m_ModType!=DTAPI_MOD_DAB
                                         && m_CmdLineParams.m_ModType!=DTAPI_MOD_DRM
                                         && m_CmdLineParams.m_ModType!=DTAPI_MOD_ISDBS3)
         LogF("- Transmit Mode         : %s", m_CmdLineParams.TxMode2Str() );
@@ -1276,7 +1289,8 @@ void Player::DisplayPlayInfo()
             LogF("- Interpolation Filter  : %s", m_CmdLineParams.IqInterpFilter2Str() );
         }
         // QAM modulation parameters
-        else if (    m_CmdLineParams.m_ModType!=DTAPI_MOD_DVBT
+        else if (    m_CmdLineParams.m_ModType!=DTAPI_MOD_ATSC3_STLTP
+                  && m_CmdLineParams.m_ModType!=DTAPI_MOD_DVBT
                   && m_CmdLineParams.m_ModType!=DTAPI_MOD_ISDBS
                   && m_CmdLineParams.m_ModType!=DTAPI_MOD_ISDBS3
                   && m_CmdLineParams.m_ModType!=DTAPI_MOD_ISDBT
@@ -1426,6 +1440,12 @@ void Player::InitOutput()
             dr = m_DtOutp.SetModControl( m_CmdLineParams.m_ModType,
                                          m_CmdLineParams.m_Constellation,
                                          32 /*32-taps*/, 0);
+        }
+        else if ( m_CmdLineParams.m_ModType==DTAPI_MOD_ATSC3_STLTP )
+        {
+            DtAtsc3StltpPars A3StltpPars;
+            A3StltpPars.m_Bandwidth =  m_CmdLineParams.m_Bandwidth;
+            dr = m_DtOutp.SetModControl(A3StltpPars);
         }
         else if ( m_CmdLineParams.m_ModType==DTAPI_MOD_CMMB )
         {
@@ -1770,7 +1790,7 @@ void Player::LoopFile()
             static const int  IP_HDR_LENGTH = 20;
             static const int  UDP_HDR_LENGTH = 8;
             int  SkipLength = IP_HDR_LENGTH + UDP_HDR_LENGTH;
-            unsigned short EthHdr[ETH_HDR_LENGTH + IP_HDR_LENGTH + UDP_HDR_LENGTH];
+            unsigned char EthHdr[ETH_HDR_LENGTH + IP_HDR_LENGTH + UDP_HDR_LENGTH];
             // Read PCAP-packet header
             PcapPckHeader  PckHdr;
             if (fread(&PckHdr, 1, sizeof(PckHdr), m_pFile) != sizeof(PckHdr))
@@ -1796,12 +1816,21 @@ void Player::LoopFile()
                     if (fread(m_pBuf, 1, NumBytesRead, m_pFile) != NumBytesRead)
                         EoF = true;
                 }
+                if (!EoF && m_CmdLineParams.m_PcapIpDestPort!=-1)
+                {
+                    // We need to check the destination port
+                    unsigned short DstPort = (EthHdr[SkipLength-6] << 8)  
+                                                                   + EthHdr[SkipLength-5];
+                    if (m_CmdLineParams.m_PcapIpDestPort!= DstPort)
+                        NumBytesRead = 0;   // Skip this packet
+                }
             }
             // Only read complete packets of right length
             if (EoF)
                 NumBytesRead = 0;
-            // Check length
-            else if (NumBytesRead != ISDBS3_TLV_PACKET_SIZE)
+            // Check length for ISDBS3
+            else if (NumBytesRead!=ISDBS3_TLV_PACKET_SIZE
+                                           && m_CmdLineParams.m_ModType==DTAPI_MOD_ISDBS3)
                 throw Exc(c_ErrIsdbS3TlvFormat);
         }
         else if (m_CmdLineParams.m_PlayDcpFile)
@@ -1838,20 +1867,20 @@ void Player::LoopFile()
         }
         else
         { 
-        // Read as much bytes as possible into our buffer
-        NumBytesRead = (int)fread( m_pBuf, sizeof(char), c_BufSize, m_pFile );
-        if ( NumBytesRead < c_BufSize )
-        {
-            // Read error or simple end-of-file
-            if ( 0 != ferror(m_pFile) )
-                throw Exc(c_ErrReadFile);
-            else
+            // Read as much bytes as possible into our buffer
+            NumBytesRead = (int)fread( m_pBuf, sizeof(char), c_BufSize, m_pFile );
+            if ( NumBytesRead < c_BufSize )
             {
-                EoF = true;
-                // Account for possibility of the file size not being a multiple of 4
-                NumBytesRead &= ~3;
+                // Read error or simple end-of-file
+                if ( 0 != ferror(m_pFile) )
+                    throw Exc(c_ErrReadFile);
+                else
+                {
+                    EoF = true;
+                    // Account for possibility of the file size not being a multiple of 4
+                    NumBytesRead &= ~3;
+                }
             }
-        }
         }
 
         if (NumBytesRead > 0) {
@@ -1965,7 +1994,7 @@ int Player::Play(int argc, char* argv[])
 
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Print start message -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-        LogF("DtPlay player V%d.%d.%d (c) 2000-2020 DekTec Digital Video B.V.\n",
+        LogF("DtPlay player V%d.%d.%d (c) 2000-2022 DekTec Digital Video B.V.\n",
               DTPLAY_VERSION_MAJOR, DTPLAY_VERSION_MINOR, DTPLAY_VERSION_BUGFIX);
 
         LogF("DTAPI compile version: V%d.%d.%d.%d\n",
@@ -2052,7 +2081,7 @@ void Player::ShowHelp()
          "          [-m mode] [-mt type] [-mf freq] [-mc coderate] [-ma annex]\n" \
          "          [-mC constellation] [-mB bandwidth] [-mT txmode] [-mG gaurditv]\n" \
          "          [-mH hdrmode] [-mP Pilots] [-mF fecframe] [-mI initval]\n" \
-         "          [-dm drm_mode] [-ml level_dbm] [-snr snr_db]\n" \
+         "          [-dm drm_mode] [-mIpDp pcap_dest_port] [-ml level_dbm] [-snr snr_db]\n" \
          "          [-ipa ip_address_pair] [-ipp protocol] [-ipn num_tp_per_ip]\n" \
          "          [-mS Stuffing]\n" \
          "          [-s] [-?]");

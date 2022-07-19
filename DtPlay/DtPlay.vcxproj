@@ -109,7 +109,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>..\Import;$(DtapiLibraryPath)\$(DtapiExportDir)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(DtapiLibraryPath)\$(DtapiExportDir)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -125,7 +125,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>..\Import;$(DtapiLibraryPath)\$(DtapiExportDir)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(DtapiLibraryPath)\$(DtapiExportDir)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -145,7 +145,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>..\Import;$(DtapiLibraryPath)\$(DtapiExportDir)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(DtapiLibraryPath)\$(DtapiExportDir)</AdditionalLibraryDirectories>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
   </ItemDefinitionGroup>
@@ -166,7 +166,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>..\Import;$(DtapiLibraryPath)\$(DtapiExportDir)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(DtapiLibraryPath)\$(DtapiExportDir)</AdditionalLibraryDirectories>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
   </ItemDefinitionGroup>

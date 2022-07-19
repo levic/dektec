@@ -1,8 +1,5 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.h *#*#*#*#*#*#*#*#*#*#*#* (C) 2006 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.h *#*#*#*#*#*#*#*#*# (C) 2006-2022 DekTec
 //
-
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Change History -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//  2006.10.08  MG  Created 
 
 #ifndef __DTPLAY_H
 #define __DTPLAY_H
@@ -21,8 +18,8 @@
 
 #define PCAP_MAGIC_NUMBER_US     0xa1b2c3d4
 #define PCAP_MAGIC_NUMBER_NS     0xa1b23c4d
-#define PCAP_VERSION_MAJOR      2
-#define PCAP_VERSION_MINOR      4
+#define PCAP_VERSION_MAJOR       2
+#define PCAP_VERSION_MINOR       4
 
 struct PcapFileHeader
 {
@@ -144,7 +141,8 @@ public:
     DtOpt  m_DvbS2Pilots;       // -mP: DVB-S2 pilots
     DtOpt  m_DvbS2FecFrameLength; // -mF: DVB-S2 FEC frame length
     DtOpt  m_DrmMode;           // -mM: DRM-mode ABCD or E
-
+    DtOpt  m_PcapIpDestPort;    // -mIpDp: ISDB-S3 and ATSC 3.0 STLP PCAP IP-destination
+                                //  port filter
     DtOpt  m_DtmbFrameHdrMode;  // -mH: DTMB frame header mode
 
     DtOpt  m_Ipa;               // -ipa: IP address and IP port
