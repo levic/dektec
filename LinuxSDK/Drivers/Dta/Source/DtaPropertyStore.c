@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2021 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2022 DekTec
 //
 // CapParser - Property Store - Tables storing device properties
 //
@@ -9258,6 +9258,11 @@ static const DtProperty  DtProperties2131_0_61[] =
     { "PROGRAMMING_SUPPORTS_FW_REBOOT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties2131_0_62[] =
+{
+    { "CAP_RX_ATSC3_KOREAN", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                         PROPERTY_SCOPE_DTAPI, 5, 18, 2 } 
+};
 static const DtProperty  DtProperties2131_0_63[] =
 {
     { "CAP_RX_ATSC3", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
@@ -9329,7 +9334,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2131_0[] =
     { DtProperties2131_0_59, 4 },
     { DtProperties2131_0_60, 2 },
     { DtProperties2131_0_61, 2 },
-    { NULL, 0 },
+    { DtProperties2131_0_62, 1 },
     { DtProperties2131_0_63, 2 }
 };
 

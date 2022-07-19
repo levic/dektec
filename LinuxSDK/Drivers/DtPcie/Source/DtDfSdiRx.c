@@ -64,8 +64,8 @@ static DtStatus  DtDfSdiRx_OnEnablePostChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfSdiRx_OnEnablePreChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfSdiRx_LoadParameters(DtDf*);
 static DtStatus  DtDfSdiRx_OpenChildren(DtDfSdiRx*);
+static void  DtDfSdiRx_RateSearchThreadEntry(DtThread*, void* pContext);
 static DtStatus  DtDfSdiRx_CheckSdiRate(DtDfSdiRx*, Int SdiRate);
-static void  DtDfSdiRx_PeriodicIntervalHandler(DtObject*, DtTodTime  Time);
 static void  DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*,  DtTodTime  Time);
 static Bool  DtDfSdiRx_UsesLockToData(Int Rate);
 
@@ -556,6 +556,8 @@ DtStatus DtDfSdiRx_SetSdiRate(DtDfSdiRx* pDf, Int SdiRate)
 //
 DtStatus DtDfSdiRx_StartConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next)
 {
+    DtStatus Status = DT_STATUS_OK;
+
     // Sanity checks
     DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
 
@@ -596,15 +598,22 @@ DtStatus DtDfSdiRx_StartConfigureRate(DtDfSdiRx* pDf, Int* pSdiRate, Bool Next)
     {
     case DT_BC_SDIRXPHY_FAMILY_A10:
     case DT_BC_SDIRXPHY_FAMILY_C10:
-        return DtDfSdiRx_StartConfigureRateC10A10(pDf, *pSdiRate);
+        Status = DtDfSdiRx_StartConfigureRateC10A10(pDf, *pSdiRate);
+        break;
     case DT_BC_SDIRXPHY_FAMILY_CV:
-        return DtDfSdiRx_StartConfigureRateCV(pDf, *pSdiRate);
+        Status = DtDfSdiRx_StartConfigureRateCV(pDf, *pSdiRate);
+        break;
     default:
         DT_ASSERT(FALSE);
         DtDbgOutDf(ERR, SDIRX, pDf, "Unsupported device family");
-        return DT_STATUS_NOT_SUPPORTED;
+        Status = DT_STATUS_NOT_SUPPORTED;
+        break;
     }
-    return DT_STATUS_OK;
+
+    if (Status==DT_STATUS_OK && pDf->m_pCableDrvEq != NULL)
+        Status = DtDfSpiCableDrvEq_SetRxSdiRate(pDf->m_pCableDrvEq, *pSdiRate);
+
+    return Status;
 }
 // -.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_StartConfigureRateC10A10 -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -758,7 +767,6 @@ DtStatus  DtDfSdiRx_Init(DtDf*  pDfBase)
 {
     DtDfSdiRx*  pDf = (DtDfSdiRx*)pDfBase;
     DtStatus  Status = DT_STATUS_OK;
-    DtOnPeriodicIntervalRegData  RegData;
 
     // Sanity checks
     DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
@@ -778,6 +786,8 @@ DtStatus  DtDfSdiRx_Init(DtDf*  pDfBase)
     // Set default PHY configuration
     pDf->m_PhyMaxSdiRate = DT_DRV_SDIRATE_HD;
     pDf->m_PhyDeviceFamily = DT_BC_SDIRXPHY_FAMILY_UNKNOWN;
+    pDf->m_pCableDrvEq = NULL;  // Note that this is not a child. It will be found during
+                                // on enable.
 
     //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Open children -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
     Status = DtDfSdiRx_OpenChildren(pDf);
@@ -793,19 +803,11 @@ DtStatus  DtDfSdiRx_Init(DtDf*  pDfBase)
     else
         pDf->m_RxMode = DT_SDIRX_RXMODE_SDI;
     
-    // Init periodic interval handler enable flag and spinlock
-    DtSpinLockInit(&pDf->m_PerItvSpinLock);
-    pDf->m_PerItvEnable = FALSE;
+    // Initialize the rate search thread
+    DT_RETURN_ON_ERROR(DtThreadInit(&pDf->m_RateSearchThread,
+                                                   DtDfSdiRx_RateSearchThreadEntry, pDf));
+    DtEventInit(&pDf->m_RateSearchStopEvent, FALSE);
 
-    // Register periodic interval handler
-    RegData.m_OnPeriodicFunc = DtDfSdiRx_PeriodicIntervalHandler;
-    RegData.m_pObject = (DtObject*)pDf;
-    Status = DtCore_TOD_PeriodicItvRegister(pDf->m_pCore, &RegData);
-    if (!DT_SUCCESS(Status))
-    {
-        DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: failed to register period itv handler");
-        return Status;
-    }
 
     return DT_STATUS_OK;
 }
@@ -844,6 +846,7 @@ DtStatus  DtDfSdiRx_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
 {
     Int  MaxSdiRate1=0, MaxSdiRate2=0;
     DtDfSdiRx*  pDf = (DtDfSdiRx*)pDfBase;
+    DtStatus Status = DT_STATUS_OK;
     // Sanity checks
     DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
     
@@ -902,29 +905,48 @@ DtStatus  DtDfSdiRx_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
         DtCore_TOD_GetTime(pDf->m_pCore, &pDf->m_StateTime);
         pDf->m_CurrentSdiRate = pDf->m_ConfigSdiRate;
 
-        // Enable periodic interval handler
-        DtSpinLockAcquire(&pDf->m_PerItvSpinLock);
-        pDf->m_PerItvEnable = TRUE;
-        DtSpinLockRelease(&pDf->m_PerItvSpinLock);
+        // Start the rate search thread
+        DtEventReset(&pDf->m_RateSearchStopEvent);
+        Status = DtThreadStart(&pDf->m_RateSearchThread);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: failed to start RateSearchThread");
+            return Status;
+        }
     }
     return DT_STATUS_OK;
 }
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_OnEnablePreChildren -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtDfSdiRx_OnEnablePreChildren(DtDf*  pDfBase, Bool  Enable)
 {
     DtDfSdiRx*  pDf = (DtDfSdiRx*)pDfBase;
+    DtStatus Status = DT_STATUS_OK;
     // Sanity checks
     DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
-    if (!Enable)
+
+    if (Enable)
+    {
+        // Find port level cable driver (optional).
+        // Since it is a child of the port, this is the earliest moment we try to find it.
+        if (pDf->m_pCableDrvEq == NULL)
+            pDf->m_pCableDrvEq = (DtDfSpiCableDrvEq*)DtCore_DF_Find((DtCore*)pDf,
+                                            pDf->m_pPt, DT_FUNC_TYPE_SPICABLEDRVEQ, NULL);
+    }
+    else
     {
         // ENABLE -> DISABLE
         DtDbgOutDf(AVG, SDIRX, pDf, "Function enable from enable -> disable");
 
-        // Disable periodic interval handler
-        DtSpinLockAcquire(&pDf->m_PerItvSpinLock);
-        pDf->m_PerItvEnable = FALSE;
-        DtSpinLockRelease(&pDf->m_PerItvSpinLock);
+        // Stop rate search thread
+        DtEventSet(&pDf->m_RateSearchStopEvent);
+        Status = DtThreadStop(&pDf->m_RateSearchThread);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: failed to stop RateSearchThread");
+            return Status;
+        }
 
         // Return to IDLE
         DT_RETURN_ON_ERROR(DtDfSdiRx_SetOperationalMode(pDf, DT_FUNC_OPMODE_IDLE));
@@ -997,25 +1019,40 @@ DtStatus DtDfSdiRx_CheckSdiRate(DtDfSdiRx* pDf, Int SdiRate)
     return DT_STATUS_OK;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_PeriodicIntervalHandler -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_RateSearchThreadEntry -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void  DtDfSdiRx_PeriodicIntervalHandler(DtObject* pObj, DtTodTime  Time)
+void  DtDfSdiRx_RateSearchThreadEntry(DtThread* pThread, void* pContext)
 {
-    DtDfSdiRx*  pDf = (DtDfSdiRx*)pObj;
-    DT_ASSERT(pDf!=NULL && pDf->m_Size==sizeof(DtDfSdiRx));
+    DtDfSdiRx*  pDf = (DtDfSdiRx*)pContext;
+    Bool  StopThread = FALSE;
 
-    DtSpinLockAcquireAtDpc(&pDf->m_PerItvSpinLock);
-    // Only when enabled
-    if (pDf->m_PerItvEnable)
+    while (!StopThread)
+    {
+        const Int  LoopTimeMs = 9;
+        DtTodTime  Time;
+        // Wait for stop event or timeout
+        DtStatus Status = DtEventWaitUnInt(&pDf->m_RateSearchStopEvent, LoopTimeMs);
+        if (Status!=DT_STATUS_TIMEOUT || pThread->m_StopThread)
+        {
+            if (!DT_SUCCESS(Status))
+                DtDbgOutDf(ERR, SDIRX, pDf, "ERROR: RateSearchThread failure");
+            if (pThread->m_StopThread)
+                DtDbgOutDf(AVG, SDIRX, pDf, "RateSearchThread stop request received");
+            StopThread = TRUE;
+            continue;
+        }
+        // Timeout occurred
+        DtCore_TOD_GetTime(pDf->m_pCore, &Time);
         DtDfSdiRx_SdiLockStateUpdate(pDf, Time);  // Update lock
-    DtSpinLockReleaseFromDpc(&pDf->m_PerItvSpinLock);
+    }
+
+    // We have to wait until the thread received a stop command.
+    DtThreadWaitForStop(pThread);
 }
-
-
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_SdiLockStateUpdate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// Called from DPC
+// Called from rate search thread
 //
 void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
 {
@@ -1027,7 +1064,7 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
     return;
 #endif
 
-    DtSpinLockAcquireAtDpc(&pDf->m_SpinLock);
+    DtSpinLockAcquire(&pDf->m_SpinLock);
 
     switch (pDf->m_LockState)
     {
@@ -1456,7 +1493,7 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
         }
         break;
     }
-    DtSpinLockReleaseFromDpc(&pDf->m_SpinLock);
+    DtSpinLockRelease(&pDf->m_SpinLock);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_UsesLockToData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

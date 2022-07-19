@@ -49,6 +49,7 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards of private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 static DtStatus DtBcTSRXFMT_Init(DtBc*);
+static DtStatus DtBcTSRXFMT_OnCloseFile(DtBc*, const DtFileObject*);
 static DtStatus DtBcTSRXFMT_OnEnable(DtBc*, Bool  Enable);
 static void  DtBcTSRXFMT_SetControlRegs(DtBcTSRXFMT*, Bool BlkEna, Int OpMode, 
                                                                Int PckMode, Int SyncMode);
@@ -83,6 +84,7 @@ DtBcTSRXFMT*  DtBcTSRXFMT_Open(Int  Address, DtCore*  pCore, DtPt*  pPt,
     // Register the callbacks
     OpenParams.m_CloseFunc = DtBcTSRXFMT_Close;
     OpenParams.m_InitFunc = DtBcTSRXFMT_Init;
+    OpenParams.m_OnCloseFileFunc = DtBcTSRXFMT_OnCloseFile;
     OpenParams.m_OnEnableFunc = DtBcTSRXFMT_OnEnable;
 
     // Use base function to allocate and perform standard initialisation of block data
@@ -316,6 +318,33 @@ DtStatus  DtBcTSRXFMT_Init(DtBc*  pBc)
                                   BC_TSRXFMT->m_OperationalMode, BC_TSRXFMT->m_PacketMode,
                                   BC_TSRXFMT->m_SyncMode);
     return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcTSRXFMT_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtBcTSRXFMT_OnCloseFile(DtBc* pBcBase, const DtFileObject* pFile)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtBcTSRXFMT* pBc = (DtBcTSRXFMT*)pBcBase;
+    DECL_EXCL_ACCESS_OBJECT_FILE(ExclAccessObj, pFile);
+
+    BC_TSRXFMT_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check if the owner closed the file handle
+    Status = DtBc_ExclAccessCheck((DtBc*)pBc, &ExclAccessObj);
+    if (DT_SUCCESS(Status) && DtBc_IsEnabled((DtBc*)pBc))
+    {
+        DtDbgOutBc(AVG, TSRXFMT, pBc, "Go to IDLE");
+
+        // Go to idle
+        Status = DtBcTSRXFMT_SetOperationalMode(pBc, DT_BLOCK_OPMODE_IDLE);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutBc(ERR, TSRXFMT, pBc, "ERROR: failed to set operational mode");
+        }
+    }
+    // Use base function to release exclusive access
+    return DtBc_OnCloseFile(pBcBase, pFile);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcTSRXFMT_OnEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

@@ -394,11 +394,11 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigIoDir(DtPtSdiPhyOnlyRxTx* pPt,
                                                                     DT_BLOCK_OPMODE_RUN));
 
         // Enable all other TX-driver functions/blocks that are used in double buffered
-        ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiTxPhy, TRUE);
         ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSpiCableDrvEq, TRUE);
         if (pPt->m_pDfSpiCableDrvEq != NULL)
             DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetDirection(pPt->m_pDfSpiCableDrvEq,
                                                              DT_DF_SPICABLEDRVEQ_DIR_TX));
+        ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiTxPhy, TRUE);
     }
     else if (pIoCfg->m_Value == DT_IOCONFIG_INTOUTPUT)
     {
@@ -413,8 +413,11 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigIoDir(DtPtSdiPhyOnlyRxTx* pPt,
 
         // Enable TX-driver functions/blocks that do not dependent on IOSTD or other
         // IO configs
-        ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiTxPhy, TRUE);
         ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSpiCableDrvEq, TRUE);
+        if (pPt->m_pDfSpiCableDrvEq != NULL)
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetDirection(pPt->m_pDfSpiCableDrvEq, 
+                                                             DT_DF_SPICABLEDRVEQ_DIR_TX));
+        ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiTxPhy, TRUE);
         if (pPt->m_pBcSwitchTxDblBuf != NULL)
         { 
             // Pass own channel and enable double-buffer switch
@@ -423,10 +426,6 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigIoDir(DtPtSdiPhyOnlyRxTx* pPt,
             DT_RETURN_ON_ERROR(DtBcSWITCH_SetOperationalMode(pPt->m_pBcSwitchTxDblBuf,
                                                                     DT_BLOCK_OPMODE_RUN));
         }
-        // Set direction
-        if (pPt->m_pDfSpiCableDrvEq != NULL)
-            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetDirection(pPt->m_pDfSpiCableDrvEq, 
-                                                             DT_DF_SPICABLEDRVEQ_DIR_TX));
     }
     else if (pIoCfg->m_Value == DT_IOCONFIG_INTINPUT)
     {
@@ -448,13 +447,12 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigIoDir(DtPtSdiPhyOnlyRxTx* pPt,
 
         // Enable RX-driver functions/blocks that do not dependent on IOSTD or other
         // IO configs
-        ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiRx, TRUE);
+        // First enable the cable driver!! The DfSdiRx is using it!!
         ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSpiCableDrvEq, TRUE);
-
-        // Set direction
         if (pPt->m_pDfSpiCableDrvEq != NULL)
             DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetDirection(pPt->m_pDfSpiCableDrvEq, 
                                                              DT_DF_SPICABLEDRVEQ_DIR_RX));
+        ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiRx, TRUE);
     }
     return DT_STATUS_OK;
 }
@@ -464,7 +462,7 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigIoDir(DtPtSdiPhyOnlyRxTx* pPt,
 DtStatus DtPtSdiPhyOnlyRxTx_SetRxIoConfigIoStd(DtPtSdiPhyOnlyRxTx* pPt,
                                                           const DtCfIoConfigValue* pIoCfg)
 {
-    Int CurOpMode, SdiRate;
+    Int CurOpMode, SdiRate=DT_DRV_SDIRATE_UNKNOWN;
     DT_ASSERT(pIoCfg != NULL);
 
     // ASI or SDI?
@@ -477,6 +475,9 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetRxIoConfigIoStd(DtPtSdiPhyOnlyRxTx* pPt,
                                                                     DT_FUNC_OPMODE_IDLE));
         DT_RETURN_ON_ERROR(DtDfSdiRx_SetRxMode(pPt->m_pDfSdiRx, DT_SDIRX_RXMODE_ASI));
         DT_RETURN_ON_ERROR(DtDfSdiRx_SetOperationalMode(pPt->m_pDfSdiRx, CurOpMode));
+
+        // Configure SDI-rate
+        SdiRate = DT_DRV_SDIRATE_SD;
     } 
     else
     {
@@ -504,8 +505,8 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetRxIoConfigIoStd(DtPtSdiPhyOnlyRxTx* pPt,
     // Cable equalizer is configured for auto rate detection. This is much faster than the
     // manual rate since it will try to relock after each change.
     if (pPt->m_pDfSpiCableDrvEq != NULL)
-        DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetSdiRate(pPt->m_pDfSpiCableDrvEq, 
-                                                                 DT_DRV_SDIRATE_UNKNOWN));
+        DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetRxSdiRate(pPt->m_pDfSpiCableDrvEq, 
+                                                                                SdiRate));
     return DT_STATUS_OK;
 }
 
@@ -560,7 +561,7 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetTxIoConfigIoStd(DtPtSdiPhyOnlyRxTx* pPt,
         }
         // If we have SPI-cable driver, set SDI-rate to SD
         if (pPt->m_pDfSpiCableDrvEq != NULL)
-            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetSdiRate(pPt->m_pDfSpiCableDrvEq, 
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetTxSdiRate(pPt->m_pDfSpiCableDrvEq, 
                                                                       DT_DRV_SDIRATE_SD));
     } 
     else
@@ -607,7 +608,7 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetTxIoConfigIoStd(DtPtSdiPhyOnlyRxTx* pPt,
 
         // If we have SPI-cable driver, set SDI-rate
         if (pPt->m_pDfSpiCableDrvEq != NULL)
-            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetSdiRate(pPt->m_pDfSpiCableDrvEq, 
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetTxSdiRate(pPt->m_pDfSpiCableDrvEq, 
                                                                                 SdiRate));
     }
     return DT_STATUS_OK;

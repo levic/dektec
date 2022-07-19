@@ -25,16 +25,16 @@
 #ifndef __DT_DF_GENLOCKCTRL_CALLBACK_FUNCTION_H
 #define __DT_DF_GENLOCKCTRL_CALLBACK_FUNCTION_H
 
-typedef enum _DtDfGenLockCtrlGenRefType
+typedef enum _DtDfGenLockCtrl_GenRefType
 {
     DT_DF_GENLOCKCTRL_GENREF_UNDEFINED,
     DT_DF_GENLOCKCTRL_GENREF_VIRTUAL,
     DT_DF_GENLOCKCTRL_GENREF_LMH1981,
-}DtDfGenLockCtrlGenRefType;
+}DtDfGenLockCtrl_GenRefType;
 
 typedef struct _DtDfGenLockCtrl DtDfGenLockCtrl;
 void DtDfGenLockCtrl_GenRefStartOfFrameHandler(DtDfGenLockCtrl*, Int PortIdx,
                                            const DtTodTime*, Int SofOffset,
                                            Int VidStd, Int DetectVidStd,
-                                           DtDfGenLockCtrlGenRefType); 
+                                           DtDfGenLockCtrl_GenRefType); 
 #endif  // #ifndef __DT_DF_GENLOCKCTRL_CALLBACK_FUNCTION_H

@@ -40,6 +40,7 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards of private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 static DtStatus  DtBcSDIDMX12G_Init(DtBc*);
+static DtStatus DtBcSDIDMX12G_OnCloseFile(DtBc*, const DtFileObject*);
 static DtStatus  DtBcSDIDMX12G_OnEnable(DtBc*, Bool);
 static void  DtBcSDIDMX12G_SetControlRegs(DtBcSDIDMX12G*, Bool BlkEna, Int OpMode, 
                                                                              Int SdiRate);
@@ -74,6 +75,7 @@ DtBcSDIDMX12G*  DtBcSDIDMX12G_Open(Int  Address, DtCore* pCore, DtPt*  pPt,
     // Register the callbacks
     OpenParams.m_CloseFunc = DtBcSDIDMX12G_Close;
     OpenParams.m_InitFunc = DtBcSDIDMX12G_Init;
+    OpenParams.m_OnCloseFileFunc = DtBcSDIDMX12G_OnCloseFile;
     OpenParams.m_OnEnableFunc = DtBcSDIDMX12G_OnEnable;
 
     // Use base function to allocate and perform standard initialisation of block data
@@ -204,6 +206,34 @@ DtStatus  DtBcSDIDMX12G_Init(DtBc*  pBcBase)
                                                                           pBc->m_SdiRate);
     return DT_STATUS_OK;
 }
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIDMX12G_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtBcSDIDMX12G_OnCloseFile(DtBc* pBcBase, const DtFileObject* pFile)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtBcSDIDMX12G* pBc = (DtBcSDIDMX12G*)pBcBase;
+    DECL_EXCL_ACCESS_OBJECT_FILE(ExclAccessObj, pFile);
+
+    BC_SDIDMX12G_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check if the owner closed the file handle
+    Status = DtBc_ExclAccessCheck((DtBc*)pBc, &ExclAccessObj);
+    if (DT_SUCCESS(Status) && DtBc_IsEnabled((DtBc*)pBc))
+    {
+        DtDbgOutBc(AVG, SDIDMX12G, pBc, "Go to IDLE");
+
+        // Go to idle
+        Status = DtBcSDIDMX12G_SetOperationalMode(pBc, DT_BLOCK_OPMODE_IDLE);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutBc(ERR, SDIDMX12G, pBc, "ERROR: failed to set operational mode");
+        }
+    }
+    // Use base function to release exclusive access
+    return DtBc_OnCloseFile(pBcBase, pFile);
+}
+
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIDMX12G_OnEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //

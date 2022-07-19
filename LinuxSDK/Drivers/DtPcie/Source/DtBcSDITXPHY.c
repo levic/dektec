@@ -51,9 +51,10 @@ static DtStatus  DtBcSDITXPHY_OnCloseFile(DtBc*, const DtFileObject*);
 static DtStatus  DtBcSDITXPHY_WaitPhyReady(DtBcSDITXPHY*);
 static DtStatus  DtBcSDITXPHY_CheckSdiRate(DtBcSDITXPHY*, Int SdiRate);
 static void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY*, Bool BlkEnable, Int OpMode,
-                                  Bool TxClkReset, Bool Arm, Int SofDelay, Int SrcFactor);
+                  Bool TxClkReset, Bool XcvrReset, Bool Arm, Int SofDelay, Int SrcFactor);
+static Bool DtBcSDITXPHY_C10A10_IsAccessAllowed(DtBcSDITXPHY*);
 static DtStatus DtBcSDITXPHY_C10A10_SetPllSelect(DtBcSDITXPHY*, Int ClockIdx);
-static void  DtBcSDITXPHY_SetSlewRateControl(DtBcSDITXPHY*, Int SdiRate);
+static DtStatus DtBcSDITXPHY_C10A10_SetSlewRateControl(DtBcSDITXPHY*, Int SdiRate);
 static DtStatus DtBcSDITXPHY_C10A10_RequestAccess(DtBcSDITXPHY*, Bool AllowLongSleep);
 static void DtBcSDITXPHY_C10A10_ReleaseAccess(DtBcSDITXPHY*, Bool TriggerCalibration);
 
@@ -121,9 +122,8 @@ DtStatus DtBcSDITXPHY_ArmForSof(DtBcSDITXPHY * pBc)
 
     // Make settings in register
     DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                                  pBc->m_ClockReset, TRUE, 
-                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
-
+                                             pBc->m_TxClockReset, pBc->m_XcvrReset, TRUE,
+                                             pBc->m_SofDelay, pBc->m_UpsampleFactor);
     return DT_STATUS_OK;
 }
 
@@ -178,26 +178,45 @@ DtStatus DtBcSDITXPHY_GetArmStatus(DtBcSDITXPHY* pBc, Int* pArmStatus)
     return DT_STATUS_OK;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_GetClockReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_GetTxClockReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtBcSDITXPHY_GetClockReset(DtBcSDITXPHY * pBc, Bool* pClkReset)
+DtStatus DtBcSDITXPHY_GetTxClockReset(DtBcSDITXPHY * pBc, Bool* pTxClkReset)
 {
     // Sanity check
     BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
 
     // Check parameters
-    if (pClkReset == NULL)
+    if (pTxClkReset == NULL)
         return DT_STATUS_INVALID_PARAMETER;
 
     // Must be enabled
     BC_SDITXPHY_MUST_BE_ENABLED(pBc);
 
     // Return last cached clock reset
-    *pClkReset = pBc->m_ClockReset;
+    *pTxClkReset = pBc->m_TxClockReset;
 
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_GetXcvrReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDITXPHY_GetXcvrReset(DtBcSDITXPHY* pBc, Bool* pXcvrReset)
+{
+    // Sanity check
+    BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check parameters
+    if (pXcvrReset == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_SDITXPHY_MUST_BE_ENABLED(pBc);
+
+    // Return last cached clock reset
+    *pXcvrReset = pBc->m_XcvrReset;
+
+    return DT_STATUS_OK;
+}
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_GetDeviceFamily -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcSDITXPHY_GetDeviceFamily(DtBcSDITXPHY * pBc, Int* pDeviceFamily)
@@ -390,9 +409,40 @@ DtStatus DtBcSDITXPHY_IsResetInProgress(DtBcSDITXPHY*  pBc, Bool*  pInProgress)
 }
 
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetClockReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetTxClockReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtBcSDITXPHY_SetClockReset(DtBcSDITXPHY* pBc, Bool ClkReset)
+DtStatus DtBcSDITXPHY_SetTxClockReset(DtBcSDITXPHY* pBc, Bool TxClkReset)
+{
+     // Sanity check
+    BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
+
+    // Must be enabled
+    BC_SDITXPHY_MUST_BE_ENABLED(pBc);
+
+    // Operational mode must be IDLE or STANDBY
+    if (pBc->m_OperationalMode == DT_BLOCK_OPMODE_RUN)
+    { 
+        DtDbgOutBc(ERR, SDITXPHY, pBc, "Operational mode not in idle/standby");
+        return DT_STATUS_INVALID_IN_OPMODE;
+    }
+
+    // No change?
+    if (pBc->m_TxClockReset == TxClkReset)
+        return DT_STATUS_OK;
+
+    // Update cache
+    pBc->m_TxClockReset = TxClkReset;
+
+    // Make settings in register
+    DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
+                                             pBc->m_TxClockReset, pBc->m_XcvrReset, FALSE,
+                                             pBc->m_SofDelay, pBc->m_UpsampleFactor);
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetXcvrReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcSDITXPHY_SetXcvrReset(DtBcSDITXPHY* pBc, Bool XcvrReset)
 {
      // Sanity check
     BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
@@ -408,20 +458,18 @@ DtStatus DtBcSDITXPHY_SetClockReset(DtBcSDITXPHY* pBc, Bool ClkReset)
     }
 
     // No change?
-    if (pBc->m_ClockReset == ClkReset)
+    if (pBc->m_XcvrReset == XcvrReset)
         return DT_STATUS_OK;
 
     // Update cache
-    pBc->m_ClockReset = ClkReset;
+    pBc->m_XcvrReset = XcvrReset;
 
     // Make settings in register
     DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                                  pBc->m_ClockReset, FALSE, 
-                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
-
+                                             pBc->m_TxClockReset, pBc->m_XcvrReset, FALSE,
+                                             pBc->m_SofDelay, pBc->m_UpsampleFactor);
     return DT_STATUS_OK;
 }
-
 
 // -.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_C10A10_GetCalibrationDone -.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -453,6 +501,7 @@ DtStatus DtBcSDITXPHY_C10A10_GetCalibrationDone(DtBcSDITXPHY* pBc, Bool* pDone)
     // Wait until CalDone is asserted
     RegCalBusy = SDITXPHY_Status_READ_CalBusy(pBc);
     *pDone = (RegCalBusy == 0);
+
     return DT_STATUS_OK;
 }
 
@@ -510,6 +559,11 @@ DtStatus DtBcSDITXPHY_C10A10_SetSdiFractionalClock(DtBcSDITXPHY* pBc, Bool FracC
 
     // Update cached value
     pBc->m_C10A10FractClock = FracClk;
+
+    // Check error status indicator
+    if (pBc->m_Version >= 6)
+        DT_ASSERT(SDITXPHY_Status_READ_AccessTimedout(pBc) == 0);
+
     return DT_STATUS_OK;
 }
 
@@ -538,7 +592,7 @@ DtStatus DtBcSDITXPHY_C10A10_StartCalibration(DtBcSDITXPHY* pBc)
         return DT_STATUS_OK;
 
     // Clock reset should be asserted
-    DT_ASSERT(pBc->m_ClockReset == TRUE);
+    DT_ASSERT(pBc->m_TxClockReset == TRUE);
 
     // Request access to calibration registers.
     DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_RequestAccess(pBc, FALSE));
@@ -552,6 +606,12 @@ DtStatus DtBcSDITXPHY_C10A10_StartCalibration(DtBcSDITXPHY* pBc)
 
     // Release configuration bus to PreSICE to perform calibration
     DtBcSDITXPHY_C10A10_ReleaseAccess(pBc, TRUE);
+    // Wait shortly to allow calibration request to be acknowledged (takes a few clocks)
+    DtWaitBlock(5);
+
+    // Check error status indicator
+    if (pBc->m_Version >= 6)
+        DT_ASSERT(SDITXPHY_Status_READ_AccessTimedout(pBc) == 0);
     return DT_STATUS_OK;
 }
 
@@ -586,10 +646,10 @@ DtStatus DtBcSDITXPHY_SetOperationalMode(DtBcSDITXPHY * pBc, Int OpMode)
 
     // Make setting in control register
     DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                                  pBc->m_ClockReset, FALSE, 
-                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
-    return DT_STATUS_OK;
+                                             pBc->m_TxClockReset, pBc->m_XcvrReset, FALSE,
+                                             pBc->m_SofDelay, pBc->m_UpsampleFactor);
 
+    return DT_STATUS_OK;
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -636,13 +696,17 @@ DtStatus DtBcSDITXPHY_SetSdiRate(DtBcSDITXPHY* pBc, Int SdiRate)
 
     // Make settings in register
     DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                                  pBc->m_ClockReset, FALSE, 
-                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
-    // Update slew rate
-    DtBcSDITXPHY_SetSlewRateControl(pBc, SdiRate);
+                                             pBc->m_TxClockReset, pBc->m_XcvrReset, FALSE,
+                                             pBc->m_SofDelay, pBc->m_UpsampleFactor);
+
+    // Update slew rate for A10/C10
+    if (pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10
+                                        || pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_C10)
+        DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_SetSlewRateControl(pBc, pBc->m_SdiRate));
 
     return DT_STATUS_OK;
 }
+
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetSofDelay -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcSDITXPHY_SetSofDelay(DtBcSDITXPHY* pBc, Int SofDelay)
@@ -673,8 +737,9 @@ DtStatus DtBcSDITXPHY_SetSofDelay(DtBcSDITXPHY* pBc, Int SofDelay)
 
     // Make settings in register
     DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                                  pBc->m_ClockReset, FALSE, 
-                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
+                                             pBc->m_TxClockReset, pBc->m_XcvrReset, FALSE,
+                                             pBc->m_SofDelay, pBc->m_UpsampleFactor);
+
     return DT_STATUS_OK;
 }
 
@@ -698,7 +763,8 @@ DtStatus  DtBcSDITXPHY_Init(DtBc*  pBcBase)
     // Set defaults
     pBc->m_BlockEnabled = FALSE;
     pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
-    pBc->m_ClockReset = TRUE;
+    pBc->m_TxClockReset = TRUE;
+    pBc->m_XcvrReset = TRUE;
     pBc->m_SofDelay = 0;
     pBc->m_C10A10FractClock = FALSE;
 
@@ -734,14 +800,19 @@ DtStatus  DtBcSDITXPHY_Init(DtBc*  pBcBase)
     default: DT_ASSERT(FALSE); return DT_STATUS_FAIL;
     }
 
+    // Clear error status indicator
+    if (pBc->m_Version >= 6)
+        SDITXPHY_Status_CLEAR_AccessTimedout(pBc);
+
     // Select default up-sample factor for HD
     pBc->m_SdiRate = DT_DRV_SDIRATE_HD;
     pBc->m_UpsampleFactor = (pBc->m_MaxSdiRate <= DT_DRV_SDIRATE_3G) ? 2 : 8;
 
     // Make settings in register
     DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                                  pBc->m_ClockReset, FALSE, 
-                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
+                                             pBc->m_TxClockReset, pBc->m_XcvrReset, FALSE,
+                                             pBc->m_SofDelay, pBc->m_UpsampleFactor);
+
     return Status;
 }
 
@@ -750,8 +821,8 @@ DtStatus  DtBcSDITXPHY_Init(DtBc*  pBcBase)
 DtStatus DtBcSDITXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
 {
     DtStatus  Status=DT_STATUS_OK;
-    DtBcSDITXPHY* pBc = (DtBcSDITXPHY*) pBcBase;
- 
+    DtBcSDITXPHY* pBc = (DtBcSDITXPHY*)pBcBase;
+
     // Sanity check
     BC_SDITXPHY_DEFAULT_PRECONDITIONS(pBc);
 
@@ -760,27 +831,30 @@ DtStatus DtBcSDITXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
         // DISABLE-> ENABLE
         // Set defaults
         pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
-        pBc->m_ClockReset = TRUE;
+        pBc->m_TxClockReset = TRUE;
+        pBc->m_XcvrReset = TRUE;
         pBc->m_SofDelay = 0;
         // Save block enable
         pBc->m_BlockEnabled = Enable;
         // Make setting in control register
         DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                                  pBc->m_ClockReset, FALSE, 
-                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
+                                             pBc->m_TxClockReset, pBc->m_XcvrReset, FALSE,
+                                             pBc->m_SofDelay, pBc->m_UpsampleFactor);
+
         // Wait till PHY is ready
         DT_RETURN_ON_ERROR(DtBcSDITXPHY_WaitPhyReady(pBc));
 
         // Device family specific initialization
-        if (pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10 
+        if (pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10
                                         || pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_C10)
-        { 
+        {
             // Select clock
-            DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_SetPllSelect(pBc, 
+            DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_SetPllSelect(pBc,
                                                         pBc->m_C10A10FractClock ? 1 : 0));
+            // Set slew rate
+            DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_SetSlewRateControl(pBc,
+                                                                         pBc->m_SdiRate));
         }
-        // Set slew rate
-        DtBcSDITXPHY_SetSlewRateControl(pBc, pBc->m_SdiRate);
     }
     else
     {
@@ -796,8 +870,9 @@ DtStatus DtBcSDITXPHY_OnEnable(DtBc* pBcBase, Bool Enable)
         pBc->m_BlockEnabled = Enable;
         // Make setting in control register
         DtBcSDITXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                                  pBc->m_ClockReset, FALSE, 
-                                                  pBc->m_SofDelay, pBc->m_UpsampleFactor);
+                                             pBc->m_TxClockReset, pBc->m_XcvrReset, FALSE,
+                                             pBc->m_SofDelay, pBc->m_UpsampleFactor);
+
     }
     return DT_STATUS_OK;
 }
@@ -870,7 +945,7 @@ DtStatus DtBcSDITXPHY_CheckSdiRate(DtBcSDITXPHY* pBc, Int SdiRate)
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,
-                                  Bool TxClkReset,  Bool Arm, Int SofDelay, Int SrcFactor)
+                  Bool TxClkReset,  Bool XcvrReset, Bool Arm, Int SofDelay, Int SrcFactor)
 {
     UInt RegData=0, FldOpMode=0, FldBlkEnable=0, FldSrcFactor=0;
 
@@ -920,7 +995,9 @@ void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,
     RegData = SDITXPHY_Control_READ(pBc);
     RegData = SDITXPHY_Control_SET_BlockEnable(RegData, FldBlkEnable);
     RegData = SDITXPHY_Control_SET_OperationalMode(RegData, FldOpMode);
-    RegData = SDITXPHY_Control_SET_TxClkReset(RegData, TxClkReset ?  1 : 0);
+    if (pBc->m_Version >= 6)
+        RegData = SDITXPHY_Control_SET_TxClkReset(RegData, TxClkReset ?  1 : 0);
+    RegData = SDITXPHY_Control_SET_XcvrReset(RegData, XcvrReset ?  1 : 0);
     RegData = SDITXPHY_Control_SET_Arm(RegData, Arm ?  1 : 0);
     RegData = SDITXPHY_Control_SET_SrcFactor(RegData, FldSrcFactor);
     RegData = SDITXPHY_Control_SET_GenlockSofDelay(RegData, (UInt32)SofDelay);
@@ -933,6 +1010,16 @@ void  DtBcSDITXPHY_SetControlRegs(DtBcSDITXPHY* pBc, Bool BlkEnable, Int OpMode,
         RegData = SDITXPHY_CdcFifoControl_SET_InhibitFifo(RegData, 0);
         SDITXPHY_CdcFifoControl_WRITE(pBc, RegData);
     }
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_C10A10_IsAccessAllowed -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool DtBcSDITXPHY_C10A10_IsAccessAllowed(DtBcSDITXPHY* pBc)
+{
+    if (pBc->m_Version <= 5)
+        return SDITXPHY_Status_READ_WaitRequest(pBc) == 0;
+    else
+        return SDITXPHY_C10A10_CalCapability_READ_AvMmBusy(pBc) == SDITXPHY_ARBOWNER_User;
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_C10A10_SetPllSelect -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -959,27 +1046,31 @@ DtStatus DtBcSDITXPHY_C10A10_SetPllSelect(DtBcSDITXPHY* pBc, Int ClockIdx)
         DtBcSDITXPHY_C10A10_ReleaseAccess(pBc, FALSE);
         return DT_STATUS_FAIL;
     }
-    PllSelect = (((PllId&8)^8)<<4) | ((PllId&3)<<5) | ((PllId&8)<<1) | (PllId&0xF);
 
+    PllSelect = (((PllId&8)^8)<<4) | ((PllId&3)<<5) | ((PllId&8)<<1) | (PllId&0xF);
     SDITXPHY_C10A10_PllSelectionMux_WRITE(pBc, PllSelect);
+
     DtBcSDITXPHY_C10A10_ReleaseAccess(pBc, FALSE);
 
     return DT_STATUS_OK;
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_SetSlewRateControl -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_C10A10_SetSlewRateControl -.-.-.-.-.-.-.-.-.-.-.-.
 //
-void DtBcSDITXPHY_SetSlewRateControl(DtBcSDITXPHY* pBc, Int SdiRate)
+DtStatus DtBcSDITXPHY_C10A10_SetSlewRateControl(DtBcSDITXPHY* pBc, Int SdiRate)
 {
     UInt32  FwSlewRate = SDITXPHY_SLEWRATE_SLEW_R3;
     UInt32  RegTxCtrl = 0;
 
+    DT_ASSERT(pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_A10 
+                                       || pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_C10);
+
     // Supported by C10A10 PHY version 2 and later
-    if (pBc->m_DeviceFamily==DT_BC_SDITXPHY_FAMILY_CV || pBc->m_Version < 2)
-        return;
+    if (pBc->m_Version < 2)
+        return DT_STATUS_OK;
 
     //Request access before accessing any other PHY registers
-    DtBcSDITXPHY_C10A10_RequestAccess(pBc, FALSE);
+    DT_RETURN_ON_ERROR(DtBcSDITXPHY_C10A10_RequestAccess(pBc, FALSE));
 
     switch (SdiRate)
     {
@@ -994,44 +1085,51 @@ void DtBcSDITXPHY_SetSlewRateControl(DtBcSDITXPHY* pBc, Int SdiRate)
     SDITXPHY_C10A10_TxCtrl_WRITE(pBc, RegTxCtrl);
 
     DtBcSDITXPHY_C10A10_ReleaseAccess(pBc, FALSE);
+
+    return DT_STATUS_OK;
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPHY_C10A10_RequestAccess -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcSDITXPHY_C10A10_RequestAccess(DtBcSDITXPHY* pBc, Bool AllowLongSleep)
 {
-    UInt32  RegData=0,  WaitRequest=0, TimeoutCount=0;
-    
+    UInt32  RegData=0, TimeoutCount=0;
+    Bool AccessAllowed;
+
     // Request access to PHY registers.
     RegData = SDITXPHY_C10A10_ArbitrationCtrl_SET_ArbiterCtrlPma(0, 
                                                                   SDITXPHY_ARBOWNER_User);
     RegData = SDITXPHY_C10A10_ArbitrationCtrl_SET_CalDonePma(RegData, 
                                                                   SDITXPHY_CALDONE_Done);
     SDITXPHY_C10A10_ArbitrationCtrl_WRITE(pBc, RegData);
+    
+    if (pBc->m_Version >= 6)
+    {
+        // Clear AccessTimedout status indicator as workaround for firmware issue.
+        SDITXPHY_Status_CLEAR_AccessTimedout(pBc);
+    }
 
     // Wait for 20ms to get access to PHY registers.
-    WaitRequest = SDITXPHY_Status_READ_WaitRequest(pBc);
+    AccessAllowed = DtBcSDITXPHY_C10A10_IsAccessAllowed(pBc);
     TimeoutCount = 20000;
-    while (WaitRequest!=0 && TimeoutCount>0)
+    while (!AccessAllowed && TimeoutCount>0)
     {
         DtWaitBlock(1);
         TimeoutCount--;
-        WaitRequest = SDITXPHY_Status_READ_WaitRequest(pBc);
+        AccessAllowed = DtBcSDITXPHY_C10A10_IsAccessAllowed(pBc);
     }
-    if (WaitRequest == 0)
+    if (AccessAllowed)
         return DT_STATUS_OK;
-    if (!AllowLongSleep)
-        return DT_STATUS_TIMEOUT;
 
     // It takes a bit longer. Use a sleep if allowed
     TimeoutCount = 1000; // Maximum 10 seconds
-    while (WaitRequest!=0 && TimeoutCount>0)
+    while (AllowLongSleep && !AccessAllowed && TimeoutCount>0)
     {
         DtSleep(10);
         TimeoutCount--;
-        WaitRequest = SDITXPHY_Status_READ_WaitRequest(pBc);
+        AccessAllowed = DtBcSDITXPHY_C10A10_IsAccessAllowed(pBc);
     }
-    if (WaitRequest != 0)
+    if (!AccessAllowed)
     {
         // Timeout
         DtString  Str;

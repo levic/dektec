@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI.h *#*#*#*#*#*#*#*#*#* (C) 2000-2021 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI.h *#*#*#*#*#*#*#*#*#* (C) 2000-2022 DekTec
 //
 // DTAPI - C++ API for DekTec PCI/PCI-Express cards, USB adapters and network devices
 //
@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        47
+#define DTAPI_VERSION_MINOR        49
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        179
+#define DTAPI_VERSION_BUILD        194
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -78,12 +78,12 @@
 #endif
 
 // STL includes
+#include <limits>
 #include <list>
 #include <map>
 #include <string>
+#include <time.h>       // For timespec
 #include <vector>
-#include <limits>
-#include <time.h>       // For timespec 
 
 // When creating a DLL under Windows, disable warnings related to exporting STL
 // instantiations in classes.
@@ -132,6 +132,7 @@ class DtAtsc3Pars;
 class DtAtsc3StltpPars;
 class DtDemodPars;
 class DtDevice;
+class DtDvbTPars;
 class DtDvbT2Pars;
 class DteDevice;
 class DtMxAudioService;
@@ -501,52 +502,53 @@ private:
 // Capability group RXSTD - Receiver standards
 #define DTAPI_CAP_RX_ATSC           Dtapi::DtCaps(181) // ATSC 8-VSB reception
 #define DTAPI_CAP_RX_ATSC3          Dtapi::DtCaps(182) // ATSC3.0 reception
-#define DTAPI_CAP_RX_CMMB           Dtapi::DtCaps(183) // CMMB reception
-#define DTAPI_CAP_RX_DAB            Dtapi::DtCaps(184) // DAB reception
-#define DTAPI_CAP_RX_DTMB           Dtapi::DtCaps(185) // DTMB reception
-#define DTAPI_CAP_RX_DVBC2          Dtapi::DtCaps(186) // DVB-C2 reception
-#define DTAPI_CAP_RX_DVBS           Dtapi::DtCaps(187) // DVB-S reception
-#define DTAPI_CAP_RX_DVBS2          Dtapi::DtCaps(188) // DVB-S2 reception
-#define DTAPI_CAP_RX_DVBT           Dtapi::DtCaps(189) // DVB-T reception
-#define DTAPI_CAP_RX_DVBT2          Dtapi::DtCaps(190) // DVB-T2 reception
-#define DTAPI_CAP_RX_GOLD           Dtapi::DtCaps(191) // GOLD for receivers
-#define DTAPI_CAP_RX_IQ             Dtapi::DtCaps(192) // I/Q sample reception
-#define DTAPI_CAP_RX_ISDBS          Dtapi::DtCaps(193) // ISDB-S reception
-#define DTAPI_CAP_RX_ISDBT          Dtapi::DtCaps(194) // ISDB-T reception
-#define DTAPI_CAP_RX_MH             Dtapi::DtCaps(195) // ATSC-MH reception
-#define DTAPI_CAP_RX_QAMA           Dtapi::DtCaps(196) // QAM-A reception
-#define DTAPI_CAP_RX_QAMB           Dtapi::DtCaps(197) // QAM-B reception
-#define DTAPI_CAP_RX_QAMC           Dtapi::DtCaps(198) // QAM-C reception
-#define DTAPI_CAP_RX_T2MI           Dtapi::DtCaps(199) // T2MI reception
+#define DTAPI_CAP_RX_ATSC3_KOREAN   Dtapi::DtCaps(183) // ATSC3.0 Korean reception
+#define DTAPI_CAP_RX_CMMB           Dtapi::DtCaps(184) // CMMB reception
+#define DTAPI_CAP_RX_DAB            Dtapi::DtCaps(185) // DAB reception
+#define DTAPI_CAP_RX_DTMB           Dtapi::DtCaps(186) // DTMB reception
+#define DTAPI_CAP_RX_DVBC2          Dtapi::DtCaps(187) // DVB-C2 reception
+#define DTAPI_CAP_RX_DVBS           Dtapi::DtCaps(188) // DVB-S reception
+#define DTAPI_CAP_RX_DVBS2          Dtapi::DtCaps(189) // DVB-S2 reception
+#define DTAPI_CAP_RX_DVBT           Dtapi::DtCaps(190) // DVB-T reception
+#define DTAPI_CAP_RX_DVBT2          Dtapi::DtCaps(191) // DVB-T2 reception
+#define DTAPI_CAP_RX_GOLD           Dtapi::DtCaps(192) // GOLD for receivers
+#define DTAPI_CAP_RX_IQ             Dtapi::DtCaps(193) // I/Q sample reception
+#define DTAPI_CAP_RX_ISDBS          Dtapi::DtCaps(194) // ISDB-S reception
+#define DTAPI_CAP_RX_ISDBT          Dtapi::DtCaps(195) // ISDB-T reception
+#define DTAPI_CAP_RX_MH             Dtapi::DtCaps(196) // ATSC-MH reception
+#define DTAPI_CAP_RX_QAMA           Dtapi::DtCaps(197) // QAM-A reception
+#define DTAPI_CAP_RX_QAMB           Dtapi::DtCaps(198) // QAM-B reception
+#define DTAPI_CAP_RX_QAMC           Dtapi::DtCaps(199) // QAM-C reception
+#define DTAPI_CAP_RX_T2MI           Dtapi::DtCaps(200) // T2MI reception
 
 // Capability group SPICLKSEL - Parallel port clock source selection
-#define DTAPI_CAP_SPICLKEXT         Dtapi::DtCaps(200) // External clock input
-#define DTAPI_CAP_SPICLKINT         Dtapi::DtCaps(201) // Internal clock reference
+#define DTAPI_CAP_SPICLKEXT         Dtapi::DtCaps(201) // External clock input
+#define DTAPI_CAP_SPICLKINT         Dtapi::DtCaps(202) // Internal clock reference
 
 // Capability group SPIMODE - Parallel port mode
-#define DTAPI_CAP_SPIFIXEDCLK       Dtapi::DtCaps(202) // SPI fixed clock with valid signal
-#define DTAPI_CAP_SPIDVBMODE        Dtapi::DtCaps(203) // SPI DVB mode
-#define DTAPI_CAP_SPISER8B          Dtapi::DtCaps(204) // SPI serial 8-bit mode
-#define DTAPI_CAP_SPISER10B         Dtapi::DtCaps(205) // SPI serial 10-bit mode
+#define DTAPI_CAP_SPIFIXEDCLK       Dtapi::DtCaps(203) // SPI fixed clock with valid signal
+#define DTAPI_CAP_SPIDVBMODE        Dtapi::DtCaps(204) // SPI DVB mode
+#define DTAPI_CAP_SPISER8B          Dtapi::DtCaps(205) // SPI serial 8-bit mode
+#define DTAPI_CAP_SPISER10B         Dtapi::DtCaps(206) // SPI serial 10-bit mode
 
 // Capability group SPISTD - Parallel port I/O standard
-#define DTAPI_CAP_SPILVDS1          Dtapi::DtCaps(206) // LVDS1
-#define DTAPI_CAP_SPILVDS2          Dtapi::DtCaps(207) // LVDS2
-#define DTAPI_CAP_SPILVTTL          Dtapi::DtCaps(208) // LVTTL
+#define DTAPI_CAP_SPILVDS1          Dtapi::DtCaps(207) // LVDS1
+#define DTAPI_CAP_SPILVDS2          Dtapi::DtCaps(208) // LVDS2
+#define DTAPI_CAP_SPILVTTL          Dtapi::DtCaps(209) // LVTTL
 
 // Capability group TSRATESEL - Transport-stream rate selection
-#define DTAPI_CAP_EXTTSRATE         Dtapi::DtCaps(209) // External TS rate clock input
-#define DTAPI_CAP_EXTRATIO          Dtapi::DtCaps(210) // External TS rate clock with ratio
-#define DTAPI_CAP_INTTSRATE         Dtapi::DtCaps(211) // Internal TS rate clock reference
-#define DTAPI_CAP_LOCK2INP          Dtapi::DtCaps(212) // Lock TS rate to input port
+#define DTAPI_CAP_EXTTSRATE         Dtapi::DtCaps(210) // External TS rate clock input
+#define DTAPI_CAP_EXTRATIO          Dtapi::DtCaps(211) // External TS rate clock with ratio
+#define DTAPI_CAP_INTTSRATE         Dtapi::DtCaps(212) // Internal TS rate clock reference
+#define DTAPI_CAP_LOCK2INP          Dtapi::DtCaps(213) // Lock TS rate to input port
 
 // Capability group TODREFSEL - TimeOfDay reference selection
-#define DTAPI_CAP_TODREF_INTERNAL   Dtapi::DtCaps(213) // Internal clock reference
-#define DTAPI_CAP_TODREF_STEADYCLOCK Dtapi::DtCaps(214) // Steady clock reference
+#define DTAPI_CAP_TODREF_INTERNAL   Dtapi::DtCaps(214) // Internal clock reference
+#define DTAPI_CAP_TODREF_STEADYCLOCK Dtapi::DtCaps(215) // Steady clock reference
 
 // Capability group VIDENC - Supported video standards
-#define DTAPI_CAP_ENC_H264          Dtapi::DtCaps(215) // H.264 video encoder
-#define DTAPI_CAP_ENC_MP2V          Dtapi::DtCaps(216) // MPEG2 video encoder
+#define DTAPI_CAP_ENC_H264          Dtapi::DtCaps(216) // H.264 video encoder
+#define DTAPI_CAP_ENC_MP2V          Dtapi::DtCaps(217) // MPEG2 video encoder
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCmmbPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -726,9 +728,6 @@ struct DtDeviceDesc
     int  m_HardwareRevision;        // Hardware revision (e.g. 302 = 3.2)
     int  m_FirmwareVersion;         // Firmware version
     int  m_FirmwareVariant;         // Firmware variant
-    // Firmware package version (-1 if not applicable)
-    DTAPI_DEPRECATED(int  m_FwPackageVersion,
-               "Deprecated (will be removed!): Use DtDevice::FwPackageVersion() instead");
     DtFirmwareStatus  m_FirmwareStatus; // Firmware status
     DtFwBuildDateTime  m_FwBuildDate;   // Firmware build date and time
     int  m_NumDtInpChan;            // Number of input channels (max)
@@ -762,7 +761,8 @@ enum DtDriverId
   DRV_ID_DTPCIE,                    // DtPcie driver
   DRV_ID_DTU,                       // Dtu driver
   DRV_ID_DTANW,                     // DtaNw driver    
-  DRV_ID_DTANWAP                    // DtaNwAp
+  DRV_ID_DTANWAP,                   // DtaNwAp
+  DRV_ID_DTPCIENW                   // DtPcieNw driver
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDriverVersionInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1456,6 +1456,7 @@ struct DtModPars
     DtDrmPars*  pDrmPars()  { return (DtDrmPars*)m_pXtraPars; }
     DtDvbC2Pars*  pDvbC2Pars()  { return (DtDvbC2Pars*)m_pXtraPars; }
     DtDvbS2Pars*  pDvbS2Pars()  { return (DtDvbS2Pars*)m_pXtraPars; }
+    DtDvbTPars*  pDvbTPars()  { return (DtDvbTPars*)m_pXtraPars; }
     DtDvbT2Pars*  pDvbT2Pars()  { return (DtDvbT2Pars*)m_pXtraPars; }
     DtIqDirectPars*  pIqDirectPars()  { return (DtIqDirectPars*)m_pXtraPars; }
     DtIsdbsPars*  pIsdbsPars()  { return (DtIsdbsPars*)m_pXtraPars; }
@@ -3682,6 +3683,7 @@ public:
     virtual DTAPI_RESULT  SetModControl(DtDvbC2Pars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbCidPars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbS2Pars&);
+    virtual DTAPI_RESULT  SetModControl(DtDvbTPars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbT2Pars&);
     virtual DTAPI_RESULT  SetModControl(DtIqDirectPars&);
     virtual DTAPI_RESULT  SetModControl(DtIsdbsPars&);
@@ -3801,6 +3803,7 @@ public:
     virtual DTAPI_RESULT  SetModControl(DtDvbC2Pars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbCidPars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbS2Pars&);
+    virtual DTAPI_RESULT  SetModControl(DtDvbTPars&);
     virtual DTAPI_RESULT  SetModControl(DtDvbT2Pars&);
     virtual DTAPI_RESULT  SetModControl(DtIqDirectPars&);
     virtual DTAPI_RESULT  SetModControl(DtIsdbsPars&);
@@ -5196,6 +5199,21 @@ private:
 #define DTAPI_E_OBSOLETE_FW         (DTAPI_E + 264)
 #define DTAPI_E_PLP_COLLISION       (DTAPI_E + 265)
 #define DTAPI_E_PLP_NOT_FOUND       (DTAPI_E + 266)
+#define DTAPI_E_CONFIG_AUDIO        (DTAPI_E + 267)
+#define DTAPI_E_CONFIG_AUX          (DTAPI_E + 268)
+#define DTAPI_E_CONFIG_AUX_ANC      (DTAPI_E + 269)
+#define DTAPI_E_CONFIG_AUX_LINE21   (DTAPI_E + 270)
+#define DTAPI_E_CONFIG_AUX_RAWVBI   (DTAPI_E + 271)
+#define DTAPI_E_CONFIG_AUX_TELETEXT (DTAPI_E + 272)
+#define DTAPI_E_CONFIG_AUX_VIDINDEX (DTAPI_E + 273)
+#define DTAPI_E_CONFIG_AUX_VITC     (DTAPI_E + 274)
+#define DTAPI_E_CONFIG_AUX_VPID     (DTAPI_E + 275)
+#define DTAPI_E_CONFIG_AUX_WSS      (DTAPI_E + 276)
+#define DTAPI_E_CONFIG_RAW          (DTAPI_E + 277)
+#define DTAPI_E_CONFIG_RAW_SDI      (DTAPI_E + 278)
+#define DTAPI_E_CONFIG_VIDEO        (DTAPI_E + 279)
+#define DTAPI_E_CONFIG_VIDEO_WEAVE  (DTAPI_E + 280)
+#define DTAPI_E_CONFIG_VIDEO_ZEROCOPY  (DTAPI_E + 281)
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+ DVB-C2, DVB-S2, DVB-T2, ISDB-Tmm Multi PLP Parameters +=+=+=+=+=+=+=+=+
@@ -6942,6 +6960,41 @@ struct DtDvbS2Pars
     DTAPI_RESULT  CheckValidity();
 };
 
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbTPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Class for specifying the DVB-T modulation parameters.
+//
+class DtDvbTPars 
+{
+public:
+    int  m_Bandwidth;       // Bandwidth: 5, 6, 7 or 8MHz (DTAPI_MOD_DVBT_XMHZ)
+    int  m_Constellation;   // Constellation: QPSK, 16-QAM or 64-QAM (DTAPI_MOD_DVBT_XXX)
+    int  m_HpCodeRate;      // High priority coderate: 1/2, 2/3, 3/4, 5/6 or 7/8
+    int  m_LpCodeRate;      // Low priority coderate (e.g. DTAPI_MOD_2_3).
+    int  m_Guard;           // Guard interval DTAPI_MOD_DVBT_G_1_XXX
+    int  m_Interleaving;    // Indepth or native (DTAPI_MOD_DVBT_INDEPTH 
+                            // or DTAPI_MOD_DVBT_NATIVE
+    int  m_Mode;            // Transmission mode: 2K, 4K or 8K (DTAPI_MOD_DVBT_XXX)
+    int  m_Hierarchy;       // Hierarchy: none, alpha1, alpha2 or alpha4 
+                            // (DTAPI_MOD_DVBT_HARCHY_XX)
+    int  m_CellId;          // 16-bit cell identifier; -1 if not used
+    int  m_HpS48S49;        // High priority S48 and S49 (DTAPI_MOD_DVBT_Sxx); and
+    int  m_LpS48S49;        // low priority S48 and S49; -1 if not used.
+public:
+      // Constructor
+    DtDvbTPars() { Init(); }
+
+    // Methods
+    virtual void  Init();
+    virtual DTAPI_RESULT  CheckValidity();
+
+    // Operators
+    virtual bool  operator == (DtDvbTPars& TPars);
+    virtual bool  operator != (DtDvbTPars& TPars);
+};
+
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DVB-T2 Parameters +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 // Maxima
@@ -8503,7 +8556,7 @@ public:
     int  m_NumLines2;           // #lines to transfer (-1 for all lines)
 
     int  m_Scaling;             // Scaling mode (OFF, 1/4, 1/16). DTAPI_SCALING_*
-    int  m_LineAlignment;       // -1 if all symbols should directly follow eachother,
+    int  m_LineAlignment;       // -1 if all symbols should directly follow each other,
                                 // otherwise the minimum alignment each line should
                                 // have. DTAPI will chose the stride internally, usually
                                 // n*m_LineAlignment for smallest n where the stride is
@@ -8520,6 +8573,21 @@ public:
                                 // for allocating the video sample buffers. When set to
                                 // false the framework will allocate the buffers. Defaults
                                 // to false.
+    bool m_WeaveInterlaced;     // True, means the lines of interlaced video is weaved in 
+                                // one continuous video buffer. Note: this option can only
+                                // be used when line aligned is used (m_LineAlignment>=1)
+    bool m_UseZeroCopyMode;     // True, means the video buffer will point direct into the
+                                // DMA buffer circumventing the need for the Matrix API to
+                                // copy video data between DMA buffer and 
+                                // DtMxFrame::m_Video buffer(s). Note: this option can 
+                                // only be enabled when the native SDI pixel format 
+                                // (DT_PXFMT_UYVY422_10B) is used. No Line- and buffer 
+                                // alignment and no scaling.
+                                // WARNING: for a SMPTE 425-5 quad-link with quadrants 
+                                // (i.e. Annex B) the DMA buffer will contain an image 
+                                // with pixels shuffled around as if they originate from 
+                                // a 2SI source (i.e. special processing is needed to
+                                // reconstruct the original image).
 
     DtMxVideoConfig();
 };
@@ -8631,6 +8699,8 @@ public:
                                 //       buffers filled by callback. Data buffers are
                                 //       initialized with input data if m_DeEmbed is
                                 //       true, otherwise they're initially empty.
+
+    DtMxAuxObjConfig() : m_DeEmbed(false), m_OutputMode(DT_OUTPUT_MODE_DROP) {}
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxAuxObjConfigVideoIndex -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -8679,6 +8749,17 @@ public:
                                 // NOTE: -1, means use default
 };
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxAuxObjConfigRawVbi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+class DtMxAuxObjConfigRawVbi : public DtMxAuxObjConfig
+{
+public:
+    std::vector<int> m_LinesToTreatAsRawVbi; 
+                                    // List of lines to make available for extraction/
+                                    // insertion as raw VBI. If left empty all VANC lines
+                                    // will be available by default.
+};
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxAuxConfigSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 class DtMxAuxConfigSdi
@@ -8686,15 +8767,16 @@ class DtMxAuxConfigSdi
 public:
     typedef std::vector<std::pair<unsigned int, unsigned int> >  VpidList;
 
-    DtMxAuxObjConfig  m_AncPackets;  // Settings for ancillary data packets
-    DtMxAuxObjConfigVideoIndex  m_VideoIndex;
-                                     // Settings for (deprecated SD only) video index data
-    DtMxAuxObjConfig  m_Wss;         // Settings for (SD only) Wide Screen Signaling
-    DtMxAuxObjConfig  m_Line21;      // Settings for (SD only) analog CEA-608 line 21 data
-    DtMxAuxObjConfig  m_Teletext;    // Settings for (PAL only) teletext
-    DtMxAuxObjConfigVitc  m_Vitc;    // Settings for (SD only) VITC
-    VpidList  m_Vpid;                // VPID(s) to insert in output signal
-    bool  m_DisableVpidProcessing;   // If true, user must add VPID ancillary data
+    DtMxAuxObjConfig m_AncPackets;  // Settings for ancillary data packets
+    DtMxAuxObjConfigVideoIndex m_VideoIndex;
+                                    // Settings for (deprecated SD only) video index data
+    DtMxAuxObjConfig m_Wss;         // Settings for Wide Screen Signaling (SD only)
+    DtMxAuxObjConfig m_Line21;      // Settings for analog CEA-608 line 21 data (SD only)
+    DtMxAuxObjConfig m_Teletext;    // Settings for teletext (PAL only)
+    DtMxAuxObjConfigVitc m_Vitc;    // Settings for VITC (SD only)
+    DtMxAuxObjConfigRawVbi m_RawVbi;  // Settings for raw VBI (SD only)
+    VpidList m_Vpid;                // VPID(s) to insert in output signal
+    bool m_DisableVpidProcessing;   // If true, user must add VPID ancillary data
 
     DtMxAuxConfigSdi();
 };
@@ -8785,6 +8867,40 @@ enum DtMxVidPattern
     DT_VIDPAT_WHITE_FRAME,
 };
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtFixedVector -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Represents a vector which has a fixed size (i.e. cannot add or remove elements)
+//
+template<typename T>
+class DtFixedVector
+{
+    // Operations
+public:
+    bool empty() const { return m_Data.empty(); }
+    size_t size() const { return m_Data.size(); }
+    T& operator[](size_t n) { return m_Data[n]; }
+    const T& operator[](size_t n) const { return m_Data[n]; }
+//protected:
+    // Cast to a "normal" std::vector. NOTE: Intended for internal DTAPI use only
+    inline operator typename std::vector<T>& () { return m_Data; }
+    inline DtFixedVector&  operator = (const DtFixedVector&  Oth)
+    {
+        this->m_Data = Oth.m_Data;
+        return *this;
+    }
+    
+    // Data / Attributes
+private:
+    std::vector<T> m_Data;     // Actual std::vector with the data
+
+    // Constructor / Destructor
+public:
+    DtFixedVector() {}
+    virtual ~DtFixedVector() {}
+//protected:
+    DtFixedVector(size_t  Size) { m_Data.resize(Size); }
+    DtFixedVector(const DtFixedVector&  Oth) { *this= Oth; }
+};
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxRawDataSdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -8835,13 +8951,41 @@ public:
                                 // pixel formats, for 4:2:0 planar for example both
                                 // chrominancy planes have m_NumLines twice as small
                                 // as DtMatrixVideoBuf::m_Height.
+
     DtMxVideoPlaneBuf();
+};
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct DtMxVideoLine -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+struct DtMxVideoLine
+{
+    // Types
+    struct Plane
+    {
+        unsigned char* m_Line;  // Points to start of line within plane buffer
+
+        // Informational
+        int m_NumSymbols;       // #symbols in the line
+        int m_Phase;            // Phase of line in case line does not align to byte 
+                                // boundaries
+        DtMxPixelFormat m_PixelFormat; // See DtMxVideoConfig::m_PixelFormat
+
+        Plane(unsigned char* Line=NULL, int NumSymbols=0, int Phase=0, 
+                                                   DtMxPixelFormat PxFmt=DT_PXFMT_INVALID)
+            : m_Line(Line),
+              m_NumSymbols(NumSymbols),
+              m_Phase(Phase),
+              m_PixelFormat(PxFmt)
+        {}
+    };
+    std::vector<Plane> m_Planes;
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxVideoBuf -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 class DtMxVideoBuf
 {
+    // Data / Attributes
 public:
     DtMxVideoPlaneBuf  m_Planes[3];
     int  m_NumPlanes;           // The number of planes directly depends on the pixel
@@ -8850,13 +8994,24 @@ public:
     int  m_Scaling;             // Scaling mode (OFF, 1/4, 1/16). DTAPI_SCALING_*
     int  m_Width;               // Width in pixels
     int  m_Height;              // Height in pixels
-    
+
+    // Quick access list for all video lines in this buffer. Each entry points to 
+    // the start positions of a video line in each of the relevant planes.
+    // Note: 
+    //  When zero-copy-mode has been enabled, the video can only be access through this 
+    //  list and the buffers pointed to by m_Planes[#].m_pBuf will be empty (invalid).
+    std::vector<const DtMxVideoLine*> m_VideoLines;
+
+    // Operations
+public:
     // Initialize the video buffers with a specific pattern in an efficient way. Can
     // be used by the callback function for output rows if no useful data is available.
     // Framework does not do this automatically because in normal operation it'd be
     // a waste of resources to initialize buffers that will be overwritten later anyway.
     DTAPI_RESULT  InitBuf(DtMxVidPattern  Pattern);
-    
+
+    // Constructor/Destructor
+public:
     DtMxVideoBuf();
 };
 
@@ -9096,6 +9251,19 @@ public:
     unsigned char  m_Data[42];  // Raw packet data (excl. clock run-in and framing code)
 };
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxRawVbiLine -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+class DtMxRawVbiLine
+{
+public:
+    unsigned char* m_pLine;     // Points to start of the VBI line
+    // Informational
+    DtMxPixelFormat m_PixelFormat;  // Pixel format. Can only be DT_PXFMT_UYVY422_16B
+    int m_LineNum;              // Line number within the frame
+    int m_LineNumBytes;         // Size of each VBI line (in #bytes)
+    int m_LineNumSymbols;       // Size of each VBI line (in #symbols)
+};
+
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtMxSmpte352 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 class DtMxSmpte352
@@ -9265,49 +9433,6 @@ enum DtMxAudioServiceType
     DT_AUDIOSERVICE_5_1,
 };
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtFixedVector -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-// Represents a vector which has a fixed size (i.e. cannot add or remove elements)
-//
-template<typename T>
-class DtFixedVector
-{
-    // Operations
-public:
-    bool  empty() const { return m_Data.empty(); }
-    size_t  size() const { return m_Data.size(); }
-    T& operator[](size_t  n) { return m_Data[n]; }
-//protected:
-    // Cast to a "normal" std::vector. NOTE: Intended for internal DTAPI use only
-    inline operator typename std::vector<T>& () { return m_Data; }
-    inline DtFixedVector&  operator = (const DtFixedVector&  Oth)
-    {
-        this->m_Data = Oth.m_Data;
-        return *this;
-    }
-    
-    // Data / Attributes
-private:
-    std::vector<T>  m_Data;     // Actual std::vector with the data
-
-    // Constructor / Desstructor
-public:
-    DtFixedVector() {}
-    virtual ~DtFixedVector() {}
-//protected:
-    DtFixedVector(size_t  Size) { m_Data.resize(Size); }
-    DtFixedVector(const DtFixedVector&  Oth) { *this= Oth; }
-
-//    // Friends
-//private:
-//    friend class  MxFrameImpl;
-//    friend class  MxCommonData;
-//    friend class  MxDecData;
-//    friend class  MxActionAncEnc;
-//    friend class  MxActionAncDec;
-//    friend class  MxProcessImpl;
-};
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxAudioService -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 class DtMxAudioService
@@ -9395,11 +9520,11 @@ public:
     // For output-only rows this will always be DT_FRMSTATUS_OK or DT_FRMSTATUS_DISABLED.
     // For input/output and output-only rows the data buffers requested will always be 
     // available if m_Status is not DT_FRMSTATUS_DISABLED.
-    DtMxFrameStatus  m_Status;
+    DtMxFrameStatus m_Status;
 
     // Configured video standard, or for fixed-rate rows the actual received rate.
     // For fixed rate output rows this has to be set by callback.
-    DtVideoStandard  m_VidStd;
+    DtVideoStandard m_VidStd;
 
     // For input and input/output rows this can contain a pointer to the data of an input
     // frame that was received before this frame but not processed to maintain clock sync.
@@ -9410,29 +9535,38 @@ public:
     // For each frame processed by the callback function there will be at most one
     // dropped frame due to different clocks, so this->m_DroppedFrame->m_DroppedFrame is
     // always NULL.
-    DtMxFrame*  m_DroppedFrame;
+    DtMxFrame* m_DroppedFrame;
 
-    bool  m_InpPhaseValid;      // True if m_InpPhase contains a valid value.
-    double  m_InpPhase;         // Phase of this input relative to the HLM clock source.
+    bool m_InpPhaseValid;       // True if m_InpPhase contains a valid value.
+    double m_InpPhase;          // Phase of this input relative to the HLM clock source.
                                 // In a genlocked system this should be approximately
                                 // zero. In a non-genlocked system the HLM will try
                                 // to keep it between -1.25 and 0.05. A frame drop will
                                 // increase this value by 1.
 
-    bool  m_InLock;             // Output only: true if output is in sync with genlock
+    bool m_InLock;              // Output only: true if output is in sync with genlock
 
-    bool  m_RawTimestampValid;  // True if m_RawTimestamp is valid
-    __int64  m_RawTimestamp;    // 64-bit timestamp of the arrival of the SDI frame.
+    bool m_RawTimestampValid;   // True if m_RawTimestamp is valid
+    __int64 m_RawTimestamp;     // 64-bit timestamp of the arrival of the SDI frame.
                                 // Timestamps created by different hardware devices have
                                 // no relation to each other.
-    DtTimeOfDay  m_TodTimestamp;  // TOD arrival timestamp of the frame
+    DtTimeOfDay m_TodTimestamp; // TOD arrival time-stamp of the frame
 
     // Raw data buffer
-    bool  m_RawDataValid;       // True, if the raw data is valid; False if invalid
+    bool m_RawDataValid;        // True, if the raw data is valid; False if invalid
     DtMxRawData  m_RawData;
     // Video buffers for field 1 and 2
-    bool  m_VideoValid;         // True, if the video data is valid; False if invalid
-    DtMxVideoBuf  m_Video[2];
+    bool m_VideoValid;          // True, if the video data is valid; False, if invalid
+    DtMxVideoBuf m_Video[2];
+    bool m_VideoWeavedValid;    // True, if the m_VideoWeaved is valid for use
+    DtMxVideoBuf m_VideoWeaved; // When video is interlaced and weaving of interlaced 
+                                // video was enabled in configuration this field will
+                                // present both fields as if they are one. Note:
+                                // m_Video[2] will still be valid as well and they will 
+                                // point to the lines of each individual field. The stride
+                                // in them will be double that of the weaved presentation,
+                                // so that they skip the line from the other field
+    
     // Audio data
     bool  m_AudioValid;         // True, if the audio data is valid; False if invalid
     DtMxAudioData  m_Audio;
@@ -9456,7 +9590,12 @@ public:
     virtual DTAPI_RESULT  AncGetPacket(int Did, int Sdid, DtMxAncPacket*, int& NumPackets,
                                                    int HancVanc, int Stream, int Link=-1,
                                                    int StartLine=-1, int NumLines=-1) = 0;
-    
+
+    // Access functions for raw VBI data
+    virtual DTAPI_RESULT RawVbiMarkAsValid(const std::vector<int>& LinesToMark) = 0;
+    virtual DTAPI_RESULT RawVbiGetLines(std::vector<const DtMxRawVbiLine*>&) = 0;
+    virtual DTAPI_RESULT RawVbiGetLines(const std::vector<int>& LinesToGet,
+                                                 std::vector<const DtMxRawVbiLine*>&) = 0;
     // Constructor, destructor
 protected:
     DtMxFrame();
@@ -10815,6 +10954,8 @@ DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtDvbC2Pars&, int PlpIdx = 0);
 DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, DtDvbC2Pars&, int PlpIdx = 0);
 DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtDvbS2Pars&, int PlpIdx = 0);
 DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, DtDvbS2Pars&, int PlpIdx = 0);
+DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtDvbTPars&, int PlpIdx = 0);
+DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, DtDvbTPars&, int PlpIdx = 0);
 DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtDvbT2Pars&, int PlpIdx = 0);
 DTAPI_RESULT  DtapiModPars2TsRate(DtFractionInt& TsRate, DtDvbT2Pars&, int PlpIdx = 0);
 DTAPI_RESULT  DtapiModPars2TsRate(int& TsRate, DtIsdbTmmPars&, int TsIdx = 0);

@@ -233,7 +233,7 @@ DtStatus DtDfTxPllMgr_CheckTxPllsLocked(DtDfTxPllMgr* pDf, Bool* pLocked)
     *pLocked = FALSE;
     // Sanity checks
     DF_TXPLLMGR_DEFAULT_PRECONDITIONS(pDf);
-    DT_ASSERT(pDf->m_pBcSdiTxPlls!=NULL && pDf->m_pBcSdiTxPlls!=NULL 
+    DT_ASSERT(pDf->m_pBcSdiTxPlls!=NULL /* &&  pDf->m_pBcHdmiTxPlls!=NULL */
                                                              && pDf->m_pTxPllTable!=NULL);
     // Check all SDITXPLLs
     for (i=0; i<DtVectorBc_Size(pDf->m_pBcSdiTxPlls) && IsLocked; i++)

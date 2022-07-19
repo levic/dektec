@@ -40,6 +40,7 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards of private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 static DtStatus  DtBcSDIMUX12G_Init(DtBc*);
+static DtStatus DtBcSDIMUX12G_OnCloseFile(DtBc*, const DtFileObject*);
 static DtStatus  DtBcSDIMUX12G_OnEnable(DtBc*, Bool);
 static void  DtBcSDIMUX12G_SetControlRegs(DtBcSDIMUX12G*, Bool BlkEna, Int OpMode);
 
@@ -73,6 +74,7 @@ DtBcSDIMUX12G*  DtBcSDIMUX12G_Open(Int  Address, DtCore* pCore, DtPt*  pPt,
     // Register the callbacks
     OpenParams.m_CloseFunc = DtBcSDIMUX12G_Close;
     OpenParams.m_InitFunc = DtBcSDIMUX12G_Init;
+    OpenParams.m_OnCloseFileFunc = DtBcSDIMUX12G_OnCloseFile;
     OpenParams.m_OnEnableFunc = DtBcSDIMUX12G_OnEnable;
 
     // Use base function to allocate and perform standard initialisation of block data
@@ -146,6 +148,35 @@ DtStatus  DtBcSDIMUX12G_Init(DtBc*  pBcBase)
     DtBcSDIMUX12G_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode);
     return DT_STATUS_OK;
 }
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIMUX12G_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtBcSDIMUX12G_OnCloseFile(DtBc* pBcBase, const DtFileObject* pFile)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtBcSDIMUX12G* pBc = (DtBcSDIMUX12G*)pBcBase;
+    DECL_EXCL_ACCESS_OBJECT_FILE(ExclAccessObj, pFile);
+
+    BC_SDIMUX12G_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check if the owner closed the file handle
+    Status = DtBc_ExclAccessCheck((DtBc*)pBc, &ExclAccessObj);
+    if (DT_SUCCESS(Status) && DtBc_IsEnabled((DtBc*)pBc))
+    {
+        DtDbgOutBc(AVG, SDIMUX12G, pBc, "Go to IDLE");
+
+        // Go to idle
+        Status = DtBcSDIMUX12G_SetOperationalMode(pBc, DT_BLOCK_OPMODE_IDLE);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutBc(ERR, SDIMUX12G, pBc, "ERROR: failed to set operational mode");
+        }
+    }
+    // Use base function to release exclusive access
+    return DtBc_OnCloseFile(pBcBase, pFile);
+}
+
+
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIMUX12G_OnEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //

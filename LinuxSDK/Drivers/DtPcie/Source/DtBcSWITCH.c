@@ -45,6 +45,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards of private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 static DtStatus  DtBcSWITCH_Init(DtBc*);
 static DtStatus  DtBcSWITCH_OnEnable(DtBc*, Bool);
+static DtStatus DtBcSWITCH_OnCloseFile(DtBc*, const DtFileObject*);
 static void  DtBcSWITCH_SetControlRegs(DtBcSWITCH*, Bool BlkEna, Int OpMode, Int InIdx, 
                                                                               Int OutIdx);
 
@@ -78,6 +79,7 @@ DtBcSWITCH*  DtBcSWITCH_Open(Int  Address, DtCore* pCore, DtPt*  pPt,
     // Register the callbacks
     OpenParams.m_CloseFunc = DtBcSWITCH_Close;
     OpenParams.m_InitFunc = DtBcSWITCH_Init;
+    OpenParams.m_OnCloseFileFunc = DtBcSWITCH_OnCloseFile;
     OpenParams.m_OnEnableFunc = DtBcSWITCH_OnEnable;
 
     // Use base function to allocate and perform standard initialisation of block data
@@ -282,6 +284,35 @@ DtStatus DtBcSWITCH_OnEnable(DtBc* pBcBase, Bool Enable)
 
     return DT_STATUS_OK;
 }
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSWITCH_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtBcSWITCH_OnCloseFile(DtBc* pBcBase, const DtFileObject* pFile)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtBcSWITCH* pBc = (DtBcSWITCH*)pBcBase;
+    DECL_EXCL_ACCESS_OBJECT_FILE(ExclAccessObj, pFile);
+
+    BC_SWITCH_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check if the owner closed the file handle
+    Status = DtBc_ExclAccessCheck((DtBc*)pBc, &ExclAccessObj);
+    if (DT_SUCCESS(Status) && DtBc_IsEnabled((DtBc*)pBc))
+    {
+        DtDbgOutBc(AVG, SWITCH, pBc, "Go to IDLE");
+
+        // Go to idle
+        Status = DtBcSWITCH_SetOperationalMode(pBc, DT_BLOCK_OPMODE_IDLE);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutBc(ERR, SWITCH, pBc, "ERROR: failed to set operational mode");
+        }
+    }
+    // Use base function to release exclusive access
+    return DtBc_OnCloseFile(pBcBase, pFile);
+}
+
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSWITCH_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void DtBcSWITCH_SetControlRegs(DtBcSWITCH* pBc, Bool BlkEnable, Int OpMode, 

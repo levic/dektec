@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaDeviceTable.c *#*#*#*#*#*#*#*#*#* (C) 2021 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaDeviceTable.c *#*#*#*#*#*#*#*#*#* (C) 2022 DekTec
 //
 // CapParser - Device Table
 //

@@ -31,6 +31,7 @@
 #include "DtBcSDIRXPHY.h"
 #include "DtBcS12GTO3G.h"
 #include "DtDfSdiXCfgMgr.h"
+#include "DtDfSpiCableDrvEq.h"
 
 // Name + short-name for the SDIRX function. NOTE: must match names in 
 // FunctionDescriptionsXxx.xml
@@ -80,6 +81,7 @@ typedef struct  _DtDfSdiRx
     DtBcSDIRXPHY*  m_pBcSdiRxPhy;       // SdiRxPhy block-controller
     DtBcS12GTO3G*  m_pBcS12GTo3G;       // Sdi12Gto3G block-controller
     DtDfSdiXCfgMgr*  m_pDfSdiXCfgMgr;   // SDI Transceiver Reconfig Manager
+    DtDfSpiCableDrvEq* m_pCableDrvEq;   // Cable driver and equalizer
 
     DtSpinLock  m_SpinLock;             // Lock to protect against mutual access of 
                                         // m_LockState and m_SdiMode
@@ -87,9 +89,9 @@ typedef struct  _DtDfSdiRx
     DtTodTime  m_StateTime;             // Time when entered new state
     Int  m_DelayCount;                  // Delay counter
 
-    // Periodic interval 
-    DtSpinLock  m_PerItvSpinLock;   // Spinlock to protect m_PerItvEnable changes
-    Bool  m_PerItvEnable;           // Periodic interval hander enabled
+    // Rate search thread
+    DtThread  m_RateSearchThread;       // Rate search thread
+    DtEvent   m_RateSearchStopEvent;    // Rate search stop event
 
     // Cached values
     Int  m_OperationalMode;     // Operational mode

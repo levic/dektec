@@ -293,7 +293,7 @@ DtStatus DtPtAsiSdiMon_SetIoConfigIoStd(DtPtAsiSdiMon* pPt,
 
         // If we have SPI-cable driver, set SDI-rate to SD
         if (pPt->m_pDfSpiCableDrvEq != NULL)
-            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetSdiRate(pPt->m_pDfSpiCableDrvEq, 
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetTxSdiRate(pPt->m_pDfSpiCableDrvEq, 
                                                                       DT_DRV_SDIRATE_SD));
     } 
     else
@@ -330,7 +330,7 @@ DtStatus DtPtAsiSdiMon_SetIoConfigIoStd(DtPtAsiSdiMon* pPt,
 
         // If we have SPI-cable driver, set SDI-rate
         if (pPt->m_pDfSpiCableDrvEq != NULL)
-            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetSdiRate(pPt->m_pDfSpiCableDrvEq, 
+            DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetTxSdiRate(pPt->m_pDfSpiCableDrvEq, 
                                                                                 SdiRate));
     }
     return DT_STATUS_OK;

@@ -1,6 +1,6 @@
 //#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtTables.c *#*#*#*#*#*#*#*#* (C) 2011-2016 DekTec
 //
-// Driver common - Table get funcions.
+// Driver common - Table get functions.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -150,7 +150,7 @@ DtStatus  DtTableGet(
 
     if (!TableNameFound)
     {   
-        DtDbgOut(ERR, TABLE, "Table %s is not found at all for DTX-%d",
+        DtDbgOut(MIN, TABLE, "Table %s is not found at all for DTX-%d",
                                                         pTableName, pStore->m_TypeNumber);
         Status = DT_STATUS_NOT_FOUND;
     }
@@ -159,7 +159,7 @@ DtStatus  DtTableGet(
     if (pTableLinkFound == NULL)
     {
         Status = DT_STATUS_NOT_FOUND;
-        DtDbgOut(ERR, TABLE, "Failed to get table %s for DTX-%d:%d, FW %d, HW %d port %i", 
+        DtDbgOut(MIN, TABLE, "Failed to get table %s for DTX-%d:%d, FW %d, HW %d port %i", 
                                                   pTableName,
                                                   pPropData->m_TypeNumber,
                                                   pPropData->m_SubDvcOrSubType,

@@ -35,7 +35,7 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Defines / Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
 #define CDMAC_PAGE_SIZE         4096
-#define CDMAC_DMA_MAX_TRANSFER_SIZE (128*1024*1024)
+#define CDMAC_DMA_MAX_TRANSFER_SIZE (256*1024*1024)
 
 // MACRO with default precondition checks for the Bc
 #define BC_CDMAC_DEFAULT_PRECONDITIONS(pBc)      \
@@ -120,9 +120,12 @@ DtStatus DtBcCDMAC_AllocateBuffer(DtBcCDMAC* pBc, Int Direction, UInt8 * pDmaBuf
     // DMA buffer must start at page boudary
     if (pDmaBuffer==NULL || (((UIntPtr)pDmaBuffer) & (CDMAC_PAGE_SIZE-1))!=0)
         return DT_STATUS_INVALID_PARAMETER;
-    // Size must be multiple of page size * prefetch size
+    // DMA-buffer size must be multiple of page size * prefetch size
     if (DmaBufferSize<=0 || (DmaBufferSize%(CDMAC_PAGE_SIZE*pBc->m_PrefetchSize))!=0)
         return DT_STATUS_INVALID_PARAMETER;
+    // Check DMA-buffer size
+    if (DmaBufferSize > CDMAC_DMA_MAX_TRANSFER_SIZE)
+        return DT_STATUS_BUF_TOO_LARGE;
     // Check capability
     if (Direction==DT_CDMAC_DIR_RX && (pBc->m_Capabilities&DT_CDMAC_CAP_RX)==0)
         return DT_STATUS_NOT_SUPPORTED;

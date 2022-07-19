@@ -36,6 +36,7 @@
 // Forwards
 typedef struct _DtIoStubDf  DtIoStubDf;
 typedef DtIoConfigValueDriver  DtCfIoConfigValue;
+typedef struct _DtDf  DtDf;
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Defines / Constants +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 

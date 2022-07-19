@@ -57,8 +57,11 @@ while (0)
 #define  DT_DF_GENLOCKCTRL_SOFTOD_SIZE      3       // Number of start-of-frame timestamps
                                                     // saved
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrlDcoState -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-typedef enum _DtDfGenLockCtrlDcoState
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoState -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// DCO clock control state
+//
+typedef enum _DtDfGenLockCtrl_DcoState
 {
     DT_DF_GENLOCKCTRL_STATE_INITIAL,
     DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING,
@@ -67,112 +70,127 @@ typedef enum _DtDfGenLockCtrlDcoState
     DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE,
     DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE_WAIT_FOR_DONE,
     DT_DF_GENLOCKCTRL_STATE_LOCKED,
-} DtDfGenLockCtrlDcoState;
+} DtDfGenLockCtrl_DcoState;
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrlGenRefStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-typedef enum DtDfGenLockCtrlGenRefStatus
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenRefStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+typedef enum DtDfGenLockCtrl_GenRefStatus
 {
     DT_DF_GENLOCKCTRL_GENREFSTATUS_OK,
     DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL,
     DT_DF_GENLOCKCTRL_GENREFSTATUS_INVALID_SIGNAL,
-} DtDfGenLockCtrlGenRefStatus;
+} DtDfGenLockCtrl_GenRefStatus;
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrlSofTods -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-typedef struct _DtDfGenLockCtrlSofTods
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenRefSofTods -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+typedef struct _DtDfGenLockCtrl_GenRefSofTods
 {
     DtTodTime  m_SofTods[DT_DF_GENLOCKCTRL_SOFTOD_SIZE]; // Last start-of-frame timestamps
     Int  m_NumSofTods;          // Number of start-of-frames stored
     Int  m_SofTodIdx;           // Next index to write start-of-frame timestamp
     Int  m_LastFramePeriod;     // Last frame period
     Int64  m_TotalNumSofTods;   // Total number of start-of-frames
-}DtDfGenLockCtrlSofTods;
+}DtDfGenLockCtrl_GenRefSofTods;
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrlFramePeriodMeasure -.-.-.-.-.-.-.-.-.-.-.-.-.
-typedef struct  _DtDfGenLockCtrlFramePeriodMeasure
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_FramePeriodMeasure -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Frame period measurement data
+//
+typedef struct  _DtDfGenLockCtrl_FramePeriodMeasure
 {
     Int m_FramePeriods[DT_DF_GENLOCKCTRL_MAX_NUM_FRAME_PERIODS]; // Frame period samples
     Int  m_BufSize;                 // Sample buffer size
     Int  m_Index;                   // Index of next sample
     Int  m_NumValid;                // Number of valid samples
     Int64 m_TotalFramePeriods;      // Sum of all frame periods
-} DtDfGenLockCtrlFramePeriodMeasure;
+} DtDfGenLockCtrl_FramePeriodMeasure;
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrlDcoControlPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-typedef struct _DtDfGenLockCtrlDcoControlPars
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControlPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+typedef struct _DtDfGenLockCtrl_DcoControlPars
 {
     Int  m_FreqMult;            // Frequency multiplier
     Int  m_PhaseMult;           // Phase multiplier
     Int  m_MaxStepPpt;          // Maximum control step
     Int  m_MaxPhaseDiffNs;      // Maximum phase difference in nanoseconds
-}DtDfGenLockCtrlDcoControlPars;
+}DtDfGenLockCtrl_DcoControlPars;
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrlLockChangedFunc -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_LockChangedFunc -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // Signature of the GenLock lock changed callback function
-typedef void  (*DtDfGenLockCtrlLockChangedFunc)(DtObject*, Bool Locked);
+typedef void  (*DtDfGenLockCtrl_LockChangedFunc)(DtObject*, Bool Locked);
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrlLockChangedRegData -.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_LockChangedRegData -.-.-.-.-.-.-.-.-.-.-.-.-.
 // Registration data for GenLock lock changed callback
 typedef struct  _DtDfGenLockCtrlLockChangedRegData
 {
     DtObject*  m_pObject;       // DtBc or DtDf object registering for the event
-    DtDfGenLockCtrlLockChangedFunc  m_OnLockChangedFunc;  // Callback function
-}  DtDfGenLockCtrlLockChangedRegData;
+    DtDfGenLockCtrl_LockChangedFunc  m_OnLockChangedFunc;  // Callback function
+}  DtDfGenLockCtrl_LockChangedRegData;
 
-DtStatus DtDfGenLockCtrl_LockChangedRegister(DtDfGenLockCtrl*, 
-                                                const DtDfGenLockCtrlLockChangedRegData*);
-DtStatus DtDfGenLockCtrl_LockChangedUnregister(DtDfGenLockCtrl*, const DtObject*);
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_ControlData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+typedef struct _DtDfGenLockCtrl_ControlData
+{
+    DtBcGENL*  m_pBcGenLock;        // GenLock block-controller
 
+    // 2 GENL start-of-frame timestamps protected by m_SofSpinLock
+    // For genref there are 3 start-of-frame timestamps stored. This means that for the
+    // oldest GENL SOF we can find a nearest genref SOF that can be used for controlling.
+    Bool m_NewSofTodStored;
+    DtTodTime  m_GenLockSofTod[2];
+    DtDfGenLockCtrl_DcoState  m_DcoControlState;  // DCO-control state
+    Int  m_DcoFreqOffsetPpt;        // DcoFrequency offset in parts per trillion
+    Int  m_LockCount;               // For lock checking and debugging
+    Int  m_PhaseDiffNs;             // Phase difference in nano seconds when
+                                    // m_DcoControlState == DT_DF_GENLOCKCTRL_STATE_LOCKED
+
+    // Cached values set on DtDfGenLockCtrl_SetVideoStandard() 
+    DtDfGenLockCtrl_DcoControlPars  m_DcoControlPars; // Dco control parameter
+    Bool m_GenLockControlEnabled;   // Genlocking is enabled
+    Int  m_VideoStandard;           // Current used video standard
+    Int  m_FrameLength;             // Frame length in clock ticks
+    Int  m_FramePeriod;             // Frame period in nanoseconds
+    Bool  m_FractionalClock;        // Fractional clock is used
+}DtDfGenLockCtrl_ControlData;
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenRefData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+typedef struct _DtDfGenLockCtrl_GenRefData
+{
+    // Genref start-of-frame event information protected by m_SofSpinLock
+    DtDfGenLockCtrl_GenRefSofTods  m_GenRefSofTods; // Reference start-of-frame timestamp 
+    DtDfGenLockCtrl_FramePeriodMeasure  m_GenRefFpMeasure;  // Frame period measurement
+    Int  m_GenRefPortIndex;                 // Port index
+    Int  m_GenRefVidStd;                    // Video standard
+    Int  m_GenRefFramePeriod;               // Video standard frame period in ns
+    Int  m_GenRefStartOfFrameOffset;        // Global start-of-frame offset in nanoseconds
+                                            // set through the genref port and IoCfg
+    DtDfGenLockCtrl_GenRefType m_GenRefType; // Genref type
+    Bool  m_GenRefParChanged;               // Change in genref parameters
+    Int  m_GenRefDetectVidStd;              // Detected video standard
+    DtDfGenLockCtrl_GenRefStatus  m_GenRefStatus;  // GenRef signal status
+}DtDfGenLockCtrl_GenRefData;
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 struct  _DtDfGenLockCtrl
 {
     // NOTE: common func data must be the first members to allow casting to DtDf
     DT_DF_COMMON_DATA;
-    
-    // Genref start-of-frame event information protected by m_SofSpinLock
-    DtDfGenLockCtrlSofTods  m_GenRefSofTods; // Reference start-of-frame timestamp 
-    DtDfGenLockCtrlFramePeriodMeasure  m_GenRefFpMeasure;  // Frame period measurement
-    Int  m_GenRefPortIndex;                 // Port index
-    Int  m_GenRefVidStd;                    // Video standard
-    Int  m_GenRefFramePeriod;               // Video standard frame period in ns
-    Int  m_GenRefStartOfFrameOffset;        // Global start-of-frame offset in nanoseconds
-                                            // set through the genref port and IoCfg
-    DtDfGenLockCtrlGenRefType m_GenRefType; // Genref type
-    Bool  m_GenRefParChanged;               // Change in genref parameters
-    Int  m_GenRefDetectVidStd;              // Detected video standard
-
-    DtBcGENL*  m_pBcGenLock;                  // GenLock block-controller
-    // 2 GENL start-of-frame timestamps protected by m_SofSpinLock
-    // For genref there are 3 start-of-frame timestamps stored. This means that for the
-    // oldest GENL SOF we can find a nearest genref SOF that can be used for controlling.
-    DtTodTime  m_GenLockSofTod[2];
 
     // Driver function
-    DtDfSi534X* m_pDfSi534X;                  // Si534X Clock Oscillator
+    DtDfSi534X* m_pDfSi534X;                // Si534X Clock Oscillator
     const DtDfSi534XClockProps*  m_pSi534XClockProps;   // Clock properties
     Int  m_NumSi534XClockProps;
 
     // Start-of-frame handling
-    DtSpinLock  m_SofSpinLock;      // Spinlock to protect Operational Mode and SofTods
+    DtSpinLock  m_SofSpinLock;          // Spinlock to protect OpMode and SofTods
 
-    // DCO-control thread for synchronisation
-    DtThread  m_DcoControlThread;   // DCO-control thread
-    Bool  m_StopDcoControlThread;   // DCO-control stop flag
-    DtEvent  m_DcoControlSofEvent;  // DCO-control new start-of-frame event
-    DtDfGenLockCtrlDcoState  m_DcoControlState;  // DCO-control state
-    DtDfGenLockCtrlGenRefStatus  m_GenRefStatus;  // GenRef signal status
-    DtDfGenLockCtrlDcoControlPars  m_DcoControlPars; // Dco control parameter
-    Int  m_Count;                   // For debugging
-    Int  m_DcoFreqOffsetPpt;        // DcoFrequency offset in parts per trilion
+    // DCO-control thread for synchronization
+    DtThread  m_DcoControlThread;       // DCO-control thread
+    Bool  m_StopDcoControlThread;       // DCO-control stop flag
+    DtEvent  m_DcoControlSofEvent;      // DCO-control new start-of-frame event
 
     DtVector*  m_pOnLockChangedHandlers; // List of registered on genlock lock changed
                                          // handlers
-    // Cached values
-    Bool m_GenLockControlEnabled;   // Genlocking is enabled
-    Int  m_VideoStandard;           // Current used video standard
-    Int  m_FrameLength;             // Frame length in clock ticks
-    Int  m_FramePeriod;             // Frame period in nanoseconds
-    Bool  m_FractionalClock;        // Fractional clock is used
+
+    DtDfGenLockCtrl_GenRefData   m_GenRefData;  // GenRef data
+    DtDfGenLockCtrl_ControlData  m_Genl[2];     // GenLock control data;
+                                                // primary and secondary
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -190,6 +208,9 @@ DtStatus  DtDfGenLockCtrl_GetDcoFreqOffset(DtDfGenLockCtrl*, Int, Int*, Int64*);
 DtStatus  DtDfGenLockCtrl_GetStartOfFrameOffset(DtDfGenLockCtrl*, Int*);
 DtStatus  DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl*, Int, Int);
 DtStatus  DtDfGenLockCtrl_SetStartOfFrameOffset(DtDfGenLockCtrl*, Int);
+DtStatus  DtDfGenLockCtrl_LockChangedRegister(DtDfGenLockCtrl*, 
+                                               const DtDfGenLockCtrl_LockChangedRegData*);
+DtStatus  DtDfGenLockCtrl_LockChangedUnregister(DtDfGenLockCtrl*, const DtObject*);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubDfGenLockCtrl definitions +=+=+=+=+=+=+=+=+=+=+=+=+=

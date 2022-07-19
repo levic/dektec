@@ -30,7 +30,6 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Defines / Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
         
-#define  GENL_ROLE_NONE      NULL
 #define  SI534X_ROLE_NONE    NULL
 #define  MAX_DEVIATION_PPM   120       // Maximum 120ppm deviation
 #define  MAX_CRASHLOCK_STEP_PPM   1    // Maximum 1ppm step
@@ -61,70 +60,71 @@ static const Int  Exp3 = 1000;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 static DtStatus  DtDfGenLockCtrl_Init(DtDf*);
-static DtStatus  DtDfGenLockCtrl_LoadParameters(DtDf*);
 static DtStatus  DtDfGenLockCtrl_OnCloseFile(DtDf*, const DtFileObject*);
 static DtStatus  DtDfGenLockCtrl_OnEnablePostChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfGenLockCtrl_OnEnablePreChildren(DtDf*, Bool  Enable);
 static DtStatus  DtDfGenLockCtrl_OpenChildren(DtDfGenLockCtrl*);
-static Int  DtDfGenLockCtrl_GetCurrentClockIdx(DtDfGenLockCtrl*);
-static void  DtDfGenLockCtrl_InitGenRefInfo(DtDfGenLockCtrl*);
+static Int  DtDfGenLockCtrl_GetPrimaryClockIdx(DtDfGenLockCtrl*);
+static void  DtDfGenLockCtrl_InitGenRefData(DtDfGenLockCtrl*);
 static DtStatus DtDfGenLockCtrl_SetVideoStandard(DtDfGenLockCtrl * pDf, Int VidStd);
 static void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread*, void* pContext);
 static void  DtDfGenLockCtrl_DcoControl(DtDfGenLockCtrl*,
-                             DtDfGenLockCtrlGenRefType, Int  SofOffset, 
-                             const DtDfGenLockCtrlSofTods*, 
-                             Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
+                                                      const  DtDfGenLockCtrl_GenRefData*,
+                                                      DtDfGenLockCtrl_ControlData*);
 static void  DtDfGenLockCtrl_DcoControlInit(DtDfGenLockCtrl*,
-                             DtDfGenLockCtrlDcoState*, DtDfGenLockCtrlGenRefStatus,
-                             DtDfGenLockCtrlGenRefType, Int  SofOffset, 
-                             const DtDfGenLockCtrlSofTods*, 
-                             Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
+                                                      const  DtDfGenLockCtrl_GenRefData*,
+                                                      DtDfGenLockCtrl_ControlData*);
 static void  DtDfGenLockCtrl_DcoControlCrashLockFreq(DtDfGenLockCtrl*,
-                             DtDfGenLockCtrlDcoState*, DtDfGenLockCtrlGenRefStatus,
-                             DtDfGenLockCtrlGenRefType, Int  SofOffset, 
-                             const DtDfGenLockCtrlSofTods*, 
-                             Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
+                                                      const  DtDfGenLockCtrl_GenRefData*,
+                                                      DtDfGenLockCtrl_ControlData*);
 static void  DtDfGenLockCtrl_DcoControlCrashLockPhase(DtDfGenLockCtrl*,
-                             DtDfGenLockCtrlDcoState*, DtDfGenLockCtrlGenRefStatus,
-                             DtDfGenLockCtrlGenRefType, Int  SofOffset, 
-                             const DtDfGenLockCtrlSofTods*, 
-                             Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
+                                                      const  DtDfGenLockCtrl_GenRefData*,
+                                                      DtDfGenLockCtrl_ControlData*);
 static void  DtDfGenLockCtrl_DcoControlLocked(DtDfGenLockCtrl*,
-                             DtDfGenLockCtrlDcoState*, DtDfGenLockCtrlGenRefStatus,
-                             DtDfGenLockCtrlGenRefType, Int  SofOffset, 
-                             const DtDfGenLockCtrlSofTods*, 
-                             Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
+                                                      const  DtDfGenLockCtrl_GenRefData*,
+                                                      DtDfGenLockCtrl_ControlData*);
 static void  DtDfGenLockCtrl_DcoFreeRunning(DtDfGenLockCtrl*,
-                             DtDfGenLockCtrlDcoState*, DtDfGenLockCtrlGenRefStatus,
-                             DtDfGenLockCtrlGenRefType, Int  SofOffset, 
-                             const DtDfGenLockCtrlSofTods*, 
-                             Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
-static DtDfGenLockCtrlGenRefStatus  DtDfGenLockCtrl_DetermineGenRefStatus(
-                                          DtDfGenLockCtrl*, DtDfGenLockCtrlGenRefType,
-                                          const DtDfGenLockCtrlSofTods*, 
-                                          Int64 GenRefAvgFramePeriodPs, const DtTodTime*);
-static void DtDfGenLockCtrl_DcoControlAddDeltaFreq(DtDfGenLockCtrl*, Int DeltaPpt);
-static Int DtDfGenLockCtrl_DcoControlGetFrequencyHz(DtDfGenLockCtrl*);
-static Int64 DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(DtDfGenLockCtrl*);
-static Bool DtDfGenLockCtrl_DcoControlComputePhaseDiff(DtDfGenLockCtrl*, Int SofOffset,
-                                const DtDfGenLockCtrlSofTods*, Int GenRefAvgFramePeriodNs, 
-                                const DtTodTime*, Int* pPhaseDiffNs);
-static void  DtDfGenLockCtrl_GenLockStartOfFrameHandler(DtObject*, const DtTodTime*);
-static void DtDfGenLockCtrl_SofTodsClear(DtDfGenLockCtrlSofTods*);
-static void DtDfGenLockCtrl_SofTodsAdd(DtDfGenLockCtrl*, DtDfGenLockCtrlSofTods*,
+                                                      const  DtDfGenLockCtrl_GenRefData*,
+                                                      DtDfGenLockCtrl_ControlData*);
+static DtDfGenLockCtrl_GenRefStatus  DtDfGenLockCtrl_DetermineGenRefStatus(
+                                                     DtDfGenLockCtrl*,
+                                                     const  DtDfGenLockCtrl_GenRefData*,
+                                                     const  DtDfGenLockCtrl_ControlData*);
+static void DtDfGenLockCtrl_DcoControlAddDeltaFreq(DtDfGenLockCtrl*,
+                                              DtDfGenLockCtrl_ControlData*, Int DeltaPpt);
+static Int DtDfGenLockCtrl_DcoControlGetFrequencyHz(DtDfGenLockCtrl*,
+                                                      const DtDfGenLockCtrl_ControlData*);
+static Int64 DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(DtDfGenLockCtrl*,
+                                                      const DtDfGenLockCtrl_ControlData*);
+static Bool DtDfGenLockCtrl_DcoControlComputePhaseDiff(DtDfGenLockCtrl*,
+                                                      const  DtDfGenLockCtrl_GenRefData*,
+                                                      const  DtDfGenLockCtrl_ControlData*,
+                                                      Int* pPhaseDiffNs);
+static Int DtDfGenLockCtrl_DetermineSecondaryVidStd(Int PrimVidStd);
+static void  DtDfGenLockCtrl_GenLockStartOfFrameHandlerPrimary(DtObject*, 
+                                                                        const DtTodTime*);
+static void  DtDfGenLockCtrl_GenLockStartOfFrameHandlerSecondary(DtObject*, 
+                                                                        const DtTodTime*);
+static void  DtDfGenLockCtrl_GenLockStartOfFrameHandler(DtDfGenLockCtrl*, 
+                                          DtDfGenLockCtrl_ControlData*, const DtTodTime*);
+static void DtDfGenLockCtrl_GenRefSofTodsClear(DtDfGenLockCtrl_GenRefSofTods*);
+static void DtDfGenLockCtrl_GenRefSofTodsAdd(DtDfGenLockCtrl*,
+                                       DtDfGenLockCtrl_GenRefSofTods*,
                                        const DtTodTime * pSofTod, Int ExpectFramePeriod);
-static DtTodTime  DtDfGenLockCtrl_SofTodsGetLast(const DtDfGenLockCtrlSofTods*);
-static Int  DtDfGenLockCtrl_SofTodsNumAvailable(const DtDfGenLockCtrlSofTods*);
-static DtTodTime  DtDfGenLockCtrl_SofTodsGet(const DtDfGenLockCtrlSofTods*, Int Idx);
-static Int64  DtDfGenLockCtrl_SofTodsTimeDiff(const DtTodTime*,
-                                                           const DtDfGenLockCtrlSofTods*);
-static void  DtDfGenLockCtrl_FramePeriodMeasureClear(DtDfGenLockCtrlFramePeriodMeasure*);
-static void  DtDfGenLockCtrl_FramePeriodMeasureAdd(DtDfGenLockCtrlFramePeriodMeasure*,
+static DtTodTime  DtDfGenLockCtrl_GenRefSofTodsGetLast(
+                                                    const DtDfGenLockCtrl_GenRefSofTods*);
+static Int  DtDfGenLockCtrl_GenRefSofTodsNumAvailable(
+                                                    const DtDfGenLockCtrl_GenRefSofTods*);
+static DtTodTime  DtDfGenLockCtrl_GenRefSofTodsGet(const DtDfGenLockCtrl_GenRefSofTods*,
+                                                                                 Int Idx);
+static Int64  DtDfGenLockCtrl_GenRefSofTodsTimeDiff(const DtTodTime*,
+                                                    const DtDfGenLockCtrl_GenRefSofTods*);
+static void  DtDfGenLockCtrl_FramePeriodMeasureClear(DtDfGenLockCtrl_FramePeriodMeasure*);
+static void  DtDfGenLockCtrl_FramePeriodMeasureAdd(DtDfGenLockCtrl_FramePeriodMeasure*,
                                                                          Int FramePeriod);
 static Int64  DtDfGenLockCtrl_FramePeriodMeasureGetAverage(
-                                                const DtDfGenLockCtrlFramePeriodMeasure*);
-
-static DtDfGenLockCtrlDcoControlPars DtDfGenLockCtrl_GetDcoControlPars(Int VidStd);
+                                               const DtDfGenLockCtrl_FramePeriodMeasure*);
+static DtDfGenLockCtrl_DcoControlPars DtDfGenLockCtrl_GetDcoControlPars(Int VidStd);
 static Int  DtDfGenLockCtrl_GetGenLockStatusInternal(DtDfGenLockCtrl*);
 static void  DtDfGenLockCtrl_NotifyStatusChange(DtDfGenLockCtrl*, Int Status);
 static void  DtDfGenLockCtrl_NotifyLockChange(DtDfGenLockCtrl*, Bool Lock);
@@ -168,11 +168,10 @@ DtDfGenLockCtrl*  DtDfGenLockCtrl_Open(DtCore* pCore, DtPt* pPt, const char* pRo
     // Register the callbacks
     OpenParams.m_CloseFunc = DtDfGenLockCtrl_Close;
     OpenParams.m_InitFunc = DtDfGenLockCtrl_Init;
-    OpenParams.m_LoadParsFunc = DtDfGenLockCtrl_LoadParameters;
     OpenParams.m_OnCloseFileFunc = DtDfGenLockCtrl_OnCloseFile;
     OpenParams.m_OnEnablePostChildrenFunc = DtDfGenLockCtrl_OnEnablePostChildren;
     OpenParams.m_OnEnablePreChildrenFunc = DtDfGenLockCtrl_OnEnablePreChildren;
-    
+
     // Use base function to allocate and perform standard initialisation of function data
     return (DtDfGenLockCtrl*)DtDf_Open(&OpenParams);
 }
@@ -183,6 +182,7 @@ DtStatus DtDfGenLockCtrl_GetGenLockState(DtDfGenLockCtrl* pDf,  Int* pGenLockSta
                      Int* pRefVidStd, Int* pDetVidStd, Int64* pSofCount,
                      Int* pIsSofTodValid, DtTodTime* pLastSofTod, Int* pTimeSinceLastSof)
 {
+    DtDfGenLockCtrl_GenRefData* pGenr;
 
     // Sanity check
     DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
@@ -195,18 +195,19 @@ DtStatus DtDfGenLockCtrl_GetGenLockState(DtDfGenLockCtrl* pDf,  Int* pGenLockSta
     DF_GENLOCKCTRL_MUST_BE_ENABLED(pDf);
 
     // Get current GenLock state
+    pGenr = &pDf->m_GenRefData;
     DtSpinLockAcquire(&pDf->m_SofSpinLock);
     *pGenLockStatus = DtDfGenLockCtrl_GetGenLockStatusInternal(pDf);
-    *pRefVidStd = pDf->m_GenRefVidStd;
-    *pDetVidStd = pDf->m_GenRefDetectVidStd;
-    *pSofCount = pDf->m_GenRefSofTods.m_TotalNumSofTods;
-    if (pDf->m_GenRefSofTods.m_NumSofTods > 0)
+    *pRefVidStd = pGenr->m_GenRefVidStd;
+    *pDetVidStd = pGenr->m_GenRefDetectVidStd;
+    *pSofCount = pGenr->m_GenRefSofTods.m_TotalNumSofTods;
+    if (pGenr->m_GenRefSofTods.m_NumSofTods > 0)
     {
         // Return information about last SOF time stamp
         Int64 TimeDiff;
         DtTodTime  CurrTime;
         DtCore_TOD_GetTime(pDf->m_pCore, &CurrTime);
-        *pLastSofTod = DtDfGenLockCtrl_SofTodsGetLast(&pDf->m_GenRefSofTods);
+        *pLastSofTod = DtDfGenLockCtrl_GenRefSofTodsGetLast(&pGenr->m_GenRefSofTods);
         TimeDiff = DtCore_TOD_TimeDiff(CurrTime, *pLastSofTod);
         *pIsSofTodValid =  (TimeDiff < Exp9);
         *pTimeSinceLastSof = (Int)TimeDiff;
@@ -223,12 +224,9 @@ DtStatus DtDfGenLockCtrl_GetGenLockState(DtDfGenLockCtrl* pDf,  Int* pGenLockSta
     DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "State: %d; CfgVidStd: %d; DetVidStd: %d; SofCount: %d; Valid: %d; Time: %d:%d; TimeDiff: %d", 
                             *pGenLockStatus, *pRefVidStd, *pDetVidStd, *pSofCount, *pIsSofTodValid, 
                             pLastSofTod->m_Seconds, pLastSofTod->m_Nanoseconds/1000000, *pTimeSinceLastSof/1000000);
-
-
-
-
     return DT_STATUS_OK;
 }
+
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_IsLocked -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtDfGenLockCtrl_IsLocked(DtDfGenLockCtrl* pDf,  Bool* pIsLocked)
@@ -257,6 +255,7 @@ DtStatus DtDfGenLockCtrl_IsLocked(DtDfGenLockCtrl* pDf,  Bool* pIsLocked)
 //
 DtStatus DtDfGenLockCtrl_ReLock(DtDfGenLockCtrl* pDf)
 {
+    Int i;
     // Sanity check
     DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
 
@@ -265,7 +264,16 @@ DtStatus DtDfGenLockCtrl_ReLock(DtDfGenLockCtrl* pDf)
 
     // Restart locking
     DtSpinLockAcquire(&pDf->m_SofSpinLock);
-    pDf->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_INITIAL;
+    for (i=0; i<2; i++)
+    {
+        DtDfGenLockCtrl_ControlData* pGenl = &pDf->m_Genl[i];
+        // Initial state
+        pGenl->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_INITIAL;
+        // and clear timestamps
+        pGenl->m_NewSofTodStored = FALSE;
+        pGenl->m_GenLockSofTod[0].m_Seconds = pGenl->m_GenLockSofTod[0].m_Nanoseconds=-1;
+        pGenl->m_GenLockSofTod[1].m_Seconds = pGenl->m_GenLockSofTod[1].m_Nanoseconds=-1;
+    }
     DtSpinLockRelease(&pDf->m_SofSpinLock);
 
     return DT_STATUS_OK;
@@ -342,7 +350,7 @@ DtStatus DtDfGenLockCtrl_GetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int  ClockIdx,
     // Get properties  under SofSpinLock
     DtSpinLockAcquire(&pDf->m_SofSpinLock);
     if (ClockIdx == -1)
-        ClockIdx = DtDfGenLockCtrl_GetCurrentClockIdx(pDf);
+        ClockIdx = DtDfGenLockCtrl_GetPrimaryClockIdx(pDf);
     pClkProps = &pDf->m_pSi534XClockProps[ClockIdx];
     IsFractional = (pClkProps->m_ClockType == DT_DF_SI534X_CLK_FRACTIONAL);
     BaseFreq = pClkProps->m_FrequencyuHz;
@@ -372,7 +380,6 @@ DtStatus DtDfGenLockCtrl_GetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int  ClockIdx,
     return DT_STATUS_OK;
 }
 
-
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_SetDcoFreqOffset -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int ClockIdx,
@@ -395,13 +402,14 @@ DtStatus DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int ClockIdx,
     // Get properties and check state under SofSpinLock
     DtSpinLockAcquire(&pDf->m_SofSpinLock);
     if (ClockIdx == -1)
-        ClockIdx = DtDfGenLockCtrl_GetCurrentClockIdx(pDf);
+        ClockIdx = DtDfGenLockCtrl_GetPrimaryClockIdx(pDf);
     pClkProps = &pDf->m_pSi534XClockProps[ClockIdx];
     pClkProps = &pDf->m_pSi534XClockProps[ClockIdx];
     IsFractional = (pClkProps->m_ClockType == DT_DF_SI534X_CLK_FRACTIONAL);
     // Internal virtual genref must be used and free running
-    if (pDf->m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_VIRTUAL
-                          || pDf->m_DcoControlState!=DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING)
+    if (pDf->m_GenRefData.m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_VIRTUAL
+          || pDf->m_Genl[0].m_DcoControlState!=DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING
+          || pDf->m_Genl[1].m_DcoControlState!=DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING)
         Status = DT_STATUS_IN_USE;
     DtSpinLockRelease(&pDf->m_SofSpinLock);
 
@@ -419,7 +427,7 @@ DtStatus DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int ClockIdx,
 // -.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_LockChangedRegister -.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtDfGenLockCtrl_LockChangedRegister(DtDfGenLockCtrl* pDf,
-                                        const DtDfGenLockCtrlLockChangedRegData* pRegData)
+                                        const DtDfGenLockCtrl_LockChangedRegData* pRegData)
 {
     DtStatus Status = DT_STATUS_OK;
     Int  i, NumElems = 0;
@@ -437,7 +445,6 @@ DtStatus DtDfGenLockCtrl_LockChangedRegister(DtDfGenLockCtrl* pDf,
     // Must be enabled
     DF_GENLOCKCTRL_MUST_BE_ENABLED(pDf);
 
-
     // Update list under spinlock protection
     DtSpinLockAcquire(&pDf->m_SofSpinLock);
 
@@ -445,8 +452,8 @@ DtStatus DtDfGenLockCtrl_LockChangedRegister(DtDfGenLockCtrl* pDf,
     NumElems = DtVector_Size(pDf->m_pOnLockChangedHandlers);
     for (i=0; i<NumElems; i++)
     {
-        DtDfGenLockCtrlLockChangedRegData*  p =
-        (DtDfGenLockCtrlLockChangedRegData*)DtVector_At(pDf->m_pOnLockChangedHandlers, i);
+        DtDfGenLockCtrl_LockChangedRegData*  p =
+        (DtDfGenLockCtrl_LockChangedRegData*)DtVector_At(pDf->m_pOnLockChangedHandlers, i);
         if (p->m_pObject != pRegData->m_pObject)
             continue;
 
@@ -460,7 +467,6 @@ DtStatus DtDfGenLockCtrl_LockChangedRegister(DtDfGenLockCtrl* pDf,
     DtSpinLockRelease(&pDf->m_SofSpinLock);
     return Status;
 }
-
 
 // .-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_LockChangedUnregister -.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -489,8 +495,8 @@ DtStatus DtDfGenLockCtrl_LockChangedUnregister(DtDfGenLockCtrl* pDf,
     NumElems = DtVector_Size(pDf->m_pOnLockChangedHandlers);
     for (i=0; i<NumElems; i++)
     {
-        const DtDfGenLockCtrlLockChangedRegData*  p =
-        (DtDfGenLockCtrlLockChangedRegData*)DtVector_At(pDf->m_pOnLockChangedHandlers, i);
+        const DtDfGenLockCtrl_LockChangedRegData*  p =
+        (DtDfGenLockCtrl_LockChangedRegData*)DtVector_At(pDf->m_pOnLockChangedHandlers, i);
         if (p->m_pObject != pObject)
             continue;
 
@@ -510,6 +516,7 @@ DtStatus DtDfGenLockCtrl_LockChangedUnregister(DtDfGenLockCtrl* pDf,
 //
 DtStatus  DtDfGenLockCtrl_Init(DtDf* pDfBase)
 {
+    Int i;
     DtStatus  Status = DT_STATUS_OK;
     DtDfGenLockCtrl* pDf = (DtDfGenLockCtrl*)pDfBase;
 
@@ -517,34 +524,34 @@ DtStatus  DtDfGenLockCtrl_Init(DtDf* pDfBase)
     DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
 
     // Set defaults
-    pDf->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_INITIAL;
-    pDf->m_GenRefStatus = DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
-    pDf->m_GenLockControlEnabled = FALSE;
-    pDf->m_VideoStandard = DT_VIDSTD_1080I50;
-    pDf->m_FrameLength = DtAvVidStd2FrameLength(pDf->m_VideoStandard);
-    pDf->m_FractionalClock =  DtAvVidStdUsesFractionalClock(pDf->m_VideoStandard);
-    pDf->m_FramePeriod = DtAvVidStd2FramePeriod(pDf->m_VideoStandard);
-    pDf->m_DcoControlPars = DtDfGenLockCtrl_GetDcoControlPars(pDf->m_VideoStandard);
-    pDf->m_DcoFreqOffsetPpt = 0;
     pDf->m_pSi534XClockProps = NULL;
     pDf->m_NumSi534XClockProps = 0;
 
-    // Init GenRef info
-    DtDfGenLockCtrl_InitGenRefInfo(pDf);
-    // Clear GenRef frame period measurments
-    DtDfGenLockCtrl_FramePeriodMeasureClear(&pDf->m_GenRefFpMeasure);
-    // Clear GenRef timestamps
-    pDf->m_GenRefSofTods.m_TotalNumSofTods = 0;
-    DtDfGenLockCtrl_SofTodsClear(&pDf->m_GenRefSofTods);
+    for (i=0; i<2; i++)
+    {
+        Int Vidstd = DT_VIDSTD_1080I50;
+        DtDfGenLockCtrl_ControlData* pGenl = &pDf->m_Genl[i];
+        pGenl->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_INITIAL;
+        pGenl->m_GenLockControlEnabled = FALSE;
+        pGenl->m_VideoStandard = Vidstd;
+        pGenl->m_FrameLength = DtAvVidStd2FrameLength(Vidstd);
+        pGenl->m_FractionalClock =  DtAvVidStdUsesFractionalClock(Vidstd);;
+        pGenl->m_FramePeriod = DtAvVidStd2FramePeriod(Vidstd);
+        pGenl->m_DcoControlPars = DtDfGenLockCtrl_GetDcoControlPars(Vidstd);
+        pGenl->m_DcoFreqOffsetPpt = 0;
+        // and clear timestamps
+        pGenl->m_NewSofTodStored = FALSE;
+        pGenl->m_GenLockSofTod[0].m_Seconds = pGenl->m_GenLockSofTod[0].m_Nanoseconds=-1;
+        pGenl->m_GenLockSofTod[1].m_Seconds = pGenl->m_GenLockSofTod[1].m_Nanoseconds=-1;
+    }
 
-    // Clear GenLock timestamps
-    pDf->m_GenLockSofTod[0].m_Seconds=-1; pDf->m_GenLockSofTod[0].m_Nanoseconds=-1;
-    pDf->m_GenLockSofTod[1].m_Seconds=-1; pDf->m_GenLockSofTod[1].m_Nanoseconds=-1;
+    // Init GenRef Data
+    DtDfGenLockCtrl_InitGenRefData(pDf);
 
     // Create the genlock status changed registration list
     DT_ASSERT(pDf->m_pOnLockChangedHandlers == NULL);
     pDf->m_pOnLockChangedHandlers = 
-                        DtVector_Create(8, sizeof(DtDfGenLockCtrlLockChangedRegData), 4);
+                        DtVector_Create(8, sizeof(DtDfGenLockCtrl_LockChangedRegData), 4);
     if (pDf->m_pOnLockChangedHandlers == NULL)
     {
         DtDbgOutDf(ERR, GENLOCKCTRL, pDf,  "ERROR: failed to create reg. data list");
@@ -571,23 +578,16 @@ DtStatus  DtDfGenLockCtrl_Init(DtDf* pDfBase)
     return DT_STATUS_OK;
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_LoadParameters -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-// Note: LoadParameters() is called before the Init(). The loaded parameters can be used
-// in the Init().
-//
-DtStatus  DtDfGenLockCtrl_LoadParameters(DtDf*  pDfBase)
-{
-    return DT_STATUS_OK;
-}
 // .-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_OnEnablePostChildren -.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
 {
     DtDfGenLockCtrl* pDf = (DtDfGenLockCtrl*)pDfBase;
+    DtDfGenLockCtrl_ControlData* pGenl;
     DtBcGENLOnStartOfFrameRegData  GenlockRegData;
     DtStatus  Status = DT_STATUS_OK;
-     
+    Int i;
+
     // Sanity check
     DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
 
@@ -597,40 +597,84 @@ DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DISABLE -> ENABLE");
 
         // Genlocking control must be disabled
+        DT_ASSERT(!pDf->m_Genl[0].m_GenLockControlEnabled);
+        DT_ASSERT(!pDf->m_Genl[1].m_GenLockControlEnabled);
 
-        DT_ASSERT(!pDf->m_GenLockControlEnabled);
-
-        // Set operational mode of children to IDLE
-        if (pDf->m_pBcGenLock != NULL)
-            DT_RETURN_ON_ERROR(DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock,
-                                                                   DT_BLOCK_OPMODE_IDLE));
+        // Set operational mode of GENL blocks to IDLE
+        for (i=0; i<2; i++)
+        {
+            if (pDf->m_Genl[i].m_pBcGenLock != NULL)
+                DT_RETURN_ON_ERROR(DtBcGENL_SetOperationalMode(
+                                 pDf->m_Genl[i].m_pBcGenLock, DT_BLOCK_OPMODE_IDLE));
+        }
 
         // Get the clock properties
         DT_RETURN_ON_ERROR(DtDfSi534X_GetClockProperties(pDf->m_pDfSi534X,
                                  &pDf->m_NumSi534XClockProps, &pDf->m_pSi534XClockProps));
-        // Set defaults
-        pDf->m_VideoStandard = DT_VIDSTD_1080I50;
-        pDf->m_FrameLength = DtAvVidStd2FrameLength(pDf->m_VideoStandard);
-        pDf->m_FractionalClock =  DtAvVidStdUsesFractionalClock(pDf->m_VideoStandard);
-        pDf->m_FramePeriod = DtAvVidStd2FramePeriod(pDf->m_VideoStandard);
-        pDf->m_DcoControlPars = DtDfGenLockCtrl_GetDcoControlPars(pDf->m_VideoStandard);
-        pDf->m_DcoFreqOffsetPpt = 0;
+        // Set GenLock defaults
+        for (i=0; i<2; i++)
+        {
+            Int Vidstd = DT_VIDSTD_1080I50;
+            pGenl = &pDf->m_Genl[i];
+            pGenl->m_VideoStandard = Vidstd;
+            pGenl->m_FrameLength = DtAvVidStd2FrameLength(Vidstd);
+            pGenl->m_FractionalClock =  DtAvVidStdUsesFractionalClock(Vidstd);
+            pGenl->m_FramePeriod = DtAvVidStd2FramePeriod(Vidstd);
+            pGenl->m_DcoControlPars = DtDfGenLockCtrl_GetDcoControlPars(Vidstd);
+            pGenl->m_DcoFreqOffsetPpt = 0;
+            pGenl->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_INITIAL;
+            // and clear timestamps
+            pGenl->m_NewSofTodStored = FALSE;
+            pGenl->m_GenLockSofTod[0].m_Seconds
+                                             = pGenl->m_GenLockSofTod[0].m_Nanoseconds=-1;
+            pGenl->m_GenLockSofTod[1].m_Seconds 
+                                             = pGenl->m_GenLockSofTod[1].m_Nanoseconds=-1;
+
+            // Enable only primary genlock control
+            pGenl->m_GenLockControlEnabled = (i==0);
+
+            // Register Genlock start-of-frame handlers
+            if (pGenl->m_pBcGenLock != NULL)
+            {
+                DT_RETURN_ON_ERROR(DtBcGENL_SetFrameLength(pGenl->m_pBcGenLock,
+                                                           pGenl->m_FrameLength,
+                                                           pGenl->m_FractionalClock));
+                if (i == 0)
+                    GenlockRegData.m_OnStartOfFrameFunc
+                                      = DtDfGenLockCtrl_GenLockStartOfFrameHandlerPrimary;
+                else
+                    GenlockRegData.m_OnStartOfFrameFunc
+                                    = DtDfGenLockCtrl_GenLockStartOfFrameHandlerSecondary;
+                GenlockRegData.m_pObject = (DtObject*)pDf;
+                Status = DtBcGENL_StartOfFrameRegister(pGenl->m_pBcGenLock,
+                                                                         &GenlockRegData);
+                if (!DT_SUCCESS(Status))
+                {
+                    DtDbgOutDf(ERR, GENLOCKCTRL, pDf,
+                                      "ERROR: failed to register start-of-frame handler");
+                    return Status;
+                }
+            }
+        }
+
+        // Init GenRef data
+        DtSpinLockAcquire(&pDf->m_SofSpinLock);
+        DtDfGenLockCtrl_InitGenRefData(pDf);
+        DtSpinLockRelease(&pDf->m_SofSpinLock);
+
+        // Set default DCO frequency
         DT_RETURN_ON_ERROR(DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, FALSE));
         DT_RETURN_ON_ERROR(DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, TRUE));
 
-        if (pDf->m_pBcGenLock != NULL)
+        // Set operational mode of primary GENL block to RUN
+        pGenl = &pDf->m_Genl[0];
+        if (pGenl->m_pBcGenLock != NULL)
         {
-            DT_RETURN_ON_ERROR(DtBcGENL_SetFrameLength(pDf->m_pBcGenLock,
-                                            pDf->m_FrameLength, pDf->m_FractionalClock));
-            // Register Genlock start-of-frame handler
-            GenlockRegData.m_OnStartOfFrameFunc 
-                                             = DtDfGenLockCtrl_GenLockStartOfFrameHandler;
-            GenlockRegData.m_pObject = (DtObject*)pDf;
-            Status = DtBcGENL_StartOfFrameRegister(pDf->m_pBcGenLock, &GenlockRegData);
+            Status = DtBcGENL_SetOperationalMode(pGenl->m_pBcGenLock, 
+                                                                     DT_BLOCK_OPMODE_RUN);
             if (!DT_SUCCESS(Status))
             {
-                DtDbgOutDf(ERR, GENLOCKCTRL, pDf,
-                                      "ERROR: failed to register start-of-frame handler");
+                DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: failed to set GENL opmode");
                 return Status;
             }
         }
@@ -644,38 +688,6 @@ DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
             DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: failed to start Thread");
             return Status;
         }
-
-        // Start genlocking
-        if (pDf->m_pBcGenLock != NULL)
-        {
-            Status = DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock, DT_BLOCK_OPMODE_RUN);
-            if (!DT_SUCCESS(Status))
-            {
-                DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: failed to set GENL opmode");
-                return Status;
-            }
-        }
-
-        // Init GenRef info
-        DtSpinLockAcquire(&pDf->m_SofSpinLock);
-
-        DtDfGenLockCtrl_InitGenRefInfo(pDf);
-        // Clear GenRef frame period measurements
-        DtDfGenLockCtrl_FramePeriodMeasureClear(&pDf->m_GenRefFpMeasure);
-
-        // Clear GenRef timestamps
-        pDf->m_GenRefSofTods.m_TotalNumSofTods = 0;
-        DtDfGenLockCtrl_SofTodsClear(&pDf->m_GenRefSofTods);
-
-        // Clear GenLock timestamps
-        pDf->m_GenLockSofTod[0].m_Seconds=-1; pDf->m_GenLockSofTod[0].m_Nanoseconds=-1;
-        pDf->m_GenLockSofTod[1].m_Seconds=-1; pDf->m_GenLockSofTod[1].m_Nanoseconds=-1;
-
-        // Enable genlocking control
-        pDf->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_INITIAL;
-        pDf->m_GenRefStatus = DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
-        pDf->m_GenLockControlEnabled = TRUE;
-        DtSpinLockRelease(&pDf->m_SofSpinLock);
     }
     return Status;
 }
@@ -686,6 +698,7 @@ DtStatus DtDfGenLockCtrl_OnEnablePreChildren(DtDf* pDfBase, Bool Enable)
 {
     DtDfGenLockCtrl* pDf = (DtDfGenLockCtrl*)pDfBase;
     DtStatus  Status = DT_STATUS_OK;
+    Int i;
     // Sanity check
     DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
 
@@ -694,29 +707,18 @@ DtStatus DtDfGenLockCtrl_OnEnablePreChildren(DtDf* pDfBase, Bool Enable)
         // ENABLE -> DISABLE
         DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "ENABLE -> DISABLE");
 
-        // Disable genlocking control
+        // Disable genlocking
         DtSpinLockAcquire(&pDf->m_SofSpinLock);
-        pDf->m_GenLockControlEnabled = FALSE;
+        for (i=0; i<2; i++)
+        {
+            DtDfGenLockCtrl_ControlData* pGenl = &pDf->m_Genl[i];
+            pGenl->m_GenLockControlEnabled = FALSE;
+        }
 
         // Clear list of  GenLock status changed handlers
         DtVector_Clear(pDf->m_pOnLockChangedHandlers);
 
         DtSpinLockRelease(&pDf->m_SofSpinLock);
-
-        // Stop genlocking
-        if (pDf->m_pBcGenLock != NULL)
-        {
-            Status = DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock, DT_BLOCK_OPMODE_IDLE);
-            if (!DT_SUCCESS(Status))
-            {
-                DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: failed to set GENL opmode");
-                return Status;
-            }
-        }
-
-        // Unregister start of frame handlers
-        if (pDf->m_pBcGenLock != NULL)
-            DtBcGENL_StartOfFrameUnregister(pDf->m_pBcGenLock, (DtObject*)pDf);
 
         // Stop DCO-control thread
         pDf->m_StopDcoControlThread = TRUE;
@@ -727,6 +729,25 @@ DtStatus DtDfGenLockCtrl_OnEnablePreChildren(DtDf* pDfBase, Bool Enable)
         {
             DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: failed to stop Thread");
             return Status;
+        }
+
+        // Set operational mode of GENL blocks to IDLE
+        for (i=0; i<2; i++)
+        {
+            DtDfGenLockCtrl_ControlData* pGenl = &pDf->m_Genl[i];
+            if (pGenl->m_pBcGenLock != NULL)
+            {
+                Status = DtBcGENL_SetOperationalMode(pGenl->m_pBcGenLock,
+                                                                    DT_BLOCK_OPMODE_IDLE);
+                if (!DT_SUCCESS(Status))
+                {
+                    DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: failed to set GENL opmode");
+                    return Status;
+                }
+
+                // Unregister start of frame handlers
+                DtBcGENL_StartOfFrameUnregister(pGenl->m_pBcGenLock, (DtObject*)pDf);
+            }
         }
     }
     return DT_STATUS_OK;
@@ -753,11 +774,13 @@ DtStatus  DtDfGenLockCtrl_OpenChildren(DtDfGenLockCtrl*  pDf)
     DtStatus  Status = DT_STATUS_OK;
 
     // List of children supported by the the GENLOCKCTRL function
-    const DtDfSupportedChild  SUPPORTED_CHILDREN[] = 
+    const DtDfSupportedChild  SUPPORTED_CHILDREN[] =
     {
         //  ObjectType,  BC or DF/CF Type,  Name,  Role,  Shortcut,  IsMandatory
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_GENL, DT_BC_GENL_NAME,
-                           GENL_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcGenLock), FALSE},
+                      "PRIMARY", (DtObjectBcOrDf**)(&pDf->m_Genl[0].m_pBcGenLock), FALSE},
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_GENL, DT_BC_GENL_NAME,
+                    "SECONDARY", (DtObjectBcOrDf**)(&pDf->m_Genl[1].m_pBcGenLock), FALSE},
         { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_SI534X, DT_DF_SI534X_NAME,
                            SI534X_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pDfSi534X), TRUE},
     };
@@ -770,49 +793,79 @@ DtStatus  DtDfGenLockCtrl_OpenChildren(DtDfGenLockCtrl*  pDf)
     if (!DT_SUCCESS(Status))
         return Status;
 
-    // Children should be present
+    // Not allowed to have only secondary genlock
+    DT_ASSERT(pDf->m_Genl[0].m_pBcGenLock!=NULL || pDf->m_Genl[1].m_pBcGenLock==NULL);
+    // Si534X  should be present
     DT_ASSERT(pDf->m_pDfSi534X != NULL);
 
     return DT_STATUS_OK;
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GetCurrentClockIdx -.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GetPrimaryClockIdx -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-Int DtDfGenLockCtrl_GetCurrentClockIdx(DtDfGenLockCtrl* pDf)
+Int DtDfGenLockCtrl_GetPrimaryClockIdx(DtDfGenLockCtrl* pDf)
 {
+    // Get current clock of primary genlock
+    Bool PrimUsesFractional = pDf->m_Genl[0].m_FractionalClock;
+
     // Return the clock index that is currently used
     Int  ClkIdx;
     for (ClkIdx = 0; ClkIdx<pDf->m_NumSi534XClockProps; ClkIdx++)
     {
         Bool IsFractional = (pDf->m_pSi534XClockProps[ClkIdx].m_ClockType
                                                      == DT_GENLOCKCTR_CLKTYPE_FRACTIONAL);
-        if (IsFractional == pDf->m_FractionalClock)
+        if (IsFractional == PrimUsesFractional)
             return ClkIdx;
     }
     DT_ASSERT(FALSE);
     return 0;
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_InitGenRefInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_InitGenRefData -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void DtDfGenLockCtrl_InitGenRefInfo(DtDfGenLockCtrl* pDf)
+// Must be called under spinlock protection
+//
+void DtDfGenLockCtrl_InitGenRefData(DtDfGenLockCtrl* pDf)
 {
     // Init GenRef info
-    pDf->m_GenRefType = DT_DF_GENLOCKCTRL_GENREF_UNDEFINED;
-    pDf->m_GenRefPortIndex = -1;
-    pDf->m_GenRefVidStd = DT_VIDSTD_UNKNOWN;
-    pDf->m_GenRefFramePeriod = -1;
-    pDf->m_GenRefDetectVidStd = DT_VIDSTD_UNKNOWN;
-    pDf->m_GenRefStartOfFrameOffset = 0;
-    pDf->m_GenRefParChanged = TRUE;
+    DtDfGenLockCtrl_GenRefData* pGenr = &pDf->m_GenRefData;
+
+    // Clear GenRef timestamps
+    pGenr->m_GenRefSofTods.m_TotalNumSofTods = 0;
+    DtDfGenLockCtrl_GenRefSofTodsClear(&pGenr->m_GenRefSofTods);
+
+    // Clear GenRef frame period measurements
+    DtDfGenLockCtrl_FramePeriodMeasureClear(&pGenr->m_GenRefFpMeasure);
+
+    pGenr->m_GenRefStatus = DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
+    pGenr->m_GenRefType = DT_DF_GENLOCKCTRL_GENREF_UNDEFINED;
+    pGenr->m_GenRefPortIndex = -1;
+    pGenr->m_GenRefVidStd = DT_VIDSTD_UNKNOWN;
+    pGenr->m_GenRefFramePeriod = -1;
+    pGenr->m_GenRefDetectVidStd = DT_VIDSTD_UNKNOWN;
+    pGenr->m_GenRefStartOfFrameOffset = 0;
+    pGenr->m_GenRefParChanged = TRUE;
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_SetFrameLength -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_SetVideoStandard -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtDfGenLockCtrl_SetVideoStandard(DtDfGenLockCtrl* pDf, Int  VidStd)
+// This function is called from the DcoControlThread only when the genref changed
+// the video standard.
+// Sets the video standard of the primary genlock according the configured video standard
+// of the genref signal.
+// In case of a 29.97fps reference, the secondary genlock is configured with the same
+// framerate but with opposite fractional/non-fractional setting.
+//
+DtStatus DtDfGenLockCtrl_SetVideoStandard(DtDfGenLockCtrl* pDf, Int  PrimVidStd)
 {
-    Int  FrameLength = DtAvVidStd2FrameLength(VidStd);
-    Bool FracClk =  DtAvVidStdUsesFractionalClock(VidStd);
+    Int  PrimFrameLength = DtAvVidStd2FrameLength(PrimVidStd);
+    Bool PrimFracClk =  DtAvVidStdUsesFractionalClock(PrimVidStd);
+    Int  SecVidStd = DtDfGenLockCtrl_DetermineSecondaryVidStd(PrimVidStd);
+    Int  SecFrameLength = DtAvVidStd2FrameLength(SecVidStd);
+    Bool SecFracClk =  DtAvVidStdUsesFractionalClock(SecVidStd);
+
+    DtDfGenLockCtrl_ControlData* pPrimGenl = &pDf->m_Genl[0];
+    DtDfGenLockCtrl_ControlData* pSecGenl = &pDf->m_Genl[1];
 
     // Sanity checks
     DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
@@ -821,36 +874,63 @@ DtStatus DtDfGenLockCtrl_SetVideoStandard(DtDfGenLockCtrl* pDf, Int  VidStd)
     DF_GENLOCKCTRL_MUST_BE_ENABLED(pDf);
 
     // Check parameter
-    if (FrameLength < 0)
+    if (PrimFrameLength < 0)
         return DT_STATUS_INVALID_PARAMETER;
 
     // No change?
-    if (VidStd == pDf->m_VideoStandard)
+    if (PrimVidStd == pPrimGenl->m_VideoStandard)
         return DT_STATUS_OK;
 
-    // Only supported if there is a genlock block
-    if (pDf->m_pBcGenLock == NULL)
+    // Only supported if there is a primary genlock block
+    if (pPrimGenl->m_pBcGenLock == NULL)
        return DT_STATUS_NOT_SUPPORTED;
 
     // First go to IDLE
-    DT_RETURN_ON_ERROR(DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock,
+    DT_RETURN_ON_ERROR(DtBcGENL_SetOperationalMode(pPrimGenl->m_pBcGenLock,
+                                                                   DT_BLOCK_OPMODE_IDLE));
+    if (pSecGenl->m_pBcGenLock != NULL)
+        DT_RETURN_ON_ERROR(DtBcGENL_SetOperationalMode(pSecGenl->m_pBcGenLock,
                                                                    DT_BLOCK_OPMODE_IDLE));
 
-    // Change settings
-    DT_RETURN_ON_ERROR(DtBcGENL_SetFrameLength(pDf->m_pBcGenLock, FrameLength, FracClk));
+    // Configure the primary genlock
+    DT_RETURN_ON_ERROR(DtBcGENL_SetFrameLength(pPrimGenl->m_pBcGenLock, PrimFrameLength,
+                                                                            PrimFracClk));
+    // Update primary genlock cached settings
+    pPrimGenl->m_VideoStandard = PrimVidStd;
+    pPrimGenl->m_FrameLength = PrimFrameLength;
+    pPrimGenl->m_FractionalClock = PrimFracClk;
+    pPrimGenl->m_FramePeriod = DtAvVidStd2FramePeriod(PrimVidStd);
+    pPrimGenl->m_DcoControlPars = DtDfGenLockCtrl_GetDcoControlPars(PrimVidStd);
+    DT_ASSERT(pPrimGenl->m_FramePeriod > 0);
 
-    // Update cache
-    pDf->m_VideoStandard = VidStd;
-    pDf->m_FrameLength = FrameLength;
-    pDf->m_FractionalClock = FracClk;
-    pDf->m_FramePeriod = DtAvVidStd2FramePeriod(VidStd);
-    pDf->m_DcoControlPars = DtDfGenLockCtrl_GetDcoControlPars(VidStd);
-
-    DT_ASSERT(pDf->m_FramePeriod > 0);
-
-    // Go to RUN
-    DT_RETURN_ON_ERROR(DtBcGENL_SetOperationalMode(pDf->m_pBcGenLock,
+    // Primary genlock goes to RUN
+    DT_RETURN_ON_ERROR(DtBcGENL_SetOperationalMode(pPrimGenl->m_pBcGenLock,
                                                                     DT_BLOCK_OPMODE_RUN));
+
+    // Update secondary genlock cached settings
+    pSecGenl->m_VideoStandard = SecVidStd;
+    pSecGenl->m_FrameLength = SecFrameLength;
+    pSecGenl->m_FractionalClock = SecFracClk;
+
+    // Check whether we have to configure the secondary genlock
+    if (SecVidStd!=DT_VIDSTD_UNKNOWN && pSecGenl->m_pBcGenLock!=NULL)
+    {
+        DT_ASSERT(PrimFracClk != SecFracClk);
+        
+        // Configure the secondary genlock
+        DT_RETURN_ON_ERROR(DtBcGENL_SetFrameLength(pSecGenl->m_pBcGenLock, SecFrameLength,
+                                                                             SecFracClk));
+        // Update cache
+        pSecGenl->m_GenLockControlEnabled = TRUE;
+        pSecGenl->m_FramePeriod = DtAvVidStd2FramePeriod(SecVidStd);
+        pSecGenl->m_DcoControlPars = DtDfGenLockCtrl_GetDcoControlPars(SecVidStd);
+        DT_ASSERT(pSecGenl->m_FramePeriod > 0);
+        
+        // Secondary genlock goes to RUN
+        DT_RETURN_ON_ERROR(DtBcGENL_SetOperationalMode(pSecGenl->m_pBcGenLock,
+                                                                    DT_BLOCK_OPMODE_RUN));
+    } else
+        pSecGenl->m_GenLockControlEnabled = FALSE;
 
     return DT_STATUS_OK;
 }
@@ -862,84 +942,145 @@ void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread* pThread, void* pContext)
 {
     DtDfGenLockCtrl*  pDf = (DtDfGenLockCtrl*)pContext;
     Bool  StopThread = FALSE;
-    DtDfGenLockCtrlSofTods  GenRefSofTods;
-    DtTodTime  GenLockSofTod;
-    DtDfGenLockCtrlGenRefType  GenRefType;
-    Int  GenRefVidStd, GenRefSofOffset=0;
-    Int64  GenRefAvgFramePeriodPs;
-    Bool  GenRefParChanged;
     const Int LoopTimeOut = 100;    // 100ms timeout
+    Bool IsLocked = FALSE, NewIsLocked = FALSE;
+    Int GenLockStatus = DT_GENLOCKCTRL_STATE_NO_REF,
+        NewGenLockStatus = DT_GENLOCKCTRL_STATE_NO_REF;
 
-    // Start with no reference
-    DtDfGenLockCtrl_NotifyStatusChange(pDf, DT_GENLOCKCTRL_STATE_NO_REF);
-    DtDfGenLockCtrl_NotifyLockChange(pDf, FALSE);
+    // Start with no reference and not locked
+    DtDfGenLockCtrl_NotifyStatusChange(pDf, GenLockStatus);
+    DtDfGenLockCtrl_NotifyLockChange(pDf, IsLocked);
 
     while (!StopThread)
     {
-        // Wait for start-of-frame event
-        DtStatus Status = DtEventWaitUnInt(&pDf->m_DcoControlSofEvent, LoopTimeOut);
-        if ((!DT_SUCCESS(Status) && Status!=DT_STATUS_TIMEOUT) || pThread->m_StopThread 
-                                                           || pDf->m_StopDcoControlThread)
+        Bool  GenRefParChanged;
+        DtDfGenLockCtrl_DcoState StartDcoState;
+        DtDfGenLockCtrl_GenRefData  GenRefData;
+        DtDfGenLockCtrl_ControlData GenlCtrlData;
+        DtDfGenLockCtrl_ControlData* pGenl;
+
+        // Are there still timestamps waiting for being processed?
+        if (!pDf->m_Genl[0].m_NewSofTodStored && !pDf->m_Genl[1].m_NewSofTodStored)
         {
-            // Fatal error occurred or stop request received
-            if (!DT_SUCCESS(Status))
-                DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: DcoControlThread failure");
-            if (pThread->m_StopThread || pDf->m_StopDcoControlThread)
-                DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DcoControlThread stop request");
-            StopThread = TRUE;
+            // Wait for new timestamp or stop request
+            DtStatus Status = DtEventWaitUnInt(&pDf->m_DcoControlSofEvent, LoopTimeOut);
+            if ((!DT_SUCCESS(Status) && Status!=DT_STATUS_TIMEOUT)
+                                  || pThread->m_StopThread || pDf->m_StopDcoControlThread)
+            {
+                // Fatal error occurred or stop request received
+                if (!DT_SUCCESS(Status))
+                    DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "ERROR: DcoControlThread failure");
+                if (pThread->m_StopThread || pDf->m_StopDcoControlThread)
+                    DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DcoControlThread stop request");
+                StopThread = TRUE;
+                continue;
+            }
+        }
+
+        DtSpinLockAcquire(&pDf->m_SofSpinLock);
+
+        // Find the genlock control where a new timestamp is stored 
+        if (pDf->m_Genl[0].m_NewSofTodStored)
+        {
+            // Primary genlock
+            pGenl = &pDf->m_Genl[0];
+
+            // Update the GenRef signal status using the primary genlock data
+            pDf->m_GenRefData.m_GenRefStatus = DtDfGenLockCtrl_DetermineGenRefStatus(pDf,
+                                                             &pDf->m_GenRefData, pGenl);
+        }
+        else if (pDf->m_Genl[1].m_NewSofTodStored)
+        {
+            // Secondary genlock
+            pGenl = &pDf->m_Genl[1];
+        }
+        else
+        {
+            // False event; probably already handled
+            DtSpinLockRelease(&pDf->m_SofSpinLock);
             continue;
         }
-        // Copy GenRef/GenLock information under spinlock
-        DtSpinLockAcquire(&pDf->m_SofSpinLock);
-        // GenRef start-of-frame timstamps
-        GenRefSofTods = pDf->m_GenRefSofTods;
-        // GenLock start-of-frame timstamp
-        GenLockSofTod = pDf->m_GenLockSofTod[1];
-        // GenRef type
-        GenRefType = pDf->m_GenRefType;
-        // GenRef average frameperiod
-        GenRefAvgFramePeriodPs = DtDfGenLockCtrl_FramePeriodMeasureGetAverage( 
-                                                                 &pDf->m_GenRefFpMeasure);
-        // GenRef video standard
-        GenRefVidStd = pDf->m_GenRefVidStd;
-        // Start-of-frame offset in nano seconds
-        GenRefSofOffset = pDf->m_GenRefStartOfFrameOffset;
-        // GenRef changed
-        GenRefParChanged = pDf->m_GenRefParChanged;
-        pDf->m_GenRefParChanged = FALSE;
+
+        // Clear the new timestamp flag. It can be set again after releasing spinlock
+        pGenl->m_NewSofTodStored = FALSE;
+
+        // Make a snapshot of the GenRef and GenLock control data under spinlock
+        GenRefData = pDf->m_GenRefData;
+        GenlCtrlData = *pGenl;
+
+        // Get the GenRef parameters changed flag
+        GenRefParChanged = pDf->m_GenRefData.m_GenRefParChanged;
+        pDf->m_GenRefData.m_GenRefParChanged = FALSE;
         DtSpinLockRelease(&pDf->m_SofSpinLock);
 
         // Unknown video standard? Nothing to do
-        if (GenRefVidStd == DT_VIDSTD_UNKNOWN)
+        if (GenRefData.m_GenRefVidStd == DT_VIDSTD_UNKNOWN)
             continue;
 
         // Check for GenRef parameter changes
         if (GenRefParChanged)
         {
+            DtStatus Status;
+            Int i;
             // Update video standard this cannot be spinlock protected. 
-            Status = DtDfGenLockCtrl_SetVideoStandard(pDf, GenRefVidStd);
+            Status = DtDfGenLockCtrl_SetVideoStandard(pDf, GenRefData.m_GenRefVidStd);
             DT_ASSERT(DT_SUCCESS(Status));
 
+            // Now restart synchronization under spinlock protection
             DtSpinLockAcquire(&pDf->m_SofSpinLock);
 
-            // Restart synchronizing
-            pDf->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_INITIAL;
-
-            // Clear GenLock timestamps
-            pDf->m_GenLockSofTod[0].m_Seconds = pDf->m_GenLockSofTod[0].m_Nanoseconds=-1;
-            pDf->m_GenLockSofTod[1].m_Seconds = pDf->m_GenLockSofTod[1].m_Nanoseconds=-1;
-            
+            for (i=0; i<2; i++)
+            {
+                DtDfGenLockCtrl_ControlData* pGenl = &pDf->m_Genl[i];
+                // Initial state
+                pGenl->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_INITIAL;
+                // and clear timestamps
+                pGenl->m_NewSofTodStored = FALSE;
+                pGenl->m_GenLockSofTod[0].m_Seconds
+                                             = pGenl->m_GenLockSofTod[0].m_Nanoseconds=-1;
+                pGenl->m_GenLockSofTod[1].m_Seconds
+                                             = pGenl->m_GenLockSofTod[1].m_Nanoseconds=-1;
+            }
             DtSpinLockRelease(&pDf->m_SofSpinLock);
             continue;
         }
-        
-        // No valid Genlock SOF-timestamp? Nothing to do
-        if (GenLockSofTod.m_Seconds==-1 || GenLockSofTod.m_Nanoseconds==-1)
-            continue;
 
         // Control the DCO
-        DtDfGenLockCtrl_DcoControl(pDf,GenRefType, GenRefSofOffset, &GenRefSofTods,
-                                                  GenRefAvgFramePeriodPs, &GenLockSofTod);
+        StartDcoState = GenlCtrlData.m_DcoControlState;
+        DtDfGenLockCtrl_DcoControl(pDf, &GenRefData, &GenlCtrlData);
+
+        DtSpinLockAcquire(&pDf->m_SofSpinLock);
+
+        // No changes made outside the statemachine?
+        if (StartDcoState == pGenl->m_DcoControlState)
+        {
+            // No. So we can update the state
+            pGenl->m_DcoControlState = GenlCtrlData.m_DcoControlState;
+            pGenl->m_LockCount = GenlCtrlData.m_LockCount;
+            pGenl->m_PhaseDiffNs = GenlCtrlData.m_PhaseDiffNs;
+        }
+        pGenl->m_DcoFreqOffsetPpt = GenlCtrlData.m_DcoFreqOffsetPpt;
+
+        // Determine new GenLock status and new locked status
+        NewGenLockStatus = DtDfGenLockCtrl_GetGenLockStatusInternal(pDf);
+        NewIsLocked = (NewGenLockStatus==DT_GENLOCKCTRL_STATE_FREE_RUN
+                                       ||  NewGenLockStatus==DT_GENLOCKCTRL_STATE_LOCKED);
+        DtSpinLockRelease(&pDf->m_SofSpinLock);
+    
+        // Is there a GenLock status change?
+        if (GenLockStatus != NewGenLockStatus)
+        {
+            // Signal GenLock status change
+            GenLockStatus  = NewGenLockStatus;
+            DtDfGenLockCtrl_NotifyStatusChange(pDf, GenLockStatus);
+        }
+        // Is there a GenLock locked change?
+        if (IsLocked != NewIsLocked)
+        {
+            // Signal GenLock Lock change
+            IsLocked = NewIsLocked;
+            DtDfGenLockCtrl_NotifyLockChange(pDf, IsLocked);
+        }
     }
     // We have to wait until the thread received a stop command.
     DtThreadWaitForStop(pThread);
@@ -948,280 +1089,234 @@ void  DtDfGenLockCtrl_DcoControlThreadEntry(DtThread* pThread, void* pContext)
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtDfGenLockCtrl_DcoControl(DtDfGenLockCtrl* pDf, 
-                                            DtDfGenLockCtrlGenRefType  GenRefType,
-                                            Int  SofOffset,
-                                            const DtDfGenLockCtrlSofTods* pGenRefSofTods,
-                                            Int64  GenRefAvgFramePeriodPs,
-                                            const DtTodTime* pGenLockSofTod)
+                                                const  DtDfGenLockCtrl_GenRefData*  pGenr,
+                                                DtDfGenLockCtrl_ControlData* pGenl)
+
 {
-    DtDfGenLockCtrlDcoState  OldDcoState, DcoState;
-    DtDfGenLockCtrlGenRefStatus  GenRefStatus;
-    Int  OldGenLockStatus, GenLockStatus;
-
-    DtSpinLockAcquire(&pDf->m_SofSpinLock);
-    DcoState = pDf->m_DcoControlState;
-    OldDcoState = DcoState;
-    OldGenLockStatus = DtDfGenLockCtrl_GetGenLockStatusInternal(pDf);
-    DtSpinLockRelease(&pDf->m_SofSpinLock);
-
-    // Determine GenRef signal status using the latest timestamps
-    GenRefStatus = DtDfGenLockCtrl_DetermineGenRefStatus(pDf, GenRefType, pGenRefSofTods,
-                                    GenRefAvgFramePeriodPs, pGenLockSofTod);
-
-    switch (DcoState)
+    switch (pGenl->m_DcoControlState)
     {
     default:
     case  DT_DF_GENLOCKCTRL_STATE_INITIAL:
-        DtDfGenLockCtrl_DcoControlInit(pDf, &DcoState, GenRefStatus,
-                                             GenRefType,  SofOffset, pGenRefSofTods,
-                                             GenRefAvgFramePeriodPs, pGenLockSofTod);
-        break;
+        DtDfGenLockCtrl_DcoControlInit(pDf, pGenr, pGenl);
         break;
     case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ:
     case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ_CHECK:
-        DtDfGenLockCtrl_DcoControlCrashLockFreq(pDf, &DcoState, GenRefStatus,
-                                             GenRefType,  SofOffset, pGenRefSofTods,
-                                             GenRefAvgFramePeriodPs, pGenLockSofTod);
+        DtDfGenLockCtrl_DcoControlCrashLockFreq(pDf, pGenr, pGenl);
         break;
     case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE:
     case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE_WAIT_FOR_DONE:
-        DtDfGenLockCtrl_DcoControlCrashLockPhase(pDf, &DcoState, GenRefStatus,
-                                             GenRefType,  SofOffset, pGenRefSofTods,
-                                             GenRefAvgFramePeriodPs, pGenLockSofTod);
+        DtDfGenLockCtrl_DcoControlCrashLockPhase(pDf, pGenr, pGenl);
         break;
     case DT_DF_GENLOCKCTRL_STATE_LOCKED:
-        DtDfGenLockCtrl_DcoControlLocked(pDf, &DcoState, GenRefStatus,
-                                             GenRefType,  SofOffset, pGenRefSofTods,
-                                             GenRefAvgFramePeriodPs, pGenLockSofTod);
+        DtDfGenLockCtrl_DcoControlLocked(pDf, pGenr, pGenl);
         break;
     case DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING:
-        DtDfGenLockCtrl_DcoFreeRunning(pDf, &DcoState, GenRefStatus,
-                                             GenRefType,  SofOffset, pGenRefSofTods,
-                                             GenRefAvgFramePeriodPs, pGenLockSofTod);
+        DtDfGenLockCtrl_DcoFreeRunning(pDf, pGenr, pGenl);
         break;
-    }
-
-    DtSpinLockAcquire(&pDf->m_SofSpinLock);
-    // No changes made outside the statemachine?
-    if (OldDcoState == pDf->m_DcoControlState)
-    {
-        // Update the state
-        pDf->m_DcoControlState = DcoState;
-        // Save new GenRef status
-        pDf->m_GenRefStatus = GenRefStatus;
-    }
-    // Determine new GenLock status
-    GenLockStatus = DtDfGenLockCtrl_GetGenLockStatusInternal(pDf);
-    DtSpinLockRelease(&pDf->m_SofSpinLock);
-    
-    // Is there a GenLock status change?
-    if (OldGenLockStatus != GenLockStatus)
-    {
-        // Signal GenLock status change
-        DtDfGenLockCtrl_NotifyStatusChange(pDf, GenLockStatus);
     }
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControlInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtDfGenLockCtrl_DcoControlInit(DtDfGenLockCtrl* pDf,
-                                             DtDfGenLockCtrlDcoState* pDcoState, 
-                                             DtDfGenLockCtrlGenRefStatus GenRefStatus,
-                                             DtDfGenLockCtrlGenRefType  GenRefType,
-                                             Int  SofOffset,
-                                             const DtDfGenLockCtrlSofTods* pGenRefSofTods,
-                                             Int64  GenRefAvgFramePeriodPs,
-                                             const DtTodTime* pGenLockSofTod)
+                                                const  DtDfGenLockCtrl_GenRefData*  pGenr,
+                                                DtDfGenLockCtrl_ControlData* pGenl)
 {
-    if (GenRefType==DT_DF_GENLOCKCTRL_GENREF_UNDEFINED ||
-                                             GenRefType==DT_DF_GENLOCKCTRL_GENREF_VIRTUAL)
+    if (pGenr->m_GenRefType==DT_DF_GENLOCKCTRL_GENREF_UNDEFINED ||
+                                    pGenr->m_GenRefType==DT_DF_GENLOCKCTRL_GENREF_VIRTUAL)
     {
         DtStatus  Status;
         // Free running set nominal DCO frequency
-        pDf->m_DcoFreqOffsetPpt = 0;
+        pGenl->m_DcoFreqOffsetPpt = 0;
         Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, FALSE);
         DT_ASSERT(DT_SUCCESS(Status));
         Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, TRUE);
         DT_ASSERT(DT_SUCCESS(Status));
-        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State => FREE RUNNING");
-        *pDcoState = DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING;
-
-        // Signal in lock
-        DtDfGenLockCtrl_NotifyLockChange(pDf, TRUE);
+        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State[%d] => FREE RUNNING",
+                                                               pGenl->m_FractionalClock);
+        pGenl->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING;
     }
     else
     {
-        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State => CRASH LOCK FREQUENCY");
-        *pDcoState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ;
-
-        // Signal no lock
-        DtDfGenLockCtrl_NotifyLockChange(pDf, FALSE);
+        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State[%d] =>  CRASH LOCK FREQUENCY",
+                                                               pGenl->m_FractionalClock);
+        pGenl->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ;
     }
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControlCrashLockFreq -.-.-.-.-.-.-.-.-.-.-.-
 //
 void  DtDfGenLockCtrl_DcoControlCrashLockFreq(DtDfGenLockCtrl* pDf, 
-                                             DtDfGenLockCtrlDcoState* pDcoState, 
-                                             DtDfGenLockCtrlGenRefStatus GenRefStatus,
-                                             DtDfGenLockCtrlGenRefType  GenRefType,
-                                             Int  SofOffset,
-                                             const DtDfGenLockCtrlSofTods* pGenRefSofTods,
-                                             Int64  GenRefAvgFramePeriodPs,
-                                             const DtTodTime* pGenLockSofTod)
+                                                const  DtDfGenLockCtrl_GenRefData*  pGenr,
+                                                DtDfGenLockCtrl_ControlData* pGenl)
 {
     Int64  DcoClockFreqMilliHz, RefClockFreqHz, Remainder, FreqDiffPpb, FreqAdjustPpt;
-    Int64  RefClockFreqMilliHz;
-    Int  GenRefAvgFramePeriodNs = (Int)DIV64(GenRefAvgFramePeriodPs+500, 1000);
+    Int64  RefClockFreqMilliHz, GenRefAvgFramePeriodPs;
     Int  PhaseDiffNs;
     Bool  ValidPhaseDiff;
 
-    // Wait for valid GenRef
-    if (GenRefStatus != DT_DF_GENLOCKCTRL_GENREFSTATUS_OK)
+    // Get second last Genlock SOF-timestamp
+    DtTodTime  GenLockSofTod = pGenl->m_GenLockSofTod[1];
+
+    // No valid Genlock SOF-timestamp? Nothing to do
+    if (GenLockSofTod.m_Seconds==-1 || GenLockSofTod.m_Nanoseconds==-1)
         return;
 
+    // Wait for valid GenRef
+    if (pGenr->m_GenRefStatus != DT_DF_GENLOCKCTRL_GENREFSTATUS_OK)
+        return;
+        
     // Determine phase difference
-    ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, SofOffset, 
-                                                   pGenRefSofTods, GenRefAvgFramePeriodNs, 
-                                                   pGenLockSofTod, &PhaseDiffNs);
+    ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, pGenr, pGenl,
+                                                                            &PhaseDiffNs);
     // Wait for valid phase difference
     if (!ValidPhaseDiff)
         return;
- 
+
+    // GenRef average frameperiod
+    GenRefAvgFramePeriodPs = DtDfGenLockCtrl_FramePeriodMeasureGetAverage(
+                                                               &pGenr->m_GenRefFpMeasure);
+
     // Get DCO-frequency in milli Hz
-    DcoClockFreqMilliHz = DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(pDf);
+    DcoClockFreqMilliHz = DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(pDf, pGenl);
 
     // Compute GenRef (148.5MHz) clock in milliHz
-    RefClockFreqHz = DIV64(pDf->m_FrameLength*Exp12, GenRefAvgFramePeriodPs);
-    Remainder = pDf->m_FrameLength*Exp12 - RefClockFreqHz*GenRefAvgFramePeriodPs;
+    RefClockFreqHz = DIV64(pGenl->m_FrameLength*Exp12, GenRefAvgFramePeriodPs);
+    Remainder = pGenl->m_FrameLength*Exp12 - RefClockFreqHz*GenRefAvgFramePeriodPs;
     RefClockFreqMilliHz = RefClockFreqHz*1000 + DIV64(Remainder*1000,
                                                                   GenRefAvgFramePeriodPs);
 
     // Compute frequency deviation in ppb
     FreqDiffPpb = DIV64((RefClockFreqMilliHz-DcoClockFreqMilliHz)*Exp9,
                                                                      RefClockFreqMilliHz);
-    DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "PpbDiff: %d", (Int)FreqDiffPpb);
+    DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "PpbDiff[%d]: %d", pGenl->m_FractionalClock,
+                                                                        (Int)FreqDiffPpb);
 
     FreqAdjustPpt = FreqDiffPpb*1000;
 
-    // Limitate the step size during crashlock
+    // Limit the step size during crashlock
     if (DIV64(FreqAdjustPpt, Exp6) > MAX_CRASHLOCK_STEP_PPM)
         FreqAdjustPpt = MAX_CRASHLOCK_STEP_PPM*Exp6;
     else if (DIV64(FreqAdjustPpt, Exp6) < -MAX_CRASHLOCK_STEP_PPM)
         FreqAdjustPpt = -MAX_CRASHLOCK_STEP_PPM*Exp6;
 
     // Update DCO-frequency
-    DtDfGenLockCtrl_DcoControlAddDeltaFreq(pDf, (Int)FreqAdjustPpt);
+    DtDfGenLockCtrl_DcoControlAddDeltaFreq(pDf, pGenl, (Int)FreqAdjustPpt);
 
-    if (*pDcoState == DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ)
+    if (pGenl->m_DcoControlState == DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ)
     {
-        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State => CRASH LOCK FREQ CHECK");
-        *pDcoState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ_CHECK;
-        pDf->m_Count = 0;
+        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State[%d] => CRASH LOCK FREQ CHECK",
+                                                                pGenl->m_FractionalClock);
+        pGenl->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ_CHECK;
+        pGenl->m_LockCount = 0;
     } 
     // When the deviation is four times less than 1ppm enter the next state
     else if (FreqDiffPpb>-1000 && FreqDiffPpb<1000)
     {
-        pDf->m_Count++;
-        if (pDf->m_Count >= 4)
+        pGenl->m_LockCount++;
+        if (pGenl->m_LockCount >= 4)
         {
-            DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State => CRASH LOCK PHASE");
-            *pDcoState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE;
+            DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State[%d] => CRASH LOCK PHASE",
+                                                                pGenl->m_FractionalClock);
+            pGenl->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE;
         }
     } 
     else
-        pDf->m_Count = 0;
+        pGenl->m_LockCount = 0;
 }
 
 // .-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControlCrashLockPhase -.-.-.-.-.-.-.-.-.-.-.-
 //
 void  DtDfGenLockCtrl_DcoControlCrashLockPhase(DtDfGenLockCtrl* pDf, 
-                                             DtDfGenLockCtrlDcoState* pDcoState, 
-                                             DtDfGenLockCtrlGenRefStatus GenRefStatus,
-                                             DtDfGenLockCtrlGenRefType  GenRefType,
-                                             Int  SofOffset,
-                                             const DtDfGenLockCtrlSofTods* pGenRefSofTods,
-                                             Int64  GenRefAvgFramePeriodPs,
-                                             const DtTodTime* pGenLockSofTod)
+                                                const  DtDfGenLockCtrl_GenRefData*  pGenr,
+                                                DtDfGenLockCtrl_ControlData* pGenl)
 {
-    Int  GenRefAvgFramePeriodNs = (Int)DIV64(GenRefAvgFramePeriodPs+500, 1000);
+    DtTodTime  GenLockSofTod;
     Int  PhaseDiffNs;
     Bool  ValidPhaseDiff;
 
-    DT_ASSERT(pDf->m_pBcGenLock != NULL);
-    if (pDf->m_pBcGenLock == NULL)
+    DT_ASSERT(pGenl->m_pBcGenLock != NULL);
+    if (pGenl->m_pBcGenLock == NULL)
         return;
 
-    // Invalid GenRef?
-    if (GenRefStatus != DT_DF_GENLOCKCTRL_GENREFSTATUS_OK)
+    // Invalid GenRef signal?
+    if (pGenr->m_GenRefStatus != DT_DF_GENLOCKCTRL_GENREFSTATUS_OK)
     {
         // No valid signal=> restart crash lock frequency
-        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State => CRASH LOCK FREQUENCY");
-        *pDcoState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ;
+        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State[%d] => CRASH LOCK FREQUENCY",
+                                                                pGenl->m_FractionalClock);
+        pGenl->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ;
         return;
     }
+    
+    // Get second last Genlock SOF-timestamp
+    GenLockSofTod =  pGenl->m_GenLockSofTod[1];
+    // No valid Genlock SOF-timestamp? Nothing to do
+    if (GenLockSofTod.m_Seconds==-1 || GenLockSofTod.m_Nanoseconds==-1)
+        return;
 
     // Determine phase difference
-    ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, SofOffset, 
-                                                   pGenRefSofTods, GenRefAvgFramePeriodNs, 
-                                                   pGenLockSofTod, &PhaseDiffNs);
+    ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, pGenr, pGenl,
+                                                                            &PhaseDiffNs);
     if (!ValidPhaseDiff)
     {
         // No valid phase => restart crash lock frequency
-        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State => CRASH LOCK FREQUENCY");
-        *pDcoState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ;
+        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State[%d] => CRASH LOCK FREQUENCY",
+                                                                pGenl->m_FractionalClock);
+        pGenl->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ;
         return;
     }
 
     // Need to perform the phase adjustment?
-    if (*pDcoState == DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE)
+    if (pGenl->m_DcoControlState == DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE)
     { 
         DtStatus  Status;
-        Int64 DcoFreqHz, Adjustment;
+        Int64 DcoFreqHz, AdjustmentClocks;
+        Int AjustmentNs;
+        // GenRef average frameperiod
+        Int64 GenRefAvgFramePeriodPs = DtDfGenLockCtrl_FramePeriodMeasureGetAverage(
+                                                               &pGenr->m_GenRefFpMeasure);
+        Int GenRefAvgFramePeriodNs = (Int)DIV64(GenRefAvgFramePeriodPs+500, 1000);
 
         // Only positive adjustments
-        PhaseDiffNs = GenRefAvgFramePeriodNs - PhaseDiffNs;
-        DT_ASSERT(PhaseDiffNs >= 0);
+        AjustmentNs = GenRefAvgFramePeriodNs - PhaseDiffNs;
+        DT_ASSERT(AjustmentNs >= 0);
 
         // Convert nanoseconds to clockticks
-        DcoFreqHz = DtDfGenLockCtrl_DcoControlGetFrequencyHz(pDf);
-        Adjustment = DIV64(DcoFreqHz * PhaseDiffNs, Exp9);
-        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DcoFreq: %d Adjustment: %d", 
-                                                         (Int)DcoFreqHz, (Int)Adjustment);
-        Status = DtBcGENL_SetCrashLockAdjust(pDf->m_pBcGenLock, (Int)Adjustment);
+        DcoFreqHz = DtDfGenLockCtrl_DcoControlGetFrequencyHz(pDf, pGenl);
+        AdjustmentClocks = DIV64(DcoFreqHz * AjustmentNs, Exp9);
+        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DcoFreq[%d]: %d Adjustment: %d", 
+                        pGenl->m_FractionalClock, (Int)DcoFreqHz, (Int)AdjustmentClocks);
+        Status = DtBcGENL_SetCrashLockAdjust(pGenl->m_pBcGenLock, (Int)AdjustmentClocks);
         if (!DT_SUCCESS(Status))
-            DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "SetCrashLockAdjust failed");
+            DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "SetCrashLockAdjust[%d] failed",
+                                                                pGenl->m_FractionalClock);
         else
         { 
-            DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State => WAIT FOR DONE");
-            *pDcoState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE_WAIT_FOR_DONE;
+            DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State[%d] => WAIT FOR DONE",
+                                                                pGenl->m_FractionalClock);
+            pGenl->m_DcoControlState 
+                                 = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE_WAIT_FOR_DONE;
         }
     }
-    else if (*pDcoState == DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE_WAIT_FOR_DONE)
+    else if (pGenl->m_DcoControlState 
+                                == DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE_WAIT_FOR_DONE)
     { 
         DtStatus  Status;
         Int  CrashLockStatus;
         // Get crashlock status
-        Status = DtBcGENL_GetCrashLockStatus(pDf->m_pBcGenLock, &CrashLockStatus);
+        Status = DtBcGENL_GetCrashLockStatus(pGenl->m_pBcGenLock, &CrashLockStatus);
         if (DT_SUCCESS(Status) && CrashLockStatus==DT_BC_GENL_CRASHLOCK_NORMAL)
         {
             // Crashlock succeeded
-            Int  PhaseDiffNs;
-            Bool  ValidPhaseDiff;
-            ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, SofOffset, 
-                                                   pGenRefSofTods, GenRefAvgFramePeriodNs, 
-                                                   pGenLockSofTod, &PhaseDiffNs);
-            if (ValidPhaseDiff)
-                DtDbgOutDf(MAX, GENLOCKCTRL, pDf, "PhaseDiff: %d ns", PhaseDiffNs);
-            else
-                DtDbgOutDf(ERR, GENLOCKCTRL, pDf, "No valid PhaseDiff");
-            
-            // Enter locked state
-            DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State => LOCKED");
-            *pDcoState = DT_DF_GENLOCKCTRL_STATE_LOCKED;
+            // Note: second last Genlock SOF-timestamp can't be used, it is 
+            // before the crashlock of phase.
 
-            // Signal in lock
-            DtDfGenLockCtrl_NotifyLockChange(pDf, TRUE);
+            // Enter locked state
+            DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State[%d] => LOCKED",
+                                                                pGenl->m_FractionalClock);
+            pGenl->m_PhaseDiffNs = PhaseDiffNs;
+            pGenl->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_LOCKED;
         }
     }
     else
@@ -1231,117 +1326,132 @@ void  DtDfGenLockCtrl_DcoControlCrashLockPhase(DtDfGenLockCtrl* pDf,
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControlLocked -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void  DtDfGenLockCtrl_DcoControlLocked(DtDfGenLockCtrl* pDf, 
-                                             DtDfGenLockCtrlDcoState* pDcoState, 
-                                             DtDfGenLockCtrlGenRefStatus GenRefStatus,
-                                             DtDfGenLockCtrlGenRefType  GenRefType,
-                                             Int  SofOffset,
-                                             const DtDfGenLockCtrlSofTods* pGenRefSofTods,
-                                             Int64  GenRefAvgFramePeriodPs,
-                                             const DtTodTime* pGenLockSofTod)
+                                                const  DtDfGenLockCtrl_GenRefData*  pGenr,
+                                                DtDfGenLockCtrl_ControlData* pGenl)
 {
-    Int64  FreqDiffMilliHz, FreqAdjustPpt;
+    Int64  FreqDiffMilliHz, FreqAdjustPpt, GenRefAvgFramePeriodPs;
     Int  PhaseDiffNs, PhaseBoost;
     Bool ValidPhaseDiff;
     Int64  DcoClockFreqMilliHz, RefClockFreqMilliHz, RefClockFreqHz, Remainder;
-    Int  GenRefAvgFramePeriodNs = (Int)DIV64(GenRefAvgFramePeriodPs+500, 1000);
 
-    // Invalid GenRef? 
-    if (GenRefStatus != DT_DF_GENLOCKCTRL_GENREFSTATUS_OK)
+    // Get second last Genlock SOF-timestamp
+    DtTodTime  GenLockSofTod =  pGenl->m_GenLockSofTod[1];
+
+    // No valid Genlock SOF-timestamp? Nothing to do
+    if (GenLockSofTod.m_Seconds==-1 || GenLockSofTod.m_Nanoseconds==-1)
         return;
 
+    // Invalid GenRef? 
+    if (pGenr->m_GenRefStatus != DT_DF_GENLOCKCTRL_GENREFSTATUS_OK)
+        return;
+
+    // GenRef average frameperiod
+    GenRefAvgFramePeriodPs = DtDfGenLockCtrl_FramePeriodMeasureGetAverage(
+                                                               &pGenr->m_GenRefFpMeasure);
     // Determine phase difference
-    ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, SofOffset, 
-                                                   pGenRefSofTods, GenRefAvgFramePeriodNs, 
-                                                   pGenLockSofTod, &PhaseDiffNs);
+    ValidPhaseDiff = DtDfGenLockCtrl_DcoControlComputePhaseDiff(pDf, pGenr, pGenl,
+                                                                            &PhaseDiffNs);
     if (!ValidPhaseDiff)
         return;
     
     // Check phase difference
-    if (PhaseDiffNs<-pDf->m_DcoControlPars.m_MaxPhaseDiffNs
-                                    || PhaseDiffNs>pDf->m_DcoControlPars.m_MaxPhaseDiffNs)
+    if (PhaseDiffNs<-pGenl->m_DcoControlPars.m_MaxPhaseDiffNs
+                              || PhaseDiffNs>pGenl->m_DcoControlPars.m_MaxPhaseDiffNs)
     {
         // Maximum phase difference exceeded; perform crash lock
-        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State => CRASH LOCK FREQUENCY");
-        *pDcoState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ;
-
-        // Signal no lock
-        DtDfGenLockCtrl_NotifyLockChange(pDf, FALSE);
+        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State[%d] => CRASH LOCK FREQUENCY",
+                                                                pGenl->m_FractionalClock);
+        pGenl->m_DcoControlState = DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ;
         return;
     }
+    
+    // Store current phase difference, it will be used to determine primary/secondary
+    // clock lock
+    pGenl->m_PhaseDiffNs = PhaseDiffNs;
 
     // Get DCO-frequency in milli Hz
-    DcoClockFreqMilliHz = DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(pDf);
+    DcoClockFreqMilliHz = DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(pDf, pGenl);
 
     // Compute GenRef (148.5MHz) clock in milliHz
-    RefClockFreqHz = DIV64(pDf->m_FrameLength*Exp12, GenRefAvgFramePeriodPs);
-    Remainder = pDf->m_FrameLength*Exp12 - RefClockFreqHz*GenRefAvgFramePeriodPs;
+    RefClockFreqHz = DIV64(pGenl->m_FrameLength*Exp12, GenRefAvgFramePeriodPs);
+    Remainder = pGenl->m_FrameLength*Exp12 - RefClockFreqHz*GenRefAvgFramePeriodPs;
     RefClockFreqMilliHz = RefClockFreqHz*1000 + DIV64(Remainder*1000,
                                                                   GenRefAvgFramePeriodPs);
 
     // Compute frequency difference
     FreqDiffMilliHz = RefClockFreqMilliHz - DcoClockFreqMilliHz;
 
-    // Use phase boost to reduce the phase error to 1 pixel
+    // Use phase boost to reduce the phase error to less than 100ns
     PhaseBoost = 1;
-    if (PhaseDiffNs>-100 && PhaseDiffNs<100)
+    if (PhaseDiffNs<-100 || PhaseDiffNs>100)
         PhaseBoost = 5;
 
     // Compute frequency adjustment
-    FreqAdjustPpt =  
-            DIV64(FreqDiffMilliHz*pDf->m_DcoControlPars.m_FreqMult, 1000) 
-          + DIV64((Int64)PhaseBoost*PhaseDiffNs*pDf->m_DcoControlPars.m_PhaseMult, 1000);
+    FreqAdjustPpt =   DIV64(FreqDiffMilliHz * pGenl->m_DcoControlPars.m_FreqMult, 1000) 
+                    + DIV64((Int64)PhaseBoost * PhaseDiffNs
+                                             * pGenl->m_DcoControlPars.m_PhaseMult, 1000);
 
     // Clip the step size
-    if (FreqAdjustPpt > pDf->m_DcoControlPars.m_MaxStepPpt)
-        FreqAdjustPpt = pDf->m_DcoControlPars.m_MaxStepPpt;
-    else if (FreqAdjustPpt < -pDf->m_DcoControlPars.m_MaxStepPpt)
-        FreqAdjustPpt = -pDf->m_DcoControlPars.m_MaxStepPpt;
-    
+    if (FreqAdjustPpt > pGenl->m_DcoControlPars.m_MaxStepPpt)
+        FreqAdjustPpt = pGenl->m_DcoControlPars.m_MaxStepPpt;
+    else if (FreqAdjustPpt < -pGenl->m_DcoControlPars.m_MaxStepPpt)
+        FreqAdjustPpt = -pGenl->m_DcoControlPars.m_MaxStepPpt;
+
     // Apply frequency adjustment
-    DtDfGenLockCtrl_DcoControlAddDeltaFreq(pDf, (Int)FreqAdjustPpt);
+    DtDfGenLockCtrl_DcoControlAddDeltaFreq(pDf, pGenl, (Int)FreqAdjustPpt);
     
-    pDf->m_Count++;
-    if (pDf->m_Count%100 == 1)
-        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "FreqDiff: %d Hz; PhaseDiff: %d ns; Offset: %d", 
-                                            (Int)DIV64(FreqDiffMilliHz,1000), PhaseDiffNs,
-                                            (Int)DIV64(pDf->m_DcoFreqOffsetPpt,1000));
+    pGenl->m_LockCount++;
+    if (pGenl->m_LockCount%100 == 1)
+        DtDbgOutDf(AVG, GENLOCKCTRL, pDf, 
+                                      "FreqDiff[%d]: %d Hz; PhaseDiff: %d ns; Offset: %d",
+                                      pGenl->m_FractionalClock,
+                                      (Int)DIV64(FreqDiffMilliHz,1000), PhaseDiffNs,
+                                      (Int)DIV64(pGenl->m_DcoFreqOffsetPpt,1000));
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoFreeRunning -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void  DtDfGenLockCtrl_DcoFreeRunning(DtDfGenLockCtrl* pDf, 
-                                             DtDfGenLockCtrlDcoState* pDcoState, 
-                                             DtDfGenLockCtrlGenRefStatus GenRefStatus,
-                                             DtDfGenLockCtrlGenRefType  GenRefType,
-                                             Int  SofOffset,
-                                             const DtDfGenLockCtrlSofTods* pGenRefSofTods,
-                                             Int64  GenRefAvgFramePeriodPs,
-                                             const DtTodTime* pGenLockSofTod)
+                                                const  DtDfGenLockCtrl_GenRefData*  pGenr,
+                                                DtDfGenLockCtrl_ControlData* pGenl)
 {
     // Nothing to do
 }
 // .-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DetermineGenRefStatus -.-.-.-.-.-.-.-.-.-.-.-.
+// 
+// Must be called under spinlock protection or must operation on copies of GenRefData and
+// ControlData.
 //
-DtDfGenLockCtrlGenRefStatus  DtDfGenLockCtrl_DetermineGenRefStatus(DtDfGenLockCtrl* pDf, 
-                                             DtDfGenLockCtrlGenRefType  GenRefType,
-                                             const DtDfGenLockCtrlSofTods* pGenRefSofTods,
-                                             Int64  GenRefAvgFramePeriodPs,
-                                             const DtTodTime* pGenLockSofTod)
+DtDfGenLockCtrl_GenRefStatus  DtDfGenLockCtrl_DetermineGenRefStatus(DtDfGenLockCtrl* pDf, 
+                                                const  DtDfGenLockCtrl_GenRefData*  pGenr,
+                                                const DtDfGenLockCtrl_ControlData* pGenl)
 {
-    // Undefined GenRef?
-    if  (GenRefType == DT_DF_GENLOCKCTRL_GENREF_UNDEFINED)
+    // GenRef average frameperiod
+    Int64 GenRefAvgFramePeriodPs = DtDfGenLockCtrl_FramePeriodMeasureGetAverage(
+                                                               &pGenr->m_GenRefFpMeasure);
+
+    // Get second last Genlock SOF-timestamp
+    DtTodTime  GenLockSofTod =  pGenl->m_GenLockSofTod[1];
+
+    // No valid Genlock SOF-timestamp?
+    if (GenLockSofTod.m_Seconds==-1 || GenLockSofTod.m_Nanoseconds==-1)
         return DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
 
-    // Check absence of signal for more than 200 milliseconds
-    if (DtDfGenLockCtrl_SofTodsTimeDiff(pGenLockSofTod, pGenRefSofTods) > 2*Exp8)
+    // Undefined GenRef?
+    if  (pGenr->m_GenRefType == DT_DF_GENLOCKCTRL_GENREF_UNDEFINED)
+        return DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
+
+    // Check absence of genref signal for more than 200 milliseconds
+    if (DtDfGenLockCtrl_GenRefSofTodsTimeDiff(&GenLockSofTod, &pGenr->m_GenRefSofTods)
+                                                                                 > 2*Exp8)
         return DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
 
     // Virtual GenRef doesn't have to be accurate
-    if (GenRefType == DT_DF_GENLOCKCTRL_GENREF_VIRTUAL)
+    if (pGenr->m_GenRefType == DT_DF_GENLOCKCTRL_GENREF_VIRTUAL)
         return DT_DF_GENLOCKCTRL_GENREFSTATUS_OK;
 
     // Insufficient valid and recent reference timestamps?
-    if (DtDfGenLockCtrl_SofTodsNumAvailable(pGenRefSofTods)<2
+    if (DtDfGenLockCtrl_GenRefSofTodsNumAvailable(&pGenr->m_GenRefSofTods)<2
                                                              || GenRefAvgFramePeriodPs<=0)
         return DT_DF_GENLOCKCTRL_GENREFSTATUS_INVALID_SIGNAL;
 
@@ -1350,66 +1460,85 @@ DtDfGenLockCtrlGenRefStatus  DtDfGenLockCtrl_DetermineGenRefStatus(DtDfGenLockCt
 
 // -.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControlAddDeltaFreq -.-.-.-.-.-.-.-.-.-.-.-.
 //
-void  DtDfGenLockCtrl_DcoControlAddDeltaFreq(DtDfGenLockCtrl* pDf, Int DeltaPpt)
+void  DtDfGenLockCtrl_DcoControlAddDeltaFreq(DtDfGenLockCtrl* pDf, 
+                                         DtDfGenLockCtrl_ControlData* pGenl, Int DeltaPpt)
 {
+
     DtStatus  Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 
-                              pDf->m_DcoFreqOffsetPpt + DeltaPpt, pDf->m_FractionalClock);
+                  pGenl->m_DcoFreqOffsetPpt + DeltaPpt, pGenl->m_FractionalClock);
     DT_ASSERT(DT_SUCCESS(Status));
     if (DT_SUCCESS(Status))
-        pDf->m_DcoFreqOffsetPpt += DeltaPpt;
+        pGenl->m_DcoFreqOffsetPpt += DeltaPpt;
 }
 
 // .-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControlGetFrequencyHz -.-.-.-.-.-.-.-.-.-.-.-
 //
-Int  DtDfGenLockCtrl_DcoControlGetFrequencyHz(DtDfGenLockCtrl* pDf)
+Int  DtDfGenLockCtrl_DcoControlGetFrequencyHz(DtDfGenLockCtrl* pDf,
+                                                 const DtDfGenLockCtrl_ControlData* pGenl)
 {
-    Int64  Freq = 0;
-    if  (pDf->m_DcoFreqOffsetPpt > 0)
-        Freq = 148500000LL + DIV64(1485LL * pDf->m_DcoFreqOffsetPpt + 5*Exp6, 10*Exp6);
+    Int64  Freq = 148500000LL;
+    if  (pGenl->m_DcoFreqOffsetPpt >= 0)
+        Freq += DIV64(1485LL * pGenl->m_DcoFreqOffsetPpt + 5*Exp6, 10*Exp6);
     else
-        Freq = 148500000LL + DIV64(1485LL * pDf->m_DcoFreqOffsetPpt - 5*Exp6, 10*Exp6);
-    if (pDf->m_FractionalClock)
+        Freq += DIV64(1485LL * pGenl->m_DcoFreqOffsetPpt - 5*Exp6, 10*Exp6);
+    if (pGenl->m_FractionalClock)
         Freq = DIV64(Freq*1000, 1001);
     return (Int)Freq;
 }
 
 // -.-.-.-.-.-.-.-.-.- <DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz -.-.-.-.-.-.-.-.-.-.
 //
-Int64  DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(DtDfGenLockCtrl* pDf)
+Int64  DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(DtDfGenLockCtrl* pDf,
+                                                 const DtDfGenLockCtrl_ControlData* pGenl)
 {
-    Int64  Freq = 0;
-    if  (pDf->m_DcoFreqOffsetPpt > 0)  
-        Freq = 148500000000LL + DIV64(1485LL * pDf->m_DcoFreqOffsetPpt + 5*Exp3, 10*Exp3);
+    Int64  Freq = 148500000000LL;
+    if  (pGenl->m_DcoFreqOffsetPpt >= 0)  
+        Freq += DIV64(1485LL * pGenl->m_DcoFreqOffsetPpt + 5*Exp3, 10*Exp3);
     else
-        Freq = 148500000000LL + DIV64(1485LL * pDf->m_DcoFreqOffsetPpt - 5*Exp3, 10*Exp3);
-    if (pDf->m_FractionalClock)
+        Freq += DIV64(1485LL * pGenl->m_DcoFreqOffsetPpt - 5*Exp3, 10*Exp3);
+    if (pGenl->m_FractionalClock)
         Freq = DIV64(Freq*1000, 1001);
     return Freq;
 }
 
 // -.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControlComputePhaseDiff -.-.-.-.-.-.-.-.-.-.-.
 //
-Bool DtDfGenLockCtrl_DcoControlComputePhaseDiff(DtDfGenLockCtrl* pDf, Int SofOffset,
-                                          const DtDfGenLockCtrlSofTods* pGenRefSofTods,
-                                          Int  GenRefAvgFramePeriodNs,
-                                          const DtTodTime* pGenLockSofTod,
-                                          Int* pPhaseDiffNs)
+// Must be called under spinlock protection or must operation on copies of GenRefData and
+// ControlData.
+//
+Bool DtDfGenLockCtrl_DcoControlComputePhaseDiff(DtDfGenLockCtrl* pDf,
+                                                 const DtDfGenLockCtrl_GenRefData*  pGenr,
+                                                 const DtDfGenLockCtrl_ControlData* pGenl,
+                                                 Int* pPhaseDiffNs)
 {
-    Int i, NumGenRefSofTodsAva;
+    Int64 GenRefAvgFramePeriodPs;
+    Int GenRefAvgFramePeriodNs, i, NumGenRefSofTodsAva,  SofOffset;
     DtTodTime  GenLockSofTod, GenRefSofTod;
     Int64  PhaseDiff=0;
     Bool  Valid = FALSE;
 
-    // Start-of-Frame will be generated with an offset
-    SofOffset = DT_DF_GENLOCKCTRL_START_OF_FRAME_OFFSET - SofOffset;
+    // Get second last Genlock SOF-timestamp
+    GenLockSofTod =  pGenl->m_GenLockSofTod[1];
 
-    GenLockSofTod = *pGenLockSofTod;
+    // No valid Genlock SOF-timestamp?
+    if (GenLockSofTod.m_Seconds==-1 || GenLockSofTod.m_Nanoseconds==-1)
+        return FALSE;
+
+    // GenRef average frameperiod
+    GenRefAvgFramePeriodPs = DtDfGenLockCtrl_FramePeriodMeasureGetAverage(
+                                                               &pGenr->m_GenRefFpMeasure);
+    GenRefAvgFramePeriodNs = (Int)DIV64(GenRefAvgFramePeriodPs+500, 1000);
+
+    // Start-of-Frame will be generated with an offset
+    SofOffset = DT_DF_GENLOCKCTRL_START_OF_FRAME_OFFSET 
+                                                      - pGenr->m_GenRefStartOfFrameOffset;
     GenLockSofTod = DtCore_TOD_Add(GenLockSofTod, SofOffset);
     // Find the related GenRef Start-of-Frame timestamp
-    NumGenRefSofTodsAva = DtDfGenLockCtrl_SofTodsNumAvailable(pGenRefSofTods);
+    NumGenRefSofTodsAva = DtDfGenLockCtrl_GenRefSofTodsNumAvailable(
+                                                                 &pGenr->m_GenRefSofTods);
     for (i=0; i<NumGenRefSofTodsAva && !Valid; i++)
     {
-        GenRefSofTod = DtDfGenLockCtrl_SofTodsGet(pGenRefSofTods, i);
+        GenRefSofTod = DtDfGenLockCtrl_GenRefSofTodsGet(&pGenr->m_GenRefSofTods, i);
         PhaseDiff = DtCore_TOD_TimeDiff(GenLockSofTod, GenRefSofTod) 
                                                                  - GenRefAvgFramePeriodNs;
         Valid = (PhaseDiff>-GenRefAvgFramePeriodNs/2 
@@ -1419,17 +1548,45 @@ Bool DtDfGenLockCtrl_DcoControlComputePhaseDiff(DtDfGenLockCtrl* pDf, Int SofOff
     return Valid;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DetermineSecondaryVidStd -.-.-.-.-.-.-.-.-.-.-.-
+//
+Int DtDfGenLockCtrl_DetermineSecondaryVidStd(Int PrimVidStd)
+{
+    switch (PrimVidStd)
+    {
+    // A primary video standard with frame rate of 29.97fps other than 525i59, 
+    // uses 525i59 as secondary video standard
+    case DT_VIDSTD_720P29_97:
+    case DT_VIDSTD_1080P29_97:
+    case DT_VIDSTD_1080PSF29_97:
+    case DT_VIDSTD_1080I59_94:
+    case DT_VIDSTD_2160P29_97:
+        return DT_VIDSTD_525I59_94;
+
+    // The primary video standard 525i59 uses 1080i59 as secondary video standard
+    case DT_VIDSTD_525I59_94:
+        return DT_VIDSTD_1080I59_94;
+
+    default:
+        return DT_VIDSTD_UNKNOWN;
+    }
+}
+
 // .-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenRefStartOfFrameHandler -.-.-.-.-.-.-.-.-.-.-.
 //
 void DtDfGenLockCtrl_GenRefStartOfFrameHandler(DtDfGenLockCtrl* pDf, Int PortIdx,
-                                   const DtTodTime*  pSofTod, Int SofOffset, Int VidStd,
-                                   Int DetectVidStd, DtDfGenLockCtrlGenRefType GenRefType)
+                                  const DtTodTime*  pSofTod, Int SofOffset, Int VidStd,
+                                  Int DetectVidStd, DtDfGenLockCtrl_GenRefType GenRefType)
 {
+    DtDfGenLockCtrl_GenRefData* pGenr;
+
     // Sanity check
     DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
 
     if (pSofTod == NULL)
         return;
+
+    pGenr = &pDf->m_GenRefData;
 
     // Start-of-frame offset range: +/- 20ms StartOfFrame offset
     if (SofOffset<-20000000 || SofOffset>20000000)
@@ -1439,79 +1596,108 @@ void DtDfGenLockCtrl_GenRefStartOfFrameHandler(DtDfGenLockCtrl* pDf, Int PortIdx
     }
 
     DtSpinLockAcquire(&pDf->m_SofSpinLock);
-    // Only when genlock control is enabled
-    if (pDf->m_GenLockControlEnabled)
+    // Only when primary genlock control is enabled
+    if (pDf->m_Genl[0].m_GenLockControlEnabled)
     {
         // Check on genref change?
-        if (PortIdx!=pDf->m_GenRefPortIndex || VidStd!=pDf->m_GenRefVidStd
-                                   || SofOffset!=pDf->m_GenRefStartOfFrameOffset 
-                                   || GenRefType!=pDf->m_GenRefType)
+        if (PortIdx!=pGenr->m_GenRefPortIndex || VidStd!=pGenr->m_GenRefVidStd
+                                   || SofOffset!=pGenr->m_GenRefStartOfFrameOffset 
+                                   || GenRefType!=pGenr->m_GenRefType)
         {
             // -.-.-.-.-.-.-.-.-.-.-.-.- GenRef change detected -.-.-.-.-.-.-.-.-.-.-.-.-.
             DtDbgOutDf(MIN, GENLOCKCTRL, pDf, "GenRef change detected");
             
             // Clear GenRef timestamps
-            DtDfGenLockCtrl_SofTodsClear(&pDf->m_GenRefSofTods);
+            DtDfGenLockCtrl_GenRefSofTodsClear(&pGenr->m_GenRefSofTods);
             // Clear GenRef frame period measurements
-            DtDfGenLockCtrl_FramePeriodMeasureClear(&pDf->m_GenRefFpMeasure);
+            DtDfGenLockCtrl_FramePeriodMeasureClear(&pGenr->m_GenRefFpMeasure);
             // Use 1 second buffer
-            pDf->m_GenRefFpMeasure.m_BufSize = DtAvVidStd2Fps(VidStd);
+            pGenr->m_GenRefFpMeasure.m_BufSize = DtAvVidStd2Fps(VidStd);
 
             // Update other information
-            pDf->m_GenRefType = GenRefType;
-            pDf->m_GenRefVidStd = VidStd;
-            pDf->m_GenRefStartOfFrameOffset = SofOffset;
-            pDf->m_GenRefPortIndex = PortIdx;
-            pDf->m_GenRefFramePeriod = DtAvVidStd2FramePeriod(VidStd);
+            pGenr->m_GenRefType = GenRefType;
+            pGenr->m_GenRefVidStd = VidStd;
+            pGenr->m_GenRefStartOfFrameOffset = SofOffset;
+            pGenr->m_GenRefPortIndex = PortIdx;
+            pGenr->m_GenRefFramePeriod = DtAvVidStd2FramePeriod(VidStd);
             // Start pessimistic
-            pDf->m_GenRefStatus = DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
+            pGenr->m_GenRefStatus = DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL;
 
             // Change detected
-            pDf->m_GenRefParChanged = TRUE;
+            pGenr->m_GenRefParChanged = TRUE;
         }
 
         // Store detected video standard
-        pDf->m_GenRefDetectVidStd = DetectVidStd;
+        pGenr->m_GenRefDetectVidStd = DetectVidStd;
 
         // Add new GenRef timestamp
-        DtDfGenLockCtrl_SofTodsAdd(pDf, &pDf->m_GenRefSofTods, pSofTod, 
-                                                                pDf->m_GenRefFramePeriod);
+        DtDfGenLockCtrl_GenRefSofTodsAdd(pDf, &pGenr->m_GenRefSofTods, pSofTod, 
+                                                              pGenr->m_GenRefFramePeriod);
         // Frame period available? Add sample to frame measurement data
-        if (pDf->m_GenRefSofTods.m_LastFramePeriod > 0)
-            DtDfGenLockCtrl_FramePeriodMeasureAdd(&pDf->m_GenRefFpMeasure,
-                                                  pDf->m_GenRefSofTods.m_LastFramePeriod);
+        if (pGenr->m_GenRefSofTods.m_LastFramePeriod > 0)
+            DtDfGenLockCtrl_FramePeriodMeasureAdd(&pGenr->m_GenRefFpMeasure,
+                                                pGenr->m_GenRefSofTods.m_LastFramePeriod);
     }
     DtSpinLockRelease(&pDf->m_SofSpinLock);
 }
 
-// -.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenLockStartOfFrameHandler -.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenLockStartOfFrameHandlerPrimary -.-.-.-.-.-.-.-.-.
 //
-void  DtDfGenLockCtrl_GenLockStartOfFrameHandler(DtObject* pObj, const DtTodTime* pSofTod)
+// Primary genlock start of frame handler
+//
+void DtDfGenLockCtrl_GenLockStartOfFrameHandlerPrimary(DtObject* pObj, 
+                                                                 const DtTodTime* pSofTod)
 {
     DtDfGenLockCtrl*  pDf = (DtDfGenLockCtrl*)pObj;
-    
+    DtDfGenLockCtrl_ControlData* pGenl = &pDf->m_Genl[0];
+    DtDfGenLockCtrl_GenLockStartOfFrameHandler(pDf, pGenl, pSofTod);
+}
+
+// -.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenLockStartOfFrameHandlerSecondary -.-.-.-.-.-.-.-.-
+//
+// Secondary genlock start of frame handler
+//
+void DtDfGenLockCtrl_GenLockStartOfFrameHandlerSecondary(DtObject* pObj, 
+                                                                 const DtTodTime* pSofTod)
+{
+    DtDfGenLockCtrl*  pDf = (DtDfGenLockCtrl*)pObj;
+    DtDfGenLockCtrl_ControlData* pGenl = &pDf->m_Genl[1];
+    DtDfGenLockCtrl_GenLockStartOfFrameHandler(pDf, pGenl, pSofTod);
+}
+
+// -.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenLockStartOfFrameHandler -.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtDfGenLockCtrl_GenLockStartOfFrameHandler(DtDfGenLockCtrl*  pDf,
+                                                       DtDfGenLockCtrl_ControlData* pGenl,
+                                                       const DtTodTime* pSofTod)
+{
     // Sanity check
     DF_GENLOCKCTRL_DEFAULT_PRECONDITIONS(pDf);
 
     DtSpinLockAcquire(&pDf->m_SofSpinLock);
     // Only when genlocking is enabled
-    if (pDf->m_GenLockControlEnabled)
+    if (pGenl->m_GenLockControlEnabled)
     {
-        // Store timestamp
-        pDf->m_GenLockSofTod[1] = pDf->m_GenLockSofTod[0];
-        pDf->m_GenLockSofTod[0] = *pSofTod;
+        // Store timestamp; [0] contains last and [1] contains second last timestamp
+        pGenl->m_GenLockSofTod[1] = pGenl->m_GenLockSofTod[0];
+        pGenl->m_GenLockSofTod[0] = *pSofTod;
 
         // If we have valid timestamps signal the start-of-frame event
-        if (pDf->m_GenLockSofTod[1].m_Seconds!=-1 
-                                             && pDf->m_GenLockSofTod[1].m_Nanoseconds!=-1)
+        if (pGenl->m_GenLockSofTod[1].m_Seconds!=-1 
+                                           && pGenl->m_GenLockSofTod[1].m_Nanoseconds!=-1)
+        {
+            pGenl->m_NewSofTodStored = TRUE;
             DtEventSet(&pDf->m_DcoControlSofEvent);
+        }
     }
     DtSpinLockRelease(&pDf->m_SofSpinLock);
 }
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_SofTodsClear -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenRefSofTodsClear -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void DtDfGenLockCtrl_SofTodsClear(DtDfGenLockCtrlSofTods* pSofTods)
+// Must be called under spinlock protection
+//
+void DtDfGenLockCtrl_GenRefSofTodsClear(DtDfGenLockCtrl_GenRefSofTods* pSofTods)
 {
     DT_ASSERT(pSofTods != NULL);
         // Clear GenLock timestamps
@@ -1520,9 +1706,12 @@ void DtDfGenLockCtrl_SofTodsClear(DtDfGenLockCtrlSofTods* pSofTods)
     pSofTods->m_LastFramePeriod = 0;
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_SofTodsAdd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenRefSofTodsAdd -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void DtDfGenLockCtrl_SofTodsAdd(DtDfGenLockCtrl* pDf,  DtDfGenLockCtrlSofTods* pSofTods,
+// Must be called under spinlock protection
+//
+void DtDfGenLockCtrl_GenRefSofTodsAdd(DtDfGenLockCtrl* pDf, 
+                                          DtDfGenLockCtrl_GenRefSofTods* pSofTods,
                                           const DtTodTime* pSofTod, Int ExpectFramePeriod)
 {
     const Int SOFTODS_SIZE = DT_DF_GENLOCKCTRL_SOFTOD_SIZE;
@@ -1547,11 +1736,11 @@ void DtDfGenLockCtrl_SofTodsAdd(DtDfGenLockCtrl* pDf,  DtDfGenLockCtrlSofTods* p
             // If the deviation is too much, clear the history of timestamps
             if (PpmDiff<-MAX_DEVIATION_PPM || PpmDiff>MAX_DEVIATION_PPM)
             { 
-                if ( pDf->m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_UNDEFINED
-                                   && pDf->m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_VIRTUAL)
+                if (pDf->m_GenRefData.m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_UNDEFINED
+                      && pDf->m_GenRefData.m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_VIRTUAL)
                     DtDbgOutDf(MIN, GENLOCKCTRL, pDf, "Unexpected GenRef deviation: %d",
                                                                                  PpmDiff);
-                DtDfGenLockCtrl_SofTodsClear(pSofTods);
+                DtDfGenLockCtrl_GenRefSofTodsClear(pSofTods);
             }
         }
     }
@@ -1565,9 +1754,12 @@ void DtDfGenLockCtrl_SofTodsAdd(DtDfGenLockCtrl* pDf,  DtDfGenLockCtrlSofTods* p
     pSofTods->m_TotalNumSofTods++;
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_SofTodsGetLast -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenRefSofTodsGetLast -.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtTodTime  DtDfGenLockCtrl_SofTodsGetLast(const DtDfGenLockCtrlSofTods* pSofTods)
+// Must be called under spinlock protection or must operation on a copy of GenRefData.
+//
+DtTodTime  DtDfGenLockCtrl_GenRefSofTodsGetLast(const DtDfGenLockCtrl_GenRefSofTods*
+                                                                                 pSofTods)
 {
     const Int SOFTODS_SIZE = DT_DF_GENLOCKCTRL_SOFTOD_SIZE;
     Int  PrevIdx = (pSofTods->m_SofTodIdx+SOFTODS_SIZE-1)%SOFTODS_SIZE;
@@ -1577,36 +1769,45 @@ DtTodTime  DtDfGenLockCtrl_SofTodsGetLast(const DtDfGenLockCtrlSofTods* pSofTods
 
 // -.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_SofTodsNumAvailable -.-.-.-.-.-.-.-.-.-.-.-.-
 //
-Int  DtDfGenLockCtrl_SofTodsNumAvailable(const DtDfGenLockCtrlSofTods* pSofTods)
+// Must be called under spinlock protection or must operation on a copy of GenRefData.
+//
+Int  DtDfGenLockCtrl_GenRefSofTodsNumAvailable(const DtDfGenLockCtrl_GenRefSofTods*
+                                                                                 pSofTods)
 {
     return pSofTods->m_NumSofTods;
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_SofTodsGet -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenRefSofTodsGet -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtTodTime  DtDfGenLockCtrl_SofTodsGet(const DtDfGenLockCtrlSofTods* pSofTods, Int Idx)
+// Must be called under spinlock protection or must operation on a copy of GenRefData.
+//
+DtTodTime  DtDfGenLockCtrl_GenRefSofTodsGet(const DtDfGenLockCtrl_GenRefSofTods* pSofTods,
+                                                                                  Int Idx)
 {
-    DT_ASSERT(DtDfGenLockCtrl_SofTodsNumAvailable(pSofTods) > Idx);
+    DT_ASSERT(DtDfGenLockCtrl_GenRefSofTodsNumAvailable(pSofTods) > Idx);
     return pSofTods->m_SofTods[Idx];
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_SofTodsTimeDiff -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GenRefSofTodsTimeDiff -.-.-.-.-.-.-.-.-.-.-.-.
 //
-//  Returns Time - latest SofTod
+// Returns Time - latest SofTod
+// Must be called under spinlock protection or must operation on a copy of GenRefData.
 //
-Int64 DtDfGenLockCtrl_SofTodsTimeDiff(const DtTodTime* pTime, 
-                                                   const DtDfGenLockCtrlSofTods* pSofTods)
+Int64 DtDfGenLockCtrl_GenRefSofTodsTimeDiff(const DtTodTime* pTime, 
+                                            const DtDfGenLockCtrl_GenRefSofTods* pSofTods)
 {
     DtTodTime  LastSofTod;
     if (pSofTods->m_NumSofTods <= 0)
         return (Int64)((1ULL<<63) - 1);
-    LastSofTod = DtDfGenLockCtrl_SofTodsGetLast(pSofTods);
+    LastSofTod = DtDfGenLockCtrl_GenRefSofTodsGetLast(pSofTods);
     return DtCore_TOD_TimeDiff(*pTime , LastSofTod);
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_FramePeriodMeasureClear -.-.-.-.-.-.-.-.-.-.-.-
 //
-void DtDfGenLockCtrl_FramePeriodMeasureClear(DtDfGenLockCtrlFramePeriodMeasure* 
+// Must be called under spinlock protection.
+//
+void DtDfGenLockCtrl_FramePeriodMeasureClear(DtDfGenLockCtrl_FramePeriodMeasure* 
                                                                                pFpMeasure)
 {
     pFpMeasure->m_Index = 0;
@@ -1617,7 +1818,9 @@ void DtDfGenLockCtrl_FramePeriodMeasureClear(DtDfGenLockCtrlFramePeriodMeasure*
 
 // .-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_FramePeriodMeasureAdd -.-.-.-.-.-.-.-.-.-.-.-.
 //
-void DtDfGenLockCtrl_FramePeriodMeasureAdd(DtDfGenLockCtrlFramePeriodMeasure* pFpMeasure,
+// Must be called under spinlock protection.
+//
+void DtDfGenLockCtrl_FramePeriodMeasureAdd(DtDfGenLockCtrl_FramePeriodMeasure* pFpMeasure,
                                                                           Int FramePeriod)
 {
     DT_ASSERT(pFpMeasure != NULL);
@@ -1642,10 +1845,11 @@ void DtDfGenLockCtrl_FramePeriodMeasureAdd(DtDfGenLockCtrlFramePeriodMeasure* pF
 
 // .-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_FramePeriodMeasureGetAverage -.-.-.-.-.-.-.-.-.-.-
 //
-//  Returns avarate frame period in pico seconds
+//  Returns avarate frame period in pico seconds.
+// Must be called under spinlock protection or must operation on a copy of GenRefData.
 //
 Int64 DtDfGenLockCtrl_FramePeriodMeasureGetAverage(
-                                      const DtDfGenLockCtrlFramePeriodMeasure* pFpMeasure)
+                                      const DtDfGenLockCtrl_FramePeriodMeasure* pFpMeasure)
 {
     DT_ASSERT(pFpMeasure != NULL);
     if (pFpMeasure->m_NumValid > 0)
@@ -1656,9 +1860,9 @@ Int64 DtDfGenLockCtrl_FramePeriodMeasureGetAverage(
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GetDcoControlPars -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtDfGenLockCtrlDcoControlPars  DtDfGenLockCtrl_GetDcoControlPars(Int  VidStd)
+DtDfGenLockCtrl_DcoControlPars  DtDfGenLockCtrl_GetDcoControlPars(Int  VidStd)
 {
-    DtDfGenLockCtrlDcoControlPars  ControlPars = { 4800, 6, 1000, 17780};
+    DtDfGenLockCtrl_DcoControlPars  ControlPars = { 4800, 6, 1000, 17780};
     DtAvFrameProps  VidProps;
     Int FramePeriodNs, NumLines;
     DtStatus Status = DtAvGetFrameProps(VidStd, &VidProps);
@@ -1700,22 +1904,57 @@ DtDfGenLockCtrlDcoControlPars  DtDfGenLockCtrl_GetDcoControlPars(Int  VidStd)
 //
 Int DtDfGenLockCtrl_GetGenLockStatusInternal(DtDfGenLockCtrl* pDf)
 {
-    if (pDf->m_GenRefStatus == DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL)
+    // Maximum 500ns phase difference between primary and secondary allowed
+    const Int MAX_PRIM_SEC_PHASEDIFF = 500;
+    if (pDf->m_GenRefData.m_GenRefStatus == DT_DF_GENLOCKCTRL_GENREFSTATUS_NO_SIGNAL)
         return DT_GENLOCKCTRL_STATE_NO_REF;
 
-    if (pDf->m_GenRefStatus == DT_DF_GENLOCKCTRL_GENREFSTATUS_INVALID_SIGNAL)
+    if (pDf->m_GenRefData.m_GenRefStatus == DT_DF_GENLOCKCTRL_GENREFSTATUS_INVALID_SIGNAL)
         return DT_GENLOCKCTRL_STATE_INVALID_REF;
 
-    switch (pDf->m_DcoControlState)
+    // Determine state of the primary genlock
+    switch (pDf->m_Genl[0].m_DcoControlState)
     {
     default:  DT_ASSERT(FALSE);
-    case DT_DF_GENLOCKCTRL_STATE_INITIAL:          return DT_GENLOCKCTRL_STATE_LOCKING;
-    case DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING:     return DT_GENLOCKCTRL_STATE_FREE_RUN;
+    case DT_DF_GENLOCKCTRL_STATE_INITIAL:
+        return DT_GENLOCKCTRL_STATE_LOCKING;
+    case DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING:
+        return DT_GENLOCKCTRL_STATE_FREE_RUN;
     case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ_CHECK:
-    case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ:  return DT_GENLOCKCTRL_STATE_LOCKING;
+    case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ:
+        return DT_GENLOCKCTRL_STATE_LOCKING;
     case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE_WAIT_FOR_DONE:
-    case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE: return DT_GENLOCKCTRL_STATE_LOCKING;
-    case DT_DF_GENLOCKCTRL_STATE_LOCKED:           return DT_GENLOCKCTRL_STATE_LOCKED;
+    case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE:
+        return DT_GENLOCKCTRL_STATE_LOCKING;
+    case DT_DF_GENLOCKCTRL_STATE_LOCKED:
+    {
+        // No secondary genlock? Then we are in lock.
+        if (!pDf->m_Genl[1].m_GenLockControlEnabled)
+            return DT_GENLOCKCTRL_STATE_LOCKED;
+
+        // Primary is locked; Now the secondary determines the overall genlock state
+        switch (pDf->m_Genl[1].m_DcoControlState)
+        {
+        default:
+        case DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING:    DT_ASSERT(FALSE);
+        case DT_DF_GENLOCKCTRL_STATE_INITIAL:
+            return DT_GENLOCKCTRL_STATE_LOCKING;
+        case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ_CHECK:
+        case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_FREQ:
+            return DT_GENLOCKCTRL_STATE_LOCKING;
+        case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE_WAIT_FOR_DONE:
+        case DT_DF_GENLOCKCTRL_STATE_CRASH_LOCK_PHASE:
+            return DT_GENLOCKCTRL_STATE_LOCKING;
+        case DT_DF_GENLOCKCTRL_STATE_LOCKED:
+        {
+            Int PhaseDiff = pDf->m_Genl[0].m_PhaseDiffNs - pDf->m_Genl[1].m_PhaseDiffNs;
+            if (PhaseDiff>-MAX_PRIM_SEC_PHASEDIFF && PhaseDiff<MAX_PRIM_SEC_PHASEDIFF)
+                return DT_GENLOCKCTRL_STATE_LOCKED;
+            else
+                return DT_GENLOCKCTRL_STATE_LOCKING;
+        }
+        }
+    }
     }
 }
 
@@ -1755,8 +1994,8 @@ void DtDfGenLockCtrl_NotifyLockChange(DtDfGenLockCtrl* pDf, Bool Locked)
     NumElems = DtVector_Size(pDf->m_pOnLockChangedHandlers);
     for (i=0; i<NumElems; i++)
     {
-        const DtDfGenLockCtrlLockChangedRegData*  pRegData = 
-        (DtDfGenLockCtrlLockChangedRegData*)DtVector_At(pDf->m_pOnLockChangedHandlers, i);
+        const DtDfGenLockCtrl_LockChangedRegData*  pRegData = 
+        (DtDfGenLockCtrl_LockChangedRegData*)DtVector_At(pDf->m_pOnLockChangedHandlers, i);
         DT_ASSERT(pRegData!=NULL && pRegData->m_OnLockChangedFunc!=NULL);
         if (pRegData==NULL || pRegData->m_OnLockChangedFunc==NULL)
             continue;

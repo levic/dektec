@@ -41,6 +41,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards of private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 static DtStatus  DtBcST425LR_Init(DtBc*);
 static DtStatus  DtBcST425LR_OnEnable(DtBc*, Bool);
+static DtStatus  DtBcST425LR_OnCloseFile(DtBc*, const DtFileObject*);
 static void  DtBcST425LR_SetControlRegs(DtBcST425LR*, Bool BlkEna, Int OpMode, 
                                                                   const UInt8 pLinkIn[4]);
 static Bool DtBcST425LR_AreQuadLinksSwapped(DtBcST425LR* pBc);
@@ -75,6 +76,7 @@ DtBcST425LR*  DtBcST425LR_Open(Int  Address, DtCore* pCore, DtPt*  pPt,
     // Register the callbacks
     OpenParams.m_CloseFunc = DtBcST425LR_Close;
     OpenParams.m_InitFunc = DtBcST425LR_Init;
+    OpenParams.m_OnCloseFileFunc = DtBcST425LR_OnCloseFile;
     OpenParams.m_OnEnableFunc = DtBcST425LR_OnEnable;
 
     // Use base function to allocate and perform standard initialisation of block data
@@ -209,6 +211,34 @@ DtStatus  DtBcST425LR_Init(DtBc*  pBcBase)
                                                                           pBc->m_pLinkIn);
     return DT_STATUS_OK;
 }
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcST425LR_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtBcST425LR_OnCloseFile(DtBc* pBcBase, const DtFileObject* pFile)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtBcST425LR* pBc = (DtBcST425LR*)pBcBase;
+    DECL_EXCL_ACCESS_OBJECT_FILE(ExclAccessObj, pFile);
+
+    BC_ST425LR_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check if the owner closed the file handle
+    Status = DtBc_ExclAccessCheck((DtBc*)pBc, &ExclAccessObj);
+    if (DT_SUCCESS(Status) && DtBc_IsEnabled((DtBc*)pBc))
+    {
+        DtDbgOutBc(AVG, ST425LR, pBc, "Go to IDLE");
+
+        // Go to idle
+        Status = DtBcST425LR_SetOperationalMode(pBc, DT_BLOCK_OPMODE_IDLE);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutBc(ERR, ST425LR, pBc, "ERROR: failed to set operational mode");
+        }
+    }
+    // Use base function to release exclusive access
+    return DtBc_OnCloseFile(pBcBase, pFile);
+}
+
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcST425LR_OnEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //

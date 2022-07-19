@@ -1203,10 +1203,10 @@ typedef DtIoctlInputDataHdr DtIoctlBurstFifoCmdGetFifoStatusInput;
 ASSERT_SIZE(DtIoctlBurstFifoCmdGetFifoStatusInput, 16)
 typedef struct _DtIoctlBurstFifoCmdGetFifoStatusOutput
 {
-    Int  m_CurFree;     // Burst current fifo free space
-    Int  m_CurLoad;     // Burst current fifo load
-    Int  m_MaxFree;     // Burst fifo maximum free space
-    Int  m_MaxLoad;     // Burst fifo maximum load
+    Int  m_CurFree;     // Burst current fifo free space in #bytes
+    Int  m_CurLoad;     // Burst current fifo load in #bytes
+    Int  m_MaxFree;     // Burst fifo maximum free space in #bytes
+    Int  m_MaxLoad;     // Burst fifo maximum load in #bytes
 }  DtIoctlBurstFifoCmdGetFifoStatusOutput;
 ASSERT_SIZE(DtIoctlBurstFifoCmdGetFifoStatusOutput, 16)
 
@@ -1239,8 +1239,8 @@ ASSERT_SIZE(DtIoctlBurstFifoCmdGetPropertiesInput, 16)
 typedef struct _DtIoctlBurstFifoCmdGetPropertiesOutput
 {
     UInt32  m_Capabilities;     // Burst Fifo capability flags
-    Int  m_DataWidth;           // Data width in bits
-    Int  m_BurstFifoSize;       // Burst fifo size in bytes
+    Int  m_DataWidth;           // Data width in #bits
+    Int  m_BurstFifoSize;       // Burst fifo size in #bytes
 }  DtIoctlBurstFifoCmdGetPropertiesOutput;
 ASSERT_SIZE(DtIoctlBurstFifoCmdGetPropertiesOutput, 12)
 
@@ -1366,7 +1366,7 @@ typedef struct _DtIoctlCDmaCCmdAllocateBufferInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_Direction;       // Direction: RX or TX
-    Int  m_BufferSize;      // Allocated buffer size
+    Int  m_BufferSize;      // Allocated buffer size in #bytes
     UInt64A  m_BufferAddr;  // Buffer address (Linux only)
 }  DtIoctlCDmaCCmdAllocateBufferInput;
 ASSERT_SIZE(DtIoctlCDmaCCmdAllocateBufferInput, 32)
@@ -1398,8 +1398,8 @@ typedef DtIoctlInputDataHdr DtIoctlCDmaCCmdGetReorderBufStatusInput;
 ASSERT_SIZE(DtIoctlCDmaCCmdGetReorderBufStatusInput, 16)
 typedef struct _DtIoctlCDmaCCmdGetReorderBufStatusOutput
 {
-    Int  m_ReorderBufLoad;          // Reorder buffer load
-    Int  m_ReorderBufMinMaxLoad;    // Reorder buffer minimum/maximum load
+    Int  m_ReorderBufLoad;          // Reorder buffer load in #bytes
+    Int  m_ReorderBufMinMaxLoad;    // Reorder buffer minimum/maximum load in #bytes
 }  DtIoctlCDmaCCmdGetReorderBufStatusOutput;
 ASSERT_SIZE(DtIoctlCDmaCCmdGetReorderBufStatusOutput, 8)
 //.-.-.-.-.-.-.-.-.-.-.-.- CDMAC Command - Get Profiling Command -.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1422,8 +1422,8 @@ typedef struct _DtIoctlCDmaCCmdGetPropertiesOutput
 {
     UInt32  m_Capabilities;     // DMA capability flags
     Int  m_PrefetchSize;        // DMA prefetch size
-    Int  m_PcieDataWidth;       // PCIe interface data width
-    Int  m_ReorderBufSize;       // Burst fifo size
+    Int  m_PcieDataWidth;       // PCIe interface data width in #bits
+    Int  m_ReorderBufSize;       // Burst fifo size in #bytes
 }  DtIoctlCDmaCCmdGetPropertiesOutput;
 ASSERT_SIZE(DtIoctlCDmaCCmdGetPropertiesOutput, 16)
 //-.-.-.-.-.-.-.-.-.-.-.-.- CDMAC Command - Get Rx Write Offset -.-.-.-.-.-.-.-.-.-.-.-.-.

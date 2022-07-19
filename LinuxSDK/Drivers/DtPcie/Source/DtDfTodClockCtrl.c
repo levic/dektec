@@ -199,7 +199,7 @@ DtStatus DtDfTodClockCtrl_SetTodReference(DtDfTodClockCtrl* pDf, Int TodRef)
 #ifdef LINBUILD
 // Linux CLOCK_MONOTONIC available from kernel 3.17.8
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,17,8)
-     #warning IOCONFIG_TODREF_MONOTONIC not supported for kernel version < 3.17.8.
+     #warning IOCONFIG_TODREF_STEADYCLOCK not supported for kernel version < 3.17.8.
     if (TodRef != DT_TODCLOCKCTRL_REF_INTERNAL)
         return DT_STATUS_NOT_SUPPORTED;
     else
@@ -736,7 +736,7 @@ void DtDfTodClockCtrl_AddTimeSample(DtDfTodClockCtrl* pDf,
                        && pTimeSamps->m_BufSize<=DT_DF_TODCLOCKCTRL_MAX_NUM_TIME_SAMPLES);
 
     // No previous samples available?
-    if (pTimeSamps->m_PrevRef==-1 || pTimeSamps->m_PrevRef==-1)
+    if (pTimeSamps->m_PrevTod==-1 || pTimeSamps->m_PrevRef==-1)
     {
         pTimeSamps->m_PrevTod = TodTimeNs;
         pTimeSamps->m_PrevRef = RefTimeNs;

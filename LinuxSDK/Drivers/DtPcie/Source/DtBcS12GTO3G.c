@@ -41,6 +41,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards of private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 static DtStatus  DtBcS12GTO3G_Init(DtBc*);
 static DtStatus  DtBcS12GTO3G_OnEnable(DtBc*, Bool);
+static DtStatus DtBcS12GTO3G_OnCloseFile(DtBc*, const DtFileObject*);
 static void  DtBcS12GTO3G_SetControlRegs(DtBcS12GTO3G*, Bool BlkEna, Int OpMode, 
                                                                            Bool ScaleEna);
 
@@ -74,6 +75,7 @@ DtBcS12GTO3G*  DtBcS12GTO3G_Open(Int  Address, DtCore* pCore, DtPt*  pPt,
     // Register the callbacks
     OpenParams.m_CloseFunc = DtBcS12GTO3G_Close;
     OpenParams.m_InitFunc = DtBcS12GTO3G_Init;
+    OpenParams.m_OnCloseFileFunc = DtBcS12GTO3G_OnCloseFile;
     OpenParams.m_OnEnableFunc = DtBcS12GTO3G_OnEnable;
 
     // Use base function to allocate and perform standard initialisation of block data
@@ -198,6 +200,33 @@ DtStatus  DtBcS12GTO3G_Init(DtBc*  pBcBase)
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcS12GTO3G_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtBcS12GTO3G_OnCloseFile(DtBc* pBcBase, const DtFileObject* pFile)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtBcS12GTO3G* pBc = (DtBcS12GTO3G*)pBcBase;
+    DECL_EXCL_ACCESS_OBJECT_FILE(ExclAccessObj, pFile);
+
+    BC_S12GTO3G_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check if the owner closed the file handle
+    Status = DtBc_ExclAccessCheck((DtBc*)pBc, &ExclAccessObj);
+    if (DT_SUCCESS(Status) && DtBc_IsEnabled((DtBc*)pBc))
+    {
+        DtDbgOutBc(AVG, S12GTO3G, pBc, "Go to IDLE");
+
+        // Go to idle
+        Status = DtBcS12GTO3G_SetOperationalMode(pBc, DT_BLOCK_OPMODE_IDLE);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutBc(ERR, S12GTO3G, pBc, "ERROR: failed to set operational mode");
+        }
+    }
+    // Use base function to release exclusive access
+    return DtBc_OnCloseFile(pBcBase, pFile);
+}
+
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcS12GTO3G_OnEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcS12GTO3G_OnEnable(DtBc* pBcBase, Bool Enable)
@@ -227,10 +256,9 @@ DtStatus DtBcS12GTO3G_OnEnable(DtBc* pBcBase, Bool Enable)
         DtBcS12GTO3G_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
                                                                    pBc->m_ScalingEnabled);
     }
-
-
     return DT_STATUS_OK;
 }
+
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcS12GTO3G_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void DtBcS12GTO3G_SetControlRegs(DtBcS12GTO3G* pBc, Bool BlkEnable, Int OpMode,

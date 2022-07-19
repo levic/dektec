@@ -67,6 +67,7 @@ typedef struct  _DtDfSpiCableDrvEq
     Int  m_SpiDeviceId;                 // Cable driver/equalizer SPI device ID
     Bool  m_Supports12G;                // Supports 12G
     Int   m_TraceEqualizer;             // Trace equalizer setting
+    Bool  m_MaxLoopBandwidth;           // Maximize loop bandwidth of PLL
 }  DtDfSpiCableDrvEq;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -76,7 +77,8 @@ DtDfSpiCableDrvEq*  DtDfSpiCableDrvEq_Open(DtCore*, DtPt*  pPt, const char*  pRo
 DtStatus  DtDfSpiCableDrvEq_GetDirection(DtDfSpiCableDrvEq*, Int* pDirection);
 DtStatus  DtDfSpiCableDrvEq_GetSdiRate(DtDfSpiCableDrvEq*, Int* pSdiRate);
 DtStatus  DtDfSpiCableDrvEq_SetDirection(DtDfSpiCableDrvEq*, Int Direction);
-DtStatus  DtDfSpiCableDrvEq_SetSdiRate(DtDfSpiCableDrvEq*, Int SdiRate);
+DtStatus  DtDfSpiCableDrvEq_SetRxSdiRate(DtDfSpiCableDrvEq*, Int SdiRate);
+DtStatus  DtDfSpiCableDrvEq_SetTxSdiRate(DtDfSpiCableDrvEq*, Int SdiRate);
 
 
 #endif  // #ifndef __DT_DF_SPICABLEDRVEQ_H

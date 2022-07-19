@@ -55,14 +55,15 @@ static DtStatus DtBcSDIRXPHY_C10A10_FinishSetSdiRate(DtBcSDIRXPHY*);
 static DtStatus DtBcSDIRXPHY_CV_StartSetSdiRate(DtBcSDIRXPHY*, Int SdiRate);
 static DtStatus DtBcSDIRXPHY_CV_GetSetSdiRateDone(DtBcSDIRXPHY*, Bool* pDone);
 static DtStatus DtBcSDIRXPHY_CV_FinishSetSdiRate(DtBcSDIRXPHY*);
+static Bool DtBcSDIRXPHY_C10A10_IsAccessAllowed(DtBcSDIRXPHY*);
 static DtStatus DtBcSDIRXPHY_V1_C10A10_StartSetSdiRate(DtBcSDIRXPHY*, Int SdiRate);
 static DtStatus DtBcSDIRXPHY_V1_C10A10_GetSetSdiRateDone(DtBcSDIRXPHY*, Bool* pDone);
 static DtStatus DtBcSDIRXPHY_V1_C10A10_FinishSetSdiRate(DtBcSDIRXPHY*);
 static DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY*, Int SdiRate);
+static DtStatus DtBcSDIRXPHY_V2_C10A10_ConfigurePllRate(DtBcSDIRXPHY*, Int SdiRate);
 static DtStatus DtBcSDIRXPHY_V2_C10A10_GetSetSdiRateDone(DtBcSDIRXPHY*, Bool* pDone);
 static DtStatus DtBcSDIRXPHY_V2_C10A10_FinishSetSdiRate(DtBcSDIRXPHY*);
-static DtStatus DtBcSDIRXPHY_V2_C10A10_StartUserCalibration(DtBcSDIRXPHY*);
-
+static DtStatus DtBcSDIRXPHY_V2_C10A10_ConfigureUserCalibration(DtBcSDIRXPHY*);
 static void  DtBcSDIRXPHY_SetControlRegs(DtBcSDIRXPHY*, Bool BlkEnable,  Int OpMode,
                                       Bool RxClkReset,  Bool PllReset,  Bool XcvrReset,
                                       Int LockMode, Bool  DownsamplerEnable, Int SdiRate);
@@ -534,6 +535,10 @@ DtStatus DtBcSDIRXPHY_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     }
     if (DT_SUCCESS(Status))
         pBc->m_SetSdiRateBusy = TRUE;
+
+    // Check error status indicator
+    if (pBc->m_Version >= 5)
+        DT_ASSERT(SDIRXPHY_Status_READ_AccessTimedout(pBc) == 0);
     return Status;
 }
 
@@ -542,6 +547,8 @@ DtStatus DtBcSDIRXPHY_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
 //
 DtStatus DtBcSDIRXPHY_GetSetSdiRateDone(DtBcSDIRXPHY* pBc, Bool* pDone)
 {
+    DtStatus  Status=DT_STATUS_OK;
+
     // Sanity check
     BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
 
@@ -552,19 +559,26 @@ DtStatus DtBcSDIRXPHY_GetSetSdiRateDone(DtBcSDIRXPHY* pBc, Bool* pDone)
     // Must be enabled
     BC_SDIRXPHY_MUST_BE_ENABLED(pBc);
 
-
     // Device family specific function
     switch (pBc->m_DeviceFamily)
     {
     case DT_BC_SDIRXPHY_FAMILY_A10:
-                                return DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(pBc, pDone);
+        Status = DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(pBc, pDone);
+        break;
     case DT_BC_SDIRXPHY_FAMILY_C10:
-                                return DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(pBc, pDone);
+        Status = DtBcSDIRXPHY_C10A10_GetSetSdiRateDone(pBc, pDone);
+        break;
     case DT_BC_SDIRXPHY_FAMILY_CV:
-                                return DtBcSDIRXPHY_CV_GetSetSdiRateDone(pBc, pDone);
-    default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
+        Status = DtBcSDIRXPHY_CV_GetSetSdiRateDone(pBc, pDone);
+        break;
+    default: DT_ASSERT(FALSE);  Status =  DT_STATUS_FAIL;
+        break;
     }
-    return DT_STATUS_OK;
+
+    // Check error status indicator
+    if (pBc->m_Version >= 5)
+        DT_ASSERT(SDIRXPHY_Status_READ_AccessTimedout(pBc) == 0);
+    return Status;
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_FinishSetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -595,11 +609,12 @@ DtStatus DtBcSDIRXPHY_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
         break;
     }
     pBc->m_SetSdiRateBusy = FALSE;
+
+    // Check error status indicator
+    if (pBc->m_Version >= 5)
+        DT_ASSERT(SDIRXPHY_Status_READ_AccessTimedout(pBc) == 0);
     return Status;
 }
-
-
-
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDIRXPHY - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -656,6 +671,11 @@ DtStatus  DtBcSDIRXPHY_Init(DtBc*  pBcBase)
 
     // The device specific initialization cannot be performed when the block is in IDLE
     // It will be performed in OnEnable()
+
+
+    // Clear error status indicator
+    if (pBc->m_Version >= 5)
+        SDIRXPHY_Status_CLEAR_AccessTimedout(pBc);
 
     return Status;
 }
@@ -940,6 +960,19 @@ DtStatus DtBcSDIRXPHY_CV_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
                                pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
     return DT_STATUS_OK;
 }
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_C10A10_IsAccessAllowed -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool DtBcSDIRXPHY_C10A10_IsAccessAllowed(DtBcSDIRXPHY* pBc)
+{
+    if (pBc->m_Version <= 1)
+        return TRUE;  // There is no waitrequest
+    else if (pBc->m_Version <= 4)
+        return SDIRXPHY_Status_READ_WaitRequest(pBc) == 0;
+    else
+        return SDIRXPHY_C10A10_CalCapability_READ_AvMmBusy(pBc) == SDIRXPHY_ARBOWNER_User;
+}
+
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V1_C10A10_SetSdiRate -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcSDIRXPHY_V1_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
@@ -1005,12 +1038,7 @@ DtStatus DtBcSDIRXPHY_V1_C10A10_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
 DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
 {
     DtStatus  Status = DT_STATUS_OK;
-    UInt32  RegCdrPllSettings4, RegCdrPllSettings9, RegPcsPmaSel, RegPcsRxBlockSel,
-            RegRxPcs8G0, RegRxPcs8G1, RegRxPcs8G2, RegRxPcs8G3, RegRxPcs8G4,
-            RegRxPcs8G5, RegRxPcs8G6, RegRxPcs8G7, RegRxPcs10G0, RegRxPcs10G1, 
-            RegRxPcs10G2, RegRxPcs10G3, RegRxPcs10G4, RegRxPcs10G5, RegRxPcsFifo, 
-            RegCdrPllSettings8, RegCdrPllSettings10, RegPmaRxDeser, RegPmaEqBw, 
-            RegCalBusy;
+    UInt32  RegCalBusy;
 
     // Sanity check
     BC_SDIRXPHY_DEFAULT_PRECONDITIONS(pBc);
@@ -1029,7 +1057,82 @@ DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     // “reconfig_waitrequest” is not high before writing to the reconfiguration interface.
     DT_RETURN_ON_ERROR(DtBcSDIRXPHY_C10A10_RequestAccess(pBc, FALSE));
 
-    // 3. Reconfigure
+    // 3. Reconfigure PLL
+    Status = DtBcSDIRXPHY_V2_C10A10_ConfigurePllRate(pBc, SdiRate);
+    if (Status != DT_STATUS_OK)
+    {
+        DtBcSDIRXPHY_C10A10_ReleaseAccess(pBc, FALSE);
+        return Status;
+    }
+    // 4. Reconfigure the PMA analog settings. Currently not required
+    
+    // 5. Configure user calibration
+    Status = DtBcSDIRXPHY_V2_C10A10_ConfigureUserCalibration(pBc);
+
+    // 5.5 Release configuration bus to PreSICE and trigger calibration
+    DtBcSDIRXPHY_C10A10_ReleaseAccess(pBc, TRUE);
+
+    return Status;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V2_C10A10_GetSetSdiRateDone -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_V2_C10A10_GetSetSdiRateDone(DtBcSDIRXPHY* pBc, Bool* pDone)
+{
+    // 5.6 Wait until CalDone is asserted
+    UInt32  RegCalBusy = SDIRXPHY_Status_READ_CalBusy(pBc);
+    *pDone = (RegCalBusy == 0);
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V2_C10A10_FinishSetSdiRate -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_V2_C10A10_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
+{
+    // 7. Release the ANALOG reset (rx_analog_reset) then 
+    // the DIGITAL reset (rx_digital_reset) 
+    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
+                       pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, FALSE,
+                       pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V2_C10A10_StartUserCalibration -.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtBcSDIRXPHY_V2_C10A10_ConfigureUserCalibration(DtBcSDIRXPHY* pBc)
+{
+    UInt32  RegData=0;
+
+    // 5.1 Request access to calibration registers. Access already allowed
+
+    // 5.3 CalEnable.RxCalEn =1  CalEnable.AdaptEn = 0 
+    RegData = SDIRXPHY_C10A10_CalEnable_READ(pBc);
+    RegData = SDIRXPHY_C10A10_CalEnable_SET_RxCalEn(RegData, SDIRXPHY_CALEN_Enable);
+    RegData = SDIRXPHY_C10A10_CalEnable_SET_TxCalEn(RegData, SDIRXPHY_CALEN_Disable);
+    RegData = SDIRXPHY_C10A10_CalEnable_SET_AdaptEn(RegData, SDIRXPHY_CALEN_Disable);
+    SDIRXPHY_C10A10_CalEnable_WRITE(pBc, RegData);
+
+    // 5.4 PmaSettings.RateSwitchFlag=0 for a CDR rate switch
+    // write a 1 if no CDR rate switch with different CDR bandwidth setting 
+    RegData = SDIRXPHY_C10A10_PmaSettings_READ(pBc);
+    RegData = SDIRXPHY_C10A10_PmaSettings_SET_RateSwitchFlag(RegData,
+                                                            SDIRXPHY_RATESWITCH_Switched);
+    SDIRXPHY_C10A10_PmaSettings_WRITE(pBc, RegData);
+
+    return DT_STATUS_OK;
+}
+
+
+// -.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V2_C10A10_ConfigurePllRate -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtBcSDIRXPHY_V2_C10A10_ConfigurePllRate(DtBcSDIRXPHY* pBc, Int SdiRate)
+{
+    UInt32  RegCdrPllSettings4, RegCdrPllSettings9, RegPcsPmaSel, RegPcsRxBlockSel,
+        RegRxPcs8G0, RegRxPcs8G1, RegRxPcs8G2, RegRxPcs8G3, RegRxPcs8G4,
+        RegRxPcs8G5, RegRxPcs8G6, RegRxPcs8G7, RegRxPcs10G0, RegRxPcs10G1,
+        RegRxPcs10G2, RegRxPcs10G3, RegRxPcs10G4, RegRxPcs10G5, RegRxPcsFifo,
+        RegCdrPllSettings8, RegCdrPllSettings10, RegPmaRxDeser, RegPmaEqBw;
+
     // Read registers
     RegCdrPllSettings4 = SDIRXPHY_C10A10_CdrPllSettings4_READ(pBc);
     RegCdrPllSettings9 = SDIRXPHY_C10A10_CdrPllSettings9_READ(pBc);
@@ -1091,7 +1194,6 @@ DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     else
     {
         DT_ASSERT(FALSE);
-        DtBcSDIRXPHY_C10A10_ReleaseAccess(pBc, FALSE);
         return DT_STATUS_NOT_SUPPORTED;
     }
 
@@ -1267,7 +1369,7 @@ DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
         // CDR PLL Settings 10: Chargepump current down: Setting4
         RegCdrPllSettings10 = SDIRXPHY_C10A10_CdrPllSettings10_SET_ChgpmpCurrentDnPd(
                                      RegCdrPllSettings10, SDIRXPHY_CPCURRENTDN_SETTING_4);
-        // PMS Rx Deserializer: Deserialization Factor: 10
+        // PMS Rx Deserializer: Deserialization Factor: 20
         RegPmaRxDeser = SDIRXPHY_C10A10_PmaRxDeser_SET_DeserFactor(RegPmaRxDeser, 
                                                                  SDIRXPHY_DESERFACTOR_20);
         // Equalizer bandwidth select for datarate <= 10G
@@ -1366,7 +1468,6 @@ DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     else
     {
         DT_ASSERT(FALSE);
-        DtBcSDIRXPHY_C10A10_ReleaseAccess(pBc, FALSE);
         return DT_STATUS_NOT_SUPPORTED;
     }
 
@@ -1394,62 +1495,6 @@ DtStatus DtBcSDIRXPHY_V2_C10A10_StartSetSdiRate(DtBcSDIRXPHY* pBc, Int SdiRate)
     SDIRXPHY_C10A10_CdrPllSettings10_WRITE(pBc, RegCdrPllSettings10);
     SDIRXPHY_C10A10_PmaRxDeser_WRITE(pBc, RegPmaRxDeser);
     SDIRXPHY_C10A10_PmaEqSettings_WRITE(pBc, RegPmaEqBw);
-
-    // 4. Reconfigure the PMA analog settings. Currently not required
-    
-    // 5. Start user calibration
-    Status = DtBcSDIRXPHY_V2_C10A10_StartUserCalibration(pBc);
-    return Status;
-}
-
-// .-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V2_C10A10_GetSetSdiRateDone -.-.-.-.-.-.-.-.-.-.-.-
-//
-DtStatus DtBcSDIRXPHY_V2_C10A10_GetSetSdiRateDone(DtBcSDIRXPHY* pBc, Bool* pDone)
-{
-    // 5.6 Wait until CalDone is asserted
-    UInt32  RegCalBusy = SDIRXPHY_Status_READ_CalBusy(pBc);
-    *pDone = (RegCalBusy == 0);
-    return DT_STATUS_OK;
-}
-
-// -.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V2_C10A10_FinishSetSdiRate -.-.-.-.-.-.-.-.-.-.-.-
-//
-DtStatus DtBcSDIRXPHY_V2_C10A10_FinishSetSdiRate(DtBcSDIRXPHY* pBc)
-{
-    // 7. Release the ANALOG reset (rx_analog_reset) then 
-    // the DIGITAL reset (rx_digital_reset) 
-    DtBcSDIRXPHY_SetControlRegs(pBc, pBc->m_BlockEnabled,
-                       pBc->m_OperationalMode, pBc->m_ClockReset, FALSE, FALSE,
-                       pBc->m_LockMode, pBc->m_DownsamplerEnable, pBc->m_SdiRate);
-    return DT_STATUS_OK;
-}
-
-// -.-.-.-.-.-.-.-.-.-.- DtBcSDIRXPHY_V2_C10A10_StartUserCalibration -.-.-.-.-.-.-.-.-.-.-
-//
-DtStatus  DtBcSDIRXPHY_V2_C10A10_StartUserCalibration(DtBcSDIRXPHY* pBc)
-{
-    UInt32  RegData=0;
-
-    // 5.1 Request access to calibration registers.
-    DT_RETURN_ON_ERROR(DtBcSDIRXPHY_C10A10_RequestAccess(pBc, FALSE));
-
-    // 5.3 CalEnable.RxCalEn =1  CalEnable.AdaptEn = 0 
-    RegData = SDIRXPHY_C10A10_CalEnable_READ(pBc);
-    RegData = SDIRXPHY_C10A10_CalEnable_SET_RxCalEn(RegData, SDIRXPHY_CALEN_Enable);
-    RegData = SDIRXPHY_C10A10_CalEnable_SET_TxCalEn(RegData, SDIRXPHY_CALEN_Disable);
-    RegData = SDIRXPHY_C10A10_CalEnable_SET_AdaptEn(RegData, SDIRXPHY_CALEN_Disable);
-    SDIRXPHY_C10A10_CalEnable_WRITE(pBc, RegData);
-
-    // 5.4 PmaSettings.RateSwitchFlag=0 for a CDR rate switch
-    // write a 1 if no CDR rate switch with different CDR bandwidth setting 
-    RegData = SDIRXPHY_C10A10_PmaSettings_READ(pBc);
-    RegData = SDIRXPHY_C10A10_PmaSettings_SET_RateSwitchFlag(RegData,
-                                                            SDIRXPHY_RATESWITCH_Switched);
-    SDIRXPHY_C10A10_PmaSettings_WRITE(pBc, RegData);
-
-    // 5.5 Release configuration bus to PreSICE to perform calibration
-    DtBcSDIRXPHY_C10A10_ReleaseAccess(pBc, TRUE);
-
     return DT_STATUS_OK;
 }
 
@@ -1522,8 +1567,8 @@ void  DtBcSDIRXPHY_SetControlRegs(DtBcSDIRXPHY* pBc, Bool BlkEnable, Int OpMode,
 //
 DtStatus DtBcSDIRXPHY_C10A10_RequestAccess(DtBcSDIRXPHY* pBc, Bool AllowLongSleep)
 {
-    UInt32  RegData=0,  WaitRequest=0, TimeoutCount=0;
-    
+    UInt32  RegData=0, TimeoutCount=0;
+    Bool AccessAllowed;
     // Request access to PHY registers.
     RegData = SDIRXPHY_C10A10_ArbitrationCtrl_SET_ArbiterCtrlPma(0, 
                                                                   SDIRXPHY_ARBOWNER_User);
@@ -1532,28 +1577,28 @@ DtStatus DtBcSDIRXPHY_C10A10_RequestAccess(DtBcSDIRXPHY* pBc, Bool AllowLongSlee
     SDIRXPHY_C10A10_ArbitrationCtrl_WRITE(pBc, RegData);
 
     // Wait for 20ms to get access to PHY registers.
-    WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
+    AccessAllowed = DtBcSDIRXPHY_C10A10_IsAccessAllowed(pBc);
     TimeoutCount = 20000;
-    while (WaitRequest!=0 && TimeoutCount>0)
+    while (!AccessAllowed && TimeoutCount>0)
     {
         DtWaitBlock(1);
         TimeoutCount--;
-        WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
+        AccessAllowed = DtBcSDIRXPHY_C10A10_IsAccessAllowed(pBc);
     }
-    if (WaitRequest == 0)
+    if (AccessAllowed)
         return DT_STATUS_OK;
     if (!AllowLongSleep)
         return DT_STATUS_TIMEOUT;
 
     // It takes a bit longer. Use a sleep if allowed
     TimeoutCount = 1000;    // Maximum 10 seconds
-    while (WaitRequest!=0 && TimeoutCount>0)
+    while (!AccessAllowed && TimeoutCount>0)
     {
         DtSleep(10);
         TimeoutCount--;
-        WaitRequest = SDIRXPHY_Status_READ_WaitRequest(pBc);
+        AccessAllowed = DtBcSDIRXPHY_C10A10_IsAccessAllowed(pBc);
     }
-    if (WaitRequest != 0)
+    if (!AccessAllowed)
     {
         // Timeout
         DtString  Str;

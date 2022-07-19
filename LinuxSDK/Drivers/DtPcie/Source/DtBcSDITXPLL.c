@@ -50,7 +50,7 @@ static DtStatus  DtBcSDITXPLL_OnEnable(DtBc*, Bool);
 static DtStatus  DtBcSDITXPLL_CV_ResetClock(DtBcSDITXPLL* pBc);
 static DtStatus  DtBcSDITXPLL_C10A10_ResetClock(DtBcSDITXPLL* pBc);
 static DtStatus  DtBcSDITXPLL_C10A10_Calibrate(DtBcSDITXPLL* pBc);
-static Bool DtBcSDITXPLL_C10A10_WaitRequest(DtBcSDITXPLL* pBc);
+static Bool DtBcSDITXPLL_C10A10_IsAccessAllowed(DtBcSDITXPLL* pBc);
 static void  DtBcSDITXPLL_SetControlRegs(DtBcSDITXPLL*, Bool BlkEnable, Bool TxClkReset);
 
 
@@ -175,12 +175,19 @@ DtStatus DtBcSDITXPLL_C10A10_ResetClock(DtBcSDITXPLL* pBc)
     // Sanity check
     BC_SDITXPLL_DEFAULT_PRECONDITIONS(pBc);
 
-    // Reset the PLL prior to performing calibration. Use enable to reset so that we can 
-    // hold the PLL in reset for a minimum of 70us.
-    DtBcSDITXPLL_SetControlRegs(pBc, FALSE, FALSE);
-    DtWaitBlock(70);
-    DtBcSDITXPLL_SetControlRegs(pBc, pBc->m_BlockEnabled, FALSE);
-
+    // Reset the PLL prior to performing calibration for a minimum of 70us.
+    if (pBc->m_Version >= 6)
+    {
+        // Firmware version >=6 uses the reset.
+        DtBcSDITXPLL_SetControlRegs(pBc, pBc->m_BlockEnabled, TRUE);
+        DtWaitBlock(70);
+        DtBcSDITXPLL_SetControlRegs(pBc, pBc->m_BlockEnabled, FALSE);
+    } else {
+        // Firmware version <6 uses block enable to hold the PLL in reset.
+        DtBcSDITXPLL_SetControlRegs(pBc, FALSE, FALSE);
+        DtWaitBlock(70);
+        DtBcSDITXPLL_SetControlRegs(pBc, pBc->m_BlockEnabled, FALSE);
+    }
     // Now that the block is in reset (disabled) perform the calibration
     Status = DtBcSDITXPLL_C10A10_Calibrate(pBc);
 
@@ -211,7 +218,7 @@ DtStatus  DtBcSDITXPLL_C10A10_Calibrate(DtBcSDITXPLL* pBc)
     TimeStart = TimeEnd = DtGetTickCountUSec();
     while ((TimeEnd-TimeStart) < (1*1000))
     {   
-        if (!DtBcSDITXPLL_C10A10_WaitRequest(pBc))
+        if (DtBcSDITXPLL_C10A10_IsAccessAllowed(pBc))
             break;
 
         DtWaitBlock(1);
@@ -220,7 +227,7 @@ DtStatus  DtBcSDITXPLL_C10A10_Calibrate(DtBcSDITXPLL* pBc)
     TimeEnd  = DtGetTickCountUSec();
 
     // Still busy?
-    if (DtBcSDITXPLL_C10A10_WaitRequest(pBc))
+    if (!DtBcSDITXPLL_C10A10_IsAccessAllowed(pBc))
     {
         SDITXPLL_C10A10_PllCalibrationControl_WRITE(pBc, 3);
         return DT_STATUS_TIMEOUT;
@@ -287,20 +294,23 @@ DtStatus  DtBcSDITXPLL_C10A10_Calibrate(DtBcSDITXPLL* pBc)
                                               DTPCIE_LOG_INFO_GENERIC, &Str, NULL, NULL);
         DtStringFree(&Str);
     }
+    // Check error status indicator
+    if (pBc->m_Version >= 6)
+        DT_ASSERT(SDITXPLL_Status_READ_AccessTimedout(pBc) == 0);
     return DT_STATUS_OK;
 }
 
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPLL_C10A10_WaitRequest -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXPLL_C10A10_IsAccessAllowed -.-.-.-.-.-.-.-.-.-.-.-.-
 //
-Bool DtBcSDITXPLL_C10A10_WaitRequest(DtBcSDITXPLL* pBc)
+Bool DtBcSDITXPLL_C10A10_IsAccessAllowed(DtBcSDITXPLL* pBc)
 {
-    // TXPLL version 2 and lower don't have a waitrequest field. Use the config bus busy
-    // field instead
-    if (pBc->m_Version < 3)
-        return SDITXPLL_C10A10_PllCalibrationStatus_READ_ConfigBusBusy(pBc) != 0;
+    // TXPLL version 3,4,5 use waitrequest field. 
+    // other versions use the config bus busy field
+    if (pBc->m_Version>=3 && pBc->m_Version<=5)
+        return SDITXPLL_Status_READ_WaitRequest(pBc) == 0;
     else
-        return SDITXPLL_Status_READ_WaitRequest(pBc) != 0;
+        return SDITXPLL_C10A10_PllCalibrationStatus_READ_ConfigBusBusy(pBc) == 0;
 }
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDITXPLL - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -347,6 +357,10 @@ DtStatus  DtBcSDITXPLL_Init(DtBc*  pBcBase)
         default: DT_ASSERT(FALSE);  return DT_STATUS_FAIL;
         }
     }
+
+    // Clear error status indicators
+    if (pBc->m_Version >= 6)
+        SDITXPLL_Status_CLEAR_AccessTimedout(pBc);
 
     // Make settings in register
     DtBcSDITXPLL_SetControlRegs(pBc, pBc->m_BlockEnabled, FALSE);

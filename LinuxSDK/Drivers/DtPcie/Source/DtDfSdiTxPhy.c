@@ -366,6 +366,7 @@ DtStatus  DtDfSdiTxPhy_SetOperationalModeTimed(DtDfSdiTxPhy*  pDf, Int  OpMode,
         }
         if (TimeoutCount <=  0)
         { 
+            DT_ASSERT(FALSE);
             DtDbgOutDf(ERR, SDITXPHY, pDf, "TXPHY not locked");
             Status = DT_STATUS_TIMEOUT;
         }
@@ -768,7 +769,7 @@ DtStatus DtDfSdiTxPhy_OnEnablePostChildren(DtDf*  pDfBase, Bool  Enable)
         if (DT_SUCCESS(Status) && pDf->m_CapGenLocked && pDf->m_pDfGenLockCtrl!=NULL)
         {
             // Register GenLock status changed callback
-            DtDfGenLockCtrlLockChangedRegData  RegData;
+            DtDfGenLockCtrl_LockChangedRegData  RegData;
             RegData.m_pObject = (DtObject*)pDf;
             RegData.m_OnLockChangedFunc = DtDfSdiTxPhy_OnGenLockChanged;
             Status = DtDfGenLockCtrl_LockChangedRegister(pDf->m_pDfGenLockCtrl, &RegData);
@@ -996,7 +997,9 @@ DtStatus DtDfSdiTxPhy_ConfigureRateC10A10(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool
     DT_ASSERT(pDf->m_PhyNumClocks == 2);
 
     // Reset  PHY clock
-    DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetClockReset(pDf->m_pBcSdiTxPhy, TRUE));
+    DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetTxClockReset(pDf->m_pBcSdiTxPhy, TRUE));
+    DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetXcvrReset(pDf->m_pBcSdiTxPhy, TRUE));
+
 
     // Set SDI-rate
     DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetSdiRate(pDf->m_pBcSdiTxPhy, SdiRate));
@@ -1038,16 +1041,19 @@ DtStatus DtDfSdiTxPhy_ConfigureRateC10A10(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool
         }
         if (!CalDone)
         { 
+            DT_ASSERT(FALSE);
             DtDbgOutDf(ERR, SDITXPHY, pDf, "Calibration timeout");
             return DT_STATUS_TIMEOUT;
         }
     }
 
-    // Calibration completed deassert clock-reset
-    Status = DtBcSDITXPHY_SetClockReset(pDf->m_pBcSdiTxPhy, FALSE);
+    // Calibration completed deassert transceiver clock-reset
+    Status = DtBcSDITXPHY_SetXcvrReset(pDf->m_pBcSdiTxPhy, FALSE);
+    DT_ASSERT(DT_SUCCESS(Status));
+    // and de-assert the TX-clock reset
+    Status = DtBcSDITXPHY_SetTxClockReset(pDf->m_pBcSdiTxPhy, FALSE);
     DT_ASSERT(DT_SUCCESS(Status));
 
-  
     // Wait until PHY reset in progress is deasserted
     Timeout = 100;
     IsResetInProgress = TRUE;
@@ -1059,8 +1065,10 @@ DtStatus DtDfSdiTxPhy_ConfigureRateC10A10(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool
         Status = DtBcSDITXPHY_IsResetInProgress(pDf->m_pBcSdiTxPhy, &IsResetInProgress);
         DT_ASSERT(DT_SUCCESS(Status));
     }
+
     if (IsResetInProgress)
     {
+        DT_ASSERT(FALSE);
         DtDbgOutDf(ERR, SDITXPHY, pDf, "Reset in progress timeout");
         return DT_STATUS_TIMEOUT;
     }
@@ -1089,7 +1097,8 @@ DtStatus DtDfSdiTxPhy_ConfigureRateCV(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool  Fr
     DT_ASSERT(pDf->m_pBcSdiTxPll!=NULL && pDf->m_pDfSi534X!=NULL 
                                                            && pDf->m_pDfSdiXCfgMgr!=NULL);
     // Reset  PHY clock
-     DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetClockReset(pDf->m_pBcSdiTxPhy, TRUE));
+    DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetTxClockReset(pDf->m_pBcSdiTxPhy, TRUE));
+    DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetXcvrReset(pDf->m_pBcSdiTxPhy, TRUE));
     
     // Set SDI-rate
     DT_RETURN_ON_ERROR(DtBcSDITXPHY_SetSdiRate(pDf->m_pBcSdiTxPhy, SdiRate));
@@ -1161,8 +1170,11 @@ void DtDfSdiTxPhy_SdiLockStateUpdateCV(DtDfSdiTxPhy*  pDf)
         DT_ASSERT(DT_SUCCESS(Status));
         if (IsPllLocked)
         {
-            // PLL locked, deassert clock-reset
-            Status = DtBcSDITXPHY_SetClockReset(pDf->m_pBcSdiTxPhy, FALSE);
+            // PLL locked, de-assert transceiver clock-reset
+            Status = DtBcSDITXPHY_SetXcvrReset(pDf->m_pBcSdiTxPhy, FALSE);
+            DT_ASSERT(DT_SUCCESS(Status));
+            // De-assert TxClock reset
+            Status = DtBcSDITXPHY_SetTxClockReset(pDf->m_pBcSdiTxPhy, FALSE);
             DT_ASSERT(DT_SUCCESS(Status));
             // State = WAIT_FOR_PHY_READY
             DtDbgOutDf(MIN, SDITXPHY, pDf, "Entered: STATE_WAIT_FOR_PHY_READY");
@@ -1177,8 +1189,8 @@ void DtDfSdiTxPhy_SdiLockStateUpdateCV(DtDfSdiTxPhy*  pDf)
             
         if (!IsResetInProgress)
         {
-            // Update the PHY operational mode
             Int  PhyOpMode = DT_BLOCK_OPMODE_IDLE;
+            // Update the PHY operational mode
             switch (pDf->m_OperationalMode)
             {
             case DT_FUNC_OPMODE_IDLE:     PhyOpMode = DT_BLOCK_OPMODE_IDLE; break;
@@ -1231,7 +1243,9 @@ void DtDfSdiTxPhy_SdiLockStateUpdateCV(DtDfSdiTxPhy*  pDf)
                                                                     DT_BLOCK_OPMODE_IDLE);
             DT_ASSERT(DT_SUCCESS(Status));
             // Reset  PHY-clock
-            Status = DtBcSDITXPHY_SetClockReset(pDf->m_pBcSdiTxPhy, TRUE);
+            Status = DtBcSDITXPHY_SetTxClockReset(pDf->m_pBcSdiTxPhy, TRUE);
+            DT_ASSERT(DT_SUCCESS(Status));
+            Status = DtBcSDITXPHY_SetXcvrReset(pDf->m_pBcSdiTxPhy, TRUE);
             DT_ASSERT(DT_SUCCESS(Status));
             // Reset the PLL-clock
             if (pDf->m_pBcSdiTxPll != NULL)
