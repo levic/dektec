@@ -24,6 +24,7 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtBc.h"
+#include "DtDf.h"
 #include "DtBcSDIRXF.h"
 #include "DtBcSDIRXF_RegAccess.h"
 
@@ -217,6 +218,54 @@ DtStatus DtBcSDIRXF_GetStreamAlignment(DtBcSDIRXF* pBc, Int* pStreamAlignment)
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXF_RegisterForFormatEvent -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Register a callback function for format-events
+//
+DtStatus DtBcSDIRXF_RegisterForFormatEvent(
+                            DtBcSDIRXF* pBc, DtBcSDIRXFOnFormatEventFunc pFunc, DtDf* pDf)
+{
+    DtStatus Status = DT_STATUS_OK;
+
+    // Sanity check
+    BC_SDIRXF_DEFAULT_PRECONDITIONS(pBc);
+    
+    // Check parameters
+    if (!pFunc || !pDf)
+        return DT_STATUS_INVALID_PARAMETER;
+    // Must be IDLE
+    if (pBc->m_OperationalMode != DT_BLOCK_OPMODE_IDLE)
+        return DT_STATUS_INVALID_IN_OPMODE;
+
+    DtSpinLockAcquire(&pBc->m_OnFmtEventSpinlock);
+
+    // Cannot register when someone else has registered 
+    Status = DT_STATUS_OK;
+    if (!pBc->m_OnFormatEventFunc || pDf==pBc->m_pOnFormatEventDf)
+    {
+        // Register the callback and the driver function registering the callback
+        pBc->m_OnFormatEventFunc = pFunc;
+        pBc->m_pOnFormatEventDf = pDf;
+    }
+    else
+        Status = DT_STATUS_IN_USE;  // Already registered
+
+    DtSpinLockRelease(&pBc->m_OnFmtEventSpinlock);
+
+    if (DT_SUCCESS(Status))
+    {
+        DtDbgOutBc(MIN, SDIRXF, pBc, "'%s' has registered its format-event callback",
+                                                                       pDf->m_InstanceId);
+    }
+    else //if (Status == DT_STATUS_IN_USE)
+    {
+        DtDbgOutBc(ERR, SDIRXF, pBc, 
+                         "ERROR: '%s' is trying to register callback while someone else "
+                         "has already registered",
+                         pDf->m_InstanceId);
+    }
+    return Status;
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXF_SetFmtEventTiming -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -394,6 +443,55 @@ DtStatus DtBcSDIRXF_SetOperationalMode(DtBcSDIRXF* pBc, Int OpMode)
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXF_UnregisterFormFormatEvent -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Remove registration of callback.
+//
+DtStatus DtBcSDIRXF_UnregisterFormFormatEvent(DtBcSDIRXF* pBc, const DtDf* pDf)
+{
+    DtStatus Status = DT_STATUS_OK;
+
+    // Sanity check
+    BC_SDIRXF_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check parameters
+    if (!pDf)
+        return DT_STATUS_INVALID_PARAMETER;
+    
+    // Must be IDLE
+    if (pBc->m_OperationalMode != DT_BLOCK_OPMODE_IDLE)
+        return DT_STATUS_INVALID_IN_OPMODE;
+
+    DtSpinLockAcquire(&pBc->m_OnFmtEventSpinlock);
+
+    // Only the DF that originally registered the callback can unregister it
+    Status = DT_STATUS_OK;
+    if (pBc->m_pOnFormatEventDf == pDf)
+    {
+        // Clear registered callback and the driver function
+        pBc->m_OnFormatEventFunc = NULL;
+        pBc->m_pOnFormatEventDf = NULL;
+    }
+    else
+        Status = DT_STATUS_IN_USE;
+    
+    // Do not forget to unlock
+    DtSpinLockRelease(&pBc->m_OnFmtEventSpinlock);
+
+    if (DT_SUCCESS(Status))
+    {
+        DtDbgOutBc(MIN, SDIRXF, pBc, "'%s' has unregistered its format-event callback",
+                                                                       pDf->m_InstanceId);
+    }
+    else //if (Status == DT_STATUS_IN_USE)
+    {
+        DtDbgOutBc(ERR, SDIRXF, pBc, 
+                         "ERROR: '%s' is trying to unregister callback from someone else",
+                         pDf->m_InstanceId);
+    }
+    return Status;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXF_WaitForFmtEvent -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcSDIRXF_WaitForFmtEvent(DtBcSDIRXF* pBc, Int Timeout, Int* pFrameId,
@@ -491,8 +589,9 @@ DtStatus  DtBcSDIRXF_Init(DtBc*  pBcBase)
     // Format event interrupts are disabled
     pBc->m_FmtIntEnabled = FALSE;
 
-    // Initialize SpinLock
+    // Initialize SpinLocks
     DtSpinLockInit(&pBc->m_IntDataSpinLock);
+    DtSpinLockInit(&pBc->m_OnFmtEventSpinlock);
 
     // Initialize formatter event
     Status = DtEventInit(&pBc->m_FmtEvent, TRUE);
@@ -518,6 +617,10 @@ DtStatus  DtBcSDIRXF_Init(DtBc*  pBcBase)
         DtDbgOutBc(ERR, SDIRXF, pBc, "ERROR: failed to register interrupt handlers");
         return Status;
     }
+
+    // No callback just yet
+    pBc->m_OnFormatEventFunc = NULL;
+    pBc->m_pOnFormatEventDf = NULL;
 
     return DT_STATUS_OK;
 }
@@ -599,6 +702,8 @@ void DtBcSDIRXF_InterruptDpcFmtEvent(DtDpcArgs* pArgs)
 {
     DtBcSDIRXF*  pBc = (DtBcSDIRXF*)pArgs->m_pContext;
     UInt32 RegFmtEvStatus;
+    Int FrameId=0, SeqNumber=0;
+    Bool InSync = FALSE;
 
     // Sanity check
 #ifdef DEBUG
@@ -612,14 +717,18 @@ void DtBcSDIRXF_InterruptDpcFmtEvent(DtDpcArgs* pArgs)
     
     // Get the format event status
     DtSpinLockAcquire(&pBc->m_IntDataSpinLock);
-    pBc->m_FrameId =  SDIRXF_FmtEvStatus_GET_FrameId(RegFmtEvStatus);
-    pBc->m_SeqNumber = SDIRXF_FmtEvStatus_GET_SeqNum(RegFmtEvStatus);
-    pBc->m_InSync = (SDIRXF_FmtEvStatus_GET_FmtSync(RegFmtEvStatus) 
+    pBc->m_FrameId = FrameId = SDIRXF_FmtEvStatus_GET_FrameId(RegFmtEvStatus);
+    pBc->m_SeqNumber = SeqNumber = SDIRXF_FmtEvStatus_GET_SeqNum(RegFmtEvStatus);
+    pBc->m_InSync = InSync = (SDIRXF_FmtEvStatus_GET_FmtSync(RegFmtEvStatus) 
                                                              == SDIRXF_FMTSYNC_IN_SYNC);
     DtSpinLockRelease(&pBc->m_IntDataSpinLock);
 
     // Signal formatter event
     DtEventSet(&pBc->m_FmtEvent);
+
+    // Signal callback if any was registers
+    if (pBc->m_OnFormatEventFunc && pBc->m_pOnFormatEventDf)
+        pBc->m_OnFormatEventFunc(pBc->m_pOnFormatEventDf, FrameId, SeqNumber, InSync);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXF_InterruptHandler -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

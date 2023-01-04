@@ -26,6 +26,8 @@
 #include "DtPt.h"
 #include "DtPtAsiSdiMon.h"
 #include "DtPtAsiSdiRxTx.h"
+#include "DtPtIp.h"
+#include "DtPtModOutp.h"
 #include "DtPtSdiPhyOnlyRxTx.h"
 #include "DtPtSdiGenRef.h"
 
@@ -191,6 +193,13 @@ DtPt*  DtPt_Open(const DtPtOpenParams*  pParams)
         pPt->m_EnableFunc = pParams->m_EnableFunc;
     else
         pPt->m_EnableFunc = DtPt_Enable;
+
+#ifdef LINBUILD
+    pPt->m_MmapFunc = pParams->m_MmapFunc;
+#else
+    DT_ASSERT(!pParams->m_MmapFunc);
+    pPt->m_MmapFunc = NULL;     // Not supported for Linux
+#endif
 
     // Did the derived class define it's own set IO config callbacks?
     if (pParams->m_SetIoConfigFunc!=NULL && pParams->m_SetIoConfigPrepareFunc!=NULL
@@ -664,6 +673,13 @@ DtPt*  DtPt_OpenType(DtPortType  Type, DtCore*  pCore, Int  PortIndex)
     case DT_PORT_TYPE_ASISDIRXTX:
     case DT_PORT_TYPE_ASISDITX:
         return (DtPt*)DtPtAsiSdiRxTx_Open(pCore, PortIndex, Type);
+    
+    case DT_PORT_TYPE_IP:
+        return (DtPt*)DtPtIp_Open(pCore, PortIndex, Type);
+    
+
+    case DT_PORT_TYPE_MODOUTP:
+        return (DtPt*)DtPtModOutp_Open(pCore, PortIndex, Type);
 
     case DT_PORT_TYPE_SDIPHYONLYRX:
     case DT_PORT_TYPE_SDIPHYONLYRXTX:
@@ -775,6 +791,23 @@ DtStatus  DtPt_ToInstanceIdFromStrings(const char*  pName, Int  Port,
     return DT_STATUS_OK;
 }
 
+// Linux specific functions
+#ifdef LINBUILD
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPt_Mmap -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Maps the DMA buffer of the port to user space provided the port has a channel with 
+// CDMAC.
+//
+DtStatus DtPt_Mmap(DtPt* pPt, const DtFileObject* pFile, DtVma* pVma)
+{
+    PT_DEFAULT_PRECONDITIONS(pPt);
+
+    // Check if we have a callback for mmap and call it
+    return (pPt->m_MmapFunc) ? pPt->m_MmapFunc(pPt,pFile,pVma) : DT_STATUS_NOT_SUPPORTED;
+}
+
+#endif // #ifdef LINBUILD
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtPt - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 

@@ -8985,6 +8985,8 @@ static const DtProperty  DtProperties2131_0_01[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_RX_ADV_T2", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_RX_MAN_SYMRATE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_RX_QAMA", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DTAPI, 5, 23, 0 },
     { "FIRMWARE_LAST_VER", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -9230,6 +9232,8 @@ static const DtProperty  DtProperties2131_0_55[] =
 };
 static const DtProperty  DtProperties2131_0_57[] =
 {
+    { "CAP_RX_ISDBT_1_3", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "DEMOD_HW_HAS_I2C_RFPWR_MEAS", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -9273,7 +9277,7 @@ static const DtProperty  DtProperties2131_0_63[] =
 static const DtPropertyHashSet  DtPropertyHashSets2131_0[] =
 {
     { NULL, 0 },
-    { DtProperties2131_0_01, 4 },
+    { DtProperties2131_0_01, 5 },
     { DtProperties2131_0_02, 1 },
     { DtProperties2131_0_03, 1 },
     { DtProperties2131_0_04, 2 },
@@ -9329,7 +9333,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2131_0[] =
     { DtProperties2131_0_54, 1 },
     { DtProperties2131_0_55, 1 },
     { NULL, 0 },
-    { DtProperties2131_0_57, 1 },
+    { DtProperties2131_0_57, 2 },
     { NULL, 0 },
     { DtProperties2131_0_59, 4 },
     { DtProperties2131_0_60, 2 },
@@ -9567,6 +9571,12 @@ static const DtProperty  DtProperties2135_0_48[] =
 };
 static const DtProperty  DtProperties2135_0_49[] =
 {
+    { "CAP_RX_AUTO_SPECINV", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
     { "FIRMWARE_RELEASE_N3_0", DT_PVE, "Support for 14-bit ADC on Rev 6 hardware",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -9718,7 +9728,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2135_0[] =
     { DtProperties2135_0_46, 5 },
     { DtProperties2135_0_47, 2 },
     { DtProperties2135_0_48, 1 },
-    { DtProperties2135_0_49, 1 },
+    { DtProperties2135_0_49, 4 },
     { DtProperties2135_0_50, 3 },
     { DtProperties2135_0_51, 1 },
     { DtProperties2135_0_52, 3 },
@@ -9752,6 +9762,10 @@ static const DtProperty  DtProperties2136_0_01[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_RX_MAN_SYMRATE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
     { "CAP_RX_QAMA", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
@@ -10009,6 +10023,13 @@ static const DtProperty  DtProperties2136_0_48[] =
       "Bug fix: Transparant mode synchronisation not possible when idle",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties2136_0_49[] =
+{
+    { "CAP_RX_AUTO_SPECINV", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 } 
+};
 static const DtProperty  DtProperties2136_0_50[] =
 {
     { "CAP_SHAREDANT", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
@@ -10096,7 +10117,7 @@ static const DtProperty  DtProperties2136_0_63[] =
 static const DtPropertyHashSet  DtPropertyHashSets2136_0[] =
 {
     { DtProperties2136_0_00, 2 },
-    { DtProperties2136_0_01, 5 },
+    { DtProperties2136_0_01, 7 },
     { DtProperties2136_0_02, 2 },
     { DtProperties2136_0_03, 2 },
     { DtProperties2136_0_04, 1 },
@@ -10144,7 +10165,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2136_0[] =
     { DtProperties2136_0_46, 6 },
     { DtProperties2136_0_47, 1 },
     { DtProperties2136_0_48, 1 },
-    { NULL, 0 },
+    { DtProperties2136_0_49, 2 },
     { DtProperties2136_0_50, 2 },
     { DtProperties2136_0_51, 1 },
     { NULL, 0 },
@@ -10470,6 +10491,10 @@ static const DtProperty  DtProperties2137_0_48[] =
 };
 static const DtProperty  DtProperties2137_0_49[] =
 {
+    { "CAP_RX_AUTO_SPECINV", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
     { "FIRMWARE_RELEASE_N2_1", DT_PVE, "Support for L3 loopthrough to an ASI port",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_RELEASE_N3_0", DT_PVE, "Support for Generic Streams",
@@ -10600,7 +10625,11 @@ static const DtProperty  DtProperties2137_0_62[] =
     { "CAP_LOOPS2TS", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, -1, 2, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 3, -1, 2, 0, -1,
-                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_RX_AUTO_SYMRATE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 } 
 };
 static const DtProperty  DtProperties2137_0_63[] =
 {
@@ -10664,7 +10693,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2137_0[] =
     { DtProperties2137_0_46, 6 },
     { DtProperties2137_0_47, 1 },
     { DtProperties2137_0_48, 1 },
-    { DtProperties2137_0_49, 2 },
+    { DtProperties2137_0_49, 4 },
     { DtProperties2137_0_50, 4 },
     { DtProperties2137_0_51, 2 },
     { DtProperties2137_0_52, 3 },
@@ -10677,7 +10706,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2137_0[] =
     { DtProperties2137_0_59, 5 },
     { DtProperties2137_0_60, 1 },
     { DtProperties2137_0_61, 3 },
-    { DtProperties2137_0_62, 2 },
+    { DtProperties2137_0_62, 4 },
     { DtProperties2137_0_63, 4 }
 };
 
@@ -10871,6 +10900,8 @@ static const DtProperty  DtProperties2138_0_48[] =
 };
 static const DtProperty  DtProperties2138_0_49[] =
 {
+    { "CAP_RX_AUTO_SPECINV", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_RELEASE_N2_1", DT_PVE, "Several other minor bug fixes",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -10925,6 +10956,11 @@ static const DtProperty  DtProperties2138_0_61[] =
 {
     { "PROGRAMMING_SUPPORTS_FW_REBOOT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0,
                               -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties2138_0_62[] =
+{
+    { "CAP_RX_AUTO_SYMRATE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2138_0_63[] =
 {
@@ -10982,7 +11018,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2138_0[] =
     { DtProperties2138_0_46, 3 },
     { DtProperties2138_0_47, 1 },
     { DtProperties2138_0_48, 1 },
-    { DtProperties2138_0_49, 1 },
+    { DtProperties2138_0_49, 2 },
     { DtProperties2138_0_50, 2 },
     { NULL, 0 },
     { NULL, 0 },
@@ -10995,7 +11031,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2138_0[] =
     { DtProperties2138_0_59, 3 },
     { DtProperties2138_0_60, 2 },
     { DtProperties2138_0_61, 1 },
-    { NULL, 0 },
+    { DtProperties2138_0_62, 1 },
     { DtProperties2138_0_63, 1 }
 };
 
@@ -11029,6 +11065,30 @@ static const DtProperty  DtProperties2139_0_01[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 11, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_RX_MAN_SYMRATE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 3, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 4, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 5, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 6, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 7, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 8, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 9, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 10, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 11, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
     { "CAP_RX_QAMA", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
@@ -11502,6 +11562,30 @@ static const DtProperty  DtProperties2139_0_48[] =
 };
 static const DtProperty  DtProperties2139_0_49[] =
 {
+    { "CAP_RX_AUTO_SPECINV", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 3, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 4, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 5, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 6, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 7, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 8, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 9, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 10, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 11, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
+                                                                                   0, 0 },
     { "FIRMWARE_RELEASE_N2_1", DT_PVE,
       "Bug fix: Did not synchronise in rx-control IDLE for Transparent mode",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -11765,7 +11849,7 @@ static const DtProperty  DtProperties2139_0_63[] =
 static const DtPropertyHashSet  DtPropertyHashSets2139_0[] =
 {
     { NULL, 0 },
-    { DtProperties2139_0_01, 25 },
+    { DtProperties2139_0_01, 37 },
     { DtProperties2139_0_02, 13 },
     { DtProperties2139_0_03, 12 },
     { DtProperties2139_0_04, 1 },
@@ -11813,7 +11897,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2139_0[] =
     { DtProperties2139_0_46, 14 },
     { DtProperties2139_0_47, 1 },
     { DtProperties2139_0_48, 1 },
-    { DtProperties2139_0_49, 2 },
+    { DtProperties2139_0_49, 14 },
     { DtProperties2139_0_50, 4 },
     { DtProperties2139_0_51, 2 },
     { DtProperties2139_0_52, 1 },

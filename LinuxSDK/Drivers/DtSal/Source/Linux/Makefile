@@ -44,6 +44,10 @@ else
     EXTRA_CFLAGS += -DLIN64
 endif
 
+ifeq ("$(DRIVER_NAME)", "DtPcieNw")
+	EXTRA_CFLAGS += -DNW_DRIVER
+endif
+
 ifeq ("$(DRIVER_NAME)", "DtaNw")
 	EXTRA_CFLAGS += -DNW_DRIVER
 endif
@@ -62,6 +66,7 @@ SRC     = $(SRCDIR)/DtDma.o					\
 		  $(SRCDIR)/DtMutex.o				\
 		  $(SRCDIR)/DtSpinLock.o			\
 		  $(SRCDIR)/DtEvent.o				\
+		  $(SRCDIR)/DtTrigEvt.o				\
 		  $(SRCDIR)/DtNonVolatileSettings.o	\
 		  $(SRCDIR)/DtString.o				\
 		  $(SRCDIR)/DtDpc.o                              \

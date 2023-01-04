@@ -62,9 +62,9 @@ typedef struct  _DtDfSi534XRegister
 typedef enum _DtDfSi534XConfig
 {
     DT_DF_SI534X_CFG_UNDEFINED,
-    DT_DF_SI534X_CFG_FREE_RUN_DUAL_CLOCK,
-    DT_DF_SI534X_CFG_FREE_RUN_NONFRAC_CLOCK,
-    DT_DF_SI534X_CFG_FREE_RUN_FRAC_CLOCK,
+    DT_DF_SI534X_CFG_DUAL_SDI_CLOCK,
+    DT_DF_SI534X_CFG_NON_FRAC_SDI_CLOCK,
+    DT_DF_SI534X_CFG_FRAC_SDI_CLOCK,
 } DtDfSi534XConfig;
 
 
@@ -95,14 +95,14 @@ typedef struct  _DtDfSi534X
     DtBcI2CM*  m_pBcI2Cm;               // I2C master block controller
     DtFastMutex  m_AccessMutex;         // Access protection for SI-534X
     Int  m_DeviceType;                  // Device type 5342/5344
+    Int  m_ClockArchitecture;           // Clock architecture SI534X_DTXXXX_LIKE
     Int  m_Si534XAddress;               // Address of  the SI-534X device
-    Int  m_NumClockOutputs;             // Number of clock outputs
-    Int  m_NonFracClkPortIdx;           // Clock output port index  non-fractional clock
-    Int  m_FracClkPortIdx;              // Clock output port index fractional clock
     Int  m_PrevBank;                    // Previous selected bank
     DtDfSi534XConfig  m_CurConfig;      // Current loaded configuration
-    const DtDfSi534XRegister*  m_pCurConfigItems; // Current configured items
+    DtDfSi534XRegister*  m_pCurConfigItems; // Current configured items
     Int  m_CurConfigNumItems;           // Number of configured items
+    DtDfSi534XClockProps   m_ClockProps[DT_DF_SI534X_MAX_NUM_CLOCKS];
+    Int  m_NumClockProps;               // 1 or 2
     DtDfTxPllMgr*  m_pDfTxPllMgr;       // TX-PLL manager
     Int64  m_InitNxNum[DT_DF_SI534X_MAX_NUM_CLOCKS];  //Initial Nx Numerator value
     Int64  m_CurNxNum[DT_DF_SI534X_MAX_NUM_CLOCKS];   //Current Nx Numerator value

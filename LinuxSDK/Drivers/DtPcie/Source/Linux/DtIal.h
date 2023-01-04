@@ -1,11 +1,11 @@
-// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtIal.h *#*#*#*#*#*#*#*#*#*#*#* (C) 2018 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtIal.h *#*#*#*#*#*#*#*#*# (C) 2018-2022 DekTec
 //
 // Dta driver - Implementation of the Linux driver interface.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2018 DekTec Digital Video B.V.
+// Copyright (C) 2018-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -30,6 +30,13 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtTypes.h"
 #include <linux/poll.h>
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
+#include <linux/ptp_clock_kernel.h>
+#define LINUX_KERNEL_PTP_SUPPORT
+#endif
+
+
 
 #ifdef CONFIG_COMPAT
     // Includes for 32-bit applications using 64-bit driver
@@ -76,12 +83,23 @@ typedef struct _DtDeviceItf
 
 typedef struct _DtDriverItf
 {
-    void*  m_pContext;
-    const char*  m_pName;               // Child driver name
+    const char*  m_pName;            // Child driver name
+    void*  m_pContext;               // Parent context. Used with the IoCtrl function
+    Int*  m_pPtpClockIndex;        // Pointer to Ptp Clock Index
+    
+    // Child driver functions
+    Int  (*Probe)(DtDeviceItf* pDev, Int Id);
+    void  (*Remove)(DtDeviceItf* pDev, Int Id);
    
     // Parent driver functions
     IoCtrlFunc  IoCtrl;     // IoCtrl function    
 } DtDriverItf;
+
+typedef struct _DtChildDriver
+{
+    //DtSpinLock  m_SpinLock;
+    DtDriverItf*  m_pDriverItf;
+} DtChildDriver;
 
 
 // DtIalData
@@ -95,6 +113,12 @@ typedef struct _DtIalData
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,8,0)
     struct msix_entry  MsixEntry[20];               // IRQ Vector store
 #endif
+#ifdef LINUX_KERNEL_PTP_SUPPORT
+    // PTP Clock Driver Interface
+    struct ptp_clock_info  m_PtpClockInfo;
+    struct ptp_clock*  m_pPtpClock;
+#endif
+    Int  m_PtpClockIndex;
 } DtIalData;
 
 typedef struct _DtIalDataChild
@@ -102,5 +126,8 @@ typedef struct _DtIalDataChild
     DtDeviceItf  m_DeviceItf;
 } DtIalDataChild;
 
+// Exported functions for registering child driver
+void  DtCorePcie_IAL_RegisterChildDriver(DtDriverItf* pDriverItf);
+void  DtCorePcie_IAL_UnRegisterChildDriver(DtDriverItf* pDriverItf);
 
 #endif // __DT_IAL_H

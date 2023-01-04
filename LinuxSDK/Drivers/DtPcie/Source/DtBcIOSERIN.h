@@ -51,13 +51,34 @@ typedef  struct _DtBcIOSERIN
 {
     // NOTE: common block data must be the first members to allow casting to DtBc
     DT_BC_COMMON_DATA;
-} DtBcIOSERIN;
 
+    // Cached settings
+    Bool  m_BlockEnabled;
+    Int  m_OperationalMode;
+} DtBcIOSERIN;
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcIOSERIN public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 void  DtBcIOSERIN_Close(DtBc*);
 DtBcIOSERIN*  DtBcIOSERIN_Open(Int  Address, DtCore*, DtPt*  pPt, 
                           const char*  pRole, Int  Instance, Int  Uuid, Bool  CreateStub);
+DtStatus DtBcIOSERIN_GetOperationalMode(DtBcIOSERIN* pBc, Int* pOpMode);
+DtStatus DtBcIOSERIN_SetOperationalMode(DtBcIOSERIN* pBc, Int OpMode);
 
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubBcIOSERIN definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcIOSERIN -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//  Io-control stub for an IOSERIN Block
+typedef struct _DtIoStubBcIOSERIN
+{
+    // NOTE: common stub data must be the first members to allow casting to 
+    // DtBcIoCtl
+    DT_IOSTUB_BC_COMMON_DATA;
+}  DtIoStubBcIOSERIN;
+
+//-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcIOSERIN public functions -.-.-.-.-.-.-.-.-.-.-.-.-.
+void  DtIoStubBcIOSERIN_Close(DtIoStub*);
+DtIoStubBcIOSERIN*  DtIoStubBcIOSERIN_Open(DtBc*);
 
 #endif // #ifndef __DT_BC_IOSERIN_H

@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPcieIncludes.h *#*#*#*#*#*#*#*#*#* (C) 2017 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPcieIncludes.h *#*#*#*#*#*#*# (C) 2017-2022 DekTec
 //
 // DtPcie driver - Header file containing all standard driver includes.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:

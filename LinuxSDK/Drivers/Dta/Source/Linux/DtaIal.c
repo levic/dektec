@@ -29,7 +29,7 @@
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // Compile time defaults
 #ifndef DTA_MAX_DEVICES
-#define  DTA_MAX_DEVICES 10
+#define  DTA_MAX_DEVICES 12
 #endif
 #ifndef DTA_MAJOR
 #define  DTA_MAJOR 0   /* 0 --> Dynamic major by default */
@@ -451,6 +451,10 @@ static void  DtaUnMapResources(DtaDeviceData* pDvcData)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDevicePowerUpSeq -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
+#if __GNUC__ >= 7
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#endif // if __GNUC__ >= 7
 static Int  DtaDevicePowerUpSeq(DtaDeviceData* pDvcData)
 {
     DtStatus  Status;
@@ -467,8 +471,8 @@ static Int  DtaDevicePowerUpSeq(DtaDeviceData* pDvcData)
         }
         // Next state in power up sequence
         pDvcData->m_IalData.m_PowerSeqState = DEVICE_POWERSEQ_STATE_UP;
-        
-    case DEVICE_POWERSEQ_STATE_UP:
+    
+     case DEVICE_POWERSEQ_STATE_UP:
         // All channels are initialised. We can now register the ISR
         if (DtaIalRegisterISR(pDvcData) < 0)
         {
@@ -485,7 +489,7 @@ static Int  DtaDevicePowerUpSeq(DtaDeviceData* pDvcData)
         }
         // Next state in power up sequence
         pDvcData->m_IalData.m_PowerSeqState = DEVICE_POWERSEQ_STATE_INT_ENABLED;
-        
+ 
     case DEVICE_POWERSEQ_STATE_INT_ENABLED:
         // Call common powerup post
         Status = DtaDevicePowerUpPost(pDvcData);
@@ -592,7 +596,7 @@ static Int  DtaDeviceStartSeq(DtaDeviceData* pDvcData)
         
         // Next state in start sequence
         pDvcData->m_IalData.m_StartSeqState = DEVICE_STARTSEQ_STATE_RES_INITIALIZED;
-    
+ 
     case DEVICE_STARTSEQ_STATE_RES_INITIALIZED:
         // Call common init
         Status = DtaDeviceInit(pDvcData);
@@ -727,6 +731,9 @@ static void DtaDeviceStopSeq(DtaDeviceData* pDvcData)
     // After DeviceStopSeq all resources are free
     pDvcData->m_IalData.m_StartSeqState = DEVICE_STARTSEQ_STATE_IDLE;
 }
+#if __GNUC__ >= 7
+#pragma GCC diagnostic pop
+#endif // if __GNUC__ >= 7
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaMapRegsToUserspace -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -1055,7 +1062,10 @@ static long  DtaUnlockedIoctl(struct file* pFile, unsigned int Cmd, unsigned lon
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wframe-larger-than="
 static int  DtaIoctl(
+
     struct inode*  pInode,
     struct file*  pFile,
     unsigned int  Cmd,
@@ -1262,6 +1272,7 @@ static int  DtaIoctl(
 
     return Result;
 }
+#pragma GCC diagnostic pop
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaOpen -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //

@@ -53,8 +53,9 @@ static void  DtBcCDMAC_SetControlRegs(DtBcCDMAC*, Bool BlkEnable, Int OpMode,
                                           Int Direction, Int TestMode, Bool ChannelFlush);
 static DtStatus  DtBcCDMAC_OnEnable(DtBc*, Bool  Enable);
 static DtStatus  DtBcCDMAC_OnCloseFile(DtBc*, const DtFileObject*);
-static DtStatus  DtBcCDMAC_PrepareBuffers(DtBcCDMAC*, UInt8*  pDmaBuffer, 
-                                                         Int  DmaBufferSize, Int  RxOrTx);
+static DtStatus  DtBcCDMAC_PrepareBuffers(DtBcCDMAC*, UInt8* pDmaBuffer,
+                                                            Int DmaBufferSize, Int RxOrTx,
+                                                            Int BufType, DtPageList*);
 static void  DtBcCDMAC_PeriodicIntervalHandler(DtObject*, DtTodTime  Time);
 static void  DtBcCDMAC_AddMeasurement(DtBcCDMACProfiling*, DtTodTime Time, 
                                                UInt NumTransferred, UInt64 TransferSpeed);
@@ -106,11 +107,11 @@ DtBcCDMAC*  DtBcCDMAC_Open(Int  Address, DtCore*  pCore, DtPt*  pPt,
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcCDMAC_AllocateBuffer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcCDMAC_AllocateBuffer(DtBcCDMAC* pBc, Int Direction, UInt8 * pDmaBuffer,
-                                                                        Int DmaBufferSize)
+                                    Int DmaBufferSize, Int BufType, DtPageList* pPageList)
 {
     DtStatus  Status = DT_STATUS_OK;
 
-    // Sanity check    
+    // Sanity check
     BC_CDMAC_DEFAULT_PRECONDITIONS(pBc);
 
     // Check parameters
@@ -126,6 +127,9 @@ DtStatus DtBcCDMAC_AllocateBuffer(DtBcCDMAC* pBc, Int Direction, UInt8 * pDmaBuf
     // Check DMA-buffer size
     if (DmaBufferSize > CDMAC_DMA_MAX_TRANSFER_SIZE)
         return DT_STATUS_BUF_TOO_LARGE;
+    // Check for valid buffer types (User or Kernel)
+    if (BufType!=DT_BUFTYPE_USER && BufType!=DT_BUFTYPE_KERNEL)
+        return DT_STATUS_INVALID_PARAMETER;
     // Check capability
     if (Direction==DT_CDMAC_DIR_RX && (pBc->m_Capabilities&DT_CDMAC_CAP_RX)==0)
         return DT_STATUS_NOT_SUPPORTED;
@@ -133,7 +137,8 @@ DtStatus DtBcCDMAC_AllocateBuffer(DtBcCDMAC* pBc, Int Direction, UInt8 * pDmaBuf
         return DT_STATUS_NOT_SUPPORTED;
 
     // Must be enabled
-    BC_CDMAC_MUST_BE_ENABLED(pBc);
+    if (BufType == DT_BUFTYPE_USER)
+        BC_CDMAC_MUST_BE_ENABLED(pBc);
 
     // Prevent mutual access to CDMAC
     DtFastMutexAcquire(&pBc->m_DmaMutex);
@@ -153,8 +158,117 @@ DtStatus DtBcCDMAC_AllocateBuffer(DtBcCDMAC* pBc, Int Direction, UInt8 * pDmaBuf
     pBc->m_Direction = Direction;
 
     // Prepare DMA buffer and Pointer buffer
-    Status = DtBcCDMAC_PrepareBuffers(pBc, pDmaBuffer, DmaBufferSize, Direction);
+    Status = DtBcCDMAC_PrepareBuffers(pBc, pDmaBuffer, DmaBufferSize, 
+                                                           Direction, BufType, pPageList);
 
+    DtFastMutexRelease(&pBc->m_DmaMutex);
+    return Status;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcCDMAC_MapBufferToUserSpace -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Maps the DMA buffer to the address space of the calling process.
+// 
+// Note: for Linux this function should be called from mmap (with a valid Vma struct). 
+// This function will return DT_STATUS_REQUEUE to signal the user should reattempt 
+// mapping the memory from a mmap call.
+//
+DtStatus  DtBcCDMAC_MapBufferToUserSpace(
+     DtBcCDMAC* pBc, Int* Direction, Int* BufferSize, UInt64* pBufferAddress, DtVma* pVma)
+{
+    DtStatus  Status = DT_STATUS_OK;
+
+    // Sanity check
+    BC_CDMAC_DEFAULT_PRECONDITIONS(pBc);
+    // Must be enabled
+    BC_CDMAC_MUST_BE_ENABLED(pBc);
+
+    if (pBufferAddress == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+    
+    *pBufferAddress = 0; // Assume the worst
+
+    // Prevent mutual access to CDMAC
+    DtFastMutexAcquire(&pBc->m_DmaMutex);
+
+    // Must have a buffer to share
+    if (pBc->m_pDmaBuffer==NULL || pBc->m_DmaBufferSize==0)
+    {
+        DtFastMutexRelease(&pBc->m_DmaMutex);
+        DtDbgOutBc(ERR, CDMAC, pBc, "ERROR: no DMA buffer to map");
+        return DT_STATUS_NOT_FOUND; // No buffer to map just yet
+    }
+
+    // For Linux only actually map the memory if we have a VMA
+#ifdef LINBUILD
+    if (pVma)
+#endif // #ifdef LINBUILD
+    {
+        void* UserSpaceAddress=NULL;
+        Status = DtMapBufferToUser(&pBc->m_OsSgList.m_PageList, &UserSpaceAddress, pVma);
+        if (Status != DT_STATUS_OK)
+        {
+            DtFastMutexRelease(&pBc->m_DmaMutex);
+            DtDbgOutBc(ERR, CDMAC, pBc, "ERROR: failed to map user address for DMA");
+            return Status;
+        }
+
+        // Return the mapped buffer address
+        *pBufferAddress = (UInt64)UserSpaceAddress;
+    }
+
+    // Return properties of the buffer
+    if (Direction)  *Direction = pBc->m_Direction;
+    if (BufferSize)  *BufferSize = pBc->m_DmaBufferSize;
+
+    // See above remark
+#ifdef LINBUILD
+    if (!pVma)
+    {
+        DtFastMutexRelease(&pBc->m_DmaMutex);
+        DtDbgOutBc(MIN, CDMAC, pBc, "For Linux call mmap to map a DMA buffer");
+        return DT_STATUS_REQUEUE;      // Signal user should retry (after mmap)
+    }
+#endif // #ifdef LINBUILD
+
+    DtDbgOutBc(MIN, CDMAC, pBc, "Map DMA buffer: Dir=%d, Size=%d, Addr=%p",
+                      pBc->m_Direction, pBc->m_DmaBufferSize, (UInt64*)(*pBufferAddress));
+
+    DtFastMutexRelease(&pBc->m_DmaMutex);
+    return Status;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtBcCDMAC_UpmapBufferFromUserSpace -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtBcCDMAC_UpmapBufferFromUserSpace(DtBcCDMAC* pBc, void* MappedAddress)
+{
+    DtStatus Status = DT_STATUS_OK;
+
+    // Sanity check
+    BC_CDMAC_DEFAULT_PRECONDITIONS(pBc);
+
+    // Must be enabled
+    BC_CDMAC_MUST_BE_ENABLED(pBc);
+
+    if (MappedAddress == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Prevent mutual access to CDMAC
+    DtFastMutexAcquire(&pBc->m_DmaMutex);
+
+    // Must have a buffer to share
+    if (pBc->m_pDmaBuffer==NULL || pBc->m_DmaBufferSize==0)
+    {
+        DtFastMutexRelease(&pBc->m_DmaMutex);
+        DtDbgOutBc(ERR, CDMAC, pBc, "ERROR: no DMA buffer to unmap");
+        return DT_STATUS_NOT_FOUND; // No buffer to map just yet
+    }
+
+    Status = DtUnmapBufferFromUser(MappedAddress, &pBc->m_OsSgList.m_PageList);
+    if (Status != DT_STATUS_OK)
+    {
+        DtDbgOutBc(ERR, CDMAC, pBc, "ERROR: failed to unmap user address for DMA");
+    }
     DtFastMutexRelease(&pBc->m_DmaMutex);
     return Status;
 }
@@ -226,8 +340,9 @@ DtStatus DtBcCDMAC_FreeBuffer(DtBcCDMAC* pBc)
         return DT_STATUS_OK;
     }
 
-    // Unlock the DMA buffer and clear the pagelist
-    DtUnlockUserBuffer(&pBc->m_DmaBufferPageList);
+    // Unlock the DMA buffer (only when it was a user buffer) and clear the page-list 
+    if (pBc->m_DmaBufType == DT_BUFTYPE_USER)
+        DtUnlockUserBuffer(&pBc->m_DmaBufferPageList);
     DtDeletePageList(&pBc->m_DmaBufferPageList);
     pBc->m_pDmaBuffer = NULL;
     pBc->m_DmaBufferSize = 0;
@@ -778,15 +893,17 @@ DtStatus  DtBcCDMAC_OnCloseFile(DtBc*  pBc, const DtFileObject* pFile)
 //
 DtStatus  DtBcCDMAC_PrepareBuffers(
     DtBcCDMAC* pBc,
-    UInt8*  pDmaBuffer, 
-    Int  DmaBufferSize,
-    Int   RxOrTx)
+    UInt8* pDmaBuffer,
+    Int DmaBufferSize,
+    Int  RxOrTx,
+    Int BufType,
+    DtPageList* pPageList)    // Optional parameter
 {
-    DtStatus  Status;
-    UInt  PtrTableBufSize;
-    UInt64* pPtrTable;
-    UInt  NumSgls, SglIdx, TblIdx, NumTblEntries;
-    UInt DmaDirection;
+    DtStatus Status=DT_STATUS_FAIL;
+    UInt PtrTableBufSize=0;
+    UInt64* pPtrTable=NULL;
+    UInt NumSgls=0, SglIdx=0, TblIdx=0, NumTblEntries=0;
+    UInt DmaDirection=DT_DMA_DIRECTION_FROM_DEVICE;
 
     // Just to be sure
     DT_ASSERT(pBc->m_pDmaBuffer == NULL);
@@ -829,27 +946,44 @@ DtStatus  DtBcCDMAC_PrepareBuffers(
                                          BC_CDMAC->m_PtrTable.m_PhysicalAddress.HighPart); 
     }
 
-    // Create a pagelist for the shared buffer
-    Status = DtCreatePageList(pDmaBuffer, DmaBufferSize, DT_BUFTYPE_USER,
-                                                               &pBc->m_DmaBufferPageList);
-    if (!DT_SUCCESS(Status))
+     // Create a pagelist for the shared buffer, unless it already exists
+    if (pPageList == NULL)
     {
-        DtDbgOutBc(ERR, CDMAC, pBc, "ERROR: failed to create page list");
-        return Status;
+        Status = DtCreatePageList(pDmaBuffer, DmaBufferSize, BufType,
+                                                               &pBc->m_DmaBufferPageList);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutBc(ERR, CDMAC, pBc, "ERROR: failed to create page list");
+            return Status;
+        }
+    }
+    else
+    {
+        // Copy page list and mark list as not owned by us. It will be deleted by the
+        // caller
+        pBc->m_DmaBufferPageList = *pPageList;
+        pBc->m_DmaBufferPageList.m_OwnedByUs = FALSE;
     }
 
-    // Lock buffer into kernel memory
-    Status = DtLockUserBuffer(&pBc->m_DmaBufferPageList, pDmaBuffer);
-    if (!DT_SUCCESS(Status))
+    // Lock buffer into kernel memory. Only when the buffer is a user buffer.
+    if (BufType == DT_BUFTYPE_USER)
     {
-        DtDbgOutBc(ERR, CDMAC, pBc, "ERROR: failed to lock user buffer");
-        DtDeletePageList(&pBc->m_DmaBufferPageList);
-        return Status;
+        Status = DtLockUserBuffer(&pBc->m_DmaBufferPageList, pDmaBuffer);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutBc(ERR, CDMAC, pBc, "ERROR: failed to lock user buffer");
+            DtDeletePageList(&pBc->m_DmaBufferPageList);
+            return Status;
+        }
+        // Store DMA buffer pointer
+        pBc->m_pDmaBuffer = pBc->m_DmaBufferPageList.m_pVirtualKernel;
     }
+    else
+        pBc->m_pDmaBuffer = pDmaBuffer;     // Store kernel buffer pointer
        
-    // Store DMA buffer pointer and size
-    pBc->m_pDmaBuffer = pBc->m_DmaBufferPageList.m_pVirtualKernel;
+    // Store DMA buffer size and memory type
     pBc->m_DmaBufferSize = DmaBufferSize;
+    pBc->m_DmaBufType = BufType;
        
     // Set DMA buffer size
     CDMAC_BufferSize_WRITE(pBc, DmaBufferSize);
@@ -1112,6 +1246,7 @@ static DtStatus  DtIoStubBcCDMAC_OnCmdSetTxWriteOffset(const DtIoStubBcCDMAC*,
                                                 const DtIoctlCDmaCCmdSetTxWrOffsetInput*);
 static DtStatus  DtIoStubBcCDMAC_OnExclAccessCmd(const DtIoStub*, DtIoStubIoParams*,
                                                                           Int*  pOutSize);
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- List of supported IOCTL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // First declare IOCTL commands
 DECL_DT_IOCTL_CMD_PROPS_EXCL_ACCESS;
@@ -1355,6 +1490,7 @@ DtStatus  DtIoStubBcCDMAC_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoPa
         Status = DtIoStubBcCDMAC_OnCmdSetTxWriteOffset(CDMAC_STUB,
                                                                &pInData->m_SetTxWrOffset);
         break;
+
     default:
         DT_ASSERT(FALSE);
         return DT_STATUS_NOT_SUPPORTED;
@@ -1374,7 +1510,8 @@ DtStatus  DtIoStubBcCDMAC_OnCmdAllocateBuffer(
     DT_ASSERT(pInData!=NULL && pBuffer!=NULL);
 
     // Allocate buffer
-    Status = DtBcCDMAC_AllocateBuffer(CDMAC_BC, pInData->m_Direction, pBuffer, BufSize);
+    Status = DtBcCDMAC_AllocateBuffer(CDMAC_BC, pInData->m_Direction, pBuffer, BufSize,
+                                                                   DT_BUFTYPE_USER, NULL);
 
     return  Status;
 }
@@ -1532,7 +1669,6 @@ DtStatus DtIoStubBcCDMAC_OnCmdIssueChannelFlush(
     Status = DtBcCDMAC_IssueChannelFlush(CDMAC_BC);
     return  Status;
 }
-
 
 //-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcCDMAC_OnCmdSetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-.
 //

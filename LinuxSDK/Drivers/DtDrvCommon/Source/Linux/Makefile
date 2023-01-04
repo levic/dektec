@@ -51,6 +51,10 @@ ifeq ("$(DRIVER_NAME)", "DtaNw")
 	EXTRA_CFLAGS += -DNW_DRIVER
 endif
 
+ifeq ("$(DRIVER_NAME)", "DtPcieNw")
+	EXTRA_CFLAGS += -DNW_DRIVER
+endif
+
 ifeq ("$(DRIVER_NAME)", "Dtu")
 	EXTRA_CFLAGS += -DUSB_DRIVER
 else

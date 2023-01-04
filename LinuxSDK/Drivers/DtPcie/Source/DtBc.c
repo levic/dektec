@@ -1,9 +1,9 @@
-// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBc.c *#*#*#*#*#*#*#*#*#* (C) 2017-2018 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBc.c *#*#*#*#*#*#*#*#*#* (C) 2017-2022 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -44,7 +44,7 @@
 const DtBcId  DT_BC_KNOWN[] = 
 {
     // Name,                      Short-name,                     Role, Instance, Uuid
-    { DT_BC_ACCUFIFO_NAME,        DT_BC_ACCUFIFO_SHORTNAME,          NULL, -1, -1 },
+    { DT_BC_ACCUFIFO_NAME,        DT_BC_ACCUFIFO_SHORTNAME,        NULL, -1, -1 },
     { DT_BC_ASIRXP_NAME,          DT_BC_ASIRXP_SHORTNAME,          NULL, -1, -1 },
     { DT_BC_ASITXG_NAME,          DT_BC_ASITXG_SHORTNAME,          NULL, -1, -1 },
     { DT_BC_ASITXSER_NAME,        DT_BC_ASITXSER_SHORTNAME,        NULL, -1, -1 },
@@ -52,13 +52,32 @@ const DtBcId  DT_BC_KNOWN[] =
     { DT_BC_CDMAC_NAME,           DT_BC_CDMAC_SHORTNAME,           NULL, -1, -1 },
     { DT_BC_CONSTSINK_NAME,       DT_BC_CONSTSINK_SHORTNAME,       NULL, -1, -1 },
     { DT_BC_CONSTSOURCE_NAME,     DT_BC_CONSTSOURCE_SHORTNAME,     NULL, -1, -1 },
+    { DT_BC_DATACDC_NAME,         DT_BC_DATACDC_SHORTNAME,         NULL, -1, -1 },
+    { DT_BC_DDRFIFO_NAME,         DT_BC_DDRFIFO_SHORTNAME,         NULL, -1, -1 },
+    { DT_BC_DDRFRONT_NAME,        DT_BC_DDRFRONT_SHORTNAME,        NULL, -1, -1 },
+    { DT_BC_DISEQC_NAME,          DT_BC_DISEQC_SHORTNAME,          NULL, -1, -1 },
+    { DT_BC_EMAC10G_NAME,         DT_BC_EMAC10G_SHORTNAME,         NULL, -1, -1 },
+    { DT_BC_ETHIPPAD_NAME,        DT_BC_ETHIPPAD_SHORTNAME,        NULL, -1, -1 },
     { DT_BC_FANC_NAME,            DT_BC_FANC_SHORTNAME,            NULL, -1, -1 },
     { DT_BC_FPGATEMP_NAME,        DT_BC_FPGATEMP_SHORTNAME,        NULL, -1, -1 },
     { DT_BC_GENL_NAME,            DT_BC_GENL_SHORTNAME,            NULL, -1, -1 },
+    { DT_BC_GPSTIME_NAME,         DT_BC_GPSTIME_SHORTNAME,         NULL, -1, -1 },
     { DT_BC_GS2988_NAME,          DT_BC_GS2988_SHORTNAME,          NULL, -1, -1 },
     { DT_BC_I2CM_NAME,            DT_BC_I2CM_SHORTNAME,            NULL, -1, -1 },
     { DT_BC_IOSERIN_NAME,         DT_BC_IOSERIN_SHORTNAME,         NULL, -1, -1 },
+    { DT_BC_IPFIFO_NAME,          DT_BC_IPFIFO_SHORTNAME,          NULL, -1, -1,},
+    { DT_BC_IPSCHED_NAME,         DT_BC_IPSCHED_SHORTNAME,         NULL, -1, -1 },
     { DT_BC_IPSECG_NAME,          DT_BC_IPSECG_SHORTNAME,          NULL, -1, -1 },
+    { DT_BC_IPSUMCHK_NAME,        DT_BC_IPSUMCHK_SHORTNAME,        NULL, -1, -1 },
+    { DT_BC_IPSUMINS_NAME,        DT_BC_IPSUMINS_SHORTNAME,        NULL, -1, -1 },
+    { DT_BC_IPROUT_NAME,          DT_BC_IPROUT_SHORTNAME,          NULL, -1, -1 },
+    { DT_BC_IQUNPCK_NAME,         DT_BC_IQUNPCK_SHORTNAME,         NULL, -1, -1 },
+    { DT_BC_IQFIR_NAME,           DT_BC_IQFIR_SHORTNAME,           NULL, -1, -1 },
+    { DT_BC_IQNOISE_NAME,         DT_BC_IQNOISE_SHORTNAME,         NULL, -1, -1 },
+    { DT_BC_IQMISC_NAME,          DT_BC_IQMISC_SHORTNAME,          NULL, -1, -1 },
+    { DT_BC_IQSYNC_NAME,          DT_BC_IQSYNC_SHORTNAME,          NULL, -1, -1 },
+    { DT_BC_IQUP_NAME,            DT_BC_IQUP_SHORTNAME,            NULL, -1, -1 },
+    { DT_BC_IQJESD_NAME,          DT_BC_IQJESD_SHORTNAME,          NULL, -1, -1 },
     { DT_BC_KA_NAME,              DT_BC_KA_SHORTNAME,              NULL, -1, -1 },
     { DT_BC_LEDB_NAME,            DT_BC_LEDB_SHORTNAME,            NULL, -1, -1 },
     { DT_BC_LMH1981_NAME,         DT_BC_LMH1981_SHORTNAME,         NULL, -1, -1 },
@@ -83,8 +102,11 @@ const DtBcId  DT_BC_KNOWN[] =
     { DT_BC_TOD_NAME,             DT_BC_TOD_SHORTNAME,             NULL, -1, -1 },
     { DT_BC_TSRXFMT_NAME,         DT_BC_TSRXFMT_SHORTNAME,         NULL, -1, -1 },
     { DT_BC_VVI_NAME,             DT_BC_VVI_SHORTNAME,             NULL, -1, -1 },
+    { DT_BC_XPLL_NAME,            DT_BC_XPLL_SHORTNAME,            NULL, -1, -1 },
 
     // Local blocks
+    { DT_BC_ATTNCTRL_2116_NAME,   DT_BC_ATTNCTRL_2116_SHORTNAME,   NULL, -1, -1 },
+    { DT_BC_IO_2116_NAME,         DT_BC_IO_2116_SHORTNAME,         NULL, -1, -1 },
     { DT_BC_AD5320_2132_NAME,     DT_BC_AD5320_2132_SHORTNAME,     NULL, -1, -1 },
     { DT_BC_ADS4246_2132_NAME,    DT_BC_ADS4246_2132_SHORTNAME,    NULL, -1, -1 },
     { DT_BC_DATASTMUX_2132_NAME,  DT_BC_DATASTMUX_2132_SHORTNAME,  NULL, -1, -1 },
@@ -96,6 +118,7 @@ const DtBcId  DT_BC_KNOWN[] =
     { DT_BC_S2DEC_2132_NAME,      DT_BC_S2DEC_2132_SHORTNAME,      NULL, -1, -1 },
     { DT_BC_S2DEMOD_2132_NAME,    DT_BC_S2DEMOD_2132_SHORTNAME,    NULL, -1, -1 },
     { DT_BC_S2STATS_2132_NAME,    DT_BC_S2STATS_2132_SHORTNAME,    NULL, -1, -1 },
+
 };
 const Int  DT_BC_NUM_KNOWN = DT_SIZEOF_ARRAY(DT_BC_KNOWN);
 
@@ -133,7 +156,8 @@ DtStatus  DtBc_CheckBlockId(DtBc*  pBc)
     }
     BlockId[i] = '\0';
 
-    DtDbgOutBc(MIN, COMMON, pBc, "BlockId='%s' and Name='%s'", BlockId, pBc->m_Id.m_pName);
+    DtDbgOutBc(MIN, COMMON, pBc, "BlockId='%s', Name='%s' and Address=0x%0X", BlockId, 
+                                                       pBc->m_Id.m_pName, pBc->m_Address);
 
     DT_STRING_INIT(Str1, Str1Buf, sizeof(Str1Buf)/sizeof(Str1Buf[0]));
     DtStringAppendChars(&Str1, BlockId);
@@ -145,7 +169,7 @@ DtStatus  DtBc_CheckBlockId(DtBc*  pBc)
     {
         // Log expected block
         DtBc_EvtLog3Txt1Par(pBc, "BlockId check failed for: ", pBc->m_Id.m_pName,
-                                                          "; Address: 0x", pBc->m_Address);
+                                                         "; Address: 0x", pBc->m_Address);
     }
 
     return Status;
@@ -390,12 +414,12 @@ DtStatus  DtBc_InterruptsDisable(DtBc*  pBc)
     for(i=0; i<pBc->m_NumInterrupts; i++)
     {
         const Int  AddrOffset = pBc->m_IntProps[i].m_AddrOffset;
-    #ifdef DEBUG
+    #ifdef _DEBUG
         const Int  Id = pBc->m_IntProps[i].m_Id;
         const Int  Index = pBc->m_IntProps[i].m_Index;
         DT_ASSERT(BC_InterruptStatus_READ_InterruptId(pBc, AddrOffset)==Id);
         DT_ASSERT(BC_InterruptStatus_READ_InterruptIndex(pBc, AddrOffset)==Index);
-    #endif  // #ifdef DEBUG
+    #endif  // #ifdef _DEBUG
         BC_InterruptStatus_WRITE_Enable(pBc, AddrOffset, 0);
     }
     return DT_STATUS_OK;
@@ -418,12 +442,12 @@ DtStatus  DtBc_InterruptsEnable(DtBc*  pBc)
     for(i=0; i<pBc->m_NumInterrupts; i++)
     {
         const Int  AddrOffset = pBc->m_IntProps[i].m_AddrOffset;
-    #ifdef DEBUG
+    #ifdef _DEBUG
         const Int  Id = pBc->m_IntProps[i].m_Id;
         const Int  Index = pBc->m_IntProps[i].m_Index;
         DT_ASSERT(BC_InterruptStatus_READ_InterruptId(pBc, AddrOffset)==Id);
         DT_ASSERT(BC_InterruptStatus_READ_InterruptIndex(pBc, AddrOffset)==Index);
-    #endif  // #ifdef DEBUG
+    #endif  // #ifdef _DEBUG
         BC_InterruptStatus_WRITE_Enable(pBc, AddrOffset, 1);
     }
     return DT_STATUS_OK;
@@ -644,10 +668,13 @@ DtBc*  DtBc_OpenType(DtBcType  Type, Int  Address, DtCore*  pCore,
         return (DtBc*)DtBcASITXSER_Open(Address, pCore, pPt, pRole, Instance,
                                                                         Uuid, CreateStub);
     case DT_BLOCK_TYPE_BURSTFIFO:
-    return (DtBc*)DtBcBURSTFIFO_Open(Address, pCore, pPt, pRole, Instance,
+        return (DtBc*)DtBcBURSTFIFO_Open(Address, pCore, pPt, pRole, Instance,
                                                                         Uuid, CreateStub);
     case DT_BLOCK_TYPE_CDMAC:
         return (DtBc*)DtBcCDMAC_Open(Address, pCore, pPt, pRole, Instance, 
+                                                                        Uuid, CreateStub);
+    case DT_BLOCK_TYPE_CDMACTO:
+        return (DtBc*)DtBcCDMACTO_Open(Address, pCore, pPt, pRole, Instance,
                                                                         Uuid, CreateStub);
     case DT_BLOCK_TYPE_CONSTSINK:
         return (DtBc*)DtBcCONSTSINK_Open(Address, pCore, pPt, pRole, Instance,
@@ -655,6 +682,23 @@ DtBc*  DtBc_OpenType(DtBcType  Type, Int  Address, DtCore*  pCore,
     case DT_BLOCK_TYPE_CONSTSOURCE:
         return (DtBc*)DtBcCONSTSOURCE_Open(Address, pCore, pPt, pRole, Instance,
                                                                         Uuid, CreateStub);
+    case DT_BLOCK_TYPE_DATACDC:
+        return (DtBc*)DtBcDATACDC_Open(Address, pCore, pPt, pRole, Instance, Uuid, 
+                                                                              CreateStub);
+    case DT_BLOCK_TYPE_DDRFIFO:
+        return (DtBc*)DtBcDDRFIFO_Open(Address, pCore, pPt, pRole, Instance, Uuid,
+                                                                              CreateStub);
+    case DT_BLOCK_TYPE_DDRFRONT:
+        return (DtBc*)DtBcDDRFRONT_Open(Address, pCore, pPt, pRole, Instance, Uuid,
+                                                                              CreateStub);
+    case DT_BLOCK_TYPE_EMAC10G:
+        return (DtBc*)DtBcEMAC10G_Open(Address, pCore, pPt, pRole, Instance, Uuid);
+    case DT_BLOCK_TYPE_ETHIPPAD:
+        DT_ASSERT(CreateStub == FALSE);
+        return (DtBc*)DtBcETHIPPAD_Open(Address, pCore, pPt, pRole, Instance, Uuid);
+    case DT_BLOCK_TYPE_DISEQC:
+        return (DtBc*)DtBcDISEQC_Open(Address, pCore, pPt, pRole, Instance, Uuid,
+                                                                              CreateStub);
     case DT_BLOCK_TYPE_FANC:
         DT_ASSERT(CreateStub == FALSE);
         return (DtBc*)DtBcFANC_Open(Address, pCore, pPt, pRole, Instance, Uuid);
@@ -664,6 +708,9 @@ DtBc*  DtBc_OpenType(DtBcType  Type, Int  Address, DtCore*  pCore,
     case DT_BLOCK_TYPE_GENL:
         DT_ASSERT(CreateStub == FALSE);
         return (DtBc*)DtBcGENL_Open(Address, pCore, pPt, pRole, Instance, Uuid, FALSE);
+    case DT_BLOCK_TYPE_GPSTIME:
+        return (DtBc*)DtBcGPSTIME_Open(Address, pCore, pPt, pRole, Instance, Uuid, 
+                                                                              CreateStub);
     case DT_BLOCK_TYPE_GS2988:
         return (DtBc*)DtBcGS2988_Open(Address, pCore, pPt, pRole, Instance, 
                                                                         Uuid, CreateStub);
@@ -671,12 +718,48 @@ DtBc*  DtBc_OpenType(DtBcType  Type, Int  Address, DtCore*  pCore,
         return (DtBc*)DtBcI2CM_Open(Address, pCore, pPt, pRole, Instance, 
                                                                         Uuid, CreateStub);
     case DT_BLOCK_TYPE_IOSERIN:
-        DT_ASSERT(CreateStub == FALSE);
         return (DtBc*)DtBcIOSERIN_Open(Address, pCore, pPt, pRole, Instance, 
                                                                         Uuid, CreateStub);
+    case DT_BLOCK_TYPE_IPFIFO:
+        DT_ASSERT(CreateStub == FALSE);
+        return (DtBc*)DtBcIPFIFO_Open(Address, pCore, pPt, pRole, Instance, Uuid);
+    case DT_BLOCK_TYPE_IPROUT:
+        DT_ASSERT(CreateStub == FALSE);
+        return (DtBc*)DtBcIPROUT_Open(Address, pCore, pPt, pRole, Instance, Uuid);
+    case DT_BLOCK_TYPE_IPSCHED:
+        DT_ASSERT(CreateStub == FALSE);
+        return (DtBc*)DtBcIPSCHED_Open(Address, pCore, pPt, pRole, Instance, Uuid);
     case DT_BLOCK_TYPE_IPSECG:
         return (DtBc*)DtBcIPSECG_Open(Address, pCore, pPt, pRole, Instance, 
                                                                         Uuid, CreateStub);
+    case DT_BLOCK_TYPE_IPSUMCHK:
+        DT_ASSERT(CreateStub == FALSE);
+        return (DtBc*)DtBcIPSUMCHK_Open(Address, pCore, pPt, pRole, Instance, Uuid);
+    case DT_BLOCK_TYPE_IPSUMINS:
+        DT_ASSERT(CreateStub == FALSE);
+        return (DtBc*)DtBcIPSUMINS_Open(Address, pCore, pPt, pRole, Instance, Uuid);
+    case DT_BLOCK_TYPE_IQUNPCK:
+        return (DtBc*)DtBcIQUNPCK_Open(Address, pCore, pPt, pRole, Instance,
+                                                                        Uuid, CreateStub);
+    case DT_BLOCK_TYPE_IQFIR:
+        return (DtBc*)DtBcIQFIR_Open(Address, pCore, pPt, pRole, Instance,
+                                                                       Uuid, CreateStub);
+    case DT_BLOCK_TYPE_IQNOISE:
+        return (DtBc*)DtBcIQNOISE_Open(Address, pCore, pPt, pRole, Instance,
+                                                                       Uuid, CreateStub);
+    case DT_BLOCK_TYPE_IQMISC:
+        return (DtBc*)DtBcIQMISC_Open(Address, pCore, pPt, pRole, Instance,
+                                                                       Uuid, CreateStub);
+    case DT_BLOCK_TYPE_IQSYNC:
+        return (DtBc*)DtBcIQSYNC_Open(Address, pCore, pPt, pRole, Instance,
+                                                                       Uuid, CreateStub);   
+    case DT_BLOCK_TYPE_IQUP:
+        return (DtBc*)DtBcIQUP_Open(Address, pCore, pPt, pRole, Instance,
+                                                                       Uuid, CreateStub); 
+    case DT_BLOCK_TYPE_IQJESD:
+        return (DtBc*)DtBcIQJESD_Open(Address, pCore, pPt, pRole, Instance,
+                                                                       Uuid, CreateStub);
+
     case DT_BLOCK_TYPE_KA:
         return (DtBc*)DtBcKA_Open(Address, pCore, pPt, pRole, Instance, 
                                                                         Uuid, CreateStub);
@@ -754,6 +837,12 @@ DtBc*  DtBc_OpenType(DtBcType  Type, Int  Address, DtCore*  pCore,
         return (DtBc*)DtBcVVI_Open(Address, pCore, pPt, pRole, Instance, Uuid);
 
         // Local blocks
+    case DT_BLOCK_TYPE_ATTNCTRL_2116:
+        return (DtBc*)DtBcATTNCTRL_2116_Open(Address, pCore, pPt, pRole, Instance,
+                                                                       Uuid, CreateStub);
+    case DT_BLOCK_TYPE_IO_2116:
+        return (DtBc*)DtBcIO_2116_Open(Address, pCore, pPt, pRole, Instance,
+                                                                       Uuid, CreateStub);
     case DT_BLOCK_TYPE_AD5320_2132:
         return (DtBc*)DtBcAD5320_2132_Open(Address, pCore, pPt, pRole, Instance, 
                                                                         Uuid, CreateStub);
@@ -787,6 +876,9 @@ DtBc*  DtBc_OpenType(DtBcType  Type, Int  Address, DtCore*  pCore,
     case DT_BLOCK_TYPE_S2STATS_2132:
         return (DtBc*)DtBcS2STATS_2132_Open(Address, pCore, pPt, pRole, Instance, 
                                                                         Uuid, CreateStub);
+    case DT_BLOCK_TYPE_XPLL:
+        DT_ASSERT(CreateStub == FALSE);
+        return (DtBc*)DtBcXPLL_Open(Address, pCore, pPt, pRole, Instance, Uuid);
     default:
         DT_ASSERT(FALSE);
         break;
@@ -1091,7 +1183,7 @@ void DtBc_EvtLog3Txt1Par(DtBc* pBc, const Char* Txt1, const Char* Txt2, const Ch
                                                                               NULL, NULL);
     DtStringFree(&Str);
 #else
-    printk("DtPcie: [SN=%lld] Port:%d BC %s %s %s 0x%x",
+    printk("DtPcie: [SN=%lld] Port:%d BC %s %s %s %x",
                                                      pBc->m_pCore->m_pDevInfo->m_Serial,
                                                      DtCore_PT_GetPortIndex(pBc->m_pPt)+1,
                                                      Txt1, Txt2, Txt3, Par1);
@@ -1200,14 +1292,42 @@ DtIoStubBc*  DtIoStubBc_OpenType(DtBc*  pBc)
         return (DtIoStubBc*)DtIoStubBcBURSTFIFO_Open(pBc);
     case DT_BLOCK_TYPE_CDMAC:
         return (DtIoStubBc*)DtIoStubBcCDMAC_Open(pBc);
+    case DT_BLOCK_TYPE_CDMACTO:
+        return (DtIoStubBc*)DtIoStubBcCDMACTO_Open(pBc);
     case DT_BLOCK_TYPE_CONSTSINK:
         return (DtIoStubBc*)DtIoStubBcCONSTSINK_Open(pBc);
     case DT_BLOCK_TYPE_CONSTSOURCE:
         return (DtIoStubBc*)DtIoStubBcCONSTSOURCE_Open(pBc);
+    case DT_BLOCK_TYPE_DATACDC:
+        return (DtIoStubBc*)DtIoStubBcDATACDC_Open(pBc);
+    case DT_BLOCK_TYPE_DDRFIFO:
+        return (DtIoStubBc*)DtIoStubBcDDRFIFO_Open(pBc);
+    case DT_BLOCK_TYPE_DDRFRONT:
+        return (DtIoStubBc*)DtIoStubBcDDRFRONT_Open(pBc);
+    case DT_BLOCK_TYPE_DISEQC:
+        return (DtIoStubBc*)DtIoStubBcDISEQC_Open(pBc);
+    case DT_BLOCK_TYPE_GPSTIME:
+        return (DtIoStubBc*)DtIoStubBcGPSTIME_Open(pBc);
     case DT_BLOCK_TYPE_I2CM:
         return (DtIoStubBc*)DtIoStubBcI2CM_Open(pBc);
+    case DT_BLOCK_TYPE_IOSERIN:
+        return (DtIoStubBc*)DtIoStubBcIOSERIN_Open(pBc);
     case DT_BLOCK_TYPE_IPSECG:
         return (DtIoStubBc*)DtIoStubBcIPSECG_Open(pBc);
+    case DT_BLOCK_TYPE_IQUNPCK:
+        return (DtIoStubBc*)DtIoStubBcIQUNPCK_Open(pBc);
+    case DT_BLOCK_TYPE_IQFIR:
+        return (DtIoStubBc*)DtIoStubBcIQFIR_Open(pBc);
+    case DT_BLOCK_TYPE_IQNOISE:
+        return (DtIoStubBc*)DtIoStubBcIQNOISE_Open(pBc);
+    case DT_BLOCK_TYPE_IQMISC:
+        return (DtIoStubBc*)DtIoStubBcIQMISC_Open(pBc);
+    case DT_BLOCK_TYPE_IQSYNC:
+        return (DtIoStubBc*)DtIoStubBcIQSYNC_Open(pBc);
+    case DT_BLOCK_TYPE_IQUP:
+        return (DtIoStubBc*)DtIoStubBcIQUP_Open(pBc);
+    case DT_BLOCK_TYPE_IQJESD:
+        return (DtIoStubBc*)DtIoStubBcIQJESD_Open(pBc);
     case DT_BLOCK_TYPE_KA:
         return (DtIoStubBc*)DtIoStubBcKA_Open(pBc);
     case DT_BLOCK_TYPE_LEDB:
@@ -1258,6 +1378,10 @@ DtIoStubBc*  DtIoStubBc_OpenType(DtBc*  pBc)
         break;
 
         // Local blocks
+    case DT_BLOCK_TYPE_ATTNCTRL_2116:
+        return (DtIoStubBc*)DtIoStubBcATTNCTRL_2116_Open(pBc);
+    case DT_BLOCK_TYPE_IO_2116:
+        return (DtIoStubBc*)DtIoStubBcIO_2116_Open(pBc);
     case DT_BLOCK_TYPE_AD5320_2132:
         return (DtIoStubBc*)DtIoStubBcAD5320_2132_Open(pBc);
     case DT_BLOCK_TYPE_ADS4246_2132:

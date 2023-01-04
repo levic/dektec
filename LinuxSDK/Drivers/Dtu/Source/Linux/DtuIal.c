@@ -77,7 +77,11 @@ void  DtuIncrUsageCount(DtuDeviceData* pDvcData);
 static long  DtuIoctl(struct inode* pInode, struct file* pFile, unsigned int Cmd, 
                                                                        unsigned long Arg);
 static long  DtuUnlockedIoctl(struct file* pFile, unsigned int Cmd, unsigned long Arg);
-#ifdef CONFIG_COMPAT
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,4)
+#define HAVE_COMPAT_PTR_IOCTL
+#endif
+
+#if defined(CONFIG_COMPAT) && !defined(HAVE_COMPAT_PTR_IOCTL)
 // 32-bit applications using 64-bit driver
 static long  DtuIoctlCompat(struct file *filp, unsigned int cmd, unsigned long arg);
 #endif
@@ -127,10 +131,6 @@ static DEVICE_ATTR(serial, S_IRUGO, DtuShowSerial, NULL);
 // Registering the sysfs attributes is done with the following two functions:
 // device_create_file / device_remove_file
 // The attribute itself is declared with the DEVICE_ATTR macro.
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,4)
-#define HAVE_COMPAT_PTR_IOCTL
-#endif
 
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Interface declarations +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -223,6 +223,10 @@ static Int  DtuFreeDeviceResources(DtuDeviceData* pDvcData)
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuDevicePowerUpSeq -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
+#if __GNUC__ >= 7
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#endif // if __GNUC__ >= 7
 static Int  DtuDevicePowerUpSeq(DtuDeviceData* pDvcData)
 {
     DtStatus  Status;
@@ -388,6 +392,9 @@ static void  DtuDeviceStopSeq(DtuDeviceData* pDvcData, Bool Initializing)
     // After DeviceStopSeq all resources are free
     pDvcData->m_IalData.m_StartSeqState = DEVICE_STARTSEQ_STATE_IDLE;
 }
+#if __GNUC__ >= 7
+#pragma GCC diagnostic pop
+#endif // if __GNUC__ >= 7
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Character interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

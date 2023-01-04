@@ -448,7 +448,7 @@ static Int  DtaNwEvtSetMacAddr(struct net_device* pDevice, void* pAddr)
 
     // Update current MAC address
     DtMemCopy(pDvcData->m_MacAddressCur, pSockAddr->sa_data, 6);
-    DtMemCopy(pDevice->dev_addr, pSockAddr->sa_data, 6);
+    DtMemCopy((void*)pDevice->dev_addr, pSockAddr->sa_data, 6);
     return 0;
 }
 
@@ -861,7 +861,7 @@ void  DtaNwEvtNewPacketRxCallback(
     }
 
     // Give packet to the network layer. Network layer will cleanup the packet
-    netif_rx_ni(pSkb);
+    netif_rx(pSkb);
 
 #if defined(RHEL_RELEASE_CODE)
 #if RHEL_RELEASE_CODE>=RHEL_RELEASE_VERSION(7,5)
@@ -991,9 +991,9 @@ Int  DtaNwEvtProbe(DtaDeviceItf* pDevItf, Int Id)
 
     if (Result >= 0)
     {
-        DtMemCopy(pNwDev->dev_addr, pDvcData->m_MacAddressCur, 6);
+        DtMemCopy((void*)pNwDev->dev_addr, pDvcData->m_MacAddressCur, 6);
 #ifdef PERM_ADDR_SUPPORT
-        DtMemCopy(pNwDev->perm_addr, pDvcData->m_MacAddressPerm, 6);
+        DtMemCopy((void*)pNwDev->perm_addr, pDvcData->m_MacAddressPerm, 6);
 #endif
 
 

@@ -460,7 +460,7 @@ Int  DtBcLMH1981_DetermineVidSTd(DtBcLMH1981* pBc)
     Int FramePeriodUs, FpsX1000;
     Int VidStd = DT_VIDSTD_UNKNOWN;
 
-    // Determine frame period and frame rate
+    // Determine field period
     RegData = LMH1981_SyncRate_READ(pBc);
     FramePeriodUs = (Int)LMH1981_SyncRate_GET_VsRate(RegData);
     if (FramePeriodUs <= 0)
@@ -509,22 +509,15 @@ Int  DtBcLMH1981_DetermineVidSTd(DtBcLMH1981* pBc)
 
     case LMH1981_FORMAT_1080iF1:
     case LMH1981_FORMAT_1080iF2:
-        FpsX1000 = FpsX1000/2;  // Check on fields per second
         if (FpsX1000>=59970 && FpsX1000<60030)
             VidStd = DT_VIDSTD_1080I60;
         else if (FpsX1000>=59910 && FpsX1000<59970)
             VidStd = DT_VIDSTD_1080I59_94;
         else if (FpsX1000>=49975 && FpsX1000<50025)
             VidStd = DT_VIDSTD_1080I50;
-        else if (FpsX1000>=29985 && FpsX1000<30015)
-            VidStd = DT_VIDSTD_1080PSF30;
-        else if (FpsX1000>=29955 && FpsX1000<29985)
-            VidStd = DT_VIDSTD_1080PSF29_97;
-        else if (FpsX1000>=24987 && FpsX1000<25012)
-            VidStd = DT_VIDSTD_1080PSF25;
-        else if (FpsX1000>=23988 && FpsX1000<24012)
+        else if (FpsX1000>=47976 && FpsX1000<48024)
             VidStd = DT_VIDSTD_1080PSF24;
-        else if (FpsX1000>=23964 && FpsX1000<23988)
+        else if (FpsX1000>=47929 && FpsX1000<47975)
             VidStd = DT_VIDSTD_1080PSF23_98;
         break;
 

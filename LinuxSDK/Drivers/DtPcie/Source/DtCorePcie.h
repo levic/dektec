@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCorePcie.h *#*#*#*#*#*#*#*#*#*#* (C) 2017 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCorePcie.h *#*#*#*#*#*#*#*# (C) 2017-2022 DekTec
 //
 // DtPcie driver - Interface for the DtPcie common driver, used by the IAL.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -73,8 +73,9 @@ typedef struct _DtPcieDeviceInfo
 //
 struct _DtPcieChildDeviceData
 {
-    Int  m_Index;
-    struct _DtCorePcie*  m_pParentDeviceData;
+    DT_OBJECT_COMMON_DATA;             // Type DT_OBJECT_TYPE_CD
+    struct _DtCorePcie*  m_pParentCore;
+    DtObject*  m_pOwnerObject;
     DtIalDataChild  m_IalData;         // IAL data for child network devices
 };
 
@@ -133,8 +134,8 @@ struct _DtCorePcie
 DtStatus  DtCorePcie_Open(DtCorePcie* pCore, DtFileObject* pFile);
 DtStatus  DtCorePcie_Close(DtCorePcie* pCore, DtFileObject* pFile);
 DtStatus  DtCorePcie_Ioctl(DtCorePcie*, DtFileObject*,DtIoctlObject*);
-DtStatus  DtCorePcie_IoctlChild(DtPcieChildDeviceData* pCore, DtFileObject* pFile,
-                                                                   DtIoctlObject* pIoctl);
+DtStatus  DtCorePcie_IoctlChild(DtPcieChildDeviceData* pChildDeviceData, 
+                                              DtFileObject* pFile, DtIoctlObject* pIoctl);
 DtStatus  DtCorePcie_AcquireExclAccess(DtCorePcie*  pCore);
 void      DtCorePcie_ReleaseExclAccess(DtCorePcie*  pCore);
 //-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_DRIVER - Public versions -.-.-.-.-.-.-.-.-.-.-.-.-.

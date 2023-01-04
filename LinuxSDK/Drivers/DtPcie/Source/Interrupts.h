@@ -1,9 +1,9 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Interrupts.h *#*#*#*#*#*#*#*#*#*#* (C) 2017 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* Interrupts.h *#*#*#*#*#*#*#*# (C) 2017-2022 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -38,6 +38,9 @@
 #define  DT_INTERRUPT_LNBH25_2132_TXDONE    8
 #define  DT_INTERRUPT_LNBH25_2132_RXDONE    9
 #define  DT_INTERRUPT_LNBH25_2132_FAULT     10
+#define  DT_INTERRUPT_DISEQC_TXDONE         8
+#define  DT_INTERRUPT_DISEQC_RXDONE         9
+#define  DT_INTERRUPT_DISEQC_FAULT          10
 #define  DT_INTERRUPT_S2STATS_2132_FIFOHALFFULL  11
 #define  DT_INTERRUPT_IQCGRAB_2132_DONE     12
 #define  DT_INTERRUPT_S2DEMOD_2132_CREONIX  13
@@ -46,6 +49,7 @@
 #define  DT_INTERRUPT_CONSTSINK_TESTDONE    17
 #define  DT_INTERRUPT_GENL_STARTOFFRAME     18
 #define  DT_INTERRUPT_LMH1981_STARTOFFRAME  19
+#define  DT_INTERRUPT_EMAC10G_LINK_STATUS   21
 
 
 // Signature of the interrupt handler callback function

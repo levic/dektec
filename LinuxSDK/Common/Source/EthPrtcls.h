@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* EthPrtcls.h *#*#*#*#*#*#*#*#* (C) 2005-2016 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* EthPrtcls.h *#*#*#*#*#*#*#*# (C) 2005-2022 DekTec
 //  
 //  Note: Only defines that are likely to be used in our implementation are defined.
 //        Refer to the standardized protocol specifications for more details.
@@ -6,7 +6,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2005-2016 DekTec Digital Video B.V.
+// Copyright (C) 2005-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -70,7 +70,14 @@
 #define NWCW(a)     (UInt16)((((a) >> 8) & 0x00FF) | (((a) << 8)& 0xFF00))
 #define NWCDW(a)    (UInt32)(((a) >> 24) | (((a) >> 8) & 0x0000FF00 ) | \
                             (((a) << 8) & 0x00FF0000) | ((a) << 24))
-
+#define NWCI64(a)    (Int64)(   ((a) >>56) |\
+                                (((a) >>40) & 0x000000000000ff00ULL) | \
+                                (((a) >>24) & 0x0000000000ff0000ULL) | \
+                                (((a) >> 8) & 0x00000000ff000000ULL) | \
+                                (((a) << 8) & 0x000000ff00000000ULL) | \
+                                (((a) <<24) & 0x0000ff0000000000ULL) | \
+                                (((a) <<40) & 0x00ff000000000000ULL) | \
+                                 ((a) <<56))
 // ETH / 802.2/802.3 Defines
 #define ETH_TYPE_IPV4           0x0800      // Ethernet Packet Type IPv4
 #define ETH_TYPE_IPV4_BE        0x0008      // Ethernet Packet Type IPv4 Big Endian
@@ -80,6 +87,11 @@
 #define ETH_TYPE_VLAN           0x8100      // Ethernet Packet Vlan tagged
 #define ETH_TYPE_VLAN_BE        0x0081      // Ethernet Packet Vlan tagged
 
+#define ETH_TYPE_VLANS           0x88A8      // Ethernet Packet Service Vlan tagged
+#define ETH_TYPE_VLANS_BE        0xA888      // Ethernet Packet Service Vlan tagged
+
+#define ETH_TYPE_VLANB           0x88E7      // Ethernet Packet Backbone Vlan tagged
+#define ETH_TYPE_VLANB_BE        0xE788      // Ethernet Packet Backbone Vlan tagged
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- RTP Defines -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define RTP_PAYLOAD_MPEGII      0x21        // Payload Type MPEG-II
 #define RTP_PAYLOAD_FEC         0x60        // Payload Type Forward Error Control (FEC) 
@@ -106,6 +118,7 @@
 #define IPV4_HDR_FLAGS_MOREFRAG 0x01        // IPv4 : More fragments follow (bit 0)
 
 // Protocol
+#define IPV4_HDR_PROT_TCP       0x06
 #define IPV4_HDR_PROT_UDP       0x11        // IPv4 We use UDP ...
 #define IPV6_HDR_HOPBYHOP       0x00
 #define IPV6_HDR_ROUTING        0x2b
@@ -391,6 +404,64 @@ typedef struct _HbrMediaPlHeader
 // If m_Ext==1: UInt32 HeaderExtension == 0: No extension
 // == 1..111: Payload header is extended by this number * 4 bytes
 
+typedef struct _Smpte2110_20_PlHeader
+{
+
+    UInt16 ExtendedSeqNumber;
+    struct {
+        UInt16 Length;  // Number of bytes of data (including padding)
+        UInt16 RowH : 7;
+        UInt16 Field : 1;
+        UInt16 RowL : 8;
+        UInt16 OffsetH : 7;
+        UInt16 Continuation : 1;
+        UInt16 OffsetL : 8;
+    } SampleRowData[3];
+} Smpte2110_20_PlHeader;
+
+typedef struct _Smpte2110_40_PlHeader
+{
+    UInt16 ExtendedSeqNumber;
+    UInt16 Length;  // Number of bytes of data (including padding)
+
+    UInt16 AncCount : 8;
+    UInt16 Reserved1 : 6;
+    UInt16 Field : 2;
+    UInt16 Reserved2;
+} Smpte2110_40_PlHeader;
+
+typedef struct _Smpte2110_40_Pl
+{
+    UInt16 LineNumberH : 7;
+    UInt16 C : 1;
+    UInt16 HorizontalOffsetH : 4;
+    UInt16 LineNumberL : 4;
+    UInt16 HorizontalOffsetL : 8;
+    UInt16 StreamNum : 7;
+    UInt16 S : 1;
+    UInt16 DIDH : 8;
+    UInt16 SDIDH : 6;
+    UInt16 DIDL : 2;
+    UInt16 DataCountH:4; // Highest 2 bits : Parity
+    UInt16 SDIDL : 4;
+    UInt16 FirstDataBits : 2;
+    UInt16 DataCountL:6;
+    //UInt16 DataWords;
+    //UInt16 ChecksumWord:10;
+} Smpte2110_40_Pl;
+
+typedef struct _Smpte2110_31_Pl
+{
+    UInt32 Reserved : 2;
+    UInt32 BlockStart : 1;
+    UInt32 FrameStart : 1;
+    UInt32 P : 1;
+    UInt32 C : 1;
+    UInt32 U : 1;
+    UInt32 V : 1;
+    UInt32 Data24 : 24;
+} Smpte2110_31_Pl;
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- SdiRxFrameStat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // If DTAPI_RXMODE_SDI_STAT is enabled, 16 extra bytes are added to the start of the frame
@@ -405,8 +476,6 @@ typedef struct _SdiRxFrameStat
     UInt64  m_Spare1;
     UInt64  m_Spare2;
 } SdiRxFrameStat;
-
-#pragma pack (pop)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DmaTxHeader definition -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -591,6 +660,57 @@ typedef struct _DtaDmaRxHeader
         DtaDmaRxHeaderV3  m_RxHeaderV3;
     };
 } DtaDmaRxHeader;
+
+#define DT_ETHIP_PROTOCOL_UDP       1
+#define DT_ETHIP_PROTOCOL_TCP       0       // && m_PortOffset != 0
+#define DT_ETHIP_PROTOCOL_OTHER     0       // && m_PortOffset == 0
+
+#define DT_ETHIP_SYNCWORD           0xEEEE
+
+#define  DT_ETHIP_PKTTYPE_TIMESTAMP  0x0
+#define  DT_ETHIP_PKTTYPE_IPV4       0x1
+#define  DT_ETHIP_PKTTYPE_IPV6       0x2
+#define  DT_ETHIP_PKTTYPE_OTHER      0x3
+
+typedef struct _DtEthIpHeader
+{
+    UInt64  m_SyncWord : 16;        // EEEEh
+    UInt64  m_SizeInQWords : 8;     // Unit: 64 bits, 8 bytes
+    UInt64  m_SizeInBytes : 11;     // Ethernet packet size in #bytes
+    UInt64  m_IpAddressOffset : 5;
+    UInt64  m_PortOffset : 8;
+    UInt64  m_Protocol : 1;
+    UInt64  m_PacketType : 2;
+    UInt64  m_SubStream : 2;
+    UInt64  m_IpV4HdrChecksumError : 1;
+    UInt64  m_UdpChecksumError : 1;
+    UInt64  m_TcpChecksumError : 1;
+    UInt64  m_TimestampRequest : 1;
+    UInt64  m_TimestampValid : 1;
+    UInt64  m_Fingerprint : 6;
+} DtEthIpHeader;
+
+typedef struct _DtEthIpTod
+{
+    union {
+        struct {
+            UInt64  m_TodNanoseconds : 32;
+            UInt64  m_TodSeconds : 32;
+        };
+    };
+} DtEthIpTod;
+
+typedef struct _DtEthIp
+{   
+    DtEthIpHeader  m_Hdr;
+    DtEthIpTod  m_Tod;
+    UInt16  m_AlignmentBytes:16;   // Bytes to align the word offsets     
+    // Payload...
+} DtEthIp;
+
+#pragma pack (pop)
+
+
 
 // Default defines
 #define  DT_IP_MIN_ETH_PAYLOAD  60

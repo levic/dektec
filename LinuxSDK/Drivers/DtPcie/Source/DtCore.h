@@ -1,9 +1,9 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCore.h *#*#*#*#*#*#*#*#*#*#*#* (C) 2017 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCore.h *#*#*#*#*#*#*#*#*# (C) 2017-2022 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -33,6 +33,7 @@ typedef struct _DtCore  DtCore;
 
 // Forwards
 typedef struct _DtBc  DtBc;
+typedef struct _DtDf  DtDf;
 typedef struct _DtPt  DtPt;
 typedef struct _DtObjectBcOrDf  DtObjectBcOrDf;
 typedef struct DtVector  DtVectorBc;
@@ -193,6 +194,10 @@ typedef DtStatus  (*DtCoreBulkRead32Func)(DtCore*, UInt32 Address, Int NumToRead
 typedef DtStatus  (*DtCoreOpenChildrenFunc)(DtCore*);
 typedef void  (*DtCoreCloseChildrenFunc)(DtCore*);
 
+typedef DtStatus  (*DtCoreRegisterChildDeviceFunc)(DtCore*, DtObject* pObject);
+typedef DtStatus  (*DtCoreUnregisterChildDeviceFunc)(DtCore*, DtObject* pObject);
+
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // Common data for core driver services or a function based device
 #define  DT_CORE_COMMON_DATA_PUBLIC                                                      \
@@ -204,7 +209,9 @@ typedef void  (*DtCoreCloseChildrenFunc)(DtCore*);
     DtCoreRegWrite32Func  m_RegWrite32Func;                                              \
     DtCoreBulkRead32Func  m_BulkRead32Func;                                              \
     DtCoreOpenChildrenFunc  m_OpenChildrenFunc;                                          \
-    DtCoreCloseChildrenFunc  m_CloseChildrenFunc
+    DtCoreCloseChildrenFunc  m_CloseChildrenFunc;                                        \
+    DtCoreRegisterChildDeviceFunc  m_RegisterChildDevice;                                \
+    DtCoreUnregisterChildDeviceFunc  m_UnregisterChildDevice
 #define DT_CORE_COMMON_DATA_PRIVATE                                                      \
     /* Driver / Device objects */                                                        \
     DtDrvObject  m_Driver;                                                               \

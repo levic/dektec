@@ -28,10 +28,11 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtPt.h"
-#include "DtDfSdiTxPhy.h"
 #include "DtBcSDITXP.h"
 #include "DtBcSWITCH.h"
+#include "DtDfChSdiRxPhyOnly.h"
 #include "DtDfSdiRx.h"
+#include "DtDfSdiTxPhy.h"
 #include "DtDfSpiCableDrvEq.h"
 
 // Name for the SDIPHYONLYRXTX port.
@@ -58,9 +59,15 @@ typedef struct  _DtPtSdiPhyOnlyRxTx
 
     // RX Driver functions
     DtDfSdiRx*  m_pDfSdiRx;             // SDI receiver including PHY for ASI
+    DtDfChSdiRxPhyOnly*  m_pDfChSdiRxPhyOnly;  // SDI PHY-only receive channel
 
     // RX TX Driver functions
     DtDfSpiCableDrvEq*  m_pDfSpiCableDrvEq; // Cable driver/equalizer
+
+    Bool m_HoldExclAccessLock;      // True, when we hold the exclusive access lock 
+                                    // for all children.
+    Bool m_HoldChannelLock;         // True, when we hold the channel lock for the SDI 
+                                    // PHY-only receive channel
 } DtPtSdiPhyOnlyRxTx;
 
 

@@ -1,9 +1,9 @@
-// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBc.h *#*#*#*#*#*#*#*#*#* (C) 2017-2018 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBc.h *#*#*#*#*#*#*#*#*#* (C) 2017-2022 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -282,17 +282,40 @@ DtStatus  DtIoStubBc_OnExclAccessCmd(const DtIoStub*, DtIoStubIoParams*, Int*  p
 #include "DtBcASIRXP.h"
 #include "DtBcASITXG.h"
 #include "DtBcASITXSER.h"
+#include "DtBcATTNCTRL_2116.h"
 #include "DtBcBURSTFIFO.h"
 #include "DtBcCDMAC.h"
+#include "DtBcCDMACTO.h"
 #include "DtBcCONSTSINK.h"
 #include "DtBcCONSTSOURCE.h"
+#include "DtBcDATACDC.h"
+#include "DtBcDATAFIFO.h"
+#include "DtBcDDRFIFO.h"
+#include "DtBcDDRFRONT.h"
+#include "DtBcDISEQC.h"
+#include "DtBcEMAC10G.h"
+#include "DtBcETHIPPAD.h"
 #include "DtBcFANC.h"
 #include "DtBcFPGATEMP.h"
 #include "DtBcGENL.h"
+#include "DtBcGPSTIME.h"
 #include "DtBcGS2988.h"
 #include "DtBcI2CM.h"
 #include "DtBcIOSERIN.h"
+#include "DtBcIO_2116.h"
+#include "DtBcIPFIFO.h"
+#include "DtBcIPROUT.h"
+#include "DtBcIPSCHED.h"
 #include "DtBcIPSECG.h"
+#include "DtBcIPSUMCHK.h"
+#include "DtBcIPSUMINS.h"
+#include "DtBcIQUNPCK.h"
+#include "DtBcIQFIR.h"
+#include "DtBcIQNOISE.h"
+#include "DtBcIQMISC.h"
+#include "DtBcIQSYNC.h"
+#include "DtBcIQUP.h"
+#include "DtBcIQJESD.h"
 #include "DtBcKA.h"
 #include "DtBcLEDB.h"
 #include "DtBcLMH1981.h"
@@ -317,6 +340,7 @@ DtStatus  DtIoStubBc_OnExclAccessCmd(const DtIoStub*, DtIoStubIoParams*, Int*  p
 #include "DtBcTOD.h"
 #include "DtBcTSRXFMT.h"
 #include "DtBcVVI.h"
+#include "DtBcXPLL.h"
 
 // Local block includes
 #include "DtBcAD5320_2132.h"

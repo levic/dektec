@@ -222,7 +222,7 @@ DtStatus DtBcIQFIR_2132_SetControl(DtBcIQFIR_2132* pBc, Bool ClearFifo,  Bool St
     Int i;
 
     // Parameters should be valid
-    DT_ASSERT(ClearFifo || Start && !(ClearFifo && Start));
+    DT_ASSERT((ClearFifo || Start) && !(ClearFifo && Start));
     DT_ASSERT(Direction==IQFIR_CMD_READ || Direction==IQFIR_CMD_WRITE);
     
     // Filter should be ready for transfer

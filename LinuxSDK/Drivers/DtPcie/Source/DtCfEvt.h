@@ -104,8 +104,8 @@ typedef struct _DtIoStubCfEvt
     
     // Windows specific
 #ifdef WINBUILD
-    DtFastMutex  m_EventQueueMutex;     // Access protection for event queue
-    WDFQUEUE  m_EventQueue;             // Event queue
+    DtMutex m_EventQueueMutex;      // Access protection for event queue
+    WDFQUEUE m_EventQueue;          // Event queue
 #endif
 }  DtIoStubCfEvt;
 

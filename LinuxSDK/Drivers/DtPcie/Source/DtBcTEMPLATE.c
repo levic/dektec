@@ -309,10 +309,10 @@ void DtBcTEMPLATE_InterruptDpcDone(DtDpcArgs* pArgs)
     DtBcTEMPLATE*  pBc = (DtBcTEMPLATE*)pArgs->m_pContext;
 
     // Sanity check
-#ifdef DEBUG
+#ifdef _DEBUG
     UInt32  IntId = pArgs->m_Data1.m_UInt32_1;
     DT_ASSERT(IntId == DT_INTERRUPT_TEMPLATE_TESTDONE);
-#endif  // #ifdef DEBUG
+#endif  // #ifdef _DEBUG
     BC_TEMPLATE_DEFAULT_PRECONDITIONS(pBc);
 
     // If necessary, re-enable the interrupt that was fired

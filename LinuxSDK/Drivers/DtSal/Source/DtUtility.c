@@ -118,7 +118,7 @@ void  DtEvtLogReport(DtEvtLog* pEvtObject, UInt32 ErrorCode, DtString* pInsert1,
     }
 
 #else
-    static const Int  MAX_MSG_LENGTH = 512;
+    #define MAX_MSG_LENGTH 512
     const char*  pMsg;
     const char*  pLevel;
     char  MsgBuf[MAX_MSG_LENGTH];
@@ -164,13 +164,13 @@ void*  DtMemAllocPoolLarge(DtPoolType Type, UInt Size, UInt32 Tag, DtPageList** 
 
     // Windows: always use plain kernel memory
     if(ppPageList != NULL)
-        *ppPageList = NULL;    
+        *ppPageList = NULL;
     
     return DtMemAllocPool(Type, Size, Tag);
 #else
 
     Int  i,j;
-    UInt  BufSize;   
+    UInt  BufSize;
     DtPageList*  pPageList = NULL;
 
     // On request, allocate plain memory
@@ -249,7 +249,7 @@ void*  DtMemAllocPoolLarge(DtPoolType Type, UInt Size, UInt32 Tag, DtPageList** 
         return NULL;
     }
     
-    *ppPageList = pPageList;    
+    *ppPageList = pPageList;
     return pPageList->m_pVirtualKernel;
 
 #endif
@@ -468,7 +468,7 @@ UInt  DtAnsiCharArrayToUInt(const char* pUIntString, UInt StrLen, UInt Base)
          
         Result += Multiplier * DtAnsiCharToUInt(pUIntString[Index]);
         
-        // We do not wast a 64 bit multiplication...
+        // We do not waste a 64 bit multiplication...
         if (Index > 0)
             Multiplier *= Base;
     }
@@ -657,7 +657,7 @@ DtStatus  DtLockUserBuffer(DtPageList* pPageList, UInt8* pBuffer)
 #else
     unsigned long Offset = 0;
 
-    // For linux the DtPageList is always locked into memory during creation of the buffer
+    // For Linux the DtPageList is always locked into memory during creation of the buffer
     // No separate function is needed to lock the buffer
     pPageList->m_pVirtualKernel = vmap(pPageList->m_pPages, pPageList->m_NumPages, 
                                              VM_SHARED | VM_READ | VM_WRITE, PAGE_KERNEL);
@@ -665,13 +665,107 @@ DtStatus  DtLockUserBuffer(DtPageList* pPageList, UInt8* pBuffer)
         return DT_STATUS_OUT_OF_RESOURCES;
 
     // vmap uses a page aligned buffer, truncated in DtGetPagesUserBufferAndLock()
-    // make shure the virtual kernel pointer points to the actual buffer address.
+    // make sure the virtual kernel pointer points to the actual buffer address.
     Offset = (unsigned long)(pBuffer) % PAGE_SIZE;
     pPageList->m_pVirtualKernel += Offset;
 
 #endif
     
     DtDbgOut(MAX, SAL, "Lock user buffer: pVirtual: %p", pPageList->m_pVirtualKernel);
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtMapBufferToUser -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Map the buffer pointed to by the page list to user space. The page list must contain 
+// already locked pages.
+// 
+// NOTE: 
+//   Must be called from within the context of the process, to whose memory space, this 
+//   buffer must be mapped.
+//
+DtStatus DtMapBufferToUser(const DtPageList* pPageList, void** UserAddress, DtVma* pVma)
+{
+    if (!pPageList || !UserAddress)
+        return DT_STATUS_INVALID_PARAMETER;
+    
+    *UserAddress=NULL;
+#ifdef WINBUILD
+
+    // Note:
+    //   If the specified pages cannot be mapped, the routine raises an exception. Callers
+    //   that specify UserMode must wrap the call to MmMapLockedPagesSpecifyCache in a
+    //   try/except block. 
+    try 
+    {
+        *UserAddress = MmMapLockedPagesSpecifyCache(pPageList->m_pMdl, 
+                                                    UserMode,  // Mode
+                                                    MmCached,  // Caching
+                                                    NULL,      // No specific address
+                                                    FALSE,     // No bug check on failure
+                                                    NormalPagePriority);  // Priority
+    }
+    except (EXCEPTION_EXECUTE_HANDLER) 
+    {
+        return DT_STATUS_OUT_OF_RESOURCES;
+    }
+#else
+    {
+        Int i=0, VmaSize=0;
+        UInt64 Addr=0;
+
+        // Check Linux specific parameters
+        if (!pVma || !pVma->m_pVma)
+        {
+            DtDbgOut(ERR, SAL, "Vma is invalid");
+            return DT_STATUS_INVALID_PARAMETER;
+        }
+
+        // Check VMA size is consistent with #pages we are mapping
+        VmaSize = (Int)(pVma->m_pVma->vm_end - pVma->m_pVma->vm_start);
+        if (VmaSize != (pPageList->m_NumPages*PAGE_SIZE))
+        {
+            DtDbgOut(ERR, SAL, "VmaSize (%d) is invalid", VmaSize);
+            return DT_STATUS_FAIL;
+        }
+
+        // Map each individual page into user space
+        Addr = (UInt64)pVma->m_pVma->vm_start;
+        for (i=0; i<pPageList->m_NumPages; i++, Addr+=PAGE_SIZE)
+        {
+    #ifndef __phys_to_pfn
+    #define __phys_to_pfn(paddr)    ((paddr) >> PAGE_SHIFT)
+    #endif // !__phys_to_pfn
+
+            struct page* Page = pPageList->m_pPages[i];
+            Int Result = remap_pfn_range(pVma->m_pVma, Addr, 
+                                                   __phys_to_pfn(page_to_phys(Page)),
+                                                   PAGE_SIZE, pVma->m_pVma->vm_page_prot);
+            if (Result != 0) 
+            {
+                DtDbgOut(ERR, SAL, "Failed to map page %d", i);
+                return DT_STATUS_FAIL;
+            }
+        }
+        // Store address
+        *UserAddress = (void*)pVma->m_pVma->vm_start;
+    }
+#endif
+    return (*UserAddress!=NULL) ? DT_STATUS_OK : DT_STATUS_OUT_OF_RESOURCES;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtUnmapBufferFromUser -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtUnmapBufferFromUser(void* UserAddress, const DtPageList* pPageList)
+{
+    if (pPageList==NULL || UserAddress==NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+#ifdef WINBUILD
+    MmUnmapLockedPages(UserAddress, pPageList->m_pMdl);
+#else
+    // Nothing TODO for Linux
+#endif
     return DT_STATUS_OK;
 }
 
@@ -1089,10 +1183,24 @@ DtStatus  DtIoctl(
     IoSetCompletionRoutine(pIrp, DtIoctlCompletion, &Event, TRUE, TRUE, TRUE);
     
     // Call parent device's IoCtrl function
-    IoCallDriver(pDeviceObject, pIrp);
-
-    // Wait for the event to be signalled by the completion routine.
-    KeWaitForSingleObject(&Event, Executive, KernelMode, FALSE, NULL);
+    NtStatus = IoCallDriver(pDeviceObject, pIrp);
+    if (NtStatus == STATUS_PENDING)
+    {
+        // Wait for the event to be signalled by the completion routine.
+        if (KeGetCurrentIrql() > APC_LEVEL)
+        {
+            // We can't wait without timeout of 0 at DPC level
+            LARGE_INTEGER Timeout;
+            Timeout.QuadPart = 0;
+            NtStatus = STATUS_TIMEOUT;
+            while (NtStatus == STATUS_TIMEOUT)
+            {
+                NtStatus = KeWaitForSingleObject(&Event, Executive, KernelMode, FALSE, 
+                                                                                &Timeout);
+            }
+        } else
+            KeWaitForSingleObject(&Event, Executive, KernelMode, FALSE, NULL);
+    }
     
     // Copy the data of system buffer to output buffer.
     if (pOutputBuffer!=NULL && pBuffer!=NULL)

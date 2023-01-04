@@ -1,9 +1,9 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCore_DF.c *#*#*#*#*#*#*#*#*#*#*# (C) 2017 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCore_DF.c *#*#*#*#*#*#*#*# (C) 2017-2022 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -201,6 +201,7 @@ DtStatus  DtCore_DF_OpenAll_Impl(DtCore*  pCore,  DtPt*  pPt, const DtDfId*  pId
     {
         Int  Instance=1;
         Bool  FoundProps = FALSE;
+        Bool  SpecificInstance = FALSE;
         do
         {
             DtDf*  pDf = NULL;
@@ -208,7 +209,10 @@ DtStatus  DtCore_DF_OpenAll_Impl(DtCore*  pCore,  DtPt*  pPt, const DtDfId*  pId
             DtDfId  Id = pIds[i];    // Init ID
             // Are we looking for a specific instance?
             if (Id.m_Instance > 0)
+            {
                 Instance = Id.m_Instance;
+                SpecificInstance = TRUE;
+            }
             else
                 Id.m_Instance = Instance++;     // Try the next
 
@@ -248,7 +252,7 @@ DtStatus  DtCore_DF_OpenAll_Impl(DtCore*  pCore,  DtPt*  pPt, const DtDfId*  pId
                 }
             }
         }
-        while (FoundProps);
+        while (FoundProps && !SpecificInstance);
     }
     return DT_STATUS_OK;
 }

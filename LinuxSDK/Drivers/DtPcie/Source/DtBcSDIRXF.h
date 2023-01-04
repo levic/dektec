@@ -45,6 +45,18 @@ while (0)
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDIRXF definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+// Signature of a on-format-event callback function (i.e. callback called whenever a 
+// format-event-interrupt has been received by DtBcSDIRXF)
+typedef void  (*DtBcSDIRXFOnFormatEventFunc)(
+                                          DtDf*, Int FrameId, Int SeqNumber, Bool InSync);
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXFOnFormatEventRegData -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// Registration data for format-event handlers
+typedef struct  _DtBcSDIRXFOnFormatEventRegData
+{
+    DtDf* m_pDf;                    // DtDf object registering for the event
+    DtBcSDIRXFOnFormatEventFunc m_OnFormatEventFunc;  // Event callback
+}  DtBcSDIRXFOnFormatEventRegData;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXF -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 typedef  struct _DtBcSDIRXF
@@ -80,6 +92,11 @@ typedef  struct _DtBcSDIRXF
     Int  m_SeqNumber;               // Sequence number
     Bool m_InSync;                  // True if in-sync
 
+    // Registered format-event callback
+    DtSpinLock m_OnFmtEventSpinlock;  // Protection of on-format-event callback data
+    DtBcSDIRXFOnFormatEventFunc m_OnFormatEventFunc; // Callback to call on a format event
+    DtDf* m_pOnFormatEventDf;               // DtDf object to pass to callback
+
 }  DtBcSDIRXF;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDIRXF public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -96,12 +113,15 @@ DtStatus  DtBcSDIRXF_GetFrameProperties(DtBcSDIRXF*, Int*  pNumSymsHanc,
 DtStatus  DtBcSDIRXF_GetMaxSdiRate(DtBcSDIRXF* pBc, Int* pMaxSdiRate);
 DtStatus  DtBcSDIRXF_GetOperationalMode(DtBcSDIRXF* pBc,  Int* pOpMode);
 DtStatus  DtBcSDIRXF_GetStreamAlignment(DtBcSDIRXF* pBc,  Int* pStreamAlignment);
+DtStatus  DtBcSDIRXF_RegisterForFormatEvent(
+                                         DtBcSDIRXF*, DtBcSDIRXFOnFormatEventFunc, DtDf*);
 DtStatus  DtBcSDIRXF_SetFmtEventTiming(DtBcSDIRXF* pBc, Int Interval, Int Delay, 
                                                                          Int IntPerFrame);
 DtStatus  DtBcSDIRXF_SetFrameProperties(DtBcSDIRXF*, Int  NumSymsHanc,
-                                                      Int NumSymsVidVanc, Int NumLines,
-                                                      Int AssumeSd, Int AssumeInterlaced);
+                                                       Int NumSymsVidVanc, Int NumLines,
+                                                       Int SdiRate, Int AssumeInterlaced);
 DtStatus  DtBcSDIRXF_SetOperationalMode(DtBcSDIRXF* pBc,  Int OpMode);
+DtStatus  DtBcSDIRXF_UnregisterFormFormatEvent(DtBcSDIRXF*, const DtDf*);
 DtStatus  DtBcSDIRXF_WaitForFmtEvent(DtBcSDIRXF* pBc, Int Timeout, Int* pFrameId,
                                                            Int* pSeqNumber, Int* pInSync);
 

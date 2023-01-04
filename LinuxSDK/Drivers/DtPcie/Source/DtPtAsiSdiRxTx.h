@@ -46,6 +46,7 @@
 #include "DtBcST425LR.h"
 #include "DtBcSWITCH.h"
 #include "DtDfAsiRx.h"
+#include "DtDfChSdiRx.h"
 #include "DtDfSdiRx.h"
 #include "DtDfSpiCableDrvEq.h"
 #include "DtDfTodClockCtrl.h"
@@ -89,15 +90,16 @@ typedef struct  _DtPTAsiSdiRxTx
 
 
     // RX Driver functions
-    DtDfAsiRx*  m_pDfAsiRx;             // ASI receiver
-    DtDfSdiRx*  m_pDfSdiRx;             // SDI receiver including PHY for ASI
+    DtDfAsiRx*  m_pDfAsiRx;              // ASI receiver
+    DtDfSdiRx*  m_pDfSdiRx;              // SDI receiver including PHY for ASI
+    DtDfChSdiRx*  m_pDfChSdiRx;          // SDI receive channel
 
     // RX Block controllers
-    DtBcSWITCH*  m_pBcSwitchFrontEndRx;   // Input side switch
-    DtBcSWITCH*  m_pBcSwitchBackEndRx;    // DMA-side switch
-    DtBcSDIRXF*  m_pBcSdiRxF;             // SDI-RX formatter simple
-    DtBcSWITCH*  m_pBcSwitchTestModeRx;   // DMA-testmode switch
-    DtBcCONSTSOURCE*  m_pBcConstSource;   // Constant rate source block controller
+    DtBcSWITCH*  m_pBcSwitchFrontEndRx;  // Input side switch
+    DtBcSWITCH*  m_pBcSwitchBackEndRx;   // DMA-side switch
+    DtBcSDIRXF*  m_pBcSdiRxF;            // SDI-RX formatter simple
+    DtBcSWITCH*  m_pBcSwitchTestModeRx;  // DMA-testmode switch
+    DtBcCONSTSOURCE*  m_pBcConstSource;  // Constant rate source block controller
 
     // 12G RX Block controllers
     DtBcSWITCH*  m_pBcSwitchSdiRxMuxIn;  // SDI mux 12G input switch
@@ -118,6 +120,11 @@ typedef struct  _DtPTAsiSdiRxTx
     
     // Common for all ports
     DtDfTodClockCtrl*  m_pDfTodClockCtrl;   // TimeOfDay clock control
+
+    Bool m_HoldExclAccessLock;      // True, when we hold the exclusive access lock 
+                                    // for all children.
+    Bool m_HoldChannelLock;         // True, when we hold the channel lock for the SDI 
+                                    // receive channel
 } DtPtAsiSdiRxTx;
 
 

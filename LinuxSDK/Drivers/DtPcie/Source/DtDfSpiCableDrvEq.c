@@ -72,8 +72,10 @@ static DtStatus  DtDfSpiCableDrvEq_SetGsXx90AmplitudeControl(DtDfSpiCableDrvEq*,
                                                                              Int SdiRate);
 static DtStatus  DtDfSpiCableDrvEq_SetGsXx90TraceEqualizer(DtDfSpiCableDrvEq*,
                                                                              Int TraceEq);
+#ifdef _DEBUG
 static Bool  DtDfSpiCableDrvEq_CheckGsXx90(DtDfSpiCableDrvEq*, Int StartAddress,
                                                       Int NumToCheck, const UInt16* pBuf);
+#endif
 static DtStatus  DtDfSpiCableDrvEq_ReadGsXx90(DtDfSpiCableDrvEq*, Int StartAddress,
                                                             Int NumToRead, UInt16 * pBuf);
 static DtStatus  DtDfSpiCableDrvEq_WriteGsXx90(DtDfSpiCableDrvEq*, Int StartAddress,
@@ -699,6 +701,7 @@ DtStatus DtDfSpiCableDrvEq_SetGsXx90TraceEqualizer(DtDfSpiCableDrvEq* pDf, Int T
     return DT_STATUS_OK;
 }
 
+#ifdef _DEBUG
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_CheckGsXx90 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 Bool DtDfSpiCableDrvEq_CheckGsXx90(DtDfSpiCableDrvEq* pDf, Int StartAddress,
@@ -713,6 +716,7 @@ Bool DtDfSpiCableDrvEq_CheckGsXx90(DtDfSpiCableDrvEq* pDf, Int StartAddress,
             return FALSE;
     return TRUE;
 }
+#endif
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSpiCableDrvEq_ReadGsXx90 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //

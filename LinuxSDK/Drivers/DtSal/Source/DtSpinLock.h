@@ -48,6 +48,8 @@ void  DtSpinLockRelease(DtSpinLock* pSpinLock);
 void  DtSpinLockReleaseFromDpc(DtSpinLock* pSpinLock);
 #ifdef USES_NDIS
 void  DtSpinLockFree(DtSpinLock* pSpinLock);
+#else
+#define  DtSpinLockFree(pSpinLock) do {} while (0)
 #endif
 
 #endif // __DT_SPIN_LOCK_H

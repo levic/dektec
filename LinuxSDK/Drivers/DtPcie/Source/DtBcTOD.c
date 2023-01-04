@@ -141,6 +141,56 @@ DtStatus DtBcTOD_Adjust(DtBcTOD* pBc, Int64  DeltaNs)
     return DT_STATUS_OK;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcTOD_AdjustPhaseIncr -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Adjust the clock frequency by 'AdjustScaledPpm' in parts per million with lowest 16-bit 
+// as fraction
+//
+DtStatus DtBcTOD_AdjustPhaseIncr(DtBcTOD* pBc, Int64 AdjustScaledPpm)
+{
+    Bool  Neg = FALSE;
+    Int64  Adjust;
+    UInt64  NomIncrement;
+    UInt64  Remainder;
+    // Sanity check
+    BC_TOD_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check state
+    BC_TOD_MUST_BE_ENABLED(pBc);
+    
+    NomIncrement = DtDivide64((1LL << 58), pBc->m_SysClockFreqHz, NULL);
+    if (AdjustScaledPpm < 0)
+    {
+        Neg = TRUE;
+        AdjustScaledPpm = -AdjustScaledPpm;
+    }
+    // Scale to correct units from ppm fraction to non fraction
+    Adjust = DtDivide64(NomIncrement * AdjustScaledPpm, (UInt64)1000000<<16, &Remainder);
+    if (Remainder > ((UInt64)1000000 << 15))
+        Adjust++;
+    if (Neg)
+        Adjust = -Adjust;
+    
+    // Prevent mutual access
+    DtSpinLockAcquire(&pBc->m_TodLock);
+    DtDbgOutBc(MAX, TOD, pBc, "Set clock increment: Prev:%u, New:%u adjusted %i"
+                                  " nomincr:%llu abs(ScaledPPm):%lli",
+                                  BC_TOD->m_ClockPhaseIncr, (UInt32)(NomIncrement+Adjust),
+                                  (Int)Adjust, NomIncrement, AdjustScaledPpm);
+
+    // Update cached values
+    BC_TOD->m_ClockPhaseIncr = (UInt32)(NomIncrement + Adjust);
+    
+    // Write ClockIncr  registers
+    TOD_ClockIncr_WRITE(BC_TOD, BC_TOD->m_ClockPhaseIncr);
+    DtSpinLockRelease(&pBc->m_TodLock);
+    DtDbgOutBc(MAX, TOD, pBc, "Set clock increment: %d, adjusted %i", 
+                                                   BC_TOD->m_ClockPhaseIncr, (Int)Adjust);
+
+    return DT_STATUS_OK;
+}
+
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcTOD_GetPeriodicItv -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcTOD_GetPeriodicItv(DtBcTOD* pBc, Int* pIntervalMs)
@@ -158,7 +208,6 @@ DtStatus DtBcTOD_GetPeriodicItv(DtBcTOD* pBc, Int* pIntervalMs)
 
     // Get the periodic interval time
     *pIntervalMs = pBc->m_PeriodicInterval;
-
     return DT_STATUS_OK;
 }
 
@@ -429,7 +478,7 @@ DtStatus  DtBcTOD_Init(DtBc*  pBc)
     BC_TOD->m_PeriodicInterval = DEFAULT_PERIODIC_INTERRUPT_INTERVAL;
 
      // Print configuration
-    DtDbgOutBc(AVG, REBOOT, pBc, "Configuration: sys_clock=%dkHz, clock_acc=%dppm, "
+    DtDbgOutBc(AVG, REBOOT, pBc, "Configuration: sys_clock=%lldkHz, clock_acc=%dppm, "
                    "clock_incr=%d,  periodic_interval=%dms",
                    DtDivideS64(BC_TOD->m_SysClockFreqHz,1000), BC_TOD->m_SysClockAccuracy,
                    BC_TOD->m_ClockPhaseIncr, DEFAULT_PERIODIC_INTERRUPT_INTERVAL);
@@ -559,6 +608,8 @@ void  DtBcTOD_InterruptDpc(DtDpcArgs* pArgs)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards of private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 static DtStatus  DtIoStubBcTOD_OnCmd(const DtIoStub*, DtIoStubIoParams*, Int*);
+static DtStatus  DtIoStubBcTOD_OnCmdAdjustPpm(const DtIoStubBcTOD* pStub,
+                                              const DtIoctlTodCmdAdjustPpmInput* pInData);
 static DtStatus  DtIoStubBcTOD_OnCmdAdjustTime(const DtIoStubBcTOD*,
                                                      const DtIoctlTodCmdAdjustTimeInput*);
 static DtStatus  DtIoStubBcTOD_OnCmdGetPhaseIncr(const DtIoStubBcTOD*,
@@ -671,6 +722,9 @@ DtStatus  DtIoStubBcTOD_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoPara
     case DT_TOD_CMD_SET_TIME:
         Status = DtIoStubBcTOD_OnCmdSetTime(TOD_STUB, &pInData->m_SetTime);
         break;
+    case DT_TOD_CMD_ADJUST_PPM:
+        Status = DtIoStubBcTOD_OnCmdAdjustPpm(TOD_STUB, &pInData->m_AdjustPpm);
+        break;
     default:
         DT_ASSERT(FALSE);
         return DT_STATUS_NOT_SUPPORTED;
@@ -678,9 +732,21 @@ DtStatus  DtIoStubBcTOD_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoPara
     return Status;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcTOD_OnCmdAdjustPpm -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtIoStubBcTOD_OnCmdAdjustPpm(
+    const DtIoStubBcTOD* pStub,
+    const DtIoctlTodCmdAdjustPpmInput* pInData)
+{
+    STUB_BC_TOD_DEFAULT_PRECONDITIONS(pStub);
+    DT_ASSERT(pInData != NULL);
+
+    return DtBcTOD_AdjustPhaseIncr(TOD_BC, pInData->m_ScaledPpm);
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcTOD_OnCmdAdjustTime -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtIoStubBcTOD_OnCmdAdjustTime(    
+DtStatus  DtIoStubBcTOD_OnCmdAdjustTime(
     const DtIoStubBcTOD*  pStub, 
     const DtIoctlTodCmdAdjustTimeInput*  pInData)
 {

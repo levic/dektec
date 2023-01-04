@@ -1,9 +1,9 @@
-// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCorePcie_IAL.c *#*#*#*#*#*#*#*#*#* (C) 2018 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCorePcie_IAL.c *#*#*#*#*#*#*# (C) 2018-2022 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2018 DekTec Digital Video B.V.
+// Copyright (C) 2018-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -23,7 +23,9 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-#include <DtPcieIncludes.h>
+#include "DtPcieIncludes.h" 
+#include "DtPtIp.h"             // Required for registering child devices
+#include "DtCommon.h" 
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
@@ -37,11 +39,15 @@
 #define  DTPCIE_MAJOR 0   /* 0 --> Dynamic major by default */
 #endif
 
+#define DTPCIE_PTP_CLK_NAME  "DtPciePtpClk"
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 // Global variables
 Int  g_DtPcieMaxDevices = DTPCIE_MAX_DEVICES;
 Int  g_DtPcieMajor = DTPCIE_MAJOR;
 Int  g_DtPcieMinor = 0;
+
+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Global variables -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 // Load time parameters
@@ -62,6 +68,7 @@ MODULE_LICENSE("GPL";)
 static DtCorePcie**  g_pDtCorePcie = NULL;
 static struct class*  g_pDtPcieClass = NULL;
 static Int  g_DtPcieDeviceCount = 0;
+static DtChildDriver  g_DtChildNwDriver;     // Interface to Child (Network) driver
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Forward declarations +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -77,6 +84,10 @@ static Int  DtCorePcie_IAL_InitDeviceResources(DtCorePcie* pCore);
 static Int  DtCorePcie_IAL_FreeDeviceResources(DtCorePcie* pCore);
 static Int  DtCorePcie_IAL_MapResources(DtCorePcie* pCore);
 static void  DtCorePcie_IAL_UnMapResources(DtCorePcie* pCore);
+static Int  DtCorePcie_IAL_PtpClockRegister(DtCorePcie* pCore);
+static Int  DtCorePcie_IAL_PtpClockUnregister(DtCorePcie* pCore);
+
+
 
 // Interrupt handler
 static irqreturn_t  DtCorePcie_IAL_Interrupt(Int Irq, void* pContext);
@@ -87,7 +98,10 @@ static int  DtCorePcie_IAL_Ioctl(struct inode* pInode, struct file* pFile, unsig
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
 static long  DtCorePcie_IAL_UnlockedIoctl(struct file* pFile, unsigned int Cmd, unsigned long Arg);
 #endif
-#ifdef CONFIG_COMPAT
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,4)
+#define HAVE_COMPAT_PTR_IOCTL
+#endif
+#if defined(CONFIG_COMPAT) && !defined(HAVE_COMPAT_PTR_IOCTL)
 // 32-bit applications using 64-bit driver
 static long  DtCorePcie_IAL_IoctlCompat(struct file *filp, unsigned int cmd, unsigned long arg);
 #endif
@@ -96,6 +110,7 @@ static Int  DtCorePcie_IAL_Close(struct inode* pInode, struct file* pFile);
 static UInt DtCorePcie_IAL_Poll(struct file* pFile, poll_table* pPollTable);
 static ssize_t DtCorePcie_IAL_Read(struct file* pFile, char __user* pBuf, size_t Count, 
                                                                            loff_t* pOffp);
+static Int DtCorePcie_IAL_Mmap(struct file*, struct vm_area_struct*);
 
 // PCI system interface
 static Int  DtCorePcie_IAL_Probe(struct pci_dev* pPciDev, const struct pci_device_id* pId);
@@ -110,6 +125,9 @@ static Int  DtCorePcie_IAL_RebootNotify(struct notifier_block *this, unsigned lo
 DtStatus  DtCorePcie_IAL_IoctlChild(UInt32 IoctlCode, UInt InputBufferSize, void* pInputBuffer,
                                          UInt OutputBufferSize, void* pOutputBuffer, 
                                          UInt* pOutputBufferBytesWritten, void* pContext);
+// Child device register/unregister callback functions
+DtStatus  DtCorePcie_IAL_RegisterChildDevice(DtCore* pCore, DtObject* pObject);
+DtStatus  DtCorePcie_IAL_UnregisterChildDevice(DtCore* pCore, DtObject* pObject);
 
 // Kernel module interface
 static Int  DtCorePcie_IAL_ModuleInit(void);
@@ -170,10 +188,6 @@ static const struct attribute_group *DtPcieAttributesGroups[] = {
 #endif
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,4)
-#define HAVE_COMPAT_PTR_IOCTL
-#endif
-
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Interface declarations +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Character interface definition -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -194,7 +208,7 @@ static struct file_operations  DtPcieFileOps = {
 #endif
     .open           = DtCorePcie_IAL_Open,
     .release        = DtCorePcie_IAL_Close,
-    .mmap           = NULL,
+    .mmap           = DtCorePcie_IAL_Mmap,
     .poll           = DtCorePcie_IAL_Poll,
     .read           = DtCorePcie_IAL_Read,
 };
@@ -456,6 +470,10 @@ static void  DtCorePcie_IAL_UnMapResources(DtCorePcie* pCore)
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_DevicePowerUpSeq -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
+#if __GNUC__ >= 7
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#endif // if __GNUC__ >= 7
 static Int  DtCorePcie_IAL_DevicePowerUpSeq(DtCorePcie* pCore)
 {
     DtStatus  Status;
@@ -737,6 +755,9 @@ static void DtCorePcie_IAL_DeviceStopSeq(DtCorePcie* pCore)
     pCore->m_IalData.m_StartSeqState = DEVICE_STARTSEQ_STATE_IDLE;
     DtDbgOut(MIN, IAL, "Exit");
 }
+#if __GNUC__ >= 7
+#pragma GCC diagnostic pop
+#endif // if __GNUC__ >= 7
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Interrupt handler +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -1012,6 +1033,56 @@ static int  DtCorePcie_IAL_Ioctl(
     return Result;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_IoctlChild -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtCorePcie_IAL_IoctlChild(UInt32 IoctlCode, UInt InputBufferSize, 
+                           void* pInputBuffer, UInt OutputBufferSize, void* pOutputBuffer,
+                           UInt* pOutputBufferBytesWritten, void* pContext)
+{
+    DtPcieChildDeviceData*  pChildDeviceData = (DtPcieChildDeviceData*)pContext;
+    DtStatus  Status;
+    Int  Result = 0;
+    DtFileObject  File;
+    DtIoctlObject  Ioctl;
+
+    DtDbgOut(MAX, IAL, "Start");
+
+    // Check command that this is one of our commands
+    if (DT_IOCTL_MAGIC != _IOC_TYPE(IoctlCode) && DT_IOCTL_MAGIC_SIZE != _IOC_TYPE(IoctlCode)
+        && DTPCIE_IOCTL_MAGIC != _IOC_TYPE(IoctlCode) && DTPCIE_IOCTL_MAGIC_SIZE != _IOC_TYPE(IoctlCode))
+        Result = -ENOTTY;
+    
+    if (pChildDeviceData == NULL)
+        Result = -ENOTTY;
+    
+    if (Result >= 0)
+    {
+        // Init file object
+        File.m_pFile = NULL;
+
+        // Init Ioctl object
+        Ioctl.m_IoctlCode = IoctlCode;
+        Ioctl.m_FunctionCode = DT_IOCTL_TO_FUNCTION(IoctlCode);
+        Ioctl.m_pOutputBuffer = pOutputBuffer;
+        Ioctl.m_OutputBufferSize = OutputBufferSize;
+        Ioctl.m_pInputBuffer = pInputBuffer;
+        Ioctl.m_InputBufferSize = InputBufferSize;
+        
+        // Call common IOCTRL
+        Status = DtCorePcie_Ioctl(pChildDeviceData->m_pParentCore, &File, &Ioctl);
+
+        if (DT_SUCCESS(Status))
+        {
+            if (pOutputBufferBytesWritten != NULL)
+                *pOutputBufferBytesWritten = Ioctl.m_OutputBufferBytesWritten;
+        }
+        else
+            Result = -Status;
+    }
+    DtDbgOut(MAX, IAL, "Exit");
+    return Result;
+}
+
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 static Int  DtCorePcie_IAL_Open(struct inode* pInode, struct file* pFile)
@@ -1068,6 +1139,40 @@ static Int  DtCorePcie_IAL_Close(struct inode* pInode, struct file* pFile)
     DtDbgOut(MAX, IAL, "Exit");
     
     return 0;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_Mmap -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int DtCorePcie_IAL_Mmap(struct file* pFile, struct vm_area_struct* pVma)
+{
+    DtVma Vma;
+    DtFileObject  File;
+    DtCorePcie* pCore = NULL;
+    DtPt* pPt = NULL;
+    Int PortIndex=0;
+    
+    DtDbgOut(MAX, IAL, "Start");
+
+    // Check device context
+    if (pFile==NULL || pFile->private_data==NULL)
+        return -EFAULT;
+
+    // Init File object
+    File.m_pFile = pFile;
+
+    // Compute port index from the offset. 
+    pCore = (DtCorePcie*)pFile->private_data;
+    PortIndex = ((pVma->vm_pgoff<<PAGE_SHIFT)/(DT_MMAP_PORT_MEM_SEGMENT_SIZE)) - 1;
+    DtDbgOut(AVG, IAL, "pgoff=%d => port-index=%d", pVma->vm_pgoff, PortIndex);
+
+    // Find the port and pass the mmap request onwards
+    pPt = DtCore_PT_Find((DtCore*)pCore, PortIndex);
+    if (!pPt)
+        return -EFAULT; // Port does not exist
+
+    // Init VMA object
+    Vma.m_pVma = pVma;
+    return (DtPt_Mmap(pPt, &File, &Vma) != DT_STATUS_OK) ? -EFAULT : 0;
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_Poll -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1147,6 +1252,7 @@ static Int  DtCorePcie_IAL_Probe(struct pci_dev *pPciDev, const struct pci_devic
             // Store DvcIndex in device data IAL data
             pCore->m_IalData.m_DvcIndex = DvcIndex;
             pCore->m_IalData.m_ISRRegistered = FALSE;
+            pCore->m_IalData.m_PtpClockIndex = -1;
         } else
             Result = -ENOMEM;
     }
@@ -1159,22 +1265,31 @@ static Int  DtCorePcie_IAL_Probe(struct pci_dev *pPciDev, const struct pci_devic
         DtEvtLogInit(&pCore->m_Driver.m_EvtObject, &EventGetMessage);
         pCore->m_Device.m_pPciDev = pPciDev;
         DtEvtLogInit(&pCore->m_Device.m_EvtObject, &EventGetMessage);
+
+        // Set callback functions for registering child devices
+        pCore->m_RegisterChildDevice = DtCorePcie_IAL_RegisterChildDevice;
+        pCore->m_UnregisterChildDevice = DtCorePcie_IAL_UnregisterChildDevice;
     }
     
     // Only proceed if no errors
     if (Result >= 0)
-        // Start DTA card
+        // Start DtPcie card
         Result = DtCorePcie_IAL_DeviceStartSeq(pCore);
     
     // Only proceed if no errors
     if (Result >= 0)
     {
+        // Register PTP clock driver
+#ifdef LINUX_KERNEL_PTP_SUPPORT
+        DtCorePcie_IAL_PtpClockRegister(pCore);
+#endif
+
         // Set device driver data
         pci_set_drvdata(pCore->m_Device.m_pPciDev, pCore);
     
         // Finnaly increment device count
         g_DtPcieDeviceCount++;
-        
+
         DtDbgOut(AVG, IAL, "New device count: %u", g_DtPcieDeviceCount);
     }
 
@@ -1208,11 +1323,15 @@ static void  DtCorePcie_IAL_Remove(struct pci_dev *pPciDev)
     pCore = pci_get_drvdata(pPciDev);
     if (pCore == NULL)
         return;
+
+#ifdef LINUX_KERNEL_PTP_SUPPORT
+    DtCorePcie_IAL_PtpClockUnregister(pCore);
+#endif
     
     // Clear device driver data
     pci_set_drvdata(pCore->m_Device.m_pPciDev, NULL);
 
-    // Stop DTA card
+    // Stop DtPcie card
     DtCorePcie_IAL_DeviceStopSeq(pCore);
     
     // Free minor by clearing array entry
@@ -1308,6 +1427,528 @@ Int DtCorePcie_IAL_RebootNotify(struct notifier_block *this, unsigned long Code,
         pci_unregister_driver(&DtPciePciOps_ops);
     return NOTIFY_DONE;
 }
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_RegisterChildDevice -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtCorePcie_IAL_RegisterChildDevice(DtCore* pCore, DtObject* pObject)
+{
+    DtCorePcie*  pPcieCore = (DtCorePcie*)pCore;
+    DtPtIp*  pPtIp;
+    DtPcieChildDeviceData*  pChildDvcData;
+    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
+
+    // For now, child devices only supported for IP ports
+    if (pObject->m_ObjectType != DT_OBJECT_TYPE_PT)
+        return DT_STATUS_NOT_SUPPORTED;
+
+    if (((DtPt*)pObject)->m_Type != DT_PORT_TYPE_IP)
+        return DT_STATUS_NOT_SUPPORTED;
+
+    pPtIp = (DtPtIp*)pObject;
+
+    if (pPtIp->m_pChildDvcData != NULL)
+    {
+        // Already registered to child device
+        DT_ASSERT(0 == 1);
+        DtDbgOut(ERR, IAL, "Already registered");
+        return DT_STATUS_FAIL;
+    }
+
+    // Allocate storage for ChildDevice data
+    pChildDvcData = kmalloc(sizeof(DtPcieChildDeviceData), GFP_KERNEL);
+    if (pChildDvcData == NULL)
+        return DT_STATUS_OUT_OF_MEMORY;
+
+    // Initialise child device data structure
+    DtMemZero(pChildDvcData, sizeof(DtPcieChildDeviceData));
+    pChildDvcData->m_Size = sizeof(DtPcieChildDeviceData);
+    pChildDvcData->m_ObjectType = DT_OBJECT_TYPE_CD;
+    pChildDvcData->m_pOwnerObject = (DtObject*)pPtIp;
+    pChildDvcData->m_pParentCore = pPcieCore;
+    pChildDvcData->m_IalData.m_DeviceItf.m_pParentDevice = pCore->m_Device.m_pDevice;
+    
+    pPtIp->m_pChildDvcData = (DtObject*)pChildDvcData;
+
+    if (g_DtChildNwDriver.m_pDriverItf != NULL)
+    {
+        pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf = 
+                                                           g_DtChildNwDriver.m_pDriverItf;
+        pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf->m_pContext = pChildDvcData;
+        pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf->m_pPtpClockIndex = 
+                                                    &pPcieCore->m_IalData.m_PtpClockIndex;
+        pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf->IoCtrl = 
+                                                                DtCorePcie_IAL_IoctlChild; 
+        g_DtChildNwDriver.m_pDriverItf->Probe(&pChildDvcData->m_IalData.m_DeviceItf,
+                                                                      pPtIp->m_PortIndex);
+    }
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_UnregisterChildDevice -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtCorePcie_IAL_UnregisterChildDevice(DtCore* pCore, DtObject* pObject)
+{
+    DtPtIp*  pPtIp;
+    DtPcieChildDeviceData*  pChildDvcData;
+
+    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
+
+    // For now, child devices only supported for IP ports
+    if (pObject->m_ObjectType != DT_OBJECT_TYPE_PT)
+        return DT_STATUS_NOT_SUPPORTED;
+
+    if (((DtPt*)pObject)->m_Type != DT_PORT_TYPE_IP)
+        return DT_STATUS_NOT_SUPPORTED;
+
+    pPtIp = (DtPtIp*)pObject;
+
+    pChildDvcData = (DtPcieChildDeviceData*)pPtIp->m_pChildDvcData;
+    
+    if (pPtIp->m_pChildDvcData == NULL)
+    {
+        // Already unregistered to child device
+        DT_ASSERT(0 == 1);
+        DtDbgOut(ERR, IAL, "Already unregistered");
+        return DT_STATUS_FAIL;
+    }
+
+    if (g_DtChildNwDriver.m_pDriverItf != NULL && 
+                                pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf != NULL)
+    {
+        // Report the remove to the Network driver
+        g_DtChildNwDriver.m_pDriverItf->Remove(&pChildDvcData->m_IalData.m_DeviceItf,
+                                                                      pPtIp->m_PortIndex);
+    }
+    kfree(pChildDvcData);
+    pPtIp->m_pChildDvcData = NULL;
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ProbeChildDevices -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Helper function to initialize and execute the Probe function on the child device
+//
+DtStatus  DtCorePcie_IAL_ProbeChildDevices(DtCorePcie* pPcieCore)
+{
+    Int  i;
+    Int  NumPt;
+
+    if (pPcieCore->m_pPtList == NULL)
+        return DT_STATUS_OK;
+    
+    NumPt = DtVectorPt_Size(pPcieCore->m_pPtList);
+    // Walk all ports and check if a child device is registered.
+    for (i=0; i<NumPt; i++)
+    {
+        DtPt*  pPt = DtVectorPt_At(pPcieCore->m_pPtList, i);
+        DtPtIp*  pPtIp;
+        DtPcieChildDeviceData*  pChildDvcData;
+
+        if (pPt == NULL)
+            continue;
+        // For now, child devices only supported for IP ports
+        if (pPt->m_Type == DT_PORT_TYPE_IP)
+        {
+            pPtIp = (DtPtIp*)pPt;
+            pChildDvcData = (DtPcieChildDeviceData*)pPtIp->m_pChildDvcData;
+            if (pChildDvcData == NULL)
+                continue;
+            if (pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf != NULL)
+            {
+                DT_ASSERT(0 == 1);
+                DtDbgOut(ERR, IAL, "Already registered.");
+            }
+
+            pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf =
+                                                           g_DtChildNwDriver.m_pDriverItf;
+            pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf->m_pContext = pChildDvcData;
+            pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf->IoCtrl = 
+                                                                DtCorePcie_IAL_IoctlChild;
+            pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf->m_pPtpClockIndex =
+                                                    &pPcieCore->m_IalData.m_PtpClockIndex;
+
+            g_DtChildNwDriver.m_pDriverItf->Probe(
+                               &pChildDvcData->m_IalData.m_DeviceItf, pPtIp->m_PortIndex);
+        }
+    }
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_RemoveChildDevices -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtCorePcie_IAL_RemoveChildDevices(DtCorePcie* pPcieCore)
+{
+    Int  i;
+    Int  NumPt;
+
+    if (pPcieCore->m_pPtList == NULL)
+        return DT_STATUS_OK;
+    DtDbgOut(MAX, IAL, "Start");
+
+    NumPt = DtVectorPt_Size(pPcieCore->m_pPtList);
+    // Walk all ports and check if a child device is registered.
+    for (i = 0; i < NumPt; i++)
+    {
+        DtPt*  pPt = DtVectorPt_At(pPcieCore->m_pPtList, i);
+        DtPtIp*  pPtIp;
+        DtPcieChildDeviceData*  pChildDvcData;
+
+        if (pPt == NULL)
+            continue;
+        // For now, child devices only supported for IP ports
+        if (pPt->m_Type == DT_PORT_TYPE_IP)
+        {
+            pPtIp = (DtPtIp*)pPt;
+            pChildDvcData = (DtPcieChildDeviceData*)pPtIp->m_pChildDvcData;
+            if (pChildDvcData == NULL)
+                continue;
+            if (pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf == NULL)
+                continue;
+            if (g_DtChildNwDriver.m_pDriverItf == NULL)
+            {
+                //DtDbgOut(ERR, IAL, "No network driver registered or unloading.");
+            }
+            else
+            {
+                g_DtChildNwDriver.m_pDriverItf->Remove(
+                               &pChildDvcData->m_IalData.m_DeviceItf, pPtIp->m_PortIndex);
+            }
+            pChildDvcData->m_IalData.m_DeviceItf.m_pDriverItf = NULL;
+        }
+    }
+    DtDbgOut(MAX, IAL, "Exit");
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_RegisterChildDriver -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void  DtCorePcie_IAL_RegisterChildDriver(DtDriverItf* pDriverItf)
+{
+    Int  DvcIndex;
+    DtDbgOut(MAX, IAL, "Start");
+
+    // Only request from the DtPcieNw driver are allowed
+    if (strcmp(pDriverItf->m_pName, "DtPcieNw") != 0)
+        return;
+
+    // Only accept one time registering
+    if (g_DtChildNwDriver.m_pDriverItf != NULL)
+        return;
+
+    g_DtChildNwDriver.m_pDriverItf = pDriverItf;
+
+    for (DvcIndex = 0; DvcIndex < g_DtPcieMaxDevices; DvcIndex++)
+    {
+        if (g_pDtCorePcie[DvcIndex] == NULL)
+            continue;
+        DtCorePcie_IAL_ProbeChildDevices(g_pDtCorePcie[DvcIndex]);
+    }
+    DtDbgOut(MAX, IAL, "Exit");
+}
+EXPORT_SYMBOL(DtCorePcie_IAL_RegisterChildDriver);
+
+// .-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_UnRegisterChildDriver -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void  DtCorePcie_IAL_UnRegisterChildDriver(DtDriverItf* pDriverItf)
+{
+    Int  DvcIndex;
+    DtDbgOut(MAX, IAL, "Start");
+
+    // Only unregistering from DtPcieNw driver is allowed
+    if (strcmp(pDriverItf->m_pName, "DtPcieNw") != 0)
+        return;
+
+    // Only one time unregistering
+    if (g_DtChildNwDriver.m_pDriverItf == NULL)
+        return;
+
+    g_DtChildNwDriver.m_pDriverItf = NULL;
+
+    for (DvcIndex = 0; DvcIndex < g_DtPcieMaxDevices; DvcIndex++)
+    {
+        if (g_pDtCorePcie[DvcIndex] == NULL)
+            continue;
+        DtCorePcie_IAL_RemoveChildDevices(g_pDtCorePcie[DvcIndex]);
+    }
+}
+EXPORT_SYMBOL(DtCorePcie_IAL_UnRegisterChildDriver);
+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ PTP Clock Driver Interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+#ifdef LINUX_KERNEL_PTP_SUPPORT
+#define COREPCIE_PTP(ptp) g_pDtCorePcie[                                                 \
+                                container_of(ptp, DtIalData, m_PtpClockInfo)->m_DvcIndex];
+#define BCTOD(pCore) pCore->m_pCfTod->m_pBcTod
+        
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvAdjFine -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtCorePcie_IAL_ClkDrvAdjFine(struct ptp_clock_info* ptp, long scaled_ppm)
+{
+    DtStatus Status = DT_STATUS_OK;
+    DtCorePcie*  pCore = COREPCIE_PTP(ptp);
+    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
+    if (scaled_ppm == 0)
+        return 0;
+    Status = DtBcTOD_AdjustPhaseIncr(BCTOD(pCore), scaled_ppm);
+    if (!DT_SUCCESS(Status))
+        return -EFAULT;
+    return 0;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvAdjFreq -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtCorePcie_IAL_ClkDrvAdjFreq(struct ptp_clock_info* ptp, s32 delta)
+{
+    DtStatus  Status;
+    Bool Neg = FALSE;
+    long scaled_ppm;
+
+    if (delta < 0)
+    {
+        Neg = TRUE;
+        delta = -delta;
+    }
+    scaled_ppm = (long)DtDivide64((long)delta << 16, 1000, NULL);
+    if (Neg)
+        scaled_ppm = -scaled_ppm;
+    Status = DtCorePcie_IAL_ClkDrvAdjFine(ptp, scaled_ppm);
+    if (!DT_SUCCESS(Status))
+        return -EFAULT;
+    return 0;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvAdjTime -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtCorePcie_IAL_ClkDrvAdjTime(struct ptp_clock_info* ptp, s64 delta)
+{
+    DtStatus  Status;
+    DtCorePcie*  pCore = COREPCIE_PTP(ptp);
+    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
+
+    if (delta == 0)
+        return 0;
+
+    Status = DtBcTOD_Adjust(BCTOD(pCore), delta);
+    if (!DT_SUCCESS(Status))
+        return -EFAULT;
+    return 0;
+}
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvGetTime -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtCorePcie_IAL_ClkDrvGetTime(struct ptp_clock_info* ptp, struct timespec* ts)
+{
+    DtCorePcie* pCore = COREPCIE_PTP(ptp);
+    DtStatus  Status;
+    UInt  AdjustCount;
+    DtTodTime  Time;
+    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
+
+    Status = DtBcTOD_GetTime(BCTOD(pCore), &Time, &AdjustCount);
+    ts->tv_nsec = Time.m_Nanoseconds;
+    ts->tv_sec = Time.m_Seconds;
+    if (!DT_SUCCESS(Status))
+        return -EFAULT;
+    return 0;
+}
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvSetTime -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtCorePcie_IAL_ClkDrvSetTime(struct ptp_clock_info* ptp, const struct timespec* ts)
+{
+    DtCorePcie* pCore = COREPCIE_PTP(ptp);
+    DtStatus  Status;
+    DtTodTime  Time;
+    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
+
+    Time.m_Nanoseconds = ts->tv_nsec;
+    Time.m_Seconds = ts->tv_sec;
+
+    Status = DtBcTOD_SetTime(BCTOD(pCore), Time);
+    if (!DT_SUCCESS(Status))
+        return -EFAULT;
+    return 0;
+}
+#endif
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvGetTime64 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int  DtCorePcie_IAL_ClkDrvGetTime64(struct ptp_clock_info* ptp, struct timespec64* ts)
+{
+    DtStatus  Status;
+    UInt  AdjustCount;
+    DtTodTime  Time;
+    DtCorePcie*  pCore = COREPCIE_PTP(ptp);
+    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
+
+    Status = DtBcTOD_GetTime(BCTOD(pCore), &Time, &AdjustCount);
+    ts->tv_nsec = Time.m_Nanoseconds;
+    ts->tv_sec = Time.m_Seconds;
+    if (!DT_SUCCESS(Status))
+        return -EFAULT;
+    return 0;
+}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,0,0)
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvGetTimeX64 -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtCorePcie_IAL_ClkDrvGetTimeX64(struct ptp_clock_info* ptp, struct timespec64* ts,
+                                                         struct ptp_system_timestamp* sts)
+{
+    DtStatus  Status;
+    UInt  AdjustCount;
+    DtTodTime  Time;
+    DtCorePcie*  pCore = COREPCIE_PTP(ptp);
+    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
+
+    ptp_read_system_prets(sts);
+    Status = DtBcTOD_GetTime(BCTOD(pCore), &Time, &AdjustCount);
+    ptp_read_system_postts(sts);
+
+    ts->tv_nsec = Time.m_Nanoseconds;
+    ts->tv_sec = Time.m_Seconds;
+
+    if (!DT_SUCCESS(Status))
+        return -EFAULT;
+    return 0;
+}
+#endif
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvGetCrossTStamp -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtCorePcie_IAL_ClkDrvGetCrossTStamp(struct ptp_clock_info* ptp,
+                                                    struct system_device_crosststamp* cts)
+{
+    return -EOPNOTSUPP;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvSetTime64 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int  DtCorePcie_IAL_ClkDrvSetTime64(struct ptp_clock_info* ptp, 
+                                                              const struct timespec64* ts)
+{
+    DtStatus  Status;
+    DtTodTime  Time;
+    DtCorePcie*  pCore = COREPCIE_PTP(ptp);
+    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
+
+    Time.m_Nanoseconds = ts->tv_nsec;
+    Time.m_Seconds = ts->tv_sec;
+
+    Status = DtBcTOD_SetTime(BCTOD(pCore), Time);
+    if (!DT_SUCCESS(Status))
+        return -EFAULT;
+    return 0;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvSetTime -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtCorePcie_IAL_ClkDrvSetTime(struct ptp_clock_info* ptp, const struct timespec64* ts)
+{
+    DtStatus  Status;
+    DtTodTime  Time;
+    DtCorePcie* pCore = COREPCIE_PTP(ptp);
+    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
+
+    Time.m_Nanoseconds = ts->tv_nsec;
+    Time.m_Seconds = ts->tv_sec;
+
+    Status = DtBcTOD_SetTime(BCTOD(pCore), Time);
+    if (!DT_SUCCESS(Status))
+        return -EFAULT;
+    return 0;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtCorePcie_IAL_ClkDrvEnable(struct ptp_clock_info* ptp, 
+                                                struct ptp_clock_request* request, int on)
+{
+    return -EOPNOTSUPP;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvVerify -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtCorePcie_IAL_ClkDrvVerify(struct ptp_clock_info* ptp, unsigned int pin,
+                                            enum ptp_pin_function func, unsigned int chan)
+{
+    return -EOPNOTSUPP;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_PtpClockRegister -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Int  DtCorePcie_IAL_PtpClockRegister(DtCorePcie* pCore)
+{
+    UInt  SysClockFreqHz;
+    UInt  Accuracy;
+    DtStatus  Status;
+    UInt64 MaxPPB; 
+    struct ptp_clock_info*  pPtpClockInfo = &pCore->m_IalData.m_PtpClockInfo;
+    
+    // Get system clock properties
+    Status = DtBcTOD_GetProperties(BCTOD(pCore), &SysClockFreqHz, &Accuracy);
+    
+    // Calculate the maximum possible frequency adjustment, in parts per billon.
+    MaxPPB = DtDivide64((1LL << 58), SysClockFreqHz, NULL);
+    MaxPPB = DtDivide64(0x7FFFFFFFFFFF, MaxPPB, NULL);
+
+
+    // Fill the ptp_clock_info structure
+    DtMemZero(pPtpClockInfo, sizeof(struct ptp_clock_info));
+    strcpy(pPtpClockInfo->name, DTPCIE_PTP_CLK_NAME);
+    pPtpClockInfo->owner = THIS_MODULE;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
+    pPtpClockInfo->adjfine = DtCorePcie_IAL_ClkDrvAdjFine;
+#else
+    pPtpClockInfo->adjfreq = DtCorePcie_IAL_ClkDrvAdjFreq;
+#endif
+    pPtpClockInfo->adjtime = DtCorePcie_IAL_ClkDrvAdjTime;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
+    pPtpClockInfo->gettime64 = DtCorePcie_IAL_ClkDrvGetTime64;
+    pPtpClockInfo->settime64 = DtCorePcie_IAL_ClkDrvSetTime64;
+#else
+    pPtpClockInfo->gettime = DtCorePcie_IAL_ClkDrvGetTime;
+    pPtpClockInfo->settime = DtCorePcie_IAL_ClkDrvSetTime;
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,0,0)
+    pPtpClockInfo->gettimex64 = DtCorePcie_IAL_ClkDrvGetTimeX64;
+#endif
+    //pPtpClockInfo->getcrosststamp = DtCorePcie_IAL_ClkDrvGetCrossTStamp;
+    pPtpClockInfo->enable = DtCorePcie_IAL_ClkDrvEnable;
+    //pPtpClockInfo->verify = DtCorePcie_IAL_ClkDrvVerify;
+    
+    pPtpClockInfo->max_adj = MaxPPB;
+    pPtpClockInfo->n_alarm = 0;
+    pPtpClockInfo->n_ext_ts = 0;
+    pPtpClockInfo->n_per_out = 0;
+    pPtpClockInfo->n_pins = 0;
+    pPtpClockInfo->pps = 0; // Indicates whether the clock supports a PPS callback.
+    //pPtpClockInfo->pin_config = NULL; //  Array of length 'n_pins'
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
+    pCore->m_IalData.m_pPtpClock = ptp_clock_register(pPtpClockInfo, 
+                                                               pCore->m_Device.m_pDevice);
+#else
+    pCore->m_IalData.m_pPtpClock = ptp_clock_register(pPtpClockInfo);
+#endif
+    if (pCore->m_IalData.m_pPtpClock == NULL)
+        return -ENOMEM;
+    else
+        pCore->m_IalData.m_PtpClockIndex = ptp_clock_index(pCore->m_IalData.m_pPtpClock);
+    return 0;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_PtpClockUnregister -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Int  DtCorePcie_IAL_PtpClockUnregister(DtCorePcie* pCore)
+{
+    int err = 0;
+    if (pCore->m_IalData.m_pPtpClock != NULL)
+        err = ptp_clock_unregister(pCore->m_IalData.m_pPtpClock);
+    pCore->m_IalData.m_pPtpClock = NULL;;
+    return err;
+}
+#endif
+
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Module init / exit +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ModuleInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1320,6 +1961,9 @@ static Int  DtCorePcie_IAL_ModuleInit(void)
     DtEvtLog  EvtObject;
     
     DtDbgOut(MAX, IAL, "Start");
+    
+    // Initialise the child driver interface
+    g_DtChildNwDriver.m_pDriverItf = NULL;
 
     // Get major device number
     if (g_DtPcieMajor != 0) 
@@ -1327,7 +1971,8 @@ static Int  DtCorePcie_IAL_ModuleInit(void)
         Dev = MKDEV(g_DtPcieMajor, g_DtPcieMinor);
         Result = register_chrdev_region(Dev, g_DtPcieMaxDevices, DRIVER_NAME);
     } else {
-        Result = alloc_chrdev_region(&Dev, g_DtPcieMinor, g_DtPcieMaxDevices, DRIVER_NAME);
+        Result = alloc_chrdev_region(&Dev, g_DtPcieMinor, g_DtPcieMaxDevices, 
+                                                                             DRIVER_NAME);
         g_DtPcieMajor = MAJOR(Dev);
     }
     if (Result < 0)
@@ -1384,10 +2029,6 @@ static Int  DtCorePcie_IAL_ModuleInit(void)
     // Cleanup if errors
     if (Result < 0)
         DtCorePcie_IAL_ModuleExit();
-
-    // Initialise the child driver interface
-    //DtSpinLockInit(&g_DtPcieChildDriver.m_SpinLock);
-    //g_DtPcieChildDriver.m_pDriverItf = NULL;
     
     DtDbgOut(MAX, IAL, "Exit");
     return Result;

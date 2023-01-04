@@ -105,7 +105,7 @@ void  DtSpinLockReleaseFromDpc(DtSpinLock* pSpinLock)
 #endif
 }
 
-#ifdef USES_NDIS  // Only used in windows builds
+#ifdef USES_NDIS  // Only needed in windows NDIS builds
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtSpinLockFree -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtSpinLockFree(DtSpinLock* pSpinLock)

@@ -221,7 +221,7 @@ DtStatus DtDfGenLockCtrl_GetGenLockState(DtDfGenLockCtrl* pDf,  Int* pGenLockSta
 
     DtSpinLockRelease(&pDf->m_SofSpinLock);
 
-    DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "State: %d; CfgVidStd: %d; DetVidStd: %d; SofCount: %d; Valid: %d; Time: %d:%d; TimeDiff: %d", 
+    DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "State: %d; CfgVidStd: %d; DetVidStd: %d; SofCount: %lld; Valid: %d; Time: %d:%d; TimeDiff: %d", 
                             *pGenLockStatus, *pRefVidStd, *pDetVidStd, *pSofCount, *pIsSofTodValid, 
                             pLastSofTod->m_Seconds, pLastSofTod->m_Nanoseconds/1000000, *pTimeSinceLastSof/1000000);
     return DT_STATUS_OK;
@@ -1738,7 +1738,7 @@ void DtDfGenLockCtrl_GenRefSofTodsAdd(DtDfGenLockCtrl* pDf,
             { 
                 if (pDf->m_GenRefData.m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_UNDEFINED
                       && pDf->m_GenRefData.m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_VIRTUAL)
-                    DtDbgOutDf(MIN, GENLOCKCTRL, pDf, "Unexpected GenRef deviation: %d",
+                    DtDbgOutDf(MIN, GENLOCKCTRL, pDf, "Unexpected GenRef deviation: %lld",
                                                                                  PpmDiff);
                 DtDfGenLockCtrl_GenRefSofTodsClear(pSofTods);
             }

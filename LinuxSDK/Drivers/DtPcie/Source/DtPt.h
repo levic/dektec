@@ -79,6 +79,8 @@ typedef DtStatus (*DtPtOnCloseFileFunc)(DtPt*, DtFileObject*);
 typedef DtStatus (*DtPtSetIoConfigFunc)(DtPt*, const DtCfIoConfigValue*, Int NumIoCfgs);
 typedef DtStatus (*DtPtSetIoConfigPrepareFunc)(DtPt*, const DtExclAccessObject*);
 typedef DtStatus (*DtPtSetIoConfigFinishFunc)(DtPt*, const DtExclAccessObject*);
+typedef DtStatus (*DtPtMmapFunc)(DtPt*, const DtFileObject*, DtVma*);
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtOpenParams -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // Struct holding with the parameters for the Open function
 typedef struct  _DtPtOpenParams
@@ -91,6 +93,7 @@ typedef struct  _DtPtOpenParams
     DtPtCloseFunc  m_CloseFunc;     // Close function
     DtPtEnableFunc  m_EnableFunc;   // Enable function
     DtPtInitFunc  m_InitFunc;       // Initialisation function
+    DtPtMmapFunc m_MmapFunc;        // Linux memory map
     DtPtOnCloseFileFunc  m_OnCloseFileFunc;  // On close file function
     DtPtSetIoConfigFunc  m_SetIoConfigFunc;  // Set IO configuration
     DtPtSetIoConfigPrepareFunc  m_SetIoConfigPrepareFunc; // Prepare for set IO config
@@ -117,7 +120,7 @@ while (0)
                                     /* Instance ID string */                             \
     DtPtState  m_OpState;           /* Current operational state of the port */          \
     Int  m_PortIndex;               /* Physical port index. */                           \
-    DtFunctionType  m_Type;         /* Type of port */                                   \
+    DtPortType  m_Type;             /* Type of port */                                   \
     DtCore*  m_pCore;               /* Shortcut to core driver services */               \
     DtIoCaps  m_IoCaps;             /* Port IO capabilities */                           \
     /* Children: block-controller and driver-functions */                                \
@@ -131,10 +134,12 @@ while (0)
     DtPtInitFunc  m_InitFunc;                                                            \
     DtPtEnableFunc  m_EnableFunc;                                                        \
     DtPtCloseFunc  m_CloseFunc;                                                          \
+    DtPtMmapFunc m_MmapFunc;                                                             \
     DtPtOnCloseFileFunc  m_OnCloseFileFunc;                                              \
     DtPtSetIoConfigFunc  m_SetIoConfigFunc;                                              \
     DtPtSetIoConfigPrepareFunc  m_SetIoConfigPrepareFunc;                                \
     DtPtSetIoConfigFinishFunc  m_SetIoConfigFinishFunc
+
 
 // The struct
 struct _DtPt
@@ -144,24 +149,27 @@ struct _DtPt
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Protected DtPt functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+DtStatus  DtPt_AcquireExclAccessChildren(DtPt* pPt, const DtExclAccessObject*);
 void  DtPt_Close(DtPt*);
-DtStatus  DtPt_OnCloseFile(DtPt*  pPort, DtFileObject*  pFile);
-DtPt*  DtPt_Open(const DtPtOpenParams*);
-DtPt*  DtPt_OpenType(DtPortType, DtCore*, Int  PortIndex);
-DtBc * DtPt_FindBc(DtPt*, DtBcType, const char * pRole);
-DtDf * DtPt_FindDf(DtPt*, DtFunctionType, const char * pRole);
-DtStatus  DtPt_OpenChildren(DtPt*);
 DtStatus  DtPt_CloseChildren(DtPt*);
 DtStatus  DtPt_EnableChildren(DtPt*, Bool  Enable);
-DtStatus  DtPt_AcquireExclAccessChildren(DtPt* pPt, const DtExclAccessObject*);
-DtStatus  DtPt_ProbeExclAccessChildren(DtPt*  pPt);
-DtStatus  DtPt_ReleaseExclAccessChildren(DtPt* pPt, const DtExclAccessObject*);
-DtStatus  DtPt_SetOpState(DtPt*, DtPtState  NewState);
-const char*  DtPt_OpStateToString(DtPtState);
+DtBc * DtPt_FindBc(DtPt*, DtBcType, const char * pRole);
+DtDf * DtPt_FindDf(DtPt*, DtFunctionType, const char * pRole);
 Bool  DtPt_IsEnabled(const DtPt*);
 Bool  DtPt_IsInitialised(const DtPt*);
 DtStatus DtPt_InitIoCaps(DtPt*);
+DtPt*  DtPt_Open(const DtPtOpenParams*);
+DtPt*  DtPt_OpenType(DtPortType, DtCore*, Int  PortIndex);
+DtStatus  DtPt_OpenChildren(DtPt*);
+const char*  DtPt_OpStateToString(DtPtState);
+DtStatus  DtPt_OnCloseFile(DtPt*  pPort, DtFileObject*  pFile);
+DtStatus  DtPt_ProbeExclAccessChildren(DtPt*  pPt);
+DtStatus  DtPt_ReleaseExclAccessChildren(DtPt* pPt, const DtExclAccessObject*);
+DtStatus  DtPt_SetOpState(DtPt*, DtPtState  NewState);
 
-                                                               
+// Linux specific functionality
+#ifdef LINBUILD
+DtStatus DtPt_Mmap(DtPt*, const DtFileObject*, DtVma*);
+#endif
 #endif  // #ifndef __DT_PT_H
 

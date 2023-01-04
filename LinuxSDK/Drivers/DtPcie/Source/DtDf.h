@@ -1,9 +1,9 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtDf.h *#*#*#*#*#*#*#*#*#*#*#*# (C) 2017 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtDf.h *#*#*#*#*#*#*#*#*#* (C) 2017-2022 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -36,7 +36,6 @@
 // Forwards
 typedef struct _DtIoStubDf  DtIoStubDf;
 typedef DtIoConfigValueDriver  DtCfIoConfigValue;
-typedef struct _DtDf  DtDf;
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Defines / Constants +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -164,7 +163,7 @@ typedef struct _DtDfChildProps
 {
     Int  m_ObjectType;              // Type of child properties (i.e. BC or DF)
     char m_ShortName[DT_BCORDF_NAME_MAX_SIZE+1];  // Shortname for BC/DF
-    Int  m_Instance;                // BC/DF instance number (i.e. Nth occurance of BC/DF)
+    Int  m_Instance;                // BC/DF instance number (i.e. Nth occurrence of BC/DF)
     union
     {
         DtBcCommonProps  m_Bc;
@@ -187,7 +186,8 @@ typedef struct  _DtDfSupportedChild
     const char*  m_pName;           // Name of the block/function
     const char*  m_pRole;           // Role of the block/function
     DtObjectBcOrDf**  m_ppChild;    // Pointer to receive a pointer to the child object
-    Bool  m_IsMandatory;            // Inidcates if the child is manadatory
+    Bool  m_IsMandatory;            // Indicates if the child is mandatory
+    UInt  m_MaxInstance;            // Max. number of instances
 }  DtDfSupportedChild;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfOpenParams -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -202,7 +202,7 @@ typedef struct  _DtDfOpenParams
     Bool  m_IsCf;                   // TRUE, if the function is core function 
                                     // (i.e. sub-module of the core)
     DtDfCloseFunc  m_CloseFunc;     // Close function
-    DtDfInitFunc  m_InitFunc;       // Initialisation function
+    DtDfInitFunc  m_InitFunc;       // Initialization function
     DtDfEnableFunc  m_EnableFunc;   // Enable function
     DtDfOnEnablePreChildrenFunc  m_OnEnablePreChildrenFunc; 
                                     // OnEnable Pre childs function
@@ -335,7 +335,7 @@ typedef struct _DtIoStubDfOpenParams
     DT_IOSTUB_INIT_OPEN_PARAMS_COMMON_DATA;
     DtDf*  m_pDf;                   // The DF controlled by this stub
 }  DtIoStubDfOpenParams;
-// MACRO to initialise open parameters
+// MACRO to initialize open parameters
 #define DT_IOSTUBDF_INIT_OPEN_PARAMS(OP, STRUCT, DF, NAME, CLOSE_F, IOCTL_F, IOCTLS)     \
 do                                                                                       \
 {                                                                                        \
@@ -368,7 +368,11 @@ DtStatus  DtIoStubDf_OnExclAccessCmd(const DtIoStub*, DtIoStubIoParams*, Int*  p
 
 #ifdef DT_DF_ADD_FUNCTION_INCLUDES
 #include "DtDfAsiRx.h"          // ASI transport stream receiver driver function
+#include "DtDfChSdiRxPhyOnly.h" // SDI PHY-only receive channel function
+#include "DtDfChSdiRx.h"        // SDI receive channel function
 #include "DtDfGenLockCtrl.h"    // SDI genlocking controller function
+#include "DtDfIpFifo.h"         // IP Fifo driver function
+#include "DtDfNw.h"             // Network driver function
 #include "DtDfMxDs75Temp.h"     // MAXIM DS75 digital thermometer controller function
 #include "DtDfSdiTxPhy.h"       // SDI-PHY transmitter driver function
 #include "DtDfSdiRx.h"          // SDI-receiver function
@@ -387,10 +391,14 @@ DtStatus  DtIoStubDf_OnExclAccessCmd(const DtIoStub*, DtIoStubIoParams*, Int*  p
 #include "DtCfInt.h"            // Interrupt core-function
 #include "DtCfProps.h"          // Property core-function
 #include "DtCfTod.h"            // TimeOfDay core-function
+#include "DtDfDataFifo.h"       // Data Fifo driver function
+
 
 // Local functions
 #include "DtDfS2CrDemod_2132.h" // Creonix DVB-S2 demodulator and decoder function
 #include "DtDfTxClkCtrl_2178A.h" // DTA-2178-ASI clock control
+#include "DtDfClkGen_2110.h" // DTA-2110 Ethernet clock generator
+#include "DtDfClkCtrl_2116.h"   // DTA-2116 DAC clock control
 
 // List with of well-known driver-functions IDs
 extern const DtDfId  DT_DF_KNOWN[];

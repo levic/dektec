@@ -108,12 +108,15 @@ DtStatus DtBcGENL_GetCrashLockStatus(DtBcGENL* pBc, Int* pClStatus)
     BC_GENL_MUST_BE_ENABLED(pBc);
 
     FwStatus = GENL_Status_READ_CrashLockStatus(pBc);
+    *pClStatus = DT_BC_GENL_CRASHLOCK_NORMAL;
     switch (FwStatus)
     {
-    default:    DT_ASSERT(FALSE);
     case GENL_CRASHLOCK_NORMAL: *pClStatus = DT_BC_GENL_CRASHLOCK_NORMAL; break;
     case GENL_CRASHLOCK_ARMED:  *pClStatus = DT_BC_GENL_CRASHLOCK_ARMED; break;
     case GENL_CRASHLOCK_ADJUST: *pClStatus = DT_BC_GENL_CRASHLOCK_ADJUST; break;
+    default:
+        DT_ASSERT(FALSE); 
+        break;
     }
     return DT_STATUS_OK;
 }

@@ -44,9 +44,15 @@ const DtDfId  DT_DF_KNOWN[] =
     // Name,                      ShortName,                      Role, Instance, Uuid
     { DT_DF_ASIRX_NAME,           DT_DF_ASIRX_SHORTNAME,          NULL, -1, -1 },
     { DT_DF_GENLOCKCTRL_NAME,     DT_DF_GENLOCKCTRL_SHORTNAME,    NULL, -1, -1 },
+    { DT_DF_CLKGEN_2110_NAME,     DT_DF_CLKGEN_2110_SHORTNAME,    NULL, -1, -1 },
+    { DT_DF_NW_NAME,              DT_DF_NW_SHORTNAME,             NULL,  2, -1 },
+    { DT_DF_IPFIFO_NAME,          DT_DF_IPFIFO_SHORTNAME,         NULL, -1, -1 },
+    { DT_DF_DATAFIFO_NAME,        DT_DF_DATAFIFO_SHORTNAME,       NULL, -1, -1 },
     { DT_DF_MXDS75TEMP_NAME,      DT_DF_MXDS75TEMP_SHORTNAME,     NULL, -1, -1 },
     { DT_DF_SDITXPHY_NAME,        DT_DF_SDITXPHY_SHORTNAME,       NULL, -1, -1 },
     { DT_DF_SDIRX_NAME,           DT_DF_SDIRX_SHORTNAME,          NULL, -1, -1 },
+    { DT_DF_CHSDIRX_NAME,         DT_DF_CHSDIRX_SHORTNAME,        NULL, -1, -1 },
+    { DT_DF_CHSDIRXPHYONLY_NAME,  DT_DF_CHSDIRXPHYONLY_SHORTNAME, NULL, -1, -1 },
     { DT_DF_SDIXCFGMGR_NAME,      DT_DF_SDIXCFGMGR_SHORTNAME,     NULL, -1, -1 },
     { DT_DF_SENSTEMP_NAME,        DT_DF_SENSTEMP_SHORTNAME,       NULL, -1, -1 },
     { DT_DF_SI534X_NAME,          DT_DF_SI534X_SHORTNAME,         NULL, -1, -1 },
@@ -59,6 +65,7 @@ const DtDfId  DT_DF_KNOWN[] =
     { DT_DF_VPD_NAME,             DT_DF_VPD_SHORTNAME,            NULL, -1, -1 },
     { DT_DF_S2CRDEMOD_2132_NAME,  DT_DF_S2CRDEMOD_2132_SHORTNAME, NULL, -1, -1 },
     { DT_DF_TXCLKCTRL_2178A_NAME, DT_DF_TXCLKCTRL_2178A_SHORTNAME, NULL, -1, -1 },
+    { DT_DF_CLKCTRL_2116_NAME,    DT_DF_CLKCTRL_2116_SHORTNAME,   NULL, -1, -1 },
 };
 const Int  DT_DF_NUM_KNOWN = DT_SIZEOF_ARRAY(DT_DF_KNOWN);
 
@@ -488,7 +495,7 @@ DtDf*  DtDf_Open(const DtDfOpenParams*  pParams)
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDf_OpenChildren -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtDf_OpenChildren(DtDf*  pDf, const DtDfSupportedChild*  pSupported,
-                                       Int  NumSupported)
+                                                                        Int  NumSupported)
 {
     Int  i=0;
     DtStatus  Status = DT_STATUS_OK;
@@ -532,17 +539,36 @@ DtStatus  DtDf_OpenChildren(DtDf*  pDf, const DtDfSupportedChild*  pSupported,
 
     for (i=0; i<NumSupported; i++)
     {
-        Int  n=0;
-        Bool  FoundChild = FALSE;
+        Int n=0;
+        Bool FoundChild = FALSE;
         const DtDfSupportedChild*  pSuppChild = &(pSupported[i]);
+        Bool MultiInst = FALSE;
+        char MultiInstRole[255];
+        Int MultiInstRoleLength = 0;
+        Int NumInst = 0;
+
         DT_ASSERT(pSuppChild->m_pName != NULL);
+
+        if (pSuppChild->m_pRole != NULL)
+        {
+            // Check if we have multiple instances with same rol name. The role ends
+            // with a '*'.
+            MultiInstRoleLength = DtAnsiCharArrayStrLength(pSuppChild->m_pRole, 255);
+            if (pSuppChild->m_pRole[MultiInstRoleLength - 1] == '*')
+            {
+                MultiInst = TRUE;
+                DtMemCopy(MultiInstRole, pSuppChild->m_pRole, MultiInstRoleLength);
+                MultiInstRole[MultiInstRoleLength - 1] = '\0';
+            }
+        }
 
         // Check we have the properties for this child
         for (n=0; n<DtVector_Size(pPropListChildren) && !FoundChild; n++)
         {
             const char*  pRole = NULL;
             const DtDfChildProps*  pChildProps = DtVector_At(pPropListChildren, n);
-
+            UInt InstanceId = 0;
+            
             if (pChildProps->m_ObjectType != pSuppChild->m_ObjectType)
                 continue;
             // Check which type of BC/DF this is
@@ -559,9 +585,6 @@ DtStatus  DtDf_OpenChildren(DtDf*  pDf, const DtDfSupportedChild*  pSupported,
                 const DtDfCommonProps*  pDfProps = &pChildProps->m_Props.m_Df;
                 if (pDfProps->m_Type != (DtFunctionType)pSuppChild->m_Type)
                     continue;
-                // Check the role matches
-                else if (!DtAnsiCharArrayIsEqual(pDfProps->m_pRole, pSuppChild->m_pRole))
-                    continue;
                 pRole = pDfProps->m_pRole;
             }
             else
@@ -571,11 +594,25 @@ DtStatus  DtDf_OpenChildren(DtDf*  pDf, const DtDfSupportedChild*  pSupported,
             }
 
             // Check the role matches
-            if (!DtAnsiCharArrayIsEqual(pRole, pSuppChild->m_pRole))
+            if (MultiInst && pRole!=NULL)
+            {
+                Int StrLength;
+                if (!DtAnsiCharArrayStartsWith(pRole, MultiInstRole))
+                    continue;
+                StrLength = DtAnsiCharArrayStrLength(pRole + MultiInstRoleLength - 1, 4);
+                InstanceId = DtAnsiCharArrayToUInt(pRole + MultiInstRoleLength - 1, StrLength, 10);
+                if (InstanceId >= pSuppChild->m_MaxInstance)
+                {
+                    DtDbgOutDf(ERR, COMMON, pDf, "ERROR: [InstanceId:%i >= %i] child '%s#%d' role=%s",
+                        InstanceId, pSuppChild->m_MaxInstance, pChildProps->m_ShortName, pChildProps->m_Instance, pRole);
+                    DtVector_Cleanup(pPropListChildren);
+                    return Status;
+                }
+            } else if (!DtAnsiCharArrayIsEqual(pRole, pSuppChild->m_pRole))
                 continue;
 
             // Found the child => open it
-            Status = DtDf_OpenChild(pDf, pChildProps, pSuppChild->m_ppChild);
+            Status = DtDf_OpenChild(pDf, pChildProps, &pSuppChild->m_ppChild[InstanceId]);
             if (!DT_SUCCESS(Status))
             {
                 // Donot forget to cleanup the child property list
@@ -586,15 +623,22 @@ DtStatus  DtDf_OpenChildren(DtDf*  pDf, const DtDfSupportedChild*  pSupported,
 
                 return Status;
             }
-
+            NumInst++;
+            
             // Remove entry for this child from the list
             Status = DtVector_Erase(pPropListChildren, n);
             DT_ASSERT(DT_SUCCESS(Status));
-            FoundChild = TRUE;
+
+            // For a MultiInst block, we have to continue the list with same supported
+            // child
+            if (MultiInst)
+                n--;
+            else
+                FoundChild = TRUE;
         }
 
         // Did we find the child
-        if (!FoundChild)
+        if (NumInst == 0)
         {
             DtDbgOutDf(ERR, COMMON, pDf, 
                                     "%s: could not find child '%s' (type=%d, role=%s)",
@@ -899,12 +943,28 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
     case DT_FUNC_TYPE_ASIRX:
         return (DtDf*)DtDfAsiRx_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
+    case DT_FUNC_TYPE_CHSDIRX:
+        return (DtDf*)DtDfChSdiRx_Open(pCore, pPt, pId->m_pRole, 
+                                                pId->m_Instance, pId->m_Uuid, CreateStub);
+    case DT_FUNC_TYPE_CHSDIRXPHYONLY:
+        return (DtDf*)DtDfChSdiRxPhyOnly_Open(pCore, pPt, pId->m_pRole, 
+                                                pId->m_Instance, pId->m_Uuid, CreateStub);
+    case DT_FUNC_TYPE_DATAFIFO:
+        return (DtDf*)DtDfDataFifo_Open(pCore, pPt, pId->m_pRole,
+                                                pId->m_Instance, pId->m_Uuid, CreateStub);
     case DT_FUNC_TYPE_GENLOCKCTRL:
         return (DtDf*)DtDfGenLockCtrl_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
+    case DT_FUNC_TYPE_IPFIFO:
+        return (DtDf*)DtDfIpFifo_Open(pCore, pPt, pId->m_pRole, pId->m_Instance, 
+                                                                             pId->m_Uuid);
+    case DT_FUNC_TYPE_NW:
+         return (DtDf*)DtDfNw_Open(pCore, pPt, pId->m_pRole, pId->m_Instance, 
+                                                                 pId->m_Uuid, CreateStub);
     case DT_FUNC_TYPE_MXDS75TEMP:
         return (DtDf*)DtDfMxDs75Temp_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
+
     case DT_FUNC_TYPE_SDITXPHY:
         return (DtDf*)DtDfSdiTxPhy_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
@@ -969,6 +1029,12 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
     case DT_FUNC_TYPE_TXCLKCTRL_2178:
         return (DtDf*)DtDfTxClkCtrl_2178A_Open(pCore, pPt, pId->m_pRole,
                                                             pId->m_Instance, pId->m_Uuid);
+    case DT_FUNC_TYPE_CLKCTRL_2116:
+        return (DtDf*)DtDfClkCtrl_2116_Open(pCore, pPt, pId->m_pRole,
+                                                            pId->m_Instance, pId->m_Uuid);
+    case DT_FUNC_TYPE_CLKGEN_2110:
+        return (DtDf*)DtDfClkGen_2110_Open(pCore, pPt, pId->m_pRole, pId->m_Instance, 
+                                                                             pId->m_Uuid);
     default:
         DT_ASSERT(FALSE);
         break;
@@ -1557,7 +1623,7 @@ DtStatus  DtDfCommonProps_Load(
                                                                      DT_SIZEOF_ARRAY(Id));
     if (!DT_SUCCESS(Status))
         return Status;
-
+    
     // Let string version do the heavy lifting
     return DtDfCommonProps_LoadFromString(pTheProps, Id, PortIndex, pCore);
 }
@@ -1726,12 +1792,20 @@ DtIoStubDf*  DtIoStubDf_OpenType(DtDf*  pDf)
     {
     case DT_FUNC_TYPE_ASIRX:
         return (DtIoStubDf*)DtIoStubDfAsiRx_Open(pDf);
+    case DT_FUNC_TYPE_DATAFIFO:
+        return (DtIoStubDf*)DtIoStubDfDataFifo_Open(pDf);
     case DT_FUNC_TYPE_GENLOCKCTRL:
         return (DtIoStubDf*)DtIoStubDfGenLockCtrl_Open(pDf);
+    case DT_FUNC_TYPE_NW:
+        return (DtIoStubDf*)DtIoStubDfNw_Open(pDf);
+    case DT_FUNC_TYPE_CHSDIRXPHYONLY:
+        return (DtIoStubDf*)DtIoStubDfChSdiRxPhyOnly_Open(pDf);
     case DT_FUNC_TYPE_SDITXPHY:
         return (DtIoStubDf*)DtIoStubDfSdiTxPhy_Open(pDf);
     case DT_FUNC_TYPE_SDIRX:
         return (DtIoStubDf*)DtIoStubDfSdiRx_Open(pDf);
+    case DT_FUNC_TYPE_CHSDIRX:
+        return (DtIoStubDf*)DtIoStubDfChSdiRx_Open(pDf);
     case DT_FUNC_TYPE_SPIPROM:
         return (DtIoStubDf*)DtIoStubDfSpiProm_Open(pDf);
     case DT_FUNC_TYPE_SENSTEMP:

@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtStatusCodes.h *#*#*#*#*#*#*#* (C) 2010-2016 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtStatusCodes.h *#*#*#*#*#*#*# (C) 2010-2022 DekTec
 //
 // DTAPI - OS Support Abstraction Layer - Driver status codes
 //
@@ -8,7 +8,7 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2010-2016 DekTec Digital Video B.V.
+// Copyright (C) 2010-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -108,4 +108,5 @@ typedef UInt32  DtStatus;
 #define  DT_STATUS_INVALID_IN_OPMODE    DT_STATUS_ERROR(30)
 #define  DT_STATUS_NOT_FOUND_INCOMP_FW  DT_STATUS_ERROR(31) // Not found because
                                                              // incompatible fwversion
+#define  DT_STATUS_NOT_ENOUGH_RIGHTS    DT_STATUS_ERROR(32)
 #endif // __DT_STATUS_CODES_H

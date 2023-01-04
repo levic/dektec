@@ -1,9 +1,9 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCore_EVENTS.c *#*#*#*#*#*#*#*#*#*# (C) 2017 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCore_EVENTS.c *#*#*#*#*#*#*# (C) 2017-2022 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:

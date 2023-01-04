@@ -1,11 +1,11 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCorePcie.c *#*#*#*#*#*#*#*#*#*#* (C) 2017 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCorePcie.c *#*#*#*#*#*#*#*# (C) 2017-2022 DekTec
 //
 // DtPcie driver - Interface for the DtPcie common driver, used by the IAL.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -30,6 +30,12 @@
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtCorePcie implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Globals -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+Int  g_NwDrvVersionMajor = -1;              // Version number of network driver
+Int  g_NwDrvVersionMinor = -1;              // Version number of network driver
+Int  g_NwDrvVersionMicro = -1;              // Version number of network driver
+Int  g_NwDrvVersionBuild = -1;              // Version number of network driver
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtCorePcie - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -82,11 +88,13 @@ DtStatus  DtCorePcie_Ioctl(DtCorePcie* pCore, DtFileObject* pFile, DtIoctlObject
 // it should be queued to the DMA channel queue. This queue must be power managed if
 // supported by the host implementation.
 //
-DtStatus  DtCorePcie_IoctlChild(DtPcieChildDeviceData* pCore,
+DtStatus  DtCorePcie_IoctlChild(DtPcieChildDeviceData* pChildDeviceData,
                                                DtFileObject* pFile, DtIoctlObject* pIoctl)
 {
-    DtStatus  Status = DT_STATUS_NOT_SUPPORTED;
-    return Status;
+    DT_ASSERT(pChildDeviceData->m_ObjectType == DT_OBJECT_TYPE_CD && 
+                               pChildDeviceData->m_Size == sizeof(DtPcieChildDeviceData));
+    // No further actions required => let main IoCtl function do the stuff
+    return DtCorePcie_Ioctl(pChildDeviceData->m_pParentCore, pFile, pIoctl);
 }
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_AcquireExclAccess -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -179,6 +187,10 @@ static DtStatus  DtIoStubCorePcie_OnGetDevInfo(const DtIoStub*, DtIoStubIoParams
                                                                           Int*  pOutSize);
 static DtStatus  DtIoStubCorePcie_OnGetDriverVersion(const DtIoStub*, DtIoStubIoParams*, 
                                                                           Int*  pOutSize);
+static DtStatus  DtIoStubCorePcie_OnGetNwDriverVersion(const DtIoStub* pStub,
+                                              DtIoStubIoParams* pIoParams, Int* pOutSize);
+static DtStatus  DtIoStubCorePcie_OnSetNwDriverVersion(const DtIoStub* pStub,
+                                              DtIoStubIoParams* pIoParams, Int* pOutSize);
 
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- List of supported IOCTL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -193,6 +205,8 @@ DECL_DT_IOCTL_CMD_PROPS_PROPERTY;
 DECL_DT_IOCTL_CMD_PROPS_REBOOT;
 DECL_DT_IOCTL_CMD_PROPS_TOD;
 DECL_DT_IOCTL_CMD_PROPS_VPD;
+DECL_DT_IOCTL_CMD_PROPS_GET_NWDRIVER_VERSION;
+DECL_DT_IOCTL_CMD_PROPS_SET_NWDRIVER_VERSION;
 
 static const DtIoctlProperties  IOSTUB_CORE_PCIE_IOCTLS[] = 
 {
@@ -228,6 +242,13 @@ static const DtIoctlProperties  IOSTUB_CORE_PCIE_IOCTLS[] =
     DT_IOCTL_PROPS_VPD_CMD(
         NULL, NULL, 
         DtIoStubCore_GetChildStub),
+    DT_IOCTL_PROPS_GET_NWDRIVER_VERSION(
+        DtIoStubCorePcie_OnGetNwDriverVersion,
+        NULL, NULL),
+    DT_IOCTL_PROPS_SET_NWDRIVER_VERSION(
+        DtIoStubCorePcie_OnSetNwDriverVersion,
+        NULL, NULL),
+
 };
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubCorePcie - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -430,6 +451,74 @@ DtStatus  DtIoStubCorePcie_OnGetDriverVersion(
     pOutData->m_Micro = DTPCIE_VERSION_MICRO;
     pOutData->m_Build = DTPCIE_VERSION_BUILD;
     
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.- DtIoStubCorePcie_OnGetNwDriverVersion -.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtIoStubCorePcie_OnGetNwDriverVersion(
+    const DtIoStub* pStub,
+    DtIoStubIoParams* pIoParams,
+    Int* pOutSize)
+{
+    const DtIoctlGetNwDriverVersionInput* pInData = NULL;
+    DtIoctlGetNwDriverVersionOutput* pOutData = NULL;
+
+    DT_ASSERT(pStub != NULL && pStub->m_Size == sizeof(DtIoStubCorePcie));
+    DT_ASSERT(pIoParams != NULL && pOutSize != NULL);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_GET_NWDRIVER_VERSION);
+    DT_ASSERT(*pOutSize == pIoParams->m_OutReqSize);
+
+    // Get in-/out-data
+    DT_ASSERT(pIoParams->m_pInData != NULL);
+    pInData = &pIoParams->m_pInData->m_GetNwDriverVersion;
+    DT_ASSERT(pIoParams->m_pOutData != NULL);
+    pOutData = &pIoParams->m_pOutData->m_GetNwDriverVersion;
+
+    // Handle the command
+    if (pInData->m_Cmd != DT_IOCTL_CMD_NOP)
+    {
+        DT_ASSERT(pInData->m_Cmd == DT_IOCTL_CMD_NOP);
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
+    pOutData->m_Major = g_NwDrvVersionMajor;
+    pOutData->m_Minor = g_NwDrvVersionMinor;
+    pOutData->m_Micro = g_NwDrvVersionMicro;
+    pOutData->m_Build = g_NwDrvVersionBuild;
+
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.- DtIoStubCorePcie_OnSetNwDriverVersion -.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtIoStubCorePcie_OnSetNwDriverVersion(
+    const DtIoStub* pStub,
+    DtIoStubIoParams* pIoParams,
+    Int* pOutSize)
+{
+    const DtIoctlSetNwDriverVersionInput* pInData = NULL;
+    
+    DT_ASSERT(pStub != NULL && pStub->m_Size == sizeof(DtIoStubCorePcie));
+    DT_ASSERT(pIoParams != NULL && pOutSize != NULL);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_SET_NWDRIVER_VERSION);
+    DT_ASSERT(*pOutSize == pIoParams->m_OutReqSize);
+
+    // Get in-/out-data
+    DT_ASSERT(pIoParams->m_pInData != NULL);
+    pInData = &pIoParams->m_pInData->m_SetNwDriverVersion;
+
+    // Handle the command
+    if (pInData->m_CmdHdr.m_Cmd != DT_IOCTL_CMD_NOP)
+    {
+        DT_ASSERT(pInData->m_CmdHdr.m_Cmd == DT_IOCTL_CMD_NOP);
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
+    g_NwDrvVersionMajor = pInData->m_Major;
+    g_NwDrvVersionMinor = pInData->m_Minor;
+    g_NwDrvVersionMicro = pInData->m_Micro;
+    g_NwDrvVersionBuild = pInData->m_Build;
     return DT_STATUS_OK;
 }
 

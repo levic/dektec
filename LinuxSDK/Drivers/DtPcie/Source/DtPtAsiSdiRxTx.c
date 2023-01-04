@@ -1,10 +1,10 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPtAsiSdiRxTx.c *#*#*#*#*#*#*#*#*#* (C) 2018 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPtAsiSdiRxTx.c *#*#*#*#*#*#*# (C) 2018-2022 DekTec
 //
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2018 DekTec Digital Video B.V.
+// Copyright (C) 2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -107,9 +107,12 @@ static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigGenLock(DtPtAsiSdiRxTx*,
                                                                 const DtCfIoConfigValue*);
 static DtStatus DtPtAsiSdiRxTx_SetTxIoConfigIoDownscale(DtPtAsiSdiRxTx*, 
                                                                 const DtCfIoConfigValue*);
+#ifdef LINBUILD
+static DtStatus DtPtAsiSdiRxTx_Mmap(DtPt*, const DtFileObject*, DtVma*);
+#endif // #ifdef LINBUILD
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+DtPtAsiSdiRxTx - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
-
-
+// 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_Close -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void DtPtAsiSdiRxTx_Close(DtPt*  pPt)
@@ -143,7 +146,10 @@ DtPtAsiSdiRxTx* DtPtAsiSdiRxTx_Open(DtCore* pCore, Int PortIndex, DtPortType Typ
     OpenParams.m_SetIoConfigFunc = DtPtAsiSdiRxTx_SetIoConfig;
     OpenParams.m_SetIoConfigPrepareFunc = DtPtAsiSdiRxTx_SetIoConfigPrepare;
     OpenParams.m_SetIoConfigFinishFunc = DtPtAsiSdiRxTx_SetIoConfigFinish;
-    
+#ifdef LINBUILD
+    OpenParams.m_MmapFunc = DtPtAsiSdiRxTx_Mmap;
+#endif
+
     // Use base function to allocate and perform standard initialisation of function data
     return (DtPtAsiSdiRxTx*)DtPt_Open(&OpenParams);
 }
@@ -207,6 +213,7 @@ DtStatus DtPtAsiSdiRxTx_Init(DtPt* pPtBase)
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- Find the RX-driver functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
     pPt->m_pDfAsiRx = (DtDfAsiRx*)DtPt_FindDf(pPtBase, DT_FUNC_TYPE_ASIRX, NULL);
     pPt->m_pDfSdiRx = (DtDfSdiRx*)DtPt_FindDf(pPtBase, DT_FUNC_TYPE_SDIRX, NULL);
+    pPt->m_pDfChSdiRx = (DtDfChSdiRx*)DtPt_FindDf(pPtBase, DT_FUNC_TYPE_CHSDIRX, NULL);
 
     //.-.-.-.-.-.-.-.-.-.-.-.-.- Find the RX-block controllers -.-.-.-.-.-.-.-.-.-.-.-.-.-
     pPt->m_pBcSwitchFrontEndRx = (DtBcSWITCH*)DtPt_FindBc(pPtBase, DT_BLOCK_TYPE_SWITCH,
@@ -256,6 +263,9 @@ DtStatus DtPtAsiSdiRxTx_Init(DtPt* pPtBase)
     DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_CheckRxPrerequisites(pPt));
     DT_RETURN_ON_ERROR(DtPtAsiSdiRxTx_CheckTxPrerequisites(pPt));
 
+    // Clear lock state flags
+    pPt->m_HoldExclAccessLock = pPt->m_HoldChannelLock = FALSE;
+
     return DT_STATUS_OK;
 }
 
@@ -291,10 +301,17 @@ DtStatus DtPtAsiSdiRxTx_CheckRxPrerequisites(DtPtAsiSdiRxTx* pPt)
         return DT_STATUS_FAIL;
     }
 
-    // For for ASI and SDI the DfSdiRx  needs to be present
+    // For ASI and SDI the DfSdiRx  needs to be present
     if (pPt->m_pDfSdiRx == NULL)
     {
         DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: SDIRX not found");
+        return DT_STATUS_FAIL;
+    }
+
+    // For SDI the DfSdiRxChan needs to be present
+    if (SdiCap && pPt->m_pDfChSdiRx==NULL)
+    {
+        DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: CHSDIRX not found");
         return DT_STATUS_FAIL;
     }
 
@@ -614,8 +631,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
 {
    Bool InpCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_INPUT);
    Bool OutpCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_OUTPUT);
-   Bool DblBufCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_DBLBUF);
-
+   
     DT_ASSERT(pIoCfg != NULL);
     DT_ASSERT((OutpCap && pIoCfg->m_Value==DT_IOCONFIG_OUTPUT)
            || (InpCap && pIoCfg->m_Value==DT_IOCONFIG_INPUT 
@@ -635,6 +651,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
         if (InpCap)
         { 
             // Disable all available RX driver-functions/blocks
+            ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfChSdiRx, FALSE);
             ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfAsiRx, FALSE);
             ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiRx, FALSE);
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchFrontEndRx, FALSE);
@@ -685,6 +702,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
         if (InpCap)
         { 
             // Disable all available RX driver-functions/blocks
+            ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfChSdiRx, FALSE);
             ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfAsiRx, FALSE);
             ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiRx, FALSE);
             ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchFrontEndRx, FALSE);
@@ -764,6 +782,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigIoDir(DtPtAsiSdiRxTx* pPt,
             DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetDirection(pPt->m_pDfSpiCableDrvEq, 
                                                              DT_DF_SPICABLEDRVEQ_DIR_RX));
         ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiRx, TRUE);
+        ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfChSdiRx, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchFrontEndRx, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchBackEndRx, TRUE);
         ENABLE_BLOCKCTRL_RETURN_ON_ERR(pPt->m_pBcSwitchTestModeRx, TRUE);
@@ -1341,18 +1360,58 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigPrepare(DtPt* pPtBase,
 {
     DtStatus  Status=DT_STATUS_OK, TempStatus=DT_STATUS_OK;
     DtPtAsiSdiRxTx* pPt = (DtPtAsiSdiRxTx*)pPtBase;
+    Bool MustAcquireExclAccess = TRUE;
     Int  OpStatus, OpMode;
 
     // Sanity check
     PT_ASISDIRXTX_DEFAULT_PRECONDITIONS(pPt);
 
-    // Acquire exclusive access to children
-    Status = DtPt_AcquireExclAccessChildren(pPtBase, pObject);
-    if (!DT_SUCCESS(Status))
+    // is we have a SDI receive channel function, lock it so that no one else can attach 
+    // or change its state
+    if (pPt->m_pDfChSdiRx)
     {
-        DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: Cannot acquire exclusive access");
-        // Failed
-        return Status;
+        // Lock the channel
+        Status = DtDfCh_Lock((DtDfCh*)pPt->m_pDfChSdiRx, 100);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: cannot lock SDI receive channel");
+            return Status;
+        }
+        pPt->m_HoldChannelLock = TRUE;
+
+        // Check if the channel has users and if yes, if this is one of the channels users
+        if (DtDfCh_HasUsers((DtDfCh*)pPt->m_pDfChSdiRx))
+        {
+            const DtFileObject* pFile = &pObject->m_Owner.m_File;
+            if (!DtDfCh_FindUser((DtDfCh*)pPt->m_pDfChSdiRx, pFile))
+            {
+                DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: SDI receive channel is in use");
+                // Unlock the channel
+                DtDfCh_Unlock((DtDfCh*)pPt->m_pDfChSdiRx);
+                pPt->m_HoldChannelLock = FALSE;
+                return DT_STATUS_IN_USE;      // Used by some one else
+            }
+            // When this is one of the channels users, do not acquire exclusive access on 
+            // the children of channel, since the channel manages exclusive access for its
+            // children.
+            MustAcquireExclAccess = FALSE;
+        }
+        else
+            MustAcquireExclAccess = TRUE;   // Channel has no users => lock children
+    }
+
+    // Acquire exclusive access to children
+    if (MustAcquireExclAccess)
+    {
+        // Acquire exclusive access to children
+        Status = DtPt_AcquireExclAccessChildren(pPtBase, pObject);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: Cannot acquire exclusive access");
+            // Failed
+            return Status;
+        }
+        pPt->m_HoldExclAccessLock = TRUE;
     }
 
     // Check operational mode/state of the childeren
@@ -1461,8 +1520,18 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigPrepare(DtPt* pPtBase,
     {
         DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: Children not in IDLE");
 
-        // Failed; Now release exclusive access to children
-         DtPt_ReleaseExclAccessChildren(pPtBase, pObject);
+        // Failed; Now release exclusive access to children and channel if needed
+        if (pPt->m_HoldExclAccessLock)
+        {
+            DtPt_ReleaseExclAccessChildren(pPtBase, pObject);
+            pPt->m_HoldExclAccessLock = FALSE;
+        }
+        if (pPt->m_HoldChannelLock)
+        {
+            // Unlock the channel
+            DtDfCh_Unlock((DtDfCh*)pPt->m_pDfChSdiRx);
+            pPt->m_HoldChannelLock = FALSE;
+        }
     }
     return Status;
 }
@@ -1470,14 +1539,58 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigPrepare(DtPt* pPtBase,
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_SetIoConfigFinish -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtPtAsiSdiRxTx_SetIoConfigFinish(DtPt* pPt, const DtExclAccessObject* pObject)
+DtStatus DtPtAsiSdiRxTx_SetIoConfigFinish(DtPt* pPtBase, const DtExclAccessObject* pObject)
 {
     DtStatus  Status = DT_STATUS_OK;
+    DtPtAsiSdiRxTx* pPt = (DtPtAsiSdiRxTx*)pPtBase;
 
     // Sanity check
     PT_ASISDIRXTX_DEFAULT_PRECONDITIONS(pPt);
 
-    // Release exclusive access to children
-    Status = DtPt_ReleaseExclAccessChildren(pPt, pObject);
+    // Release exclusive access to children and channel if needed
+    if (pPt->m_HoldChannelLock && pPt->m_pDfChSdiRx)
+        DtDfCh_Unlock((DtDfCh*)pPt->m_pDfChSdiRx);
+    if (pPt->m_HoldExclAccessLock)
+        Status = DtPt_ReleaseExclAccessChildren(pPtBase, pObject);
+    // Clear lock flags
+    pPt->m_HoldExclAccessLock = pPt->m_HoldChannelLock = FALSE;
     return Status;
 }
+
+#ifdef LINBUILD
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtAsiSdiRxTx_Mmap -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Maps channels DMA buffer to the address space of the calling process, provided an 
+// enabled SDI receive channel is available.
+//
+DtStatus DtPtAsiSdiRxTx_Mmap(DtPt* pPtBase, const DtFileObject* pFile, DtVma* pVma)
+{
+    DtStatus Status=DT_STATUS_OK;
+    DtPtAsiSdiRxTx* pPt = (DtPtAsiSdiRxTx*)pPtBase;
+    
+    PT_ASISDIRXTX_DEFAULT_PRECONDITIONS(pPt);
+
+    // Check parameters
+    if (!pVma)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Do we have a enabled channel function. Mmap is not support unless we have an 
+    // enabled channel function.
+    if (!pPt->m_pDfChSdiRx || !DtDf_IsEnabled((DtDf*)pPt->m_pDfChSdiRx))
+        return DT_STATUS_NOT_SUPPORTED; 
+
+    Status = DtDfChSdiRx_Lock(pPt->m_pDfChSdiRx, 100);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOutPt(ERR,SDIPHYONLYRXTX,pPt, "ERROR: cannot lock SDI receive channel");
+        return Status;
+    }
+    Status = DtDfChSdiRx_Mmap(pPt->m_pDfChSdiRx, pFile, pVma);
+    if (!DT_SUCCESS(Status))
+        DtDbgOutPt(ERR, SDIPHYONLYRXTX, pPt, "ERROR: failed to map memory");
+
+    // Do not forget to unlock channel
+    DtDfChSdiRx_Unlock(pPt->m_pDfChSdiRx);
+    return Status;
+}
+#endif // #ifdef LINBUILD

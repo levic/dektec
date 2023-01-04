@@ -266,8 +266,8 @@ DtStatus DtDfTxClkCtrl_2178A_SetSi534XConfig(DtDfTxClkCtrl_2178A*  pDf)
     DtSleep(300);
     // Update registers
     DT_RETURN_ON_ERROR(DtDfTxClkCtrl_2178A_WriteConfig(pDf,
-                                     SI5342_CONFIG_FREE_RUN_DUAL_CLOCK, 
-                                     DT_SIZEOF_ARRAY(SI5342_CONFIG_FREE_RUN_DUAL_CLOCK)));
+                             SI5342_CONFIG_DUAL_SDI_CLOCK_DTA2172_LIKE, 
+                             DT_SIZEOF_ARRAY(SI5342_CONFIG_DUAL_SDI_CLOCK_DTA2172_LIKE)));
  
      // Write postamble
      DT_RETURN_ON_ERROR(DtDfTxClkCtrl_2178A_WriteConfig(pDf, SI534X_CONFIG_POSTAMBLE,

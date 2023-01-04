@@ -36,6 +36,8 @@ typedef enum _DtObjectType
     DT_OBJECT_TYPE_IOSTUB_BC,   // Block-controller IO-STUB object
     DT_OBJECT_TYPE_IOSTUB_DF,   // Driver-function IO-STUB object
     DT_OBJECT_TYPE_PT,          // Port object
+    DT_OBJECT_TYPE_CD,          // Child device object
+    DT_OBJECT_TYPE_PIPE,        // Pipe object
 }  DtObjectType;
 // Common data for a driver object
 #define DT_OBJECT_COMMON_DATA                                                            \

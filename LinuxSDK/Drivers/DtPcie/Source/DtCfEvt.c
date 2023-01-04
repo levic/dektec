@@ -710,11 +710,11 @@ DtStatus  DtIoStubCfEvt_CreateQueue(DtIoStubCfEvt*  pStub)
     // Sanity checks
     STUB_CFEVT_DEFAULT_PRECONDITIONS(pStub);
     
-    // Initialize fast mutex
-    DtFastMutexInit(&STUB_EVT->m_EventQueueMutex);
+    // Initialize mutex
+    DtMutexInit(&STUB_EVT->m_EventQueueMutex);
 
     // Prevent mutual access to event queue
-    DtFastMutexAcquire(&STUB_EVT->m_EventQueueMutex);
+    DtMutexAcquire(&STUB_EVT->m_EventQueueMutex, -1);
 
 
     // Set SynchronizationScope to NONE to prevent the I/O request to be synchronized for
@@ -739,7 +739,7 @@ DtStatus  DtIoStubCfEvt_CreateQueue(DtIoStubCfEvt*  pStub)
         Status = DT_STATUS_FAIL;
     }
 
-    DtFastMutexRelease(&STUB_EVT->m_EventQueueMutex);
+    DtMutexRelease(&STUB_EVT->m_EventQueueMutex);
 
 #endif
    return Status;
@@ -909,8 +909,8 @@ DtStatus  DtIoStubCfEvt_Dequeue(DtIoStubCfEvt*  pStub, DtDriverEvents*  pDrvEven
     pFile = &pDrvEvents->m_File;
     DT_ASSERT(pFile != NULL);
 
-    // Prevent mutual access to event queue
-    DtFastMutexAcquire(&pStub->m_EventQueueMutex);
+    // Prevent mutual access to event queue (can be called at DISPACH level => no timeout)
+    DtMutexAcquire(&pStub->m_EventQueueMutex, -1);
     
     // Get all pending requests from queue for this file object
     for(;;)
@@ -958,7 +958,7 @@ DtStatus  DtIoStubCfEvt_Dequeue(DtIoStubCfEvt*  pStub, DtDriverEvents*  pDrvEven
         WdfRequestCompleteWithInformation(Request2, NtStatus, (ULONG_PTR)BufSize);
     }
 
-    DtFastMutexRelease(&pStub->m_EventQueueMutex);
+    DtMutexRelease(&pStub->m_EventQueueMutex);
 #endif
     return DT_STATUS_OK;
 }
@@ -974,7 +974,7 @@ DtStatus  DtIoStubCfEvt_Requeue(DtIoStubCfEvt*  pStub, DtIoStubIoParams*  pIoPar
     STUB_CFEVT_DEFAULT_PRECONDITIONS(pStub);
 
     // Prevent mutual access to event queue
-    DtFastMutexAcquire(&pStub->m_EventQueueMutex);
+    DtMutexAcquire(&pStub->m_EventQueueMutex, -1);
 
     // Only get events commands can be requeued. Put this request into the event queue
     DT_ASSERT(pIoParams->m_Cmd == DT_EVENT_CMD_GET_EVENT); 
@@ -985,7 +985,7 @@ DtStatus  DtIoStubCfEvt_Requeue(DtIoStubCfEvt*  pStub, DtIoStubIoParams*  pIoPar
         WdfRequestCompleteWithInformation(pIoParams->m_pIoctl->m_WdfRequest,
                                                         (NTSTATUS)NtStatus, (ULONG_PTR)0);
 
-    DtFastMutexRelease(&pStub->m_EventQueueMutex);
+    DtMutexRelease(&pStub->m_EventQueueMutex);
     
 #endif
     return DT_STATUS_OK;

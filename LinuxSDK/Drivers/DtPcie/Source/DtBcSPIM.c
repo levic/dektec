@@ -260,8 +260,18 @@ DtStatus DtBcSPIM_WriteRead(DtBcSPIM* pBc, Int WriteLength, const UInt8* pWriteB
         }
         SPIM_TransmitData_WRITE(pBc, Data);
 
-        // Tranfer data
-        Status = DtBcSPIM_TransferData(pBc, SPIM_TFDIR_SEND, 
+        // Transfer data
+
+        // Full duplex handling
+        // All full duplex devices should be able to write/read, where the read-result 
+        // after a write is immediately available. All code for full-duplex devices uses 
+        // half-duplex, and would stop working. ADS8866 MUST use full-duplex method, so
+        // make an exception here.
+        if (BC_SPIM->m_DuplexMode == DT_SPIM_DPX_FULL_DUPLEX && 
+                                            BC_SPIM->m_DeviceId == DT_SPIM_SPIDVC_ADS8866)
+            Status = DtBcSPIM_TransferData(pBc, SPIM_TFDIR_SEND, WriteLength > 0);
+        else 
+            Status = DtBcSPIM_TransferData(pBc, SPIM_TFDIR_SEND,
                                                            WriteLength>0 || ReadLength>0);
         if (!DT_SUCCESS(Status))
         {
@@ -277,14 +287,19 @@ DtStatus DtBcSPIM_WriteRead(DtBcSPIM* pBc, Int WriteLength, const UInt8* pWriteB
         Int i;
         UInt32 Data;
 
-        // Tranfer data
-        Status = DtBcSPIM_TransferData(pBc, SPIM_TFDIR_RECEIVE,
-                                                     ReadLength > pBc->m_NumBytesPerWord);
-        if (!DT_SUCCESS(Status))
+        // Transfer data. See comments above.
+        if (BC_SPIM->m_DuplexMode != DT_SPIM_DPX_FULL_DUPLEX || 
+                                            BC_SPIM->m_DeviceId != DT_SPIM_SPIDVC_ADS8866)
         {
-            // Release SPI mutex
-            DtFastMutexRelease(&pBc->m_AccessMutex);
-            return  Status;
+            // Half duplex
+            Status = DtBcSPIM_TransferData(pBc, SPIM_TFDIR_RECEIVE,
+                                                     ReadLength > pBc->m_NumBytesPerWord);
+            if (!DT_SUCCESS(Status))
+            {
+                // Release SPI mutex
+                DtFastMutexRelease(&pBc->m_AccessMutex);
+                return  Status;
+            }
         }
 
         // Read transfered word and copy to read buffer 
@@ -391,7 +406,13 @@ DtStatus  DtBcSPIM_Init(DtBc*  pBc)
     case SPIM_SPIDVC_LMH0394:   BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_LMH0394; break;
     case SPIM_SPIDVC_GS3590:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_GS3590; break;
     case SPIM_SPIDVC_GS12090:   BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_GS12090; break;
-    case SPIM_SPIDVC_ADC342X:   BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_GS12090; break;
+    case SPIM_SPIDVC_ADC342X:   BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_ADC342X; break;
+    case SPIM_SPIDVC_RFFC5072:  BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_RFFC5072; break;
+    case SPIM_SPIDVC_AD9163:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_AD9163; break;
+    case SPIM_SPIDVC_LTC6952:   BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_LTC6952; break;
+    case SPIM_SPIDVC_ADS8866:   BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_ADS8866; break;
+    case SPIM_SPIDVC_AD9628:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_AD9628; break;
+    case SPIM_SPIDVC_AD9266:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_AD9266; break;
     default: DT_ASSERT(FALSE); return DT_STATUS_FAIL; 
     }
 
@@ -407,6 +428,9 @@ DtStatus  DtBcSPIM_Init(DtBc*  pBc)
     DT_ASSERT(BC_SPIM->m_WordSize%8 == 0);
     DT_ASSERT((BC_SPIM->m_WordSize/8)>=1 && (BC_SPIM->m_WordSize/8)<=4);
     BC_SPIM->m_NumBytesPerWord = BC_SPIM->m_WordSize/8;
+
+    // Get Duplex mode
+    BC_SPIM->m_DuplexMode = SPIM_Config3_GET_DuplexMode(RegConfig);
 
     // Get maximum transfer time
     BC_SPIM->m_MaxTransferTime = SPIM_Config3_GET_MaxTransferTime(RegConfig);
@@ -509,6 +533,12 @@ const char*  DtBcSPIM_DeviceIdToString(Int  Id)
     case DT_SPIM_SPIDVC_GS3590:     return "GS3590";
     case DT_SPIM_SPIDVC_LMH0394:    return "LMH0394";
     case DT_SPIM_SPIDVC_GS12090:    return "GS12090";
+    case DT_SPIM_SPIDVC_RFFC5072:   return "RFFC5072";
+    case DT_SPIM_SPIDVC_AD9163:     return "AD9163";
+    case DT_SPIM_SPIDVC_LTC6952:    return "LTC6952"; 
+    case DT_SPIM_SPIDVC_ADS8866:    return "ADS8866"; 
+    case DT_SPIM_SPIDVC_AD9628:     return "AD9628";
+    case DT_SPIM_SPIDVC_AD9266:     return "AD9266"; 
     }
     DT_ASSERT(FALSE);
     return "???";

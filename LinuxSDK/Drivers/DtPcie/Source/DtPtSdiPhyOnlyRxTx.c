@@ -152,6 +152,8 @@ DtStatus DtPtSdiPhyOnlyRxTx_Init(DtPt* pPtBase)
                                                                         TxDblBufRoleName);
     //-.-.-.-.-.-.-.-.-.-.-.-.-.- Find the RX-driver functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
     pPt->m_pDfSdiRx = (DtDfSdiRx*)DtPt_FindDf(pPtBase, DT_FUNC_TYPE_SDIRX, NULL);
+    pPt->m_pDfChSdiRxPhyOnly = (DtDfChSdiRxPhyOnly*)DtPt_FindDf(
+                                              pPtBase, DT_FUNC_TYPE_CHSDIRXPHYONLY, NULL);
 
     // Find the RX/TX driver functions
     pPt->m_pDfSpiCableDrvEq = (DtDfSpiCableDrvEq*)DtPt_FindDf(pPtBase, 
@@ -165,6 +167,9 @@ DtStatus DtPtSdiPhyOnlyRxTx_Init(DtPt* pPtBase)
     DT_RETURN_ON_ERROR(DtPtSdiPhyOnlyRxTx_CheckRxPrerequisites(pPt));
     DT_RETURN_ON_ERROR(DtPtSdiPhyOnlyRxTx_CheckTxPrerequisites(pPt));
 
+    // Clear lock state flags
+    pPt->m_HoldExclAccessLock = pPt->m_HoldChannelLock = FALSE;
+
     return DT_STATUS_OK;
 }
 
@@ -173,6 +178,7 @@ DtStatus DtPtSdiPhyOnlyRxTx_Init(DtPt* pPtBase)
 DtStatus DtPtSdiPhyOnlyRxTx_CheckRxPrerequisites(DtPtSdiPhyOnlyRxTx* pPt)
 {
    Bool InpCap = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_INPUT);
+   Bool SdiCap = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_SDI);
 
    if (!InpCap)
        return DT_STATUS_OK;
@@ -183,7 +189,11 @@ DtStatus DtPtSdiPhyOnlyRxTx_CheckRxPrerequisites(DtPtSdiPhyOnlyRxTx* pPt)
         DtDbgOutPt(ERR, SDIPHYONLYRXTX, pPt, "ERROR: SDIRX not found");
         return DT_STATUS_FAIL;
     }
-
+    if (SdiCap && pPt->m_pDfChSdiRxPhyOnly==NULL)
+    {
+        DtDbgOutPt(ERR, SDIPHYONLYRXTX, pPt, "ERROR: CHSDIRXPHYONLY not found");
+        return DT_STATUS_FAIL;
+    }
     return DT_STATUS_OK;
 }
 
@@ -359,8 +369,7 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigIoDir(DtPtSdiPhyOnlyRxTx* pPt,
 {
    Bool InpCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_INTINPUT);
    Bool OutpCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_INTOUTPUT);
-   Bool DblBufCap  = DtIoCapsHasCap(&pPt->m_IoCaps, DT_IOCAP_DBLBUF);
-
+   
     DT_ASSERT(pIoCfg != NULL);
     DT_ASSERT((OutpCap && pIoCfg->m_Value==DT_IOCONFIG_INTOUTPUT)
            || (InpCap && pIoCfg->m_Value==DT_IOCONFIG_INTINPUT 
@@ -380,6 +389,7 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigIoDir(DtPtSdiPhyOnlyRxTx* pPt,
         if (InpCap)
         { 
             // Disable all available RX driver-functions/blocks
+            ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfChSdiRxPhyOnly, FALSE);
             ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiRx, FALSE);
         }
         // Disable all TX-driver functions/blocks that are not used in double buffered
@@ -408,6 +418,7 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigIoDir(DtPtSdiPhyOnlyRxTx* pPt,
         if (InpCap)
         { 
             // Disable all available RX driver-functions/blocks
+            ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfChSdiRxPhyOnly, FALSE);
             ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiRx, FALSE);
         }
 
@@ -452,6 +463,7 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigIoDir(DtPtSdiPhyOnlyRxTx* pPt,
         if (pPt->m_pDfSpiCableDrvEq != NULL)
             DT_RETURN_ON_ERROR(DtDfSpiCableDrvEq_SetDirection(pPt->m_pDfSpiCableDrvEq, 
                                                              DT_DF_SPICABLEDRVEQ_DIR_RX));
+        ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfChSdiRxPhyOnly, TRUE);
         ENABLE_DRIVERFUNC_RETURN_ON_ERR(pPt->m_pDfSdiRx, TRUE);
     }
     return DT_STATUS_OK;
@@ -645,18 +657,58 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigPrepare(DtPt* pPtBase,
 {
     DtStatus  Status=DT_STATUS_OK, TempStatus=DT_STATUS_OK;
     DtPtSdiPhyOnlyRxTx* pPt = (DtPtSdiPhyOnlyRxTx*)pPtBase;
+    Bool MustAcquireExclAccess = TRUE;
     Int  OpMode;
 
     // Sanity check
     PT_SDIPHYONLYRXTX_DEFAULT_PRECONDITIONS(pPt);
 
-    // Acquire exclusive access to children
-    Status = DtPt_AcquireExclAccessChildren(pPtBase, pObject);
-    if (!DT_SUCCESS(Status))
+    // is we have a SDI PHY-only receive channel function, lock it so that no one else can 
+    // attach or change its state
+    if (pPt->m_pDfChSdiRxPhyOnly)
     {
-        DtDbgOutPt(ERR, SDIPHYONLYRXTX, pPt, "ERROR: Cannot acquire exclusive access");
-        // Failed
-        return Status;
+        // Lock the channel
+        Status = DtDfCh_Lock((DtDfCh*)pPt->m_pDfChSdiRxPhyOnly, 100);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutPt(ERR,SDIPHYONLYRXTX,pPt,"ERROR: lock SDI PHY-only receive channel");
+            return Status;
+        }
+        pPt->m_HoldChannelLock = TRUE;
+
+        // Check if the channel has users and if yes, if this is one of the channels users
+        if (DtDfCh_HasUsers((DtDfCh*)pPt->m_pDfChSdiRxPhyOnly))
+        {
+            const DtFileObject* pFile = &pObject->m_Owner.m_File;
+            if (!DtDfCh_FindUser((DtDfCh*)pPt->m_pDfChSdiRxPhyOnly, pFile))
+            {
+                DtDbgOutPt(ERR, SDIPHYONLYRXTX, pPt,
+                                         "ERROR: SDI PHY-only receive channel is in use");
+                // Unlock the channel
+                DtDfCh_Unlock((DtDfCh*)pPt->m_pDfChSdiRxPhyOnly);
+                pPt->m_HoldChannelLock = FALSE;
+                return DT_STATUS_IN_USE;      // Used by some one else
+            }
+            // When this is one of the channels users, do not acquire exclusive access on 
+            // the children of channel, since the channel manages exclusive access for its
+            // children.
+            MustAcquireExclAccess = FALSE;
+        }
+        else
+            MustAcquireExclAccess = TRUE;   // Channel has no users => lock children
+    }
+
+    // Acquire exclusive access to children
+    if (MustAcquireExclAccess)
+    {
+        Status = DtPt_AcquireExclAccessChildren(pPtBase, pObject);
+        if (!DT_SUCCESS(Status))
+        {
+            DtDbgOutPt(ERR, SDIPHYONLYRXTX, pPt, "ERROR: Cannot acquire exclusive access");
+            // Failed
+            return Status;
+        }
+        pPt->m_HoldExclAccessLock = TRUE;
     }
 
     // Check operational mode/state of the childeren
@@ -688,8 +740,18 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigPrepare(DtPt* pPtBase,
     {
         DtDbgOutPt(ERR, SDIPHYONLYRXTX, pPt, "ERROR: Children not in IDLE");
 
-        // Failed; Now release exclusive access to children
-         DtPt_ReleaseExclAccessChildren(pPtBase, pObject);
+        // Failed; Now release exclusive access to children and channel if needed
+        if (pPt->m_HoldExclAccessLock)
+        {
+            DtPt_ReleaseExclAccessChildren(pPtBase, pObject);
+            pPt->m_HoldExclAccessLock = FALSE;
+        }
+        if (pPt->m_HoldChannelLock)
+        {
+            // Unlock the channel
+            DtDfCh_Unlock((DtDfCh*)pPt->m_pDfChSdiRxPhyOnly);
+            pPt->m_HoldChannelLock = FALSE;
+        }
     }
     return Status;
 }
@@ -697,14 +759,20 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigPrepare(DtPt* pPtBase,
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtSdiPhyOnlyRxTx_SetIoConfigFinish -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigFinish(DtPt* pPt, const DtExclAccessObject* pObject)
+DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigFinish(DtPt* pPtBase, const DtExclAccessObject* pObject)
 {
     DtStatus  Status = DT_STATUS_OK;
+    DtPtSdiPhyOnlyRxTx* pPt = (DtPtSdiPhyOnlyRxTx*)pPtBase;
 
     // Sanity check
     PT_SDIPHYONLYRXTX_DEFAULT_PRECONDITIONS(pPt);
 
-    // Release exclusive access to children
-    Status = DtPt_ReleaseExclAccessChildren(pPt, pObject);
+    // Release exclusive access to children and channel if needed
+    if (pPt->m_HoldChannelLock && pPt->m_pDfChSdiRxPhyOnly)
+        DtDfCh_Unlock((DtDfCh*)pPt->m_pDfChSdiRxPhyOnly);
+    if (pPt->m_HoldExclAccessLock)
+        Status = DtPt_ReleaseExclAccessChildren(pPtBase, pObject);
+    // Clear lock flags
+    pPt->m_HoldExclAccessLock = pPt->m_HoldChannelLock = FALSE;
     return Status;
 }

@@ -501,7 +501,7 @@ void  DtaEncD7ProPowerControlThread(DtThread* pThread, void* pContext)
     Int  IsExt12VPresent, IsPowerGood, FanFail, Ext12VAbsent, PowerFail;
     Int  Ext12PresCnt = 0, FanGoodCnt = 0;
     UInt32  MeasuredRotationRate;
-    UInt32  MinFanRotation;
+    UInt32  MinFanRotation=0;
     volatile UInt8* pFwbRegs = pNonIpPort->m_pFwbRegs;
     Int FanType = pNonIpPort->m_pDvcData->m_FanControl.m_FanType;
     Int RpmDiv = pNonIpPort->m_pDvcData->m_FanControl.m_RpmDiv;

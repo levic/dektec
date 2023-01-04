@@ -94,17 +94,40 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcASIRXP.o               \
          $(SRCDIR)/DtBcASITXG.o               \
          $(SRCDIR)/DtBcASITXSER.o             \
+         $(SRCDIR)/DtBcATTNCTRL_2116.o        \
          $(SRCDIR)/DtBcBURSTFIFO.o            \
          $(SRCDIR)/DtBcCDMAC.o                \
+         $(SRCDIR)/DtBcCDMACTO.o              \
          $(SRCDIR)/DtBcCONSTSINK.o            \
          $(SRCDIR)/DtBcCONSTSOURCE.o          \
+         $(SRCDIR)/DtBcDATACDC.o              \
+         $(SRCDIR)/DtBcDATAFIFO.o             \
+         $(SRCDIR)/DtBcDDRFIFO.o              \
+         $(SRCDIR)/DtBcDDRFRONT.o             \
+         $(SRCDIR)/DtBcDISEQC.o               \
+         $(SRCDIR)/DtBcEMAC10G.o              \
+         $(SRCDIR)/DtBcETHIPPAD.o             \
          $(SRCDIR)/DtBcFANC.o                 \
          $(SRCDIR)/DtBcFPGATEMP.o             \
          $(SRCDIR)/DtBcGENL.o                 \
+         $(SRCDIR)/DtBcGPSTIME.o              \
          $(SRCDIR)/DtBcGS2988.o               \
          $(SRCDIR)/DtBcI2CM.o                 \
+         $(SRCDIR)/DtBcIO_2116.o              \
          $(SRCDIR)/DtBcIOSERIN.o              \
+         $(SRCDIR)/DtBcIPFIFO.o               \
+         $(SRCDIR)/DtBcIPROUT.o               \
+         $(SRCDIR)/DtBcIPSCHED.o              \
          $(SRCDIR)/DtBcIPSECG.o               \
+         $(SRCDIR)/DtBcIPSUMCHK.o             \
+         $(SRCDIR)/DtBcIPSUMINS.o             \
+         $(SRCDIR)/DtBcIQUNPCK.o              \
+         $(SRCDIR)/DtBcIQFIR.o                \
+         $(SRCDIR)/DtBcIQNOISE.o              \
+         $(SRCDIR)/DtBcIQMISC.o               \
+         $(SRCDIR)/DtBcIQSYNC.o               \
+         $(SRCDIR)/DtBcIQUP.o                 \
+         $(SRCDIR)/DtBcIQJESD.o               \
          $(SRCDIR)/DtBcKA.o                   \
          $(SRCDIR)/DtBcLEDB.o                 \
          $(SRCDIR)/DtBcLMH1981.o              \
@@ -136,6 +159,14 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtCfTod.o                  \
          $(SRCDIR)/DtDf.o                     \
          $(SRCDIR)/DtDfAsiRx.o                \
+         $(SRCDIR)/DtDfCh.o                   \
+         $(SRCDIR)/DtDfChSdiRx.o              \
+         $(SRCDIR)/DtDfChSdiRxPhyOnly.o       \
+         $(SRCDIR)/DtDfClkCtrl_2116.o         \
+         $(SRCDIR)/DtDfClkGen_2110.o          \
+         $(SRCDIR)/DtDfDataFifo.o             \
+         $(SRCDIR)/DtDfIpFifo.o               \
+         $(SRCDIR)/DtDfNw.o                   \
          $(SRCDIR)/DtDfGenLockCtrl.o          \
          $(SRCDIR)/DtDfMxDs75Temp.o           \
          $(SRCDIR)/DtDfSdiRx.o                \
@@ -153,12 +184,16 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtPt.o                     \
          $(SRCDIR)/DtPtAsiSdiMon.o            \
          $(SRCDIR)/DtPtAsiSdiRxTx.o           \
+         $(SRCDIR)/DtPtIp.o                   \
+         $(SRCDIR)/DtPtModOutp.o              \
          $(SRCDIR)/DtPtSdiPhyOnlyRxTx.o       \
          $(SRCDIR)/DtPtSdiGenRef.o            \
          $(SRCDIR)/DtIoStub.o                 \
          $(SRCDIR)/DtVectorBc.o               \
          $(SRCDIR)/DtVectorDf.o               \
+         $(SRCDIR)/DtVectorDfChUser.o         \
          $(SRCDIR)/DtVectorPt.o               \
+         $(SRCDIR)/DtVectorPipe.o             \
          $(SRCDIR)/DtCorePcie.o               \
          $(SRCDIR)/DtCorePcie_DEVICE.o        \
          $(SRCDIR)/DtPciePropertyStore.o      \
@@ -177,6 +212,8 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcS2STATS_2132.o         \
          $(SRCDIR)/DtDfS2CrDemod_2132.o       \
          $(SRCDIR)/DtDfTxClkCtrl_2178A.o      \
+         $(SRCDIR)/DtBcXPLL.o                 \
+         $(SRCDIR)/DtPipe.o                   \
          Messages.o
 
 EXTRA_CFLAGS += -I$(MYPWD) -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR)

@@ -1,9 +1,9 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtIoStub.c *#*#*#*#*#*#*#*#*#*#*# (C) 2017 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtIoStub.c *#*#*#*#*#*#*#*#* (C) 2017-2022 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -98,49 +98,6 @@ DtIoStub*  DtIoStub_Open(const DtIoStubOpenParams*  pParams)
     pStub->m_NumIoctls = pParams->m_NumIoctls;
     pStub->m_pIoctls = pParams->m_pIoctls;
 
-    // Check IOCTL commands are listed in assending order starting at 0. Exception 
-    // is a single command which may be a NOP_CMD
-#ifdef DEBUG
-    for (i=0; i<pStub->m_NumIoctls; i++)
-    {
-        Int  n=0, m=0;
-        const DtIoctlProperties*  pIoCtlProps = &pStub->m_pIoctls[i];
-        const Int  NumCmds = pIoCtlProps->m_NumCmds;
-        DT_ASSERT(NumCmds >= 1);    // Must have atleast one command (maybe the NOP)
-        DT_ASSERT(pIoCtlProps->m_pStr != NULL);
-        for (n=0; n<NumCmds; n++)
-        {
-            const DtIoctlPropertiesCmd*  pCmdProps = &pStub->m_pIoctls[i].m_CmdProps[n];
-            DT_ASSERT(pCmdProps->m_pStr != NULL);
-            if (pCmdProps->m_Cmd!=n || (NumCmds==1 && pCmdProps->m_Cmd!=DT_IOCTL_CMD_NOP))
-            {
-                DtDbgOutIoStub(ERR, CORE, pStub, "ERROR: '%s->%s' command props not "
-                                                  "sequential", 
-                                                  pIoCtlProps->m_pStr, pCmdProps->m_pStr);
-                DT_ASSERT(FALSE);
-            }
-
-            // Also check command-ex sequence
-            const  Int  NumCmdExs = pCmdProps->m_NumCmdExs;
-            DT_ASSERT((NumCmdExs==0 && pCmdProps->m_Cmd==DT_IOCTL_CMD_NOP) 
-                                                   || pCmdProps->m_Cmd!=DT_IOCTL_CMD_NOP);
-            for (m=0; m<NumCmdExs; m++)
-            {
-                const DtIoctlPropertiesCmdEx*  pCmdExProps = &pCmdProps->m_CmdExProps[m];
-                DT_ASSERT(pCmdExProps->m_pStr != NULL);
-                if (pCmdExProps->m_CmdEx != m)
-                {
-                    DtDbgOutIoStub(ERR, CORE, pStub, "ERROR: '%s->%s.%s' command-ex props"
-                                                  "not sequential", 
-                                                  pIoCtlProps->m_pStr, pCmdProps->m_pStr
-                                                  pCmdExProps->m_pStr);
-                    DT_ASSERT(FALSE);
-                }
-            }
-        }
-    }
-#endif // #ifdef DEBUG
-    
     return pStub;
 }
 

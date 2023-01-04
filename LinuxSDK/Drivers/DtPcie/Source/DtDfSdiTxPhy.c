@@ -1105,8 +1105,8 @@ DtStatus DtDfSdiTxPhy_ConfigureRateCV(DtDfSdiTxPhy*  pDf, Int  SdiRate, Bool  Fr
 
     // Change clock frequency
     DT_RETURN_ON_ERROR(DtDfSi534X_SetConfig(pDf->m_pDfSi534X,
-                                    FracClk ? DT_DF_SI534X_CFG_FREE_RUN_FRAC_CLOCK
-                                            : DT_DF_SI534X_CFG_FREE_RUN_NONFRAC_CLOCK));
+                                          FracClk ? DT_DF_SI534X_CFG_FRAC_SDI_CLOCK
+                                                  : DT_DF_SI534X_CFG_NON_FRAC_SDI_CLOCK));
     // Reset the PLL-clock
     DT_RETURN_ON_ERROR(DtBcSDITXPLL_ResetClock(pDf->m_pBcSdiTxPll));
 

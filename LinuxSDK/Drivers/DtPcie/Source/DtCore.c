@@ -1,9 +1,9 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCore.c *#*#*#*#*#*#*#*#*#*#*#* (C) 2017 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCore.c *#*#*#*#*#*#*#*#*# (C) 2017-2022 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -516,19 +516,24 @@ DtIoStubIoParams  DtCore_ToIoctlParams(DtCore*  pCore, DtFileObject*  pFile,
     Params.m_Cmd = pHdr->m_Cmd;
     Params.m_CmdEx = pHdr->m_CmdEx;
     
-     // Get powerdown pending flag for this file handle from the filehandle info array
-    DtFastMutexAcquire(&pCore->m_FileHandleInfoMutex);
-    pFileHandleInfo = pCore->m_pFileHandleInfo;
-    while (pFileHandleInfo != NULL)
+    // If the file handle is NULL, we are coming from the child devices and 
+    // can't acquire the fast mutex and we do not need to check the powerdown state.
+    if (DtFileGetHandle(pFile) != NULL)
     {
-        if (pFileHandleInfo->m_pHandle == DtFileGetHandle(pFile))
+        // Get powerdown pending flag for this file handle from the filehandle info array
+        DtFastMutexAcquire(&pCore->m_FileHandleInfoMutex);
+        pFileHandleInfo = pCore->m_pFileHandleInfo;
+        while (pFileHandleInfo != NULL)
         {
-            Params.m_PowerDownPending = pFileHandleInfo->m_PowerDownPending;
-            break;
+            if (pFileHandleInfo->m_pHandle == DtFileGetHandle(pFile))
+            {
+                Params.m_PowerDownPending = pFileHandleInfo->m_PowerDownPending;
+                break;
+            }
+            pFileHandleInfo = pFileHandleInfo->m_pNext;
         }
-        pFileHandleInfo = pFileHandleInfo->m_pNext;
+        DtFastMutexRelease(&pCore->m_FileHandleInfoMutex);
     }
-    DtFastMutexRelease(&pCore->m_FileHandleInfoMutex);
 
     // String and required size are determined by the io-stub
     Params.m_InReqSize = Params.m_OutReqSize = -1;  // -1, means not initialised

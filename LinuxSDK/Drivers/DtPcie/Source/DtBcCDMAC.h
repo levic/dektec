@@ -79,6 +79,7 @@ typedef  struct _DtBcCDMAC
     DmaDevice  m_DmaDevice;     // DMA object
     DmaDirectBuffer  m_PtrTable; // DMA pointer table buffer
     UInt8*  m_pDmaBuffer;       // DMA buffer (shared with user)
+    Int m_DmaBufType;           // Type of DMA buffer (user or kernel memory)
     Int  m_DmaBufferSize;       // DMA buffer size
     DmaOsSgl  m_OsSgList;       // Scatter gather list
     DtPageList  m_DmaBufferPageList; // Pagelist of DMA buffer
@@ -96,7 +97,7 @@ void  DtBcCDMAC_Close(DtBc*);
 DtBcCDMAC*  DtBcCDMAC_Open(Int  Address, DtCore*, DtPt*  pPt, 
                           const char*  pRole, Int  Instance, Int  Uuid, Bool  CreateStub);
 DtStatus  DtBcCDMAC_AllocateBuffer(DtBcCDMAC*, Int Direction, UInt8* pDmaBuffer,
-                                                                       Int DmaBufferSize);
+                                             Int DmaBufferSize, Int BufType, DtPageList*);
 DtStatus  DtBcCDMAC_ClearProfiling(DtBcCDMAC * pBc);
 DtStatus  DtBcCDMAC_ClearReorderBufMinMax(DtBcCDMAC*);
 DtStatus  DtBcCDMAC_FreeBuffer(DtBcCDMAC*);
@@ -114,6 +115,10 @@ DtStatus  DtBcCDMAC_SetOperationalMode(DtBcCDMAC*, Int OpMode);
 DtStatus  DtBcCDMAC_SetRxReadOffset(DtBcCDMAC*, UInt RxRdOffset);
 DtStatus  DtBcCDMAC_SetTestMode(DtBcCDMAC*, Int TestMode);
 DtStatus  DtBcCDMAC_SetTxWriteOffset(DtBcCDMAC*, UInt TxWrOffset);
+DtStatus  DtBcCDMAC_MapBufferToUserSpace(DtBcCDMAC*, Int* Direction, 
+                                          Int* BufferSize, UInt64* BufferAddress, DtVma*);
+DtStatus  DtBcCDMAC_UpmapBufferFromUserSpace(DtBcCDMAC*, void* MappedAddress);
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubBcCDMAC definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

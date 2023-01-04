@@ -59,6 +59,8 @@
 #define  LOG_LEVEL_IOCONFIG         LOG_ERR
 // VPD related
 #define  LOG_LEVEL_VPD              LOG_ERR
+// PIPE related
+#define  LOG_LEVEL_PIPE             LOG_ERR
 
 // Core-function related
 #define  LOG_LEVEL_CM_EVENTS        LOG_ERR
@@ -79,15 +81,43 @@
 #define  LOG_LEVEL_BC_ASITXSER      LOG_ERR
 #define  LOG_LEVEL_BC_BURSTFIFO     LOG_ERR
 #define  LOG_LEVEL_BC_CDMAC         LOG_ERR
+#define  LOG_LEVEL_BC_CDMACTO       LOG_ERR
 #define  LOG_LEVEL_BC_CONSTSINK     LOG_ERR
 #define  LOG_LEVEL_BC_CONSTSOURCE   LOG_ERR
 #define  LOG_LEVEL_BC_COMMON        LOG_ERR
+#define  LOG_LEVEL_BC_DATACDC       LOG_ERR
+#define  LOG_LEVEL_BC_DATACDC2      LOG_ERR
+#define  LOG_LEVEL_BC_DATAFIFO      LOG_ERR
+#define  LOG_LEVEL_BC_DDRFIFO       LOG_ERR
+#define  LOG_LEVEL_BC_DDRFRONT      LOG_ERR
 #define  LOG_LEVEL_BC_DCXO39XX      LOG_ERR
+#define  LOG_LEVEL_BC_DCXO39XX      LOG_ERR
+#define  LOG_LEVEL_BC_DISEQC        LOG_ERR
+#define  LOG_LEVEL_BC_EMAC10G       LOG_ERR
+#define  LOG_LEVEL_BC_ETHIPPAD      LOG_ERR
 #define  LOG_LEVEL_BC_FANC          LOG_ERR
 #define  LOG_LEVEL_BC_FPGATEMP      LOG_ERR
 #define  LOG_LEVEL_BC_GENL          LOG_ERR
+#define  LOG_LEVEL_BC_GPSTIME       LOG_ERR
 #define  LOG_LEVEL_BC_I2CM          LOG_ERR
+#define  LOG_LEVEL_BC_IPFIFO        LOG_ERR
+#define  LOG_LEVEL_BC_IPROUT        LOG_ERR
+#define  LOG_LEVEL_BC_IPSCHED       LOG_ERR
 #define  LOG_LEVEL_BC_IPSECG        LOG_ERR
+#define  LOG_LEVEL_BC_IPSUMCHK      LOG_ERR
+#define  LOG_LEVEL_BC_IPSUMINS      LOG_ERR
+#define  LOG_LEVEL_BC_IOSERIN       LOG_ERR
+#define  LOG_LEVEL_BC_IPSECG        LOG_ERR
+#define  LOG_LEVEL_BC_IQUNPCK       LOG_ERR
+#define  LOG_LEVEL_BC_DATACDC       LOG_ERR
+#define  LOG_LEVEL_BC_IQFIR         LOG_ERR
+#define  LOG_LEVEL_BC_IQNOISE       LOG_ERR
+#define  LOG_LEVEL_BC_IQMISC        LOG_ERR
+#define  LOG_LEVEL_BC_IQSYNC        LOG_ERR
+#define  LOG_LEVEL_BC_IQUP          LOG_ERR
+#define  LOG_LEVEL_BC_IQJESD        LOG_ERR
+#define  LOG_LEVEL_BC_ATTNCTRL_2116 LOG_ERR
+#define  LOG_LEVEL_BC_IO_2116       LOG_ERR
 #define  LOG_LEVEL_BC_KA            LOG_ERR
 #define  LOG_LEVEL_BC_LEDB          LOG_ERR
 #define  LOG_LEVEL_BC_LMH1981       LOG_ERR
@@ -113,6 +143,7 @@
 #define  LOG_LEVEL_BC_TOD           LOG_ERR
 #define  LOG_LEVEL_BC_TSRXFMT       LOG_ERR
 #define  LOG_LEVEL_BC_VVI           LOG_ERR
+#define  LOG_LEVEL_BC_XPLL          LOG_ERR
 
 // Local block-controller related
 #define  LOG_LEVEL_BC_AD5320_2132   LOG_ERR
@@ -129,12 +160,18 @@
 
 // Driver-function related
 #define  LOG_LEVEL_DF_ASIRX         LOG_ERR
-#define  LOG_LEVEL_DF_COMMON        LOG_ERR
+#define  LOG_LEVEL_DF_CHSDIRXPHYONLY  LOG_ERR
+#define  LOG_LEVEL_DF_CHSDIRX       LOG_ERR
+#define  LOG_LEVEL_DF_COMMON        LOG_MIN
+#define  LOG_LEVEL_DF_CLKGEN        LOG_ERR
+#define  LOG_LEVEL_DF_DATAFIFO      LOG_ERR
 #define  LOG_LEVEL_DF_DEBUG         LOG_ERR
 #define  LOG_LEVEL_DF_EVENT         LOG_ERR
 #define  LOG_LEVEL_DF_IOCONFIG      LOG_ERR
 #define  LOG_LEVEL_DF_GENLOCKCTRL   LOG_ERR
+#define  LOG_LEVEL_DF_IPFIFO        LOG_ERR
 #define  LOG_LEVEL_DF_MXDS75TEMP    LOG_ERR
+#define  LOG_LEVEL_DF_NW            LOG_ERR
 #define  LOG_LEVEL_DF_PROPS         LOG_ERR
 #define  LOG_LEVEL_DF_SDITXPHY      LOG_ERR
 #define  LOG_LEVEL_DF_SDIRX         LOG_ERR
@@ -155,12 +192,14 @@
 #define  LOG_LEVEL_PT_COMMON        LOG_ERR
 #define  LOG_LEVEL_PT_ASISDIMON     LOG_ERR
 #define  LOG_LEVEL_PT_ASISDIRXTX    LOG_ERR
+#define  LOG_LEVEL_PT_IP            LOG_ERR
 #define  LOG_LEVEL_PT_SDIGENREF     LOG_ERR 
 #define  LOG_LEVEL_PT_SDIPHYONLYRXTX  LOG_ERR
 
 
 
 // Local driver-function related
+#define  LOG_LEVEL_DF_CLKCTRL_2116      LOG_ERR
 #define  LOG_LEVEL_DF_S2CRDEMOD_2132    LOG_ERR
 #define  LOG_LEVEL_DF_TXCLKCTRL_2178    LOG_ERR
 

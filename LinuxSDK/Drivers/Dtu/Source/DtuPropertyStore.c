@@ -1159,6 +1159,11 @@ static const DtProperty  DtProperties234_0_47[] =
     { "FIRMWARE_RELEASE_N1_0", DT_PVE, "First firmware version released to the field",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties234_0_49[] =
+{
+    { "CAP_RX_AUTO_SPECINV", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties234_0_50[] =
 {
     { "PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -1196,6 +1201,11 @@ static const DtProperty  DtProperties234_0_59[] =
 static const DtProperty  DtProperties234_0_60[] =
 {
     { "CAP_VHF", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties234_0_62[] =
+{
+    { "CAP_RX_AUTO_SYMRATE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties234_0_63[] =
@@ -1254,7 +1264,7 @@ static const DtPropertyHashSet  DtPropertyHashSets234_0[] =
     { DtProperties234_0_46, 2 },
     { DtProperties234_0_47, 1 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties234_0_49, 1 },
     { DtProperties234_0_50, 1 },
     { NULL, 0 },
     { NULL, 0 },
@@ -1267,7 +1277,7 @@ static const DtPropertyHashSet  DtPropertyHashSets234_0[] =
     { DtProperties234_0_59, 3 },
     { DtProperties234_0_60, 1 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties234_0_62, 1 },
     { DtProperties234_0_63, 1 }
 };
 
@@ -1410,6 +1420,11 @@ static const DtProperty  DtProperties235_0_47[] =
       "Bug fix: failure to acquire data-lock => cannot read transport-stream",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties235_0_49[] =
+{
+    { "CAP_RX_AUTO_SPECINV", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties235_0_50[] =
 {
     { "PORT_COUNT", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -1505,7 +1520,7 @@ static const DtPropertyHashSet  DtPropertyHashSets235_0[] =
     { DtProperties235_0_46, 3 },
     { DtProperties235_0_47, 1 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties235_0_49, 1 },
     { DtProperties235_0_50, 1 },
     { NULL, 0 },
     { NULL, 0 },
@@ -1530,6 +1545,8 @@ static const DtProperty  DtProperties236_0_01[] =
 {
     { "CAP_DEMOD", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_RX_MAN_SYMRATE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_RX_QAMA", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -1709,6 +1726,11 @@ static const DtProperty  DtProperties236_0_46[] =
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties236_0_49[] =
+{
+    { "CAP_RX_AUTO_SPECINV", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties236_0_50[] =
 {
     { "PORT_COUNT", 2, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
@@ -1769,7 +1791,7 @@ static const DtProperty  DtProperties236_0_63[] =
 static const DtPropertyHashSet  DtPropertyHashSets236_0[] =
 {
     { NULL, 0 },
-    { DtProperties236_0_01, 3 },
+    { DtProperties236_0_01, 4 },
     { DtProperties236_0_02, 2 },
     { DtProperties236_0_03, 1 },
     { DtProperties236_0_04, 1 },
@@ -1817,7 +1839,7 @@ static const DtPropertyHashSet  DtPropertyHashSets236_0[] =
     { DtProperties236_0_46, 4 },
     { NULL, 0 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties236_0_49, 1 },
     { DtProperties236_0_50, 1 },
     { DtProperties236_0_51, 1 },
     { NULL, 0 },
@@ -2013,6 +2035,11 @@ static const DtProperty  DtProperties238_0_46[] =
     { "REF_CLK_SUPPORTS_CNT", 0, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties238_0_49[] =
+{
+    { "CAP_RX_AUTO_SPECINV", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties238_0_50[] =
 {
     { "CAP_RX_DVBC2", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
@@ -2059,6 +2086,11 @@ static const DtProperty  DtProperties238_0_59[] =
 static const DtProperty  DtProperties238_0_60[] =
 {
     { "CAP_VHF", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
+static const DtProperty  DtProperties238_0_62[] =
+{
+    { "CAP_RX_AUTO_SYMRATE", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, -1, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties238_0_63[] =
@@ -2119,7 +2151,7 @@ static const DtPropertyHashSet  DtPropertyHashSets238_0[] =
     { DtProperties238_0_46, 4 },
     { NULL, 0 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties238_0_49, 1 },
     { DtProperties238_0_50, 2 },
     { DtProperties238_0_51, 1 },
     { NULL, 0 },
@@ -2132,7 +2164,7 @@ static const DtPropertyHashSet  DtPropertyHashSets238_0[] =
     { DtProperties238_0_59, 4 },
     { DtProperties238_0_60, 1 },
     { NULL, 0 },
-    { NULL, 0 },
+    { DtProperties238_0_62, 1 },
     { DtProperties238_0_63, 2 }
 };
 

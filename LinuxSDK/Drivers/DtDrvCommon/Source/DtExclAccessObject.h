@@ -28,10 +28,6 @@
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include <DtDrvCommon.h>
-#ifdef USE_DF_EXCL_ACCESS
-// Forwards
-typedef struct _DtDf  DtDf;
-#endif
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtExclAccessObjectType -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 typedef enum  _DtExclAccessObjectType
@@ -50,7 +46,7 @@ typedef struct  _DtExclAccessObject
     {
         DtFileObject  m_File;
 #ifdef USE_DF_EXCL_ACCESS
-        DtDf*  m_pDf;
+        void*  m_pDf;
 #endif
     }  m_Owner;                         // THE owner object
 }  DtExclAccessObject;

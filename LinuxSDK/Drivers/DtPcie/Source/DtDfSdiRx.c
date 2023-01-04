@@ -297,7 +297,7 @@ DtStatus DtDfSdiRx_SetDownscaleMode(DtDfSdiRx* pDf, Int DownscaleMode)
     if (pDf->m_pBcS12GTo3G == NULL)
         return DT_STATUS_NOT_SUPPORTED;
 
-    DtSpinLockAcquire(&pDf->m_SpinLock);
+    DtFastMutexAcquire(&pDf->m_Lock);
 
     // Restart locking
     pDf->m_LockState = SDIRX_STATE_INIT_XCVR;
@@ -310,7 +310,7 @@ DtStatus DtDfSdiRx_SetDownscaleMode(DtDfSdiRx* pDf, Int DownscaleMode)
     DtDbgOutDf(MIN, SDIRX, pDf, "Entered: STATE_INIT_XCVR; SetSdiRate: %d"
                                 " Duration: %d", pDf->m_CurrentSdiRate, TimeDiffMs);
 
-    DtSpinLockRelease(&pDf->m_SpinLock);
+    DtFastMutexRelease(&pDf->m_Lock);
 
     return Status;
 }
@@ -340,7 +340,7 @@ DtStatus  DtDfSdiRx_SetOperationalMode(DtDfSdiRx*  pDf, Int  OpMode)
         return DT_STATUS_OK;
 
     // Make sure only the SDIRXP 
-    DtSpinLockAcquire(&pDf->m_SpinLock);
+    DtFastMutexAcquire(&pDf->m_Lock);
 
     if (OpMode==DT_FUNC_OPMODE_IDLE && pDf->m_RxMode==DT_SDIRX_RXMODE_SDI)
     {
@@ -397,7 +397,7 @@ DtStatus  DtDfSdiRx_SetOperationalMode(DtDfSdiRx*  pDf, Int  OpMode)
     if (DT_SUCCESS(Status))
         pDf->m_OperationalMode = OpMode;
 
-    DtSpinLockRelease(&pDf->m_SpinLock);
+    DtFastMutexRelease(&pDf->m_Lock);
 
     return Status;
 }
@@ -436,7 +436,7 @@ DtStatus DtDfSdiRx_SetRxMode(DtDfSdiRx* pDf, Int RxMode)
     if ( RxMode==DT_SDIRX_RXMODE_SDI && pDf->m_pBcSdiRxProt==NULL)
         return DT_STATUS_NOT_SUPPORTED;
 
-    DtSpinLockAcquire(&pDf->m_SpinLock);
+    DtFastMutexAcquire(&pDf->m_Lock);
 
     if (RxMode==DT_SDIRX_RXMODE_SDI)
     {
@@ -488,7 +488,7 @@ DtStatus DtDfSdiRx_SetRxMode(DtDfSdiRx* pDf, Int RxMode)
         DtDbgOutDf(MIN, SDIRX, pDf, "Entered: STATE_INIT_XCVR; Rate: %d RxMode: %d"
                               " Duration: %d", pDf->m_CurrentSdiRate, RxMode, TimeDiffMs);
     }
-    DtSpinLockRelease(&pDf->m_SpinLock);
+    DtFastMutexRelease(&pDf->m_Lock);
 
     return Status;
 }
@@ -522,7 +522,7 @@ DtStatus DtDfSdiRx_SetSdiRate(DtDfSdiRx* pDf, Int SdiRate)
     if (pDf->m_RxMode == DT_SDIRX_RXMODE_ASI)
         return DT_STATUS_NOT_SUPPORTED;
 
-    DtSpinLockAcquire(&pDf->m_SpinLock);
+    DtFastMutexAcquire(&pDf->m_Lock);
 
     // If not locked restart locking with the new configured SDI-rate
     if (pDf->m_LockState != SDIRX_STATE_SDI_LOCKED)
@@ -542,7 +542,7 @@ DtStatus DtDfSdiRx_SetSdiRate(DtDfSdiRx* pDf, Int SdiRate)
     }
     pDf->m_ConfigSdiRate = SdiRate;
 
-    DtSpinLockRelease(&pDf->m_SpinLock);
+    DtFastMutexRelease(&pDf->m_Lock);
 
     return Status;
 }
@@ -772,7 +772,7 @@ DtStatus  DtDfSdiRx_Init(DtDf*  pDfBase)
     DF_SDIRX_DEFAULT_PRECONDITIONS(pDf);
 
     // Initialize the spin lock
-    DtSpinLockInit(&pDf->m_SpinLock);
+    DtFastMutexInit(&pDf->m_Lock);
 
     // Set defaults
     pDf->m_LockState = SDIRX_STATE_INIT_XCVR;
@@ -1054,6 +1054,12 @@ void  DtDfSdiRx_RateSearchThreadEntry(DtThread* pThread, void* pContext)
 //
 // Called from rate search thread
 //
+#ifdef LINBUILD
+#if __GNUC__ >= 7
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#endif // if __GNUC__ >= 7
+#endif
 void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
 {
     DtStatus  Status = DT_STATUS_OK;
@@ -1064,7 +1070,7 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
     return;
 #endif
 
-    DtSpinLockAcquire(&pDf->m_SpinLock);
+    DtFastMutexAcquire(&pDf->m_Lock);
 
     switch (pDf->m_LockState)
     {
@@ -1493,8 +1499,13 @@ void DtDfSdiRx_SdiLockStateUpdate(DtDfSdiRx*  pDf, DtTodTime  Time)
         }
         break;
     }
-    DtSpinLockRelease(&pDf->m_SpinLock);
+    DtFastMutexRelease(&pDf->m_Lock);
 }
+#ifdef LINBUILD
+#if __GNUC__ >= 7
+#pragma GCC diagnostic pop
+#endif // if __GNUC__ >= 7
+#endif
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSdiRx_UsesLockToData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //

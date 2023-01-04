@@ -1,9 +1,9 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCore_BC.c *#*#*#*#*#*#*#*#*#*#*# (C) 2017 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCore_BC.c *#*#*#*#*#*#*#*# (C) 2017-2022 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2017-2022 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -196,9 +196,7 @@ DtBc*  DtCore_BC_Open(DtCore*  pCore, DtBcType  Type, Int  Address, DtPt*  pPt,
 //
 DtStatus  DtCore_BC_OpenAll(DtCore*  pCore, DtPt*  pPt)
 {
-    DtStatus  Status = DT_STATUS_OK;
     Int  i=0;
-    Int  PortIndex = (pPt!=NULL) ? pPt->m_PortIndex : -1;
         
     // Sanity checks
     CORE_DEFAULT_PRECONDITIONS(pCore);

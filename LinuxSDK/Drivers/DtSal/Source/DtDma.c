@@ -54,9 +54,57 @@ BOOLEAN  DtDmaSgListCreated(
 
 #else
 //=+=+=+=+=+=+=+=+=+=+=+=+=+ Linux Kernel version dependancies +=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+// The dma functions are renamed from v4.5.0
+// The compatibility functions are removed from kernel version v5.18
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,5,0)
+static inline int pci_set_dma_mask_dt(struct pci_dev* dev, u64 mask)
+{
+    return dma_set_mask(&dev->dev, mask);
+}
+static inline int pci_set_consistent_dma_mask_dt(struct pci_dev* dev, u64 mask)
+{
+    return dma_set_coherent_mask(&dev->dev, mask);
+}
+static inline void* pci_alloc_consistent_dt(struct pci_dev* hwdev, size_t size,
+                                                                   dma_addr_t* dma_handle)
+{
+    return dma_alloc_coherent(&hwdev->dev, size, dma_handle, GFP_ATOMIC);
+}
+static inline void pci_free_consistent_dt(struct pci_dev* hwdev, size_t size,
+                                                       void* vaddr, dma_addr_t dma_handle)
+{
+    dma_free_coherent(&hwdev->dev, size, vaddr, dma_handle);
+}
+static inline int pci_map_sg_dt(struct pci_dev* hwdev, struct scatterlist* sg,
+                                                                 int nents, int direction)
+{
+    return dma_map_sg(&hwdev->dev, sg, nents, (enum dma_data_direction)direction);
+}
+static inline void pci_unmap_sg_dt(struct pci_dev* hwdev, struct scatterlist* sg,
+                                                                 int nents, int direction)
+{
+    dma_unmap_sg(&hwdev->dev, sg, nents, (enum dma_data_direction)direction);
+}
+static inline void pci_dma_sync_sg_for_device_dt(struct pci_dev* hwdev, 
+                                        struct scatterlist* sg, int nelems, int direction)
+{
+    dma_sync_sg_for_device(&hwdev->dev, sg, nelems, (enum dma_data_direction)direction);
+}
+#else
+#define pci_set_dma_mask_dt pci_set_dma_mask
+#define pci_set_consistent_dma_mask_dt pci_set_consistent_dma_mask
+#define pci_alloc_consistent_dt pci_alloc_consistent
+#define pci_free_consistent_dt pci_free_consistent
+#define pci_map_sg_dt pci_map_sg
+#define pci_unmap_sg_dt pci_unmap_sg
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,5)
-    #define  pci_dma_sync_sg_for_device  pci_dma_sync_sg
-    #define  pci_dma_sync_sg_for_cpu  pci_dma_sync_sg
+#define  pci_dma_sync_sg_for_device_dt  pci_dma_sync_sg
+#else
+#define pci_dma_sync_sg_for_device_dt pci_dma_sync_sg_for_device
+#endif
+
 #endif
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Scatter/Gather helpers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -161,15 +209,15 @@ DtStatus  DtDmaInit(
 #else
     if (Supports64Bit)
     {
-        if (pci_set_dma_mask(pDevice->m_pPciDev, DT_DMA_64BIT_MASK)<0 ||
-            pci_set_consistent_dma_mask(pDevice->m_pPciDev, DT_DMA_64BIT_MASK)<0)
+        if (pci_set_dma_mask_dt(pDevice->m_pPciDev, DT_DMA_64BIT_MASK)<0 ||
+                  pci_set_consistent_dma_mask_dt(pDevice->m_pPciDev, DT_DMA_64BIT_MASK)<0)
         {
             DtDbgOut(ERR, SAL_DMA, "Unable to set DMA 64-bit mask.");
             return DT_STATUS_FAIL;
         }
     } else {
-        if (pci_set_dma_mask(pDevice->m_pPciDev, DT_DMA_32BIT_MASK)<0 ||
-            pci_set_consistent_dma_mask(pDevice->m_pPciDev, DT_DMA_32BIT_MASK)<0)
+        if (pci_set_dma_mask_dt(pDevice->m_pPciDev, DT_DMA_32BIT_MASK)<0 ||
+                  pci_set_consistent_dma_mask_dt(pDevice->m_pPciDev, DT_DMA_32BIT_MASK)<0)
         {
             DtDbgOut(ERR, SAL_DMA, "Unable to set DMA 32-bit mask.");
             return DT_STATUS_FAIL;
@@ -237,7 +285,7 @@ DtStatus  DtDmaCreateDirectBuffer(
     }
 #else
     // Create common buffer and store virtual and physical address.
-    pDmaBuffer->m_pVirtualAddressUnaligned = pci_alloc_consistent(pDevice->m_pPciDev,
+    pDmaBuffer->m_pVirtualAddressUnaligned = pci_alloc_consistent_dt(pDevice->m_pPciDev,
                                                              BufSizeAligned, &DmaAddress);
     pDmaBuffer->m_PhysicalAddressUnaligned.QuadPart = DmaAddress;
     if (Align != 0)
@@ -266,7 +314,7 @@ DtStatus  DtDmaFreeDirectBuffer(
 #ifdef WINBUILD
     WdfObjectDelete(pDmaBuffer->m_CommonBuffer);
 #else
-    pci_free_consistent(pDevice->m_pPciDev, pDmaBuffer->m_BufferLength,
+    pci_free_consistent_dt(pDevice->m_pPciDev, pDmaBuffer->m_BufferLength,
                                          pDmaBuffer->m_pVirtualAddressUnaligned,
                                          pDmaBuffer->m_PhysicalAddressUnaligned.QuadPart);
 #endif
@@ -358,7 +406,7 @@ DtStatus  DtDmaCreateSgList(
     }
     
     // Map scatter-gather-list
-    pOsSgl->m_NumSglEntries = pci_map_sg(
+    pOsSgl->m_NumSglEntries = pci_map_sg_dt(
            pDevice->m_pPciDev, pOsSgl->m_pSgList, pPageList->m_NumPages,
            (Direction == DT_DMA_DIRECTION_FROM_DEVICE ? DMA_FROM_DEVICE : DMA_TO_DEVICE));
 #endif
@@ -380,7 +428,7 @@ DtStatus  DtDmaFreeSgList(DtDvcObject* pDevice, DmaOsSgl* pOsSgl, UInt Direction
     pOsSgl->m_pSgList = NULL;  // ???Do we need to do something...???  or is KMDF deleting
                                // it for us when deleting the transaction??
 #else
-    pci_unmap_sg(pDevice->m_pPciDev, pOsSgl->m_pSgList, pOsSgl->m_PageList.m_NumPages,
+    pci_unmap_sg_dt(pDevice->m_pPciDev, pOsSgl->m_pSgList, pOsSgl->m_PageList.m_NumPages,
            (Direction == DT_DMA_DIRECTION_FROM_DEVICE ? DMA_FROM_DEVICE : DMA_TO_DEVICE));
 #endif
     pOsSgl->m_Allocated = FALSE;
@@ -399,10 +447,10 @@ DtStatus  DtDmaFlushCacheSglPreDma(
                                                                                     TRUE);
 #else
     if (Direction == DT_DMA_DIRECTION_TO_DEVICE)
-        pci_dma_sync_sg_for_device(pDevice->m_pPciDev, pOsSgl->m_pSgList, 
+        pci_dma_sync_sg_for_device_dt(pDevice->m_pPciDev, pOsSgl->m_pSgList, 
                                                   pOsSgl->m_NumSglEntries, DMA_TO_DEVICE);
     else
-        pci_dma_sync_sg_for_device(pDevice->m_pPciDev, pOsSgl->m_pSgList, 
+        pci_dma_sync_sg_for_device_dt(pDevice->m_pPciDev, pOsSgl->m_pSgList, 
                                                 pOsSgl->m_NumSglEntries, DMA_FROM_DEVICE);
 #endif
     return DT_STATUS_OK;

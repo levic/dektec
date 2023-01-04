@@ -83,6 +83,24 @@ DtCfTod*  DtCfTod_Open(DtCore*  pCore, const char*  pRole, Int  Instance,
     return (DtCfTod*)DtDf_Open(&OpenParams);
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfTod_AdjustPhaseIncr -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtCfTod_AdjustPhaseIncr(DtCfTod* pCf, Int64 ScaledPpm)
+{
+    // Sanity checks
+    CF_TOD_DEFAULT_PRECONDITIONS(pCf);
+    DT_ASSERT(pCf->m_pBcTod != NULL);
+
+    // Be defensive and fail if we donot have a TOD-BC
+    if (pCf->m_pBcTod == NULL)
+    {
+        DtDbgOutCf(ERR, TOD, pCf, "ERROR: no TOD-BC has been loaded");
+        return DT_STATUS_FAIL;
+    }
+    // FOR NOW: just let the TOD-BC do all of the heavy lifting
+    return DtBcTOD_AdjustPhaseIncr(pCf->m_pBcTod, ScaledPpm);
+}
+
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfTod_AdjustTime -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtCfTod_AdjustTime(DtCfTod*  pCf, Int64  DeltaNanoseconds)
@@ -378,6 +396,8 @@ void  DtCfTod_OnPeriodicInterval(DtObject* pObject, DtTodTime  Time)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 static DtStatus  DtIoStubCfTod_OnCmd(const DtIoStub*, DtIoStubIoParams*, Int*);
+static DtStatus  DtIoStubCfTod_OnCmdAdjustPpm(const DtIoStubCfTod*,
+                                                      const DtIoctlTodCmdAdjustPpmInput*);
 static DtStatus  DtIoStubCfTod_OnCmdAdjustTime(const DtIoStubCfTod*,
                                                      const DtIoctlTodCmdAdjustTimeInput*);
 static DtStatus  DtIoStubCfTod_OnCmdGetPhaseIncr(const DtIoStubCfTod*,
@@ -486,11 +506,26 @@ DtStatus  DtIoStubCfTod_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoPara
     case DT_TOD_CMD_SET_TIME:
         Status = DtIoStubCfTod_OnCmdSetTime(STUB_TOD, &pInData->m_SetTime);
         break;
+    case DT_TOD_CMD_ADJUST_PPM:
+        Status = DtIoStubCfTod_OnCmdAdjustPpm(STUB_TOD, &pInData->m_AdjustPpm);
+        break;
     default:
         DT_ASSERT(FALSE);
         return DT_STATUS_NOT_SUPPORTED;
     }
     return Status;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubCfTod_OnCmdAdjustPpm -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static DtStatus  DtIoStubCfTod_OnCmdAdjustPpm(
+    const DtIoStubCfTod* pStub,
+    const DtIoctlTodCmdAdjustPpmInput* pInData)
+{
+    STUB_CFTOD_DEFAULT_PRECONDITIONS(pStub);
+    DT_ASSERT(pInData != NULL);
+
+    return DtCfTod_AdjustPhaseIncr(STUB_CF, pInData->m_ScaledPpm);
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubCfTod_OnCmdAdjustTime -.-.-.-.-.-.-.-.-.-.-.-.-.-.

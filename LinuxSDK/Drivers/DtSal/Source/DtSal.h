@@ -87,6 +87,9 @@
 #else
     #include <linux/kthread.h>
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0)
+#include <linux/sched/signal.h>
+#endif
 #ifdef NW_DRIVER
 #include <linux/netdevice.h>
 #endif // NW_DRIVER
@@ -136,6 +139,7 @@
 typedef struct _DtDvcObject  DtDvcObject;
 typedef struct _DtPageList  DtPageList;
 typedef struct _DtIoctlObject  DtIoctlObject;
+typedef struct _DtVma  DtVma;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DekTec basic SAL Includes -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -371,6 +375,22 @@ struct _DtPageList
 #endif
 };
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtVma -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Virtual memory area struct describing a virtual memory area. 
+//
+// Note: the Windows version of this struct is "empty".
+//
+struct _DtVma
+{
+#ifdef WINBUILD
+    void* m_pUnused;                // Dummy member to satisfy compiler (a C struct needs 
+                                    // member)
+#else
+    struct vm_area_struct* m_pVma;
+#endif // #ifdef LINBUILD
+};
+
 #include <DtNonVolatileSettings.h>
 #include <DtMutex.h>
 #include <DtSpinLock.h>
@@ -381,6 +401,7 @@ struct _DtPageList
 #include <DtThread.h>
 #include <DtDma.h>
 #include <DtList.h>
+#include <DtTrigEvt.h>
 #ifdef USB_DRIVER
 #include <DtUsb.h>
 #endif

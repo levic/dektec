@@ -48,6 +48,8 @@ void  DtFastMutexInit(DtFastMutex* pDtFastMutex)
 DtStatus  DtFastMutexAcquire(DtFastMutex* pDtFastMutex)
 {
 #ifdef WINBUILD
+    // Must be running at APC level or below
+    DT_ASSERT(KeGetCurrentIrql() <= APC_LEVEL);
     ExAcquireFastMutex(&pDtFastMutex->m_FastMutex);
     return DT_STATUS_OK;
 #else

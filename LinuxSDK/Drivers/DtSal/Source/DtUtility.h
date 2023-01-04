@@ -168,7 +168,6 @@ void  DtMemCopyFromUserBuf(void* pDest, void* pSrc, UInt Size);
 void  DtMemCopyToUserBuf(void* pDest, void* pSrc, UInt Size);
 void  DtMemMove(void* pDest, void* pSrc, UInt Size);
 
-
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ String/Character functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPtrToUInt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -233,6 +232,9 @@ DtStatus  DtDeletePageList(DtPageList* pPageList);
 DtStatus  DtLockUserBuffer(DtPageList* pPageList, UInt8* pBuffer);
 DtStatus  DtUnlockUserBuffer(DtPageList* pPageList);
 
+DtStatus DtMapBufferToUser(const DtPageList*, void** UserAddress, DtVma*);
+DtStatus DtUnmapBufferFromUser(void* UserAddress, const DtPageList*);
+
 #ifdef WINBUILD
 #else
 UInt  DtGetPagesUserBufferAndLock(struct task_struct* pTask, void* pBuffer, UInt NumPages,
@@ -274,11 +276,17 @@ static __inline UInt64  DtDivide64(UInt64 Num, UInt64 Denom, UInt64* pRest)
         *pRest = Num % Denom;
     return Num / Denom;
 #else // WINBUILD
-    UInt32  Rest;
-    Rest = do_div(Num, Denom);
+#ifdef LIN64
     if (pRest != NULL)
-        *pRest = Rest;
-    return Num;
+        *pRest = Num % Denom;
+    return Num / Denom;
+#else
+    UInt64  Result;
+    Result = div64_u64(Num, Denom);
+    if (pRest != NULL)
+        *pRest = Num - (Result * Denom);
+    return Result;
+#endif // LIN64
 #endif // WINBUILD
 }
 

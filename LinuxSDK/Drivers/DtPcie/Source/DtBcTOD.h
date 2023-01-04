@@ -71,6 +71,7 @@ DtBcTOD*  DtBcTOD_Open(Int  Address, DtCore*, DtPt*  pPt,
                                              const char*  pRole, Int  Instance, Int  Uuid,
                                              Bool  CreateStub);
 DtStatus  DtBcTOD_Adjust(DtBcTOD*, Int64  DeltaNs);
+DtStatus  DtBcTOD_AdjustPhaseIncr(DtBcTOD*, Int64 AdjustScaledPpm);
 DtStatus  DtBcTOD_GetPeriodicItv(DtBcTOD*, Int* pIntervalMs);
 DtStatus  DtBcTOD_GetPhaseIncr(DtBcTOD*, UInt32* pClockPhaseIncr);
 DtStatus  DtBcTOD_GetProperties(DtBcTOD*, UInt* pSysClockFreqHz, UInt* pAccuracy);

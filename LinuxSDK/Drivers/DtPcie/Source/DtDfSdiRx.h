@@ -83,7 +83,7 @@ typedef struct  _DtDfSdiRx
     DtDfSdiXCfgMgr*  m_pDfSdiXCfgMgr;   // SDI Transceiver Reconfig Manager
     DtDfSpiCableDrvEq* m_pCableDrvEq;   // Cable driver and equalizer
 
-    DtSpinLock  m_SpinLock;             // Lock to protect against mutual access of 
+    DtFastMutex  m_Lock;                // Lock to protect against mutual access of 
                                         // m_LockState and m_SdiMode
     DtDfSdiRxState  m_LockState;        // Lock state
     DtTodTime  m_StateTime;             // Time when entered new state
