@@ -1103,8 +1103,8 @@ void  DtPcieNwRxThread(DtThread* pThread, void* pContext)
     Int  Retry = 0;
     UInt  RxFlags;
     UInt8*  pPacket;
-    UInt8*  pTmpBuffer = DtMemAllocPool(DtPoolNonPaged, DT_IP_MAX_PACKET_SIZE, 
-                                                                        DTPCIENW_MEM_TAG);
+    UInt8*  pTmpBuffer = DtMemAllocPool(DtPoolNonPaged, DT_IP_MAX_PACKET_SIZE+
+                                                       sizeof(DtEthIp), DTPCIENW_MEM_TAG);
     DektecTlvs  DektecTlv;
 
     DtDbgOut(MAX, DTPCIENW, "Start");
@@ -1201,16 +1201,14 @@ void  DtPcieNwRxThread(DtThread* pThread, void* pContext)
                     DtPcieNwGetRxWriteOffsetIoCtrl(pDvcData);
                     continue;
                 }
-                NumBytesToEnd -= sizeof(DtEthIpHeader);
-                if (NumBytesToEnd > 0)
-                    DtMemCopy(pTmpBuffer, pPacket + sizeof(DtEthIpHeader), NumBytesToEnd);
-                DtMemCopy(pTmpBuffer + NumBytesToEnd, pDvcData->m_pRxBuffer,(UInt)
-                  pEthIpHeader->m_SizeInQWords*8 - (NumBytesToEnd+sizeof(DtEthIpHeader)));
+                // Copy first part. It's at least the EthIpHeader
+                DtMemCopy(pTmpBuffer, pPacket, NumBytesToEnd);
+                DtMemCopy(pTmpBuffer+NumBytesToEnd, pDvcData->m_pRxBuffer,(UInt)
+                                          pEthIpHeader->m_SizeInQWords*8 - NumBytesToEnd);
                 pPacket = pTmpBuffer;
+                pEthIpHeader = (DtEthIpHeader*)pPacket;
             }
-            else
-                pPacket += sizeof(DtEthIpHeader);
-
+            pPacket += sizeof(DtEthIpHeader);
             pTod = (DtEthIpTod*)pPacket;
 
             if (pEthIpHeader->m_PacketType == DT_ETHIP_PKTTYPE_TIMESTAMP)

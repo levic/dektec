@@ -33,7 +33,9 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
 #include <linux/net_tstamp.h>
+#endif
 
 #include "DtIal.h" // needed for child devices 
 #include "EthPrtcls.h" // needed for EthernetIIHeaderVlan
@@ -110,8 +112,9 @@ typedef struct _DtPcieNwIalData
     struct net_device_stats  m_NetStats;    // Network statistics
     DtDrvObject  m_Driver;
     Bool  m_AutoNegEn;
+#ifdef HAVE_HW_TIME_STAMP
     struct hwtstamp_config  m_HwTsConfig;
-    //Int  m_PtpHwClockIndex;
+#endif
 } DtPcieNwIalData;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Function callbacks to IAL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

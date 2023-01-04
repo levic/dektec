@@ -433,6 +433,14 @@ DtStatus DtPipe_SetOperationalMode(DtPipe* pPipe, Int OpMode)
                 if (Status != DT_STATUS_OK)
                     return Status;
             }
+            if (OpMode == DT_PIPE_OPMODE_RUN && pPipe->m_OpMode == DT_PIPE_OPMODE_STANDBY)
+            {
+                // Update WritePointer. We are ready to go
+                Status = DtBcCDMACTO_SetTxWriteOffset(pHwPipe->m_pBcCdma, 
+                                                                  pHwPipe->m_OffsetCache);
+                if (Status != DT_STATUS_OK)
+                    return Status;
+            }
         }
 
         // It's not allowed to set the OpMode of an IpFifo to IDLE, if it has been
@@ -524,7 +532,11 @@ DtStatus DtPipe_SetTxWriteOffset(DtPipe* pPipe, UInt TxWriteOffset)
     if (IsHwp(pPipe))
     {
         DtPipeHwp* pHwPipe = (DtPipeHwp*)pPipe;
-        Status = DtBcCDMACTO_SetTxWriteOffset(pHwPipe->m_pBcCdma, TxWriteOffset);
+        // In standby mode, we don't update the write-pointer. We only fill the
+        // shared buffer memory. We update the write pointer if 
+        // we go to run-mode
+        if (pHwPipe->m_OpMode != DT_PIPE_OPMODE_STANDBY)
+            Status = DtBcCDMACTO_SetTxWriteOffset(pHwPipe->m_pBcCdma, TxWriteOffset);
         if (DT_SUCCESS(Status))
             pHwPipe->m_OffsetCache = TxWriteOffset;
     }
@@ -1098,8 +1110,8 @@ Bool DtPipe_IsDuplicateFilter(DtPipe* pPipeD, DtPipe* pPipeC)
         Bool ChkPort = FALSE;
         for (i = 0; i < 3 && !PortIdentical; i++)
         {
-            int FlagD;
-            int FlagC;
+            int FlagD=0;
+            int FlagC=0;
             switch (i)
             {
             case 0: FlagD = FlagsD & DT_PIPE_IPFLT_FLAG_EN_SRCPORT0; break;
@@ -1144,8 +1156,8 @@ Bool DtPipe_IsDuplicateFilter(DtPipe* pPipeD, DtPipe* pPipeC)
         Bool ChkPort = FALSE;
         for (i = 0; i < 3 && !PortIdentical; i++)
         {
-            int FlagD;
-            int FlagC;
+            int FlagD=0;
+            int FlagC=0;
             switch (i)
             {
             case 0: FlagD = FlagsD & DT_PIPE_IPFLT_FLAG_EN_DSTPORT0; break;

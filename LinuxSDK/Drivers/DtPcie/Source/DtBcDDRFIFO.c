@@ -147,6 +147,8 @@ DtStatus DtBcDDRFIFO_GetOperationalMode(DtBcDDRFIFO* pBc, Int* pOpMode)
 DtStatus DtBcDDRFIFO_SetOperationalMode(DtBcDDRFIFO* pBc, Int OpMode)
 {
     DtStatus Status = DT_STATUS_OK;
+    Int TimeoutCount = 0;
+    UInt32  ExpectFwOpStatus = 0, FwOpStatus = 0;
 
     // Sanity check
     BC_DDRFIFO_DEFAULT_PRECONDITIONS(pBc);
@@ -179,12 +181,37 @@ DtStatus DtBcDDRFIFO_SetOperationalMode(DtBcDDRFIFO* pBc, Int OpMode)
     // Set control register
     DtBcDDRFIFO_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode);
 
+    // Convert operational mode to BB-type
+    switch (OpMode)
+    {
+     case DT_BLOCK_OPMODE_IDLE:    ExpectFwOpStatus = DDRFIFO_OPMODE_IDLE; break;
+     case DT_BLOCK_OPMODE_STANDBY: ExpectFwOpStatus = DDRFIFO_OPMODE_STANDBY; break;
+     case DT_BLOCK_OPMODE_RUN:     ExpectFwOpStatus = DDRFIFO_OPMODE_RUN; break;
+     default: DT_ASSERT(FALSE); break;
+    }
+
+    // Wait till the DDRFIFO has reached the requested operational mode  
+    FwOpStatus = DDRFIFO_Status_READ_OperationalStatus(pBc);
+    for (TimeoutCount = 100; TimeoutCount > 0 && FwOpStatus != ExpectFwOpStatus;
+                                                                           TimeoutCount--)
+    {
+        DtWaitBlock(10);
+        FwOpStatus = DDRFIFO_Status_READ_OperationalStatus(pBc);
+    }
+
+    if (FwOpStatus == ExpectFwOpStatus)
+        DtDbgOutBc(AVG, DDRFIFO, pBc, "Entered new operational mode %d", OpMode);
+    else
+    {
+        DtDbgOutBc(ERR, DDRFIFO, pBc, "ERROR: timeout set new OpMode %d", OpMode);
+        Status = DT_STATUS_TIMEOUT;
+    }
     return Status;
 }
 
-// +=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcDDRFIFO - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcDDRFIFO - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtBcDDRFIFO_Init(DtBc* pBcBase)
 {

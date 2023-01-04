@@ -640,7 +640,7 @@ static const DtProperty  DtProperties2110_0_21[] =
 };
 static const DtProperty  DtProperties2110_0_22[] =
 {
-    { "BC_BURSTFIFO#1_ADDRESS", 0x1020, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_BURSTFIFO#1_ADDRESS", 0x1040, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_FPGATEMP#1_ADDRESS", 0x1D0, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
@@ -655,7 +655,7 @@ static const DtProperty  DtProperties2110_0_23[] =
 {
     { "AF_TEMPFANMGR_AF#1_TYPE", DT_FUNC_TYPE_TEMPFANMGR_AF, NULL,
                 PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "BC_BURSTFIFO#2_ADDRESS", 0x1040, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_BURSTFIFO#2_ADDRESS", 0x1060, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_IPSUMCHK#1_UUID", 0x0001000E, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
@@ -666,7 +666,7 @@ static const DtProperty  DtProperties2110_0_23[] =
 };
 static const DtProperty  DtProperties2110_0_24[] =
 {
-    { "BC_BURSTFIFO#3_ADDRESS", 0x1060, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_BURSTFIFO#3_ADDRESS", 0x1080, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_CDMACTO#1", DT_PVE, "RX_HWQ", PROPERTY_VALUE_TYPE_STRING, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
@@ -677,7 +677,7 @@ static const DtProperty  DtProperties2110_0_24[] =
 };
 static const DtProperty  DtProperties2110_0_25[] =
 {
-    { "BC_BURSTFIFO#4_ADDRESS", 0x1080, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_BURSTFIFO#4_ADDRESS", 0x10A0, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_CDMACTO#2", DT_PVE, "TX_NRT_HWQ", PROPERTY_VALUE_TYPE_STRING, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
@@ -778,7 +778,7 @@ static const DtProperty  DtProperties2110_0_32[] =
                                                   0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_CDMACTO#9", DT_PVE, "TX_RT_HWP2", PROPERTY_VALUE_TYPE_STRING, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "BC_DDRFIFO#1_ADDRESS", 0x1010, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "BC_DDRFIFO#1_ADDRESS", 0x1020, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_EMAC10G#1_ADDRESS", 0x2000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
@@ -3348,6 +3348,8 @@ static const DtProperty  DtProperties2116_0_24[] =
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "CAP_MOD", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "CAP_TX_ISDBS", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
+                                                          PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "CAP_TX_MH", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 0, 0, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
@@ -3800,7 +3802,10 @@ static const DtProperty  DtProperties2116_0_61[] =
     { "BC_SPIM#3_ADDRESS", 0x200, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_SPIMF#1_TYPE", DT_BLOCK_TYPE_SPIMF, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0,
-                              -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                              -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_BUILD_DATE_0", DT_PVE, "2022.12.02T10:12",
+      PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2116_0_62[] =
 {
@@ -3846,7 +3851,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2116_0[] =
     { DtProperties2116_0_21, 5 },
     { DtProperties2116_0_22, 8 },
     { DtProperties2116_0_23, 7 },
-    { DtProperties2116_0_24, 8 },
+    { DtProperties2116_0_24, 9 },
     { DtProperties2116_0_25, 7 },
     { DtProperties2116_0_26, 7 },
     { DtProperties2116_0_27, 2 },
@@ -3883,7 +3888,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2116_0[] =
     { DtProperties2116_0_58, 4 },
     { DtProperties2116_0_59, 9 },
     { DtProperties2116_0_60, 4 },
-    { DtProperties2116_0_61, 5 },
+    { DtProperties2116_0_61, 6 },
     { DtProperties2116_0_62, 2 },
     { DtProperties2116_0_63, 4 }
 };

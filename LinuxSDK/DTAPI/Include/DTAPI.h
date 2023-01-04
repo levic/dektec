@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        50
-#define DTAPI_VERSION_BUGFIX       1
-#define DTAPI_VERSION_BUILD        199
+#define DTAPI_VERSION_MINOR        51
+#define DTAPI_VERSION_BUGFIX       0
+#define DTAPI_VERSION_BUILD        203
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -737,7 +737,7 @@ struct DtDeviceDesc
     int  m_VendorId;                // Vendor ID
     int  m_SubsystemId;             // Subsystem ID
     int  m_SubVendorId;             // Subsystem Vendor ID
-    int  m_NumHwFuncs;              // Number of hardware funtions hosted by device
+    int  m_NumHwFuncs;              // Number of hardware functions hosted by device
     int  m_HardwareRevision;        // Hardware revision (e.g. 302 = 3.2)
     int  m_FirmwareVersion;         // Firmware version
     int  m_FirmwareVariant;         // Firmware variant
@@ -4678,7 +4678,7 @@ protected:
 #define DTAPI_SDI_VANC              0x04
 #define DTAPI_SDI_ANC_MASK          (DTAPI_SDI_HANC | DTAPI_SDI_VANC)
     
-// Chrominace/luminance stream selection (can be OR-ed)
+// Chrominance/luminance stream selection (can be OR-ed)
 #define DTAPI_SDI_CHROM_0           0x01
 #define DTAPI_SDI_LUM_0             0x02
 #define DTAPI_SDI_CHROM_1           0x04
@@ -4690,11 +4690,11 @@ protected:
 #define DTAPI_SDI_CHROM             DTAPI_SDI_CHROM_0
 #define DTAPI_SDI_LUM               DTAPI_SDI_LUM_0
 
-// Anc-data operation mode
+// ANC-data operation mode
 #define DTAPI_ANC_MARK              0x0001
 #define DTAPI_ANC_DELETE            0x0002
 
-// Scalling factor
+// Scale-factor
 #define DTAPI_SCALING_OFF           1
 #define DTAPI_SCALING_1_4           2
 #define DTAPI_SCALING_1_16          3
@@ -9392,6 +9392,7 @@ public:
     DtAspectRatio  GetAspectRatio() const;
     int  GetBitDepth() const;
     int  GetLinkNumber() const;
+    int  GetLinkNumber(int& Channel) const;
     PayLoadId  GetPayloadId() const;
     DtFractionInt  GetPictureRate() const;
     bool  IsInterlacedTransport() const;
@@ -9452,8 +9453,6 @@ public:
 public:
     DtMxAncPacket();
     virtual ~DtMxAncPacket();
-private:
-    DtMxAncPacket(const DtMxAncPacket&);
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxAudioChannelStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -9588,6 +9587,22 @@ enum DtMxFrameStatus
 static const DtMxFrameStatus  DTAPI_DEPRECATED(DT_FRMSTATUS_DROPPED,
       "Deprecated (will be removed!): Use DT_FRMSTATUS_LATE instead") = DT_FRMSTATUS_LATE;
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- enum class DtMxLevelBField -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Field in the level-B multiplex the frame targets or originates from.
+//
+// Note:
+//  Used to indicate from which 3G level-B field a level A frame originates after it 
+//  was converted from B-to-A or which field it will target (end-up in) in the level-B 
+//  multiplex after the A-to-B conversion.
+//
+enum class DtMxLevelBField
+{
+    None,                           // Not applicable; frame not derived from level-B.
+    Field1,                         // Originates/targets field1 in level-B multiplex.
+    Field2,                         // Originates/targets field2 in level-B multiplex.
+};
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class DtMxFrame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Data buffers for a single frame. Can be used for input, for output or be shared
@@ -9680,6 +9695,10 @@ public:
     virtual DTAPI_RESULT RawVbiGetLines(std::vector<const DtMxRawVbiLine*>&) = 0;
     virtual DTAPI_RESULT RawVbiGetLines(const std::vector<int>& LinesToGet,
                                                  std::vector<const DtMxRawVbiLine*>&) = 0;
+
+    // Utility
+    virtual DtMxLevelBField GetLevelBField() const = 0;
+
     // Constructor, destructor
 protected:
     DtMxFrame();

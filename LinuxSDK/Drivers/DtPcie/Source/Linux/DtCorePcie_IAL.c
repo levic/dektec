@@ -1738,10 +1738,10 @@ Int  DtCorePcie_IAL_ClkDrvAdjTime(struct ptp_clock_info* ptp, s64 delta)
 //
 Int  DtCorePcie_IAL_ClkDrvGetTime(struct ptp_clock_info* ptp, struct timespec* ts)
 {
-    DtCorePcie* pCore = COREPCIE_PTP(ptp);
     DtStatus  Status;
     UInt  AdjustCount;
-    DtTodTime  Time;
+    DtTodTime  Time; 
+    DtCorePcie* pCore = COREPCIE_PTP(ptp);
     COREPCIE_DEFAULT_PRECONDITIONS(pCore);
 
     Status = DtBcTOD_GetTime(BCTOD(pCore), &Time, &AdjustCount);
@@ -1755,9 +1755,9 @@ Int  DtCorePcie_IAL_ClkDrvGetTime(struct ptp_clock_info* ptp, struct timespec* t
 //
 Int  DtCorePcie_IAL_ClkDrvSetTime(struct ptp_clock_info* ptp, const struct timespec* ts)
 {
-    DtCorePcie* pCore = COREPCIE_PTP(ptp);
     DtStatus  Status;
     DtTodTime  Time;
+    DtCorePcie* pCore = COREPCIE_PTP(ptp);
     COREPCIE_DEFAULT_PRECONDITIONS(pCore);
 
     Time.m_Nanoseconds = ts->tv_nsec;
@@ -1830,24 +1830,6 @@ Int  DtCorePcie_IAL_ClkDrvSetTime64(struct ptp_clock_info* ptp,
     DtStatus  Status;
     DtTodTime  Time;
     DtCorePcie*  pCore = COREPCIE_PTP(ptp);
-    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
-
-    Time.m_Nanoseconds = ts->tv_nsec;
-    Time.m_Seconds = ts->tv_sec;
-
-    Status = DtBcTOD_SetTime(BCTOD(pCore), Time);
-    if (!DT_SUCCESS(Status))
-        return -EFAULT;
-    return 0;
-}
-
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvSetTime -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  DtCorePcie_IAL_ClkDrvSetTime(struct ptp_clock_info* ptp, const struct timespec64* ts)
-{
-    DtStatus  Status;
-    DtTodTime  Time;
-    DtCorePcie* pCore = COREPCIE_PTP(ptp);
     COREPCIE_DEFAULT_PRECONDITIONS(pCore);
 
     Time.m_Nanoseconds = ts->tv_nsec;

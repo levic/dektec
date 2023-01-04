@@ -140,7 +140,7 @@ DtStatus DtBcIPSCHED_OnEnable(DtBc* pBcBase, Bool Enable)
             UInt32  RtPars = IPSCHED_RtPars_READ(pBc, i);
             RtPars = IPSCHED_RtPars_SET_Priority(RtPars, i);
             RtPars = IPSCHED_RtPars_SET_Enable(RtPars, 1);
-            IPSCHED_RtPars_WRITE(pBc, i, RtPars);
+            IPSCHED_RtPars_WRITE(pBc, RtPars, i);
         }
     }
     else
@@ -153,7 +153,7 @@ DtStatus DtBcIPSCHED_OnEnable(DtBc* pBcBase, Bool Enable)
         {
             UInt32  RtPars = IPSCHED_RtPars_READ(pBc, i);
             RtPars = IPSCHED_RtPars_SET_Enable(RtPars, 0);
-            IPSCHED_RtPars_WRITE(pBc, i, RtPars);
+            IPSCHED_RtPars_WRITE(pBc, RtPars, i);
         }
     }
 
@@ -174,7 +174,7 @@ DtStatus DtBcIPSCHED_SetMaxDelay(DtBcIPSCHED* pBc, Int Index, UInt32 MaxDelay)
         return DT_STATUS_INVALID_PARAMETER;
     RtPars = IPSCHED_RtPars_READ(pBc, Index);
     RtPars = IPSCHED_RtPars_SET_MaxDelay(RtPars, MaxDelay);
-    IPSCHED_RtPars_WRITE(pBc, Index, RtPars);
+    IPSCHED_RtPars_WRITE(pBc, RtPars, Index);
     return DT_STATUS_OK;
 }
 
@@ -189,7 +189,7 @@ DtStatus DtBcIPSCHED_SetErrorBehavior(DtBcIPSCHED* pBc, Int Index, Bool Discard)
     RtPars = IPSCHED_RtPars_READ(pBc, Index);
     RtPars = IPSCHED_RtPars_SET_ErrorBehavior(RtPars, (Discard?IPSCHED_ERRBEHAV_Discard:
                                                                  IPSCHED_ERRBEHAV_Fatal));
-    IPSCHED_RtPars_WRITE(pBc, Index, RtPars);
+    IPSCHED_RtPars_WRITE(pBc, RtPars, Index);
     return DT_STATUS_OK;
 }
 
@@ -203,7 +203,7 @@ DtStatus DtBcIPSCHED_Flush(DtBcIPSCHED* pBc, Int Index)
         return DT_STATUS_INVALID_PARAMETER;
     RtPars = IPSCHED_RtPars_READ(pBc, Index);
     RtPars = IPSCHED_RtPars_SET_Flush(RtPars, 1);
-    IPSCHED_RtPars_WRITE(pBc, Index, RtPars);
+    IPSCHED_RtPars_WRITE(pBc, RtPars, Index);
     return DT_STATUS_OK;
 }
 

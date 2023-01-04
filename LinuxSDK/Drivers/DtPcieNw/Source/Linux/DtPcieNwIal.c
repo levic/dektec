@@ -65,8 +65,10 @@ static DtDriverItf  g_DtDriverItf;
 
 // Private helper functions
 static DtStatus  DtPcieNwIalSetPacketFilter(DtPcieNwDeviceData* pDvcData, Int Flags);
+#ifdef HAVE_HW_TIME_STAMP
 static Int DtPcieNwIalSetHwTimestampConfig(DtPcieNwDeviceData* pDvcData, 
                                                          struct hwtstamp_config* pConfig);
+#endif
 
 // Network interface
 Int  DtPcieNwEvtOpen(struct net_device* pDevice);
@@ -102,10 +104,13 @@ static dt_netdev_features  DtPcieNwEvtFixFeatures(struct net_device* pDevice,
 static int  DtPcieNwEvtSetFeatures(struct net_device* pDevice, 
                                                              dt_netdev_features Features);
 
-
+#ifdef HAVE_HW_TIME_STAMP
 static int DtPcieNwEvtDoIoctl(struct net_device* dev, struct ifreq* ifr, int cmd);
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 static int DtPcieNwEvtGetTsInfo(struct net_device* netdev, 
                                                          struct ethtool_ts_info* ts_info);
+#endif
 
 // Kernel module interface
 static Int  DtPcieNwModuleInit(void);
@@ -162,7 +167,9 @@ static const struct net_device_ops  NetDevOps =
     .ndo_fix_features = DtPcieNwEvtFixFeatures,
     .ndo_set_features = DtPcieNwEvtSetFeatures,
 #endif
+#ifdef HAVE_HW_TIME_STAMP
     .ndo_do_ioctl = DtPcieNwEvtDoIoctl,
+#endif
 };
 #endif
 
@@ -221,6 +228,7 @@ void  DtPcieNwReleaseLockIal(DtPcieNwDeviceData* pDvcData)
     return;
 }
 
+#ifdef HAVE_HW_TIME_STAMP
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwDoIoctl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 Int DtPcieNwEvtDoIoctl(struct net_device* pDevice, struct ifreq* ifr, int cmd)
@@ -245,8 +253,9 @@ Int DtPcieNwEvtDoIoctl(struct net_device* pDevice, struct ifreq* ifr, int cmd)
 
     return err;
 }
+#endif
 
-
+/*
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- MatchPtpClockDevice -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 Int MatchPtpClockDevice(struct device* pDevice, void* pData)
@@ -272,7 +281,9 @@ Int  DtPcieNwFindPtpClockDevice(struct device* pParentDevice)
     put_device(pClockDevice);
     return Index;
 }
+*/
 
+#ifdef HAVE_HW_TIME_STAMP
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwIalSetHwTimestampConfig -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 Int DtPcieNwIalSetHwTimestampConfig(DtPcieNwDeviceData* pDvcData, 
@@ -298,6 +309,7 @@ Int DtPcieNwIalSetHwTimestampConfig(DtPcieNwDeviceData* pDvcData,
                                                 sizeof(pDvcData->m_IalData.m_HwTsConfig));
     return 0;
 }
+#endif
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwStartTx -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -492,11 +504,14 @@ Int  DtPcieNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
         pDvcData->m_IalData.m_NetStats.tx_errors++;
         if ((TxFlags & DTPCIENW_TXFLAGS_GEN_TX_TIMESTAMP) != 0)
         {
+#ifdef HAVE_HW_TIME_STAMP
             skb_shinfo(pSkb)->tx_flags &= ~SKBTX_IN_PROGRESS;
+#endif
             DtPcieNwRemoveFingerprint(pDvcData, Fingerprint);
         }
         return 1;
     }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
     else
     {
         // Do we need to do software timestamping?
@@ -505,7 +520,7 @@ Int  DtPcieNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
             skb_tx_timestamp(pSkb);
         }
     }
-
+#endif
     // Just to be save we take kernel version less then v3.1.0
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 1, 0)
     pDevice->trans_start = jiffies;
@@ -976,7 +991,7 @@ static UInt32  DtPcieNwEvtGetRxCsum(struct net_device* pDevice)
 //
 static Int  DtPcieNwEvtSetRxCsum(struct net_device* pDevice, UInt32 Value)
 {
-    dta_netdev_features  Features = pDevice->features;
+    dt_netdev_features  Features = pDevice->features;
     if (Value != 0)
         Features|= NETIF_F_RXCSUM;
     else 
@@ -1010,6 +1025,7 @@ static Int  DtPcieNwEvtSetTxCsum(struct net_device* pDevice, u32 Value)
 }
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtGetTsInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 static Int DtPcieNwEvtGetTsInfo(struct net_device* pDevice, 
@@ -1048,8 +1064,9 @@ static Int DtPcieNwEvtGetTsInfo(struct net_device* pDevice,
     ts_info->phc_index = *pDvcData->m_IalData.m_pDeviceItf->m_pDriverItf->m_pPtpClockIndex;
     return 0;
 }
+#endif
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtFixFeatures -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtFixFeatures -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 dt_netdev_features  DtPcieNwEvtFixFeatures(
     struct net_device*  pDevice,
@@ -1108,7 +1125,7 @@ static int  DtPcieNwEvtSetFeatures(struct net_device* pDevice, dt_netdev_feature
     return 0;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtNewPacketRxCallback -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtNewPacketRxCallback -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // This function will be called from the common DtPcieNw code to trigger the arrival of
 // a packet
@@ -1175,11 +1192,11 @@ void  DtPcieNwEvtNewPacketRxCallback(
         {
             // Check if Ip/Udp/Tcp is detected and no errors occured
             if ((((RxFlags & DTPCIENW_RXFLAGS_IP_CHKSUM_CORRECT) != 0) || 
-                                    ((RxFlags & DTPCIENW_RXFLAGS_UDP_CHKSUM_CORRECT) != 0) || 
-                                    ((RxFlags & DTPCIENW_RXFLAGS_TCP_CHKSUM_CORRECT) != 0)) &&
+                                ((RxFlags & DTPCIENW_RXFLAGS_UDP_CHKSUM_CORRECT) != 0) || 
+                                ((RxFlags & DTPCIENW_RXFLAGS_TCP_CHKSUM_CORRECT) != 0)) &&
                 !(((RxFlags & DTPCIENW_RXFLAGS_IP_CHKSUM_FAIL) != 0) || 
-                                        ((RxFlags & DTPCIENW_RXFLAGS_UDP_CHKSUM_FAIL) != 0) ||
-                                        ((RxFlags & DTPCIENW_RXFLAGS_TCP_CHKSUM_FAIL) != 0)))
+                                    ((RxFlags & DTPCIENW_RXFLAGS_UDP_CHKSUM_FAIL) != 0) ||
+                                    ((RxFlags & DTPCIENW_RXFLAGS_TCP_CHKSUM_FAIL) != 0)))
                 pSkb->ip_summed = CHECKSUM_UNNECESSARY;
         }
     }
@@ -1201,9 +1218,9 @@ void  DtPcieNwEvtNewPacketRxCallback(
     pDvcData->m_IalData.m_NetStats.rx_packets++;
 }
 
-// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtPcieNw driver communication +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtPcieNw driver communication +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtProbe -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtProbe -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // This function is executed by the DtPcie driver when a child network device must be
 // created
@@ -1366,7 +1383,7 @@ Int  DtPcieNwEvtProbe(DtDeviceItf* pDevItf, Int Id)
     return Result; 
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtRemove -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtRemove -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // This function is executed by the Dta driver when the child network device must
 // be removed from the system
@@ -1398,7 +1415,7 @@ void  DtPcieNwEvtRemove(DtDeviceItf* pDevItf, Int Id)
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private helper functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwIalSetPacketFilter -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwIalSetPacketFilter -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 static DtStatus  DtPcieNwIalSetPacketFilter(DtPcieNwDeviceData* pDvcData, Int Flags)
 {
@@ -1420,7 +1437,7 @@ static DtStatus  DtPcieNwIalSetPacketFilter(DtPcieNwDeviceData* pDvcData, Int Fl
 
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Module init / exit +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwModuleInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwModuleInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 Int  DtPcieNwModuleInit(void)
 {
@@ -1440,10 +1457,11 @@ Int  DtPcieNwModuleInit(void)
     if (Result >= 0)
     {
         // Allocate memory for device context pointers
-        g_pDtPcieNwDeviceData = kmalloc(g_DtPcieNwMaxDevices * sizeof(DtPcieNwDeviceData*), 
-                                                                              GFP_KERNEL);
+        g_pDtPcieNwDeviceData = kmalloc(g_DtPcieNwMaxDevices * 
+                                                 sizeof(DtPcieNwDeviceData*), GFP_KERNEL);
         if (g_pDtPcieNwDeviceData != NULL)
-            memset(g_pDtPcieNwDeviceData, 0, g_DtPcieNwMaxDevices * sizeof(DtPcieNwDeviceData*));
+            memset(g_pDtPcieNwDeviceData, 0, 
+                                      g_DtPcieNwMaxDevices * sizeof(DtPcieNwDeviceData*));
         else
             Result = -EBUSY;
     }
@@ -1461,7 +1479,7 @@ Int  DtPcieNwModuleInit(void)
     return Result;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwModuleExit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwModuleExit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtPcieNwModuleExit(void)
 {
@@ -1470,15 +1488,15 @@ void  DtPcieNwModuleExit(void)
 
     if (g_DtPcieNwDeviceCount != 0)
     {
-        DtDbgOut(ERR, IAL, "DtPcieNwModuleExit called, but DtPcieNwDeviceCount is not 0 but"
-                                           " (%u)", g_DtPcieNwDeviceCount);
+        DtDbgOut(ERR, IAL, "DtPcieNwModuleExit called, but DtPcieNwDeviceCount is not"
+                                                    " 0 but (%u)", g_DtPcieNwDeviceCount);
 
         for (DvcIndex=0; DvcIndex<g_DtPcieNwMaxDevices; DvcIndex++)
         {
             if (g_pDtPcieNwDeviceData[DvcIndex] != NULL)
             {
                 DtPcieNwEvtRemove(g_pDtPcieNwDeviceData[DvcIndex]->m_IalData.m_pDeviceItf, 
-                                             g_pDtPcieNwDeviceData[DvcIndex]->m_IalData.m_Id);
+                                         g_pDtPcieNwDeviceData[DvcIndex]->m_IalData.m_Id);
                 if (g_DtPcieNwDeviceCount == 0)
                     break;
                 
