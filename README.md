@@ -3,12 +3,12 @@ dektec
 
 DekTec Linux software (LinuxSDK, DtPlay) source releases.
 
-DekTec only provide zip file source with no history -- unless you can guess the (inconsistently named) filename and download an older copy from their website.
+DekTec only provide zip file source with no history -- unless you can guess the filename and download an older copy from their website.
 
 This repository is simply a periodic commit of DekTec source downloaded from http://www.dektec.com/Downloads/SDK/ and http://www.dektec.com/Downloads/Utilities/ so that you can see what DekTec have changed between revisions
 
 
-Incomplete list of previous LinuxSDK download URLs
+List of previous LinuxSDK download URLs
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2022.12.0.tar.gz
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2022.11.0.tar.gz
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2022.06.0.tar.gz
@@ -37,4 +37,11 @@ Incomplete list of previous LinuxSDK download URLs
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2017.04.0.tar.gz
 - Prior to this files were all given the name (LinuxSDK.tar.gz) and previous versions were overwritten
 
-There appear to be no copies of previous DtPlay versions
+List of previous DtPlay download URLs
+- https://dektec.com/products/applications/DtPlay/Downloads/DtPlay_v4.16.0.zip
+- https://dektec.com/products/applications/DtPlay/Downloads/DtPlay_v4.15.0.zip
+- (There was no 4.14.0 publicly released)
+- https://dektec.com/products/applications/DtPlay/Downloads/DtPlay_v4.13.0.zip
+- https://dektec.com/products/applications/DtPlay/Downloads/DtPlay_v4.12.0.zip
+- https://dektec.com/products/applications/DtPlay/Downloads/DtPlay_v4.11.0.zip
+- There appears to be no accessible copies of previous DtPlay versions

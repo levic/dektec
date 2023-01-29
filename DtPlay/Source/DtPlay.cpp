@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.cpp *#*#*#*#*#*#*#*#* (C) 2000-2017 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.cpp *#*#*#*#*#*#*#*#* (C) 2000-2023 DekTec
 //
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -54,7 +54,7 @@ int  _kbhit()
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlay Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DTPLAY_VERSION_MAJOR        4
-#define DTPLAY_VERSION_MINOR        15
+#define DTPLAY_VERSION_MINOR        16
 #define DTPLAY_VERSION_BUGFIX       0
 
 const int c_BufSize = 1*1024*1024;      // Data transfer buffer size
@@ -342,8 +342,8 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
                 L"  NOTE: set the rate to '0' to playout a file with timestamps", 0, INT_MAX),
         DtOptItem(L"t",   m_DvcType, -1, L"Device type to use (default: any output device)\n"
                 L"  100, 102, 105, 107, 110, 111, 112, 115, 116, 117, 140, 145, 160, 205,\n"
-                L"  215, 245, 315, 2107, 2111, 2115, 2136, 2137, 2144, 2145, 2152, 2154,\n"
-                L"  2174, 2175, 2179, 2195, 2160 or 2162", 100, 3999),
+                L"  215, 245, 315, 2107, 2111, 2115, 2116, 2136, 2137, 2144, 2145, 2152,\n"
+                L"  2154, 2174, 2175, 2179, 2195, 2160 or 2162", 100, 3999),
         DtOptItem(L"n",   m_DvcNum, 1, L"Device number to use (default: 1)", 1, 99),
         DtOptItem(L"i",   m_Port, -1, L"Port number of the output channel to use", 1, 12),
         DtOptItem(L"db",  m_DblBuff, -1, L"Port to use as doubly buffered output"),
@@ -1994,7 +1994,7 @@ int Player::Play(int argc, char* argv[])
 
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Print start message -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-        LogF("DtPlay player V%d.%d.%d (c) 2000-2022 DekTec Digital Video B.V.\n",
+        LogF("DtPlay player V%d.%d.%d (c) 2000-2023 DekTec Digital Video B.V.\n",
               DTPLAY_VERSION_MAJOR, DTPLAY_VERSION_MINOR, DTPLAY_VERSION_BUGFIX);
 
         LogF("DTAPI compile version: V%d.%d.%d.%d\n",
