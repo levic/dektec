@@ -408,8 +408,10 @@ DtStatus DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int ClockIdx,
     IsFractional = (pClkProps->m_ClockType == DT_DF_SI534X_CLK_FRACTIONAL);
     // Internal virtual genref must be used and free running
     if (pDf->m_GenRefData.m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_VIRTUAL
-          || pDf->m_Genl[0].m_DcoControlState!=DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING
-          || pDf->m_Genl[1].m_DcoControlState!=DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING)
+          || ( pDf->m_Genl[0].m_DcoControlState!=DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING
+               && pDf->m_Genl[0].m_GenLockControlEnabled)
+          || ( pDf->m_Genl[1].m_DcoControlState!=DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING
+               && pDf->m_Genl[1].m_GenLockControlEnabled))
         Status = DT_STATUS_IN_USE;
     DtSpinLockRelease(&pDf->m_SofSpinLock);
 

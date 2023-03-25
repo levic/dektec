@@ -1,4 +1,4 @@
-// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2022 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtCommon.h *#*#*#*#*#*#*#*#* (C) 2010-2023 DekTec
 //
 // SDK - Common definitions and types between for DTAPI/DTA/DTPCIE/DTU drivers
 //
@@ -112,7 +112,7 @@ typedef struct _DtUserBuffer
 // - Port 2 segment: 0x20000000 .. 0x2FFFFFFF
 // - ...
 // - Port 8 segment: 0x80000000 .. 0x8FFFFFFF
-#define DT_MMAP_PORT_MEM_SEGMENT_SIZE    (256*1024*1024)
+#define DT_MMAP_PORT_MEM_SEGMENT_SIZE    (256ull*1024*1024)
 
 #endif  // WINBUILD
 
