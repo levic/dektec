@@ -114,13 +114,13 @@ PWD = $(shell pwd)
 # Default option
 
 all:
-	make MYPWD=$(PWD) -C $(KERNELDIR) KBUILD_MODPOST_NOFINAL=1 KBUILD_MODPOST_WARN=1 M=$(PWD) modules 
+	$(MAKE) MYPWD=$(PWD) -C $(KERNELDIR) KBUILD_MODPOST_NOFINAL=1 KBUILD_MODPOST_WARN=1 M=$(PWD) modules 
 
 # ========================================================================================
 # Clean all option
 
 clean:
-	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
+	$(MAKE) MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
 
 # ========================================================================================
 endif

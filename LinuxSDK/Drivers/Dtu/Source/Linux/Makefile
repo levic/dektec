@@ -146,7 +146,7 @@ INSTALLDIR = /lib/modules/$(CURRENT)/kernel/drivers/usb/DekTec
 # Default option
 
 all: PREREQ $(DTSAL) $(DTDRVCOMMON)
-	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) modules
+	$(MAKE) MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) modules
 
 INSTALL_CMD := "/sbin/rmmod $(TARGET) 2>/dev/null || true &&          \
 				install -d $(INSTALLDIR) &&     \
@@ -163,23 +163,23 @@ install:
 # Prerequisites
 
 PREREQ:
-	@if [ -f MakefilePrereq ]; then make -f MakefilePrereq ; fi
+	@if [ -f MakefilePrereq ]; then $(MAKE) -f MakefilePrereq ; fi
 
 $(DTSAL):
-	make MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	make MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
+	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
+	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
 	
-$(DTDRVCOMMON):
-	make MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	make MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
+$(DTDRVCOMMON): PREREQ
+	$(MAKE) MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
+	$(MAKE) MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
 # ========================================================================================
 # Clean all option
 
 clean:
-	@if [ -f MakefilePrereq ]; then make -f MakefilePrereq clean ; fi
-	make MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
-	make MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	make MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
+	@if [ -f MakefilePrereq ]; then $(MAKE) -f MakefilePrereq clean ; fi
+	$(MAKE) MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
+	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
+	$(MAKE) MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 	
 # ========================================================================================
 endif

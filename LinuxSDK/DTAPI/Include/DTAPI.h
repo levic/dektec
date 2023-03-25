@@ -9,8 +9,8 @@
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        5
 #define DTAPI_VERSION_MINOR        51
-#define DTAPI_VERSION_BUGFIX       3
-#define DTAPI_VERSION_BUILD        207
+#define DTAPI_VERSION_BUGFIX       8
+#define DTAPI_VERSION_BUILD        212
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -9650,6 +9650,16 @@ public:
                                 // Timestamps created by different hardware devices have
                                 // no relation to each other.
     DtTimeOfDay m_TodTimestamp; // TOD arrival time-stamp of the frame
+
+    bool m_TxTimestampValid;        // True when m_TxTodTimestamp and m_TxRawTimestamp 
+                                    // are are valid. 
+    DtTimeOfDay m_TxTodTimestamp;   // Predicted transmit time of this frame.
+                                    // Note: only valid when m_TxTimestampValid is true.
+    __int64 m_TxRawTimestamp;       // 64-bit timestamp with predicted transmit time of 
+                                    // this frame.
+                                    // Timestamps created by different hardware devices 
+                                    // have no relation to each other.
+                                    // Note: only valid when m_TxTimestampValid is true.
 
     // Raw data buffer
     bool m_RawDataValid;        // True, if the raw data is valid; False if invalid

@@ -65,7 +65,7 @@ typedef struct  _DtPropertyFilterCriteria
         DtMemZero(&F, sizeof(F));                                           \
         DT_ASSERT(PORT_INDEX >= -1);                                        \
         F.m_PortIndex = PORT_INDEX;                                         \
-        F.m_DtapiMaj = F.m_DtapiMin = F.m_DtapiBugfix = 0;                  \
+        F.m_DtapiMaj = F.m_DtapiMin = F.m_DtapiBugfix = -1;                 \
     } while(0)
 #define DT_PROPERTY_FILTER_CRITERIA_INIT_FROM_PROPDATA(F, PD, PORT_INDEX)   \
     do                                                                      \

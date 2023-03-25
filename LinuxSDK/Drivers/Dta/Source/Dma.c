@@ -1361,8 +1361,9 @@ DtStatus  DtaDmaAbortDmaImpl(
     {
         OldState = pDmaCh->m_State;
     }
-    if (OldState == DTA_DMA_STATE_IDLE)
+    if (OldState==DTA_DMA_STATE_IDLE || OldState==DTA_DMA_STATE_ABORT)
     {
+        // Already IDLE state, we don't need to ABORT
         DtDbgOutDma(MIN, DMA, pDmaCh, "WARNING: called DMA abort, while in IDLE state");
         return DT_STATUS_NOT_STARTED;
     }

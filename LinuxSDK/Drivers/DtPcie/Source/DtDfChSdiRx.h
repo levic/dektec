@@ -64,6 +64,10 @@ typedef struct _DtDfChSdiRxUser
     UInt32 m_DmaReadOffset;         // Read offset in the DMA buffer
     Bool m_IsConfigured;            // User has successfully applied its configuration
     DtEvent m_FmtEvent;             // Event used to indicate formatter event
+    Bool m_IsSlow;                  // User is to far behind with each read-offset and 
+                                    // it's read offset is ignored until the user has 
+                                    // caught up. While in this state all format events to
+                                    // this user will be marked as being out-of-sync.
 } DtDfChSdiRxUser;
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct DtDfChSdiRxConfig -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -131,6 +135,8 @@ typedef struct _DtChSdiRx
         Int m_Size;                 // Size of the DMA buffer
         Int m_MaxLoad;              // Maximum allowed load in the DMA buffer. Typically,
                                     // one data-word is reserved and cannot be written to.
+        Int m_SlowLoad;             // If this load is exceeded a user is considered to
+                                    // be to slow with updating its read offset.
         UInt32 m_ReadOffset;        // Current read offset in the DMA buffer
         DtPageList* m_pPageList;    // Page list for the DMA buffer
         UInt8* m_pBuffer;           // Virtual kernel pointer for our buffer

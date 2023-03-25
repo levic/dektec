@@ -112,9 +112,6 @@ static DtStatus DtDfChSdiRx_Unconfigure(DtDfChSdiRx*);
 static DtStatus DtDfChSdiRx_WaitForFmtEvent(DtDfChSdiRx*, const DtFileObject*,
                                Int Timeout, Int* pFrameId, Int* pSeqNumber, Int* pInSync);
 
-
-
-
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfChSdiRx - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -319,6 +316,8 @@ DtStatus DtDfChSdiRx_AllocateDmaBuffer(DtDfChSdiRx* pDf, Int ReqMinSize)
     // One data-word is reserved for buffer-full detection
     DT_ASSERT((PcieItfDataWidth&3) == 0);
     pDf->m_DmaBuf.m_MaxLoad = pDf->m_DmaBuf.m_Size - (PcieItfDataWidth/8);
+    // Initially allow use of the full buffer. Update slow load as soon as NumUsers>1.
+    pDf->m_DmaBuf.m_SlowLoad = pDf->m_DmaBuf.m_MaxLoad;
 
     DtDbgOutDf(MAX, CHSDIRX, pDf, "Allocated a %d-byte buffer for DMA (Max load=%d)",
                                            pDf->m_DmaBuf.m_Size, pDf->m_DmaBuf.m_MaxLoad);
@@ -353,6 +352,7 @@ DtStatus DtDfChSdiRx_Attach(
     Bool ReqExclusiveAccess,
     const char* pFriendlyName)
 {
+
     DF_CH_DEFAULT_PRECONDITIONS(pDf);
     // Let base implementation do heavy lifting
     return DtDfCh_Attach((DtDfCh*)pDf, pFile, pObject, ReqExclusiveAccess, pFriendlyName);
@@ -395,15 +395,31 @@ DtStatus DtDfChSdiRx_CheckAndUpdateReadOffset(DtDfChSdiRx* pDf, Bool ForceUpdate
     {
         Int Load=0;
         const Int DmaBufSize=pDf->m_DmaBuf.m_Size;
-        const DtDfChSdiRxUser* pUser = 
-                                (const DtDfChSdiRxUser*)DtVectorDfChUser_At(pDf->m_pUsers, i);
+        DtDfChSdiRxUser* pUser = (DtDfChSdiRxUser*)DtVectorDfChUser_At(pDf->m_pUsers, i);
 
-        // Skip IDLE or un-configured users
-        if (pUser->m_OpMode==DT_FUNC_OPMODE_IDLE || !pUser->m_IsConfigured)
+        // Skip IDLE, un-configured or slow users 
+        if (pUser->m_OpMode==DT_FUNC_OPMODE_IDLE || !pUser->m_IsConfigured 
+                                                                       || pUser->m_IsSlow)
             continue;
 
-        // Compute load for this user and check if it the furthest behind so far
+        // Compute load for this user.
         Load = (Int)((CurWriteOffset+DmaBufSize-pUser->m_DmaReadOffset) % DmaBufSize);
+
+        // Next, check is user is too slow. Note: clearing of the slow flag requires an 
+        // explicit call to set-operational-mode or to set-read-offset by the user (i.e. 
+        // we do not clear the flag here even if the load condition has been resolved).
+        DT_ASSERT(pDf->m_DmaBuf.m_SlowLoad>0 
+                                    && pDf->m_DmaBuf.m_SlowLoad<=pDf->m_DmaBuf.m_MaxLoad);
+        pUser->m_IsSlow = Load>=pDf->m_DmaBuf.m_SlowLoad;
+        if (pUser->m_IsSlow)
+        {
+            DtDbgOutDf(MIN, CHSDIRX, pDf, 
+                                     "User '%s' is to slow -> ignoring it's read offset",
+                                     pUser->m_FriendlyName);
+            continue;   // Skip too slow users, do not want them to block others
+        }
+        
+        // Finally, check if user is the furthest behind so far.
         if (Load > MaxLoad)
         {
             NewReadOffset = pUser->m_DmaReadOffset;
@@ -466,8 +482,11 @@ void DtDfChSdiRx_CloseUserImpl(
         }
         pUser->m_pMappedDmaAddr = NULL;
     }
-    // Finally, let base implementation free the user
+    // Let base implementation free the user
     DtDfCh_CloseUser((DtDfCh*)pDf, (DtDfChUser*)pUser, pFile);
+
+    // Finally, check if the read offset needs moving (i.e. was this the 'slowest' user).
+    DtDfChSdiRx_CheckAndUpdateReadOffset(pDf, TRUE);
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfChSdiRx_Configure -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -529,9 +548,9 @@ DtStatus DtDfChSdiRx_Configure(DtDfChSdiRx* pDf, const DtDfChSdiRxConfig* pCfg)
 
     // Configure SdiRxFmtSimple block
     Status = DtBcSDIRXF_SetFmtEventTiming(pDf->m_pBcSDIRXF, 
-                                                         pCfg->m_FmtEvt.m_IntInterval,
-                                                         pCfg->m_FmtEvt.m_IntDelay,
-                                                         pCfg->m_FmtEvt.m_NumIntsPerFrame);
+                                                        pCfg->m_FmtEvt.m_IntInterval,
+                                                        pCfg->m_FmtEvt.m_IntDelay,
+                                                        pCfg->m_FmtEvt.m_NumIntsPerFrame);
     if (!DT_SUCCESS(Status))
     {
         DtDbgOutDf(ERR, CHSDIRX, pDf, 
@@ -641,6 +660,7 @@ DtStatus DtDfChSdiRx_Configure_Quadlink(
 DtStatus DtDfChSdiRx_ConfigureUser(
           DtDfChSdiRx* pDf, const DtFileObject* pFile, const DtDfChSdiRxConfig* pCfg)
 {
+    Int NumUsers=0;
     DtStatus Status=DT_STATUS_OK;
     DtDfChSdiRxUser* pUser=NULL;
 
@@ -674,10 +694,10 @@ DtStatus DtDfChSdiRx_ConfigureUser(
 
     // Did we already configure the channel? If not, apply the configuration and if yes 
     // check the configuration is compatible with the existing one.
+    NumUsers = DtVectorDfChUser_Size(pDf->m_pUsers);
     if (pDf->m_IsConfigured)
     {
         // Is we have only user, it is allowed to reconfigure the channel
-        Int NumUsers = DtVectorDfChUser_Size(pDf->m_pUsers);
         if (NumUsers == 1)
         {
             // If configuration is compatible (same), no action is required, otherwise
@@ -709,8 +729,25 @@ DtStatus DtDfChSdiRx_ConfigureUser(
 
     // Mark user as configured upon success
     if (DT_SUCCESS(Status))
+    {
         pUser->m_IsConfigured = TRUE;
 
+        // Update DMA slow-load as soon as we have our second user. We need the margin to 
+        // be able to detect when a user is slow and might block the DNA which affects 
+        // all users.
+        if (NumUsers >= 2)
+        {
+            // Slow load level is at 90% of maximum, meaning the last 10% is not usable.
+            // Note: we first div by 10 and than multiply by 9 to prevent an arithmetic 
+            // overflow to occur, since MaxLoad can become quite big (e.g. 256MB (2^28)).
+            pDf->m_DmaBuf.m_SlowLoad = (pDf->m_DmaBuf.m_MaxLoad / 10) * 9;
+            DT_ASSERT(pDf->m_DmaBuf.m_SlowLoad>=0 
+                                    && pDf->m_DmaBuf.m_SlowLoad<=pDf->m_DmaBuf.m_MaxLoad);
+            DtDbgOutDf(MIN, CHSDIRX, pDf, 
+                             "Multiple configured users -> setting slow-load to %d of %d",
+                             pDf->m_DmaBuf.m_SlowLoad, pDf->m_DmaBuf.m_MaxLoad);
+        }
+    }
     return Status;
 }
 
@@ -725,7 +762,18 @@ DtStatus DtDfChSdiRx_Detach(
 {
     DF_CH_DEFAULT_PRECONDITIONS(pDf);
     // Let base implementation do heavy lifting
-    return DtDfCh_Detach((DtDfCh*)pDf, pObject, pFile);
+    RET_ON_ERR(DtDfCh_Detach((DtDfCh*)pDf, pObject, pFile));
+
+    // Update DMA slow load as soon as we have only one user left. I.e. we can use full 
+    // buffer again.
+    if (DtVectorDfChUser_Size(pDf->m_pUsers) == 1)
+    {
+        // Return to using 100% of buffer.
+        pDf->m_DmaBuf.m_SlowLoad = pDf->m_DmaBuf.m_MaxLoad;
+        DtDbgOutDf(MIN, CHSDIRX, pDf, "One user left -> setting slow-load to %d of %d",
+                                       pDf->m_DmaBuf.m_SlowLoad, pDf->m_DmaBuf.m_MaxLoad);
+    }
+    return DT_STATUS_OK;
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfChSdiRx_DoIdleToStandy -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1019,7 +1067,7 @@ DtStatus DtDfChSdiRx_FreeDmaBuffer(DtDfChSdiRx* pDf)
     pDf->m_DmaBuf.m_pBuffer = NULL;
     pDf->m_DmaBuf.m_Size = 0;
     pDf->m_DmaBuf.m_ReadOffset = 0;
-    pDf->m_DmaBuf.m_MaxLoad = 0;
+    pDf->m_DmaBuf.m_MaxLoad = pDf->m_DmaBuf.m_SlowLoad = 0;
     pDf->m_DmaBuf.m_pPageList = NULL;
 
     return DT_STATUS_OK;
@@ -1473,6 +1521,7 @@ DtDfChUser* DtDfChSdiRx_OpenUser(
     pUser->m_DmaReadOffset = 0;
     pUser->m_IsConfigured = FALSE;
     pUser->m_pMappedDmaAddr = NULL;
+    pUser->m_IsSlow = FALSE;
 
     // Initialize format event as auto reset.
     Status = DtEventInit(&pUser->m_FmtEvent, TRUE);
@@ -1605,6 +1654,11 @@ DtStatus DtDfChSdiRx_SetUserOperationalMode(
                             NewOpMode, pUser->m_FriendlyName, HighestOpMode);
         Status = DT_STATUS_OK;
     }
+
+    // Clear slow flag when user is put in IDLE.
+    if (DT_SUCCESS(Status) && NewOpMode==DT_FUNC_OPMODE_IDLE)
+        pUser->m_IsSlow = FALSE;
+
     DtDbgOutDf(MAX, CHSDIRX, pDf, "EXIT");
 
     return Status;
@@ -1638,6 +1692,9 @@ DtStatus DtDfChSdiRx_SetUserReadOffset(
     }
     // Store user's read offset and update overall channel offset (no forced update)
     pUser->m_DmaReadOffset = Offset;
+    // Clear slow flag. 
+    // Will be set again by check-and-update if we did not move offset enough.
+    pUser->m_IsSlow = FALSE;
     return DtDfChSdiRx_CheckAndUpdateReadOffset(pDf, FALSE);
 }
 
@@ -1750,6 +1807,11 @@ DtStatus DtDfChSdiRx_WaitForFmtEvent(DtDfChSdiRx* pDf, const DtFileObject* pFile
     *pSeqNumber = DF_TO_THIS->m_FmtEvent.m_SeqNumber;
     *pInSync = (Int)DF_TO_THIS->m_FmtEvent.m_InSync;
     DtSpinLockRelease(&DF_TO_THIS->m_FmtEvent.m_SpinLock);
+
+    // Mark as out-of-sync while user is too slow. This will trigger the user to enter 
+    // recovery mode and should force it to update its read-offset
+    if (pUser->m_IsSlow)
+        *pInSync = 0;
 
     return DT_STATUS_OK;
 }
