@@ -13,9 +13,10 @@ The Linux SDK consists of:
                   DTA-2136, DTA-2137, DTA-2138, DTA-2139, DTA-2142,
                   DTA-2144, DTA-2145, DTA-2152, DTA-2154, DTA-2160,
                   DTA-2162, DTA-2174, DTA-2179, DTA-2180, DTA-2182, DTA-2195;
- - DtPcie:        DTA-2132, DTA-2139B/C, DTA-2172, DTA-2174B, DTA-2175,
-                  DTA-2178-ASI, DTA-2178;
+ - DtPcie:        DTA-2110, DTA-2116, DTA-2127, DTA-2132, DTA-2139B/C,  
+                  DTA-2172, DTA-2174B, DTA-2175, DTA-2178-ASI, DTA-2178;
  - DtaNw:         Network driver for DTA-160, DTA-2160 and DTA-2162;
+ - DtPcieNw:      Network driver for DTA-2110;
  - Dtu:           Linux driver for DTU-205, DTU-215, DTU-225, DTU-234, DTU-235,
                   DTU-236, DTU-238, DTU-245 and DTU-351;
  - DTAPI:         C++ API that wraps the driver calls into an easy-to-use and
@@ -45,14 +46,18 @@ Extracting LinuxSDK.tar.gz will lead to the following directory structure:
    |  |  |- Source
    |  |  |  |- Linux         (Contains Dta driver makefile)
    |  |
+   |  |- DtaNw               (Network driver for PCI/PCIe cards supporting Dta driver)
+   |  |  |- Source          
+   |  |  |  |- Linux         (Contains DtaNw driver makefile)
+   |  |
    |  |- DtPcie              (Driver for DTA-series PCIe cards)
    |  |  |- Source
    |  |  |  |- Linux         (Contains DtPcie driver makefile) 
    |  |  
-   |  |- DtaNw               (Network driver for DTA-series PCI/PCIe cards)
-   |  |  |- Source          
-   |  |  |  |- Linux         (Contains DtaNw driver makefile)
-   |  |
+   |  |- DtPcieNw            (Network driver for PCIe cards supporting DtPcie driver)
+   |  |  |- Source
+   |  |  |  |- Linux         (Contains DtPcieNw driver makefile) 
+   |  |  
    |  |- Dtu                 (Driver for DTU-series USB devices)
    |  |  |- Source
    |  |  |  |- Linux         (Contains Dtu driver makefile)
@@ -74,33 +79,13 @@ Extracting LinuxSDK.tar.gz will lead to the following directory structure:
    |  |- Doc                 (Documentation)
    |  |- Include             (DTAPI.h include file)
    |  |- Lib
-   |    |- GCC4.8_CXX11_ABI0 (Contains DTAPI object file compiled with _GLIBCXX_USE_CXX11_ABI=0*)
+   |    |- GCC7.5.0 (Contains DTAPI object file compiled with GCC 7.5.0)
    |    |  |- DTAPI.o        (32-bit version)
    |    |  |- DTAPI64.o      (64-bit version)
-   |    |
-   |    |- GCC5.1_CXX11_ABI0 (Contains DTAPI object file compiled with _GLIBCXX_USE_CXX11_ABI=0*)
-   |    |  |- DTAPI.o        (32-bit version)
-   |    |  |- DTAPI64.o      (64-bit version)
-   |    |- GCC5.1_CXX11_ABI1 (Contains DTAPI object file compiled with _GLIBCXX_USE_CXX11_ABI=1*)
-   |       |- DTAPI.o        (32-bit version)
-   |       |- DTAPI64.o      (64-bit version)
    |
    |
    |- DTAPITS                (DTAPITS Installer. A license is needed to use this library)
    
-* CXX11_ABI:
-The C++11 standard has different versions of the Application Binary Interface (ABI).
-You can select the CXX11 ABI version by using the _GLIBCXX_USE_CXX11_ABI compiler option.
-If the compiler option is not used, the compiler uses the default setting setted up at compile time of the compiler.
-
-The GCC4.8 libraries are compatible with the CXX11 ABI version 0.
-The GCC5.1 libraries are compatible with the CXX11 ABI version 0 and 1. You have to choose the version needed.
-
-If the compiler only supports CXX11 ABI version 0, you should always use the ABI0 version of GCC4.8 or GCC5.1 libraries.
-If the compiler only supports CXX11 ABI version 1, you should always use the GCC5.1 libraries with ABI=1.
-If the compiler supports both, you can force the CXX11 ABI version with the _GLIBCXX_USE_CXX11_ABI compiler option.
-
-If you get linking errors with the future types, try to use the ABI=0 version of the other GCC compiler.
 
 --------------------------------------------------------------------------------
 - Version info: 

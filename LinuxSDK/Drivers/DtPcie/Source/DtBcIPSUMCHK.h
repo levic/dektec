@@ -63,5 +63,6 @@ DtBcIPSUMCHK*  DtBcIPSUMCHK_Open(Int  Address, DtCore*, DtPt*  pPt, const char* 
                                                                 Int  Instance, Int  Uuid);
 DtStatus DtBcIPSUMCHK_GetOperationalMode(DtBcIPSUMCHK* pBc, Int* pOpMode);
 DtStatus DtBcIPSUMCHK_SetOperationalMode(DtBcIPSUMCHK* pBc, Int OpMode);
+void DtBcIPSUMCHK_SetPromicuousMode(DtBcIPSUMCHK* pBc, Bool Enable);
 
 #endif  // #ifndef __DT_BC_IPSUMCHK_H

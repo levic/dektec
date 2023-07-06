@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBcDDRFIFO.c *#*#*#*#*#*#*#*#*#*# (C) 2018 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBcDDRFIFO.c *#*#*#*#*#*#*#* (C) 2018-2023 DekTec
 //
 // This file is not part of the PCIe driver. It can be used as template to create a new
 // block controller. Replace "DDRFIFO" by the building block's shortname (all uppercase)
@@ -30,9 +30,10 @@
 #include "DtBc.h"
 #include "DtBcDDRFIFO.h"
 #include "DtBcDDRFIFO_RegAccess.h"
+#include "Messages.h"
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcDDRFIFO implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcDDRFIFO implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Defines / Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -48,9 +49,9 @@ static DtStatus  DtBcDDRFIFO_Init(DtBc*);
 static DtStatus  DtBcDDRFIFO_OnEnable(DtBc*, Bool  Enable);
 static void  DtBcDDRFIFO_SetControlRegs(DtBcDDRFIFO*, Bool BlkEna, Int OpMode);
 
-// =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcDDRFIFO - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcDDRFIFO - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_Close -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_Close -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtBcDDRFIFO_Close(DtBc*  pBc)
 {
@@ -61,7 +62,7 @@ void  DtBcDDRFIFO_Close(DtBc*  pBc)
     DtBc_Close(pBc);
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtBcDDRFIFO*  DtBcDDRFIFO_Open(Int  Address, DtCore* pCore, DtPt* pPt,
                                const char* pRole, Int Instance, Int Uuid, Bool CreateStub)
@@ -142,7 +143,7 @@ DtStatus DtBcDDRFIFO_GetOperationalMode(DtBcDDRFIFO* pBc, Int* pOpMode)
     return DT_STATUS_OK;
 }
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_SetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_SetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcDDRFIFO_SetOperationalMode(DtBcDDRFIFO* pBc, Int OpMode)
 {
@@ -211,6 +212,131 @@ DtStatus DtBcDDRFIFO_SetOperationalMode(DtBcDDRFIFO* pBc, Int OpMode)
 
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcDDRFIFO - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
+
+// -.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_CheckMemoryControllerStatus -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtBcDDRFIFO_CheckMemoryControllerStatus(DtBcDDRFIFO* pBc)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    Int TimeoutCount = 0;
+    const Int MaxNumRetries = 2;
+    Int RetryCount = MaxNumRetries;
+
+    // Wait for PLL in lock
+    TimeoutCount = 0;
+    while (TimeoutCount<500 && DDRFIFO_Status_READ_MemPllLocked(pBc)==0)
+    {
+        DtWaitBlock(10);
+        TimeoutCount++;
+    }
+    if (DDRFIFO_Status_READ_MemPllLocked(pBc) == 0)
+    {
+        DtString  Str;
+        DtDbgOutBc(ERR, DDRFIFO, pBc, "PLL memory not in lock");
+        DtStringAlloc(&Str, 256);
+
+        DtStringAppendChars(&Str, "[SN=");
+        DtStringUInt64ToDtStringAppend(&Str, 10, pBc->m_pCore->m_pDevInfo->m_Serial);
+        DtStringAppendChars(&Str, "] ");
+        DtStringAppendChars(&Str, "PLL memory not in lock");
+        DtEvtLogReport(&pBc->m_pCore->m_Device.m_EvtObject, DTPCIE_LOG_ERROR_GENERIC, 
+                                                                        &Str, NULL, NULL);
+        DtStringFree(&Str);
+        Status = DT_STATUS_FAIL;
+    }
+    if (DT_SUCCESS(Status))
+    {
+        if (DDRFIFO_Status_READ_MemCalSuccess(pBc) == 0)
+        {
+            DtString  Str;
+            DtDbgOutBc(ERR, DDRFIFO, pBc, "Mem calibration not successfull after"
+                                                                              " startup");
+            DtStringAlloc(&Str, 256);
+            DtStringAppendChars(&Str, "[SN=");
+            DtStringUInt64ToDtStringAppend(&Str, 10, pBc->m_pCore->m_pDevInfo->m_Serial);
+            DtStringAppendChars(&Str, "] ");
+            DtStringAppendChars(&Str, "Mem calibration not successfull");
+            DtEvtLogReport(&pBc->m_pCore->m_Device.m_EvtObject, DTPCIE_LOG_ERROR_GENERIC, 
+                                                                        &Str, NULL, NULL);
+            DtStringFree(&Str);
+            //Status = DT_STATUS_FAIL;
+            DT_ASSERT(FALSE);
+        }
+    }
+    if (DT_SUCCESS(Status))
+    {
+        // Wait for mem. calibration success/fail
+        while (RetryCount>0 && DDRFIFO_Status_READ_MemCalFail(pBc)==0 &&
+                                                DDRFIFO_Status_READ_MemCalSuccess(pBc)==0)
+        {
+            TimeoutCount = 0;
+            while (TimeoutCount<100 && DDRFIFO_Status_READ_MemCalFail(pBc)==0 &&
+                                                DDRFIFO_Status_READ_MemCalSuccess(pBc)==0)
+            {
+                DtWaitBlock(10);
+                TimeoutCount++;
+            }
+            if (DDRFIFO_Status_READ_MemCalFail(pBc)==0 &&
+                                                DDRFIFO_Status_READ_MemCalSuccess(pBc)==0)
+            {
+                UInt32 MemControl;
+                // Do reset
+                RetryCount--;
+                if (RetryCount != 0)
+                {
+                    DtDbgOutBc(ERR, DDRFIFO, pBc, "Mem calibration not started/"
+                                                        "finished. DoReset. #Retries: %i",
+                                                        MaxNumRetries-RetryCount);
+                    MemControl = DDRFIFO_MemControl_READ(pBc);
+                    DDRFIFO_MemControl_SET_DoReset(MemControl, 1);
+                    DDRFIFO_MemControl_WRITE(pBc, MemControl);
+                }
+            }
+        }
+        if (DDRFIFO_Status_READ_MemCalSuccess(pBc) != 0)
+            DtDbgOutBc(ERR, DDRFIFO, pBc, "Mem calibration success. #Retries: %i",
+                                                                MaxNumRetries-RetryCount);
+        else if (DDRFIFO_Status_READ_MemCalFail(pBc) != 0)
+        {
+            DtString  Str;
+            DtDbgOutBc(ERR, DDRFIFO, pBc, "Mem calibration failed. #Retries: %i",
+                                                                MaxNumRetries-RetryCount);
+            DtStringAlloc(&Str, 256);
+
+            DtStringAppendChars(&Str, "[SN=");
+            DtStringUInt64ToDtStringAppend(&Str, 10, pBc->m_pCore->m_pDevInfo->m_Serial);
+            DtStringAppendChars(&Str, "] ");
+            DtStringAppendChars(&Str, "Mem calibration error. Failed");
+            DtEvtLogReport(&pBc->m_pCore->m_Device.m_EvtObject, DTPCIE_LOG_ERROR_GENERIC, 
+                                                                        &Str, NULL, NULL);
+            DtStringFree(&Str);
+            Status = DT_STATUS_FAIL;
+            DT_ASSERT(FALSE);
+        }
+        else
+        {
+            DtString  Str;
+            DtDbgOutBc(ERR, DDRFIFO, pBc, "Mem calibration not started/finished.");
+            DtStringAlloc(&Str, 256);
+
+            DtStringAppendChars(&Str, "[SN=");
+            DtStringUInt64ToDtStringAppend(&Str, 10, pBc->m_pCore->m_pDevInfo->m_Serial);
+            DtStringAppendChars(&Str, "] ");
+            DtStringAppendChars(&Str, "Mem calibration error. Not started/finished");
+            DtEvtLogReport(&pBc->m_pCore->m_Device.m_EvtObject, DTPCIE_LOG_ERROR_GENERIC, 
+                                                                        &Str, NULL, NULL);
+
+            DtStringFree(&Str);
+            Status = DT_STATUS_FAIL;
+            DT_ASSERT(FALSE);
+        }
+    }
+    // Always succeed. Otherwise the driver is not loaded. 
+    // We'll check the success/failed state later
+    return DT_STATUS_OK;
+}
+
+
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtBcDDRFIFO_Init(DtBc* pBcBase)
@@ -234,10 +360,11 @@ DtStatus  DtBcDDRFIFO_Init(DtBc* pBcBase)
                                                            (pBc->m_DataWidth/8); // #bytes
 
     pBc->m_FifoSize = 1 << DDRFIFO_Config_GET_FifoSize(Properties);              // #bytes
+    
     return Status;
 }
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_OnCloseFile -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtBcDDRFIFO_OnCloseFile(DtBc* pBcBase, const DtFileObject* pFile)
 {
@@ -265,13 +392,13 @@ DtStatus  DtBcDDRFIFO_OnCloseFile(DtBc* pBcBase, const DtFileObject* pFile)
 }
 
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_OnEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_OnEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcDDRFIFO_OnEnable(DtBc* pBcBase, Bool Enable)
 {
     DtStatus  Status = DT_STATUS_OK;
     DtBcDDRFIFO* pBc = (DtBcDDRFIFO*)pBcBase;
-
+    
     // Sanity check
     BC_DDRFIFO_DEFAULT_PRECONDITIONS(pBc);
 
@@ -279,6 +406,7 @@ DtStatus DtBcDDRFIFO_OnEnable(DtBc* pBcBase, Bool Enable)
     {
         // DISABLE -> ENABLE
         DtDbgOutBc(AVG, DDRFIFO, pBc, "OnEnable from disable -> enable");
+        Status = DtBcDDRFIFO_CheckMemoryControllerStatus(pBc);
 
         // Set defaults
         pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
@@ -305,7 +433,7 @@ DtStatus DtBcDDRFIFO_OnEnable(DtBc* pBcBase, Bool Enable)
     return Status;
 }
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 void  DtBcDDRFIFO_SetControlRegs(DtBcDDRFIFO* pBc, Bool BlkEna, Int OpMode)
 {
@@ -366,9 +494,9 @@ static const DtIoctlProperties  IOSTUB_BC_DDRFIFO_IOCTLS[] =
         NULL,  NULL),
 };
 
-//+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubBcDDRFIFO - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubBcDDRFIFO - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcDDRFIFO_Close -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcDDRFIFO_Close -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void  DtIoStubBcDDRFIFO_Close(DtIoStub*  pStub)
 {
@@ -378,7 +506,7 @@ void  DtIoStubBcDDRFIFO_Close(DtIoStub*  pStub)
     DtIoStubBc_Close(pStub);
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcDDRFIFO_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcDDRFIFO_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtIoStubBcDDRFIFO*  DtIoStubBcDDRFIFO_Open(DtBc*  pBc)
 {
@@ -398,10 +526,24 @@ DtIoStubBcDDRFIFO*  DtIoStubBcDDRFIFO_Open(DtBc*  pBc)
     return pStub;
 }
 
-//+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubBcDDRFIFO- Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_IsMemCalibrated -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtBcDDRFIFO_IsMemCalibrated(DtBcDDRFIFO* pBc)
+{
+    return DDRFIFO_Status_READ_MemCalSuccess(pBc) != 0;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_IsMemPllLocked -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+Bool  DtBcDDRFIFO_IsMemPllLocked(DtBcDDRFIFO* pBc)
+{
+    return DDRFIFO_Status_READ_MemPllLocked(pBc) != 0;
+}
+
+// =+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubBcDDRFIFO- Private functions +=+=+=+=+=+=+=+=+=+=+=+=+
 
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcDDRFIFO_OnCmd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcDDRFIFO_OnCmd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtIoStubBcDDRFIFO_OnCmd(const DtIoStub*  pStub, DtIoStubIoParams*  pIoParams,
     Int*  pOutSize)

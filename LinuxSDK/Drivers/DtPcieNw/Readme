@@ -1,0 +1,171 @@
+--------------------------------------------------------------------------------
+- Readme for DtPcieNw Linux device driver
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+- Table of Contents
+--------------------------------------------------------------------------------
+
+ 1. Version History
+ 2. Introduction
+ 3. Installation
+ 4. Setup network interface
+ 5. Advanced setup
+ 6. Usage
+ 7. Contact Information
+
+--------------------------------------------------------------------------------
+- 1. Version History
+--------------------------------------------------------------------------------
+
+Refer to the "SDK - Revision History.pdf" document for an overview of the 
+changes included in the release.
+
+--------------------------------------------------------------------------------
+- 2. Introduction
+--------------------------------------------------------------------------------
+
+The DtPcieNw driver is a network driver for DekTec's DTA-series of PCI/PCIe cards.
+Currently the driver provides support for the following cards:
+- DTA-2110  (Single 10GbE SFP+ Port)
+
+The DtPcieNw driver has the following system requirements:
+ - Kernel version 2.6.32 or higher. 
+ - For PTP support, minimal kernel version v3.0 is needed
+ - Linux hotplug should be installed
+
+
+--------------------------------------------------------------------------------
+- 3. Installation
+--------------------------------------------------------------------------------
+
+To install the driver, perform the following steps:
+ - Compile the driver (type "make" in the directory containing the makefile);
+
+ NOTE: MAKE SURE THE 'KERNEL_DIR' DEFINE IN THE MAKEFILE SPECIFIES THE CORRECT
+      PATH TO THE KERNEL SOURCES.  IF THE SPECIFIED PATH DOES NOT INCLUDE THE
+      KERNEL SOURCES, BUT ONLY THE 'USER' SOURCES THE COMPILER MIGHT GENERATE
+      THE FOLLOWING MESSAGE: "#warning Using kernel headers in userspace"
+
+ - Install the driver (type "make install" in the directory containing the
+   makefile)
+
+
+--------------------------------------------------------------------------------
+- 4. Setup network interface
+--------------------------------------------------------------------------------
+ 
+ Before you can use the network interface, you have to enable it (bring the 
+ interface up). You can do it manually or automatic during system start.
+
+ - To bring up the interface manually, and set a static or dynamic IP address
+   you have to execute some commands at the console. See the examples below.
+   These settings are not persistent and each time the system is restarted
+   you have to apply this again.
+   
+   Example of bringing up the interface with static IP address 192.168.1.1:
+       ifconfig eth1 192.168.1.1 up
+   Example of bringing up the interface and use DHCP to get an IP address:
+        ifconfig eth1 up
+        dhclient eth1
+    Replace "eth1" by the name of the interface in your system.
+
+ - You can configure a network device so the interface is setup during system
+   start. How to configure this is distribution dependent. Below is a short
+   description for some distributions. Refer to your distribution 
+   documentation for details.
+   
+   For Debian/Ubuntu and deratives you should add the new network interface to
+   the file /etc/network/interfaces. You could for example add the following
+   two lines to bring the network interface up automatically at boot time and
+   get an IP address via DHCP:
+       auto eth1
+       iface eth1 inet dhcp
+   Replace "eth1" by the name of the interface in your system.
+   
+   For RHEL/CentOs you create a new file in /etc/sysconfig/network-scripts
+   with for example this content:
+       DEVICE=eth1
+       BOOTPROTO=dhcp
+       HWADDR=<MAC address, run "/sbin/ifconfig -a" to find this>
+       ONBOOT=yes
+   Again, replace "eth1" by the name of the network interface and fill in
+   HWADDR as appropriate.
+
+   For VLAN setup, see the 
+   'Application note DT-AN-IP-2: VLAN for DekTec Network Adapters'
+   
+   If the default VLAN name type is not set to DEV_PLUS_VID_NOPAD 'eth0.vlanid'
+   the user need read rights to the following directory: /proc/net/vlan/config
+   
+--------------------------------------------------------------------------------
+- 5. Advanced setup
+--------------------------------------------------------------------------------
+
+The DtaNw driver supports some advanced features that can be enabled/disabled.
+
+These features can be set using a tool such as ethtool. The changes you make
+with this tool are not persistent. Some distributions supports the
+ETHTOOL_OPTS line in the network configuration files to apply these options
+during system boot. See the distribution documentation for details.
+
+The advanced features are:
+
+ - Network Speed/Duplex: You can force the network speed and duplex to a
+   specified speed and duplex or set it back to auto-negotiation (default).
+   Example:
+     Force the speed to 100Mb full-duplex:
+        ethtool -s eth1 speed 100 duplex full autoneg off
+     Enable auto-negotiation:
+        ethtool -s eth1 autoneg on
+     Replace "eth1" by the name of the interface in your system.
+
+- Task Offloading: If enabled for transmit, the IP, UDP and TCP checksum
+  generation is performed by hardware. If enabled for receive the IP, UDP
+  and TCP checksum checking is performed by hardware. This feature is
+  enabled by default if supported. Only supported by the DTA-2162.
+  Example:
+    Disable hardware checksum checking:
+        ethtool -K eth1 rx off
+    Disable hardware checksum generation:
+        ethtool -K eth1 tx off
+    Display current offload status:
+        ethtool -k eth1
+    Replace "eth1" by the name of the interface in your system.
+
+- Frame Check Sequence(FCS). If enabled, the ethernet checksum is added at the
+  end of each ethernet packet. Tools such as Wireshark can make use of it to
+  indicate the correctness of the complete ethernet packet. This option
+  is disabled by default.
+  Remark: It's possible that the ethtool does not support enabling the FCS.
+  You can also enable this feature by setting the module parameter 
+  'g_DtaNwEnableFCS' to 1 during driver load.
+
+
+--------------------------------------------------------------------------------
+- 6. Usage
+--------------------------------------------------------------------------------
+
+The DtPcieNw driver is a network driver that can be used for network communication
+like a regular network card.
+
+To use the proprietary interfaces of the card, DekTec provides the
+DTAPI wrapper library. The DTAPI hides the complexities of the network
+protocols in a few easy-to-use classes. The DTAPI is included in the Linux SDK.
+
+
+--------------------------------------------------------------------------------
+- 7. Contact Information
+--------------------------------------------------------------------------------
+
+Please find our contact information below:
+
+DekTec Digital Video B.V.
+Godelindeweg 4
+1217 HR Hilversum
+The Netherlands
+
+Tel:        +31 (0)35 2030 100
+email:      support@dektec.com / info@dektec.com
+website:    www.dektec.com

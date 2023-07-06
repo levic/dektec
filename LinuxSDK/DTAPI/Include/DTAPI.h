@@ -7,10 +7,10 @@
 #define __DTAPI_H
 
 // DTAPI version
-#define DTAPI_VERSION_MAJOR        5
-#define DTAPI_VERSION_MINOR        51
-#define DTAPI_VERSION_BUGFIX       8
-#define DTAPI_VERSION_BUILD        212
+#define DTAPI_VERSION_MAJOR        6
+#define DTAPI_VERSION_MINOR        0
+#define DTAPI_VERSION_BUGFIX       1
+#define DTAPI_VERSION_BUILD        213
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -79,12 +79,14 @@
 #endif
 
 // STL includes
-#include <limits>
 #include <list>
 #include <map>
+#include <memory>
 #include <string>
-#include <time.h>       // For timespec
 #include <vector>
+#include <time.h>       // For timespec
+#include <limits>
+#include <functional>
 
 // When creating a DLL under Windows, disable warnings related to exporting STL
 // instantiations in classes.
@@ -106,7 +108,7 @@
 //.-.-.-.-.-.-.-.-.-.-.- Unsupported Visual Studio Versions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 #ifdef _MSC_VER
-#if (_MSC_VER<=1800)
+#if (_MSC_VER<=1900)
     #pragma message("ERROR: This version of Visual Studio is not supported") 
 #endif
 #endif
@@ -127,6 +129,9 @@ namespace Dtapi
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forward declarations -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 class AdvDemod;
+class IAdvDemod2;
+class CidReceiverImpl;
+class CidEventQueueImpl;
 class DemodInpChannel_Bb2;
 class DtaPlusDevice;
 class DtAtsc3Pars;
@@ -143,7 +148,9 @@ class DtOutpChannel;
 class DtSdiUtility;
 class FrameBufImpl;
 class IDevice;
+class IDevice2;
 class IDtDemodEvent;
+class IInpChannel2;
 class InpChannel;
 class IXpMutex;
 class MplpHelper;
@@ -253,6 +260,7 @@ public:
 
 public:
     int  GetCapIndex() const;
+    bool HasCaps(const DtCaps& Caps) const { return (*this&Caps) == Caps; }
     std::string  ToString() const;
     DtCaps  operator & (const DtCaps& Caps) const;
     DtCaps&  operator &= (const DtCaps& Caps);
@@ -500,8 +508,8 @@ private:
 #define DTAPI_CAP_MUTE              Dtapi::DtCaps(180) // Mute RF output signal
 #define DTAPI_CAP_ROLLOFF           Dtapi::DtCaps(181) // Adjustable roll-off factor
 #define DTAPI_CAP_S2APSK            Dtapi::DtCaps(182) // DVB-S2 16-APSK/32-APSK
-#define DTAPI_CAP_SNR               Dtapi::DtCaps(183) // Noise insertion
-#define DTAPI_CAP_SNR_GAUSSIAN      Dtapi::DtCaps(184) // AWGN insertion
+#define DTAPI_CAP_SNR               Dtapi::DtCaps(183) // Uniform noise insertion
+#define DTAPI_CAP_SNR_GAUSSIAN      Dtapi::DtCaps(184) // AWGN noise insertion
 #define DTAPI_CAP_TX_16MHZ          Dtapi::DtCaps(185) // 16MHz bandwidth mode
 #define DTAPI_CAP_TX_SFN            Dtapi::DtCaps(186) // SNF operation
 
@@ -775,7 +783,8 @@ enum DtDriverId
   DRV_ID_DTU,                       // Dtu driver
   DRV_ID_DTANW,                     // DtaNw driver    
   DRV_ID_DTANWAP,                   // DtaNwAp
-  DRV_ID_DTPCIENW                   // DtPcieNw driver
+  DRV_ID_DTPCIENW,                  // DtPcieNw driver
+  DRV_ID_DTBB2                      // DtBb2 driver
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDriverVersionInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -815,11 +824,11 @@ struct DtDtaPlusDeviceDesc
 //
 struct DtDvbCidPars
 {
-    bool  m_Enable;             // Enable DVB-CID signalling
-    bool  m_MuteDvbS2;          // Mute the satellite signal
-    bool  m_OverrideGuid;       // Use user specified GUID.
-    unsigned int  m_GuidHigh;   // DVB-CID Global Unique Identifier MSBs
-    unsigned int  m_GuidLow;    // DVB-CID Global Unique Identifier LSBs
+    bool  m_Enable{0};             // Enable DVB-CID signalling
+    bool  m_MuteDvbS2{0};          // Mute the satellite signal
+    bool  m_OverrideGuid{0};       // Use user specified GUID.
+    unsigned int  m_GuidHigh{0};   // DVB-CID Global Unique Identifier MSBs
+    unsigned int  m_GuidLow{0};    // DVB-CID Global Unique Identifier LSBs
    
     // CID content. Key: Content ID (0...31); Value: Content information (24-bit)
     // Content ID 0 (carrier ID format) shall have the value 0x0001
@@ -1553,9 +1562,7 @@ struct DtPar
 
     // Assignment operator
     DtPar&  operator = (const DtPar&);
-
-private:
-    // No implementation is provided for the copy constructor
+    // Copy constructor
     DtPar(const DtPar&);
 };
 
@@ -2158,6 +2165,11 @@ struct DtTunePars
             int  m_IfNotch;         // Enable IF notch; DTAPI_TUN31_NOTCH_x
             int  m_IfNotchToRssi;   // Enable IF notch to RSSI; DTAPI_TUN31_NOTCH_x
         } m_Dta2131TunePars;
+        // DTU-331 specific tuner parameters
+        struct {
+            int  m_TunerStandard;   // DTAPI_TUNMOD_xxx
+            int  m_TunerBandwidth;  // Tuning bandwidth in Hz
+        } m_SdrFrontEndTunePars;
     } u;
 };
 
@@ -3020,142 +3032,163 @@ struct DtTimeOfDayState
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDevice -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// Class representing a DekTec Device
+// Represents a DekTec device, which can be a PCI card (DTA-1nn), PCI Express card
+// (DTA-2nnn), USB module (DTU-3nn), or a networked device (DTE-31nn).
+//
+// This class provides comprehensive functionality to interact with the device, including
+// device attachment/detachment, firmware and driver info retrieval, I/O configurations, 
+// device state checking, genlock state, GPS status, power status, license points, fan 
+// speed, temperature, VCXO state, LED control, rebooting firmware, event callbacks, 
+// license management, and VPD read/write operations.
 //
 class DtDevice
 {
-    // Constructor, destructor
+    // Public API.
+public:
+    virtual int Category(void);
+    virtual int ChanType(int Port);
+    virtual int FirmwareVersion(void);
+    virtual int FwPackageVersion();
+    virtual DtFirmwareStatus FwPackageStatus();
+    virtual bool IsAttached(void) const;
+    virtual int TypeNumber(void) const;
+    virtual bool HasCaps(int Port, const DtCaps Caps) const;
+
+    // Attaches DtDevice object to a DTE-31nn device using its IP address.
+    virtual DTAPI_RESULT AttachToIpAddr(unsigned char Ip[4]);
+
+    // Attaches DtDevice object to the hardware using its serial number.
+    virtual DTAPI_RESULT AttachToSerial(__int64 SerialNumber);
+
+    // Attaches DtDevice object to a PCI card via PCI bus and slot number.
+    virtual DTAPI_RESULT AttachToSlot(int PciBusNumber, int SlotNumber);
+
+    // Attaches a DtDevice object to the hardware using its type number.
+    virtual DTAPI_RESULT AttachToType(int TypeNumber, int DeviceNo=0);
+
+    virtual DTAPI_RESULT ClearGpsErrors();
+    virtual DTAPI_RESULT Detach(void);
+    virtual DTAPI_RESULT DetectIoStd(int Port, int& Value, int& SubValue);
+    virtual DTAPI_RESULT FlashDisplay(int NumFlashes=5, int OnTime=100, int OffTime=100);
+    virtual DTAPI_RESULT GetAttribute(int AttrId, int& AttrValue);
+    virtual DTAPI_RESULT GetAttribute(int Port, int AttrId, int& AttrValue);
+    virtual DTAPI_RESULT GetAttribute(int Port, int AttrId, DtModPars&, int& AttrValue);
+    virtual DTAPI_RESULT GetDescriptor(DtDeviceDesc& DvcDesc);
+    virtual DTAPI_RESULT GetDeviceDriverVersion(int& Major, int& Minor, int& BugFix,
+                                                                              int& Build);
+    virtual DTAPI_RESULT GetDisplayName(wchar_t* pName);
+    virtual DTAPI_RESULT GetDisplayName(char* pName);
+    virtual DTAPI_RESULT GetFailsafeAlive(int Port, bool& Alive);
+    virtual DTAPI_RESULT GetFailsafeConfig(int Port, bool& Enable, int& Timeout);
+    virtual DTAPI_RESULT GetFanSpeed(int Fan, int& Rpm);
+    virtual DTAPI_RESULT GetFirmwareVariant(int& FirmwareVariant);
+    virtual DTAPI_RESULT GetFirmwarePackageDesc(DtFirmwarePackageDesc&);
+    virtual DTAPI_RESULT GetFirmwareVersion(int& FirmwareVersion);
+    virtual DTAPI_RESULT GetFwPackageVersion(int& FwPackVersion);
+    virtual DTAPI_RESULT GetTemperature(int TempSens, int& Temp);
+    virtual DTAPI_RESULT GetGenlockState(DtGenlockState&);
+    virtual DTAPI_RESULT GetGenlockState(int& State, int& RefVidStd, int& DetVidStd);
+    virtual DTAPI_RESULT GetGenlockState(int& State, int& RefVidStd);
+    virtual DTAPI_RESULT GetGenlockState(int& State);
+    virtual DTAPI_RESULT GetGpsStatus(int& Status, int& Error);
+    virtual DTAPI_RESULT GetGpsTime(int& GpsTime);
+    virtual DTAPI_RESULT GetIoConfig(DtIoConfig& IoCfg);
+    virtual DTAPI_RESULT GetIoConfig(int Port, int Group, int& Value);
+    virtual DTAPI_RESULT GetIoConfig(int Port, int Group, int& Value, int& SubValue);
+    virtual DTAPI_RESULT GetIoConfig(int Port, int Group, int& Value, int& SubValue,
+                                                                       __int64& ParXtra0);
+    virtual DTAPI_RESULT GetIoConfig(int Port, int Group, int& Value, int& SubValue,
+                                                    __int64& ParXtra0, __int64& ParXtra1);
+    virtual DTAPI_RESULT GetNumLicensePoints(DtAudEncStd, int& NumPoints);
+    virtual DTAPI_RESULT GetNumLicensePoints(DtAudEncStd AudEncStd, int PortNr, 
+                                  int& NumPoints, int& NumUsedPoints, int& NumFreePoints);
+    virtual DTAPI_RESULT GetNwSpeed(int Port, bool& Enable, int& Speed);
+    virtual DTAPI_RESULT GetPowerStatus(int& Status);
+    virtual DTAPI_RESULT GetRefClkCnt(int& RefClkCnt);
+    virtual DTAPI_RESULT GetRefClkCnt(__uint64& RefClkCnt);
+    virtual DTAPI_RESULT GetRefClkCnt(int& RefClkCnt, int& RefClkFreqHz);
+    virtual DTAPI_RESULT GetRefClkCnt(__uint64& RefClkCnt, int& RefClkFreqHz);
+    virtual DTAPI_RESULT GetRefClkFreq(int& RefClkFreqHz);
+    virtual DTAPI_RESULT GetStateFlags(int Port, int &StateFlags);
+    virtual DTAPI_RESULT GetTimeOfDay(DtTimeOfDay&) const;
+    virtual DTAPI_RESULT GetTimeOfDayState(DtTimeOfDayState&) const;
+    virtual DTAPI_RESULT GetTxClockProperties(std::vector<DtTxClockProperties>&) const;
+    virtual DTAPI_RESULT GetTxClockOffset(int TxClockId, double& OffsetPpm) const;
+    virtual DTAPI_RESULT GetUsbSpeed(int& UsbSpeed);
+    virtual DTAPI_RESULT GetVcxoState(bool& Enable, int& Lock, int& VcxoClkFreqHz);
+    virtual DTAPI_RESULT HwFuncScan(int NumEntries, int& NumEntriesResult,
+                                                                  DtHwFuncDesc* pHwFuncs);
+
+    // Checks the operational status of the specified port, determining its readiness for
+    // transmitting and receiving data streams.
+    virtual DTAPI_RESULT IsNetworkCardOperational(int Port,
+                            bool CheckIpV4=true, bool CheckIpV6=true, int VlanId=0) const;
+
+    virtual DTAPI_RESULT LedControl(int LedControl);
+    static DTAPI_RESULT RebootFirmware(__int64 SerialNumber);
+    virtual DTAPI_RESULT RegisterCallback(pDtEventCallback Callback, void* pContext,
+                                                       int EventTypes, void** pId = NULL);
+    virtual DTAPI_RESULT SetDisplayName(wchar_t* pName);
+    virtual DTAPI_RESULT SetDisplayName (char* pName);
+    virtual DTAPI_RESULT SetFailsafeAlive(int Port);
+    virtual DTAPI_RESULT SetFailsafeConfig(int Port, bool Enable, int Timeout);
+    static DTAPI_RESULT SetFirmwareVariant(__int64 SerialNumber, int FwVariant, 
+                                                                    bool CheckOnly=false);
+    virtual DTAPI_RESULT SetIoConfig(int Port, int Group, int Value, int SubValue = -1,
+                                            __int64 ParXtra0 = -1, __int64 ParXtra1 = -1);
+    virtual DTAPI_RESULT SetIoConfig(DtIoConfig* pIoConfigs, int Count);
+    virtual DTAPI_RESULT SetLicenseFromFile(const std::wstring& LicFilename, 
+                                                                        bool Force=false);
+    virtual DTAPI_RESULT SetLicenseFromString(const std::wstring& LicString,
+                                                                        bool Force=false);
+    virtual DTAPI_RESULT SetNwSpeed(int Port, bool Enable, int Speed);
+    virtual DTAPI_RESULT SetTxClockOffset(int TxClockId, double OffsetPpm);
+    virtual DTAPI_RESULT SetVcxoState(bool Enable, int Value);
+    virtual DTAPI_RESULT SfpReadSerialId(int Port, int StartAddr, int NumToRead, 
+                                                                  unsigned char* pBuffer);
+    virtual DTAPI_RESULT UnregisterCallback(void* pId);
+    virtual DTAPI_RESULT VpdDelete(const char* pTag);
+    virtual DTAPI_RESULT VpdDelete(const wchar_t* pTag);
+    virtual DTAPI_RESULT VpdRead(const char* pTag, char* pVpdItem);
+    virtual DTAPI_RESULT VpdRead(const wchar_t* pTag, wchar_t* pVpdItem);
+    virtual DTAPI_RESULT VpdRead(const char* pTag, char* pVpdItem, int& ItemSize);
+    virtual DTAPI_RESULT VpdRead(const wchar_t* pTag, char* pVpdItem, int& ItemSize);
+    virtual DTAPI_RESULT VpdWrite(const char* pTag, char* pVpdItem);
+    virtual DTAPI_RESULT VpdWrite(const wchar_t* pTag, wchar_t* pVpdItem);
+    virtual DTAPI_RESULT VpdWrite(const char* pTag, char* pVpdItem, int ItemSize);
+    virtual DTAPI_RESULT VpdWrite(const wchar_t* pTag, char* pVpdItem, int ItemSize);
+
+    // Constructor, destructor.
 public:
     DtDevice();
     virtual ~DtDevice();
 private:
-    // No implementation is provided for the copy constructor
+    // No implementation is provided for the copy constructor.
     DtDevice(const DtDevice&);
 
-    // Public access functions
-public:
-    virtual int  Category(void);
-    virtual int  ChanType(int Port);
-    virtual int  FirmwareVersion(void);
-    virtual int  FwPackageVersion();
-    virtual DtFirmwareStatus  FwPackageStatus();
-    virtual bool  IsAttached(void) const;
-    virtual int  TypeNumber(void) const;
-    virtual bool  HasCaps(int  Port, const DtCaps  Caps) const;
-
-    // Public member functions
-public:
-    virtual DTAPI_RESULT  AttachToIpAddr(unsigned char Ip[4]);
-    virtual DTAPI_RESULT  AttachToSerial(__int64 SerialNumber);
-    virtual DTAPI_RESULT  AttachToSlot(int PciBusNumber, int SlotNumber);
-    virtual DTAPI_RESULT  AttachToType(int TypeNumber, int DeviceNo=0);
-    virtual DTAPI_RESULT  ClearGpsErrors();
-    virtual DTAPI_RESULT  Detach(void);
-    virtual DTAPI_RESULT  DetectIoStd(int  Port, int& Value, int& SubValue);
-    virtual DTAPI_RESULT  FlashDisplay(int NumFlashes=5, int OnTime=100, int OffTime=100);
-    virtual DTAPI_RESULT  GetAttribute(int AttrId, int& AttrValue);
-    virtual DTAPI_RESULT  GetAttribute(int Port, int AttrId, int& AttrValue);
-    virtual DTAPI_RESULT  GetAttribute(int Port, int AttrId, DtModPars& ModParVals, 
-                                                                          int& AttrValue);
-    virtual DTAPI_RESULT  GetDescriptor(DtDeviceDesc& DvcDesc);
-    virtual DTAPI_RESULT  GetDeviceDriverVersion(int& Major, int& Minor, int& BugFix,
-                                                                              int& Build);
-    virtual DTAPI_RESULT  GetDisplayName(wchar_t* pName);
-    virtual DTAPI_RESULT  GetDisplayName(char* pName);
-    virtual DTAPI_RESULT  GetFailsafeAlive(int Port, bool& Alive);
-    virtual DTAPI_RESULT  GetFailsafeConfig(int Port, bool& Enable, int& Timeout);
-    virtual DTAPI_RESULT  GetFanSpeed(int Fan, int& Rpm);
-    virtual DTAPI_RESULT  GetFirmwareVariant(int& FirmwareVariant);
-    virtual DTAPI_RESULT  GetFirmwarePackageDesc(DtFirmwarePackageDesc& FwPackageDesc);
-    virtual DTAPI_RESULT  GetFirmwareVersion(int& FirmwareVersion);
-    virtual DTAPI_RESULT  GetFwPackageVersion(int& FwPackVersion);
-    virtual DTAPI_RESULT  GetTemperature(int TempSens, int& Temp);
-    virtual DTAPI_RESULT  GetGenlockState(DtGenlockState&);
-    virtual DTAPI_RESULT  GetGenlockState(int& State, int& RefVidStd, int& DetVidStd);
-    virtual DTAPI_RESULT  GetGenlockState(int& State, int& RefVidStd);
-    virtual DTAPI_RESULT  GetGenlockState(int& State);
-    virtual DTAPI_RESULT  GetGpsStatus(int& Status, int& Error);
-    virtual DTAPI_RESULT  GetGpsTime(int& GpsTime);
-    virtual DTAPI_RESULT  GetIoConfig(DtIoConfig& IoCfg);
-    virtual DTAPI_RESULT  GetIoConfig(int Port, int Group, int& Value);
-    virtual DTAPI_RESULT  GetIoConfig(int Port, int Group, int& Value, int& SubValue);
-    virtual DTAPI_RESULT  GetIoConfig(int Port, int Group, int& Value, int& SubValue,
-                                                                       __int64& ParXtra0);
-    virtual DTAPI_RESULT  GetIoConfig(int Port, int Group, int& Value, int& SubValue,
-                                                    __int64& ParXtra0, __int64& ParXtra1);
-    virtual DTAPI_RESULT  GetNumLicensePoints(DtAudEncStd, int& NumPoints);
-    virtual DTAPI_RESULT  GetNumLicensePoints(DtAudEncStd AudEncStd, int PortNr, 
-                                  int& NumPoints, int& NumUsedPoints, int& NumFreePoints);
-    virtual DTAPI_RESULT  GetNwSpeed(int Port, bool& Enable, int& Speed);
-    virtual DTAPI_RESULT  GetPowerStatus(int& Status);
-    virtual DTAPI_RESULT  GetRefClkCnt(int& RefClkCnt);
-    virtual DTAPI_RESULT  GetRefClkCnt(__uint64& RefClkCnt);
-    virtual DTAPI_RESULT  GetRefClkCnt(int& RefClkCnt, int& RefClkFreqHz);
-    virtual DTAPI_RESULT  GetRefClkCnt(__uint64& RefClkCnt, int& RefClkFreqHz);
-    virtual DTAPI_RESULT  GetRefClkFreq(int&  RefClkFreqHz);
-    virtual DTAPI_RESULT  GetStateFlags(int  Port, int  &StateFlags);
-    virtual DTAPI_RESULT  GetTimeOfDay(DtTimeOfDay&) const;
-    virtual DTAPI_RESULT  GetTimeOfDayState(DtTimeOfDayState&) const;
-    virtual DTAPI_RESULT  GetTxClockProperties(std::vector<DtTxClockProperties>&  
-                                                                        TxClkProps) const;
-    virtual DTAPI_RESULT  GetTxClockOffset(int  TxClockId, double& OffsetPpm) const;
-
-    virtual DTAPI_RESULT  GetUsbSpeed(int& UsbSpeed);
-    virtual DTAPI_RESULT  GetVcxoState(bool& Enable, int& Lock, int& VcxoClkFreqHz);
-    virtual DTAPI_RESULT  HwFuncScan(int NumEntries, int& NumEntriesResult,
-                                                                  DtHwFuncDesc* pHwFuncs);
-    virtual DTAPI_RESULT  LedControl(int LedControl);
-    static  DTAPI_RESULT  RebootFirmware(__int64 SerialNumber);
-    virtual DTAPI_RESULT  RegisterCallback(pDtEventCallback Callback, void* pContext,
-                                                       int EventTypes, void** pId = NULL);
-    virtual DTAPI_RESULT  SetDisplayName(wchar_t* pName);
-    virtual DTAPI_RESULT  SetDisplayName (char* pName);
-    virtual DTAPI_RESULT  SetFailsafeAlive(int Port);
-    virtual DTAPI_RESULT  SetFailsafeConfig(int Port, bool Enable, int Timeout);
-    static  DTAPI_RESULT  SetFirmwareVariant(__int64 SerialNumber, int FwVariant, 
-                                                                    bool CheckOnly=false);
-    virtual DTAPI_RESULT  SetIoConfig(int Port, int Group, int Value, int SubValue = -1,
-                                            __int64 ParXtra0 = -1, __int64 ParXtra1 = -1);
-    virtual DTAPI_RESULT  SetIoConfig(DtIoConfig* pIoConfigs, int Count);
-    virtual DTAPI_RESULT  SetLicenseFromFile(const std::wstring& LicFilename, 
-                                                                        bool Force=false);
-    virtual DTAPI_RESULT  SetLicenseFromString(const std::wstring& LicString,
-                                                                        bool Force=false);
-    virtual DTAPI_RESULT  SetNwSpeed(int Port, bool Enable, int Speed);
-    virtual DTAPI_RESULT  SetTxClockOffset(int  TxClockId, double OffsetPpm);
-    virtual DTAPI_RESULT  SetVcxoState(bool Enable, int Value);
-    virtual DTAPI_RESULT  UnregisterCallback(void* pId);
-    virtual DTAPI_RESULT  VpdDelete(const char* pTag);
-    virtual DTAPI_RESULT  VpdDelete(const wchar_t* pTag);
-    virtual DTAPI_RESULT  VpdRead(const char* pTag, char* pVpdItem);
-    virtual DTAPI_RESULT  VpdRead(const wchar_t* pTag, wchar_t* pVpdItem);
-    virtual DTAPI_RESULT  VpdRead(const char*  pTag, char* pVpdItem, int& ItemSize);
-    virtual DTAPI_RESULT  VpdRead(const wchar_t*  pTag, char* pVpdItem, int& ItemSize);
-    virtual DTAPI_RESULT  VpdWrite(const char* pTag, char* pVpdItem);
-    virtual DTAPI_RESULT  VpdWrite(const wchar_t* pTag, wchar_t* pVpdItem);
-    virtual DTAPI_RESULT  VpdWrite(const char* pTag, char* pVpdItem, int ItemSize);
-    virtual DTAPI_RESULT  VpdWrite(const wchar_t* pTag, char* pVpdItem, int ItemSize);
-
 protected:
-    virtual void  LoadDeviceData();
+    virtual void LoadDeviceData();
 private:
-    static void  DtEventCallback(int Event, DtEventArgs* pArgs);
+    static void DtEventCallback(int Event, DtEventArgs* pArgs);
 
     // Public attributes
 public:
-    DtDeviceDesc  m_DvcDesc;        // Device descriptor, initialized in attach
-    DtHwFuncDesc*  m_pHwf;          // Hardware functions, initialized in attach
+    DtDeviceDesc m_DvcDesc;         // Device descriptor, initialized in attach
+    DtHwFuncDesc* m_pHwf;           // Hardware functions, initialized in attach
     
     // Implementation data
 private:
-    std::list<void*>  m_EventSubscriberList;
+    std::list<void*> m_EventSubscriberList;
+    DTAPI_RESULT HwFuncScanBb2(int NumEntries, int& NumEntriesResult, DtHwFuncDesc*);
 
     // Friends
-    friend class  DtInpChannel;
-    friend class  DtOutpChannel;
+    friend class DtInpChannel;
+    friend class DtOutpChannel;
 
-public:                             // TODOSD should be protected
-    IDevice*  m_pDev;
+public:
+    bool IsBb2() const;
+    IDevice* m_pDev;
+    std::unique_ptr<IDevice2> Bb2Dev;
 };
 
 // Attribute identifiers
@@ -3290,6 +3323,7 @@ private:
 #define DTAPI_NWSPEED_100MB_FULL    4
 #define DTAPI_NWSPEED_1GB_MASTER    5
 #define DTAPI_NWSPEED_1GB_SLAVE     6
+#define DTAPI_NWSPEED_10GB          7
 
 // Microcode upload states
 #define DTAPI_UCODE_NOT_LOADED      0
@@ -3316,7 +3350,7 @@ public:
 public:
     int  Category(void)         { return m_HwFuncDesc.m_DvcDesc.m_Category; }
     int  FirmwareVersion(void)  { return m_HwFuncDesc.m_DvcDesc.m_FirmwareVersion; }
-    bool  IsAttached(void)      { return m_pInp != NULL; }
+    bool  IsAttached(void)      { return m_pInp!=nullptr || Bb2Inp!=nullptr; }
     int  TypeNumber(void)       { return m_HwFuncDesc.m_DvcDesc.m_TypeNumber; }
     bool  HasCaps(const DtCaps  Caps) const 
     { 
@@ -3443,8 +3477,9 @@ private:
     bool  m_WantToDetach;
 
 public:                             // TODOSD should be protected
+    bool IsBb2() const;
     InpChannel*  m_pInp;            // Input channel implementation
-    
+    std::unique_ptr<IInpChannel2> Bb2Inp;
 // Private helper functions
 private:
     DTAPI_RESULT  DetachLock(void);
@@ -3578,6 +3613,8 @@ private:
 #define DTAPI_TUNMOD_ISDBT          0x3
 #define DTAPI_TUNMOD_DVBT           0x4
 #define DTAPI_TUNMOD_DMBT           0x5
+#define DTAPI_TUNMOD_QAMB           0x6
+#define DTAPI_TUNMOD_DVBS           0x7
 
 // Tuner Parameters - DTA-2131 specific - Value for automatic computation of parameters
 #define DTAPI_TUN31_AUTO            -1           // According to tuner standard
@@ -3942,8 +3979,9 @@ private:
 #define DTAPI_RX_DATA_ERR           0x0080
 #define DTAPI_RX_DRV_BUF_OVF        0x0100
 #define DTAPI_RX_SYNTAX_ERR         0x0200
+#define DTAPI_RX_CPU_OVF            0x0400
 
-// Single Frequency Network status andd error flags
+// Single Frequency Network status and error flags
 #define DTAPI_SFN_IN_SYNC           0x0001
 #define DTAPI_SFN_TOO_EARLY_ERR     0x0001
 #define DTAPI_SFN_TOO_LATE_ERR      0x0002
@@ -4033,9 +4071,11 @@ private:
 #define DTAPI_UPCONV_SPECINV        0x100        // Can be OR-ed with other RF modes
 
 // USB speed modes
+#define DTAPI_USB_UNKNOWN_SPEED    -1
 #define DTAPI_USB_FULL_SPEED        0
 #define DTAPI_USB_HIGH_SPEED        1
 #define DTAPI_USB_SUPER_SPEED       2
+#define DTAPI_USB_SUPER_SPEED_PLUS  3
 
 // PCIe standards
 #define DTAPI_PCIE_GEN_UNKNOWN      0       // PCIe Gen is unknown
@@ -4233,9 +4273,9 @@ private:
 #define DTAPI_MOD_S2_CONST_MSK      0xC0         // Mask for constellation shape
 
 // Modulation parameters - DVB-S(X) - ParXtra1 - Modulator to be used for DVB-S2
-#define DTAPI_MOD_S2_MOD_MSK        0x30000     // Mask for modulator usage
-#define DTAPI_MOD_S2_MOD_AUTO       0x00000     // Modulator depends on modcod and rolloff
-#define DTAPI_MOD_S2_MOD_S2X        0x10000     // DVB-S2X modulator is used for DVB-S2
+#define DTAPI_MOD_S2_MOD_MSK        0x30000      // Mask for modulator usage
+#define DTAPI_MOD_S2_MOD_AUTO       0x00000      // Modulator depends on modcod and rolloff
+#define DTAPI_MOD_S2_MOD_S2X        0x10000      // DVB-S2X modulator is used for DVB-S2
 
 // Modulation parameters - ISDB-S - Input stream
 #define DTAPI_MOD_ISDBS_STREAMTYPE_RAW   0x00    // Raw stream with TMCC in sync bytes
@@ -4700,11 +4740,12 @@ protected:
 #define DTAPI_SCALING_1_16          3
 
 // Symbol filter mode
-#define DTAPI_SYMFLT_ALL            0       // YCbCr sample (CbYCrY order)
-#define DTAPI_SYMFLT_LUM            1       // Luminance only (Y) 
-#define DTAPI_SYMFLT_CHROM          2       // Chrominance only (CbCr)
-#define DTAPI_SYMFLT_SWAP           3       // Swap order of lum and chrom (i.e. YCbYCr)
-#define DTAPI_SYMFLT_RGB            4       // Convert to/from RGB
+#define DTAPI_SYMFLT_ALL            0            // YCbCr sample (CbYCrY order)
+#define DTAPI_SYMFLT_LUM            1            // Luminance only (Y) 
+#define DTAPI_SYMFLT_CHROM          2            // Chrominance only (CbCr)
+#define DTAPI_SYMFLT_SWAP           3            // Swap order of luminance and 
+                                                 // chrominance (i.e. YCbYCr)
+#define DTAPI_SYMFLT_RGB            4            // Convert to/from RGB
 
 // Ancillary filter mode
 #define DTAPI_ANCFLT_OFF            0
@@ -4957,290 +4998,292 @@ private:
 #define DTAPI_OK_TAINTED_FW         4
 #define DTAPI_OK_OBSOLETE_FW        5
 #define DTAPI_OK_UNLIC_FWVARIANT    6
-#define DTAPI_E                     0x1000
-#define DTAPI_E_ATTACHED            (DTAPI_E + 0)
-#define DTAPI_E_BUF_TOO_SMALL       (DTAPI_E + 1)
-#define DTAPI_E_DEV_DRIVER          (DTAPI_E + 2)
-#define DTAPI_E_EEPROM_FULL         (DTAPI_E + 3)
-#define DTAPI_E_EEPROM_READ         (DTAPI_E + 4)
-#define DTAPI_E_EEPROM_WRITE        (DTAPI_E + 5)
-#define DTAPI_E_EEPROM_FORMAT       (DTAPI_E + 6)
-#define DTAPI_E_FIFO_FULL           (DTAPI_E + 7)
-#define DTAPI_E_IN_USE              (DTAPI_E + 8)
-#define DTAPI_E_INVALID_BUF         (DTAPI_E + 9)
-#define DTAPI_E_INVALID_FLAGS       (DTAPI_E + 11)
-#define DTAPI_E_INVALID_MODE        (DTAPI_E + 12)
-#define DTAPI_E_INVALID_RATE        (DTAPI_E + 13)
-#define DTAPI_E_INVALID_SIZE        (DTAPI_E + 14)
-#define DTAPI_E_KEYWORD             (DTAPI_E + 15)
-#define DTAPI_E_NO_DEVICE           (DTAPI_E + 16)
-#define DTAPI_E_NO_LOOPBACK         (DTAPI_E + 17)
-#define DTAPI_E_NO_SUCH_DEVICE      (DTAPI_E + 18)
-#define DTAPI_E_NO_SUCH_OUTPUT      (DTAPI_E + 19)
-#define DTAPI_E_NO_DT_OUTPUT        (DTAPI_E + 20)
-#define DTAPI_E_NO_TS_OUTPUT        (DTAPI_E + 20)
-#define DTAPI_E_NOT_ATTACHED        (DTAPI_E + 21)
-#define DTAPI_E_NOT_FOUND           (DTAPI_E + 22)
-#define DTAPI_E_NOT_SUPPORTED       (DTAPI_E + 23)
-#define DTAPI_E_DEVICE              (DTAPI_E + 24)
-#define DTAPI_E_TOO_LONG            (DTAPI_E + 25)
-#define DTAPI_E_UNDERFLOW           (DTAPI_E + 26)
-#define DTAPI_E_NO_SUCH_INPUT       (DTAPI_E + 27)
-#define DTAPI_E_NO_DT_INPUT         (DTAPI_E + 28)
-#define DTAPI_E_NO_TS_INPUT         (DTAPI_E + 28)
-#define DTAPI_E_DRIVER_INCOMP       (DTAPI_E + 29)
-#define DTAPI_E_INTERNAL            (DTAPI_E + 30)
-#define DTAPI_E_OUT_OF_MEM          (DTAPI_E + 31)
-#define DTAPI_E_INVALID_J83ANNEX    (DTAPI_E + 32)
-#define DTAPI_E_IDLE                (DTAPI_E + 33)
-#define DTAPI_E_INSUF_LOAD          (DTAPI_E + 34)
-#define DTAPI_E_INVALID_BANDWIDTH   (DTAPI_E + 35)
-#define DTAPI_E_INVALID_CONSTEL     (DTAPI_E + 36)
-#define DTAPI_E_INVALID_GUARD       (DTAPI_E + 37)
-#define DTAPI_E_INVALID_INTERLVNG   (DTAPI_E + 38)
-#define DTAPI_E_INVALID_TRANSMODE   (DTAPI_E + 39)
-#define DTAPI_E_INVALID_TSTYPE      (DTAPI_E + 40)
-#define DTAPI_E_NO_IPPARS           (DTAPI_E + 41)
-#define DTAPI_E_NO_TSRATE           (DTAPI_E + 42)
-#define DTAPI_E_NOT_IDLE            (DTAPI_E + 43)
-#define DTAPI_E_INVALID_ARG         (DTAPI_E + 44)
-#define DTAPI_E_NW_DRIVER           (DTAPI_E + 45)
-#define DTAPI_E_DST_MAC_ADDR        (DTAPI_E + 46)
-#define DTAPI_E_NO_SUCH_PORT        (DTAPI_E + 47)
-#define DTAPI_E_WINSOCK             (DTAPI_E + 48)
-#define DTAPI_E_MULTICASTJOIN       (DTAPI_E + 49)
-#define DTAPI_E_EMBEDDED            (DTAPI_E + 50)
-#define DTAPI_E_LOCKED              (DTAPI_E + 51)
-#define DTAPI_E_NO_VALID_CALDATA    (DTAPI_E + 52)
-#define DTAPI_E_NO_LINK             (DTAPI_E + 53)
-#define DTAPI_E_INVALID_HEADER      (DTAPI_E + 54)
-#define DTAPI_E_INVALID_PARS        (DTAPI_E + 55)
-#define DTAPI_E_NOT_SDI_MODE        (DTAPI_E + 56)
-#define DTAPI_E_INCOMP_FRAME        (DTAPI_E + 57)
-#define DTAPI_E_UNSUP_CONV          (DTAPI_E + 58)
-#define DTAPI_E_OUTBUF_TOO_SMALL    (DTAPI_E + 59)
-#define DTAPI_E_CONFIG              (DTAPI_E + 60)
-#define DTAPI_E_TIMEOUT             (DTAPI_E + 61)
-#define DTAPI_E_INVALID_TIMEOUT     (DTAPI_E + 62)
-#define DTAPI_E_INVALID_FHMODE      (DTAPI_E + 63)
-#define DTAPI_E_INVALID_PILOTS      (DTAPI_E + 64)
-#define DTAPI_E_INVALID_USEFRAMENO  (DTAPI_E + 65)
-#define DTAPI_E_SYMRATE_REQD        (DTAPI_E + 66)
-#define DTAPI_E_NO_SYMRATE          (DTAPI_E + 67)
-#define DTAPI_E_INVALID_NUMSEGM     (DTAPI_E + 68)
-#define DTAPI_E_INVALID_NUMTAPS     (DTAPI_E + 69)
-#define DTAPI_E_COMMUNICATION       (DTAPI_E + 70)
-#define DTAPI_E_BIND                (DTAPI_E + 71)
-#define DTAPI_E_FRAME_INTERVAL      (DTAPI_E + 72)
-#define DTAPI_E_INVALID_BWT_EXT     (DTAPI_E + 73)
-#define DTAPI_E_INVALID_FFTMODE     (DTAPI_E + 74)
-#define DTAPI_E_INVALID_NUMDTSYM    (DTAPI_E + 75)
-#define DTAPI_E_INVALID_NUMT2FRM    (DTAPI_E + 76)
-#define DTAPI_E_INVALID_SUBCH       (DTAPI_E + 77)
-#define DTAPI_E_INVALID_TIME_IL     (DTAPI_E + 78)
-#define DTAPI_E_NUM_PLP             (DTAPI_E + 79)
-#define DTAPI_E_PLP_NUMBLOCKS       (DTAPI_E + 80)
-#define DTAPI_E_NUMPLPS_MUSTBE_1    (DTAPI_E + 81)
-#define DTAPI_E_INBAND              (DTAPI_E + 82)
-#define DTAPI_E_ISSY                (DTAPI_E + 83)
-#define DTAPI_E_OTHER_PLP_IN_BAND   (DTAPI_E + 84)
-#define DTAPI_E_CM_NUMPATHS         (DTAPI_E + 85)
-#define DTAPI_E_PILOT_PATTERN       (DTAPI_E + 86)
-#define DTAPI_E_SUBSLICES           (DTAPI_E + 87)
-#define DTAPI_E_NO_GENREF           (DTAPI_E + 88)
-#define DTAPI_E_TI_MEM_OVF          (DTAPI_E + 89)
-#define DTAPI_E_FEF                 (DTAPI_E + 90)
-#define DTAPI_E_UNSUP_FORMAT        (DTAPI_E + 91)
-#define DTAPI_E_OUT_OF_SYNC         (DTAPI_E + 92)
-#define DTAPI_E_NO_FRAME            (DTAPI_E + 93)
-#define DTAPI_E_NO_SUCH_DATA        (DTAPI_E + 94)
-#define DTAPI_E_INVALID_TYPE        (DTAPI_E + 95)
-#define DTAPI_E_INVALID_MODPARS     (DTAPI_E + 96)
-#define DTAPI_E_BIAS_BAL_CELLS      (DTAPI_E + 97)
-#define DTAPI_E_COMMON_PLP_COUNT    (DTAPI_E + 98)
-#define DTAPI_E_PLP_ID              (DTAPI_E + 99)
-#define DTAPI_E_BUFS                (DTAPI_E + 100)
-#define DTAPI_E_FIXED_CELL_PARS     (DTAPI_E + 101)
-#define DTAPI_E_CM_CHANNEL          (DTAPI_E + 102)
-#define DTAPI_E_INVALID_FIFO_IDX    (DTAPI_E + 103)
-#define DTAPI_E_INVALID_INP_TYPE    (DTAPI_E + 104)
-#define DTAPI_E_INVALID_OUTP_TYPE   (DTAPI_E + 105)
-#define DTAPI_E_INVALID_START_FREQ  (DTAPI_E + 106)
-#define DTAPI_E_DSLICE_TUNE_POS     (DTAPI_E + 107)
-#define DTAPI_E_DSLICE_OFFSETS      (DTAPI_E + 108)
-#define DTAPI_E_DSLICE_OVERLAP      (DTAPI_E + 109)
-#define DTAPI_E_NOTCH_OFFSETS       (DTAPI_E + 110)
-#define DTAPI_E_PLP_BUNDLED         (DTAPI_E + 111)
-#define DTAPI_E_BROADBAND_NOTCH     (DTAPI_E + 112)
-#define DTAPI_E_L1_PART2_TOO_LONG   (DTAPI_E + 113)
-#define DTAPI_E_DSLICE_T1_NDP       (DTAPI_E + 114)
-#define DTAPI_E_DSLICE_T1_TSRATE    (DTAPI_E + 115)
-#define DTAPI_E_CONNECT_TO_SERVICE  (DTAPI_E + 116)
-#define DTAPI_E_INVALID_SYMRATE     (DTAPI_E + 117)
-#define DTAPI_E_MODPARS_NOT_SET     (DTAPI_E + 118)
-#define DTAPI_E_SERVICE_INCOMP      (DTAPI_E + 119)
-#define DTAPI_E_INVALID_LEVEL       (DTAPI_E + 120)
-#define DTAPI_E_MODTYPE_UNSUP       (DTAPI_E + 121)
-#define DTAPI_E_I2C_LOCK_TIMEOUT    (DTAPI_E + 122)
-#define DTAPI_E_INVALID_FREQ        (DTAPI_E + 123)
-#define DTAPI_E_INVALID_TSRATESEL   (DTAPI_E + 124)
-#define DTAPI_E_INVALID_SPICLKSEL   (DTAPI_E + 125)
-#define DTAPI_E_INVALID_SPIMODE     (DTAPI_E + 126)
-#define DTAPI_E_NOT_INITIALIZED     (DTAPI_E + 127)
-#define DTAPI_E_NOT_LOCKED          (DTAPI_E + 128)
-#define DTAPI_E_NO_PERMISSION       (DTAPI_E + 129)
-#define DTAPI_E_CANCELLED           (DTAPI_E + 130)
-#define DTAPI_E_OUT_OF_RESOURCES    (DTAPI_E + 131)
-#define DTAPI_E_LISTEN              (DTAPI_E + 132)
-#define DTAPI_E_INVALID_STREAMFMT   (DTAPI_E + 133)
-#define DTAPI_E_EVENT_POWER         (DTAPI_E + 134)
-#define DTAPI_E_EVENT_REMOVAL       (DTAPI_E + 135)
-#define DTAPI_E_UNSUP_ROLLOFF       (DTAPI_E + 136)
-#define DTAPI_E_T2_LITE             (DTAPI_E + 137)
-#define DTAPI_E_COMP_OVERLAP        (DTAPI_E + 138)
-#define DTAPI_E_MULTI_COMPS         (DTAPI_E + 139)
-#define DTAPI_E_INVALID_ISI         (DTAPI_E + 140)
-#define DTAPI_E_FIRMW_INCOMP        (DTAPI_E + 141)
-#define DTAPI_E_INVALID_MODTYPE     (DTAPI_E + 142)
-#define DTAPI_E_NO_VIDSTD           (DTAPI_E + 143)
-#define DTAPI_E_INVALID_VIDSTD      (DTAPI_E + 144)
-#define DTAPI_E_INVALID_AUDSTD      (DTAPI_E + 145)
-#define DTAPI_E_INVALID_SCALING     (DTAPI_E + 146)
-#define DTAPI_E_INVALID_ROW         (DTAPI_E + 147)
-#define DTAPI_E_NOT_STARTED         (DTAPI_E + 148)
-#define DTAPI_E_STARTED             (DTAPI_E + 149)
-#define DTAPI_E_INVALID_LINE        (DTAPI_E + 150)
-#define DTAPI_E_INVALID_STREAM      (DTAPI_E + 151)
-#define DTAPI_E_INVALID_ANC         (DTAPI_E + 152)
-#define DTAPI_E_INVALID_FRAME       (DTAPI_E + 153)
-#define DTAPI_E_NOT_IMPLEMENTED     (DTAPI_E + 154)
-#define DTAPI_E_INVALID_CHANNEL     (DTAPI_E + 155)
-#define DTAPI_E_INVALID_GROUP       (DTAPI_E + 156)
-#define DTAPI_E_INVALID_FORMAT      (DTAPI_E + 157)
-#define DTAPI_E_INVALID_FIELD       (DTAPI_E + 158)
-#define DTAPI_E_BUF_TOO_LARGE       (DTAPI_E + 159)
-#define DTAPI_E_INVALID_DELAY       (DTAPI_E + 160)
-#define DTAPI_E_EXCL_MANDATORY      (DTAPI_E + 161)
-#define DTAPI_E_INVALID_ROLLOFF     (DTAPI_E + 162)
-#define DTAPI_E_CM_UNSUP            (DTAPI_E + 163)
-#define DTAPI_E_I2C                 (DTAPI_E + 164)
-#define DTAPI_E_STATE               (DTAPI_E + 165)
-#define DTAPI_E_NO_LOCK             (DTAPI_E + 166)
-#define DTAPI_E_RANGE               (DTAPI_E + 167)
-#define DTAPI_E_INVALID_T2PROFILE   (DTAPI_E + 168)
-#define DTAPI_E_DSLICE_ID           (DTAPI_E + 169)
-#define DTAPI_E_EXCL_ACCESS_REQD    (DTAPI_E + 170)
-#define DTAPI_E_CHAN_ALREADY_ADDED  (DTAPI_E + 171)
-#define DTAPI_E_LAYER_ID            (DTAPI_E + 172)
-#define DTAPI_E_INVALID_FECMODE     (DTAPI_E + 173)
-#define DTAPI_E_INVALID_PORT        (DTAPI_E + 174)
-#define DTAPI_E_INVALID_PROTOCOL    (DTAPI_E + 175)
-#define DTAPI_E_INVALID_FEC_MATRIX  (DTAPI_E + 176)
-#define DTAPI_E_INVALID_IP_ADDR     (DTAPI_E + 177)
-#define DTAPI_E_INVALID_SRCIP_ADDR  (DTAPI_E + 178)
-#define DTAPI_E_IPV6_NOT_SUPPORTED  (DTAPI_E + 179)
-#define DTAPI_E_INVALID_DIFFSERV    (DTAPI_E + 180)
-#define DTAPI_E_INVALID_FOR_ACM     (DTAPI_E + 181)
-#define DTAPI_E_NWAP_DRIVER         (DTAPI_E + 182)
-#define DTAPI_E_INIT_ERROR          (DTAPI_E + 183)
-#define DTAPI_E_NOT_USB3            (DTAPI_E + 184)
-#define DTAPI_E_INSUF_BW            (DTAPI_E + 185)
-#define DTAPI_E_NO_ANC_DATA         (DTAPI_E + 186)
-#define DTAPI_E_MATRIX_HALTED       (DTAPI_E + 187)
-#define DTAPI_E_VLAN_NOT_FOUND      (DTAPI_E + 188)
-#define DTAPI_E_NO_ADAPTER_IP_ADDR  (DTAPI_E + 189)
-#define DTAPI_E_INVALID_BTYPE       (DTAPI_E + 190)
-#define DTAPI_E_INVALID_PARTIAL     (DTAPI_E + 191)
-#define DTAPI_E_INVALID_NUMTS       (DTAPI_E + 192)
-#define DTAPI_E_INVALID             (DTAPI_E + 193)
-#define DTAPI_E_NO_RS422            (DTAPI_E + 194)
-#define DTAPI_E_FECFRAMESIZE        (DTAPI_E + 195)
-#define DTAPI_E_SFN_NOT_SUPPORTED   (DTAPI_E + 196)
-#define DTAPI_E_SFN_INVALID_MODE    (DTAPI_E + 197)
-#define DTAPI_E_SFN_INVALID_OFFSET  (DTAPI_E + 198)
-#define DTAPI_E_SFN_DISABLED        (DTAPI_E + 199)
-#define DTAPI_E_SFN_INVALID_TIMEDIFF (DTAPI_E + 200)
-#define DTAPI_E_NO_GPSCLKREF        (DTAPI_E + 201)
-#define DTAPI_E_NO_GPSSYNC          (DTAPI_E + 202)
-#define DTAPI_E_INVALID_PROFILE     (DTAPI_E + 203)
-#define DTAPI_E_INVALID_LINKSTD     (DTAPI_E + 204)
-#define DTAPI_E_FRAMERATE_MISMATCH  (DTAPI_E + 205)
-#define DTAPI_E_CID_INVALID_ID      (DTAPI_E + 206)
-#define DTAPI_E_CID_INVALID_INFO    (DTAPI_E + 207)
-#define DTAPI_E_CID_INVALID_FORMAT  (DTAPI_E + 208)
-#define DTAPI_E_CID_NOT_SUPPORTED   (DTAPI_E + 209)
-#define DTAPI_E_INVALID_SAMPRATE    (DTAPI_E + 210)
-#define DTAPI_E_MULTIMOD_UNSUP      (DTAPI_E + 211)
-#define DTAPI_E_NUM_CHAN            (DTAPI_E + 212)
-#define DTAPI_E_INVALID_TIME        (DTAPI_E + 213)
-#define DTAPI_E_INVALID_LINK        (DTAPI_E + 214)
-#define DTAPI_E_TUNING              (DTAPI_E + 215)
-#define DTAPI_E_BUSY                (DTAPI_E + 216)
-#define DTAPI_E_ENC_TYPE_NOTSET     (DTAPI_E + 217)
-#define DTAPI_E_INITIALIZING        (DTAPI_E + 218)
-#define DTAPI_E_INVALID_ENC_TYPE    (DTAPI_E + 219)
-#define DTAPI_E_LICENSE             (DTAPI_E + 220)
-#define DTAPI_E_NO_ENCODER          (DTAPI_E + 221)
-#define DTAPI_E_NO_POWER            (DTAPI_E + 222)
-#define DTAPI_E_PASSTHROUGH_INV     (DTAPI_E + 223)
-#define DTAPI_E_PASSTHROUGH_ONLY    (DTAPI_E + 224)
-#define DTAPI_E_RX_RATE_OVF         (DTAPI_E + 225)
-#define DTAPI_E_IN_ERROR_STATE      (DTAPI_E + 226)
-#define DTAPI_E_XML_SYNTAX          (DTAPI_E + 227)
-#define DTAPI_E_XML_ELEM            (DTAPI_E + 228)
-#define DTAPI_E_FAN_FAIL            (DTAPI_E + 229)
-#define DTAPI_E_RESTART_REQD        (DTAPI_E + 230)
-#define DTAPI_E_TOO_MANY_SEGM       (DTAPI_E + 231)
-#define DTAPI_E_FILE_OPEN           (DTAPI_E + 232)
-#define DTAPI_E_INVALID_EAS         (DTAPI_E + 233)
-#define DTAPI_E_INVALID_CRED        (DTAPI_E + 234)
-#define DTAPI_E_INVALID_PARITY      (DTAPI_E + 235)
-#define DTAPI_E_INVALID_PAPR        (DTAPI_E + 236)
-#define DTAPI_E_INVALID_FRAMEMODE   (DTAPI_E + 237)
-#define DTAPI_E_INVALID_FRAMELENGTH (DTAPI_E + 238)
-#define DTAPI_E_NUM_SUBFRAMES       (DTAPI_E + 239)
-#define DTAPI_E_PILOT_BOOST         (DTAPI_E + 240)
-#define DTAPI_E_NUM_SYMBOLS         (DTAPI_E + 241)
-#define DTAPI_E_INVALID_LAYER       (DTAPI_E + 242)
-#define DTAPI_E_INVALID_CODERATE    (DTAPI_E + 243)
-#define DTAPI_E_INVALID_FECTYPE     (DTAPI_E + 244)
-#define DTAPI_E_INVALID_NUM_INPUTS  (DTAPI_E + 245)
-#define DTAPI_E_INVALID_VERSION     (DTAPI_E + 246)
-#define DTAPI_E_INVALID_LDM_LEVEL   (DTAPI_E + 247)
-#define DTAPI_E_INVALID_MISO        (DTAPI_E + 248)
-#define DTAPI_E_INVALID_PLP_TYPE    (DTAPI_E + 249)
-#define DTAPI_E_NUM_SUBSLICES       (DTAPI_E + 250)
-#define DTAPI_E_SUBSLICE_INTERVAL   (DTAPI_E + 251)
-#define DTAPI_E_INVALID_HTI_PARS    (DTAPI_E + 252)
-#define DTAPI_E_PREAMBLE_PAR_COMBI  (DTAPI_E + 253)
-#define DTAPI_E_INVALID_PLP_SIZE    (DTAPI_E + 254)
-#define DTAPI_E_INVALID_PLP_START   (DTAPI_E + 255)
-#define DTAPI_E_INVALID_PLP_REF     (DTAPI_E + 256)
-#define DTAPI_E_INVALID_TXID_INJ    (DTAPI_E + 257)
-#define DTAPI_E_INVALID_TXID        (DTAPI_E + 258)
-#define DTAPI_E_INVALID_BSID        (DTAPI_E + 259)
-#define DTAPI_E_INVALID_BONDING     (DTAPI_E + 260)
-#define DTAPI_E_UNSUP_CPP_VERS      (DTAPI_E + 261)
-#define DTAPI_E_STAT_NOTAVAIL       (DTAPI_E + 262)
-#define DTAPI_E_TAINTED_FW          (DTAPI_E + 263)
-#define DTAPI_E_OBSOLETE_FW         (DTAPI_E + 264)
-#define DTAPI_E_PLP_COLLISION       (DTAPI_E + 265)
-#define DTAPI_E_PLP_NOT_FOUND       (DTAPI_E + 266)
-#define DTAPI_E_CONFIG_AUDIO        (DTAPI_E + 267)
-#define DTAPI_E_CONFIG_AUX          (DTAPI_E + 268)
-#define DTAPI_E_CONFIG_AUX_ANC      (DTAPI_E + 269)
-#define DTAPI_E_CONFIG_AUX_LINE21   (DTAPI_E + 270)
-#define DTAPI_E_CONFIG_AUX_RAWVBI   (DTAPI_E + 271)
-#define DTAPI_E_CONFIG_AUX_TELETEXT (DTAPI_E + 272)
-#define DTAPI_E_CONFIG_AUX_VIDINDEX (DTAPI_E + 273)
-#define DTAPI_E_CONFIG_AUX_VITC     (DTAPI_E + 274)
-#define DTAPI_E_CONFIG_AUX_VPID     (DTAPI_E + 275)
-#define DTAPI_E_CONFIG_AUX_WSS      (DTAPI_E + 276)
-#define DTAPI_E_CONFIG_RAW          (DTAPI_E + 277)
-#define DTAPI_E_CONFIG_RAW_SDI      (DTAPI_E + 278)
-#define DTAPI_E_CONFIG_VIDEO        (DTAPI_E + 279)
-#define DTAPI_E_CONFIG_VIDEO_WEAVE  (DTAPI_E + 280)
-#define DTAPI_E_CONFIG_VIDEO_ZEROCOPY  (DTAPI_E + 281)
+#define DTAPI_E                     0x1000       // 4096
+#define DTAPI_E_ATTACHED            0x1000       // 4096
+#define DTAPI_E_BUF_TOO_SMALL       0x1001       // 4097
+#define DTAPI_E_DEV_DRIVER          0x1002       // 4098
+#define DTAPI_E_EEPROM_FULL         0x1003       // 4099
+#define DTAPI_E_EEPROM_READ         0x1004       // 4100
+#define DTAPI_E_EEPROM_WRITE        0x1005       // 4101
+#define DTAPI_E_EEPROM_FORMAT       0x1006       // 4102
+#define DTAPI_E_FIFO_FULL           0x1007       // 4103
+#define DTAPI_E_IN_USE              0x1008       // 4104
+#define DTAPI_E_INVALID_BUF         0x1009       // 4105
+#define DTAPI_E_INVALID_FLAGS       0x100B       // 4107
+#define DTAPI_E_INVALID_MODE        0x100C       // 4108
+#define DTAPI_E_INVALID_RATE        0x100D       // 4109
+#define DTAPI_E_INVALID_SIZE        0x100E       // 4110
+#define DTAPI_E_KEYWORD             0x100F       // 4111
+#define DTAPI_E_NO_DEVICE           0x1010       // 4112
+#define DTAPI_E_NO_LOOPBACK         0x1011       // 4113
+#define DTAPI_E_NO_SUCH_DEVICE      0x1012       // 4114
+#define DTAPI_E_NO_SUCH_OUTPUT      0x1013       // 4115
+#define DTAPI_E_NO_DT_OUTPUT        0x1014       // 4116
+#define DTAPI_E_NO_TS_OUTPUT        0x1014       // 4116
+#define DTAPI_E_NOT_ATTACHED        0x1015       // 4117
+#define DTAPI_E_NOT_FOUND           0x1016       // 4118
+#define DTAPI_E_NOT_SUPPORTED       0x1017       // 4119
+#define DTAPI_E_DEVICE              0x1018       // 4120
+#define DTAPI_E_TOO_LONG            0x1019       // 4121
+#define DTAPI_E_UNDERFLOW           0x101A       // 4122
+#define DTAPI_E_NO_SUCH_INPUT       0x101B       // 4123
+#define DTAPI_E_NO_DT_INPUT         0x101C       // 4124
+#define DTAPI_E_NO_TS_INPUT         0x101C       // 4124
+#define DTAPI_E_DRIVER_INCOMP       0x101D       // 4125
+#define DTAPI_E_INTERNAL            0x101E       // 4126
+#define DTAPI_E_OUT_OF_MEM          0x101F       // 4127
+#define DTAPI_E_INVALID_J83ANNEX    0x1020       // 4128
+#define DTAPI_E_IDLE                0x1021       // 4129
+#define DTAPI_E_INSUF_LOAD          0x1022       // 4130
+#define DTAPI_E_INVALID_BANDWIDTH   0x1023       // 4131
+#define DTAPI_E_INVALID_CONSTEL     0x1024       // 4132
+#define DTAPI_E_INVALID_GUARD       0x1025       // 4133
+#define DTAPI_E_INVALID_INTERLVNG   0x1026       // 4134
+#define DTAPI_E_INVALID_TRANSMODE   0x1027       // 4135
+#define DTAPI_E_INVALID_TSTYPE      0x1028       // 4136
+#define DTAPI_E_NO_IPPARS           0x1029       // 4137
+#define DTAPI_E_NO_TSRATE           0x102A       // 4138
+#define DTAPI_E_NOT_IDLE            0x102B       // 4139
+#define DTAPI_E_INVALID_ARG         0x102C       // 4140
+#define DTAPI_E_NW_DRIVER           0x102D       // 4141
+#define DTAPI_E_DST_MAC_ADDR        0x102E       // 4142
+#define DTAPI_E_NO_SUCH_PORT        0x102F       // 4143
+#define DTAPI_E_WINSOCK             0x1030       // 4144
+#define DTAPI_E_MULTICASTJOIN       0x1031       // 4145
+#define DTAPI_E_EMBEDDED            0x1032       // 4146
+#define DTAPI_E_LOCKED              0x1033       // 4147
+#define DTAPI_E_NO_VALID_CALDATA    0x1034       // 4148
+#define DTAPI_E_NO_LINK             0x1035       // 4149
+#define DTAPI_E_INVALID_HEADER      0x1036       // 4150
+#define DTAPI_E_INVALID_PARS        0x1037       // 4151
+#define DTAPI_E_NOT_SDI_MODE        0x1038       // 4152
+#define DTAPI_E_INCOMP_FRAME        0x1039       // 4153
+#define DTAPI_E_UNSUP_CONV          0x103A       // 4154
+#define DTAPI_E_OUTBUF_TOO_SMALL    0x103B       // 4155
+#define DTAPI_E_CONFIG              0x103C       // 4156
+#define DTAPI_E_TIMEOUT             0x103D       // 4157
+#define DTAPI_E_INVALID_TIMEOUT     0x103E       // 4158
+#define DTAPI_E_INVALID_FHMODE      0x103F       // 4159
+#define DTAPI_E_INVALID_PILOTS      0x1040       // 4160
+#define DTAPI_E_INVALID_USEFRAMENO  0x1041       // 4161
+#define DTAPI_E_SYMRATE_REQD        0x1042       // 4162
+#define DTAPI_E_NO_SYMRATE          0x1043       // 4163
+#define DTAPI_E_INVALID_NUMSEGM     0x1044       // 4164
+#define DTAPI_E_INVALID_NUMTAPS     0x1045       // 4165
+#define DTAPI_E_COMMUNICATION       0x1046       // 4166
+#define DTAPI_E_BIND                0x1047       // 4167
+#define DTAPI_E_FRAME_INTERVAL      0x1048       // 4168
+#define DTAPI_E_INVALID_BWT_EXT     0x1049       // 4169
+#define DTAPI_E_INVALID_FFTMODE     0x104A       // 4170
+#define DTAPI_E_INVALID_NUMDTSYM    0x104B       // 4171
+#define DTAPI_E_INVALID_NUMT2FRM    0x104C       // 4172
+#define DTAPI_E_INVALID_SUBCH       0x104D       // 4173
+#define DTAPI_E_INVALID_TIME_IL     0x104E       // 4174
+#define DTAPI_E_NUM_PLP             0x104F       // 4175
+#define DTAPI_E_PLP_NUMBLOCKS       0x1050       // 4176
+#define DTAPI_E_NUMPLPS_MUSTBE_1    0x1051       // 4177
+#define DTAPI_E_INBAND              0x1052       // 4178
+#define DTAPI_E_ISSY                0x1053       // 4179
+#define DTAPI_E_OTHER_PLP_IN_BAND   0x1054       // 4180
+#define DTAPI_E_CM_NUMPATHS         0x1055       // 4181
+#define DTAPI_E_PILOT_PATTERN       0x1056       // 4182
+#define DTAPI_E_SUBSLICES           0x1057       // 4183
+#define DTAPI_E_NO_GENREF           0x1058       // 4184
+#define DTAPI_E_TI_MEM_OVF          0x1059       // 4185
+#define DTAPI_E_FEF                 0x105A       // 4186
+#define DTAPI_E_UNSUP_FORMAT        0x105B       // 4187
+#define DTAPI_E_OUT_OF_SYNC         0x105C       // 4188
+#define DTAPI_E_NO_FRAME            0x105D       // 4189
+#define DTAPI_E_NO_SUCH_DATA        0x105E       // 4190
+#define DTAPI_E_INVALID_TYPE        0x105F       // 4191
+#define DTAPI_E_INVALID_MODPARS     0x1060       // 4192
+#define DTAPI_E_BIAS_BAL_CELLS      0x1061       // 4193
+#define DTAPI_E_COMMON_PLP_COUNT    0x1062       // 4194
+#define DTAPI_E_PLP_ID              0x1063       // 4195
+#define DTAPI_E_BUFS                0x1064       // 4196
+#define DTAPI_E_FIXED_CELL_PARS     0x1065       // 4197
+#define DTAPI_E_CM_CHANNEL          0x1066       // 4198
+#define DTAPI_E_INVALID_FIFO_IDX    0x1067       // 4199
+#define DTAPI_E_INVALID_INP_TYPE    0x1068       // 4200
+#define DTAPI_E_INVALID_OUTP_TYPE   0x1069       // 4201
+#define DTAPI_E_INVALID_START_FREQ  0x106A       // 4202
+#define DTAPI_E_DSLICE_TUNE_POS     0x106B       // 4203
+#define DTAPI_E_DSLICE_OFFSETS      0x106C       // 4204
+#define DTAPI_E_DSLICE_OVERLAP      0x106D       // 4205
+#define DTAPI_E_NOTCH_OFFSETS       0x106E       // 4206
+#define DTAPI_E_PLP_BUNDLED         0x106F       // 4207
+#define DTAPI_E_BROADBAND_NOTCH     0x1070       // 4208
+#define DTAPI_E_L1_PART2_TOO_LONG   0x1071       // 4209
+#define DTAPI_E_DSLICE_T1_NDP       0x1072       // 4210
+#define DTAPI_E_DSLICE_T1_TSRATE    0x1073       // 4211
+#define DTAPI_E_CONNECT_TO_SERVICE  0x1074       // 4212
+#define DTAPI_E_INVALID_SYMRATE     0x1075       // 4213
+#define DTAPI_E_MODPARS_NOT_SET     0x1076       // 4214
+#define DTAPI_E_SERVICE_INCOMP      0x1077       // 4215
+#define DTAPI_E_INVALID_LEVEL       0x1078       // 4216
+#define DTAPI_E_MODTYPE_UNSUP       0x1079       // 4217
+#define DTAPI_E_I2C_LOCK_TIMEOUT    0x107A       // 4218
+#define DTAPI_E_INVALID_FREQ        0x107B       // 4219
+#define DTAPI_E_INVALID_TSRATESEL   0x107C       // 4220
+#define DTAPI_E_INVALID_SPICLKSEL   0x107D       // 4221
+#define DTAPI_E_INVALID_SPIMODE     0x107E       // 4222
+#define DTAPI_E_NOT_INITIALIZED     0x107F       // 4223
+#define DTAPI_E_NOT_LOCKED          0x1080       // 4224
+#define DTAPI_E_NO_PERMISSION       0x1081       // 4225
+#define DTAPI_E_CANCELLED           0x1082       // 4226
+#define DTAPI_E_OUT_OF_RESOURCES    0x1083       // 4227
+#define DTAPI_E_LISTEN              0x1084       // 4228
+#define DTAPI_E_INVALID_STREAMFMT   0x1085       // 4229
+#define DTAPI_E_EVENT_POWER         0x1086       // 4230
+#define DTAPI_E_EVENT_REMOVAL       0x1087       // 4231
+#define DTAPI_E_UNSUP_ROLLOFF       0x1088       // 4232
+#define DTAPI_E_T2_LITE             0x1089       // 4233
+#define DTAPI_E_COMP_OVERLAP        0x108A       // 4234
+#define DTAPI_E_MULTI_COMPS         0x108B       // 4235
+#define DTAPI_E_INVALID_ISI         0x108C       // 4236
+#define DTAPI_E_FIRMW_INCOMP        0x108D       // 4237
+#define DTAPI_E_INVALID_MODTYPE     0x108E       // 4238
+#define DTAPI_E_NO_VIDSTD           0x108F       // 4239
+#define DTAPI_E_INVALID_VIDSTD      0x1090       // 4240
+#define DTAPI_E_INVALID_AUDSTD      0x1091       // 4241
+#define DTAPI_E_INVALID_SCALING     0x1092       // 4242
+#define DTAPI_E_INVALID_ROW         0x1093       // 4243
+#define DTAPI_E_NOT_STARTED         0x1094       // 4244
+#define DTAPI_E_STARTED             0x1095       // 4245
+#define DTAPI_E_INVALID_LINE        0x1096       // 4246
+#define DTAPI_E_INVALID_STREAM      0x1097       // 4247
+#define DTAPI_E_INVALID_ANC         0x1098       // 4248
+#define DTAPI_E_INVALID_FRAME       0x1099       // 4249
+#define DTAPI_E_NOT_IMPLEMENTED     0x109A       // 4250
+#define DTAPI_E_INVALID_CHANNEL     0x109B       // 4251
+#define DTAPI_E_INVALID_GROUP       0x109C       // 4252
+#define DTAPI_E_INVALID_FORMAT      0x109D       // 4253
+#define DTAPI_E_INVALID_FIELD       0x109E       // 4254
+#define DTAPI_E_BUF_TOO_LARGE       0x109F       // 4255
+#define DTAPI_E_INVALID_DELAY       0x10A0       // 4256
+#define DTAPI_E_EXCL_MANDATORY      0x10A1       // 4257
+#define DTAPI_E_INVALID_ROLLOFF     0x10A2       // 4258
+#define DTAPI_E_CM_UNSUP            0x10A3       // 4259
+#define DTAPI_E_I2C                 0x10A4       // 4260
+#define DTAPI_E_STATE               0x10A5       // 4261
+#define DTAPI_E_NO_LOCK             0x10A6       // 4262
+#define DTAPI_E_RANGE               0x10A7       // 4263
+#define DTAPI_E_INVALID_T2PROFILE   0x10A8       // 4264
+#define DTAPI_E_DSLICE_ID           0x10A9       // 4265
+#define DTAPI_E_EXCL_ACCESS_REQD    0x10AA       // 4266
+#define DTAPI_E_CHAN_ALREADY_ADDED  0x10AB       // 4267
+#define DTAPI_E_LAYER_ID            0x10AC       // 4268
+#define DTAPI_E_INVALID_FECMODE     0x10AD       // 4269
+#define DTAPI_E_INVALID_PORT        0x10AE       // 4270
+#define DTAPI_E_INVALID_PROTOCOL    0x10AF       // 4271
+#define DTAPI_E_INVALID_FEC_MATRIX  0x10B0       // 4272
+#define DTAPI_E_INVALID_IP_ADDR     0x10B1       // 4273
+#define DTAPI_E_INVALID_SRCIP_ADDR  0x10B2       // 4274
+#define DTAPI_E_IPV6_NOT_SUPPORTED  0x10B3       // 4275
+#define DTAPI_E_INVALID_DIFFSERV    0x10B4       // 4276
+#define DTAPI_E_INVALID_FOR_ACM     0x10B5       // 4277
+#define DTAPI_E_NWAP_DRIVER         0x10B6       // 4278
+#define DTAPI_E_INIT_ERROR          0x10B7       // 4279
+#define DTAPI_E_NOT_USB3            0x10B8       // 4280
+#define DTAPI_E_INSUF_BW            0x10B9       // 4281
+#define DTAPI_E_NO_ANC_DATA         0x10BA       // 4282
+#define DTAPI_E_MATRIX_HALTED       0x10BB       // 4283
+#define DTAPI_E_VLAN_NOT_FOUND      0x10BC       // 4284
+#define DTAPI_E_NO_ADAPTER_IP_ADDR  0x10BD       // 4285
+#define DTAPI_E_INVALID_BTYPE       0x10BE       // 4286
+#define DTAPI_E_INVALID_PARTIAL     0x10BF       // 4287
+#define DTAPI_E_INVALID_NUMTS       0x10C0       // 4288
+#define DTAPI_E_INVALID             0x10C1       // 4289
+#define DTAPI_E_NO_RS422            0x10C2       // 4290
+#define DTAPI_E_FECFRAMESIZE        0x10C3       // 4291
+#define DTAPI_E_SFN_NOT_SUPPORTED   0x10C4       // 4292
+#define DTAPI_E_SFN_INVALID_MODE    0x10C5       // 4293
+#define DTAPI_E_SFN_INVALID_OFFSET  0x10C6       // 4294
+#define DTAPI_E_SFN_DISABLED        0x10C7       // 4295
+#define DTAPI_E_SFN_INVALID_TIMEDIFF 0x10C8      // 4296
+#define DTAPI_E_NO_GPSCLKREF        0x10C9       // 4297
+#define DTAPI_E_NO_GPSSYNC          0x10CA       // 4298
+#define DTAPI_E_INVALID_PROFILE     0x10CB       // 4299
+#define DTAPI_E_INVALID_LINKSTD     0x10CC       // 4300
+#define DTAPI_E_FRAMERATE_MISMATCH  0x10CD       // 4301
+#define DTAPI_E_CID_INVALID_ID      0x10CE       // 4302
+#define DTAPI_E_CID_INVALID_INFO    0x10CF       // 4303
+#define DTAPI_E_CID_INVALID_FORMAT  0x10D0       // 4304
+#define DTAPI_E_CID_NOT_SUPPORTED   0x10D1       // 4305
+#define DTAPI_E_INVALID_SAMPRATE    0x10D2       // 4306
+#define DTAPI_E_MULTIMOD_UNSUP      0x10D3       // 4307
+#define DTAPI_E_NUM_CHAN            0x10D4       // 4308
+#define DTAPI_E_INVALID_TIME        0x10D5       // 4309
+#define DTAPI_E_INVALID_LINK        0x10D6       // 4310
+#define DTAPI_E_TUNING              0x10D7       // 4311
+#define DTAPI_E_BUSY                0x10D8       // 4312
+#define DTAPI_E_ENC_TYPE_NOTSET     0x10D9       // 4313
+#define DTAPI_E_INITIALIZING        0x10DA       // 4314
+#define DTAPI_E_INVALID_ENC_TYPE    0x10DB       // 4315
+#define DTAPI_E_LICENSE             0x10DC       // 4316
+#define DTAPI_E_NO_ENCODER          0x10DD       // 4317
+#define DTAPI_E_NO_POWER            0x10DE       // 4318
+#define DTAPI_E_PASSTHROUGH_INV     0x10DF       // 4319
+#define DTAPI_E_PASSTHROUGH_ONLY    0x10E0       // 4320
+#define DTAPI_E_RX_RATE_OVF         0x10E1       // 4321
+#define DTAPI_E_IN_ERROR_STATE      0x10E2       // 4322
+#define DTAPI_E_XML_SYNTAX          0x10E3       // 4323
+#define DTAPI_E_XML_ELEM            0x10E4       // 4324
+#define DTAPI_E_FAN_FAIL            0x10E5       // 4325
+#define DTAPI_E_RESTART_REQD        0x10E6       // 4326
+#define DTAPI_E_TOO_MANY_SEGM       0x10E7       // 4327
+#define DTAPI_E_FILE_OPEN           0x10E8       // 4328
+#define DTAPI_E_INVALID_EAS         0x10E9       // 4329
+#define DTAPI_E_INVALID_CRED        0x10EA       // 4330
+#define DTAPI_E_INVALID_PARITY      0x10EB       // 4331
+#define DTAPI_E_INVALID_PAPR        0x10EC       // 4332
+#define DTAPI_E_INVALID_FRAMEMODE   0x10ED       // 4333
+#define DTAPI_E_INVALID_FRAMELENGTH 0x10EE       // 4334
+#define DTAPI_E_NUM_SUBFRAMES       0x10EF       // 4335
+#define DTAPI_E_PILOT_BOOST         0x10F0       // 4336
+#define DTAPI_E_NUM_SYMBOLS         0x10F1       // 4337
+#define DTAPI_E_INVALID_LAYER       0x10F2       // 4338
+#define DTAPI_E_INVALID_CODERATE    0x10F3       // 4339
+#define DTAPI_E_INVALID_FECTYPE     0x10F4       // 4340
+#define DTAPI_E_INVALID_NUM_INPUTS  0x10F5       // 4341
+#define DTAPI_E_INVALID_VERSION     0x10F6       // 4342
+#define DTAPI_E_INVALID_LDM_LEVEL   0x10F7       // 4343
+#define DTAPI_E_INVALID_MISO        0x10F8       // 4344
+#define DTAPI_E_INVALID_PLP_TYPE    0x10F9       // 4345
+#define DTAPI_E_NUM_SUBSLICES       0x10FA       // 4346
+#define DTAPI_E_SUBSLICE_INTERVAL   0x10FB       // 4347
+#define DTAPI_E_INVALID_HTI_PARS    0x10FC       // 4348
+#define DTAPI_E_PREAMBLE_PAR_COMBI  0x10FD       // 4349
+#define DTAPI_E_INVALID_PLP_SIZE    0x10FE       // 4350
+#define DTAPI_E_INVALID_PLP_START   0x10FF       // 4351
+#define DTAPI_E_INVALID_PLP_REF     0x1100       // 4352
+#define DTAPI_E_INVALID_TXID_INJ    0x1101       // 4353
+#define DTAPI_E_INVALID_TXID        0x1102       // 4354
+#define DTAPI_E_INVALID_BSID        0x1103       // 4355
+#define DTAPI_E_INVALID_BONDING     0x1104       // 4356
+#define DTAPI_E_UNSUP_CPP_VERS      0x1105       // 4357
+#define DTAPI_E_STAT_NOTAVAIL       0x1106       // 4358
+#define DTAPI_E_TAINTED_FW          0x1107       // 4359
+#define DTAPI_E_OBSOLETE_FW         0x1108       // 4360
+#define DTAPI_E_PLP_COLLISION       0x1109       // 4361
+#define DTAPI_E_PLP_NOT_FOUND       0x110A       // 4362
+#define DTAPI_E_CONFIG_AUDIO        0x110B       // 4363
+#define DTAPI_E_CONFIG_AUX          0x110C       // 4364
+#define DTAPI_E_CONFIG_AUX_ANC      0x110D       // 4365
+#define DTAPI_E_CONFIG_AUX_LINE21   0x110E       // 4366
+#define DTAPI_E_CONFIG_AUX_RAWVBI   0x110F       // 4367
+#define DTAPI_E_CONFIG_AUX_TELETEXT 0x1110       // 4368
+#define DTAPI_E_CONFIG_AUX_VIDINDEX 0x1111       // 4369
+#define DTAPI_E_CONFIG_AUX_VITC     0x1112       // 4370
+#define DTAPI_E_CONFIG_AUX_VPID     0x1113       // 4371
+#define DTAPI_E_CONFIG_AUX_WSS      0x1114       // 4372
+#define DTAPI_E_CONFIG_RAW          0x1115       // 4373
+#define DTAPI_E_CONFIG_RAW_SDI      0x1116       // 4374
+#define DTAPI_E_CONFIG_VIDEO        0x1117       // 4375
+#define DTAPI_E_CONFIG_VIDEO_WEAVE  0x1118       // 4376
+#define DTAPI_E_CONFIG_VIDEO_ZEROCOPY 0x1119     // 4377
+#define DTAPI_E_ALREADY_EXCL_ACCESS 0x111A       // 4378
+#define DTAPI_E_DISABLED            0x111B       // 4379
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+ DVB-C2, DVB-S2, DVB-T2, ISDB-Tmm Multi PLP Parameters +=+=+=+=+=+=+=+=+
@@ -5812,6 +5855,7 @@ struct DtAtsc3PlpInfo
     int  m_BbFramerate;             // Frame rate in BB-frames per second
     int  m_PlpBitrate;              // PLP bitrate in bits per second, excluding the
                                     // bbframe header, assuming a two byte position field.
+    int m_PlpSize;                  // Number of cells for the PLP
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAtsc3SubframeInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -7980,6 +8024,7 @@ enum DtStreamType
     STREAM_DVBC2_BBFRAME,           // DVB-C2 stream base-band frames
     STREAM_DVBC2_GSE,               // DVB-C2 stream GSE-packets
     STREAM_DVBS,                    // DVB-S stream
+    STREAM_DVBS2,                   // DVB-S2 stream
     STREAM_DVBT,                    // DVB-T stream
     STREAM_DVBT2,                   // DVB-T2 stream (Transport Stream packets)
     STREAM_DVBT2_BBFRAME,           // DVB-T2 stream base band frames
@@ -8175,6 +8220,7 @@ struct DtStreamSelPars
         DtQamStreamSelPars  m_Qam;
         DtDvbC2StreamSelPars  m_DvbC2;
         DtDvbSStreamSelPars  m_DvbS;
+        DtDvbS2StreamSelPars  m_DvbS2;
         DtDvbTStreamSelPars  m_DvbT;
         DtDvbT2StreamSelPars  m_DvbT2;
         DtIsdbtStreamSelPars  m_Isdbt;
@@ -8232,10 +8278,11 @@ public:
 
     // Convenience functions
 public:
-    int  Category(void)         { return m_HwFuncDesc.m_DvcDesc.m_Category; }
-    int  FirmwareVersion(void)  { return m_HwFuncDesc.m_DvcDesc.m_FirmwareVersion; }
-    bool  IsAttached(void)      { return m_pAdvDemod != NULL; }
-    int  TypeNumber(void)       { return m_HwFuncDesc.m_DvcDesc.m_TypeNumber; }
+    int  Category() const        { return m_HwFuncDesc.m_DvcDesc.m_Category; }
+    bool Exclusive() const;
+    int  FirmwareVersion() const { return m_HwFuncDesc.m_DvcDesc.m_FirmwareVersion; }
+    bool  IsAttached() const     { return m_pInpChan != NULL || AdvDemod2!=nullptr; }
+    int  TypeNumber() const      { return m_HwFuncDesc.m_DvcDesc.m_TypeNumber; }
 
 public:
     DTAPI_RESULT  AttachToPort(DtDevice* pDtDvc, int Port,
@@ -8287,6 +8334,8 @@ protected:
     AdvDemod*  m_pAdvDemod;         // Advanced demodulation channel implementation
     DemodInpChannel_Bb2*  m_pDemodInp;  // Demodulator input channel
     InpChannel*  m_pInpChan;            // Input channel
+    bool IsAdvDemod2() const;
+    std::unique_ptr<IAdvDemod2> AdvDemod2; // Advanced demodulation implementation
     bool  m_IsAttachedToVirtual;    // Attached to virtual input port?
 
     // Encapsulated data
@@ -9661,6 +9710,7 @@ public:
                                     // have no relation to each other.
                                     // Note: only valid when m_TxTimestampValid is true.
 
+
     // Raw data buffer
     bool m_RawDataValid;        // True, if the raw data is valid; False if invalid
     DtMxRawData  m_RawData;
@@ -9885,6 +9935,15 @@ public:
     // Default priority windows: THREAD_PRIORITY_HIGHEST
     // Default priority Linux: SCHED_FIFO 20
     DtMxSchedulingArgs  m_WorkerThreads;
+
+    // Number of worker threads the Matrix API should use. Valid values: 1..4, and -1.
+    // - For SD, HD, and 3G one worker is usually enough.
+    // - For 4k 4 threads is advised.
+    // 
+    // Note: a value of -1 means the API automatically chooses the appropriate number of 
+    // threads based on configured video standard.
+    int m_NumOfWorkerThreads=-1;
+
     // The callback threads are the ones that run the callback functions. The priority
     // of these threads depends on the kind of work the callback does. It should not
     // be higher than the priority of the worker threads.
@@ -11014,6 +11073,7 @@ DTAPI_RESULT  DtapiDtHwFuncDesc2String(DtHwFuncDesc* pHwFunc, int StringType,
 DTAPI_RESULT  DtapiDtHwFuncDesc2String(DtHwFuncDesc* pHwFunc, int StringType, 
                                                         wchar_t* pString, int StringSize);
 DTAPI_RESULT  DtapiGetDeviceDriverVersion(int, int&, int&, int&, int&);
+DTAPI_RESULT  DtapiGetDeviceDriverVersion(DtDriverId Id, DtDriverVersionInfo& Version);
 DTAPI_RESULT  DtapiGetDeviceDriverVersion(int DeviceCategory, 
                                         std::vector<DtDriverVersionInfo>& DriverVersions);
 DTAPI_RESULT  DtapiGetDtapiServiceVersion(int&, int&, int&, int&);
@@ -11155,6 +11215,309 @@ DTAPI_RESULT  DtapiDeinterlace(const DtPlaneDescVecT& In, DtMxPixelFormat FmtIn,
 DTAPI_RESULT  DtapiInterlace(const DtPlaneDescVecT& In, DtMxPixelFormat FmtIn,
                                             DtPlaneDescVecT& Out, DtMxPixelFormat FmtOut);
 
+                                            // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- CidTypeDefs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Describes the events that might occur during acquisition and/or decoding of a CID 
+// signal.
+enum class DtCidEventType
+{
+    ACQ_NEW,                // Acquisition has detected a new CID signal
+    NEW_FRAME,              // A CidDemod instance has received a new frame
+    ACQ_STATE_UPDATE,       // Acquisition state updates
+    DEMOD_LOCK_LOST,        // State updates from a CidDemod intance
+    QUEUE_OVERFLOW,         // EventQueue has reached max size, new events are discarded
+    HARDWARE_FIFO_OVERFLOW, // Performance issue, processing of samples from hardware
+                            // is too slow.
+    RECEIVER_BUF_OVERFLOW   // Performance issue, processing of samples from receiver
+                            // samplebuffer is too slow.
+};
+
+// Describes the states of the Acquisition algoritm
+enum class  DtCidAcqState
+{
+    NOT_STARTED,	// Acquisition has not yet started
+    PROCESSING,     // Acquisition is acquiering CID signals
+    FINISHED        // The required number of samples for all the signals to be detected,
+                    // have been processed.
+};
+
+// Describes the possible states of a CidDemod instance
+enum class  DtCidDemodState
+{
+    // Not locked; Performing a small bandwidth search to get an precise indication
+    // of the carrier offset. This search is performed when the Demod is first starts
+    // but is also used again when lock is lost by frequency following algorithm.
+    SEARCHING,
+    // Locked on the CID signal; No error-free/correctable frames have been received yet.
+    LOCKED_PROCESSING,
+    // Locked on the CID signal; Atleast one error-free/correctable frame has been 
+    // received. Global Unique Identifier is available.
+    LOCKED_GUID_RECEIVED,
+    // Not locked; Lock is lost and no further action will be performed. Restart 
+    // acquisition to acquire the signal and start a new demodulator instance.
+    NOT_LOCKED
+};
+
+// Acquired CID signal status
+struct DtCidSignalStatus
+{
+    double  m_SNR;              // SNR of the signal (dB)
+    double  m_CarrierOffset;    // Carrier offset of the signal in Hz
+    int  m_SymbolRate;          // CID signal symbolrate (122khz/244khz)
+};
+
+// Status of a specific CidDemod instance
+struct DtCidDemodStatus
+{
+    DtCidDemodState  m_State;   // The current state of the demodulator
+    DtCidSignalStatus  m_CidSignal;
+};
+
+// Spectrum from the perspective of an CID Demodulator instance.
+struct CidSpectrum
+{
+    std::vector<float> m_PowerLevels;	// Power levels in dBm.
+    float m_MinFreqXAxis;
+    float m_MaxFreqXAxis;
+    float m_StepSizeXAxis;
+};
+
+
+struct DtCidFrame
+{
+    unsigned int  m_GuidHigh;           // Global unique indentifier high
+    unsigned int  m_GuidLow;            // Global unqiue identifier low
+    unsigned char  m_ContentId1;         // CID content id 1
+    unsigned int  m_ContentInfo1;       // CID content information 1
+    unsigned char  m_Crc1;              // CRC-8 checksum CID message 1
+    unsigned int  m_Fec1;               // BCH FEC CID message 1
+    unsigned char  m_ContentId2;         // CID content id 2
+    unsigned int  m_ContentInfo2;       // CID content information 2
+    unsigned char  m_Crc2;              // CRC-8 checksum CID message 1
+    unsigned int  m_Fec2;               // BCH FEC CID message 1
+};
+
+// CID frame status
+// CID frame status
+struct DtCidFrameStatus
+{
+    DtCidFrame  m_Frame;    // The received CID frame (BCH Corrected)
+    unsigned int  m_CrcResultFirst;  // The remainder after CRC decoding is performed,
+                                     // for the first message in the frame.
+    unsigned int  m_CrcResultSec;    // The remainder after CRC decoding is performed
+                                     // for the second message in the frame.
+    int  m_BitErrorsFirst;           // Number of bit errors corrected by the BCH decoder
+                                     // for the first message in the frame.
+    int  m_BitErrorsSec;             // Number of bit errors corrected by the BCH decoder
+                                     // for the second message in the frame.
+    bool  m_FrameOk;				 // Indicates that if the frame could be successfully
+                                     // restored and is error-free.
+};
+
+// Function pointer to user defined IQ reader function
+typedef  std::function<void(unsigned char* pIqBuf, int IqBufSize, int& NumBytesRead)>  
+                                                                          DtCidReadIqFunc;
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCidEvents -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// DtCidEvent base class. 
+class  DtCidEvent
+{
+public:
+    DtCidEvent(DtCidEventType EventType);
+    virtual ~DtCidEvent();
+    // Returns the current event-type
+    DtCidEventType  EventType() const { return m_EventType; } 
+protected:
+    DtCidEventType  m_EventType;
+};
+
+// Indicates that a new CID signal has been acquired
+class  DtCidAcqNewSignal : public DtCidEvent
+{
+public:
+    DtCidAcqNewSignal();
+    DtCidAcqNewSignal(int CidSignalId, double SNR, double CarrierOffset); //: m_EventType(DtCidEventTypes::DtCidAcqNew) { }
+    ~DtCidAcqNewSignal();
+
+    int  m_CidSignalId;         // The signal id given by the acquisition algorithm
+    double  m_SNR;              // The signal to noise ratio of the acquired signal
+    double  m_CarrierOffset;    // The carrier offset of the aquired signal
+};
+
+// Indicates that a new CID frame has been received by one of the CidDemod
+// instances.
+class DtCidDemodNewFrame : public DtCidEvent
+{
+public:
+    DtCidDemodNewFrame();
+    DtCidDemodNewFrame(int CidSignalId, int State, DtCidFrame& RawFrame,
+                    DtCidFrameStatus& Frame, DtCidFrameStatus& MajorCorrectedFrameStatus);
+    virtual  ~DtCidDemodNewFrame();
+public:
+    int  m_CidSignalId;     // The signal id given by the acquisition algorithm
+    int  m_State;           // Subframe id: 0,1,2,3
+    DtCidFrame  m_RawFrame; // Raw CID frame without any error correction performed.
+    DtCidFrameStatus  m_FrameStatus;               // Status without majority correction
+    DtCidFrameStatus  m_MajorCorrectedFrameStatus; // Status with majority correction
+};
+// Indicates a state update of the aquisition algorithm
+class DtCidAcqStateUpdate :public DtCidEvent
+{
+public:
+    DtCidAcqStateUpdate();
+    DtCidAcqStateUpdate(DtCidAcqState  State);
+    virtual  ~DtCidAcqStateUpdate();
+public:
+    DtCidAcqState  m_State;     // Current state of the acquisition algorithm
+};
+
+// Indicates a state updates of a CidDemod instance
+class DtCidDemodLockLost : public DtCidEvent
+{
+public:
+    DtCidDemodLockLost();
+    DtCidDemodLockLost(int  CidSignalId);
+    virtual  ~DtCidDemodLockLost();
+public:
+    int  m_CidSignalId;          // The signal id given by the acquisition algorithm
+};
+
+// Indicates a queue overflow
+class DtCidQueueOverFlow : public DtCidEvent
+{
+public:
+    DtCidQueueOverFlow();
+    DtCidQueueOverFlow(int  NumOverflow);
+    virtual  ~DtCidQueueOverFlow();
+public:
+    int  m_NumOverflow;     // Number of events missed because of overflow
+};
+
+// Indicates a performance problem; hardware fifo has overflown
+class DtCidHwFifoOverflow : public DtCidEvent
+{
+public:
+    DtCidHwFifoOverflow();
+    virtual  ~DtCidHwFifoOverflow();
+};
+
+// Indicates a performance problem; CidReceiver samplebuffer has overflown
+class DtCidBufOverflow : public DtCidEvent
+{
+public:
+    DtCidBufOverflow();
+    virtual  ~DtCidBufOverflow();
+};
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- CidEventQueue -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// The CidReceiver uses this queue to update the user on all important CidEvents. 
+// All CidEvents follow a predefined format that can be found in the DtCidEvent class
+// and sub-classes. The CidReceiver API is designed so that a fully functional 
+// application can be build, just by using the updates provided in the queue.
+//
+class DtCidEventQueue
+{
+public:
+    std::shared_ptr<DtCidEvent>  front();
+    int  size();
+    bool  empty();
+    void  pop();
+    CidEventQueueImpl*  GetImpl();
+
+private:
+    std::unique_ptr<CidEventQueueImpl> m_pQueueImpl;
+
+public:
+    DtCidEventQueue();
+    ~DtCidEventQueue();
+};
+
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtCidReceiver +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//
+class DtCidReceiver
+{
+public:
+    // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+    //
+    // Attach the CidReceiver to an output port of a specific DekTec device.
+    // This port should output unprocessed IQ samples at a samplerate between
+    // 1,792Mhz or 3,584Mhz+.The CID signal(s) should have a max carrier offset of
+    // +/-100kHz. DtDevice is used for licensing purposes.
+    DTAPI_RESULT  AttachToPort(DtDevice* pDtDvc, int Port, bool Exclusive = true,
+                                                                  bool ProbeOnly = false);
+
+    // An IQ file is used as input of the CidReceiver. This file should hold IQ samples 
+    // at a samplerate of 1,792Mhz or 3,584Mhz+. The CID signal(s) should have a max 
+    // carrier offset of +/-100kHz. DtDevice is used for licensing purposes.
+    DTAPI_RESULT  AttachVirtual(DtDevice* pDtDvc, DtCidReadIqFunc ReadIqFunc,
+                                                                          int Samplerate);
+
+    // Detach from either the hardware port or IqFile.
+    DTAPI_RESULT  Detach();
+
+    // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Acquisition calls -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+    //
+    // Signals to the DtCidReceiver to start Acquisition of the CID signals.
+    // During this process, samples are buffered so that CidDemod instances can be
+    // started at the point where they were detected in the sample time-line. Acquisition
+    // stops searching for signals after a predefined period. However, the sample buffer
+    // will NOT start releasing memory until StopAcquisition() is called.
+    DTAPI_RESULT  StartAcquisition();
+
+    // Stops acquisition and signals to DtCidReceiver that no more demodulator instances
+    // will be started after this call. SampleBuffer memory will be released when not
+    // needed any more by any of the CID demodulators.
+    DTAPI_RESULT  StopAcquisition();
+
+    // Gets the acquisition state and progress(%)
+    DTAPI_RESULT  GetAquisitionStatus(DtCidAcqState&  State, int&  Progress) const;
+
+    // Gets a list with CidSignalIds of acquired CID signals.
+    DTAPI_RESULT GetAcquiredCidSignals(std::vector<int>& CidSignalIds) const;
+    
+    // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- CidDemod calls -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+    //
+    // Signals the CidReceiver to start a CidDemod instance for a CidSignalId. 
+    DTAPI_RESULT  StartCidDemod(int CidSignalId);
+
+    // Signals the CidReceiver to stop a CidDemod instance for a CidSignalId.
+    DTAPI_RESULT  StopCidDemod(int CidSignalId);
+    DTAPI_RESULT  GetCidDemodStatus(int CidSignalId, DtCidDemodStatus& Status) const;
+
+    // Gets a list with CidSignalIds of active CidDemod instances.
+    DTAPI_RESULT  GetActiveCidDemods(std::vector<int>& CidSignalIds) const;
+
+    // Gets most recent spectrum as seen by the specified CID demodulator instance.
+    // IsNew specifies if there was a new spectrum calculated since the last 
+    // GetSpectrum call.
+    DTAPI_RESULT GetDemodSpectrum(int Id, bool & IsNew, CidSpectrum& Spectrum) const;
+
+public:
+    DtHwFuncDesc  m_HwFuncDesc;	// Stores HW function descriptors
+
+    // Convenience functions.
+public:
+    bool  IsAttached(void) { return m_pCidReceiverImpl != nullptr; };
+    
+public:
+    std::unique_ptr<DtCidEventQueue>  m_pCidEventQueue;   // Event queue implementation
+
+private:
+    std::unique_ptr<CidReceiverImpl>  m_pCidReceiverImpl;
+    bool  m_IsAttachedToVirtual = false;
+    bool  m_WantToDetach = false;
+    void*  m_pDetachLockCount = nullptr;
+
+public:
+    DtCidReceiver();
+    ~DtCidReceiver();
+
+public:
+    DtCidReceiver(DtCidReceiver && op) noexcept;
+    DtCidReceiver& operator=(DtCidReceiver && op) noexcept;
+};
 
 } // namespace Dtapi
 

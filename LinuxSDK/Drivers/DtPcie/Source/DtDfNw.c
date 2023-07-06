@@ -30,6 +30,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtDfNw.h"
 #include "EthPrtcls.h"
+#include "Messages.h"
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Types -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Defines / Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -78,6 +79,15 @@ const int NsInSec = 1000 * 1000 * 1000;
                 DtDbgOutDf(Level, NW, DTDFNW_PIPE, "[%s:Id%i] " Msg,                     \
                                         PipeType2Str(pPipe->m_PipeType), pPipe->m_Id,    \
                                         ##__VA_ARGS__)
+
+#define ETH_IS_MULTICAST(Address) \
+    (Bool)(((UInt8*)(Address))[0] & ((UInt8)0x01))
+
+#define ETH_IS_BROADCAST(Address)               \
+    ((((UInt8*)(Address))[0]==((UInt8)0xff)) && (((UInt8*)(Address))[1]==((UInt8)0xff))  \
+ && (((UInt8*)(Address))[2]==((UInt8)0xff)) && (((UInt8*)(Address))[3]==((UInt8)0xff))   \
+ && (((UInt8*)(Address))[4]==((UInt8)0xff)) && (((UInt8*)(Address))[5]==((UInt8)0xff)))
+
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 static DtStatus  DtDfNw_Init(DtDf*);
@@ -238,6 +248,25 @@ DtStatus  DtDfNw_SetOperationalMode(DtDfNw* pDf, Int OpMode)
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfNw - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //
 
+// .-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_CheckReducedFunctionalityMode -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtDfNw_CheckReducedFunctionalityMode(DtDfNw* pDf)
+{
+    DtBcDDRFIFO* pDdrFifo;
+    pDf->m_ReducedFunctionality = TRUE;
+    if (pDf->m_pCore->m_pBcList == NULL)
+        return DT_STATUS_FAIL;
+    pDdrFifo = (DtBcDDRFIFO*)DtVectorBc_FindByTypeAndRole(pDf->m_pBcList,
+                                                             DT_BLOCK_TYPE_DDRFIFO, NULL);
+    if (pDdrFifo == NULL)
+        return DT_STATUS_FAIL;
+    pDf->m_ReducedFunctionality = !DtBcDDRFIFO_IsMemCalibrated(pDdrFifo);
+    return DT_STATUS_OK;
+}
+
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_InitPipeRxHwq -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
 DtStatus DtDfNw_InitPipeRxHwq(DtDfNw* pDf, DtBcCDMACTO* pBcCdma, DtDfIpFifo* pDfIpFifo,
                                            DtBcETHIPPAD* pEthIpPad, DtBcDDRFIFO* pDdrFifo)
 {
@@ -420,6 +449,70 @@ DtStatus  DtDfNw_InitPipeTxRtHwp(DtDfNw* pDf, DtBcIPSCHED* pIpSched,
    return Status;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_IsPacketForNetworkDriver -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool  DtDfNw_IsPacketForNetworkDriver(DtDfNw* pDf, UInt8* pPacket)
+{
+    DtEthIp* pEthIp = (DtEthIp*)pPacket;
+    EthernetIIHeader* pEthIIHeader = (EthernetIIHeader*)(pPacket + sizeof(DtEthIp));
+    Bool Found = FALSE;
+    UInt Items = 0;
+
+    if (pEthIp->m_Hdr.m_PacketType == DT_ETHIP_PKTTYPE_TIMESTAMP)
+        return TRUE;
+
+    if (pDf->m_PacketFilter == DT_MAC_FLT_NOTSET)
+    {
+        DtDbgOutDf(MAX, NW, pDf, "Packet filter not set. Skip packets");
+        return FALSE;
+    }
+    if ((pDf->m_PacketFilter & DT_MAC_FLT_PROMISCUOUS) != 0)
+        return TRUE;
+    
+    if (!ETH_IS_MULTICAST(pEthIIHeader->m_DstMac))     // It's a unicast
+    {
+        if ((pDf->m_PacketFilter & DT_MAC_FLT_DIRECTED) == 0)
+            return FALSE;
+        return 
+            pEthIIHeader->m_DstMac[0] == pDf->m_pBcEMAC10G->m_MacAddrCur[0] &&
+            pEthIIHeader->m_DstMac[1] == pDf->m_pBcEMAC10G->m_MacAddrCur[1] &&
+            pEthIIHeader->m_DstMac[2] == pDf->m_pBcEMAC10G->m_MacAddrCur[2] &&
+            pEthIIHeader->m_DstMac[3] == pDf->m_pBcEMAC10G->m_MacAddrCur[3] &&
+            pEthIIHeader->m_DstMac[4] == pDf->m_pBcEMAC10G->m_MacAddrCur[4] &&
+            pEthIIHeader->m_DstMac[5] == pDf->m_pBcEMAC10G->m_MacAddrCur[5];
+    }
+    if (ETH_IS_BROADCAST(pEthIIHeader->m_DstMac))
+        return (pDf->m_PacketFilter & DT_MAC_FLT_BROADCAST) != 0;
+
+    // It's a multicast
+    if ((pDf->m_PacketFilter & DT_MAC_FLT_ALL_MULTICAST) != 0)
+        return TRUE;
+    if ((pDf->m_PacketFilter & DT_MAC_FLT_MULTICAST) == 0)
+        return FALSE;
+
+    // Check multicast list
+    DtFastMutexAcquire(&pDf->m_MulticastListFastMutex);
+    for (Items = 0; Items < pDf->m_NumMulticasts && !Found; Items++)
+    {
+        if (pEthIIHeader->m_DstMac[0] == pDf->m_MulticastList[Items][0] &&
+            pEthIIHeader->m_DstMac[1] == pDf->m_MulticastList[Items][1] &&
+            pEthIIHeader->m_DstMac[2] == pDf->m_MulticastList[Items][2] &&
+            pEthIIHeader->m_DstMac[3] == pDf->m_MulticastList[Items][3] &&
+            pEthIIHeader->m_DstMac[4] == pDf->m_MulticastList[Items][4] &&
+            pEthIIHeader->m_DstMac[5] == pDf->m_MulticastList[Items][5])
+            Found = TRUE;
+    }
+    DtFastMutexRelease(&pDf->m_MulticastListFastMutex);
+    if (!Found)
+    {
+        DtDbgOutDf(MAX, NW, pDf, "Multicast %02X:%02X:%02X:%02X:%02X:%02X not in list of %i items",
+            pEthIIHeader->m_DstMac[0], pEthIIHeader->m_DstMac[1], pEthIIHeader->m_DstMac[2],
+            pEthIIHeader->m_DstMac[3], pEthIIHeader->m_DstMac[4], pEthIIHeader->m_DstMac[5],
+            pDf->m_NumMulticasts);
+    }
+    return Found;
+}
+
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_InitPipeRxRtHwp -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtDfNw_InitPipeRxRtHwp(DtDfNw* pDf,
@@ -538,6 +631,8 @@ DtStatus  DtDfNw_Init(DtDf* pDfBase)
     DtFastMutexInit(&pDf->m_PerIntEvtFMutex);
     DtSpinLockInit(&pDf->m_PerItvSpinLock);
     DtSpinLockInit(&pDf->m_OpModeCBSpinlock);
+    DtFastMutexInit(&pDf->m_MulticastListFastMutex);
+    pDf->m_NumMulticasts = 0;
 
     pDf->m_PerItvEnable = FALSE;
     pDf->m_OpModeCB = NULL;
@@ -614,6 +709,9 @@ DtStatus DtDfNw_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
     // Sanity check
     DF_NW_DEFAULT_PRECONDITIONS(pDf);
 
+    if (pDf->m_ReducedFunctionality)
+        return DT_STATUS_OK;
+
     if (Enable)
     {
         Int i;
@@ -669,6 +767,30 @@ DtStatus DtDfNw_OnEnablePreChildren(DtDf* pDfBase, Bool Enable)
     DtStatus  Status = DT_STATUS_OK;
     // Sanity check
     DF_NW_DEFAULT_PRECONDITIONS(pDf);
+
+    if (Enable)
+    {
+        DtDfNw_CheckReducedFunctionalityMode(pDf);
+        if (pDf->m_ReducedFunctionality)
+        {
+            DtString  Str;
+            DtDbgOutDf(ERR, NW, pDf, "Hardware problem detected. Operating in reduced"
+                " functionality mode.");
+            DtStringAlloc(&Str, 256);
+            DtStringAppendChars(&Str, "[SN=");
+            DtStringUInt64ToDtStringAppend(&Str, 10, pDf->m_pCore->m_pDevInfo->m_Serial);
+            DtStringAppendChars(&Str, "] ");
+            DtStringAppendChars(&Str, "Hardware problem detected. Operating in reduced"
+                " functionality mode.");
+            DtEvtLogReport(&pDf->m_pCore->m_Device.m_EvtObject,
+                DTPCIE_LOG_ERROR_GENERIC, &Str, NULL, NULL);
+            DtStringFree(&Str);
+        }
+    }
+    
+    if (pDf->m_ReducedFunctionality)
+        return DT_STATUS_OK;
+
     if (!Enable)
     {
         // ENABLE -> DISABLE
@@ -949,6 +1071,9 @@ void DtDfNw_TxRtHwqThread(DtThread* pThread, void* pContext)
         return;
     }
 
+    // Issue flush
+    DtPipe_IssuePipeFlush(pPipe);
+
     // Create kernel buffer for this pipe
     Status = DtPipe_SetSharedBufferKernel(pPipe, TX_RT_HWQ_BUFSIZE, &BufSize, NULL, 
                                                                                 &pBuffer);
@@ -1137,7 +1262,10 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
         DtDbgOutDf(ERR, NW, pDf, "ERROR: DtDfNw_PipeOpen. Status: %08xh", Status);
         return;
     }
-    
+
+    // Issue flush
+    DtPipe_IssuePipeFlush(pPipe);
+
     // Create kernel buffer for this pipe
     Status = DtPipe_SetSharedBufferKernel(pPipe, RX_HWQ_BUFSIZE, &BufSize, NULL, &pBuffer);
     if (!DT_SUCCESS(Status))
@@ -1150,6 +1278,10 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
     if (!DT_SUCCESS(Status))
         StopThread = TRUE;
 
+    // Initialise ReadOffset
+    Status = DtPipe_GetRxWriteOffset(pPipe, &ReadOffset);
+    DT_ASSERT(DT_SUCCESS(Status));
+    
     while (!StopThread)
     {
         UInt WriteOffset = 0;
@@ -1172,7 +1304,7 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
 
         Status = DtPipe_GetRxWriteOffset(pPipe, &WriteOffset);
         DT_ASSERT(DT_SUCCESS(Status));
-
+        
         while (ReadOffset != WriteOffset && !DtThreadShouldStop(pThread))
         {
             DtEthIpHeader* pEthIpHeader;
@@ -1194,8 +1326,9 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
                 if (pEthIpHeader->m_SyncWord == DT_ETHIP_SYNCWORD)
                 {
                     DtDbgOutDf(AVG, NW, pDf, "Not a complete packet received with DMA. %i"
-                         " bytes received. Needs %i bytes. Wait for complete packet (%i)",
-                         BufLoad, PacketSize, Retry + 1);
+                         " bytes received. Needs %i bytes. Wait for complete packet (%i)."
+                         " ReadOffset:%i WriteOffset:%i",
+                         BufLoad, PacketSize, Retry + 1, ReadOffset, WriteOffset);
                     DtSleep(1);
                     Status = DtPipe_GetRxWriteOffset(pPipe, &WriteOffset);
                     DT_ASSERT(DT_SUCCESS(Status));
@@ -1210,25 +1343,30 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
             Retry = 0;
             NumBytesToEnd = BufSize - ReadOffset;
 
-
             // Sanity check
             DT_ASSERT((pEthIpHeader->m_SyncWord == DT_ETHIP_SYNCWORD
-                           && NumBytesToEnd>=sizeof(DtEthIpHeader) && PacketSize<=BufLoad)
-                           || pPipe->m_OpMode==DT_PIPE_OPMODE_IDLE);
+                          && NumBytesToEnd>=sizeof(DtEthIpHeader) && PacketSize<=BufLoad 
+                          && PacketSize-sizeof(DtEthIp) <= DT_ETH_IP_MAX_PACKETSIZE
+                          && PacketSize>=pEthIpHeader->m_SizeInBytes+sizeof(DtEthIp))
+                          || pPipe->m_OpMode==DT_PIPE_OPMODE_IDLE);
             if (pEthIpHeader->m_SyncWord!=DT_ETHIP_SYNCWORD
-                              || NumBytesToEnd<sizeof(DtEthIpHeader) || PacketSize>BufLoad
-                              || pEthIpHeader->m_SizeInQWords < 2)
+                          || NumBytesToEnd<sizeof(DtEthIpHeader) || PacketSize>BufLoad
+                          || pEthIpHeader->m_SizeInQWords<2 
+                          || PacketSize-sizeof(DtEthIp)>DT_ETH_IP_MAX_PACKETSIZE
+                          || PacketSize<pEthIpHeader->m_SizeInBytes+sizeof(DtEthIp))
             {
                 // Fatal error: clear RX buffer and log error.
                 DtDbgOutDf(ERR, NW, pDf, "Packet error RX. Sync word: %xh SizeInQWords:%i"
-                                  "ReadOffset:%i WriteOffset:%i BufSize:%i",
-                                   pEthIpHeader->m_SyncWord, pEthIpHeader->m_SizeInQWords,
-                                   ReadOffset, WriteOffset, BufSize);
+                                               "ReadOffset:%i WriteOffset:%i BufSize:%i"
+                                               "BufLoad:%i SizeInBytes:%i",
+                                               (UInt32)pEthIpHeader->m_SyncWord, 
+                                               (UInt32)pEthIpHeader->m_SizeInQWords,
+                                               ReadOffset, WriteOffset, BufSize, BufLoad,
+                                               (UInt32)pEthIpHeader->m_SizeInBytes);
                 ReadOffset = WriteOffset;
                 DtPipe_SetRxReadOffset(pPipe, ReadOffset);
                 continue;
             }
-
             // Check if packet is an IP packet. If not, it's not for a realtime queue
             if (pEthIpHeader->m_PacketType == DT_ETHIP_PKTTYPE_IPV4 || 
                                       pEthIpHeader->m_PacketType == DT_ETHIP_PKTTYPE_IPV6)
@@ -1329,7 +1467,7 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
                 DtFastMutexRelease(&pDf->m_PipeRxRtSwpListFMutex);
             }
 
-            if (!PacketForRtPipe)
+            if (!PacketForRtPipe && DtDfNw_IsPacketForNetworkDriver(pDf, pPacket))
             {
                 DtPipe* pNrt;
                 
@@ -1962,8 +2100,7 @@ DtStatus  DtIoStubDfNwOnCmd(const DtIoStub* pStub, DtIoStubIoParams* pIoParams,
     // Do we need exlusive access?
     if (pIoParams->m_ExclAccessIsRequired)
     {
-        Status = DtDf_ExclAccessCheck(((DtIoStubDf*)pStub)->m_pDf, 
-                                                             &pIoParams->m_ExclAccessObj);
+        Status = DtDf_ExclAccessCheck(STUB_NW->m_pDf, &pIoParams->m_ExclAccessObj);
         if (Status != DT_STATUS_OK)
         {
             DtDbgOutIoStubDf(ERR, NW, pStub, "ERROR: function is not locked by me");
@@ -1979,6 +2116,9 @@ DtStatus  DtIoStubDfNwOnCmd(const DtIoStub* pStub, DtIoStubIoParams* pIoParams,
         DT_ASSERT(pIoParams->m_pOutData != NULL);
         pOutData = &pIoParams->m_pOutData->m_NwCmd;
     }
+
+    if (STUB_DF->m_ReducedFunctionality)
+        return DT_STATUS_NOT_INITIALISED;
 
     //-.-.-.-.-.-.-.-.-.-.-.-.- Call appropriate command handler -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -2215,7 +2355,7 @@ DtStatus  DtIoStubDfNw_OnCmdGetMaxMulticastList(const DtIoStubDfNw* pStub,
 {
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pOutData != NULL);
-    pOutData->m_MaxListSize = 10;
+    pOutData->m_MaxListSize = MAX_MULTICAST_ITEMS;
     return DT_STATUS_OK;
 }
 
@@ -2224,8 +2364,27 @@ DtStatus  DtIoStubDfNw_OnCmdGetMaxMulticastList(const DtIoStubDfNw* pStub,
 DtStatus  DtIoStubDfNw_OnCmdSetMulticastList(const DtIoStubDfNw* pStub,
                                        const DtIoctlEMACCmdSetMulticastListInput* pInData)
 {
+    UInt Items = 0;
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
+
+    // Get multicast list lock
+    if (pInData->m_NumItems > MAX_MULTICAST_ITEMS)
+        return DT_STATUS_INVALID_PARAMETER;
+    DtFastMutexAcquire(&STUB_DF->m_MulticastListFastMutex);
+    DtMemCopy(STUB_DF->m_MulticastList, &pInData->m_Items[0], pInData->m_NumItems * 6);
+    STUB_DF->m_NumMulticasts = pInData->m_NumItems;
+    DtDbgOutIoStubDf(AVG, NW, pStub, "New multicast list. #Items: %i", 
+                                                                STUB_DF->m_NumMulticasts);
+    for (Items = 0; Items < STUB_DF->m_NumMulticasts; Items++)
+    {
+        DtDbgOutDf(AVG, NW, STUB_DF, "[%i] Multicast %02X:%02X:%02X:%02X:%02X:%02X",
+                  Items,
+                  STUB_DF->m_MulticastList[Items][0], STUB_DF->m_MulticastList[Items][1], 
+                  STUB_DF->m_MulticastList[Items][2], STUB_DF->m_MulticastList[Items][3], 
+                  STUB_DF->m_MulticastList[Items][4], STUB_DF->m_MulticastList[Items][5]);
+    }
+    DtFastMutexRelease(&STUB_DF->m_MulticastListFastMutex);
     return DT_STATUS_OK;
 }
 
@@ -2236,6 +2395,9 @@ DtStatus  DtIoStubDfNw_OnCmdSetPacketFilter(const DtIoStubDfNw* pStub,
 {
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
+    STUB_DF->m_PacketFilter = pInData->m_PacketFilter;
+    DtBcIPSUMCHK_SetPromicuousMode(STUB_DF->m_pBcIpSumChk, 
+                                 (pInData->m_PacketFilter & DT_MAC_FLT_PROMISCUOUS) != 0);
     return DT_STATUS_OK;
 }
 
@@ -2246,7 +2408,7 @@ DtStatus  DtIoStubDfNw_OnCmdGetPacketFilter(const DtIoStubDfNw* pStub,
 {
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pOutData != NULL);
-    pOutData->m_PacketFilter = 0;
+    pOutData->m_PacketFilter = STUB_DF->m_PacketFilter;
     return DT_STATUS_OK;
 }
 

@@ -32,13 +32,17 @@
 
 
 // Status type
-typedef UInt32  DtStatus;
+#ifdef DTBB2
+typedef uint32_t DtStatus;
+#else
+typedef UInt32 DtStatus;
+#endif
 
 #ifndef DTAPI
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Status code macros -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DT_SUCCESS(Status)            (Status == DT_STATUS_OK)
 #define DT_RETURN_ON_ERROR(Expr)      do {                          \
-                                           DtStatus  Status = Expr; \
+                                           DtStatus Status = Expr;  \
                                            if (!DT_SUCCESS(Status)) \
                                                return Status;       \
                                       } while (0)
@@ -56,6 +60,12 @@ typedef UInt32  DtStatus;
 
 // OS specific status OK and error offset
 #ifdef WINBUILD
+
+// Include from DtBb2 driver.
+#ifdef DTBB2
+#include "ntstatus.h"               // STATUS_SUCCES
+#include "ntdef.h"                  // NT_STATUS
+#endif // DTBB2
 
 // Check if define in DTAPI was correct...
 #if STATUS_SEVERITY_ERROR != 3
@@ -109,4 +119,11 @@ typedef UInt32  DtStatus;
 #define  DT_STATUS_NOT_FOUND_INCOMP_FW  DT_STATUS_ERROR(31) // Not found because
                                                              // incompatible fwversion
 #define  DT_STATUS_NOT_ENOUGH_RIGHTS    DT_STATUS_ERROR(32)
+#define  DT_STATUS_READ_WRITE_ERROR     DT_STATUS_ERROR(33)
+#define  DT_STATUS_KEYWORD_ERROR        DT_STATUS_ERROR(34)  // VPD Keyword is invalid.
+#define  DT_STATUS_TOO_LONG             DT_STATUS_ERROR(35)  // VPD item too long.
+#define  DT_STATUS_EEPROM_FULL          DT_STATUS_ERROR(36)  // VPD EEPROM FULL.
+#define  DT_STATUS_ALREADY_OPEN_EXCL    DT_STATUS_ERROR(37)
+#define  DT_STATUS_ALREADY_OPEN_SHARED  DT_STATUS_ERROR(37)
+
 #endif // __DT_STATUS_CODES_H

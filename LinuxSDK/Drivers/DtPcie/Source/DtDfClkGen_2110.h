@@ -26,7 +26,6 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtDf.h"
-#include "DtBcI2CM.h"
 #include "DtBcXPLL.h"
 
 // Name + short-name for the TXCLKCTRL_2178A function. NOTE: must match names in 
@@ -56,7 +55,6 @@ typedef struct  _DtDfClkGen_2110
     DT_DF_COMMON_DATA;
 
     // Block controllers
-    DtBcI2CM*  m_pBcI2Cm;               // I2C master block controller
     DtBcXPLL*  m_pBcXPLL1G;             // 1Gb PLL
     DtBcXPLL*  m_pBcXPLL10G;            // 10Gb PLL
 }  DtDfClkGen_2110;

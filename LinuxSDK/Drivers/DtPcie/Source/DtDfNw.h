@@ -59,7 +59,8 @@ while (0)
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-#define MAX_NUMBER_RT_HW_PIPES 12
+#define MAX_NUMBER_RT_HW_PIPES 6
+#define MAX_MULTICAST_ITEMS 100
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 typedef struct  _DtDfNw
@@ -106,6 +107,12 @@ typedef struct  _DtDfNw
     DtThread m_RxHwqThread;         // Helper thread
     DtEvent m_RxHwqStopEvent;       // Helper stop event
 
+    // Multicast list
+    DtFastMutex m_MulticastListFastMutex;   // Mutex to protect m_MultiucastList changes
+    UInt8 m_MulticastList[MAX_MULTICAST_ITEMS][6];
+    UInt m_NumMulticasts;
+    UInt m_PacketFilter;
+
     // TX RT HWQ thread
     DtThread m_TxRtHwqThread;       // Helper thread
     DtEvent m_TxRtHwqStopEvent;     // Helper stop event
@@ -117,6 +124,8 @@ typedef struct  _DtDfNw
     OpModeFunc  m_OpModeCB;
     void* m_pContexOpModeCB;
     DtSpinLock  m_OpModeCBSpinlock;
+
+    Bool m_ReducedFunctionality;
 }DtDfNw;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

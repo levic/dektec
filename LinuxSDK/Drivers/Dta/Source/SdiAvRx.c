@@ -1012,7 +1012,7 @@ void  DtaNonIpSdiAvRxCopyStatus2Old(DtaIoctlNonIpCmdGetAudioStatus2Output* pSrc,
     DT_ASSERT(pDst!=NULL && pSrc!=NULL);
 
     pDst->m_NumAudioChannels = pSrc->m_NumAudioChannels;
-    for (i=0; i < sizeof(pDst->m_AudioChanStatus)/sizeof(pSrc->m_AudioChanStatus[0]); i++)
+    for (i=0; i < sizeof(pDst->m_AudioChanStatus)/sizeof(pDst->m_AudioChanStatus[0]); i++)
     {
         pDst->m_AudioChanStatus[i].m_ChanIdx = pSrc->m_AudioChanStatus[i].m_ChanIdx;
         pDst->m_AudioChanStatus[i].m_IsAsynchronous = 

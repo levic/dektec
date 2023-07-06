@@ -56,7 +56,7 @@ typedef  struct _DtBcSPIMProperties
     Int  m_SpiClockRate;            // SPI clock rate
     Int  m_WordSize;                // SPI word size in number of bits
     Int  m_NumBytesPerWord;         // SPI word size in number of bytes
-    Int  m_DuplexMode;              // Duplex mode: full or half duplex
+    Int  m_TransferMode;            // Transfermode mode: full, half duplex or simplex_tx
     Int  m_MaxTransferTime;         // Maximum transfer time in ns 
 
     DtFastMutex  m_AccessMutex;     // Access protection for SPI
@@ -66,7 +66,7 @@ typedef  struct _DtBcSPIMProperties
 void  DtBcSPIM_Close(DtBc*);
 DtBcSPIM * DtBcSPIM_Open(Int Address, DtCore* pCore, DtPt* pPt, const char* pRole, 
                                                 Int Instance, Int Uuid, Bool CreateStub);
-DtStatus  DtBcSPIM_GetProperties(DtBcSPIM*, Int* pDeviceId, Int* pDuplexMode, 
+DtStatus  DtBcSPIM_GetProperties(DtBcSPIM*, Int* pDeviceId, Int* pTransferMode, 
                                                      Int* pMaxTfTime, Int* pSpiClockRate);
 DtStatus  DtBcSPIM_Read(DtBcSPIM*, Int Length, UInt8* pBuffer);
 DtStatus  DtBcSPIM_Write(DtBcSPIM*,  Int Length, const UInt8* pBuffer);

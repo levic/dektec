@@ -58,6 +58,7 @@ typedef  struct _DtBcSDITXF
     Bool  m_BlockEnabled;           // Block enabled
     Int  m_OperationalMode;         // Operational mode
     Bool  m_UlfEnabled;             // Underflow detection enabled
+    Bool  m_ClampEnable;            // Clamp enabled
 
     Int  m_NumLinesPerEvent;        // Number of lines between format events (0=at SOF)
     Int  m_NumSofsBetweenTod;       // Number of frames between TOD samples
@@ -78,7 +79,7 @@ typedef  struct _DtBcSDITXF
     Bool  m_Underflow;              // Underflow detected flag
     Bool  m_UnderflowLatched;       // Underflow detected flag latched
     Int  m_UlfEnableDelayCount;     // Underflow detection delay
-
+    Int  m_UflInt;
 }  DtBcSDITXF;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXF public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

@@ -31,13 +31,6 @@
 #include "DtTypes.h"
 #include <linux/poll.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,0)
-#include <linux/ptp_clock_kernel.h>
-#define LINUX_KERNEL_PTP_SUPPORT
-#endif
-
-
-
 #ifdef CONFIG_COMPAT
     // Includes for 32-bit applications using 64-bit driver
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
@@ -112,11 +105,6 @@ typedef struct _DtIalData
     Int  m_NumIrqVectors;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,8,0)
     struct msix_entry  MsixEntry[20];               // IRQ Vector store
-#endif
-#ifdef LINUX_KERNEL_PTP_SUPPORT
-    // PTP Clock Driver Interface
-    struct ptp_clock_info  m_PtpClockInfo;
-    struct ptp_clock*  m_pPtpClock;
 #endif
     Int  m_PtpClockIndex;
 } DtIalData;

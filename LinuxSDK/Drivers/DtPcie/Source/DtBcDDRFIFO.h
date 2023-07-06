@@ -93,4 +93,6 @@ typedef struct _DtIoStubBcDDRFIFO
 //.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcSWITCH public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
 void  DtIoStubBcDDRFIFO_Close(DtIoStub*);
 DtIoStubBcDDRFIFO*  DtIoStubBcDDRFIFO_Open(DtBc*);
+Bool  DtBcDDRFIFO_IsMemCalibrated(DtBcDDRFIFO*);
+Bool  DtBcDDRFIFO_IsMemPllLocked(DtBcDDRFIFO*);
 #endif  // #ifndef __DT_BC_DDRFIFO_H

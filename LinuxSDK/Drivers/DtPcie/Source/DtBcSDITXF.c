@@ -51,7 +51,7 @@ static DtStatus  DtBcSDITXF_RegisterIntHandlers(DtBcSDITXF*);
 static void  DtBcSDITXF_InterruptDpcFmtEvent(DtDpcArgs* pArgs);
 static DtStatus  DtBcSDITXF_InterruptHandler(DtBc*, Int, Int, void*);
 static void  DtBcSDITXF_SetControlRegs(DtBcSDITXF*, Bool BlkEna, Int OpMode, 
-                                                                             Bool UlfEna);
+                                                              Bool UlfEna, Bool ClampEna);
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSDITXF - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -260,7 +260,8 @@ DtStatus DtBcSDITXF_SetOperationalMode(DtBcSDITXF* pBc, Int OpMode)
     }
 
     // Set new control
-     DtBcSDITXF_SetControlRegs(pBc, pBc->m_BlockEnabled, OpMode, pBc->m_UlfEnabled);
+    DtBcSDITXF_SetControlRegs(pBc, pBc->m_BlockEnabled, OpMode, pBc->m_UlfEnabled, 
+                                                                      pBc->m_ClampEnable);
 
     // Update cached operational mode
     pBc->m_OperationalMode = OpMode;
@@ -339,9 +340,10 @@ DtStatus  DtBcSDITXF_Init(DtBc*  pBcBase)
     pBc->m_UnderflowLatched = FALSE;
     pBc->m_Underflow = FALSE;
     pBc->m_UlfEnableDelayCount = 0;
+    pBc->m_ClampEnable = TRUE;
     pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
     DtBcSDITXF_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                                                       pBc->m_UlfEnabled);
+                                                   pBc->m_UlfEnabled, pBc->m_ClampEnable);
     // Get maximum supported rate
     pBc->m_MaxSdiRate = DT_DRV_SDIRATE_3G;
     if (pBc->m_Version > 0)
@@ -435,9 +437,10 @@ DtStatus DtBcSDITXF_OnEnable(DtBc* pBcBase, Bool Enable)
         pBc->m_UlfEnableDelayCount = 0;
         pBc->m_UnderflowLatched = FALSE;
         pBc->m_Underflow = FALSE;
+        pBc->m_ClampEnable = TRUE;
         pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
         DtBcSDITXF_SetControlRegs(pBc, Enable, pBc->m_OperationalMode,
-                                                                       pBc->m_UlfEnabled);
+                                                   pBc->m_UlfEnabled, pBc->m_ClampEnable);
         // Default an interrupt at SOF only
         pBc->m_NumLinesPerEvent = 0;
         pBc->m_NumSofsBetweenTod = 0;
@@ -466,7 +469,7 @@ DtStatus DtBcSDITXF_OnEnable(DtBc* pBcBase, Bool Enable)
 
         // Disable block
         DtBcSDITXF_SetControlRegs(pBc, Enable, pBc->m_OperationalMode,
-                                                                       pBc->m_UlfEnabled);
+                                                   pBc->m_UlfEnabled, pBc->m_ClampEnable);
     }
     // Save new setting
     pBc->m_BlockEnabled = Enable;
@@ -540,7 +543,7 @@ void DtBcSDITXF_InterruptDpcFmtEvent(DtDpcArgs* pArgs)
         {
             pBc->m_UlfEnabled = TRUE;
             DtBcSDITXF_SetControlRegs(pBc, pBc->m_BlockEnabled, pBc->m_OperationalMode,
-                                                                       pBc->m_UlfEnabled);
+                                                   pBc->m_UlfEnabled, pBc->m_ClampEnable);
         }
         pBc->m_Underflow = FALSE;
     }
@@ -572,6 +575,10 @@ DtStatus  DtBcSDITXF_InterruptHandler(DtBc*  pBc, Int  Id, Int  Index, void*  pC
     default:
         DT_ASSERT(FALSE);   // Unreachable code
         return DT_STATUS_NOT_SUPPORTED;
+    }
+    if (SDITXF_FmtEvStatus_READ_Underflow(BC_SDITXF))
+    {
+        BC_SDITXF->m_UflInt = 1;
     }
 
     // Init DPC argument
@@ -631,7 +638,7 @@ DtStatus  DtBcSDITXF_RegisterIntHandlers(DtBcSDITXF*  pBc)
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSDITXF_SetControlRegs -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void  DtBcSDITXF_SetControlRegs(DtBcSDITXF* pBc, Bool BlkEna, Int OpMode, 
-                                                                          Bool  UflEnable)
+                                                            Bool UflEnable, Bool ClampEna)
 {
     UInt32 RegData=0, FwBlkEna=0, FwOpMode=0;
 
@@ -652,6 +659,7 @@ void  DtBcSDITXF_SetControlRegs(DtBcSDITXF* pBc, Bool BlkEna, Int OpMode,
     RegData = SDITXF_Control_SET_BlockEnable(RegData, FwBlkEna);
     RegData = SDITXF_Control_SET_OperationalMode(RegData, FwOpMode);
     RegData = SDITXF_Control_SET_UflEnable(RegData, UflEnable);
+    RegData = SDITXF_Control_SET_ClampEnable(RegData, ClampEna);
     SDITXF_Control_WRITE(pBc, RegData);
 }
 

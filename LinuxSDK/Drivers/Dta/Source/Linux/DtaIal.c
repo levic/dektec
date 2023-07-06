@@ -657,8 +657,9 @@ static Int  DtaDeviceStartSeq(DtaDeviceData* pDvcData)
         pDvcData->m_Device.m_pDevice = device_create(g_pDtaClass, NULL, DevNum,
                                          DRIVER_NAME"%u", pDvcData->m_IalData.m_DvcIndex);
 #else
-        pDvcData->m_Device.m_pDevice = device_create(g_pDtaClass, NULL, DevNum, pDvcData,
-                                         DRIVER_NAME"%u", pDvcData->m_IalData.m_DvcIndex);
+        pDvcData->m_Device.m_pDevice = device_create(g_pDtaClass, 
+                                   &(pDvcData->m_Device.m_pPciDev->dev), DevNum, pDvcData,
+                                   DRIVER_NAME"%u", pDvcData->m_IalData.m_DvcIndex);
 #endif
 
         dev_set_drvdata(pDvcData->m_Device.m_pDevice, pDvcData);
@@ -786,7 +787,11 @@ static Int  DtaMapRegsToUserSpace(
     pDvcData->m_pUserMapping = pUserMapping;
 
     // Be sure the memory is mapped non-cacheable
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,3,0)
+    vm_flags_set(pVma, VM_IO);
+#else
     pVma->vm_flags |= VM_IO;
+#endif
     pVma->vm_page_prot = pgprot_noncached(pVma->vm_page_prot);
     
     RegionStart = pDvcData->m_DtaRegs.m_PciAddr.QuadPart;
@@ -1884,7 +1889,11 @@ static Int  DtaModuleInit(void)
     if (Result >= 0)
     {
         // Create Device class
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0)
         g_pDtaClass = class_create(THIS_MODULE, DRIVER_NAME);
+#else
+        g_pDtaClass = class_create(DRIVER_NAME);
+#endif
         if (IS_ERR(g_pDtaClass))
             Result = PTR_ERR(g_pDtaClass);
         else {

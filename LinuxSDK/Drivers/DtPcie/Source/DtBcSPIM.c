@@ -47,7 +47,7 @@ static DtStatus  DtBcSPIM_OnEnable(DtBc*, Bool  Enable);
 static DtStatus  DtBcSPIM_CheckDeviceStatus(DtBcSPIM* pBc);
 static DtStatus  DtBcSPIM_TransferData(DtBcSPIM* pBc, Int Direction, Bool Continue);
 DT_UNUSED static const char*  DtBcSPIM_DeviceIdToString(Int  Id);
-DT_UNUSED static const char*  DtBcSPIM_DuplexModeToString(Int  Mode);
+DT_UNUSED static const char*  DtBcSPIM_TransferModeToString(Int  Mode);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcSPIM - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -87,21 +87,21 @@ DtBcSPIM*  DtBcSPIM_Open(Int  Address, DtCore*  pCore, DtPt* pPt,
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSPIM_GetProperties -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus DtBcSPIM_GetProperties(DtBcSPIM* pBc, Int * pDeviceId, Int* pDuplexMode,
+DtStatus DtBcSPIM_GetProperties(DtBcSPIM* pBc, Int * pDeviceId, Int* pTransferMode,
                                                       Int* pMaxTfTime, Int* pSpiClockRate)
 {
     // Sanity check    
     BC_SPIM_DEFAULT_PRECONDITIONS(pBc);
 
     // Parameter check
-    if (pDeviceId==NULL || pDuplexMode==NULL || pMaxTfTime==NULL || pSpiClockRate==NULL)
+    if (pDeviceId==NULL || pTransferMode==NULL || pMaxTfTime==NULL || pSpiClockRate==NULL)
         return DT_STATUS_INVALID_PARAMETER;
     
     // Doesn't have to be enabled
 
     // Copy cached properties
     *pDeviceId = pBc->m_DeviceId;
-    *pDuplexMode = pBc->m_DuplexMode;
+    *pTransferMode = pBc->m_TransferMode;
     *pMaxTfTime = pBc->m_MaxTransferTime;
     *pSpiClockRate = pBc->m_SpiClockRate;
 
@@ -267,7 +267,7 @@ DtStatus DtBcSPIM_WriteRead(DtBcSPIM* pBc, Int WriteLength, const UInt8* pWriteB
         // after a write is immediately available. All code for full-duplex devices uses 
         // half-duplex, and would stop working. ADS8866 MUST use full-duplex method, so
         // make an exception here.
-        if (BC_SPIM->m_DuplexMode == DT_SPIM_DPX_FULL_DUPLEX && 
+        if (BC_SPIM->m_TransferMode == DT_SPIM_TFM_FULL_DUPLEX && 
                                             BC_SPIM->m_DeviceId == DT_SPIM_SPIDVC_ADS8866)
             Status = DtBcSPIM_TransferData(pBc, SPIM_TFDIR_SEND, WriteLength > 0);
         else 
@@ -288,7 +288,7 @@ DtStatus DtBcSPIM_WriteRead(DtBcSPIM* pBc, Int WriteLength, const UInt8* pWriteB
         UInt32 Data;
 
         // Transfer data. See comments above.
-        if (BC_SPIM->m_DuplexMode != DT_SPIM_DPX_FULL_DUPLEX || 
+        if (BC_SPIM->m_TransferMode != DT_SPIM_TFM_FULL_DUPLEX || 
                                             BC_SPIM->m_DeviceId != DT_SPIM_SPIDVC_ADS8866)
         {
             // Half duplex
@@ -413,6 +413,13 @@ DtStatus  DtBcSPIM_Init(DtBc*  pBc)
     case SPIM_SPIDVC_ADS8866:   BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_ADS8866; break;
     case SPIM_SPIDVC_AD9628:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_AD9628; break;
     case SPIM_SPIDVC_AD9266:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_AD9266; break;
+    case SPIM_SPIDVC_SpiRegIfMaster: BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_AD9266; break;
+    case SPIM_SPIDVC_TC72:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_AD9266; break;
+    case SPIM_SPIDVC_AD5611:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_AD5611; break;
+    case SPIM_SPIDVC_ADF4360:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_ADF4360; break;
+    case SPIM_SPIDVC_AD9789:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_AD9789; break;
+    case SPIM_SPIDVC_ADS5562:    BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_ADS5562; break;
+    case SPIM_SPIDVC_DAC121S101: BC_SPIM->m_DeviceId = DT_SPIM_SPIDVC_DAC121S101; break;
     default: DT_ASSERT(FALSE); return DT_STATUS_FAIL; 
     }
 
@@ -429,25 +436,31 @@ DtStatus  DtBcSPIM_Init(DtBc*  pBc)
     DT_ASSERT((BC_SPIM->m_WordSize/8)>=1 && (BC_SPIM->m_WordSize/8)<=4);
     BC_SPIM->m_NumBytesPerWord = BC_SPIM->m_WordSize/8;
 
-    // Get Duplex mode
-    BC_SPIM->m_DuplexMode = SPIM_Config3_GET_DuplexMode(RegConfig);
+    // Get transfer mode
+    if (SPIM_Config3_GET_TransferMode(RegConfig) == SPIM_TRMODE_FULL_DUPLEX)
+        BC_SPIM->m_TransferMode = DT_SPIM_TFM_FULL_DUPLEX;
+    else if (SPIM_Config3_GET_TransferMode(RegConfig) == SPIM_TRMODE_HALF_DUPLEX)
+        BC_SPIM->m_TransferMode = DT_SPIM_TFM_HALF_DUPLEX;
+    else if (SPIM_Config3_GET_TransferMode(RegConfig) == SPIM_TRMODE_SIMPLEX_TX)
+        BC_SPIM->m_TransferMode = DT_SPIM_TFM_SIMPLEX_TX;
+    else
+    {
+        DT_ASSERT(FALSE); 
+        return DT_STATUS_FAIL; 
+    }
 
     // Get maximum transfer time
     BC_SPIM->m_MaxTransferTime = SPIM_Config3_GET_MaxTransferTime(RegConfig);
 
-    // Get duplex mode
-    if (SPIM_Config3_GET_DuplexMode(RegConfig) == SPIM_DPX_FULL_DUPLEX)
-        BC_SPIM->m_DuplexMode = DT_SPIM_DPX_FULL_DUPLEX;
-    else
-        BC_SPIM->m_DuplexMode = DT_SPIM_DPX_HALF_DUPLEX;
+
 
     // Print configuration
     DtDbgOutBc(AVG, SPIM, pBc, "Configuration: clock=%dHz, dev_id=%s, word_size=%d, "
-                                      "max_tx_time=%dns, duplex_mode=%s",
-                                      BC_SPIM->m_SpiClockRate, 
-                                      DtBcSPIM_DeviceIdToString(BC_SPIM->m_DeviceId),
-                                      BC_SPIM->m_WordSize, BC_SPIM->m_MaxTransferTime,
-                                      DtBcSPIM_DuplexModeToString(BC_SPIM->m_DuplexMode));
+                                  "max_tx_time=%dns, transfer_mode=%s",
+                                  BC_SPIM->m_SpiClockRate, 
+                                  DtBcSPIM_DeviceIdToString(BC_SPIM->m_DeviceId),
+                                  BC_SPIM->m_WordSize, BC_SPIM->m_MaxTransferTime,
+                                  DtBcSPIM_TransferModeToString(BC_SPIM->m_TransferMode));
 
     return DT_STATUS_OK;
 }
@@ -536,22 +549,31 @@ const char*  DtBcSPIM_DeviceIdToString(Int  Id)
     case DT_SPIM_SPIDVC_RFFC5072:   return "RFFC5072";
     case DT_SPIM_SPIDVC_AD9163:     return "AD9163";
     case DT_SPIM_SPIDVC_LTC6952:    return "LTC6952"; 
-    case DT_SPIM_SPIDVC_ADS8866:    return "ADS8866"; 
+    case DT_SPIM_SPIDVC_ADS8866:    return "ADS8866";
     case DT_SPIM_SPIDVC_AD9628:     return "AD9628";
-    case DT_SPIM_SPIDVC_AD9266:     return "AD9266"; 
+    case DT_SPIM_SPIDVC_AD9266:     return "AD9266";
+    case DT_SPIM_SPIDVC_SpiRegIfMaster: return "DVC_SpiRegIfMaster";
+    case DT_SPIM_SPIDVC_TC72:       return "DVC_TC72";
+    case DT_SPIM_SPIDVC_AD5611:     return "DVC_AD5611";
+    case DT_SPIM_SPIDVC_ADF4360:    return "DVC_ADF4360";
+    case DT_SPIM_SPIDVC_AD9789:     return "DVC_AD9789";
+    case DT_SPIM_SPIDVC_ADS5562:    return "DVC_ADS5562";
+    case DT_SPIM_SPIDVC_DAC121S101: return "DVC_DAC121S101";
     }
     DT_ASSERT(FALSE);
     return "???";
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSPIM_DuplexModeToString -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcSPIM_TransferModeToString -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-const char*  DtBcSPIM_DuplexModeToString(Int  Mode)
+const char*  DtBcSPIM_TransferModeToString(Int  Mode)
 {
     switch (Mode)
     {
-    case DT_SPIM_DPX_FULL_DUPLEX:   return "Full-Duplex";
-    case DT_SPIM_DPX_HALF_DUPLEX:   return "Half-Duplex";
+    case DT_SPIM_TFM_FULL_DUPLEX:   return "Full-Duplex";
+    case DT_SPIM_TFM_HALF_DUPLEX:   return "Half-Duplex";
+    case DT_SPIM_TFM_SIMPLEX_TX:    return "Simplex TX";
     }
     DT_ASSERT(FALSE);
     return "???";
@@ -757,8 +779,8 @@ DtStatus  DtIoStubBcSPIM_OnCmdGetProperties(
     DT_ASSERT(pOutData != NULL);
     
     return DtBcSPIM_GetProperties(SPIM_BC, &pOutData->m_SpiDeviceId,
-                                    &pOutData->m_DuplexMode, &pOutData->m_MaxTransferTime,
-                                    &pOutData->m_SpiClockRate);
+                                  &pOutData->m_TransferMode, &pOutData->m_MaxTransferTime,
+                                  &pOutData->m_SpiClockRate);
 }
 
 

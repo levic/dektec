@@ -235,6 +235,7 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define MANUF_PLANT_ANUBISS         4            // Produced by Anubiss
 #define MANUF_PLANT_PRODRIVE        5            // Produced by Prodrive
 #define MANUF_PLANT_SENCORE         6            // Produced by Sencore
+#define MANUF_PLANT_ELECTROWATT     7            // Produced by Electro-Watt
 
 // Constants used for CPLD and firmware programming
 #define PROG_ITF_JTAG_MASK          0x000F
@@ -6783,10 +6784,19 @@ typedef enum _DtIoctlSpiMCmd
 #define DT_SPIM_SPIDVC_ADS8866   12 // Texas Instruments ADS8866 16-bit 100-kSPS ADC
 #define DT_SPIM_SPIDVC_AD9628    13 // Analog Devices AD9628 12-bit 105-MSPS Dual ADC
 #define DT_SPIM_SPIDVC_AD9266    14 // Analog Devices AD9266 16-bit 80-MSPS ADC
+#define DT_SPIM_SPIDVC_SpiRegIfMaster  15  // SPI-controlled register-interface master
+#define DT_SPIM_SPIDVC_TC72      16  // Microchip TC72 Digital Temperature Sensor
+#define DT_SPIM_SPIDVC_AD5611    17  // Analog Devices AD5611 10-bit NanoDac
+#define DT_SPIM_SPIDVC_ADF4360   18  // Analog Devices ADF4360 Integrated
+                                     // Synthesizer and VCO
+#define DT_SPIM_SPIDVC_AD9789    19  // Analog Devices AD9789 2400 MSPS RF DAC
+#define DT_SPIM_SPIDVC_ADS5562   20  // Texas Instruments ADS5562 16-bit 80 MSPS ADCs
+#define DT_SPIM_SPIDVC_DAC121S101 21 // Texas Instruments DAC121S101 12-bit RRO DAC
 
-// SPIM duplex Mode
-#define DT_SPIM_DPX_FULL_DUPLEX  0x0    // Send and receive simultaneously
-#define DT_SPIM_DPX_HALF_DUPLEX  0x1    // Send or receivee
+// SPIM transfermode (replaces duplex mode) 
+#define DT_SPIM_TFM_FULL_DUPLEX  0x0    // Send and receive simultaneously
+#define DT_SPIM_TFM_HALF_DUPLEX  0x1    // Send or receive
+#define DT_SPIM_TFM_SIMPLEX_TX   0x2    // Send only
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- SPIM - Get Properties Command -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -6798,7 +6808,7 @@ typedef struct _DtIoctlSpiMCmdGetPropertiesOutput
     Int  m_SpiDeviceId;             // Device ID
     Int  m_SpiClockRate;            // SPI clock rate in
     Int  m_WordSize;                // SPI word size in number of bits
-    Int  m_DuplexMode;              // Duplex mode: full or full duplex
+    Int  m_TransferMode;            // Transfer mode: full or full duplex
     Int  m_MaxTransferTime;         // Maximum transfer time in ns 
 
 } DtIoctlSpiMCmdGetPropertiesOutput;

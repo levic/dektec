@@ -26,6 +26,9 @@ changes included in the release.
 
 The DtPcie driver is a char driver for DekTec's DTA-series of PCIe cards.
 Currently the driver provides support for the following cards:
+- DTA-2110	(10GbE NIC for SMPTE 2110)
+- DTA-2116	(All-Standard 3GHz Modulator for PCIe)
+- DTA-2127	(Quad S2X Receiver with 3G-SDI/ASI Port for PCIe)
 - DTA-2132	(High-End Satellite Receiver for PCIe)
 - DTA-2139B	(12-Channel Cable/Terrestrial Receiver for PCIe)
 - DTA-2139C	(12-Channel Cable/Terrestrial Receiver for PCIe)

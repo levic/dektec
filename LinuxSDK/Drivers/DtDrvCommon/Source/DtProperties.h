@@ -28,6 +28,8 @@
 #ifndef __DT_PROPERTIES_H
 #define __DT_PROPERTIES_H
 
+// #pragma warning (disable : 4245)
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Type definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 // Type to store a single property

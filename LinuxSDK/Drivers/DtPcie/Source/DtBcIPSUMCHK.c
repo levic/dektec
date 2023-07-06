@@ -242,3 +242,14 @@ void  DtBcIPSUMCHK_SetControlRegs(DtBcIPSUMCHK* pBc, Bool BlkEna, Int OpMode)
     RegData = IPSUMCHK_Control_SET_OperationalMode(RegData, FwOpMode);
     IPSUMCHK_Control_WRITE(pBc, RegData);
 }
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcIPSUMCHK_SetPromicuousMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+void DtBcIPSUMCHK_SetPromicuousMode(DtBcIPSUMCHK* pBc, Bool Enable)
+{
+    UInt32  RegData = 0;
+    BC_IPSUMCHK_DEFAULT_PRECONDITIONS(pBc);
+    RegData = IPSUMCHK_Control_READ(pBc);
+    RegData = IPSUMCHK_Control_SET_PromiscuousMode(RegData, (Enable?1:0));
+    IPSUMCHK_Control_WRITE(pBc, RegData);
+}

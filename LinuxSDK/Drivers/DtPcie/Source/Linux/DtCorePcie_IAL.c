@@ -84,10 +84,6 @@ static Int  DtCorePcie_IAL_InitDeviceResources(DtCorePcie* pCore);
 static Int  DtCorePcie_IAL_FreeDeviceResources(DtCorePcie* pCore);
 static Int  DtCorePcie_IAL_MapResources(DtCorePcie* pCore);
 static void  DtCorePcie_IAL_UnMapResources(DtCorePcie* pCore);
-static Int  DtCorePcie_IAL_PtpClockRegister(DtCorePcie* pCore);
-static Int  DtCorePcie_IAL_PtpClockUnregister(DtCorePcie* pCore);
-
-
 
 // Interrupt handler
 static irqreturn_t  DtCorePcie_IAL_Interrupt(Int Irq, void* pContext);
@@ -679,7 +675,8 @@ static Int  DtCorePcie_IAL_DeviceStartSeq(DtCorePcie* pCore)
         pCore->m_Device.m_pDevice = device_create(g_pDtPcieClass, NULL, DevNum,
                                          DRIVER_NAME"%u", pCore->m_IalData.m_DvcIndex);
 #else
-        pCore->m_Device.m_pDevice = device_create(g_pDtPcieClass, NULL, DevNum, pCore,
+        pCore->m_Device.m_pDevice = device_create(g_pDtPcieClass, 
+                                         &(pCore->m_Device.m_pPciDev->dev), DevNum, pCore,
                                          DRIVER_NAME"%u", pCore->m_IalData.m_DvcIndex);
 #endif
 
@@ -1279,11 +1276,6 @@ static Int  DtCorePcie_IAL_Probe(struct pci_dev *pPciDev, const struct pci_devic
     // Only proceed if no errors
     if (Result >= 0)
     {
-        // Register PTP clock driver
-#ifdef LINUX_KERNEL_PTP_SUPPORT
-        DtCorePcie_IAL_PtpClockRegister(pCore);
-#endif
-
         // Set device driver data
         pci_set_drvdata(pCore->m_Device.m_pPciDev, pCore);
     
@@ -1324,10 +1316,6 @@ static void  DtCorePcie_IAL_Remove(struct pci_dev *pPciDev)
     if (pCore == NULL)
         return;
 
-#ifdef LINUX_KERNEL_PTP_SUPPORT
-    DtCorePcie_IAL_PtpClockUnregister(pCore);
-#endif
-    
     // Clear device driver data
     pci_set_drvdata(pCore->m_Device.m_pPciDev, NULL);
 
@@ -1673,264 +1661,6 @@ void  DtCorePcie_IAL_UnRegisterChildDriver(DtDriverItf* pDriverItf)
 }
 EXPORT_SYMBOL(DtCorePcie_IAL_UnRegisterChildDriver);
 
-// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ PTP Clock Driver Interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-#ifdef LINUX_KERNEL_PTP_SUPPORT
-#define COREPCIE_PTP(ptp) g_pDtCorePcie[                                                 \
-                                container_of(ptp, DtIalData, m_PtpClockInfo)->m_DvcIndex];
-#define BCTOD(pCore) pCore->m_pCfTod->m_pBcTod
-        
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvAdjFine -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  DtCorePcie_IAL_ClkDrvAdjFine(struct ptp_clock_info* ptp, long scaled_ppm)
-{
-    DtStatus Status = DT_STATUS_OK;
-    DtCorePcie*  pCore = COREPCIE_PTP(ptp);
-    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
-    if (scaled_ppm == 0)
-        return 0;
-    Status = DtBcTOD_AdjustPhaseIncr(BCTOD(pCore), scaled_ppm);
-    if (!DT_SUCCESS(Status))
-        return -EFAULT;
-    return 0;
-}
-
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvAdjFreq -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  DtCorePcie_IAL_ClkDrvAdjFreq(struct ptp_clock_info* ptp, s32 delta)
-{
-    DtStatus  Status;
-    Bool Neg = FALSE;
-    long scaled_ppm;
-
-    if (delta < 0)
-    {
-        Neg = TRUE;
-        delta = -delta;
-    }
-    scaled_ppm = (long)DtDivide64((long)delta << 16, 1000, NULL);
-    if (Neg)
-        scaled_ppm = -scaled_ppm;
-    Status = DtCorePcie_IAL_ClkDrvAdjFine(ptp, scaled_ppm);
-    if (!DT_SUCCESS(Status))
-        return -EFAULT;
-    return 0;
-}
-
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvAdjTime -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  DtCorePcie_IAL_ClkDrvAdjTime(struct ptp_clock_info* ptp, s64 delta)
-{
-    DtStatus  Status;
-    DtCorePcie*  pCore = COREPCIE_PTP(ptp);
-    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
-
-    if (delta == 0)
-        return 0;
-
-    Status = DtBcTOD_Adjust(BCTOD(pCore), delta);
-    if (!DT_SUCCESS(Status))
-        return -EFAULT;
-    return 0;
-}
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0)
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvGetTime -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  DtCorePcie_IAL_ClkDrvGetTime(struct ptp_clock_info* ptp, struct timespec* ts)
-{
-    DtStatus  Status;
-    UInt  AdjustCount;
-    DtTodTime  Time; 
-    DtCorePcie* pCore = COREPCIE_PTP(ptp);
-    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
-
-    Status = DtBcTOD_GetTime(BCTOD(pCore), &Time, &AdjustCount);
-    ts->tv_nsec = Time.m_Nanoseconds;
-    ts->tv_sec = Time.m_Seconds;
-    if (!DT_SUCCESS(Status))
-        return -EFAULT;
-    return 0;
-}
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvSetTime -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  DtCorePcie_IAL_ClkDrvSetTime(struct ptp_clock_info* ptp, const struct timespec* ts)
-{
-    DtStatus  Status;
-    DtTodTime  Time;
-    DtCorePcie* pCore = COREPCIE_PTP(ptp);
-    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
-
-    Time.m_Nanoseconds = ts->tv_nsec;
-    Time.m_Seconds = ts->tv_sec;
-
-    Status = DtBcTOD_SetTime(BCTOD(pCore), Time);
-    if (!DT_SUCCESS(Status))
-        return -EFAULT;
-    return 0;
-}
-#endif
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvGetTime64 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-Int  DtCorePcie_IAL_ClkDrvGetTime64(struct ptp_clock_info* ptp, struct timespec64* ts)
-{
-    DtStatus  Status;
-    UInt  AdjustCount;
-    DtTodTime  Time;
-    DtCorePcie*  pCore = COREPCIE_PTP(ptp);
-    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
-
-    Status = DtBcTOD_GetTime(BCTOD(pCore), &Time, &AdjustCount);
-    ts->tv_nsec = Time.m_Nanoseconds;
-    ts->tv_sec = Time.m_Seconds;
-    if (!DT_SUCCESS(Status))
-        return -EFAULT;
-    return 0;
-}
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,0,0)
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvGetTimeX64 -.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  DtCorePcie_IAL_ClkDrvGetTimeX64(struct ptp_clock_info* ptp, struct timespec64* ts,
-                                                         struct ptp_system_timestamp* sts)
-{
-    DtStatus  Status;
-    UInt  AdjustCount;
-    DtTodTime  Time;
-    DtCorePcie*  pCore = COREPCIE_PTP(ptp);
-    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
-
-    ptp_read_system_prets(sts);
-    Status = DtBcTOD_GetTime(BCTOD(pCore), &Time, &AdjustCount);
-    ptp_read_system_postts(sts);
-
-    ts->tv_nsec = Time.m_Nanoseconds;
-    ts->tv_sec = Time.m_Seconds;
-
-    if (!DT_SUCCESS(Status))
-        return -EFAULT;
-    return 0;
-}
-#endif
-
-// -.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvGetCrossTStamp -.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  DtCorePcie_IAL_ClkDrvGetCrossTStamp(struct ptp_clock_info* ptp,
-                                                    struct system_device_crosststamp* cts)
-{
-    return -EOPNOTSUPP;
-}
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvSetTime64 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-Int  DtCorePcie_IAL_ClkDrvSetTime64(struct ptp_clock_info* ptp, 
-                                                              const struct timespec64* ts)
-{
-    DtStatus  Status;
-    DtTodTime  Time;
-    DtCorePcie*  pCore = COREPCIE_PTP(ptp);
-    COREPCIE_DEFAULT_PRECONDITIONS(pCore);
-
-    Time.m_Nanoseconds = ts->tv_nsec;
-    Time.m_Seconds = ts->tv_sec;
-
-    Status = DtBcTOD_SetTime(BCTOD(pCore), Time);
-    if (!DT_SUCCESS(Status))
-        return -EFAULT;
-    return 0;
-}
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  DtCorePcie_IAL_ClkDrvEnable(struct ptp_clock_info* ptp, 
-                                                struct ptp_clock_request* request, int on)
-{
-    return -EOPNOTSUPP;
-}
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ClkDrvVerify -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  DtCorePcie_IAL_ClkDrvVerify(struct ptp_clock_info* ptp, unsigned int pin,
-                                            enum ptp_pin_function func, unsigned int chan)
-{
-    return -EOPNOTSUPP;
-}
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_PtpClockRegister -.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-Int  DtCorePcie_IAL_PtpClockRegister(DtCorePcie* pCore)
-{
-    UInt  SysClockFreqHz;
-    UInt  Accuracy;
-    DtStatus  Status;
-    UInt64 MaxPPB; 
-    struct ptp_clock_info*  pPtpClockInfo = &pCore->m_IalData.m_PtpClockInfo;
-    
-    // Get system clock properties
-    Status = DtBcTOD_GetProperties(BCTOD(pCore), &SysClockFreqHz, &Accuracy);
-    
-    // Calculate the maximum possible frequency adjustment, in parts per billon.
-    MaxPPB = DtDivide64((1LL << 58), SysClockFreqHz, NULL);
-    MaxPPB = DtDivide64(0x7FFFFFFFFFFF, MaxPPB, NULL);
-
-
-    // Fill the ptp_clock_info structure
-    DtMemZero(pPtpClockInfo, sizeof(struct ptp_clock_info));
-    strcpy(pPtpClockInfo->name, DTPCIE_PTP_CLK_NAME);
-    pPtpClockInfo->owner = THIS_MODULE;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
-    pPtpClockInfo->adjfine = DtCorePcie_IAL_ClkDrvAdjFine;
-#else
-    pPtpClockInfo->adjfreq = DtCorePcie_IAL_ClkDrvAdjFreq;
-#endif
-    pPtpClockInfo->adjtime = DtCorePcie_IAL_ClkDrvAdjTime;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0)
-    pPtpClockInfo->gettime64 = DtCorePcie_IAL_ClkDrvGetTime64;
-    pPtpClockInfo->settime64 = DtCorePcie_IAL_ClkDrvSetTime64;
-#else
-    pPtpClockInfo->gettime = DtCorePcie_IAL_ClkDrvGetTime;
-    pPtpClockInfo->settime = DtCorePcie_IAL_ClkDrvSetTime;
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,0,0)
-    pPtpClockInfo->gettimex64 = DtCorePcie_IAL_ClkDrvGetTimeX64;
-#endif
-    //pPtpClockInfo->getcrosststamp = DtCorePcie_IAL_ClkDrvGetCrossTStamp;
-    pPtpClockInfo->enable = DtCorePcie_IAL_ClkDrvEnable;
-    //pPtpClockInfo->verify = DtCorePcie_IAL_ClkDrvVerify;
-    
-    pPtpClockInfo->max_adj = MaxPPB;
-    pPtpClockInfo->n_alarm = 0;
-    pPtpClockInfo->n_ext_ts = 0;
-    pPtpClockInfo->n_per_out = 0;
-    pPtpClockInfo->n_pins = 0;
-    pPtpClockInfo->pps = 0; // Indicates whether the clock supports a PPS callback.
-    //pPtpClockInfo->pin_config = NULL; //  Array of length 'n_pins'
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
-    pCore->m_IalData.m_pPtpClock = ptp_clock_register(pPtpClockInfo, 
-                                                               pCore->m_Device.m_pDevice);
-#else
-    pCore->m_IalData.m_pPtpClock = ptp_clock_register(pPtpClockInfo);
-#endif
-    if (pCore->m_IalData.m_pPtpClock == NULL)
-        return -ENOMEM;
-    else
-        pCore->m_IalData.m_PtpClockIndex = ptp_clock_index(pCore->m_IalData.m_pPtpClock);
-    return 0;
-}
-
-// .-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_PtpClockUnregister -.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-Int  DtCorePcie_IAL_PtpClockUnregister(DtCorePcie* pCore)
-{
-    int err = 0;
-    if (pCore->m_IalData.m_pPtpClock != NULL)
-        err = ptp_clock_unregister(pCore->m_IalData.m_pPtpClock);
-    pCore->m_IalData.m_pPtpClock = NULL;;
-    return err;
-}
-#endif
-
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Module init / exit +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_ModuleInit -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -1978,7 +1708,11 @@ static Int  DtCorePcie_IAL_ModuleInit(void)
     if (Result >= 0)
     {
         // Create Device class
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0)
         g_pDtPcieClass = class_create(THIS_MODULE, DRIVER_NAME);
+#else
+        g_pDtPcieClass = class_create(DRIVER_NAME);
+#endif
         if (IS_ERR(g_pDtPcieClass))
             Result = PTR_ERR(g_pDtPcieClass);
         else {
