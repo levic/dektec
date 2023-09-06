@@ -212,6 +212,43 @@ typedef struct  _DtIoctlProperties
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_AD9789ITF_CMD +=+=+=+=+=+=+=+=+=+= +=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_AD9789ITF_GET_OPERATIONAL_MODE                                \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_AD9789ITF_CMD_GET_OPERATIONAL_MODE,                                           \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlAd9789ItfCmdGetOpModeInput),                                       \
+        sizeof(DtIoctlAd9789ItfCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_AD9789ITF_SET_OPERATIONAL_MODE                                \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_AD9789ITF_CMD_SET_OPERATIONAL_MODE,                                           \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlAd9789ItfCmdSetOpModeInput),                                       \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_AD9789ITF                                                \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_AD9789ITF[] =                  \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_AD9789ITF_GET_OPERATIONAL_MODE,                               \
+        DT_IOCTL_CMD_PROPS_AD9789ITF_SET_OPERATIONAL_MODE                                \
+    }
+
+#define DT_IOCTL_PROPS_AD9789ITF_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)             \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_AD9789ITF_CMD,                                                          \
+        "DT_IOCTL_AD9789ITF_CMD",                                                        \
+        DT_IOCTL_CMD_PROPS_AD9789ITF,                                                    \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_ASIRX_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -906,6 +943,44 @@ typedef struct  _DtIoctlProperties
     )
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_DATAC_CMD +=+=+=+=+=+=+=+=+=+= +=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_DATAC_GET_OPERATIONAL_MODE                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_DATAC_CMD_GET_OPERATIONAL_MODE,                                               \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlDataCCmdGetOpModeInput),                                           \
+        sizeof(DtIoctlDataCCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_DATAC_SET_OPERATIONAL_MODE                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_DATAC_CMD_SET_OPERATIONAL_MODE,                                               \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlDataCCmdSetOpModeInput),                                           \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_DATAC                                                    \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_DATAC[] =                      \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_DATAC_GET_OPERATIONAL_MODE,                                   \
+        DT_IOCTL_CMD_PROPS_DATAC_SET_OPERATIONAL_MODE                                    \
+    }
+
+#define DT_IOCTL_PROPS_DATAC_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)                 \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_DATAC_CMD,                                                              \
+        "DT_IOCTL_DATAC_CMD",                                                            \
+        DT_IOCTL_CMD_PROPS_DATAC,                                                        \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_DATACDC_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -941,6 +1016,7 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_DATACDC,                                                      \
         ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
     )
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_DDRFRONT_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -1914,6 +1990,44 @@ typedef struct  _DtIoctlProperties
     )
 
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_IOPARIN_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+#define DT_IOCTL_CMD_PROPS_IOPARIN_GET_OPERATIONAL_MODE                                  \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IOPARIN_CMD_GET_OPERATIONAL_MODE,                                             \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIoParInCmdGetOpModeInput),                                         \
+        sizeof(DtIoctlIoParInCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_IOPARIN_SET_OPERATIONAL_MODE                                  \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IOPARIN_CMD_SET_OPERATIONAL_MODE,                                             \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIoParInCmdSetOpModeInput),                                         \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_IOPARIN                                                  \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_IOPARIN[] =                    \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_IOPARIN_GET_OPERATIONAL_MODE,                                 \
+        DT_IOCTL_CMD_PROPS_IOPARIN_SET_OPERATIONAL_MODE,                                 \
+    }
+
+#define DT_IOCTL_PROPS_IOPARIN_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)               \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_IOPARIN_CMD,                                                            \
+        "DT_IOCTL_IOPARIN_CMD",                                                          \
+        DT_IOCTL_CMD_PROPS_IOPARIN,                                                      \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_IOSERIN_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -2008,6 +2122,220 @@ typedef struct  _DtIoctlProperties
     )
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_IQAGC_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_IQAGC_GET_CONFIG                                              \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQAGC_CMD_GET_CONFIG,                                                         \
+        "GET_CONFIG",                                                                    \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqAgcCmdGetConfigInput),                                           \
+        sizeof(DtIoctlIqAgcCmdGetConfigOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQAGC_GET_GAIN_CONTROL                                        \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQAGC_CMD_GET_GAIN_CONTROL,                                                   \
+        "GET_GAIN_CONTROL",                                                              \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqAgcCmdGetGainControlInput),                                      \
+        sizeof(DtIoctlIqAgcCmdGetGainControlOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQAGC_GET_GAIN_CTRL_PARS                                      \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQAGC_CMD_GET_GAIN_CTRL_PARS,                                                 \
+        "GET_GAIN_CTRL_PARS",                                                            \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqAgcCmdGetGainCtrlParsInput),                                     \
+        sizeof(DtIoctlIqAgcCmdGetGainCtrlParsOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQAGC_GET_GAIN_STATUS                                         \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQAGC_CMD_GET_GAIN_STATUS,                                                    \
+        "GET_GAIN_STATUS",                                                               \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqAgcCmdGetGainStatusInput),                                       \
+        sizeof(DtIoctlIqAgcCmdGetGainStatusOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQAGC_GET_OPERATIONAL_MODE                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQAGC_CMD_GET_OPERATIONAL_MODE,                                               \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqAgcCmdGetOpModeInput),                                           \
+        sizeof(DtIoctlIqAgcCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQAGC_SET_GAIN_CONTROL                                        \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQAGC_CMD_SET_GAIN_CONTROL,                                                   \
+        "SET_GAIN_CONTROL",                                                              \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIqAgcCmdSetGainControlInput),                                      \
+        0)
+
+#define DT_IOCTL_CMD_PROPS_IQAGC_SET_GAIN_CTRL_PARS                                      \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQAGC_CMD_SET_GAIN_CTRL_PARS,                                                 \
+        "SET_GAIN_CTRL_PARS",                                                            \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIqAgcCmdSetGainCtrlParsInput),                                     \
+        0)
+
+#define DT_IOCTL_CMD_PROPS_IQAGC_SET_OPERATIONAL_MODE                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQAGC_CMD_SET_OPERATIONAL_MODE,                                               \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIqAgcCmdSetOpModeInput),                                           \
+        0)
+        
+#define DECL_DT_IOCTL_CMD_PROPS_IQAGC                                                    \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_IQAGC[] =                      \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_IQAGC_GET_CONFIG,                                             \
+        DT_IOCTL_CMD_PROPS_IQAGC_GET_GAIN_CONTROL,                                       \
+        DT_IOCTL_CMD_PROPS_IQAGC_GET_GAIN_CTRL_PARS,                                     \
+        DT_IOCTL_CMD_PROPS_IQAGC_GET_GAIN_STATUS,                                        \
+        DT_IOCTL_CMD_PROPS_IQAGC_GET_OPERATIONAL_MODE,                                   \
+        DT_IOCTL_CMD_PROPS_IQAGC_SET_GAIN_CONTROL,                                       \
+        DT_IOCTL_CMD_PROPS_IQAGC_SET_GAIN_CTRL_PARS,                                     \
+        DT_IOCTL_CMD_PROPS_IQAGC_SET_OPERATIONAL_MODE                                    \
+    }
+
+#define DT_IOCTL_PROPS_IQAGC_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)                 \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_IQAGC_CMD,                                                              \
+        "DT_IOCTL_IQAGC_CMD",                                                            \
+        DT_IOCTL_CMD_PROPS_IQAGC,                                                        \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_IQDEMOD_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_IQDEMOD_GET_NCO_PARS                                          \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQDEMOD_CMD_GET_NCO_PARS,                                                     \
+        "GET_NCO_PARS",                                                                  \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqDemodCmdGetNcoParsInput),                                        \
+        sizeof(DtIoctlIqDemodCmdGetNcoParsOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQDEMOD_GET_OPERATIONAL_MODE                                  \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQDEMOD_CMD_GET_OPERATIONAL_MODE,                                             \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqDemodCmdGetOpModeInput),                                         \
+        sizeof(DtIoctlIqDemodCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQDEMOD_SET_NCO_PARS                                          \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQDEMOD_CMD_SET_NCO_PARS,                                                     \
+        "SET_NCO_PARS",                                                                  \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIqDemodCmdSetNcoParsInput),                                        \
+        0)
+
+
+#define DT_IOCTL_CMD_PROPS_IQDEMOD_SET_OPERATIONAL_MODE                                  \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQDEMOD_CMD_SET_OPERATIONAL_MODE,                                             \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIqDemodCmdSetOpModeInput),                                         \
+        0)
+        
+#define DECL_DT_IOCTL_CMD_PROPS_IQDEMOD                                                  \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_IQDEMOD[] =                    \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_IQDEMOD_GET_NCO_PARS,                                         \
+        DT_IOCTL_CMD_PROPS_IQDEMOD_GET_OPERATIONAL_MODE,                                 \
+        DT_IOCTL_CMD_PROPS_IQDEMOD_SET_NCO_PARS,                                         \
+        DT_IOCTL_CMD_PROPS_IQDEMOD_SET_OPERATIONAL_MODE                                  \
+    }
+
+#define DT_IOCTL_PROPS_IQDEMOD_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)               \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_IQDEMOD_CMD,                                                            \
+        "DT_IOCTL_IQDEMOD_CMD",                                                          \
+        DT_IOCTL_CMD_PROPS_IQDEMOD,                                                      \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_IQDOWNSRC_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_IQDOWNSRC_GET_CONV_RATE_PARS                                  \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQDOWNSRC_CMD_GET_CONV_RATE_PARS,                                             \
+        "GET_CONV_RATE_PARS",                                                            \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqDownSrcCmdGetConvRateParsInput),                                 \
+        sizeof(DtIoctlIqDownSrcCmdGetConvRateParsOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQDOWNSRC_GET_OPERATIONAL_MODE                                \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQDOWNSRC_CMD_GET_OPERATIONAL_MODE,                                           \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqDownSrcCmdGetOpModeInput),                                       \
+        sizeof(DtIoctlIqDownSrcCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQDOWNSRC_SET_CONV_RATE_PARS                                  \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQDOWNSRC_CMD_SET_CONV_RATE_PARS,                                             \
+        "SET_CONV_RATE_PARS",                                                            \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIqDownSrcCmdSetConvRateParsInput),                                 \
+        0)
+
+#define DT_IOCTL_CMD_PROPS_IQDOWNSRC_SET_OPERATIONAL_MODE                                \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQDOWNSRC_CMD_SET_OPERATIONAL_MODE,                                           \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIqDownSrcCmdSetOpModeInput),                                       \
+        0)
+
+
+#define DECL_DT_IOCTL_CMD_PROPS_IQDOWNSRC                                                \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_IQDOWNSRC[] =                  \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_IQDOWNSRC_GET_CONV_RATE_PARS,                                 \
+        DT_IOCTL_CMD_PROPS_IQDOWNSRC_GET_OPERATIONAL_MODE,                               \
+        DT_IOCTL_CMD_PROPS_IQDOWNSRC_SET_CONV_RATE_PARS,                                 \
+        DT_IOCTL_CMD_PROPS_IQDOWNSRC_SET_OPERATIONAL_MODE                                \
+    }
+
+#define DT_IOCTL_PROPS_IQDOWNSRC_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)             \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_IQDOWNSRC_CMD,                                                          \
+        "DT_IOCTL_IQDOWNSRC_CMD",                                                        \
+        DT_IOCTL_CMD_PROPS_IQDOWNSRC,                                                    \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_IQFIR_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -2083,6 +2411,135 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_IQFIR,                                                        \
         ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
     )
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_IQFIR2XCLK_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_IQFIR2XCLK_GET_CONFIG                                         \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQFIR2XCLK_CMD_GET_CONFIG,                                                    \
+        "GET_CONFIG",                                                                    \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqFir2xClkCmdGetConfigInput),                                      \
+        sizeof(DtIoctlIqFir2xClkCmdGetConfigOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQFIR2XCLK_GET_COEFS                                          \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQFIR2XCLK_CMD_GET_COEFS,                                                     \
+        "GET_COEFS",                                                                     \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqFir2xClkCmdGetCoefsInput),                                       \
+        DT_IOCTL_DYNAMIC_SIZEOF(DtIoctlIqFir2xClkCmdGetCoefsOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQFIR2XCLK_GET_OPERATIONAL_MODE                               \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQFIR2XCLK_CMD_GET_OPERATIONAL_MODE,                                          \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqFir2xClkCmdGetOpModeInput),                                      \
+        sizeof(DtIoctlIqFir2xClkCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQFIR2XCLK_SET_COEFS                                          \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQFIR2XCLK_CMD_SET_COEFS,                                                     \
+        "SET_COEFS",                                                                     \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        DT_IOCTL_DYNAMIC_SIZEOF(DtIoctlIqFir2xClkCmdSetCoefsInput),                      \
+        0)
+
+#define DT_IOCTL_CMD_PROPS_IQFIR2XCLK_SET_OPERATIONAL_MODE                               \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQFIR2XCLK_CMD_SET_OPERATIONAL_MODE,                                          \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIqFir2xClkCmdSetOpModeInput),                                      \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_IQFIR2XCLK                                               \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_IQFIR2XCLK[] =                 \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_IQFIR2XCLK_GET_CONFIG,                                        \
+        DT_IOCTL_CMD_PROPS_IQFIR2XCLK_GET_COEFS,                                         \
+        DT_IOCTL_CMD_PROPS_IQFIR2XCLK_GET_OPERATIONAL_MODE,                              \
+        DT_IOCTL_CMD_PROPS_IQFIR2XCLK_SET_COEFS,                                         \
+        DT_IOCTL_CMD_PROPS_IQFIR2XCLK_SET_OPERATIONAL_MODE,                              \
+    }
+
+#define DT_IOCTL_PROPS_IQFIR2XCLK_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)            \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_IQFIR2XCLK_CMD,                                                         \
+        "DT_IOCTL_IQFIR2XCLK_CMD",                                                       \
+        DT_IOCTL_CMD_PROPS_IQFIR2XCLK,                                                   \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_IQINV_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_IQINV_GET_OPERATIONAL_MODE                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQINV_CMD_GET_OPERATIONAL_MODE,                                               \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqInvCmdGetOpModeInput),                                           \
+        sizeof(DtIoctlIqInvCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQINV_GET_INVERT                                              \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQINV_CMD_GET_INVERT,                                                         \
+        "GET_INVERT",                                                                    \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqInvCmdGetInvertInput),                                           \
+        sizeof(DtIoctlIqInvCmdGetInvertOutput))
+
+
+#define DT_IOCTL_CMD_PROPS_IQINV_SET_OPERATIONAL_MODE                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQINV_CMD_SET_OPERATIONAL_MODE,                                               \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIqInvCmdSetOpModeInput),                                           \
+        0)
+        
+
+#define DT_IOCTL_CMD_PROPS_IQINV_SET_INVERT                                              \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQINV_CMD_SET_INVERT,                                                         \
+        "SET_INVERT",                                                                    \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIqInvCmdSetInvertInput),                                           \
+        0)
+
+
+
+#define DECL_DT_IOCTL_CMD_PROPS_IQINV                                                    \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_IQINV[] =                      \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_IQINV_GET_INVERT,                                             \
+        DT_IOCTL_CMD_PROPS_IQINV_GET_OPERATIONAL_MODE,                                   \
+        DT_IOCTL_CMD_PROPS_IQINV_SET_INVERT,                                             \
+        DT_IOCTL_CMD_PROPS_IQINV_SET_OPERATIONAL_MODE                                    \
+    }
+
+#define DT_IOCTL_PROPS_IQINV_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)                 \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_IQINV_CMD,                                                              \
+        "DT_IOCTL_IQINV_CMD",                                                            \
+        DT_IOCTL_CMD_PROPS_IQINV,                                                        \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_IQJESD_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -2364,6 +2821,74 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_IQNOISE,                                                      \
         ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
     )
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_IQPWR_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_IQPWR_GET_OPERATIONAL_MODE                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQPWR_CMD_GET_OPERATIONAL_MODE,                                               \
+        "GET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqPwrCmdGetOpModeInput),                                           \
+        sizeof(DtIoctlIqPwrCmdGetOpModeOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQPWR_GET_SUM_OF_SQUARES                                      \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQPWR_CMD_GET_SUM_OF_SQUARES,                                                 \
+        "GET_SUM_OF_SQUARES",                                                            \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqPwrCmdGetSumOfSquaresInput),                                     \
+        sizeof(DtIoctlIqPwrCmdGetSumOfSquaresOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQPWR_GET_WINDOW_SIZE                                         \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQPWR_CMD_GET_WINDOW_SIZE,                                                    \
+        "GET_WINDOW_SIZE",                                                               \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlIqPwrCmdGetWindowSizeInput),                                       \
+        sizeof(DtIoctlIqPwrCmdGetWindowSizeOutput))
+
+#define DT_IOCTL_CMD_PROPS_IQPWR_SET_OPERATIONAL_MODE                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQPWR_CMD_SET_OPERATIONAL_MODE,                                               \
+        "SET_OPERATIONAL_MODE",                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIqPwrCmdSetOpModeInput),                                           \
+        0)
+        
+#define DT_IOCTL_CMD_PROPS_IQPWR_SET_WINDOW_SIZE                                         \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IQPWR_CMD_SET_WINDOW_SIZE,                                                    \
+        "SET_WINDOW_SIZE",                                                               \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlIqPwrCmdSetWindowSizeInput),                                       \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_IQPWR                                                    \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_IQPWR[] =                      \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_IQPWR_GET_OPERATIONAL_MODE,                                   \
+        DT_IOCTL_CMD_PROPS_IQPWR_GET_SUM_OF_SQUARES,                                     \
+        DT_IOCTL_CMD_PROPS_IQPWR_GET_WINDOW_SIZE,                                        \
+        DT_IOCTL_CMD_PROPS_IQPWR_SET_OPERATIONAL_MODE,                                   \
+        DT_IOCTL_CMD_PROPS_IQPWR_SET_WINDOW_SIZE                                         \
+    }
+
+#define DT_IOCTL_PROPS_IQPWR_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)                 \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_IQPWR_CMD,                                                              \
+        "DT_IOCTL_IQPWR_CMD",                                                            \
+        DT_IOCTL_CMD_PROPS_IQPWR,                                                        \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_IQSYNC_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

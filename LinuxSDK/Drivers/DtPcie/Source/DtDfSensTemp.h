@@ -27,6 +27,7 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtDf.h"
 #include "DtBcFPGATEMP.h"
+#include "DtDfMcTc72Temp.h"
 #include "DtDfMxDs75Temp.h"
 
 // Name + short-name for the fan manager function. NOTE: must match names in 
@@ -52,6 +53,7 @@ while (0)
 #define DT_DF_SENSTEMP_SENS_TYPE_UNKNOWN    0      // Unknown temperature sensor
 #define DT_DF_SENSTEMP_SENS_TYPE_FPGA       1      // FPGA temperature sensor
 #define DT_DF_SENSTEMP_SENS_TYPE_MXDS75     2      // MAXIM DS75
+#define DT_DF_SENSTEMP_SENS_TYPE_MCTC72     3      // Microchip TC72
 
 
 // Properties
@@ -72,6 +74,7 @@ typedef struct  _DtDfSensTemp
     // Block controllers / driver functions
     DtBcFPGATEMP*  m_pBcFpgaTemp;       // FPGA temperature block-controller
     DtDfMxDs75Temp*  m_pDfMxDs75Temp;   // MAXIM DS75 temperature driver function
+    DtDfMcTc72Temp*  m_pDfMcTc72Temp;   // Microchip TC72 temperature driver function
 
     Int  m_TempSensorType;              // Sensor type
     Int  m_MaxTemperature;              // Maximum temperature

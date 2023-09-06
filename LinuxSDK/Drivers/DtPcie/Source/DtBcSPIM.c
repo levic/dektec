@@ -287,11 +287,10 @@ DtStatus DtBcSPIM_WriteRead(DtBcSPIM* pBc, Int WriteLength, const UInt8* pWriteB
         Int i;
         UInt32 Data;
 
-        // Transfer data. See comments above.
-        if (BC_SPIM->m_TransferMode != DT_SPIM_TFM_FULL_DUPLEX || 
-                                            BC_SPIM->m_DeviceId != DT_SPIM_SPIDVC_ADS8866)
+        // Transfer data.Skip this for ADS8866 in full-duplex mode. See comments above.
+        if (!(BC_SPIM->m_TransferMode==DT_SPIM_TFM_FULL_DUPLEX && 
+                                             BC_SPIM->m_DeviceId==DT_SPIM_SPIDVC_ADS8866))
         {
-            // Half duplex
             Status = DtBcSPIM_TransferData(pBc, SPIM_TFDIR_RECEIVE,
                                                      ReadLength > pBc->m_NumBytesPerWord);
             if (!DT_SUCCESS(Status))

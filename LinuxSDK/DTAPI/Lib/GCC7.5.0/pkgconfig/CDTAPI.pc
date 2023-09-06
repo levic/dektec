@@ -1,0 +1,12 @@
+prefix=${pcfiledir}/../../..
+
+exec_prefix=${prefix}
+libdir=${prefix}/Lib/GCC7.5.0
+includedir=${prefix}/Include
+
+Name: CDTAPI
+Description: C DTAPI.
+Version: 1.0.0
+
+Libs: -L"${libdir}" -l:CDTAPI64.a -lstdc++ -latomic -ldl
+Cflags: -I"${includedir}"

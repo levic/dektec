@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        6
-#define DTAPI_VERSION_MINOR        0
-#define DTAPI_VERSION_BUGFIX       1
-#define DTAPI_VERSION_BUILD        213
+#define DTAPI_VERSION_MINOR        1
+#define DTAPI_VERSION_BUGFIX       0
+#define DTAPI_VERSION_BUILD        215
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -521,11 +521,11 @@ private:
 #define DTAPI_CAP_RX_ATSC           Dtapi::DtCaps(189) // ATSC 8-VSB reception
 #define DTAPI_CAP_RX_ATSC3          Dtapi::DtCaps(190) // ATSC3.0 reception
 #define DTAPI_CAP_RX_ATSC3_KOREAN   Dtapi::DtCaps(191) // ATSC3.0 Korean reception
-#define DTAPI_CAP_RX_CID            Dtapi::DtCaps(192) // CID reception
-#define DTAPI_CAP_RX_CMMB           Dtapi::DtCaps(193) // CMMB reception
-#define DTAPI_CAP_RX_DAB            Dtapi::DtCaps(194) // DAB reception
-#define DTAPI_CAP_RX_DTMB           Dtapi::DtCaps(195) // DTMB reception
-#define DTAPI_CAP_RX_DVBC2          Dtapi::DtCaps(196) // DVB-C2 reception
+#define DTAPI_CAP_RX_CMMB           Dtapi::DtCaps(192) // CMMB reception
+#define DTAPI_CAP_RX_DAB            Dtapi::DtCaps(193) // DAB reception
+#define DTAPI_CAP_RX_DTMB           Dtapi::DtCaps(194) // DTMB reception
+#define DTAPI_CAP_RX_DVBC2          Dtapi::DtCaps(195) // DVB-C2 reception
+#define DTAPI_CAP_RX_CID            Dtapi::DtCaps(196) // DVBCID reception
 #define DTAPI_CAP_RX_DVBS           Dtapi::DtCaps(197) // DVB-S reception
 #define DTAPI_CAP_RX_DVBS2          Dtapi::DtCaps(198) // DVB-S2 reception
 #define DTAPI_CAP_RX_DVBS2_MIS      Dtapi::DtCaps(199) // DVB-S2 multiple input stream reception
@@ -3678,6 +3678,8 @@ public:
     int  FirmwareVersion(void)  { return m_HwFuncDesc.m_DvcDesc.m_FirmwareVersion; }
     bool  IsAttached(void)      { return m_pOutp != NULL; }
     int  TypeNumber(void)       { return m_HwFuncDesc.m_DvcDesc.m_TypeNumber; }
+    int  SubType(void)          { return m_HwFuncDesc.m_DvcDesc.m_SubType; }
+
     bool  HasCaps(const DtCaps  Caps) const 
     { 
         return ((m_HwFuncDesc.m_Flags & Caps) == Caps); 
@@ -4443,6 +4445,7 @@ public:
     int  FirmwareVersion()      { return m_HwFuncDesc.m_DvcDesc.m_FirmwareVersion; }
     bool  IsAttached()          { return m_pInp != NULL; }
     int  TypeNumber()           { return m_HwFuncDesc.m_DvcDesc.m_TypeNumber; }
+    int  SubType(void)          { return m_HwFuncDesc.m_DvcDesc.m_SubType; }
     bool  HasCaps(const DtCaps  Caps) const 
     {
         return ((m_HwFuncDesc.m_Flags & Caps) == Caps); 
@@ -5284,6 +5287,8 @@ private:
 #define DTAPI_E_CONFIG_VIDEO_ZEROCOPY 0x1119     // 4377
 #define DTAPI_E_ALREADY_EXCL_ACCESS 0x111A       // 4378
 #define DTAPI_E_DISABLED            0x111B       // 4379
+#define DTAPI_E_CPU_NO_AVX2         0x111C       // 4380
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+ DVB-C2, DVB-S2, DVB-T2, ISDB-Tmm Multi PLP Parameters +=+=+=+=+=+=+=+=+
@@ -8283,6 +8288,7 @@ public:
     int  FirmwareVersion() const { return m_HwFuncDesc.m_DvcDesc.m_FirmwareVersion; }
     bool  IsAttached() const     { return m_pInpChan != NULL || AdvDemod2!=nullptr; }
     int  TypeNumber() const      { return m_HwFuncDesc.m_DvcDesc.m_TypeNumber; }
+    int  SubType(void)          { return m_HwFuncDesc.m_DvcDesc.m_SubType; }
 
 public:
     DTAPI_RESULT  AttachToPort(DtDevice* pDtDvc, int Port,
@@ -10911,6 +10917,7 @@ public:
     int  FirmwareVersion() { return m_HwFuncDesc.m_DvcDesc.m_FirmwareVersion; }
     bool  IsAttached() { return m_pEnc != NULL; }
     int  TypeNumber() { return m_HwFuncDesc.m_DvcDesc.m_TypeNumber; }
+    int  SubType(void) { return m_HwFuncDesc.m_DvcDesc.m_SubType; }
     bool  HasCaps(const DtCaps Caps) const { return ((m_HwFuncDesc.m_Flags&Caps)==Caps); }
 
     // Undocumented public methods for DTAPI-internal usage
@@ -11025,6 +11032,7 @@ public:
     int  FirmwareVersion()      { return m_HwFuncDesc.m_DvcDesc.m_FirmwareVersion; }
     bool  IsAttached()          { return m_pOutp != NULL; }
     int  TypeNumber()           { return m_HwFuncDesc.m_DvcDesc.m_TypeNumber; }
+    int  SubType(void)          { return m_HwFuncDesc.m_DvcDesc.m_SubType; }
     bool  HasCaps(const DtCaps  Caps) const 
     {
         return ((m_HwFuncDesc.m_Flags & Caps) == Caps); 
@@ -11258,60 +11266,78 @@ enum class  DtCidDemodState
     NOT_LOCKED
 };
 
+// Describes the measured status of the LNB that is used. This is indirectily measured
+// by measuring the frequency stability. Compared to other factors the LNB has by far
+// the strongest effect on this stability.
+enum class DtCidLnbStatus
+{
+    // The frequency stability of the signal is good, this indicates that the frequency
+    // stability of the LNB is good enough for decoding CID.
+    OK,
+    // The frequency stability of the signal is bad, this indicates that the frequency
+    // stability of the LNB is too poor for decoding CID.
+    NOT_OK,
+    // The signal quality is too low to determine the frequency stability of the signal.
+    UKNOWN,
+};
+
 // Acquired CID signal status
 struct DtCidSignalStatus
 {
-    double  m_SNR;              // SNR of the signal (dB)
-    double  m_CarrierOffset;    // Carrier offset of the signal in Hz
-    int  m_SymbolRate;          // CID signal symbolrate (122khz/244khz)
+    double  m_CarrierOffset{0};        // Carrier offset of the signal in Hz
+    int  m_SymbolRate{0};              // CID signal symbolrate (122khz/244khz)
+    double  m_FrequencyShift{0};       // Frequency shift of the signal in Hz.
 };
 
 // Status of a specific CidDemod instance
 struct DtCidDemodStatus
 {
-    DtCidDemodState  m_State;   // The current state of the demodulator
+    // The current state of the demodulator.
+    DtCidDemodState  m_State{DtCidDemodState::NOT_LOCKED};
     DtCidSignalStatus  m_CidSignal;
+    DtCidLnbStatus  m_Lnb{DtCidLnbStatus::UKNOWN};
+    double  m_SNR{0};                  // SNR of the signal (dB)
+    double m_LinkMargin{0};            // link margin of the signal in (dB).
 };
 
 // Spectrum from the perspective of an CID Demodulator instance.
 struct CidSpectrum
 {
-    std::vector<float> m_PowerLevels;	// Power levels in dBm.
-    float m_MinFreqXAxis;
-    float m_MaxFreqXAxis;
-    float m_StepSizeXAxis;
+    std::vector<float> m_PowerLevels;   // Power levels in dBm.
+    float m_MinFreqXAxis{0};
+    float m_MaxFreqXAxis{0};
+    float m_StepSizeXAxis{0};
 };
 
 
 struct DtCidFrame
 {
-    unsigned int  m_GuidHigh;           // Global unique indentifier high
-    unsigned int  m_GuidLow;            // Global unqiue identifier low
-    unsigned char  m_ContentId1;         // CID content id 1
-    unsigned int  m_ContentInfo1;       // CID content information 1
-    unsigned char  m_Crc1;              // CRC-8 checksum CID message 1
-    unsigned int  m_Fec1;               // BCH FEC CID message 1
-    unsigned char  m_ContentId2;         // CID content id 2
-    unsigned int  m_ContentInfo2;       // CID content information 2
-    unsigned char  m_Crc2;              // CRC-8 checksum CID message 1
-    unsigned int  m_Fec2;               // BCH FEC CID message 1
+    unsigned int  m_GuidHigh{0};           // Global unique indentifier high
+    unsigned int  m_GuidLow{0};            // Global unqiue identifier low
+    unsigned char  m_ContentId1{0};        // CID content id 1
+    unsigned int  m_ContentInfo1{0};       // CID content information 1
+    unsigned char  m_Crc1{0};              // CRC-8 checksum CID message 1
+    unsigned int  m_Fec1{0};               // BCH FEC CID message 1
+    unsigned char  m_ContentId2{0};        // CID content id 2
+    unsigned int  m_ContentInfo2{0};       // CID content information 2
+    unsigned char  m_Crc2{0};              // CRC-8 checksum CID message 1
+    unsigned int  m_Fec2{0};               // BCH FEC CID message 1
 };
 
-// CID frame status
 // CID frame status
 struct DtCidFrameStatus
 {
     DtCidFrame  m_Frame;    // The received CID frame (BCH Corrected)
-    unsigned int  m_CrcResultFirst;  // The remainder after CRC decoding is performed,
-                                     // for the first message in the frame.
-    unsigned int  m_CrcResultSec;    // The remainder after CRC decoding is performed
-                                     // for the second message in the frame.
-    int  m_BitErrorsFirst;           // Number of bit errors corrected by the BCH decoder
-                                     // for the first message in the frame.
-    int  m_BitErrorsSec;             // Number of bit errors corrected by the BCH decoder
-                                     // for the second message in the frame.
-    bool  m_FrameOk;				 // Indicates that if the frame could be successfully
-                                     // restored and is error-free.
+    unsigned int  m_CrcResultFirst{0};  // The remainder after CRC decoding is performed,
+                                        // for the first message in the frame.
+    unsigned int  m_CrcResultSec{0};    // The remainder after CRC decoding is performed
+                                        // for the second message in the frame.
+    int  m_BitErrorsFirst{0};           // Number of bit errors corrected by the BCH decoder
+                                        // for the first message in the frame.
+    int  m_BitErrorsSec{0};             // Number of bit errors corrected by the BCH decoder
+                                        // for the second message in the frame.
+    bool  m_FrameOk{0};                 // Indicates that if the frame could be successfully
+                                        // restored and is error-free.
 };
 
 // Function pointer to user defined IQ reader function
@@ -11340,9 +11366,9 @@ public:
     DtCidAcqNewSignal(int CidSignalId, double SNR, double CarrierOffset); //: m_EventType(DtCidEventTypes::DtCidAcqNew) { }
     ~DtCidAcqNewSignal();
 
-    int  m_CidSignalId;         // The signal id given by the acquisition algorithm
-    double  m_SNR;              // The signal to noise ratio of the acquired signal
-    double  m_CarrierOffset;    // The carrier offset of the aquired signal
+    int m_CidSignalId{0};         // The signal id given by the acquisition algorithm
+    double m_SNR{0};              // The signal to noise ratio of the acquired signal
+    double m_CarrierOffset{0};    // The carrier offset of the aquired signal
 };
 
 // Indicates that a new CID frame has been received by one of the CidDemod
@@ -11355,13 +11381,14 @@ public:
                     DtCidFrameStatus& Frame, DtCidFrameStatus& MajorCorrectedFrameStatus);
     virtual  ~DtCidDemodNewFrame();
 public:
-    int  m_CidSignalId;     // The signal id given by the acquisition algorithm
-    int  m_State;           // Subframe id: 0,1,2,3
+    int  m_CidSignalId{0};  // The signal id given by the acquisition algorithm
+    int  m_State{0};           // Subframe id: 0,1,2,3
     DtCidFrame  m_RawFrame; // Raw CID frame without any error correction performed.
     DtCidFrameStatus  m_FrameStatus;               // Status without majority correction
     DtCidFrameStatus  m_MajorCorrectedFrameStatus; // Status with majority correction
 };
-// Indicates a state update of the aquisition algorithm
+
+// Indicates a state update of the acquisition algorithm
 class DtCidAcqStateUpdate :public DtCidEvent
 {
 public:
@@ -11369,7 +11396,7 @@ public:
     DtCidAcqStateUpdate(DtCidAcqState  State);
     virtual  ~DtCidAcqStateUpdate();
 public:
-    DtCidAcqState  m_State;     // Current state of the acquisition algorithm
+    DtCidAcqState  m_State{DtCidAcqState::NOT_STARTED};
 };
 
 // Indicates a state updates of a CidDemod instance
@@ -11380,7 +11407,7 @@ public:
     DtCidDemodLockLost(int  CidSignalId);
     virtual  ~DtCidDemodLockLost();
 public:
-    int  m_CidSignalId;          // The signal id given by the acquisition algorithm
+    int  m_CidSignalId{0};          // The signal id given by the acquisition algorithm
 };
 
 // Indicates a queue overflow
@@ -11391,7 +11418,7 @@ public:
     DtCidQueueOverFlow(int  NumOverflow);
     virtual  ~DtCidQueueOverFlow();
 public:
-    int  m_NumOverflow;     // Number of events missed because of overflow
+    int  m_NumOverflow{0};     // Number of events missed because of overflow
 };
 
 // Indicates a performance problem; hardware fifo has overflown
@@ -11445,8 +11472,7 @@ public:
     // This port should output unprocessed IQ samples at a samplerate between
     // 1,792Mhz or 3,584Mhz+.The CID signal(s) should have a max carrier offset of
     // +/-100kHz. DtDevice is used for licensing purposes.
-    DTAPI_RESULT  AttachToPort(DtDevice* pDtDvc, int Port, bool Exclusive = true,
-                                                                  bool ProbeOnly = false);
+    DTAPI_RESULT  AttachToPort(DtDevice* pDtDvc, int Port, bool Exclusive = true);
 
     // An IQ file is used as input of the CidReceiver. This file should hold IQ samples 
     // at a samplerate of 1,792Mhz or 3,584Mhz+. The CID signal(s) should have a max 
@@ -11464,7 +11490,7 @@ public:
     // started at the point where they were detected in the sample time-line. Acquisition
     // stops searching for signals after a predefined period. However, the sample buffer
     // will NOT start releasing memory until StopAcquisition() is called.
-    DTAPI_RESULT  StartAcquisition();
+    DTAPI_RESULT  StartAcquisition(int FrequencyHz);
 
     // Stops acquisition and signals to DtCidReceiver that no more demodulator instances
     // will be started after this call. SampleBuffer memory will be released when not

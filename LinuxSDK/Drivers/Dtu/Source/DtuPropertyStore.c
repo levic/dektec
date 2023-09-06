@@ -3269,13 +3269,13 @@ static const DtProperty  DtProperties315_0_33[] =
 {
     { "MOD_LEVEL_MAX", -250, NULL, PROPERTY_VALUE_TYPE_INT, 0, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "MOD_SAMPRATE_SRC_ABSMIN", 80000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "MOD_SAMPRATE_SRC_ABSMIN", 20000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 80000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 1, 0, 0, -1,
+    { NULL, 20000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 80000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 2, 0, 0, -1,
+    { NULL, 20000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 2, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 80000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 3, 0, 0, -1,
+    { NULL, 20000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 3, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties315_0_34[] =
@@ -3361,13 +3361,13 @@ static const DtProperty  DtProperties315_0_43[] =
 {
     { "HARDWARE_HAS_I2C", 1, NULL, PROPERTY_VALUE_TYPE_BOOL, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "MOD_FREQ_ABSMIN", 36, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "MOD_FREQ_ABSMIN", 15, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 36, NULL, PROPERTY_VALUE_TYPE_INT, 0, 1, 0, 0, -1,
+    { NULL, 15, NULL, PROPERTY_VALUE_TYPE_INT, 0, 1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 36, NULL, PROPERTY_VALUE_TYPE_INT, 0, 2, 0, 0, -1,
+    { NULL, 15, NULL, PROPERTY_VALUE_TYPE_INT, 0, 2, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 36, NULL, PROPERTY_VALUE_TYPE_INT, 0, 3, 0, 0, -1,
+    { NULL, 15, NULL, PROPERTY_VALUE_TYPE_INT, 0, 3, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MOD_SAMPRATE_SRC_MIN", 80000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -3504,13 +3504,13 @@ static const DtProperty  DtProperties315_0_55[] =
 };
 static const DtProperty  DtProperties315_0_56[] =
 {
-    { "MOD_SAMPRATE_HW_ABSMIN", 80000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+    { "MOD_SAMPRATE_HW_ABSMIN", 20000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 80000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 1, 0, 0, -1,
+    { NULL, 20000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 80000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 2, 0, 0, -1,
+    { NULL, 20000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 2, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 80000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 3, 0, 0, -1,
+    { NULL, 20000, NULL, PROPERTY_VALUE_TYPE_INT, 0, 3, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "USB_END_POINT_WRITE", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 

@@ -466,6 +466,13 @@ DtStatus  DtDfVpd_Init(DtDf*  pDf)
     DF_VPD->m_RoOffset = 0x0000;
     DF_VPD->m_RwOffset = DF_VPD->m_RoOffset + DF_VPD->m_RoSize;
 
+    // Check sizes
+    if ((DF_VPD->m_RwOffset + DF_VPD->m_RwSize) > DF_VPD->m_CacheSize)
+    {
+        DtDbgOutDf(ERR, VPD, pDf, "ERROR: Sections are larger than EEPROM");
+        return  DT_STATUS_CONFIG_ERROR;
+    }
+
     // Update cache for the first time
     Status = DtDfVpd_UpdateCacheFromEeprom(DF_VPD);
     if (!DT_SUCCESS(Status))

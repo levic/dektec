@@ -42,12 +42,14 @@
 const DtDfId  DT_DF_KNOWN[] = 
 {
     // Name,                      ShortName,                      Role, Instance, Uuid
+    { DT_DF_ADF4360CTRL_NAME,     DT_DF_ADF4360CTRL_SHORTNAME,    NULL, -1, -1 },
     { DT_DF_ASIRX_NAME,           DT_DF_ASIRX_SHORTNAME,          NULL, -1, -1 },
     { DT_DF_GENLOCKCTRL_NAME,     DT_DF_GENLOCKCTRL_SHORTNAME,    NULL, -1, -1 },
     { DT_DF_CLKGEN_2110_NAME,     DT_DF_CLKGEN_2110_SHORTNAME,    NULL, -1, -1 },
     { DT_DF_NW_NAME,              DT_DF_NW_SHORTNAME,             NULL,  2, -1 },
     { DT_DF_IPFIFO_NAME,          DT_DF_IPFIFO_SHORTNAME,         NULL, -1, -1 },
     { DT_DF_DATAFIFO_NAME,        DT_DF_DATAFIFO_SHORTNAME,       NULL, -1, -1 },
+    { DT_DF_MCTC72TEMP_NAME,      DT_DF_MCTC72TEMP_SHORTNAME,     NULL, -1, -1 },
     { DT_DF_MXDS75TEMP_NAME,      DT_DF_MXDS75TEMP_SHORTNAME,     NULL, -1, -1 },
     { DT_DF_SDITXPHY_NAME,        DT_DF_SDITXPHY_SHORTNAME,       NULL, -1, -1 },
     { DT_DF_SDIRX_NAME,           DT_DF_SDIRX_SHORTNAME,          NULL, -1, -1 },
@@ -936,6 +938,9 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
     // NOTE: don't forget to add the driver function to the DT_DF_KNOWN list
     switch(Type)
     {
+    case DT_FUNC_TYPE_ADF4360CTRL:
+        return (DtDf*)DtDfAdf4360Ctrl_Open(pCore, pPt, pId->m_pRole,
+                                                            pId->m_Instance, pId->m_Uuid);
     case DT_FUNC_TYPE_ASISDIRX:
         break;
     case DT_FUNC_TYPE_ASISDITX:
@@ -961,6 +966,9 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
     case DT_FUNC_TYPE_NW:
          return (DtDf*)DtDfNw_Open(pCore, pPt, pId->m_pRole, pId->m_Instance, 
                                                                  pId->m_Uuid, CreateStub);
+    case DT_FUNC_TYPE_MCTC72TEMP:
+        return (DtDf*)DtDfMcTc72Temp_Open(pCore, pPt, pId->m_pRole, 
+                                                pId->m_Instance, pId->m_Uuid, CreateStub);
     case DT_FUNC_TYPE_MXDS75TEMP:
         return (DtDf*)DtDfMxDs75Temp_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);

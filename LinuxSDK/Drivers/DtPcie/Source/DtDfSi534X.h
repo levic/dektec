@@ -65,6 +65,7 @@ typedef enum _DtDfSi534XConfig
     DT_DF_SI534X_CFG_DUAL_SDI_CLOCK,
     DT_DF_SI534X_CFG_NON_FRAC_SDI_CLOCK,
     DT_DF_SI534X_CFG_FRAC_SDI_CLOCK,
+    DT_DF_SI534X_CFG_DUAL_CLOCK             // Dual non-SDI clock
 } DtDfSi534XConfig;
 
 

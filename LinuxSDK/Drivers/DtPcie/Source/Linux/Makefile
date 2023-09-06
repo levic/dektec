@@ -64,6 +64,10 @@ endif
 # driver.
 EXTRA_CFLAGS += -DEXPORT_SYMTAB
 
+# Force using inline code to mitigate against straight line speculation in stead of using
+# the current default thunk-extern which generates duplicate functions.
+EXTRA_CFLAGS += -mindirect-branch=thunk-inline
+
 # ========================================================================================
 # Include version evironment vars
 
@@ -91,6 +95,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtCorePcie.o               \
          $(SRCDIR)/DtBc.o                     \
          $(SRCDIR)/DtBcACCUFIFO.o             \
+         $(SRCDIR)/DtBcAD9789ITF.o            \
          $(SRCDIR)/DtBcASIRXP.o               \
          $(SRCDIR)/DtBcASITXG.o               \
          $(SRCDIR)/DtBcASITXSER.o             \
@@ -100,6 +105,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcCDMACTO.o              \
          $(SRCDIR)/DtBcCONSTSINK.o            \
          $(SRCDIR)/DtBcCONSTSOURCE.o          \
+         $(SRCDIR)/DtBcDATAC.o                \
          $(SRCDIR)/DtBcDATACDC.o              \
          $(SRCDIR)/DtBcDATAFIFO.o             \
          $(SRCDIR)/DtBcDDRFIFO.o              \
@@ -115,17 +121,24 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcI2CM.o                 \
          $(SRCDIR)/DtBcIO_2116.o              \
          $(SRCDIR)/DtBcIOSERIN.o              \
+         $(SRCDIR)/DtBcIOPARIN.o              \
          $(SRCDIR)/DtBcIPFIFO.o               \
          $(SRCDIR)/DtBcIPROUT.o               \
          $(SRCDIR)/DtBcIPSCHED.o              \
          $(SRCDIR)/DtBcIPSECG.o               \
          $(SRCDIR)/DtBcIPSUMCHK.o             \
          $(SRCDIR)/DtBcIPSUMINS.o             \
-         $(SRCDIR)/DtBcIQUNPCK.o              \
+         $(SRCDIR)/DtBcIQAGC.o                \
+         $(SRCDIR)/DtBcIQDEMOD.o              \
+         $(SRCDIR)/DtBcIQDOWNSRC.o            \
          $(SRCDIR)/DtBcIQFIR.o                \
+         $(SRCDIR)/DtBcIQFIR2XCLK.o           \
+         $(SRCDIR)/DtBcIQINV.o                \
          $(SRCDIR)/DtBcIQNOISE.o              \
          $(SRCDIR)/DtBcIQMISC.o               \
+         $(SRCDIR)/DtBcIQPWR.o                \
          $(SRCDIR)/DtBcIQSYNC.o               \
+         $(SRCDIR)/DtBcIQUNPCK.o              \
          $(SRCDIR)/DtBcIQUP.o                 \
          $(SRCDIR)/DtBcIQJESD.o               \
          $(SRCDIR)/DtBcKA.o                   \
@@ -158,6 +171,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtCfProps.o                \
          $(SRCDIR)/DtCfTod.o                  \
          $(SRCDIR)/DtDf.o                     \
+         $(SRCDIR)/DtDfAdf4360Ctrl.o          \
          $(SRCDIR)/DtDfAsiRx.o                \
          $(SRCDIR)/DtDfCh.o                   \
          $(SRCDIR)/DtDfChSdiRx.o              \
@@ -168,6 +182,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtDfIpFifo.o               \
          $(SRCDIR)/DtDfNw.o                   \
          $(SRCDIR)/DtDfGenLockCtrl.o          \
+         $(SRCDIR)/DtDfMcTc72Temp.o           \
          $(SRCDIR)/DtDfMxDs75Temp.o           \
          $(SRCDIR)/DtDfSdiRx.o                \
          $(SRCDIR)/DtDfSdiTxPhy.o             \

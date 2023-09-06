@@ -477,7 +477,7 @@ DtStatus DtPt_AcquireExclAccessChildren(DtPt*  pPt,  const DtExclAccessObject* p
 
     // Get exclusive access to child DFs
     NumDf = DtVector_Size(pPt->m_pDfExclAccessList);
-    for (i=0; i<NumDf; i++)
+    for (i=0; i<NumDf && DT_SUCCESS(Status); i++)
     {
         // First check whether we have already exclusive access
         DtDf* pChildDf = DtVectorDf_At(pPt->m_pDfList, i);
@@ -509,7 +509,7 @@ DtStatus DtPt_AcquireExclAccessChildren(DtPt*  pPt,  const DtExclAccessObject* p
 
     // Get exclusive access to child Bcs
     NumBc = DtVector_Size(pPt->m_pBcExclAccessList);
-    for (i=0; i<NumBc; i++)
+    for (i=0; i<NumBc && DT_SUCCESS(Status); i++)
     {
         // First check whether we have already exclusive access
         DtBc* pChildBc = DtVectorBc_At(pPt->m_pBcList, i);

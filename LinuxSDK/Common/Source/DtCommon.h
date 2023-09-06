@@ -275,6 +275,7 @@ static const GUID  DT_CUSTOM_EVENT_GUID = { 0x578d909, 0x54fb, 0x47fa,
 #define SI534X_DTA2127_LIKE     0               // Like DTA-2127
 #define SI534X_DTA2172_LIKE     1               // Like DTA-2172/2174/2178
 #define SI534X_DTA2175_LIKE     2               // Like DTA-2175
+#define SI534X_DTA2131B_LIKE    3               // Like DTA-2131B
 
 // HD-Channel Status register: detected video standard values 
 #define  DT_VIDSTD_UNKNOWN              0x0000
@@ -467,6 +468,16 @@ typedef enum  _DtBcType
     DT_BLOCK_TYPE_IQUP,         // IqUpSampler
     DT_BLOCK_TYPE_IQJESD,       // IqJesdDacItf
     DT_BLOCK_TYPE_DATAFIFO,     // DataDdrFifo
+    DT_BLOCK_TYPE_DATAC,        // DataCoupler
+    DT_BLOCK_TYPE_IOPARIN,      // IoParallelIn
+    DT_BLOCK_TYPE_IQAGC,        // IqAgc
+    DT_BLOCK_TYPE_IQDEMOD,      // IqDemodulator
+    DT_BLOCK_TYPE_IQDOWNSRC,    // IqDownsampler
+    DT_BLOCK_TYPE_IQFIR2XCLK,   // IqFirFilter 2x clock
+    DT_BLOCK_TYPE_IQINV,        // IqInv
+    DT_BLOCK_TYPE_IQPWR,        // IqPowerEstimator
+    DT_BLOCK_TYPE_AD9789ITF,    // Ad9789Itf
+
 
     // Local DTA-2132 blocks. DONOT RENUMBER!!
     DT_BLOCK_TYPE_AD5320_2132   = LTYPE_SEQNUM(2132, 1),
@@ -581,7 +592,10 @@ typedef enum  _DtFunctionType
     DT_FUNC_TYPE_DATAFIFO,
     DT_FUNC_TYPE_CHSDIRX,         // SDI Receive Channel
     DT_FUNC_TYPE_CHSDIRXPHYONLY,  // SDI PHY-Only Receive Channel
-
+    DT_FUNC_TYPE_MCTC72TEMP,
+    DT_FUNC_TYPE_IQDEMODRX,         // IQ-demodulation receive channel (API-function)
+    DT_FUNC_TYPE_SDRFRONTEND,       // SDR-Front-end (API-function)
+    DT_FUNC_TYPE_ADF4360CTRL,       // ADF4360 Control
 
     // Local DTA-2110 functions. DO NOT RENUMBER!!
     DT_FUNC_TYPE_CLKGEN_2110 = LTYPE_SEQNUM(2110, 1),
@@ -760,7 +774,16 @@ enum {
     DT_FUNC_CODE_DATAFIFO_CMD,
     DT_FUNC_CODE_DDRFIFO_CMD,
     DT_FUNC_CODE_CHSDIRX_CMD,
-    DT_FUNC_CODE_CHSDIRXPHYONLY_CMD
+    DT_FUNC_CODE_CHSDIRXPHYONLY_CMD,
+    DT_FUNC_CODE_DATAC_CMD,
+    DT_FUNC_CODE_IOPARIN_CMD,
+    DT_FUNC_CODE_IQAGC_CMD,
+    DT_FUNC_CODE_IQDEMOD_CMD,
+    DT_FUNC_CODE_IQDOWNSRC_CMD,
+    DT_FUNC_CODE_IQFIR2XCLK_CMD,
+    DT_FUNC_CODE_IQINV_CMD,
+    DT_FUNC_CODE_IQPWR_CMD,
+    DT_FUNC_CODE_AD9789ITF_CMD
 };
 
 // NOP command
@@ -954,6 +977,65 @@ typedef union _DtIoctlAccuFifoCmdInOut
 
 #define DT_IOCTL_ACCUFIFO_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_ACCUFIFO_CMD,     \
                                                                  DtIoctlAccuFifoCmdInOut)
+#endif
+
+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_AD9789ITF_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- AD9789ITF Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlAd9789ItfCmd
+{
+    DT_AD9789ITF_CMD_GET_OPERATIONAL_MODE = 0, // Get operational mode
+    DT_AD9789ITF_CMD_SET_OPERATIONAL_MODE = 1, // Set operational mode
+}  DtIoctlAd9789ItfCmd;
+
+// .-.-.-.-.-.-.-.-.- AD9789ITF Command - Get Operational Mode Command -.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlAd9789ItfCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlAd9789ItfCmdGetOpModeInput, 16)
+typedef struct _DtIoctlAd9789ItfCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlAd9789ItfCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlAd9789ItfCmdGetOpModeOutput, 4)
+
+// .-.-.-.-.-.-.-.-.- AD9789ITF Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlAd9789ItfCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlAd9789ItfCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlAd9789ItfCmdSetOpModeInput, 20)
+
+// .-.-.-.-.-.-.-.-.-.-.-.- AD9789ITF Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.
+// AD9789ITF command - IOCTL input data
+typedef union _DtIoctlAd9789ItfCmdInput
+{
+    DtIoctlAd9789ItfCmdSetOpModeInput  m_SetOpMode;            // Ad9789Itf - Set op. mode
+}  DtIoctlAd9789ItfCmdInput;
+
+
+// AD9789ITF command - IOCTL output data
+typedef union _DtIoctlAd9789ItfCmdOutput
+{
+    DtIoctlAd9789ItfCmdGetOpModeOutput  m_GetOpMode;           // Ad9789Itf - Get op. mode
+}  DtIoctlAd9789ItfCmdOutput;
+
+#ifdef WINBUILD
+    #define DT_IOCTL_AD9789ITF_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_AD9789ITF_CMD, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlAd9789ItfCmdInOut
+    {
+        DtIoctlAd9789ItfCmdInput  m_Input;
+        DtIoctlAd9789ItfCmdOutput  m_Output;
+    }  DtIoctlAd9789ItfCmdInOut;
+#define DT_IOCTL_AD9789ITF_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_AD9789ITF_CMD,       \
+                                                                     DtIoctlAd9789ItfCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -1898,6 +1980,64 @@ typedef union _DtIoctlCDmaCCmdOutput
     }  DtIoctlCDmaCCmdInOut;
     #define DT_IOCTL_CDMAC_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_CDMAC_CMD,       \
                                                                      DtIoctlCDmaCCmdInOut)
+#endif
+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_DATAC_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Iq unpacker Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlDataCCmd
+{
+    DT_DATAC_CMD_GET_OPERATIONAL_MODE = 0, // Get operational mode
+    DT_DATAC_CMD_SET_OPERATIONAL_MODE = 1, // Set operational mode
+}  DtIoctlDataCCmd;
+
+// .-.-.-.-.-.-.-.-.-.- DATAC Command - Get Operational Mode Command -.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlDataCCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlDataCCmdGetOpModeInput, 16)
+typedef struct _DtIoctlDataCCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlDataCCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlDataCCmdGetOpModeOutput, 4)
+
+// .-.-.-.-.-.-.-.-.-.- DATAC Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlDataCCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlDataCCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlDataCCmdSetOpModeInput, 20)
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DATAC Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.
+// DATAC command - IOCTL input data
+typedef union _DtIoctlDataCCmdInput
+{
+    DtIoctlDataCCmdSetOpModeInput  m_SetOpMode;            // DataC - Set op. mode
+}  DtIoctlDataCCmdInput;
+
+
+// DATAC command - IOCTL output data
+typedef union _DtIoctlDataCCmdOutput
+{
+    DtIoctlDataCCmdGetOpModeOutput  m_GetOpMode;           // DataC - Get op. mode
+}  DtIoctlDataCCmdOutput;
+
+#ifdef WINBUILD
+    #define DT_IOCTL_DATAC_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_DATAC_CMD,     \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlDataCCmdInOut
+    {
+        DtIoctlDataCCmdInput  m_Input;
+        DtIoctlDataCCmdOutput  m_Output;
+    }  DtIoctlDataCCmdInOut;
+#define DT_IOCTL_DATAC_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_DATAC_CMD,       \
+                                                                     DtIoctlDataCCmdInOut)
 #endif
 
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -3000,6 +3140,67 @@ typedef union _DtIoctlIoConfigCmdOutput
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_IOPARIN_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- IOPARIN commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+    typedef enum _DtIoctlIoParInCmd
+    {
+        DT_IOPARIN_CMD_GET_OPERATIONAL_MODE = 0,  // Get operational mode
+        DT_IOPARIN_CMD_SET_OPERATIONAL_MODE = 1,  // Set operational mode
+    }  DtIoctlIoParInCmd;
+
+    // -.-.-.-.-.-.-.-.- IOPARIN Command - Get Operational Mode Command -.-.-.-.-.-.-.-.-.
+    //
+    typedef DtIoctlInputDataHdr DtIoctlIoParInCmdGetOpModeInput;
+    ASSERT_SIZE(DtIoctlIoParInCmdGetOpModeInput, 16)
+    typedef struct _DtIoctlIoParInCmdGetOpModeOutput
+    {
+        Int  m_OpMode;              // Operational mode
+    }  DtIoctlIoParInCmdGetOpModeOutput;
+    ASSERT_SIZE(DtIoctlIoParInCmdGetOpModeOutput, 4)
+
+    // -.-.-.-.-.-.-.-.- IOPARIN Command - Set Operational Mode Command -.-.-.-.-.-.-.-.-.
+    //
+    typedef struct _DtIoctlIoParInCmdSetOpModeInput
+    {
+        DtIoctlInputDataHdr  m_CmdHdr;
+        Int  m_OpMode;              // Operational mode: IDLE/RUN
+    } DtIoctlIoParInCmdSetOpModeInput;
+    ASSERT_SIZE(DtIoctlIoParInCmdSetOpModeInput, 20)
+
+    // -.-.-.-.-.-.-.-.-.-.-.- IOPARIN command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-
+    // IOPARIN command - Input data
+    typedef union _DtIoctlIoParInCmdInput
+    {
+        DtIoctlIoParInCmdGetOpModeInput  m_GetOpMode;
+        DtIoctlIoParInCmdSetOpModeInput  m_SetOpMode;
+    } DtIoctlIoParInCmdInput;
+    ASSERT_SIZE(DtIoctlIoParInCmdInput, 20)
+
+    // IOPARIN command - Output data
+    typedef union _DtIoctlIoParInCmdOutput
+    {
+        DtIoctlIoParInCmdGetOpModeOutput  m_GetOpMode;
+    }  DtIoctlIoParInCmdOutput;
+    ASSERT_SIZE(DtIoctlIoParInCmdOutput, 4)
+
+#ifdef WINBUILD
+#define DT_IOCTL_IOPARIN_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_IOPARIN_CMD, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+        typedef union _DtIoctlIoParInCmdInOut {
+        DtIoctlIoParInCmdInput  m_Input;
+        DtIoctlIoParInCmdOutput  m_Output;
+    } DtIoctlIoParInCmdInOut;
+
+#define DT_IOCTL_IOPARIN_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                           \
+                                                            DT_FUNC_CODE_IOPARIN_CMD,  \
+                                                                 DtIoctlIoParInCmdInOut)
+#endif
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_IOSERIN_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -3060,11 +3261,344 @@ typedef union _DtIoctlIoConfigCmdOutput
                                                                  DtIoctlIoSerInCmdInOut)
 #endif
 
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_IQAGC_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Iq Noise Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlIqAgcCmd
+{
+    DT_IQAGC_CMD_GET_CONFIG           = 0, // Get configuation
+    DT_IQAGC_CMD_GET_GAIN_CONTROL     = 1, // Get gain control
+    DT_IQAGC_CMD_GET_GAIN_CTRL_PARS   = 2, // Get gain control parameters
+    DT_IQAGC_CMD_GET_GAIN_STATUS      = 3, // Get gain status
+    DT_IQAGC_CMD_GET_OPERATIONAL_MODE = 4, // Get operational mode
+    DT_IQAGC_CMD_SET_GAIN_CONTROL     = 5, // Set gain control
+    DT_IQAGC_CMD_SET_GAIN_CTRL_PARS   = 6, // Set gain control parameters
+    DT_IQAGC_CMD_SET_OPERATIONAL_MODE = 7, // Set operational mode
+}  DtIoctlIqAgcCmd;
+
+// Signal type
+#define DT_IQAGC_SIGNALTYPE_REAL       0x0  // Real (IF) Signal
+#define DT_IQAGC_SIGNALTYPE_COMPLEX    0x1  // Complex (IQ) Signal
+
+// Gain correlation
+#define DT_IQAGC_CORRELATION_POSITIVE  0x0  // High voltage is high gain
+#define DT_IQAGC_CORRELATION_NEGATIVE  0x1  // High voltage is low gain
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- IQAGC Command - Get Config -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlIqAgcCmdGetConfigInput;
+ASSERT_SIZE(DtIoctlIqAgcCmdGetConfigInput, 16)
+typedef struct _DtIoctlIqAgcCmdGetConfigOutput
+{
+    Int m_GainCorrelation1;     // Gain Correlation 1
+    Int m_GainCorrelation2;     // Gain Correlation 2
+    Int m_MaxDacValue1;         // Maximum DAC Value 1
+    Int m_MaxDacValue2;         // Maximum DAC Value 2
+    Int m_MinDacValue1;         // Minimum DAC Value 1
+    Int m_MinDacValue2;         // Minimum DAC Value 2
+    Int m_DacNumBits;           // Number of bits of the DAC device
+    Int m_IqBitDepth;           // Number of bits in each I and Q input sample
+}  DtIoctlIqAgcCmdGetConfigOutput;
+ASSERT_SIZE(DtIoctlIqAgcCmdGetConfigOutput, 32)
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- IQAGC Command - Get Gain Control -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlIqAgcCmdGetGainControlInput;
+ASSERT_SIZE(DtIoctlIqAgcCmdGetGainControlInput, 16)
+typedef struct _DtIoctlIqAgcCmdGetGainControlOutput
+{
+    Int  m_UseManualGain;        // Gain control: AUTO/MANUAL
+    Int  m_ManualGain;           // Value to manually overrule the gain
+}  DtIoctlIqAgcCmdGetGainControlOutput;
+ASSERT_SIZE(DtIoctlIqAgcCmdGetGainControlOutput, 8)
+
+// -.-.-.-.-.-.-.-.-.-.- IQAGC Command - Get Gain Control Parameters -.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlIqAgcCmdGetGainCtrlParsInput;
+ASSERT_SIZE(DtIoctlIqAgcCmdGetGainCtrlParsInput, 16)
+typedef struct _DtIoctlIqAgcCmdGetGainCtrlParsOutput
+{
+    Int  m_SignalType;          // Input signal type Real/Complex
+    Int  m_GainCorrelation;     // Correlation between voltage and gain
+    Int  m_MaxDacValue;         // Maximum DAC value
+    Int  m_MinDacValue;         // Minimum DAC value
+    Int  m_StepSizeUnlocked;    // Gain control step size when not locked
+    Int  m_StepSizeLocked;      // Gain control step size when  locked
+    Int  m_ThresholdHigh;       // Threshold value for the upper side of the working area
+    Int  m_ThresholdLow;        // Threshold value for the lower side of the working area
+    Int  m_MeasurementPeriod;   // Time period for the gain measurement in us
+}  DtIoctlIqAgcCmdGetGainCtrlParsOutput;
+ASSERT_SIZE(DtIoctlIqAgcCmdGetGainCtrlParsOutput, 36)
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- IQAGC Command - Get Gains Status -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlIqAgcCmdGetGainStatusInput;
+ASSERT_SIZE(DtIoctlIqAgcCmdGetGainStatusInput, 16)
+typedef struct _DtIoctlIqAgcCmdGetGainStatusOutput
+{
+    Int  m_Locked;              // Indicates whether the AGC control loop is locked
+    Int  m_GainReadback;        // Current gain value sent to the DAC
+}  DtIoctlIqAgcCmdGetGainStatusOutput;
+ASSERT_SIZE(DtIoctlIqAgcCmdGetGainStatusOutput, 8)
+
+// .-.-.-.-.-.-.-.-.-.-.-.- IQAGC Command - Get Operational Mode -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlIqAgcCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlIqAgcCmdGetOpModeInput, 16)
+typedef struct _DtIoctlIqAgcCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlIqAgcCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlIqAgcCmdGetOpModeOutput, 4)
+
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- IQAGC Command - Set Gain Control -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlIqAgcCmdSetGainControlInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_UseManualGain;        // Gain control: AUTO/MANUAL
+    Int  m_ManualGain;           // Value to manually overrule the gain
+}  DtIoctlIqAgcCmdSetGainControlInput;
+ASSERT_SIZE(DtIoctlIqAgcCmdSetGainControlInput, 24)
+
+// -.-.-.-.-.-.-.-.-.-.- IQAGC Command - Set Gain Control Parameters -.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlIqAgcCmdSetGainCtrlParsInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_SignalType;          // Input signal type Real/Complex
+    Int  m_GainCorrelation;     // Correlation between voltage and gain
+    Int  m_MaxDacValue;         // Maximum DAC value
+    Int  m_MinDacValue;         // Minimum DAC value
+    Int  m_StepSizeUnlocked;    // Gain control step size when not locked
+    Int  m_StepSizeLocked;      // Gain control step size when  locked
+    Int  m_ThresholdHigh;       // Threshold value for the upper side of the working area
+    Int  m_ThresholdLow;        // Threshold value for the lower side of the working area
+    Int  m_MeasurementPeriod;   // Time period for the gain measurement in us
+}  DtIoctlIqAgcCmdSetGainCtrlParsInput;
+ASSERT_SIZE(DtIoctlIqAgcCmdSetGainCtrlParsInput, 52)
+
+// -.-.-.-.-.-.-.-.-.- IQAGC Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlIqAgcCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlIqAgcCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlIqAgcCmdSetOpModeInput, 20)
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- IQAGC Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.
+// IQAGC command - IOCTL input data
+typedef union _DtIoctlIqAgcCmdInput
+{
+    DtIoctlIqAgcCmdSetGainControlInput m_SetGainControl;
+    DtIoctlIqAgcCmdSetGainCtrlParsInput m_SetCtrlPars;
+    DtIoctlIqAgcCmdSetOpModeInput  m_SetOpMode;
+}  DtIoctlIqAgcCmdInput;
+
+
+// IQAGC command - IOCTL output data
+typedef union _DtIoctlIqAgcCmdOutput
+{
+    DtIoctlIqAgcCmdGetConfigOutput m_GetConfig;
+    DtIoctlIqAgcCmdGetGainControlOutput m_GetGainControl;
+    DtIoctlIqAgcCmdGetGainCtrlParsOutput m_GetCtrlPars;
+    DtIoctlIqAgcCmdGetGainStatusOutput m_GetStatus;
+    DtIoctlIqAgcCmdGetOpModeOutput  m_GetOpMode;
+}  DtIoctlIqAgcCmdOutput;
+
+#ifdef WINBUILD
+    #define DT_IOCTL_IQAGC_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_IQAGC_CMD,         \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlIqAgcCmdInOut
+    {
+        DtIoctlIqAgcCmdInput  m_Input;
+        DtIoctlIqAgcCmdOutput  m_Output;
+    }  DtIoctlIqAgcCmdInOut;
+#define DT_IOCTL_IQAGC_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_IQAGC_CMD,           \
+                                                                     DtIoctlIqAgcCmdInOut)
+#endif
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_IQDEMOD_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Iq Demodulator Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlIqDemodCmd
+{
+    DT_IQDEMOD_CMD_GET_NCO_PARS         = 0, // Get NCO parameters
+    DT_IQDEMOD_CMD_GET_OPERATIONAL_MODE = 1, // Get operational mode
+    DT_IQDEMOD_CMD_SET_NCO_PARS         = 2, // Set NCO parameters
+    DT_IQDEMOD_CMD_SET_OPERATIONAL_MODE = 3, // Set operational mode
+}  DtIoctlIqDemodCmd;
+
+// .-.-.-.-.-.-.-.-.-.-.-.- IQDEMOD Command - Get NCO Parameters -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlIqDemodCmdGetNcoParsInput;
+ASSERT_SIZE(DtIoctlIqDemodCmdGetNcoParsInput, 16)
+typedef struct _DtIoctlIqDemodCmdGetNcoParsOutput
+{
+    Int  m_Bypass;
+    Int  m_NcoPhaseIncr;
+}  DtIoctlIqDemodCmdGetNcoParsOutput;
+ASSERT_SIZE(DtIoctlIqDemodCmdGetNcoParsOutput, 8)
+
+// -.-.-.-.-.-.-.-.-.-.-.- IQDEMOD Command - Get Operational Mode -.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlIqDemodCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlIqDemodCmdGetOpModeInput, 16)
+typedef struct _DtIoctlIqDemodCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlIqDemodCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlIqDemodCmdGetOpModeOutput, 4)
+
+// .-.-.-.-.-.-.-.-.-.-.-.- IQDEMOD Command - Set NCO Parameters -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlIqDemodCmdSetNcoParsInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_Bypass;
+    Int  m_NcoPhaseIncr;
+}  DtIoctlIqDemodCmdSetNcoParsInput;
+ASSERT_SIZE(DtIoctlIqDemodCmdSetNcoParsInput, 24)
+
+// -.-.-.-.-.-.-.-.-.- IQDEMOD Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlIqDemodCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlIqDemodCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlIqDemodCmdSetOpModeInput, 20)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- IQDEMOD Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.
+// IQDEMOD command - IOCTL input data
+typedef union _DtIoctlIqDemodCmdInput
+{
+    DtIoctlIqDemodCmdSetNcoParsInput m_SetNcoPars;
+    DtIoctlIqDemodCmdSetOpModeInput  m_SetOpMode;
+}  DtIoctlIqDemodCmdInput;
+
+
+// IQDEMOD command - IOCTL output data
+typedef union _DtIoctlIqDemodCmdOutput
+{
+    DtIoctlIqDemodCmdGetNcoParsOutput m_GetNcoPars;
+    DtIoctlIqDemodCmdGetOpModeOutput  m_GetOpMode;
+}  DtIoctlIqDemodCmdOutput;
+
+#ifdef WINBUILD
+    #define DT_IOCTL_IQDEMOD_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_IQDEMOD_CMD,     \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlIqDemodCmdInOut
+    {
+        DtIoctlIqDemodCmdInput  m_Input;
+        DtIoctlIqDemodCmdOutput  m_Output;
+    }  DtIoctlIqDemodCmdInOut;
+#define DT_IOCTL_IQDEMOD_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_IQDEMOD_CMD,       \
+                                                                   DtIoctlIqDemodCmdInOut)
+#endif
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_IQDOWNSRC_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Iq DownConverter Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlIqDownSrcCmd
+{
+    DT_IQDOWNSRC_CMD_GET_CONV_RATE_PARS   = 0, // Get rate conversion parameters
+    DT_IQDOWNSRC_CMD_GET_OPERATIONAL_MODE = 1, // Get operational mode
+    DT_IQDOWNSRC_CMD_SET_CONV_RATE_PARS   = 2, // Set rate conversion parameters
+    DT_IQDOWNSRC_CMD_SET_OPERATIONAL_MODE = 3, // Set operational mode
+}  DtIoctlIqDownSrcCmd;
+
+// -.-.-.-.-.-.-.-.- IQDOWNSRC Command - Get Rate Conversion Parameters -.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlIqDownSrcCmdGetConvRateParsInput;
+ASSERT_SIZE(DtIoctlIqDownSrcCmdGetConvRateParsInput, 16)
+typedef struct _DtIoctlIqDownSrcCmdGetConvRateParsOutput
+{
+    Int  m_Bypass;
+    UInt32  m_SampleRateRatio;
+}  DtIoctlIqDownSrcCmdGetConvRateParsOutput;
+ASSERT_SIZE(DtIoctlIqDownSrcCmdGetConvRateParsOutput, 8)
+
+// -.-.-.-.-.-.-.-.-.- IQDOWNSRC Command - Get Operational Mode -.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlIqDownSrcCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlIqDownSrcCmdGetOpModeInput, 16)
+typedef struct _DtIoctlIqDownSrcCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlIqDownSrcCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlIqDownSrcCmdGetOpModeOutput, 4)
+
+// -.-.-.-.-.-.-.-.- IQDOWNSRC Command - Set Rate Conversion Parameters -.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlIqDownSrcCmdSetConvRateParsInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_Bypass;
+    UInt32  m_SampleRateRatio;
+}  DtIoctlIqDownSrcCmdSetConvRateParsInput;
+ASSERT_SIZE(DtIoctlIqDownSrcCmdSetConvRateParsInput, 24)
+
+// -.-.-.-.-.-.-.-.-.- IQDOWNSRC Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlIqDownSrcCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlIqDownSrcCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlIqDownSrcCmdSetOpModeInput, 20)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- IQDOWNSRC Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.
+// IQDOWNSRC command - IOCTL input data
+typedef union _DtIoctlIqDownSrcCmdInput
+{
+    DtIoctlIqDownSrcCmdSetConvRateParsInput m_SetConvRatePars;
+    DtIoctlIqDownSrcCmdSetOpModeInput  m_SetOpMode;
+}  DtIoctlIqDownSrcCmdInput;
+
+
+// IQDOWNSRC command - IOCTL output data
+typedef union _DtIoctlIqDownSrcCmdOutput
+{
+    DtIoctlIqDownSrcCmdGetConvRateParsOutput m_GetConvRatePars;
+    DtIoctlIqDownSrcCmdGetOpModeOutput  m_GetOpMode;
+}  DtIoctlIqDownSrcCmdOutput;
+
+#ifdef WINBUILD
+    #define DT_IOCTL_IQDOWNSRC_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_IQDOWNSRC_CMD, \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlIqDownSrcCmdInOut
+    {
+        DtIoctlIqDownSrcCmdInput  m_Input;
+        DtIoctlIqDownSrcCmdOutput  m_Output;
+    }  DtIoctlIqDownSrcCmdInOut;
+#define DT_IOCTL_IQDOWNSRC_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_IQDOWNSRC_CMD,   \
+                                                                 DtIoctlIqDownSrcCmdInOut)
+#endif
+
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_IQFIR_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Iq unpacker Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Iq -FIR Filter Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 // NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
 typedef enum _DtIoctlIqFirCmd
 {
@@ -3174,10 +3708,196 @@ typedef union _DtIoctlIqFirCmdOutput
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_IQJESD_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_IQFIR2XCLK_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Iq unpacker Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.- Iq -FIR Filter 2x Clock Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlIqFir2xClkCmd
+{
+    DT_IQFIR2XCLK_CMD_GET_CONFIG           = 0, // Get filter configuration
+    DT_IQFIR2XCLK_CMD_GET_COEFS            = 1, // Get filter coefficients
+    DT_IQFIR2XCLK_CMD_GET_OPERATIONAL_MODE = 2, // Get operational mode
+    DT_IQFIR2XCLK_CMD_SET_COEFS            = 3, // Set filter coefficients
+    DT_IQFIR2XCLK_CMD_SET_OPERATIONAL_MODE = 4, // Set operational mode
+}  DtIoctlIqFir2xClkCmd;
+
+// -.-.-.-.-.-.-.-.-.-.-.- IQFIR2XCLK Command - Get Config Command -.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlIqFir2xClkCmdGetConfigInput;
+ASSERT_SIZE(DtIoctlIqFir2xClkCmdGetConfigInput, 16)
+typedef struct _DtIoctlIqFir2xClkCmdGetConfigOutput
+{
+    Int  m_NumberCoefs;         // Number of coefficients
+    Int  m_CoefSize;            // Coefficient size in number of bits
+}  DtIoctlIqFir2xClkCmdGetConfigOutput;
+ASSERT_SIZE(DtIoctlIqFir2xClkCmdGetConfigOutput, 8)
+
+// .-.-.-.-.-.-.-.-.-.-.-.- IQFIR2XCLK - Get Coefficients Command -.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlIqFir2xClkCmdGetCoefsInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_NumCoefsToGet;       // Number of coefficients to get
+}  DtIoctlIqFir2xClkCmdGetCoefsInput;
+ASSERT_SIZE(DtIoctlIqFir2xClkCmdGetCoefsInput, 20)
+
+typedef struct _DtIoctlIqFir2xClkCmdGetCoefsOutput 
+{
+    Int  m_NumCoefs;            // Number of coefficients in buffer
+    Int  m_pCoefs[0];           // Dynamic sized buffer
+}  DtIoctlIqFir2xClkCmdGetCoefsOutput;
+ASSERT_SIZE(DtIoctlIqFir2xClkCmdGetCoefsOutput, 4)
+
+// .-.-.-.-.-.-.-.-.- IQFIR2XCLK Command - Get Operational Mode Command -.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlIqFir2xClkCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlIqFir2xClkCmdGetOpModeInput, 16)
+typedef struct _DtIoctlIqFir2xClkCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlIqFir2xClkCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlIqFir2xClkCmdGetOpModeOutput, 4)
+
+// .-.-.-.-.-.-.-.-.-.-.-.- IQFIR2XCLK - Set Coefficients Command -.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlIqFir2xClkCmdSetCoefsInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_NumCoefsToSet;       // Number of coefficients to get
+    Int  m_pCoefs[0];           // Dynamic sized buffer
+}  DtIoctlIqFir2xClkCmdSetCoefsInput;
+ASSERT_SIZE(DtIoctlIqFir2xClkCmdSetCoefsInput, 20)
+
+// -.-.-.-.-.-.-.-.- IQFIR2XCLK Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlIqFir2xClkCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlIqFir2xClkCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlIqFir2xClkCmdSetOpModeInput, 20)
+
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- IQFIR2XCLK Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.
+// IQFIR2XCLK command - IOCTL input data
+typedef union _DtIoctlIqFir2xClkCmdInput
+{
+    DtIoctlIqFir2xClkCmdGetCoefsInput  m_GetCoefs;   // Get Coefficients
+    DtIoctlIqFir2xClkCmdSetOpModeInput  m_SetOpMode; // IqFir2xClk - Set op. mode
+    DtIoctlIqFir2xClkCmdSetCoefsInput  m_SetCoefs;   // Set Coefficients
+}  DtIoctlIqFir2xClkCmdInput;
+
+
+// IQFIR2XCLK command - IOCTL output data
+typedef union _DtIoctlIqFir2xClkCmdOutput
+{
+    DtIoctlIqFir2xClkCmdGetConfigOutput  m_GetConfig; // Get Config
+    DtIoctlIqFir2xClkCmdGetCoefsOutput  m_GetCoefs;   // Get Coefficients
+    DtIoctlIqFir2xClkCmdGetOpModeOutput  m_GetOpMode; // IqFir2xClk - Get op. mode
+}  DtIoctlIqFir2xClkCmdOutput;
+
+#ifdef WINBUILD
+    #define DT_IOCTL_IQFIR2XCLK_CMD  CTL_CODE(DT_DEVICE_TYPE,                            \
+                           DT_FUNC_CODE_IQFIR2XCLK_CMD, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlIqFir2xClkCmdInOut
+    {
+        DtIoctlIqFir2xClkCmdInput  m_Input;
+        DtIoctlIqFir2xClkCmdOutput  m_Output;
+    }  DtIoctlIqFir2xClkCmdInOut;
+#define DT_IOCTL_IQFIR2XCLK_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_IQFIR2XCLK_CMD, \
+                                                                DtIoctlIqFir2xClkCmdInOut)
+#endif
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_IQINV_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Iq Demodulator Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlIqInvCmd
+{
+    DT_IQINV_CMD_GET_INVERT           = 0, // Get spectral inversion
+    DT_IQINV_CMD_GET_OPERATIONAL_MODE = 1, // Get operational mode
+    DT_IQINV_CMD_SET_INVERT           = 2, // Set spectral inversion
+    DT_IQINV_CMD_SET_OPERATIONAL_MODE = 3, // Set operational mode
+}  DtIoctlIqInvCmd;
+
+// -.-.-.-.-.-.-.-.-.-.-.- IQINV Command - Get Spectral Inversion -.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlIqInvCmdGetInvertInput;
+ASSERT_SIZE(DtIoctlIqInvCmdGetInvertInput, 16)
+typedef struct _DtIoctlIqInvCmdGetInvertOutput
+{
+    Int  m_Invert;
+}  DtIoctlIqInvCmdGetInvertOutput;
+ASSERT_SIZE(DtIoctlIqInvCmdGetInvertOutput, 4)
+
+// .-.-.-.-.-.-.-.-.-.-.-.- IQINV Command - Get Operational Mode -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlIqInvCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlIqInvCmdGetOpModeInput, 16)
+typedef struct _DtIoctlIqInvCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlIqInvCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlIqInvCmdGetOpModeOutput, 4)
+
+// -.-.-.-.-.-.-.-.-.-.-.- IQINV Command - Set Spectral Inversion -.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlIqInvCmdSetInvertInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_Invert;
+}  DtIoctlIqInvCmdSetInvertInput;
+ASSERT_SIZE(DtIoctlIqInvCmdSetInvertInput, 20)
+
+// .-.-.-.-.-.-.-.-.-.- IQINV Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlIqInvCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlIqInvCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlIqInvCmdSetOpModeInput, 20)
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- IQINV Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.
+// IQINV command - IOCTL input data
+typedef union _DtIoctlIqInvCmdInput
+{
+    DtIoctlIqInvCmdSetInvertInput m_SetInvert;
+    DtIoctlIqInvCmdSetOpModeInput  m_SetOpMode;
+}  DtIoctlIqInvCmdInput;
+
+
+// IQINV command - IOCTL output data
+typedef union _DtIoctlIqInvCmdOutput
+{
+    DtIoctlIqInvCmdGetInvertOutput m_GetInvert;
+    DtIoctlIqInvCmdGetOpModeOutput  m_GetOpMode;
+}  DtIoctlIqInvCmdOutput;
+
+#ifdef WINBUILD
+    #define DT_IOCTL_IQINV_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_IQINV_CMD,         \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlIqInvCmdInOut
+    {
+        DtIoctlIqInvCmdInput  m_Input;
+        DtIoctlIqInvCmdOutput  m_Output;
+    }  DtIoctlIqInvCmdInOut;
+#define DT_IOCTL_IQINV_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_IQINV_CMD,       \
+                                                                     DtIoctlIqInvCmdInOut)
+#endif
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_IQJESD_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Iq JESD Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 // NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
 typedef enum _DtIoctlIqJesdCmd
 {
@@ -3526,6 +4246,100 @@ typedef union _DtIoctlIqNoiseCmdOutput
     }  DtIoctlIqNoiseCmdInOut;
 #define DT_IOCTL_IQNOISE_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_IQNOISE_CMD,       \
                                                                    DtIoctlIqNoiseCmdInOut)
+#endif
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_IQPWR_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- Iq PowerEstimator Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlIqPwrCmd
+{
+    DT_IQPWR_CMD_GET_OPERATIONAL_MODE = 0, // Get operational mode
+    DT_IQPWR_CMD_GET_SUM_OF_SQUARES   = 1, // Get sum of squares
+    DT_IQPWR_CMD_GET_WINDOW_SIZE      = 2, // Get window size
+    DT_IQPWR_CMD_SET_OPERATIONAL_MODE = 3, // Set operational mode
+    DT_IQPWR_CMD_SET_WINDOW_SIZE      = 4, // Set window size
+}  DtIoctlIqPwrCmd;
+
+// -.-.-.-.-.-.-.-.-.- IQPWR Command - Get Operational Mode -.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlIqPwrCmdGetOpModeInput;
+ASSERT_SIZE(DtIoctlIqPwrCmdGetOpModeInput, 16)
+typedef struct _DtIoctlIqPwrCmdGetOpModeOutput
+{
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlIqPwrCmdGetOpModeOutput;
+ASSERT_SIZE(DtIoctlIqPwrCmdGetOpModeOutput, 4)
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- IQPWR Command - Get Sum of Squares -.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlIqPwrCmdGetSumOfSquaresInput;
+ASSERT_SIZE(DtIoctlIqPwrCmdGetSumOfSquaresInput, 16)
+typedef struct _DtIoctlIqPwrCmdGetSumOfSquaresOutput
+{
+    UInt32  m_SumOfSquares;
+}  DtIoctlIqPwrCmdGetSumOfSquaresOutput;
+ASSERT_SIZE(DtIoctlIqPwrCmdGetSumOfSquaresOutput, 4)
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- IQPWR Command - Get Window Size -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef DtIoctlInputDataHdr DtIoctlIqPwrCmdGetWindowSizeInput;
+ASSERT_SIZE(DtIoctlIqPwrCmdGetWindowSizeInput, 16)
+typedef struct _DtIoctlIqPwrCmdGetWindowSizeOutput
+{
+    Int  m_WindowSize;
+}  DtIoctlIqPwrCmdGetWindowSizeOutput;
+ASSERT_SIZE(DtIoctlIqPwrCmdGetWindowSizeOutput, 4)
+
+// -.-.-.-.-.-.-.-.-.- IQPWR Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlIqPwrCmdSetOpModeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_OpMode;              // Operational mode
+}  DtIoctlIqPwrCmdSetOpModeInput;
+ASSERT_SIZE(DtIoctlIqPwrCmdSetOpModeInput, 20)
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- IQPWR Command - Set WindowSize -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlIqPwrCmdSetWindowSizeInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_WindowSize;
+}  DtIoctlIqPwrCmdSetWindowSizeInput;
+ASSERT_SIZE(DtIoctlIqPwrCmdSetWindowSizeInput, 20)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- IQPWR Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.
+// IQPWR command - IOCTL input data
+typedef union _DtIoctlIqPwrCmdInput
+{
+    DtIoctlIqPwrCmdSetOpModeInput  m_SetOpMode;
+    DtIoctlIqPwrCmdSetWindowSizeInput m_SetWindowSize;
+}  DtIoctlIqPwrCmdInput;
+
+
+// IQPWR command - IOCTL output data
+typedef union _DtIoctlIqPwrCmdOutput
+{
+    DtIoctlIqPwrCmdGetOpModeOutput  m_GetOpMode;
+    DtIoctlIqPwrCmdGetSumOfSquaresOutput m_GetSumOfSquares;
+    DtIoctlIqPwrCmdGetWindowSizeOutput m_GetWindowSize;
+}  DtIoctlIqPwrCmdOutput;
+
+#ifdef WINBUILD
+    #define DT_IOCTL_IQPWR_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_IQPWR_CMD,     \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlIqPwrCmdInOut
+    {
+        DtIoctlIqPwrCmdInput  m_Input;
+        DtIoctlIqPwrCmdOutput  m_Output;
+    }  DtIoctlIqPwrCmdInOut;
+#define DT_IOCTL_IQPWR_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_IQPWR_CMD,       \
+                                                                      DtIoctlIqPwrCmdInOut)
 #endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -9551,10 +10365,13 @@ ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
 #define DT_IOCTL_INPUT_DATA_COMMON_DATA                                                  \
     DtIoctlInputDataHdr  m_CmdHdr;                                                       \
     DtIoctlAccuFifoCmdInput  m_AccuFifoCmd;                                              \
+    DtIoctlAd9789ItfCmdInput  m_Ad9789ItfCmd;                                            \
     DtIoctlAsiRxCmdInput  m_AsiTsRxCmd;                                                  \
     DtIoctlAsiTxGCmdInput  m_AsiTxGCmd;                                                  \
     DtIoctlAsiTxSerCmdInput  m_AsiTxSerCmd;                                              \
     DtIoctlBurstFifoCmdInput  m_BurstFifoCmd;                                            \
+    DtIoctlDataCCmdInput  m_DataCCmd;                                                    \
+    DtIoctlDataCdcCmdInput  m_DataCdcCmd;                                                \
     DtIoctlDataFifoCmdInput m_DataFifoCmd;                                               \
     DtIoctlDdrFifoCmdInput m_DdrFifoCmd;                                                 \
     DtIoctlCDmaCCmdInput  m_CDmaCCmd;                                                    \
@@ -9571,13 +10388,19 @@ ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
     DtIoctlI2cMCmdInput  m_I2cMCmd;                                                      \
     DtIoctlIpSecGCmdInput  m_IpSecGCmd;                                                  \
     DtIoctlIoConfigCmdInput  m_IoConfig;                                                 \
+    DtIoctlIoParInCmdInput  m_IoParInCmd;                                                \
     DtIoctlIoSerInCmdInput  m_IoSerInCmd;                                                \
-    DtIoctlIqUnpckCmdInput  m_IqUnpckCmd;                                                \
-    DtIoctlDataCdcCmdInput  m_DataCdcCmd;                                                \
+    DtIoctlIqAgcCmdInput  m_IqAgcCmd;                                                    \
+    DtIoctlIqDemodCmdInput  m_IqDemodCmd;                                                \
+    DtIoctlIqDownSrcCmdInput  m_IqDownSrcCmd;                                            \
     DtIoctlIqFirCmdInput  m_IqFirCmd;                                                    \
+    DtIoctlIqFir2xClkCmdInput  m_IqFir2xClkCmd;                                          \
+    DtIoctlIqInvCmdInput  m_IqInvCmd;                                                    \
     DtIoctlIqNoiseCmdInput  m_IqNoiseCmd;                                                \
     DtIoctlIqMiscCmdInput  m_IqMiscCmd;                                                  \
+    DtIoctlIqPwrCmdInput  m_IqPwrCmd;                                                    \
     DtIoctlIqSyncCmdInput  m_IqSyncCmd;                                                  \
+    DtIoctlIqUnpckCmdInput  m_IqUnpckCmd;                                                \
     DtIoctlIqUpCmdInput  m_IqUpCmd;                                                      \
     DtIoctlIqJesdCmdInput  m_IqJesdCmd;                                                  \
     DtIoctlAttenuatorsCtrlCmdInput_2116  m_AttenuatorsCtrlCmd_2116;                      \
@@ -9637,10 +10460,13 @@ typedef union _DtIoctlInputData
 // Common - command output data
 #define DT_IOCTL_OUTPUT_DATA_COMMON_DATA                                                 \
     DtIoctlAccuFifoCmdOutput  m_AccuFifoCmd;                                             \
+    DtIoctlAd9789ItfCmdOutput  m_Ad9789ItfCmd;                                           \
     DtIoctlAsiRxCmdOutput  m_AsiTsRxCmd;                                                 \
     DtIoctlAsiTxGCmdOutput  m_AsiTxGCmd;                                                 \
     DtIoctlAsiTxSerCmdOutput  m_AsiTxSerCmd;                                             \
     DtIoctlBurstFifoCmdOutput  m_BurstFifoCmd;                                           \
+    DtIoctlDataCCmdOutput  m_DataCCmd;                                                   \
+    DtIoctlDataCdcCmdOutput  m_DataCdcCmd;                                               \
     DtIoctlDataFifoCmdOutput  m_DataFifoCmd;                                             \
     DtIoctlDdrFifoCmdOutput  m_DdrFifoCmd;                                               \
     DtIoctlCDmaCCmdOutput  m_CDmaCCmd;                                                   \
@@ -9656,14 +10482,20 @@ typedef union _DtIoctlInputData
     DtIoctlI2cMCmdOutput  m_I2cMCmd;                                                     \
     DtIoctlIpSecGCmdOutput  m_IpSecGCmd;                                                 \
     DtIoctlIoConfigCmdOutput  m_IoConfig;                                                \
+    DtIoctlIoParInCmdOutput  m_IoParInCmd;                                               \
     DtIoctlIoSerInCmdOutput  m_IoSerInCmd;                                               \
     DtIoctlKaCmdOutput  m_KaCmd;                                                         \
-    DtIoctlIqUnpckCmdOutput  m_IqUnpckCmd;                                               \
-    DtIoctlDataCdcCmdOutput  m_DataCdcCmd;                                               \
+    DtIoctlIqAgcCmdOutput  m_IqAgcCmd;                                                   \
+    DtIoctlIqDemodCmdOutput  m_IqDemodCmd;                                               \
+    DtIoctlIqDownSrcCmdOutput  m_IqDownSrcCmd;                                           \
     DtIoctlIqFirCmdOutput  m_IqFirCmd;                                                   \
+    DtIoctlIqFir2xClkCmdOutput  m_IqFir2xClkCmd;                                         \
+    DtIoctlIqInvCmdOutput  m_IqInvCmd;                                                   \
     DtIoctlIqNoiseCmdOutput  m_IqNoiseCmd;                                               \
     DtIoctlIqMiscCmdOutput  m_IqMiscCmd;                                                 \
+    DtIoctlIqPwrCmdOutput  m_IqPwrCmd;                                                   \
     DtIoctlIqSyncCmdOutput  m_IqSyncCmd;                                                 \
+    DtIoctlIqUnpckCmdOutput  m_IqUnpckCmd;                                               \
     DtIoctlIqUpCmdOutput  m_IqUpCmd;                                                     \
     DtIoctlIqJesdCmdOutput  m_IqJesdCmd;                                                 \
     DtIoctlAttenuatorsCtrlCmdOutput_2116  m_AttenuatorsCtrlCmd_2116;                     \

@@ -30,6 +30,7 @@
 
 #define FPGATEMP_ROLE_NONE   NULL
 #define MXDS75TEMP_ROLE_NONE  NULL
+#define MCTC72TEMP_ROLE_NONE  NULL
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfSensTemp implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -126,6 +127,9 @@ DtStatus DtDfSensTemp_GetTemperature(DtDfSensTemp* pDf, Int* pTemperature)
     case DT_DF_SENSTEMP_SENS_TYPE_FPGA:
         Status =  DtBcFPGATEMP_GetTemperature(pDf->m_pBcFpgaTemp, pTemperature);
         break;
+    case DT_DF_SENSTEMP_SENS_TYPE_MCTC72:
+        Status =  DtDfMcTc72Temp_GetTemperature(pDf->m_pDfMcTc72Temp, pTemperature);
+        break;
     case DT_DF_SENSTEMP_SENS_TYPE_MXDS75:
         Status =  DtDfMxDs75Temp_GetTemperature(pDf->m_pDfMxDs75Temp, pTemperature);
         break;
@@ -199,6 +203,7 @@ DtStatus  DtDfSensTemp_LoadParameters(DtDf*  pDfBase)
 //
 DtStatus  DtDfSensTemp_OpenChildren(DtDfSensTemp*  pDf)
 {
+    Int NumTempSensFound = 0;
     DtStatus  Status = DT_STATUS_OK;
 
     // List of children supported by the the SENSTEMP function
@@ -209,6 +214,8 @@ DtStatus  DtDfSensTemp_OpenChildren(DtDfSensTemp*  pDf)
                       FPGATEMP_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcFpgaTemp), FALSE},
         { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_MXDS75TEMP, DT_DF_MXDS75TEMP_NAME,
                   MXDS75TEMP_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pDfMxDs75Temp), FALSE},
+        { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_MCTC72TEMP, DT_DF_MCTC72TEMP_NAME,
+                  MCTC72TEMP_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pDfMcTc72Temp), FALSE},
     };
 
     DF_SENSTEMP_DEFAULT_PRECONDITIONS(pDf);
@@ -220,12 +227,19 @@ DtStatus  DtDfSensTemp_OpenChildren(DtDfSensTemp*  pDf)
         return Status;
 
     // Only one of the temperature controllers should be present
-    DT_ASSERT(pDf->m_pBcFpgaTemp!=NULL || pDf->m_pDfMxDs75Temp!=NULL);
-    DT_ASSERT(pDf->m_pBcFpgaTemp==NULL || pDf->m_pDfMxDs75Temp==NULL);
+    if (pDf->m_pBcFpgaTemp != NULL)
+        NumTempSensFound++;
+    if (pDf->m_pDfMcTc72Temp != NULL)
+        NumTempSensFound++;
+    if (pDf->m_pDfMxDs75Temp != NULL)
+        NumTempSensFound++;
+    DT_ASSERT(NumTempSensFound == 1);
 
     // Determine sensor type
     if (pDf->m_pBcFpgaTemp != NULL)
         pDf->m_TempSensorType = DT_DF_SENSTEMP_SENS_TYPE_FPGA;
+    else if (pDf->m_pDfMcTc72Temp != NULL)
+        pDf->m_TempSensorType = DT_DF_SENSTEMP_SENS_TYPE_MCTC72;
     else if (pDf->m_pDfMxDs75Temp != NULL)
         pDf->m_TempSensorType = DT_DF_SENSTEMP_SENS_TYPE_MXDS75;
     else

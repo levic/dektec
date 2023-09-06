@@ -76,6 +76,7 @@
 
 // Block-controller related
 #define  LOG_LEVEL_BC_ACCUFIFO      LOG_ERR
+#define  LOG_LEVEL_BC_AD9789ITF     LOG_ERR
 #define  LOG_LEVEL_BC_ASIRXP        LOG_ERR
 #define  LOG_LEVEL_BC_ASITXG        LOG_ERR
 #define  LOG_LEVEL_BC_ASITXSER      LOG_ERR
@@ -85,6 +86,7 @@
 #define  LOG_LEVEL_BC_CONSTSINK     LOG_ERR
 #define  LOG_LEVEL_BC_CONSTSOURCE   LOG_ERR
 #define  LOG_LEVEL_BC_COMMON        LOG_ERR
+#define  LOG_LEVEL_BC_DATAC         LOG_ERR
 #define  LOG_LEVEL_BC_DATACDC       LOG_ERR
 #define  LOG_LEVEL_BC_DATACDC2      LOG_ERR
 #define  LOG_LEVEL_BC_DATAFIFO      LOG_ERR
@@ -106,13 +108,19 @@
 #define  LOG_LEVEL_BC_IPSECG        LOG_ERR
 #define  LOG_LEVEL_BC_IPSUMCHK      LOG_ERR
 #define  LOG_LEVEL_BC_IPSUMINS      LOG_ERR
+#define  LOG_LEVEL_BC_IOPARIN       LOG_ERR
 #define  LOG_LEVEL_BC_IOSERIN       LOG_ERR
 #define  LOG_LEVEL_BC_IPSECG        LOG_ERR
 #define  LOG_LEVEL_BC_IQUNPCK       LOG_ERR
-#define  LOG_LEVEL_BC_DATACDC       LOG_ERR
+#define  LOG_LEVEL_BC_IQAGC         LOG_ERR
+#define  LOG_LEVEL_BC_IQDEMOD       LOG_ERR
+#define  LOG_LEVEL_BC_IQDOWNSRC     LOG_ERR
 #define  LOG_LEVEL_BC_IQFIR         LOG_ERR
+#define  LOG_LEVEL_BC_IQFIR2XCLK    LOG_ERR
+#define  LOG_LEVEL_BC_IQINV         LOG_ERR
 #define  LOG_LEVEL_BC_IQNOISE       LOG_ERR
 #define  LOG_LEVEL_BC_IQMISC        LOG_ERR
+#define  LOG_LEVEL_BC_IQPWR         LOG_ERR
 #define  LOG_LEVEL_BC_IQSYNC        LOG_ERR
 #define  LOG_LEVEL_BC_IQUP          LOG_ERR
 #define  LOG_LEVEL_BC_IQJESD        LOG_ERR
@@ -160,6 +168,7 @@
 
 // Driver-function related
 #define  LOG_LEVEL_DF_ASIRX         LOG_ERR
+#define  LOG_LEVEL_DF_ADF4360CTRL   LOG_ERR
 #define  LOG_LEVEL_DF_CHSDIRXPHYONLY  LOG_ERR
 #define  LOG_LEVEL_DF_CHSDIRX       LOG_ERR
 #define  LOG_LEVEL_DF_COMMON        LOG_MIN
@@ -170,6 +179,7 @@
 #define  LOG_LEVEL_DF_IOCONFIG      LOG_ERR
 #define  LOG_LEVEL_DF_GENLOCKCTRL   LOG_ERR
 #define  LOG_LEVEL_DF_IPFIFO        LOG_ERR
+#define  LOG_LEVEL_DF_MCTC72TEMP    LOG_ERR
 #define  LOG_LEVEL_DF_MXDS75TEMP    LOG_ERR
 #define  LOG_LEVEL_DF_NW            LOG_ERR
 #define  LOG_LEVEL_DF_PROPS         LOG_ERR

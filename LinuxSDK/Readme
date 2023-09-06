@@ -81,7 +81,9 @@ Extracting LinuxSDK.tar.gz will lead to the following directory structure:
    |  |- Lib
    |    |- GCC7.5.0 (Contains DTAPI object file compiled with GCC 7.5.0)
    |    |  |- DTAPI.o        (32-bit version)
+   |    |  |- DTAPI_ABI0.o   (32-bit version with c++11 ABI0 interface)
    |    |  |- DTAPI64.o      (64-bit version)
+   |    |  |- DTAPI64_ABI0.o (64-bit version with c++11 ABI0 interface)
    |
    |
    |- DTAPITS                (DTAPITS Installer. A license is needed to use this library)

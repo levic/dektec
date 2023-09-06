@@ -367,12 +367,14 @@ DtStatus  DtIoStubDf_OnExclAccessCmd(const DtIoStub*, DtIoStubIoParams*, Int*  p
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Function includes +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 #ifdef DT_DF_ADD_FUNCTION_INCLUDES
+#include "DtDfAdf4360Ctrl.h"    // ADF4360 clock control driver function
 #include "DtDfAsiRx.h"          // ASI transport stream receiver driver function
 #include "DtDfChSdiRxPhyOnly.h" // SDI PHY-only receive channel function
 #include "DtDfChSdiRx.h"        // SDI receive channel function
 #include "DtDfGenLockCtrl.h"    // SDI genlocking controller function
 #include "DtDfIpFifo.h"         // IP Fifo driver function
 #include "DtDfNw.h"             // Network driver function
+#include "DtDfMcTc72Temp.h"     // Microchip TC72 digital thermometer controller function
 #include "DtDfMxDs75Temp.h"     // MAXIM DS75 digital thermometer controller function
 #include "DtDfSdiTxPhy.h"       // SDI-PHY transmitter driver function
 #include "DtDfSdiRx.h"          // SDI-receiver function

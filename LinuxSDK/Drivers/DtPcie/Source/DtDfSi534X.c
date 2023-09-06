@@ -170,7 +170,7 @@ DtStatus DtDfSi534X_GetFreqOffsetPpt(DtDfSi534X* pDf, Bool FracClk, Int* pOffset
     // And prevent division by zero
     MaxMult = DIV64((Int64)((1ULL<<63) - 1), Exp12);
     Offset = 0;
-    if (CurNxNum != 2*InitNxNum)
+    if (CurNxNum!=2*InitNxNum && InitNxNum>0)
         Offset = DIV64(DIV64(Exp12*MaxMult, (CurNxNum - 2*InitNxNum)) 
                                                        * (CurNxNum - InitNxNum), MaxMult);
     *pOffsetPpt = (Int)Offset;
@@ -269,7 +269,7 @@ DtStatus DtDfSi534X_SetConfigInt(DtDfSi534X*  pDf, DtDfSi534XConfig  Config)
                                                     &pClockProps, &NumProps);
     if (!DT_SUCCESS(Status))
     {
-        DtDbgOutDf(ERR, SI534X, pDf, "ERROR: Could not find configuation: %d", Config);
+        DtDbgOutDf(ERR, SI534X, pDf, "ERROR: Could not find configuration: %d", Config);
         return Status;
     }
     DT_ASSERT(pConfigItems!=NULL && NumItems>0);
@@ -504,6 +504,24 @@ DtStatus  DtDfSi534X_FindConfigData(DtDfSi534X*  pDf, DtDfSi534XConfig  Config,
             return DT_STATUS_INVALID_PARAMETER;
         }
         break;
+        // Non-SDI clock outputs
+    case DT_DF_SI534X_CFG_DUAL_CLOCK:
+        switch (pDf->m_ClockArchitecture)
+        {
+        case SI534X_DTA2131B_LIKE:
+            if (pDf->m_DeviceType != DVC_TYPE_SI5392)
+                return DT_STATUS_INVALID_PARAMETER;
+
+            // SI5392
+            *pConfigItems = SI5392_CONFIG_CLOCK_DTA2131B_LIKE;
+            *pNumItems = DT_SIZEOF_ARRAY(SI5392_CONFIG_CLOCK_DTA2131B_LIKE);
+            *pClockProps = SI5392_CONFIG_CLOCK_PROPS_DTA2131B_LIKE;
+            *pNumProps = DT_SIZEOF_ARRAY(SI5392_CONFIG_CLOCK_PROPS_DTA2131B_LIKE);
+            break;
+        default:
+            return DT_STATUS_INVALID_PARAMETER;
+        }
+        break;
     default:
         return DT_STATUS_INVALID_PARAMETER;
     }
@@ -523,6 +541,9 @@ DtStatus DtDfSi534X_GetDefaultConfig(DtDfSi534X* pDf, DtDfSi534XConfig* pConfig)
     case SI534X_DTA2127_LIKE:
     case SI534X_DTA2175_LIKE:
         *pConfig = DT_DF_SI534X_CFG_NON_FRAC_SDI_CLOCK;
+        break;
+    case SI534X_DTA2131B_LIKE:
+        *pConfig = DT_DF_SI534X_CFG_DUAL_CLOCK;
         break;
     case SI534X_DTA2172_LIKE:
         *pConfig = DT_DF_SI534X_CFG_DUAL_SDI_CLOCK;
@@ -955,6 +976,7 @@ int DtDfSi534X_GetClockIdx(DtDfSi534X* pDf, Bool Fractional)
     switch (pDf->m_ClockArchitecture)
     {
     case SI534X_DTA2127_LIKE:   return 0;
+    case SI534X_DTA2131B_LIKE:  return Fractional ? 0 : 1;
     case SI534X_DTA2172_LIKE:   return Fractional ? 0 : 1;
     case SI534X_DTA2175_LIKE:   return 0;
     default: DT_ASSERT(FALSE);  return 0;
@@ -970,6 +992,7 @@ int DtDfSi534X_GetNumClocks(DtDfSi534X* pDf)
     switch (pDf->m_ClockArchitecture)
     {
     case SI534X_DTA2127_LIKE:   return 1;
+    case SI534X_DTA2131B_LIKE:  return 2;
     case SI534X_DTA2172_LIKE:   return 2;
     case SI534X_DTA2175_LIKE:   return 1;
     default: DT_ASSERT(FALSE);  return 0;
@@ -986,6 +1009,7 @@ Bool DtDfSi534X_IsInFreeRunOnlyMode(DtDfSi534X* pDf)
     switch (pDf->m_ClockArchitecture)
     {
     case SI534X_DTA2127_LIKE:   return TRUE;
+    case SI534X_DTA2131B_LIKE:  return FALSE;
     case SI534X_DTA2172_LIKE:   return FALSE;
     case SI534X_DTA2175_LIKE:   return FALSE;
     default: DT_ASSERT(FALSE);  return FALSE;
