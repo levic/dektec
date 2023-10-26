@@ -42,6 +42,7 @@ List of previous LinuxSDK download URLs
 - Prior to this files were all given the name (LinuxSDK.tar.gz) and previous versions were overwritten
 
 List of previous DtPlay download URLs
+- https://dektec.com/products/applications/DtPlay/Downloads/DtPlay_v4.17.0.zip
 - https://dektec.com/products/applications/DtPlay/Downloads/DtPlay_v4.16.0.zip
 - https://dektec.com/products/applications/DtPlay/Downloads/DtPlay_v4.15.0.zip
 - (There was no 4.14.0 publicly released)

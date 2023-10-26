@@ -54,7 +54,7 @@ int  _kbhit()
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlay Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DTPLAY_VERSION_MAJOR        4
-#define DTPLAY_VERSION_MINOR        16
+#define DTPLAY_VERSION_MINOR        17
 #define DTPLAY_VERSION_BUGFIX       0
 
 const int c_BufSize = 1*1024*1024;      // Data transfer buffer size
@@ -349,7 +349,7 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         DtOptItem(L"db",  m_DblBuff, -1, L"Port to use as doubly buffered output"),
         DtOptItem(L"m",   m_TxMode, DTAPI_TXMODE_188, L"Transmit Mode (default: 188)", TransmitModes),
         DtOptItem(L"mt",  m_ModType, DTAPI_MOD_DVBT, L"Modulation type (default: DVB-T)", ModTypes),
-        DtOptItem(L"mf",  m_CarrierFreq, 0.0, L"Modulation carrier frequency in MHz  (default: UHF:578MHz, LBAND:1915MHz))", 20.0, 2300.0),
+        DtOptItem(L"mf",  m_CarrierFreq, 0.0, L"Modulation carrier frequency in MHz  (default: UHF:578MHz, LBAND:1915MHz))", 20.0, 3225.0),
         DtOptItem(L"ml",  m_OutpLevel, -27.5, L"Output level in dBm (default: -27.5dBm)", -35.0, 0.0),
         DtOptItem(L"mc",  m_CodeRate, L"Convolutional rate (default: 1/2)\n"
                 L"  General        : 1/2, 2/3, 3/4, 4/5, 5/6, 6/7 or 7/8\n"
@@ -1391,6 +1391,13 @@ void Player::InitOutput()
                 dr = m_DtDvc.SetIoConfig(DblBuffPort, DTAPI_IOCONFIG_IOSTD,
                                                                       DTAPI_IOCONFIG_ASI);
             }
+
+            // Let the new-generation ASI-output generate an ASI-signal for a short while
+#ifdef WINBUILD
+            ::Sleep(200);
+#else
+            usleep(200000);
+#endif 
         }
     }
     else
