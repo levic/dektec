@@ -74,6 +74,7 @@ DtStatus  DtBcTOD_Adjust(DtBcTOD*, Int64  DeltaNs);
 DtStatus  DtBcTOD_AdjustPhaseIncr(DtBcTOD*, Int64 AdjustScaledPpm);
 DtStatus  DtBcTOD_GetPeriodicItv(DtBcTOD*, Int* pIntervalMs);
 DtStatus  DtBcTOD_GetPhaseIncr(DtBcTOD*, UInt32* pClockPhaseIncr);
+DtStatus  DtBcTOD_GetPhaseIncrAdjust(DtBcTOD* pBc, Int64* pAdjustScaledPpm);
 DtStatus  DtBcTOD_GetProperties(DtBcTOD*, UInt* pSysClockFreqHz, UInt* pAccuracy);
 DtStatus  DtBcTOD_GetTime(DtBcTOD*, DtTodTime*  pTime, UInt* pAdjustCount);
 DtStatus  DtBcTOD_SetPhaseIncr(DtBcTOD*, UInt32 ClockPhaseIncr);

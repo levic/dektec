@@ -47,7 +47,7 @@
 #define DF_CHSDIRX_TAG  0x48435253   // 'HCRS'
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-static const int StateLockTimeout = 500;  // Timeout for acquiring the user lock (in ms)
+static const int StateLockTimeout = 5000;  // Timeout for acquiring the user lock (in ms)
 static const int MaxNumUsersSupported = 8;  // Max of 8 users may share this channel
 
 static const int PageSize = 4096;
@@ -161,6 +161,7 @@ DtDfChSdiRx*  DtDfChSdiRx_Open(DtCore* pCore, DtPt* pPt, const char* pRole,
     // Register function callbacks
     OpenParams.m_DfParams.m_CloseFunc = DtDfChSdiRx_Close;
     OpenParams.m_DfParams.m_OnCloseFileFunc = DtDfCh_OnCloseFile;  // Use default
+    OpenParams.m_DfParams.m_OnCloseOtherFiles = DtDfCh_OnCloseOtherFiles; // Use default
 
     OpenParams.m_CloseUserFunc = DtDfChSdiRx_CloseUser;
     OpenParams.m_DoIdleToStandyFunc = DtDfChSdiRx_DoIdleToStandy;

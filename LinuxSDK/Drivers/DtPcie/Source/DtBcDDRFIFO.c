@@ -294,7 +294,7 @@ DtStatus  DtBcDDRFIFO_CheckMemoryControllerStatus(DtBcDDRFIFO* pBc)
             }
         }
         if (DDRFIFO_Status_READ_MemCalSuccess(pBc) != 0)
-            DtDbgOutBc(ERR, DDRFIFO, pBc, "Mem calibration success. #Retries: %i",
+            DtDbgOutBc(MIN, DDRFIFO, pBc, "Mem calibration success. #Retries: %i",
                                                                 MaxNumRetries-RetryCount);
         else if (DDRFIFO_Status_READ_MemCalFail(pBc) != 0)
         {
@@ -356,7 +356,7 @@ DtStatus  DtBcDDRFIFO_Init(DtBc* pBcBase)
     Properties = DDRFIFO_Config_READ(pBc);
 
     pBc->m_DataWidth = 1 << DDRFIFO_Config_GET_DataWidth(Properties);            // #bits
-    pBc->m_BurstSize = 1 << DDRFIFO_Config_GET_BurstSize(Properties) * 
+    pBc->m_BurstSize = (1 << DDRFIFO_Config_GET_BurstSize(Properties)) * 
                                                            (pBc->m_DataWidth/8); // #bytes
 
     pBc->m_FifoSize = 1 << DDRFIFO_Config_GET_FifoSize(Properties);              // #bytes

@@ -47,7 +47,7 @@
 #define DF_CH_TAG  0x4E414843       // 'NAHC'
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-static const int StateLockTimeout = 500;  // Timeout for acquiring the user lock (in ms)
+static const int StateLockTimeout = 5000;  // Timeout for acquiring the user lock (in ms)
 
 // -.-.-.-.-.-.-.-.-.-.-.- DtDfCh - Forwards of private functions -.-.-.-.-.-.-.-.-.-.-.-.
 static DtDfChUser* DtDfCh_OpenUser_Default(
@@ -243,6 +243,7 @@ DtStatus DtDfCh_Detach(
                   DtDfCh* pDf, const DtExclAccessObject* pObject, const DtFileObject* pFile)
 {
     DtStatus Status = DT_STATUS_OK;
+    Bool UserHadExclAccess=FALSE;
     Int NumUsers=0, StrLen=0;
     DtDfChUser* pUser=NULL;
     char FriendlyName[DT_CHAN_FRIENDLY_NAME_MAX_LENGTH+1];
@@ -260,7 +261,9 @@ DtStatus DtDfCh_Detach(
         return DT_STATUS_NOT_FOUND;
     }
 
-    // Copy friendly name, so that we can use it in logging after removing
+    // Cache friendly name and exclusive access state, so that we can use these variables
+    // after removing (destroying) the user.
+    UserHadExclAccess = pUser->m_HasExclAccess;
     StrLen = DtAnsiCharArrayStrLength(pUser->m_FriendlyName, 
                                                         sizeof(pUser->m_FriendlyName));
     if (StrLen>0 && StrLen<sizeof(FriendlyName))
@@ -270,7 +273,10 @@ DtStatus DtDfCh_Detach(
     }
     else
         FriendlyName[0] = '\0';
-        
+
+    // Remove/destroy our user.
+    // NOTE: pUser is no longer valid and cannot be used after this point => hence we 
+    // cached some state variable above.
     Status = DtDfCh_RemoveUser(pDf, pFile, pUser);
     if (!DT_SUCCESS(Status))
     {
@@ -278,8 +284,8 @@ DtStatus DtDfCh_Detach(
                                                             "user list", FriendlyName);
         return Status;
     }
-    DtDbgOutDf(MIN, COMMON, pDf, "User '%s' has detached successfully", FriendlyName);
-        
+    pUser = NULL;   // Invalidate user pointer.
+
     // Check if any users will be left after this user detaches
     NumUsers = DtVectorDfChUser_Size(pDf->m_pUsers);
     if (NumUsers == 0)
@@ -297,13 +303,14 @@ DtStatus DtDfCh_Detach(
         }
         
         // Release exclusive access to this function (if this user had exclusive access)
-        if (pUser->m_HasExclAccess)
+        if (UserHadExclAccess)
         {
             Status = DtDf_ExclAccessRelease((DtDf*)pDf, pObject);
             if (!DT_SUCCESS(Status))
                 DtDbgOutDf(ERR, COMMON, pDf, "ERROR: failed to release exclusive access");
         }
     }
+    DtDbgOutDf(MIN, COMMON, pDf, "User '%s' has detached successfully", FriendlyName);
     return DT_STATUS_OK;
 }
 
@@ -445,7 +452,85 @@ DtStatus DtDfCh_OnCloseFile(DtDf* pDf, const DtFileObject* pFile)
     }
     // Do not forget to unlock
     DtDfCh_Unlock(DF_CH);
-    return DT_STATUS_OK;
+
+    // Finally, call base implementation to release exclusive access on this function.
+    return DtDf_OnCloseFile(pDf, pFile);
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfCh_OnCloseOtherFiles -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Handler for a close other files event. Checks if there are any other files with 
+// associated users attached to this channel and detaches them.
+//
+// Note: caller should NOT hold the channel lock.
+//
+DtStatus DtDfCh_OnCloseOtherFiles(DtDf* pDf, const DtFileObject* pFile)
+{
+    Bool AquiredLock=TRUE;
+    DtStatus Status=DT_STATUS_OK;
+
+    DtDbgOutDf(ERR, COMMON, pDf, "Attempting to close other users");
+
+    DF_CH_DEFAULT_PRECONDITIONS(pDf);
+
+    // Lock channel. If timeout continue anyway.
+    AquiredLock = TRUE; // Assume success.
+    if(DtDfCh_Lock(DF_CH, 500) != DT_STATUS_OK)
+    {
+        DtDbgOutDf(ERR, COMMON, pDf, "Failed to acquire lock => continue anyway");
+        AquiredLock = FALSE;
+    }
+
+    // Check there are any users to remove
+    if (DtDfCh_HasUsers(DF_CH))
+    {
+        int i=0, NumUsers=0;
+
+        // Create a list of all users to remove.
+        DtVectorDfChUser* pUsersToRemove = DtVectorDfChUser_Create(4,2);
+        DtDfCh_LockUsers(DF_CH);
+        NumUsers = DtVectorDfChUser_Size(DF_CH->m_pUsers);
+        for (i=0; i<NumUsers; i++)
+        {
+            // Add all except ourselves to the list.
+            DtDfChUser* pUser = DtVectorDfChUser_At(DF_CH->m_pUsers, i);
+            DtDbgOutDf(ERR, COMMON, pDf, "User[%d]='%s'", i, pUser->m_FriendlyName);
+            if (DtFileCompare(&pUser->m_File, pFile))
+                continue;
+            DtVectorDfChUser_PushBack(pUsersToRemove, pUser);
+        }
+        DtDfCh_UnlockUsers(DF_CH);
+
+        // Remove the users
+        NumUsers = DtVectorDfChUser_Size(pUsersToRemove);
+        for (i=0; i<NumUsers; i++)
+        {
+            DtDfChUser* pUser = DtVectorDfChUser_At(pUsersToRemove, i);
+
+            // Create an exclusive access object, so that we can detach
+            DtExclAccessObject ExclAccessObject;
+            ExclAccessObject.m_Type = DT_EXCL_OBJECT_TYPE_IS_FILE;
+            ExclAccessObject.m_Owner.m_File = pUser->m_File;
+
+            DtDbgOutDf(ERR, COMMON, pDf, "Force detach of user '%s'", 
+                                                                   pUser->m_FriendlyName);
+            Status = DtDfCh_Detach(DF_CH, &ExclAccessObject, &pUser->m_File);
+            if (!DT_SUCCESS(Status))
+            {
+                // NOTE: cannot user 'pUser' here as it may no longer exists, hence use pFile
+                DtDbgOutDf(ERR, COMMON, pDf, "ERROR: failed to detach user '%p'", 
+                                                                          &pUser->m_File);
+            }
+        }
+        DtVectorDfChUser_Cleanup(pUsersToRemove);
+    }
+
+    // Do not forget to unlock
+    if (AquiredLock)
+        DtDfCh_Unlock(DF_CH);
+
+    // Finally, call base implementation to force a close of this function.
+    return DtDf_OnCloseOtherFiles(pDf, pFile);
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfCh_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

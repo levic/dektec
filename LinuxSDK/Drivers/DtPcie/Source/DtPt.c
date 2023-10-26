@@ -87,7 +87,6 @@ DtStatus  DtPt_OnCloseFile(DtPt*  pPt, DtFileObject*  pFile)
     
     PT_DEFAULT_PRECONDITIONS(pPt);
 
-
     DtDbgOutPt(MAX, COMMON, pPt, "Releasing resources held by File");
 
     // Notify all DF's and BC's that the file is closed. 
@@ -108,6 +107,39 @@ DtStatus  DtPt_OnCloseFile(DtPt*  pPt, DtFileObject*  pFile)
         if (pBc==NULL || pBc->m_OnCloseFileFunc==NULL)
             continue;
         pBc->m_OnCloseFileFunc(pBc, pFile);
+    }
+
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPt_OnCloseOtherFiles -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtPt_OnCloseOtherFiles(DtPt* pPt, const DtFileObject* pFile)
+{
+    Int  i=0, Num=0;
+    
+    PT_DEFAULT_PRECONDITIONS(pPt);
+
+    DtDbgOutPt(MIN, COMMON, pPt, "Releasing resources held by other 'files'");
+
+    // Notify all DF's and BC's that the file is closed. 
+    // NOTE: first notify all DFs, than the BCs
+    Num = DtVectorDf_Size(pPt->m_pDfList);
+    for (i=0; i<Num; i++)
+    {
+        DtDf*  pDf = DtVectorDf_At(pPt->m_pDfList, i);
+        if (pDf==NULL || pDf->m_OnCloseOtherFiles==NULL)
+            continue;
+        pDf->m_OnCloseOtherFiles(pDf, pFile);
+    }
+
+    Num = DtVectorBc_Size(pPt->m_pBcList);
+    for (i=0; i<Num; i++)
+    {
+        DtBc*  pBc = DtVectorBc_At(pPt->m_pBcList, i);
+        if (pBc==NULL || pBc->m_OnCloseOtherFiles==NULL)
+            continue;
+        pBc->m_OnCloseOtherFiles(pBc, pFile);
     }
 
     return DT_STATUS_OK;
@@ -457,6 +489,7 @@ DtStatus DtPt_AcquireExclAccessChildren(DtPt*  pPt,  const DtExclAccessObject* p
         { 
             // Release exclusive access state lock
             DtMutexRelease(&pPt->m_ExclAccessLock);
+            DtDbgOutPt(ERR, COMMON, pPt, "DF[%d] has exclusive access", i);
             return DT_STATUS_IN_USE;
         }
     }
@@ -471,6 +504,7 @@ DtStatus DtPt_AcquireExclAccessChildren(DtPt*  pPt,  const DtExclAccessObject* p
         { 
             // Release exclusive access state lock
             DtMutexRelease(&pPt->m_ExclAccessLock);
+            DtDbgOutPt(ERR, COMMON, pPt, "BC[%d] has exclusive access", i);
             return DT_STATUS_IN_USE;
         }
     }
@@ -492,7 +526,11 @@ DtStatus DtPt_AcquireExclAccessChildren(DtPt*  pPt,  const DtExclAccessObject* p
                 DtVector_Set(pPt->m_pDfExclAccessList, i, &HasExclAccess);
             }
             else
+            {
+                DtDbgOutPt(ERR, COMMON, pPt, "Failed to acquire excl. access to DF '%s'", 
+                                                                  pChildDf->m_InstanceId);
                 break;
+            }
         }
     }
 
@@ -524,7 +562,11 @@ DtStatus DtPt_AcquireExclAccessChildren(DtPt*  pPt,  const DtExclAccessObject* p
                 DtVector_Set(pPt->m_pBcExclAccessList, i, &HasExclAccess);
             }
             else
+            {
+                DtDbgOutPt(ERR, COMMON, pPt, "Failed to acquire excl. access to BC '%s'", 
+                                                                  pChildBc->m_InstanceId);
                 break;
+            }
         }
     }
 

@@ -26,10 +26,60 @@
 #include "DtCoreIncludes.h"            // Core driver includes
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtCore_BEBUG implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_DEBUG_ForceRelease -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Forces the release of all resources held by all open file handles, except the callee.
+//
+DtStatus  DtCore_DEBUG_ForceRelease(
+                                  DtCore* pCore, int PortIndex, const DtFileObject* pFile)
+{
+    int i=0;
+
+    DtDbgOut(MIN, CORE, "Start");
+
+    // Sanity checks
+    CORE_DEFAULT_PRECONDITIONS(pCore);
+    if (PortIndex!=-1 && (PortIndex<0 || PortIndex>=pCore->m_NumPorts))
+    {
+        DtDbgOut(ERR, CORE, "Invalid port-index: %d", PortIndex);
+        return DT_STATUS_INVALID_PARAMETER;
+    }
+
+    // -1, means all ports
+    if (PortIndex == -1)
+    {
+        for (i=0; i<pCore->m_NumPorts; i++)
+        {
+            DtPt* pPt = DtVectorPt_At(pCore->m_pPtList, i);
+            DtPt_OnCloseOtherFiles(pPt, pFile);
+        }
+    }
+    else
+    {
+        DtPt* pPt = DtVectorPt_FindByPort(pCore->m_pPtList, PortIndex);
+        if (!pPt)
+        {
+            DtDbgOut(ERR, CORE, "Could not find a port for index '%d'", PortIndex);
+            return DT_STATUS_INVALID_PARAMETER;
+        }
+        DtPt_OnCloseOtherFiles(pPt, pFile);
+    }
+
+    DtDbgOut(MIN, CORE, "Exit");
+    return DT_STATUS_OK;
+}
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubCore_DEBUG implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+static DtStatus DtIoStubCore_DEBUG_OnCmdForceRelease(const DtIoStubCore*, 
+                                                 const DtFileObject*,
+                                                 const DtIoctlDebugCmdForceReleaseInput*);
 static DtStatus  DtIoStubCore_DEBUG_OnCmdRegRead(const DtIoStubCore*, 
                                                        const DtIoctlDebugCmdRegReadInput*,
                                                        DtIoctlDebugCmdRegReadOutput*);
@@ -90,7 +140,6 @@ DtStatus  DtIoStubCore_DEBUG_AppendDynamicSize(
         pIoParams->m_OutReqSize += (pInData->m_BulkRead.m_NumToRead * sizeof(UInt32));
         break;
 
-
     default:
         DT_ASSERT(!pIoParams->m_InReqSizeIsDynamic && !pIoParams->m_OutReqSizeIsDynamic);
         if (pIoParams->m_InReqSizeIsDynamic || pIoParams->m_OutReqSizeIsDynamic)
@@ -124,12 +173,14 @@ DtStatus  DtIoStubCore_DEBUG_OnCmd(
         pOutData = &pIoParams->m_pOutData->m_DebugCmd;
     }
 
-
-
     //-.-.-.-.-.-.-.-.-.-.-.-.- Call appropriate command handler -.-.-.-.-.-.-.-.-.-.-.-.-
 
     switch (pIoParams->m_Cmd)
     {
+    case DT_DEBUG_CMD_FORCE_RELEASE:
+        Status = DtIoStubCore_DEBUG_OnCmdForceRelease(STUB_CORE, 
+                                            pIoParams->m_pFile, &pInData->m_ForceRelease);
+        break;
     case DT_DEBUG_CMD_REGISTER_READ:
         Status = DtIoStubCore_DEBUG_OnCmdRegRead(STUB_CORE, &pInData->m_RegRead, 
                                                                     &pOutData->m_RegRead);
@@ -150,6 +201,25 @@ DtStatus  DtIoStubCore_DEBUG_OnCmd(
 
 //=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubCore_DEBUG - Private fuctions +=+=+=+=+=+=+=+=+=+=+=+=+
 
+// .-.-.-.-.-.-.-.-.-.-.-.- DtIoStubCore_DEBUG_OnCmdForceRelease -.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Special command to forces all open files to release their hold on a specific port 
+// expect for current file handle.
+//
+DtStatus DtIoStubCore_DEBUG_OnCmdForceRelease(
+    const DtIoStubCore* pStub, 
+    const DtFileObject* pFile,
+    const DtIoctlDebugCmdForceReleaseInput* pInData)
+{
+    DtCore* pCore=NULL;
+
+    STUB_CORE_DEFAULT_PRECONDITIONS(pStub);
+    DT_ASSERT(pFile!=NULL && pInData!=NULL);
+    pCore = pStub->m_pCore;
+    DT_ASSERT(pCore != NULL);
+
+    return DtCore_DEBUG_ForceRelease(pCore, pInData->m_ReleasePort, pFile);
+}
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubCore_DEBUG_OnCmdRegRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //

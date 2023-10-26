@@ -246,6 +246,39 @@ DtStatus  DtDf_OnCloseFile(DtDf*  pDf, const DtFileObject*  pFile)
     return DT_STATUS_OK;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDf_OnCloseOtherFiles -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtDf_OnCloseOtherFiles(DtDf* pDf, const DtFileObject* pFile)
+{
+    DtStatus Status = DT_STATUS_OK;
+    DtFileObject* pOtherFile=NULL;
+
+    DECL_EXCL_ACCESS_OBJECT_FILE(ExclAccessObj, pFile);
+    
+    DF_DEFAULT_PRECONDITIONS(pDf);
+
+    DtDbgOutDf(MAX, COMMON, pDf, "Releasing resources held by all others files");
+
+    // Is there an other owner?
+    Status = DtDf_ExclAccessCheck(pDf, &ExclAccessObj);
+    if (Status==DT_STATUS_OK || Status==DT_STATUS_EXCL_ACCESS_REQD)
+        return DT_STATUS_OK;    // No other owner => we are done
+
+    // Acquire exclusive access state lock
+    if(DtMutexAcquire(&pDf->m_ExclAccessLock, 100) != DT_STATUS_OK)
+        return DT_STATUS_TIMEOUT;
+    // Check if the owner uses a file handle
+    if (pDf->m_ExclAccessOwner.m_Type == DT_EXCL_OBJECT_TYPE_IS_FILE)
+        pOtherFile = &pDf->m_ExclAccessOwner.m_Owner.m_File;
+    DtMutexRelease(&pDf->m_ExclAccessLock);
+
+    // If the exclusive access owner is a file call the on-close-file handler, otherwise
+    // 'simply' drop exclusive access for the current owner.
+    DT_ASSERT(pDf->m_OnCloseFileFunc != NULL);
+    return pOtherFile ? pDf->m_OnCloseFileFunc(pDf, pOtherFile) 
+                                   : DtDf_ExclAccessRelease(pDf, &pDf->m_ExclAccessOwner);
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDf_LoadParameters -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // Load driver parameters from property store
@@ -460,6 +493,12 @@ DtDf*  DtDf_Open(const DtDfOpenParams*  pParams)
     else
         pDf->m_OnCloseFileFunc = DtDf_OnCloseFile;      // Use default function
 
+    // Did the derived class define it's own Close-Other-Files callback?
+    if (pParams->m_OnCloseOtherFiles != NULL)
+        pDf->m_OnCloseOtherFiles = pParams->m_OnCloseOtherFiles;
+    else
+        pDf->m_OnCloseOtherFiles = DtDf_OnCloseOtherFiles;
+
     // Load function parameters (if function has any)
     if (pDf->m_LoadParsFunc != NULL)
     {
@@ -642,15 +681,17 @@ DtStatus  DtDf_OpenChildren(DtDf*  pDf, const DtDfSupportedChild*  pSupported,
         // Did we find the child
         if (NumInst == 0)
         {
-            DtDbgOutDf(ERR, COMMON, pDf, 
-                                    "%s: could not find child '%s' (type=%d, role=%s)",
-                                    pSuppChild->m_IsMandatory ? "ERROR" : "WARNING",
+            // Exit with an error only if the child is marked as mandatory
+            if (pSuppChild->m_IsMandatory)
+            {
+                DtDbgOutDf(ERR, COMMON, pDf, 
+                                    "ERROR: could not find child '%s' (type=%d, role=%s)",
                                     pSuppChild->m_pName,
                                     pSuppChild->m_Type,
                                     pSuppChild->m_pRole!=NULL ? pSuppChild->m_pRole : "");
-            // Exit with an error only if the child is marked as mandatory
-            if (pSuppChild->m_IsMandatory)
+
                 return DT_STATUS_FAIL;
+            }
         }
     }
 

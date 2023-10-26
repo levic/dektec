@@ -323,6 +323,40 @@ DtStatus  DtBc_OnCloseFile(DtBc*  pBc, const DtFileObject*  pFile)
     return DT_STATUS_OK;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBc_OnCloseOtherFiles -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtBc_OnCloseOtherFiles(DtBc* pBc, const DtFileObject* pFile)
+{
+    DtStatus Status = DT_STATUS_OK;
+    DtFileObject* pOtherFile=NULL;
+
+    DECL_EXCL_ACCESS_OBJECT_FILE(EAO, pFile);
+    
+    BC_DEFAULT_PRECONDITIONS(pBc);
+
+    DtDbgOutBc(MAX, COMMON, pBc, "Releasing resources held by all others files");
+
+    // Is there an other owner?
+    Status = DtBc_ExclAccessCheck(pBc, &EAO);
+    if (Status==DT_STATUS_OK || Status==DT_STATUS_EXCL_ACCESS_REQD)
+        return DT_STATUS_OK;    // No other owner => we are done
+
+    // Acquire exclusive access state lock
+    if(DtMutexAcquire(&pBc->m_ExclAccessLock, 100) != DT_STATUS_OK)
+        return DT_STATUS_TIMEOUT;
+    // Check if the owner uses a file handle
+    if (pBc->m_ExclAccessOwner.m_Type == DT_EXCL_OBJECT_TYPE_IS_FILE)
+        pOtherFile = &pBc->m_ExclAccessOwner.m_Owner.m_File;
+    DtMutexRelease(&pBc->m_ExclAccessLock);
+
+    // If the exclusive access owner is a file call the on-close-file handler, otherwise
+    // 'simply' drop exclusive access for the current owner.
+    DT_ASSERT(pBc->m_OnCloseFileFunc != NULL);
+    return pOtherFile ? pBc->m_OnCloseFileFunc(pBc, pOtherFile) 
+                                   : DtBc_ExclAccessRelease(pBc, &pBc->m_ExclAccessOwner);
+}
+
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBc_SetOpState -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtBc_SetOpState(DtBc*  pBc, DtBcState  NewState)
@@ -589,11 +623,17 @@ DtBc*  DtBc_Open(const  DtBcOpenParams*  pParams)
     // Set OnEnable callback
     pBc->m_OnEnableFunc = pParams->m_OnEnableFunc;
     
-    // Did the derived class define it's onw File-Close callback?
+    // Did the derived class define it's own File-Close callback?
     if (pParams->m_OnCloseFileFunc != NULL)
         pBc->m_OnCloseFileFunc = pParams->m_OnCloseFileFunc;
     else
         pBc->m_OnCloseFileFunc = DtBc_OnCloseFile;      // Use default function
+
+    // Did the derived class define it's own Close-Other-Files callback?
+    if (pParams->m_OnCloseOtherFiles != NULL)
+        pBc->m_OnCloseOtherFiles = pParams->m_OnCloseOtherFiles;
+    else
+        pBc->m_OnCloseOtherFiles = DtBc_OnCloseOtherFiles;  // Use default function
 
     // Check block ID
     Status = DtBc_CheckBlockId(pBc);

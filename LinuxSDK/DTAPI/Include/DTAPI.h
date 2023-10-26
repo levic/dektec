@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        6
-#define DTAPI_VERSION_MINOR        1
+#define DTAPI_VERSION_MINOR        2
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        215
+#define DTAPI_VERSION_BUILD        219
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -3157,6 +3157,9 @@ public:
     virtual DTAPI_RESULT VpdWrite(const wchar_t* pTag, wchar_t* pVpdItem);
     virtual DTAPI_RESULT VpdWrite(const char* pTag, char* pVpdItem, int ItemSize);
     virtual DTAPI_RESULT VpdWrite(const wchar_t* pTag, char* pVpdItem, int ItemSize);
+
+    // NOTE: this function is undocumented and for internal use only.
+    virtual DTAPI_RESULT ForceExclusiveAccessRelease(int Port);
 
     // Constructor, destructor.
 public:

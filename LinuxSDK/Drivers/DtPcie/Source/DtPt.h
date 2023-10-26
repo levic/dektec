@@ -163,6 +163,7 @@ DtPt*  DtPt_OpenType(DtPortType, DtCore*, Int  PortIndex);
 DtStatus  DtPt_OpenChildren(DtPt*);
 const char*  DtPt_OpStateToString(DtPtState);
 DtStatus  DtPt_OnCloseFile(DtPt*  pPort, DtFileObject*  pFile);
+DtStatus  DtPt_OnCloseOtherFiles(DtPt*, const DtFileObject*);
 DtStatus  DtPt_ProbeExclAccessChildren(DtPt*  pPt);
 DtStatus  DtPt_ReleaseExclAccessChildren(DtPt* pPt, const DtExclAccessObject*);
 DtStatus  DtPt_SetOpState(DtPt*, DtPtState  NewState);

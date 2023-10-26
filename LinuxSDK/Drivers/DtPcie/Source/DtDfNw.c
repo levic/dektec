@@ -1816,7 +1816,7 @@ DtStatus DtDfNw_PipeClose(DtDfNw* pDf, const DtFileObject* pFileObject, Int Pipe
     // We can't use the pPipe object in the logging. The pPipe could be pointing to freed
     // memory
     if (DT_SUCCESS(Status))
-        DtDbgOutDf(AVG, NW, pDf, "Closed pipe. Uuid: % xh", Uuid);
+        DtDbgOutDf(AVG, NW, pDf, "Closed pipe. Uuid: %xh", Uuid);
     else
         DtDbgOutDf(ERR, NW, pDf, "Error closing pipe. Uuid: %xh", Uuid);
     DtFastMutexRelease(&pDf->m_PipeIdMapFMutex);

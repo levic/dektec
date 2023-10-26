@@ -119,6 +119,40 @@ DtStatus  DtCfTod_AdjustTime(DtCfTod*  pCf, Int64  DeltaNanoseconds)
     return DtBcTOD_Adjust(pCf->m_pBcTod,  DeltaNanoseconds);
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfTod_GetAdjustPpb -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtCfTod_GetAdjustPpb(DtCfTod* pCf, Int* pAdjustPpb)
+{
+    Int64 AdjustScaledPpm = 0, AdjustPpb=0;
+    DtStatus Status = DT_STATUS_OK;
+    Bool Neg = FALSE;
+
+    // Sanity checks
+    CF_TOD_DEFAULT_PRECONDITIONS(pCf);
+    DT_ASSERT(pCf->m_pBcTod != NULL);
+    // Be defensive and fail if we donot have a TOD-BC
+    if (pCf->m_pBcTod == NULL)
+    {
+        DtDbgOutCf(ERR, TOD, pCf, "ERROR: no TOD-BC has been loaded");
+        return DT_STATUS_FAIL;
+    }
+    // FOR NOW: just let the TOD-BC do all of the heavy lifting
+    Status =  DtBcTOD_GetPhaseIncrAdjust(pCf->m_pBcTod, &AdjustScaledPpm);
+    if (Status != DT_STATUS_OK)
+        return Status;
+
+    // Convert scaled ppm to ppb
+    Neg = (AdjustScaledPpm < 0);
+    if (Neg)
+        AdjustScaledPpm = -AdjustScaledPpm;
+    AdjustPpb = DtDivide64(AdjustScaledPpm*1000 + (1<<15), 1<<16, NULL);
+    if (Neg)
+        *pAdjustPpb = (Int)-AdjustPpb;
+    else
+        *pAdjustPpb = (Int)AdjustPpb;
+    return Status;
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfTod_GetPeriodicItv -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtCfTod_GetPeriodicItv(DtCfTod* pCf, Int* pIntervalMs)
@@ -153,6 +187,7 @@ DtStatus  DtCfTod_GetPhaseIncr(DtCfTod*  pCf, UInt* pClockPhaseIncr)
     // FOR NOW: just let the TOD-BC do all of the heavy lifting
     return DtBcTOD_GetPhaseIncr(pCf->m_pBcTod, pClockPhaseIncr);
 }
+
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCfTod_GetProperties -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //

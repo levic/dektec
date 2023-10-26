@@ -44,7 +44,7 @@
 #define DF_TO_THIS      ((DtDfChSdiRxPhyOnly*)pDf)
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Constants -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-static const int StateLockTimeout = 500; // Timeout for acquiring the user lock (in ms)
+static const int StateLockTimeout = 5000; // Timeout for acquiring the user lock (in ms)
 static const int MaxNumUsersSupported = 8;  // Max of 8 users may share this channel
 
 // .-.-.-.-.-.-.-.- DtDfChSdiRxPhyOnly - Forwards of private functions -.-.-.-.-.-.-.-.-
@@ -126,6 +126,7 @@ DtDfChSdiRxPhyOnly* DtDfChSdiRxPhyOnly_Open(DtCore* pCore, DtPt* pPt,
     // Register the callbacks
     OpenParams.m_DfParams.m_CloseFunc = DtDfChSdiRxPhyOnly_Close;
     OpenParams.m_DfParams.m_OnCloseFileFunc = DtDfCh_OnCloseFile;   // Use DtDfCh default
+    OpenParams.m_DfParams.m_OnCloseOtherFiles = DtDfCh_OnCloseOtherFiles; // Use default
 
     // Channel specific callbacks
     OpenParams.m_CloseUserFunc = DtDfChSdiRxPhyOnly_CloseUser;

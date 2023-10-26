@@ -474,7 +474,7 @@ DtStatus  DtCore_InitSerialAndHwRev(DtCore*  pCore)
         if (DT_SUCCESS(Status))
         {
             DtDbgOut(MIN, CORE, "Hardware revision set to %d from registry key "
-                                      "'ForcedHardwareRevision'", ForcedHardwareRevision);
+                                 "'ForcedHardwareRevision'", (Int)ForcedHardwareRevision);
             pCore->m_pDevInfo->m_HardwareRevision = (Int)ForcedHardwareRevision;
         }
     }

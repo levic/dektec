@@ -111,6 +111,7 @@ typedef enum  _DtBcState
 typedef DtStatus  (*DtBcInitFunc)(DtBc*);
 typedef void  (*DtBcCloseFunc)(DtBc*);
 typedef DtStatus  (*DtBcOnCloseFileFunc)(DtBc*, const DtFileObject*);
+typedef DtStatus (*DtBcOnCloseOtherFilesFunc)(DtBc*, const DtFileObject*);
 typedef DtStatus  (*DtBcEnableFunc)(DtBc*, Bool  Enable);
 typedef DtStatus  (*DtBcOnEnable)(DtBc*, Bool  Enable);
 
@@ -145,6 +146,7 @@ typedef struct  _DtBcOpenParams
     DtBcEnableFunc  m_EnableFunc;   // Enable function
     DtBcOnEnable  m_OnEnableFunc;   // On enable function
     DtBcOnCloseFileFunc  m_OnCloseFileFunc;  // On close file function
+    DtBcOnCloseOtherFilesFunc m_OnCloseOtherFiles;  // On close all other files function
     Bool  m_CreateStub;             // TRUE, if an IO-stub must be created (i.e. DTAPI 
                                     // wants IOCTL access to this BC)
 }  DtBcOpenParams;
@@ -190,7 +192,8 @@ while (0)
     DtBcEnableFunc  m_EnableFunc;                                                        \
     DtBcOnEnable  m_OnEnableFunc;                                                        \
     DtBcCloseFunc  m_CloseFunc;                                                          \
-    DtBcOnCloseFileFunc  m_OnCloseFileFunc
+    DtBcOnCloseFileFunc  m_OnCloseFileFunc;                                              \
+    DtBcOnCloseOtherFilesFunc m_OnCloseOtherFiles
 // The struct
 struct  _DtBc
 {
@@ -205,6 +208,7 @@ DtStatus  DtBc_ExclAccessCheck(DtBc*, const DtExclAccessObject*);
 DtStatus  DtBc_ExclAccessProbe(DtBc*);
 DtStatus  DtBc_ExclAccessRelease(DtBc*, const DtExclAccessObject*);
 DtStatus  DtBc_OnCloseFile(DtBc*, const DtFileObject*);
+DtStatus  DtBc_OnCloseOtherFiles(DtBc*, const DtFileObject*);
 DtStatus  DtBc_InterruptDisable(DtBc*, Int  Id);
 DtStatus  DtBc_InterruptEnable(DtBc*, Int  Id);
 DtStatus  DtBc_InterruptsDisable(DtBc*);

@@ -2109,6 +2109,7 @@ typedef enum _DtIoctlDebugCmd
     DT_DEBUG_CMD_BULK_READ = 0,
     DT_DEBUG_CMD_REGISTER_READ = 1,
     DT_DEBUG_CMD_REGISTER_WRITE = 2,
+    DT_DEBUG_CMD_FORCE_RELEASE = 3,
 }  DtIoctlDebugCmd;
 
 typedef struct  _DtIoctlRegAddressValuePair
@@ -2163,6 +2164,17 @@ typedef struct _DtIoctlDebugCmdRegWriteInput
 }  DtIoctlDebugCmdRegWriteInput;
 ASSERT_SIZE(DtIoctlDebugCmdRegWriteInput, 20)
 
+// .-.-.-.-.-.-.-.-.-.-.-.- Debug Command - Force Release Command -.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Special command to force all users to release their access hold on a specific port.
+//
+typedef struct _DtIoctlDebugCmdForceReleaseInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_ReleasePort;                   // Index of port to release resouces for.
+}  DtIoctlDebugCmdForceReleaseInput;
+ASSERT_SIZE(DtIoctlDebugCmdForceReleaseInput, 20)
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.- Debug Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.-
 // Debug command - IOCTL input data
 typedef union _DtIoctlDebugCmdInput
@@ -2170,6 +2182,7 @@ typedef union _DtIoctlDebugCmdInput
     DtIoctlDebugCmdBulkReadInput  m_BulkRead;       // Debug - Bulk read command
     DtIoctlDebugCmdRegReadInput  m_RegRead;         // Debug - Read register command
     DtIoctlDebugCmdRegWriteInput  m_RegWrite;       // Debug - Write register command
+    DtIoctlDebugCmdForceReleaseInput m_ForceRelease; // Debug - Force release command
 }  DtIoctlDebugCmdInput;
 
 // Debug command - IOCTL output data

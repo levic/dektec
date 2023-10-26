@@ -130,6 +130,7 @@ DtStatus DtDfCh_Init(DtDfCh*);
 DtStatus DtDfCh_Lock(DtDfCh*, int Timeout);
 void DtDfCh_LockUsers(DtDfCh*);
 DtStatus DtDfCh_OnCloseFile(DtDf* pDf, const DtFileObject*);
+DtStatus DtDfCh_OnCloseOtherFiles(DtDf* pDf, const DtFileObject*);
 DtDf* DtDfCh_Open(const DtDfChOpenParams*);
 DtDfChUser* DtDfCh_OpenUser(DtDfCh*, Int SizeOfObject, const DtFileObject*, 
                                            Bool HasExclAccess, const char* pFriendlyName);

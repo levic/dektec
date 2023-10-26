@@ -41,6 +41,19 @@
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtCore_TOD - Public fuctions +=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_TOD_GetAdjustPpb -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtCore_TOD_GetAdjustPpb(const DtCore* pCore, Int* pAdjustPpb)
+{
+    // Sanity checks
+    CORE_CFTOD_DEFAULT_PRECONDITIONS(pCore);
+    DT_ASSERT(pAdjustPpb != NULL);
+    if (CF_TOD(pCore) == NULL)
+        return DT_STATUS_FAIL;
+
+    return DtCfTod_GetAdjustPpb(CF_TOD(pCore), pAdjustPpb);
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_TOD_GetPeriodicItv -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtCore_TOD_GetPeriodicItv(const DtCore* pCore, Int*  pIntervalMs)

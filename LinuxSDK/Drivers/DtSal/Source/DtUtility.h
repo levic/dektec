@@ -60,18 +60,25 @@
 #define  LOG_OFF     LOG_ERR //  Off, Errors only
 
 #ifdef _DEBUG
+// In debug build allow logs if the module log level is high enough.
+#define DtDbgOut_IsLogLevelHighEnough(LogLevel, ModuleLevel) (ModuleLevel >= LogLevel)
+#else
+// In release build only allow ERRORs to be logged.
+#define DtDbgOut_IsLogLevelHighEnough(LogLevel, Unused) (LogLevel == LOG_ERR)
+#endif 
+
 #ifdef DEBUG_INCLUDE_FILENAME
 #ifdef WINBUILD
 #define  DtDbgOut(Level, Module, Msg, ...)                                               \
     do {                                                                                 \
-        if (LOG_LEVEL_##Module >= LOG_##Level)                                           \
+        if (DtDbgOut_IsLogLevelHighEnough(LOG_##Level, LOG_LEVEL_##Module))              \
         DbgPrint(DRIVER_NAME ": <" __FILE__ " - "__FUNCTION__ " (Line %d)> " Msg "\n",   \
                                                         __LINE__, ##__VA_ARGS__); \
     } while (0)
 #else // WINBUILD
 #define DtDbgOut(Level, Module, Msg, ...)                                                \
     do {                                                                                 \
-        if (LOG_LEVEL_##Module >= LOG_##Level)                                           \
+        if (DtDbgOut_IsLogLevelHighEnough(LOG_##Level, LOG_LEVEL_##Module))              \
             printk(KERN_DEBUG DRIVER_NAME ": <" __FILE__ " - %s (Line %d)> "             \
                                            Msg "\n", __func__, __LINE__, ##__VA_ARGS__); \
     } while (0)
@@ -80,22 +87,19 @@
 #ifdef WINBUILD
 #define DtDbgOut(Level, Module, Msg, ...)                                                \
     do {                                                                                 \
-        if (LOG_LEVEL_##Module >= LOG_##Level)                                           \
+        if (DtDbgOut_IsLogLevelHighEnough(LOG_##Level, LOG_LEVEL_##Module))              \
         DbgPrint(DRIVER_NAME ": <" __FUNCTION__ "> " Msg "\n",                           \
                                                         ##__VA_ARGS__);                  \
     } while (0)
 #else // WINBUILD
 #define DtDbgOut(Level, Module, Msg, ...)                                                \
     do {                                                                                 \
-        if (LOG_LEVEL_##Module >= LOG_##Level)                                           \
+        if (DtDbgOut_IsLogLevelHighEnough(LOG_##Level, LOG_LEVEL_##Module))              \
             printk(KERN_DEBUG DRIVER_NAME ": < %s > "                                    \
                                                      Msg "\n", __func__, ##__VA_ARGS__); \
     } while (0)
 #endif
 #endif //DEBUG_INCLUDE_FILENAME
-#else // _DEBUG
-#define DtDbgOut(Level, Module, Msg, ...) do { } while (0)
-#endif
 
 // Use when the Module name must be prefixed. For example all block-controller module 
 // names have the BC_ prefix (e.g. BC_SPIMF, BC_VVI)

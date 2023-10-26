@@ -715,26 +715,33 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigPrepare(DtPt* pPtBase,
     if (DT_SUCCESS(Status) && pPt->m_pDfSdiTxPhy!=NULL)
     { 
         // PHY may be in standby
-        TempStatus = DtDfSdiTxPhy_GetOperationalMode(pPt->m_pDfSdiTxPhy, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED
-                              && (!DT_SUCCESS(TempStatus) || OpMode==DT_FUNC_OPMODE_RUN))
-            Status = DT_STATUS_BUSY;
+        if (DtDf_IsEnabled((DtDf*)pPt->m_pDfSdiTxPhy))
+        {
+            TempStatus = DtDfSdiTxPhy_GetOperationalMode(pPt->m_pDfSdiTxPhy, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode==DT_FUNC_OPMODE_RUN)
+                Status = DT_STATUS_BUSY;
+
+        }
     }
 
     if (DT_SUCCESS(Status) && pPt->m_pBcSdiTxP!=NULL)
     {
-        TempStatus = DtBcSDITXP_GetOperationalMode(pPt->m_pBcSdiTxP, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED 
-                             && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
-            Status = DT_STATUS_BUSY;
+        if (DtBc_IsEnabled((DtBc*)pPt->m_pBcSdiTxP))
+        {
+            TempStatus = DtBcSDITXP_GetOperationalMode(pPt->m_pBcSdiTxP, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE)
+                Status = DT_STATUS_BUSY;
+        }
     }
     if (DT_SUCCESS(Status) && pPt->m_pDfSdiRx!=NULL)
     {
         // SDIRX3G may be in standby
-        TempStatus = DtDfSdiRx_GetOperationalMode(pPt->m_pDfSdiRx, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED
-                               && (!DT_SUCCESS(TempStatus) || OpMode==DT_FUNC_OPMODE_RUN))
-            Status = DT_STATUS_BUSY;
+        if (DtDf_IsEnabled((DtDf*)pPt->m_pDfSdiRx))
+        {
+            TempStatus = DtDfSdiRx_GetOperationalMode(pPt->m_pDfSdiRx, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode==DT_FUNC_OPMODE_RUN)
+                Status = DT_STATUS_BUSY;
+        }
     }
     if (!DT_SUCCESS(Status))
     {

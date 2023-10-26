@@ -1324,10 +1324,12 @@ void  DtaIpTxRtProcessPacketsType2Dpc(DtDpcArgs* pArgs)
     if (pIpPort->m_IpPortType2.m_IpTxLastMinPktTime+0x100000!=MinPacketTime && 
                                            pIpPort->m_IpPortType2.m_IpTxLastMinPktTime!=0)
     {
+#ifdef  _DEBUG
         DtDbgOut(ERR, IP_TX, "Port %i: CurTime:%llx LastCurTime:%llx MinPkttime:%llx"
                      " LastMinPktTime: %llx ERROR IN PROCESSING!!",
                      pIpPort->m_IpPortIndex, CurTime, LastCurTime[pIpPort->m_IpPortIndex], 
                      MinPacketTime, pIpPort->m_IpPortType2.m_IpTxLastMinPktTime);
+#endif
         DpcTooLate = TRUE;
     }
     pIpPort->m_IpPortType2.m_IpTxLastMinPktTime = MinPacketTime;

@@ -1096,12 +1096,22 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlDebugCmdBulkReadInput),                                            \
         DT_IOCTL_DYNAMIC_SIZEOF(DtIoctlDebugCmdBulkReadOutput))
 
+#define DT_IOCTL_CMD_PROPS_DEBUG_FORCE_RELEASE                                           \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_DEBUG_CMD_FORCE_RELEASE,                                                      \
+        "FORCE_RELEASE",                                                                 \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlDebugCmdForceReleaseInput),                                        \
+        0)
+
 #define DECL_DT_IOCTL_CMD_PROPS_DEBUG                                                    \
     static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_DEBUG[] =                      \
     {                                                                                    \
         DT_IOCTL_CMD_PROPS_DEBUG_BULK_READ,                                              \
         DT_IOCTL_CMD_PROPS_DEBUG_REGISTER_READ,                                          \
         DT_IOCTL_CMD_PROPS_DEBUG_REGISTER_WRITE,                                         \
+        DT_IOCTL_CMD_PROPS_DEBUG_FORCE_RELEASE,                                          \
     }
 
 #define DT_IOCTL_PROPS_DEBUG_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)                 \

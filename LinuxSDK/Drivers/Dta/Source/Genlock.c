@@ -557,9 +557,7 @@ DtStatus  DtaGenlockGetRefState(DtaDeviceData* pDvcData,
 { 
     DtStatus  Status = DT_STATUS_OK;
 
-#ifdef _DEBUG
     Int  GenRefPortIndex = pDvcData->m_Genlock.m_RefPortIndex;
-#endif
     Bool  InLock = FALSE;
     Bool  Enabled = FALSE;
     if(pDvcData->m_Genlock.m_GenlArch == GENLOCK_ARCH_2144 ||

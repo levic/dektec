@@ -1371,7 +1371,7 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigPrepare(DtPt* pPtBase,
     if (pPt->m_pDfChSdiRx)
     {
         // Lock the channel
-        Status = DtDfCh_Lock((DtDfCh*)pPt->m_pDfChSdiRx, 100);
+        Status = DtDfCh_Lock((DtDfCh*)pPt->m_pDfChSdiRx, 500);
         if (!DT_SUCCESS(Status))
         {
             DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: cannot lock SDI receive channel");
@@ -1408,6 +1408,13 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigPrepare(DtPt* pPtBase,
         if (!DT_SUCCESS(Status))
         {
             DtDbgOutPt(ERR, ASISDIRXTX, pPt, "ERROR: Cannot acquire exclusive access");
+            // Do not forget to unlock channel, if we hold the channel-lock!
+            if (pPt->m_HoldChannelLock && pPt->m_pDfChSdiRx)
+            {
+                // Unlock the channel
+                DtDfCh_Unlock((DtDfCh*)pPt->m_pDfChSdiRx);
+                pPt->m_HoldChannelLock = FALSE;
+            }
             // Failed
             return Status;
         }
@@ -1418,103 +1425,128 @@ DtStatus DtPtAsiSdiRxTx_SetIoConfigPrepare(DtPt* pPtBase,
     if (DT_SUCCESS(Status) && pPt->m_pDfSdiTxPhy!=NULL)
     { 
         // PHY may be in standby
-        TempStatus = DtDfSdiTxPhy_GetOperationalMode(pPt->m_pDfSdiTxPhy, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED
-                              && (!DT_SUCCESS(TempStatus) || OpMode==DT_FUNC_OPMODE_RUN))
-            Status = DT_STATUS_BUSY;
+        if (DtDf_IsEnabled((DtDf*)pPt->m_pDfSdiTxPhy))
+        {
+            TempStatus = DtDfSdiTxPhy_GetOperationalMode(pPt->m_pDfSdiTxPhy, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode==DT_FUNC_OPMODE_RUN)
+                Status = DT_STATUS_BUSY;
+        }
     }
 
     if (DT_SUCCESS(Status) && pPt->m_pBcAsiTxG!=NULL)
     {
-        TempStatus = DtBcASITXG_GetOperationalMode(pPt->m_pBcAsiTxG, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED
-                             && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
-            Status = DT_STATUS_BUSY;
+        if (DtBc_IsEnabled((DtBc*)pPt->m_pBcAsiTxG))
+        {
+            TempStatus = DtBcASITXG_GetOperationalMode(pPt->m_pBcAsiTxG, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE)
+                Status = DT_STATUS_BUSY;
+        }
     }
     if (DT_SUCCESS(Status) && pPt->m_pBcAsiTxSer!=NULL)
     {
         // Serializer may be in standby
-        TempStatus = DtBcASITXSER_GetOperationalMode(pPt->m_pBcAsiTxSer, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED
-                              && (!DT_SUCCESS(TempStatus) || OpMode==DT_BLOCK_OPMODE_RUN))
-            Status = DT_STATUS_BUSY;
+        if (DtBc_IsEnabled((DtBc*)pPt->m_pBcAsiTxSer))
+        {
+            TempStatus = DtBcASITXSER_GetOperationalMode(pPt->m_pBcAsiTxSer, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode==DT_BLOCK_OPMODE_RUN)
+                Status = DT_STATUS_BUSY;
+        }
     }
     if (DT_SUCCESS(Status) && pPt->m_pBcSdiTxF!=NULL)
     {
-        TempStatus = DtBcSDITXF_GetOperationalMode(pPt->m_pBcSdiTxF, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED 
-                            && (!DT_SUCCESS(TempStatus) ||  OpMode!=DT_BLOCK_OPMODE_IDLE))
-            Status = DT_STATUS_BUSY;
+        if (DtBc_IsEnabled((DtBc*)pPt->m_pBcSdiTxF))
+        {
+            TempStatus = DtBcSDITXF_GetOperationalMode(pPt->m_pBcSdiTxF, &OpMode);
+            if (!DT_SUCCESS(TempStatus) ||  OpMode!=DT_BLOCK_OPMODE_IDLE)
+                Status = DT_STATUS_BUSY;
+        }
     }
     if (DT_SUCCESS(Status) && pPt->m_pBcSdiTxP!=NULL)
     {
-        TempStatus = DtBcSDITXP_GetOperationalMode(pPt->m_pBcSdiTxP, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED 
-                             && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
-            Status = DT_STATUS_BUSY;
+        if (DtBc_IsEnabled((DtBc*)pPt->m_pBcSdiTxP))
+        {
+            TempStatus = DtBcSDITXP_GetOperationalMode(pPt->m_pBcSdiTxP, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE)
+                Status = DT_STATUS_BUSY;
+        }
     }
     if (DT_SUCCESS(Status) && pPt->m_pBcSdiTxDmx12G!=NULL)
     {
-        TempStatus = DtBcSDIDMX12G_GetOperationalMode(pPt->m_pBcSdiTxDmx12G, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED 
-                             && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
-            Status = DT_STATUS_BUSY;
+        if (DtBc_IsEnabled((DtBc*)pPt->m_pBcSdiTxDmx12G))
+        {
+            TempStatus = DtBcSDIDMX12G_GetOperationalMode(pPt->m_pBcSdiTxDmx12G, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE)
+                Status = DT_STATUS_BUSY;
+        }
     }
     if (DT_SUCCESS(Status) && pPt->m_pBcCDmaC!=NULL)
     {
-        UInt32 StatusFlags, ErrorFlags; 
-        TempStatus = DtBcCDMAC_GetStatus(pPt->m_pBcCDmaC, &OpStatus, &StatusFlags,
+        if (DtBc_IsEnabled((DtBc*)pPt->m_pBcCDmaC))
+        {
+            UInt32 StatusFlags, ErrorFlags; 
+            TempStatus = DtBcCDMAC_GetStatus(pPt->m_pBcCDmaC, &OpStatus, &StatusFlags,
                                                                              &ErrorFlags);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED 
-                         && (!DT_SUCCESS(TempStatus) || OpStatus!=DT_BLOCK_OPSTATUS_IDLE))
-            Status = DT_STATUS_BUSY;
+            if (!DT_SUCCESS(TempStatus) || OpStatus!=DT_BLOCK_OPSTATUS_IDLE)
+                Status = DT_STATUS_BUSY;
+        }
     }
     if (DT_SUCCESS(Status) && pPt->m_pBcBURSTFIFO!=NULL)
     {
-        TempStatus = DtBcBURSTFIFO_GetOperationalMode(pPt->m_pBcBURSTFIFO, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED 
-                             && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
-            Status = DT_STATUS_BUSY;
+        if (DtBc_IsEnabled((DtBc*)pPt->m_pBcBURSTFIFO))
+        {
+            TempStatus = DtBcBURSTFIFO_GetOperationalMode(pPt->m_pBcBURSTFIFO, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE)
+                Status = DT_STATUS_BUSY;
+        }
     }
     // Check operational mode/state of the RX children
     if (DT_SUCCESS(Status) && pPt->m_pDfAsiRx!=NULL)
     {
-
-        TempStatus = DtDfAsiRx_GetOperationalStatus(pPt->m_pDfAsiRx, &OpStatus);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED
-                             && (!DT_SUCCESS(TempStatus) || OpStatus==DT_FUNC_OPMODE_RUN))
-            Status = DT_STATUS_BUSY;
+        if (DtDf_IsEnabled((DtDf*)pPt->m_pDfAsiRx))
+        {
+            TempStatus = DtDfAsiRx_GetOperationalStatus(pPt->m_pDfAsiRx, &OpStatus);
+            if (!DT_SUCCESS(TempStatus) || OpStatus==DT_FUNC_OPMODE_RUN)
+                Status = DT_STATUS_BUSY;
+        }
     }
 
     if (DT_SUCCESS(Status) && pPt->m_pDfSdiRx!=NULL)
     {
         // SDIRX3G may be in standby
-        TempStatus = DtDfSdiRx_GetOperationalMode(pPt->m_pDfSdiRx, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED
-                               && (!DT_SUCCESS(TempStatus) || OpMode==DT_FUNC_OPMODE_RUN))
-            Status = DT_STATUS_BUSY;
+        if (DtDf_IsEnabled((DtDf*)pPt->m_pDfSdiRx))
+        {
+            TempStatus = DtDfSdiRx_GetOperationalMode(pPt->m_pDfSdiRx, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode==DT_FUNC_OPMODE_RUN)
+                Status = DT_STATUS_BUSY;
+        }
     }
 
     if (DT_SUCCESS(Status) && pPt->m_pBcSdiRxF!=NULL)
     {
-        TempStatus = DtBcSDIRXF_GetOperationalMode(pPt->m_pBcSdiRxF, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED 
-                             && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
-            Status = DT_STATUS_BUSY;
+        if (DtBc_IsEnabled((DtBc*)pPt->m_pBcSdiRxF))
+        {
+            TempStatus = DtBcSDIRXF_GetOperationalMode(pPt->m_pBcSdiRxF, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE)
+                Status = DT_STATUS_BUSY;
+        }
     }
     if (DT_SUCCESS(Status) && pPt->m_pBcSdiRxMux12G!=NULL)
     {
-        TempStatus = DtBcSDIMUX12G_GetOperationalMode(pPt->m_pBcSdiRxMux12G, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED 
-                             && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
-            Status = DT_STATUS_BUSY;
+        if (DtBc_IsEnabled((DtBc*)pPt->m_pBcSdiRxMux12G))
+        {
+            TempStatus = DtBcSDIMUX12G_GetOperationalMode(pPt->m_pBcSdiRxMux12G, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE)
+                Status = DT_STATUS_BUSY;
+        }
     }
     if (DT_SUCCESS(Status) && pPt->m_pBcSdiRxSt425Lr!=NULL)
     {
-        TempStatus = DtBcST425LR_GetOperationalMode(pPt->m_pBcSdiRxSt425Lr, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED 
-                             && (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE))
-            Status = DT_STATUS_BUSY;
+        if (DtBc_IsEnabled((DtBc*)pPt->m_pBcSdiRxSt425Lr))
+        {
+            TempStatus = DtBcST425LR_GetOperationalMode(pPt->m_pBcSdiRxSt425Lr, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode!=DT_BLOCK_OPMODE_IDLE)
+                Status = DT_STATUS_BUSY;
+        }
     }
     if (!DT_SUCCESS(Status))
     {

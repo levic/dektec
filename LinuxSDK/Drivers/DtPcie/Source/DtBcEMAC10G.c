@@ -524,7 +524,7 @@ DtStatus  DtBcEMAC10G_ReadMacAddressFromVPD(DtBcEMAC10G* pBc)
     pBc->m_MacAddrPer[1] = (MacAddrLow & 0xff);
     pBc->m_MacAddrPer[0] = (MacAddrLow >> 8) & 0xff;
 
-    DtDbgOutBc(ERR, EMAC10G, pBc, "MAC address: %02x:%02x:%02x:%02x:%02x:%02x",
+    DtDbgOutBc(MIN, EMAC10G, pBc, "MAC address: %02x:%02x:%02x:%02x:%02x:%02x",
                         pBc->m_MacAddrPer[0], pBc->m_MacAddrPer[1], pBc->m_MacAddrPer[2],
                         pBc->m_MacAddrPer[3], pBc->m_MacAddrPer[4], pBc->m_MacAddrPer[5]);
     return Status;
@@ -551,7 +551,7 @@ DtStatus  DtBcEMAC10G_GetMacAddressCurr(DtBcEMAC10G* pBc, UInt8* pMacAddress)
 DtStatus  DtBcEMAC10G_SetMacAddress(DtBcEMAC10G* pBc, UInt8* pMacAddress)
 {
     DtMemCopy(pBc->m_MacAddrCur, pMacAddress, sizeof(pBc->m_MacAddrCur));
-    DtDbgOutBc(ERR, EMAC10G, pBc, "MAC address: %02x:%02x:%02x:%02x:%02x:%02x",
+    DtDbgOutBc(MIN, EMAC10G, pBc, "MAC address: %02x:%02x:%02x:%02x:%02x:%02x",
                         pBc->m_MacAddrCur[0], pBc->m_MacAddrCur[1], pBc->m_MacAddrCur[2],
                         pBc->m_MacAddrCur[3], pBc->m_MacAddrCur[4], pBc->m_MacAddrCur[5]);
 
@@ -622,10 +622,10 @@ DtStatus  DtBcEMAC10G_GetCounter(DtBcEMAC10G* pBc,
 #define DT_MAC_CNT_802_3_XMIT_LATE_COLLISIONS     19
 #define DT_MAC_CNT_GEN_RCV_HDR_ERROR              20*/
     default:
-        DtDbgOutBc(AVG, EMAC10G, pBc, "Counter with ID: %lld not supported", CounterId);
+        DtDbgOutBc(AVG, EMAC10G, pBc, "Counter with ID: %d not supported", CounterId);
         return DT_STATUS_NOT_SUPPORTED;
     }
-    DtDbgOutBc(MAX, EMAC10G, pBc, "Counter %2lld, value: %lld", CounterId, *pValue);
+    DtDbgOutBc(MAX, EMAC10G, pBc, "Counter %2d, value: %lld", CounterId, *pValue);
     return DT_STATUS_OK;
 }
 

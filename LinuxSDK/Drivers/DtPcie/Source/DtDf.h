@@ -139,6 +139,7 @@ typedef DtStatus  (*DtDfEnableFunc)(DtDf*, Bool  Enable);
 typedef DtStatus  (*DtDfOnEnablePreChildrenFunc)(DtDf*, Bool  Enable);
 typedef DtStatus  (*DtDfOnEnablePostChildrenFunc)(DtDf*, Bool  Enable);
 typedef DtStatus (*DtDfOnCloseFileFunc)(DtDf*, const DtFileObject*);
+typedef DtStatus (*DtDfOnCloseOtherFilesFunc)(DtDf*, const DtFileObject*);
 typedef DtStatus  (*DtDfLoadParametersFunc)(DtDf*);
 
 
@@ -209,6 +210,7 @@ typedef struct  _DtDfOpenParams
     DtDfOnEnablePostChildrenFunc  m_OnEnablePostChildrenFunc; 
                                     // OnEnable Post childs function
     DtDfOnCloseFileFunc  m_OnCloseFileFunc;  // On close file function
+    DtDfOnCloseOtherFilesFunc m_OnCloseOtherFiles;  // On close all other files function
     DtDfLoadParametersFunc  m_LoadParsFunc;  // Load DF-parameters function
     Bool  m_CreateStub;             // TRUE, if an IO-stub must be created (i.e. DTAPI 
                                     // wants IOCTL access to this DF)
@@ -264,6 +266,7 @@ while (0)
     DtDfOnEnablePostChildrenFunc  m_OnEnablePostChildrenFunc;                            \
     DtDfCloseFunc  m_CloseFunc;                                                          \
     DtDfOnCloseFileFunc  m_OnCloseFileFunc;                                              \
+    DtDfOnCloseOtherFilesFunc m_OnCloseOtherFiles;                                       \
     DtDfLoadParametersFunc  m_LoadParsFunc
 struct _DtDf
 {
@@ -282,6 +285,7 @@ DtStatus  DtDf_ExclAccessProbe(DtDf*);
 DtStatus  DtDf_ExclAccessRelease(DtDf*, const DtExclAccessObject*);
 DtStatus  DtDf_Enable(DtDf*, Bool);
 DtStatus  DtDf_OnCloseFile(DtDf*, const DtFileObject*);
+DtStatus  DtDf_OnCloseOtherFiles(DtDf*, const DtFileObject*);
 DtStatus  DtDf_LoadParameters(const DtDf*, Int, DtDfParameters*);
 DtDf*  DtDf_Open(const DtDfOpenParams*);
 DtStatus  DtDf_OpenChildren(DtDf*  pDf, const DtDfSupportedChild*, Int  NumSupported);

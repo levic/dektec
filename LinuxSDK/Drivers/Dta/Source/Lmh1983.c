@@ -57,9 +57,7 @@ static Int  DtaLmh1983LockStateGet(DtaLmh1983* pLmh1983Data);
 static DtStatus  DtaLmh1983PllFastlockSet(DtaLmh1983* pLmh1983Data, Bool  Enable);
 static DtStatus  DtaLmh1983TofCrashLockSet(DtaLmh1983* pLmh1983Data, Bool  Enable);
 static UInt8  DtaLmh1983VidStd2Format(int  VidStd);
-#ifdef _DEBUG
 static const char*  DtaLmh1983State2Str(Int State);
-#endif
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -1017,7 +1015,6 @@ UInt8  DtaLmh1983VidStd2Format(int  VidStd)
     return FormatCode;
 }
 
-#ifdef _DEBUG
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1983State2Str -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 const char*  DtaLmh1983State2Str(Int State)
@@ -1032,4 +1029,3 @@ const char*  DtaLmh1983State2Str(Int State)
     default:                                return "UNKNOWN";
     }
 }
-#endif

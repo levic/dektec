@@ -362,10 +362,12 @@ DtStatus DtPtAsiSdiMon_SetIoConfigPrepare(DtPt* pPtBase,
     if (DT_SUCCESS(Status) && pPt->m_pDfSdiTxPhy!=NULL)
     { 
         // PHY may be in standby
-        TempStatus = DtDfSdiTxPhy_GetOperationalMode(pPt->m_pDfSdiTxPhy, &OpMode);
-        if (TempStatus!=DT_STATUS_NOT_ENABLED
-                              && (!DT_SUCCESS(TempStatus) || OpMode==DT_FUNC_OPMODE_RUN))
-            Status = DT_STATUS_BUSY;
+        if (DtDf_IsEnabled((DtDf*)pPt->m_pDfSdiTxPhy))
+        {
+            TempStatus = DtDfSdiTxPhy_GetOperationalMode(pPt->m_pDfSdiTxPhy, &OpMode);
+            if (!DT_SUCCESS(TempStatus) || OpMode==DT_FUNC_OPMODE_RUN)
+                Status = DT_STATUS_BUSY;
+        }
     }
 
     if (!DT_SUCCESS(Status))

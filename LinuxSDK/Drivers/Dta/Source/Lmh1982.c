@@ -50,9 +50,7 @@ static DtStatus  DtaLmh1982StopTofAlign(DtaLmh1982* pLmh1982Data);
 static DtStatus  DtaLmh1982SetupRefSource(DtaLmh1982* pLmh1982Data, Int* pRefVidStd,
                                                                           Int* pOutVidStd);
 //static Int  DtaLmh1982VidStd2Lpfm(Int VidStd);
-#ifdef _DEBUG
 static const char*  DtaLmh1982State2Str(Int State);
-#endif
 
 // Debug helpers
 //static DtStatus  DtaLmh1982CachePrint(DtaLmh1982* pLmh1982Data);
@@ -1290,7 +1288,6 @@ DtStatus  DtaLmh1982CacheWrite(DtaLmh1982* pLmh1982Data)
 //    return -1;
 //}
 
-#ifdef _DEBUG
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaLmh1982State2Str -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 const char*  DtaLmh1982State2Str(Int State)
@@ -1309,5 +1306,4 @@ const char*  DtaLmh1982State2Str(Int State)
     default:                                return "UNKNOWN";
     }
 }
-#endif
 

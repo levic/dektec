@@ -66,9 +66,7 @@ static DtStatus  DtaLmh0387ReadRegister(DtaNonIpPort*  pNonIpPort,
                                                                Int Addr, UInt32*  pValue);
 #endif
 
-#ifdef _DEBUG
 static const char*  DtaNonIpMatrixState2Str(DtaMatrixPortState State);
-#endif
 
 // Configuration modes
 #define  DTA_MATRIX_CMODE_FULL          0        // Full re-configuration
@@ -3613,7 +3611,6 @@ DtStatus  DtaLmh0387WriteRegister(DtaNonIpPort*  pNonIpPort, Int Addr, UInt32  V
     return DT_STATUS_OK;
 }
 
-#ifdef _DEBUG
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaNonIpMatrixState2Str -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 const char*  DtaNonIpMatrixState2Str(DtaMatrixPortState State)
@@ -3629,4 +3626,3 @@ const char*  DtaNonIpMatrixState2Str(DtaMatrixPortState State)
     default:                        return "UNKNOWN";
     }
 }
-#endif

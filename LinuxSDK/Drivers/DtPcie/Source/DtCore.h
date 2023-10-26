@@ -262,7 +262,7 @@ DtStatus  DtCore_Ioctl(DtCore*, DtFileObject*, DtIoctlObject*);
 DtStatus  DtCore_InitSerialAndHwRev(DtCore*);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_DEBUG - Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
-// NONE AT THE MOMENT
+DtStatus  DtCore_DEBUG_ForceRelease(DtCore*, int PortIndex, const DtFileObject*);
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_DEVICE - Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
 DtStatus  DtCore_DEVICE_Init(DtCore*, DtIoStubCoreOpenFunc);
 DtStatus  DtCore_DEVICE_PowerUp(DtCore*);
@@ -349,6 +349,7 @@ DtStatus  DtCore_SETTINGS_StringWrite(DtCore*, Int, const char*, const char*,
 DtStatus  DtCore_SETTINGS_ValueRead(DtCore*, Int, const char*, const char*, Int64*);
 DtStatus  DtCore_SETTINGS_ValueWrite(DtCore*, Int, const char*, const char*, Int64);
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore_TOD - Public Functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+DtStatus  DtCore_TOD_GetAdjustPpb(const DtCore*, Int*);
 DtStatus  DtCore_TOD_GetPeriodicItv(const DtCore*, Int* pIntervalMs);
 DtStatus  DtCore_TOD_GetTime(const DtCore*, DtTodTime*);
 DtStatus  DtCore_TOD_PeriodicItvRegister(DtCore*, const DtOnPeriodicIntervalRegData*);

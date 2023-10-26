@@ -63,6 +63,7 @@ void  DtCfTod_Close(DtDf*);
 DtCfTod*  DtCfTod_Open(DtCore*, const char*  pRole, Int  Instance, 
                                                              Int  Uuid, Bool  CreateStub);
 DtStatus  DtCfTod_AdjustTime(DtCfTod*,  Int64 DeltaNanoseconds);
+DtStatus  DtCfTod_GetAdjustPpb(DtCfTod*, Int* pAdjustPpb);
 DtStatus  DtCfTod_GetPeriodicItv(DtCfTod*, Int* pIntervalMs);
 DtStatus  DtCfTod_GetPhaseIncr(DtCfTod*, UInt* pClockPhaseIncr);
 DtStatus  DtCfTod_GetProperties(DtCfTod*, UInt* pSysClockFreqHz, UInt* pAccuracy);

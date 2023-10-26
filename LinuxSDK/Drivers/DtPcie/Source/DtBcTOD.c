@@ -165,8 +165,8 @@ DtStatus DtBcTOD_AdjustPhaseIncr(DtBcTOD* pBc, Int64 AdjustScaledPpm)
         AdjustScaledPpm = -AdjustScaledPpm;
     }
     // Scale to correct units from ppm fraction to non fraction
-    Adjust = DtDivide64(NomIncrement * AdjustScaledPpm, (UInt64)1000000<<16, &Remainder);
-    if (Remainder > ((UInt64)1000000 << 15))
+    Adjust = DtDivide64(NomIncrement * AdjustScaledPpm, (UInt64)1000000LL<<16, &Remainder);
+    if (Remainder > ((UInt64)1000000LL << 15))
         Adjust++;
     if (Neg)
         Adjust = -Adjust;
@@ -190,7 +190,6 @@ DtStatus DtBcTOD_AdjustPhaseIncr(DtBcTOD* pBc, Int64 AdjustScaledPpm)
     return DT_STATUS_OK;
 }
 
-
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcTOD_GetPeriodicItv -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcTOD_GetPeriodicItv(DtBcTOD* pBc, Int* pIntervalMs)
@@ -211,6 +210,7 @@ DtStatus DtBcTOD_GetPeriodicItv(DtBcTOD* pBc, Int* pIntervalMs)
     return DT_STATUS_OK;
 }
 
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcTOD_GetPhaseIncr -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtBcTOD_GetPhaseIncr(DtBcTOD* pBc, UInt32* pClockPhaseIncr)
@@ -229,6 +229,52 @@ DtStatus DtBcTOD_GetPhaseIncr(DtBcTOD* pBc, UInt32* pClockPhaseIncr)
     *pClockPhaseIncr  = pBc->m_ClockPhaseIncr;
 
     DtSpinLockRelease(&pBc->m_TodLock);
+
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcTOD_GetPhaseIncrAdjust -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Returns the clock frequency adjustment in parts per million with lowest 16-bit 
+// as fraction
+//
+DtStatus DtBcTOD_GetPhaseIncrAdjust(DtBcTOD* pBc, Int64* pAdjustScaledPpm)
+{
+    Bool  Neg = FALSE;
+    Int64  Adjust, AdjustScaledPpm;
+    UInt64  CurPhaseIncr, NomPhaseIncr;
+    // Sanity check
+    BC_TOD_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check state
+    BC_TOD_MUST_BE_ENABLED(pBc);
+
+    // AdjustScaledPpm = (NomPhaseIncr - CurPhaseIncr) * 1e6 * 2^16 / NomPhaseIncr
+
+    // Determine current adjustment relative to nominal phase increment
+    CurPhaseIncr = BC_TOD->m_ClockPhaseIncr;
+    NomPhaseIncr = DtDivide64((1LL << 58), pBc->m_SysClockFreqHz, NULL);
+    Neg = NomPhaseIncr > CurPhaseIncr;
+    if (Neg)
+        Adjust = NomPhaseIncr - CurPhaseIncr;
+    else
+        Adjust = CurPhaseIncr - NomPhaseIncr;
+
+    // Prevent overflows
+    if (Adjust < (1LL<<28))
+        AdjustScaledPpm = DtDivide64(Adjust * (UInt64)(1000000LL<<16) + (NomPhaseIncr>>1),
+            NomPhaseIncr, NULL);
+    else
+    {
+        AdjustScaledPpm = DtDivide64(Adjust * (UInt64)(1000000LL<<12) + (NomPhaseIncr>>1),
+            NomPhaseIncr, NULL);
+        AdjustScaledPpm = AdjustScaledPpm<<4;
+    }
+
+    if (Neg)
+        AdjustScaledPpm = -AdjustScaledPpm;
+
+    *pAdjustScaledPpm = AdjustScaledPpm;
 
     return DT_STATUS_OK;
 }

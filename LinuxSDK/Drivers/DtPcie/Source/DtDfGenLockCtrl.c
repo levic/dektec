@@ -92,9 +92,9 @@ static DtDfGenLockCtrl_GenRefStatus  DtDfGenLockCtrl_DetermineGenRefStatus(
                                                      const  DtDfGenLockCtrl_ControlData*);
 static void DtDfGenLockCtrl_DcoControlAddDeltaFreq(DtDfGenLockCtrl*,
                                               DtDfGenLockCtrl_ControlData*, Int DeltaPpt);
-static Int DtDfGenLockCtrl_DcoControlGetFrequencyHz(DtDfGenLockCtrl*,
+static Int DtDfGenLockCtrl_GetDcoTodFrequencyHz(DtDfGenLockCtrl*,
                                                       const DtDfGenLockCtrl_ControlData*);
-static Int64 DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(DtDfGenLockCtrl*,
+static Int64 DtDfGenLockCtrl_GetDcoTodFrequencyMilliHz(DtDfGenLockCtrl*,
                                                       const DtDfGenLockCtrl_ControlData*);
 static Bool DtDfGenLockCtrl_DcoControlComputePhaseDiff(DtDfGenLockCtrl*,
                                                       const  DtDfGenLockCtrl_GenRefData*,
@@ -1180,7 +1180,7 @@ void  DtDfGenLockCtrl_DcoControlCrashLockFreq(DtDfGenLockCtrl* pDf,
                                                                &pGenr->m_GenRefFpMeasure);
 
     // Get DCO-frequency in milli Hz
-    DcoClockFreqMilliHz = DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(pDf, pGenl);
+    DcoClockFreqMilliHz = DtDfGenLockCtrl_GetDcoTodFrequencyMilliHz(pDf, pGenl);
 
     // Compute GenRef (148.5MHz) clock in milliHz
     RefClockFreqHz = DIV64(pGenl->m_FrameLength*Exp12, GenRefAvgFramePeriodPs);
@@ -1285,7 +1285,7 @@ void  DtDfGenLockCtrl_DcoControlCrashLockPhase(DtDfGenLockCtrl* pDf,
         DT_ASSERT(AjustmentNs >= 0);
 
         // Convert nanoseconds to clockticks
-        DcoFreqHz = DtDfGenLockCtrl_DcoControlGetFrequencyHz(pDf, pGenl);
+        DcoFreqHz = DtDfGenLockCtrl_GetDcoTodFrequencyHz(pDf, pGenl);
         AdjustmentClocks = DIV64(DcoFreqHz * AjustmentNs, Exp9);
         DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DcoFreq[%d]: %d Adjustment: %d", 
                         pGenl->m_FractionalClock, (Int)DcoFreqHz, (Int)AdjustmentClocks);
@@ -1372,7 +1372,7 @@ void  DtDfGenLockCtrl_DcoControlLocked(DtDfGenLockCtrl* pDf,
     pGenl->m_PhaseDiffNs = PhaseDiffNs;
 
     // Get DCO-frequency in milli Hz
-    DcoClockFreqMilliHz = DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(pDf, pGenl);
+    DcoClockFreqMilliHz = DtDfGenLockCtrl_GetDcoTodFrequencyMilliHz(pDf, pGenl);
 
     // Compute GenRef (148.5MHz) clock in milliHz
     RefClockFreqHz = DIV64(pGenl->m_FrameLength*Exp12, GenRefAvgFramePeriodPs);
@@ -1473,35 +1473,60 @@ void  DtDfGenLockCtrl_DcoControlAddDeltaFreq(DtDfGenLockCtrl* pDf,
         pGenl->m_DcoFreqOffsetPpt += DeltaPpt;
 }
 
-// .-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControlGetFrequencyHz -.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GetDcoTodFrequencyHz -.-.-.-.-.-.-.-.-.-.-.-.-
 //
-Int  DtDfGenLockCtrl_DcoControlGetFrequencyHz(DtDfGenLockCtrl* pDf,
+// The returned frequency is relative to the TOD clock.
+// For example if the TOD clock is running 1 ppm faster than nominal, the 
+// DCO-frequency will be 1ppm lower than set.
+// In this way, the DCO-frequency can be compared with the GenRef-frequency which is
+// based on TOD-timstamps.
+//
+Int  DtDfGenLockCtrl_GetDcoTodFrequencyHz(DtDfGenLockCtrl* pDf,
                                                  const DtDfGenLockCtrl_ControlData* pGenl)
 {
-    Int64  Freq = 148500000LL;
-    if  (pGenl->m_DcoFreqOffsetPpt >= 0)
-        Freq += DIV64(1485LL * pGenl->m_DcoFreqOffsetPpt + 5*Exp6, 10*Exp6);
-    else
-        Freq += DIV64(1485LL * pGenl->m_DcoFreqOffsetPpt - 5*Exp6, 10*Exp6);
+    Int64 FreqHz, FreqMilliHz;
+    Int64 DefaultFreqMilliHz = 148500000000LL;
     if (pGenl->m_FractionalClock)
-        Freq = DIV64(Freq*1000, 1001);
-    return (Int)Freq;
+        DefaultFreqMilliHz = 148500000000LL*1000/1001;
+
+    FreqMilliHz = DtDfGenLockCtrl_GetDcoTodFrequencyMilliHz(pDf, pGenl);
+    if  (FreqMilliHz >= DefaultFreqMilliHz)
+        FreqHz = DIV64(FreqMilliHz + 500, 1000);
+    else
+        FreqHz = DIV64(FreqMilliHz - 500, 1000);
+
+    return (Int)FreqHz;
 }
 
-// -.-.-.-.-.-.-.-.-.- <DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz -.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_GetDcoTodFrequencyMilliHz -.-.-.-.-.-.-.-.-.-.-.
 //
-Int64  DtDfGenLockCtrl_DcoControlGetFrequencyMilliHz(DtDfGenLockCtrl* pDf,
+// The returned frequency is relative to the TOD clock.
+// For example if the TOD clock is running 1 ppm faster than nominal, the 
+// DCO-frequency will be 1ppm lower than set.
+// In this way, the DCO-frequency can be compared with the GenRef-frequency which is
+// based on TOD-timstamps.
+//
+Int64  DtDfGenLockCtrl_GetDcoTodFrequencyMilliHz(DtDfGenLockCtrl* pDf,
                                                  const DtDfGenLockCtrl_ControlData* pGenl)
 {
     Int64  Freq = 148500000000LL;
-    if  (pGenl->m_DcoFreqOffsetPpt >= 0)  
-        Freq += DIV64(1485LL * pGenl->m_DcoFreqOffsetPpt + 5*Exp3, 10*Exp3);
+    Int TodPpb = 0;
+    Int OffsetPpt = pGenl->m_DcoFreqOffsetPpt;
+
+    // Get the TOD adjustment in parts per billion
+    DtStatus Status = DtCore_TOD_GetAdjustPpb(pDf->m_pCore, &TodPpb);
+    DT_ASSERT(Status == DT_STATUS_OK);
+
+    OffsetPpt = OffsetPpt - TodPpb*1000;
+    if (OffsetPpt >= 0)
+        Freq += DIV64(1485LL * OffsetPpt + 5*Exp3, 10*Exp3);
     else
-        Freq += DIV64(1485LL * pGenl->m_DcoFreqOffsetPpt - 5*Exp3, 10*Exp3);
+        Freq += DIV64(1485LL * OffsetPpt - 5*Exp3, 10*Exp3);
     if (pGenl->m_FractionalClock)
         Freq = DIV64(Freq*1000, 1001);
     return Freq;
 }
+
 
 // -.-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_DcoControlComputePhaseDiff -.-.-.-.-.-.-.-.-.-.-.
 //
@@ -1847,7 +1872,7 @@ void DtDfGenLockCtrl_FramePeriodMeasureAdd(DtDfGenLockCtrl_FramePeriodMeasure* p
 
 // .-.-.-.-.-.-.-.-.-.- DtDfGenLockCtrl_FramePeriodMeasureGetAverage -.-.-.-.-.-.-.-.-.-.-
 //
-//  Returns avarate frame period in pico seconds.
+// Returns avarage frame period in pico seconds.
 // Must be called under spinlock protection or must operation on a copy of GenRefData.
 //
 Int64 DtDfGenLockCtrl_FramePeriodMeasureGetAverage(

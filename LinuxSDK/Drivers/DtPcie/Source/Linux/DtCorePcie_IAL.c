@@ -1160,7 +1160,7 @@ Int DtCorePcie_IAL_Mmap(struct file* pFile, struct vm_area_struct* pVma)
     // Compute port index from the offset. 
     pCore = (DtCorePcie*)pFile->private_data;
     PortIndex = ((pVma->vm_pgoff<<PAGE_SHIFT)/(DT_MMAP_PORT_MEM_SEGMENT_SIZE)) - 1;
-    DtDbgOut(AVG, IAL, "pgoff=%d => port-index=%d", pVma->vm_pgoff, PortIndex);
+    DtDbgOut(AVG, IAL, "pgoff=%lu => port-index=%d", pVma->vm_pgoff, PortIndex);
 
     // Find the port and pass the mmap request onwards
     pPt = DtCore_PT_Find((DtCore*)pCore, PortIndex);
