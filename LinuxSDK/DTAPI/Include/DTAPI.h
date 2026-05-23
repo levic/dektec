@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        6
-#define DTAPI_VERSION_MINOR        12
+#define DTAPI_VERSION_MINOR        13
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        241
+#define DTAPI_VERSION_BUILD        242
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -663,7 +663,9 @@ struct DtCmPars
 {
     bool  m_EnableAwgn;             // Enable white Gaussian noise (AWGN) injection
     double  m_Snr;                  // Signal-to-noise ratio in dB
-    
+    bool m_UseManualSeed{false};    // Use fixed seed for AWGN noise generator
+    int  m_ManualSeed{0};           // Seed value (used if m_UseManualSeed = true)
+
     // =+=+=+=+=+=+=+=+=+=+=+=+ Temporary for internal use only! +=+=+=+=+=+=+=+=+=+=+=+=+
     bool m_EnableMimoXpd;           // Enable MIMO Cross-Polarization Distortion
     DtPolarFloat m_XpdMatrix[4];    // Cross polarization distortion matrix
