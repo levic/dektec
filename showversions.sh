@@ -56,6 +56,10 @@ DTU=(
 	"$(getassign ./LinuxSDK/Drivers/Dtu/Source/Version.inc DTU_VERSION_BUILD)"
 )
 
+ver=$( cat LinuxSDK/Version )
+
+echo "LinuxSDK $( echo "$ver" | sed -E 's/[.]/-/' | cut -c 1-7 ) (LinuxSDK_v${ver}.tar.gz)"
+echo
 echo "DTAPI $( print_ver "${DTAPI[@]}" )"
 echo "Dta $( print_ver "${DTA[@]}" )"
 echo "DtaNw $( print_ver "${DTANW[@]}" )"
