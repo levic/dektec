@@ -320,11 +320,13 @@ DtStatus  DtDfVpd_RawRead(
     DtDfVpd*  pDf, 
     UInt  StartOffset,
     Int  NumToRead,
+    Bool FromCache,
     UInt8*  pBuf,
     Int*  pNumRead)
 {
     Int i, Offset;
-    
+    DtStatus  Status = DT_STATUS_OK;
+   
     // Sanity checks
     DF_VPD_DEFAULT_PRECONDITIONS(pDf);
     DT_ASSERT(pNumRead != NULL);
@@ -352,16 +354,24 @@ DtStatus  DtDfVpd_RawRead(
     // Prevent mutual access to VPD
     DtFastMutexAcquire(&pDf->m_VpdMutex);
 
-    // Read from VPD cache
-    Offset = StartOffset;
-    for (i=0; i<NumToRead; i++) 
-        pBuf[i] = pDf->m_pCache[Offset++];
-
-    *pNumRead = NumToRead;
-    
+    if (FromCache)
+    { 
+        // Read from VPD cache
+        Offset = StartOffset;
+        for (i=0; i<NumToRead; i++) 
+            pBuf[i] = pDf->m_pCache[Offset++];
+        *pNumRead = NumToRead;
+    } else {
+        // Read directly from EEPROM
+        Status = DtDfSpiProm_Read(pDf->m_pDfSpiProm, StartOffset, NumToRead, pBuf);
+        if (!DT_SUCCESS(Status))
+            DtDbgOutDf(ERR, VPD, pDf, "ERROR: failed to read SPI PROM");
+        else 
+            *pNumRead = NumToRead;
+    }
     DtFastMutexRelease(&pDf->m_VpdMutex);
 
-    return DT_STATUS_OK;
+    return Status;
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaVpdWriteRaw -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -411,6 +421,56 @@ DtStatus  DtDfVpd_RawWrite(
     DtFastMutexRelease(&pDf->m_VpdMutex);
     return Status;
 
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfVpd_Verify -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtDfVpd_Verify(DtDfVpd* pDf)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    UInt8* pEeprom = NULL;         // EEPROM buffer
+
+    // Sanity checks
+    DF_VPD_DEFAULT_PRECONDITIONS(pDf);
+
+    DT_ASSERT(pDf->m_pCache!=NULL && pDf->m_CacheSize>0);
+
+    pEeprom = (UInt8*)DtMemAllocPool(DtPoolNonPaged, pDf->m_CacheSize, DF_TAG);
+    if (pEeprom == NULL)
+    {
+        DtDbgOutDf(ERR, VPD, pDf, "ERROR: failed to allocate cache memory (size=%d)",
+                                                                        pDf->m_CacheSize);
+        return DT_STATUS_OUT_OF_MEMORY;
+    }
+
+    // Prevent mutual access to VPD
+    DtFastMutexAcquire(&pDf->m_VpdMutex);
+
+    // Read EEPROM
+    Status = DtDfSpiProm_Read(pDf->m_pDfSpiProm, 0, pDf->m_CacheSize, pEeprom);
+    if (!DT_SUCCESS(Status))
+        DtDbgOutDf(ERR, VPD, pDf, "ERROR: failed to read SPI PROM");
+
+    if (DT_SUCCESS(Status))
+    {
+        Int i;
+        // Compare EEPROM with cache
+        for (i=0; i<pDf->m_CacheSize; i++)
+        {
+            if (pEeprom[i] != pDf->m_pCache[i])
+            {
+                DtDbgOutDf(ERR, VPD, pDf, "ERROR: VPD cache mismatch at offset %d "
+                                          "(cache=0x%02X, EEPROM=0x%02X)", i,
+                                                            pDf->m_pCache[i], pEeprom[i]);
+                Status = DT_STATUS_FAIL;
+                break;
+            }
+        }
+    }
+    DtFastMutexRelease(&pDf->m_VpdMutex);
+
+    DtMemFreePool(pEeprom, DF_TAG);
+    return Status;
 }
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfVpd - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -1203,9 +1263,13 @@ static DtStatus  DtIoStubDfVpd_OnCmdItemWrite(const DtIoStubDfVpd*,
 static DtStatus  DtIoStubDfVpd_OnCmdRawRead(const DtIoStubDfVpd*,
                                                          const DtIoctlVpdCmdRawReadInput*,
                                                          DtIoctlVpdCmdRawReadOutput*);
+static DtStatus  DtIoStubDfVpd_OnCmdRawRead2(const DtIoStubDfVpd*,
+                                                        const DtIoctlVpdCmdRawRead2Input*,
+                                                        DtIoctlVpdCmdRawReadOutput*);
 static DtStatus  DtIoStubDfVpd_OnCmdRawWrite(const DtIoStubDfVpd*,
                                                        const DtIoctlVpdCmdRawWriteInput*);
-
+static DtStatus  DtIoStubDfVpd_OnCmdVerify(const DtIoStubDfVpd*,
+                                                         const DtIoctlVpdCmdVerifyInput*);
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- List of supported IOCTL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // First declare IOCTL commands
 DECL_DT_IOCTL_CMD_PROPS_EXCL_ACCESS;
@@ -1313,7 +1377,14 @@ DtStatus  DtIoStubDfVpd_AppendDynamicSize(
         // Add dynamic size (i.e. #bytes to read)
         pIoParams->m_OutReqSize += pInData->m_RawRead.m_NumToRead;
         break;
-
+    case DT_VPD_CMD_RAW_READ2:
+        // Sanity checks
+        DT_ASSERT(!pIoParams->m_InReqSizeIsDynamic && pIoParams->m_OutReqSizeIsDynamic);
+        DT_ASSERT(pIoParams->m_InReqSize >= sizeof(DtIoctlVpdCmdRawRead2Input));
+        DT_ASSERT(pIoParams->m_OutReqSize >= sizeof(DtIoctlVpdCmdRawReadOutput));
+        // Add dynamic size (i.e. #bytes to read)
+        pIoParams->m_OutReqSize += pInData->m_RawRead.m_NumToRead;
+        break;
     case DT_VPD_CMD_RAW_WRITE:
         // Sanity checks
         DT_ASSERT(pIoParams->m_InReqSizeIsDynamic && !pIoParams->m_OutReqSizeIsDynamic);
@@ -1395,9 +1466,18 @@ DtStatus  DtIoStubDfVpd_OnCmd(
         Status = DtIoStubDfVpd_OnCmdRawRead(STUB_VPD, &pInData->m_RawRead,
                                                                     &pOutData->m_RawRead);
         break;
+    case DT_VPD_CMD_RAW_READ2:
+        DT_ASSERT(pOutData != NULL);
+        Status = DtIoStubDfVpd_OnCmdRawRead2(STUB_VPD, &pInData->m_RawRead2,
+                                                                    &pOutData->m_RawRead);
+        break;
     case DT_VPD_CMD_RAW_WRITE:
         Status = DtIoStubDfVpd_OnCmdRawWrite(STUB_VPD, &pInData->m_RawWrite);
         break;
+    case DT_VPD_CMD_VERIFY:
+        Status = DtIoStubDfVpd_OnCmdVerify(STUB_VPD, &pInData->m_Verify);
+        break;
+
     default:
         DT_ASSERT(FALSE);
         return DT_STATUS_NOT_SUPPORTED;
@@ -1505,6 +1585,23 @@ DtStatus  DtIoStubDfVpd_OnCmdRawRead(
 
     pOutData->m_NumRead = 0;  // Assume the worst
     return DtDfVpd_RawRead(STUB_DF, pInData->m_StartOffset,  pInData->m_NumToRead,
+                                                   TRUE,
+                                                   pOutData->m_Buf, &pOutData->m_NumRead);
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfVpd_OnCmdRawRead2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtIoStubDfVpd_OnCmdRawRead2(
+    const DtIoStubDfVpd*  pStub,
+    const DtIoctlVpdCmdRawRead2Input*  pInData,
+    DtIoctlVpdCmdRawReadOutput*  pOutData)
+{
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfVpd));
+    DT_ASSERT(pInData!=NULL && pOutData!=NULL);
+
+    pOutData->m_NumRead = 0;  // Assume the worst
+    return DtDfVpd_RawRead(STUB_DF, pInData->m_StartOffset,  pInData->m_NumToRead,
+                                                   pInData->m_ReadFromCache!=0,
                                                    pOutData->m_Buf, &pOutData->m_NumRead);
 }
 
@@ -1519,4 +1616,16 @@ DtStatus  DtIoStubDfVpd_OnCmdRawWrite(
 
     return DtDfVpd_RawWrite(STUB_DF, pInData->m_StartOffset,
                                                    pInData->m_NumToWrite, pInData->m_Buf);
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfVpd_OnCmdVerify -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtIoStubDfVpd_OnCmdVerify(
+    const DtIoStubDfVpd*  pStub,
+    const DtIoctlVpdCmdVerifyInput*  pInData)
+{
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfVpd));
+    DT_ASSERT(pInData != NULL);
+
+    return DtDfVpd_Verify(STUB_DF);
 }

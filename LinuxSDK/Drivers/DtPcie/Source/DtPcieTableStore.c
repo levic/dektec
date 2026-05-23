@@ -3870,23 +3870,23 @@ static const DtTableEntry  DtTable2174_2_000[] =
 };
 static const DtTableEntry  DtTable2174_2_001[] =
 {
-    { 5, 5 }, { 4, 4 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 0, 0 }
+    { 6, 6 }, { 5, 5 }, { 4, 4 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 0, 0 }
 };
 static const DtTableEntry  DtTable2174_2_002[] =
 {
-    { 5, 4 }, { 4, 3 }, { 3, 2 }, { 2, 1 }, { 1, 0 }, { 0, -1 }
+    { 6, 5 }, { 5, 4 }, { 4, 3 }, { 3, 2 }, { 2, 1 }, { 1, 0 }, { 0, -1 }
 };
 static const DtTableEntry  DtTable2174_2_003[] =
 {
-    { 5, 4 }, { 4, 3 }, { 3, 2 }, { 2, 1 }, { 1, 0 }, { 0, -1 }
+    { 6, 5 }, { 5, 4 }, { 4, 3 }, { 3, 2 }, { 2, 1 }, { 1, 0 }, { 0, -1 }
 };
 
 static const DtTableLink  DtTableLink2174_2[] = 
 {
     { "DVC_FW_VARIANTS", -1, -1, 0, 0, 3, DtTable2174_2_000 },
-    { "FIRMWARE_PACKAGE_HISTORY", -1, 1, 0, 0, 6, DtTable2174_2_001 },
-    { NULL, -1, 2, 0, 0, 6, DtTable2174_2_002 },
-    { NULL, -1, 3, 0, 0, 6, DtTable2174_2_003 }
+    { "FIRMWARE_PACKAGE_HISTORY", -1, 1, 0, 0, 7, DtTable2174_2_001 },
+    { NULL, -1, 2, 0, 0, 7, DtTable2174_2_002 },
+    { NULL, -1, 3, 0, 0, 7, DtTable2174_2_003 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2178; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

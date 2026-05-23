@@ -35,6 +35,12 @@
 MODULE_LICENSE("GPL";)
 #endif
 
+#if defined(RHEL_RELEASE_CODE)
+#if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,6)
+#define BACKPORTED_MAX_PAGE_ORDER
+#endif
+#endif
+
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Debug logging +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 
@@ -182,7 +188,7 @@ void* DtMemAllocPoolLargeEx(DtPoolType Type, UInt Size, UInt32 Tag,
         return DtMemAllocPool(Type, Size, Tag);
     
     // Check if we can allocate one contiguous piece of memory 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0) || defined(BACKPORTED_MAX_PAGE_ORDER)
     if (get_order(Size) < MAX_PAGE_ORDER)
 #else
     if (get_order(Size) < MAX_ORDER)

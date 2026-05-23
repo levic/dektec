@@ -119,7 +119,13 @@ static int  DtPcieNwEvtSetFeatures(struct net_device* pDevice,
 static int DtPcieNwEvtDoIoctl(struct net_device* dev, struct ifreq* ifr, int cmd);
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,11,0)
+#if defined(RHEL_RELEASE_CODE)
+#if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,6)
+#define BACKPORTED_KERNEL_ETHTOOL
+#endif
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,11,0) || defined(BACKPORTED_KERNEL_ETHTOOL)
 typedef struct kernel_ethtool_ts_info EthtoolTsInfo;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 typedef struct ethtool_ts_info EthtoolTsInfo;

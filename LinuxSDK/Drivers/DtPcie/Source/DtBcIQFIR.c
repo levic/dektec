@@ -128,7 +128,14 @@ DtStatus DtBcIQFIR_SetOperationalMode(DtBcIQFIR* pBc, Int OpMode)
     // No change?
     if (pBc->m_OperationalMode == OpMode)
         return DT_STATUS_OK;
-
+    
+    if (OpMode==DT_BLOCK_OPMODE_IDLE && pBc->m_Version>=1)
+    {
+        // For IQFIR v1, when setting to IDLE, set to IDLE and thereafter to STANDBY,
+        // as IQFIR v1 cannot be configured in IDLE mode.
+        DtBcIQFIR_SetControlRegs(pBc, pBc->m_BlockEnabled, DT_BLOCK_OPMODE_IDLE);
+        OpMode = DT_BLOCK_OPMODE_STANDBY;
+    }
     // Cache value
     pBc->m_OperationalMode = OpMode;
     // Set control register
@@ -171,6 +178,10 @@ DtStatus DtBcIQFIR_GetCoefficients(DtBcIQFIR* pBc, Int* pCoeffs, Int NumToGet)
                                                  (pBc->m_NumberTaps+1)/2;
     if (pCoeffs==NULL || ( NumToGet!=NumCoefficients))
         return DT_STATUS_INVALID_PARAMETER;
+
+    // For IQFIR v1, coefficients cannot be got in IDLE mode
+    if (pBc->m_Version>=1 && pBc->m_OperationalMode==DT_BLOCK_OPMODE_IDLE)
+        return DT_STATUS_INVALID_IN_OPMODE;
 
     DtFastMutexAcquire(&pBc->m_AccessMutex);
 
@@ -224,6 +235,10 @@ DtStatus DtBcIQFIR_SetCoefficients(DtBcIQFIR* pBc, const Int* pCoeffs, Int NumTo
 
     if (pCoeffs==NULL || NumToSet!=NumCoefficients)
         return DT_STATUS_INVALID_PARAMETER;
+
+    // For IQFIR v1, coefficients cannot be set in IDLE mode
+    if (pBc->m_Version>=1 && pBc->m_OperationalMode==DT_BLOCK_OPMODE_IDLE)
+        return DT_STATUS_INVALID_IN_OPMODE;
 
     DtFastMutexAcquire(&pBc->m_AccessMutex);
 
@@ -312,7 +327,10 @@ DtStatus DtBcIQFIR_OnEnable(DtBc* pBcBase, Bool Enable)
         DtDbgOutBc(AVG, IQFIR, pBc, "OnEnable from disable -> enable");
 
         // Set defaults
-        pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
+        if (pBc->m_Version>=1)
+            pBc->m_OperationalMode = DT_BLOCK_OPMODE_STANDBY;
+        else
+            pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
     }
     else
     {

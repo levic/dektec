@@ -94,9 +94,10 @@ DtStatus  DtDfVpd_ItemRead(DtDfVpd*, Int  SectionFlags, Int  KeyLen, const char*
                                                             const UInt8*, Int*  pNumRead);
 DtStatus  DtDfVpd_ItemWrite(DtDfVpd*, Int  SectionFlags, Int  KeyLen, const char*, 
                                                Int  Flags, Int  NumToWrite, const UInt8*);
-DtStatus  DtDfVpd_RawRead(DtDfVpd*, UInt  StartOffset, Int  NumToRead, UInt8*, 
-                                                                          Int*  pNumRead);
+DtStatus  DtDfVpd_RawRead(DtDfVpd*, UInt  StartOffset, Int  NumToRead, Bool FromCache,
+                                                                  UInt8*, Int*  pNumRead);
 DtStatus  DtDfVpd_RawWrite(DtDfVpd*,  UInt  StartOffset, Int  NumToWrite, const UInt8*);
+DtStatus  DtDfVpd_Verify(DtDfVpd*);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubDfVpd definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+

@@ -131,7 +131,8 @@ namespace St2110
     enum class TxFrameFormat
     {
         Uyvy422_8b,                 // 8-bit UYVY.
-        Uyvy422_10b                 // 10-bit packed UYVY.
+        Uyvy422_10b,                // 10-bit packed UYVY.
+        Uyvy422_10b_Nbo             // 10-bit packed UYVY in network byte order.
     };
 
     // Enumerates the supported video scanning modes for received and transmitted video.

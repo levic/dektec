@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        6
-#define DTAPI_VERSION_MINOR        10
+#define DTAPI_VERSION_MINOR        11
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        239
+#define DTAPI_VERSION_BUILD        240
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -3845,6 +3845,7 @@ public:
                                             __int64 ParXtra0 = -1, __int64 ParXtra1 = -1);
     virtual DTAPI_RESULT  SetIpPars(DtIpPars* pIpPars);
     virtual DTAPI_RESULT  SetIpPars(DtIpPars2* pIpPars);
+    virtual DTAPI_RESULT  SetIqCaptFile(void* IqFile);
     virtual DTAPI_RESULT  SetIsdbtCaptFile(void* IsdbtFile);
     virtual DTAPI_RESULT  SetModControl(DtAtsc3Pars&);
     virtual DTAPI_RESULT  SetModControl(DtAtsc3StltpPars&);
@@ -5396,6 +5397,8 @@ private:
 #define DTAPI_E_DISABLED            0x111B       // 4379
 #define DTAPI_E_CPU_NO_AVX2         0x111C       // 4380
 #define DTAPI_E_INVALID_MIMO        0x111D       // 4381
+#define DTAPI_E_NO_GATEWAY          0x111E       // 4382
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+ DVB-C2, DVB-S2, DVB-T2, ISDB-Tmm Multi PLP Parameters +=+=+=+=+=+=+=+=+

@@ -5357,6 +5357,15 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlVpdCmdRawReadInput),                                               \
         DT_IOCTL_DYNAMIC_SIZEOF(DtIoctlVpdCmdRawReadOutput))
 
+#define DT_IOCTL_CMD_PROPS_VPD_RAW_READ2                                                 \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_VPD_CMD_RAW_READ2,                                                            \
+        "RAW_READ2",                                                                     \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlVpdCmdRawRead2Input),                                              \
+        DT_IOCTL_DYNAMIC_SIZEOF(DtIoctlVpdCmdRawReadOutput))
+
 #define DT_IOCTL_CMD_PROPS_VPD_RAW_WRITE                                                 \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_VPD_CMD_RAW_WRITE,                                                            \
@@ -5364,6 +5373,15 @@ typedef struct  _DtIoctlProperties
         TRUE,                                                                            \
         FALSE,                                                                           \
         DT_IOCTL_DYNAMIC_SIZEOF(DtIoctlVpdCmdRawWriteInput),                             \
+        0)
+
+#define DT_IOCTL_CMD_PROPS_VPD_VERIFY                                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_VPD_CMD_VERIFY,                                                               \
+        "VERIFY",                                                                        \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlVpdCmdVerifyInput),                                                \
         0)
 
 #define DECL_DT_IOCTL_CMD_PROPS_VPD                                                      \
@@ -5375,7 +5393,9 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_VPD_ITEM_WRITE,                                               \
         DT_IOCTL_CMD_PROPS_VPD_ITEM_DELETE,                                              \
         DT_IOCTL_CMD_PROPS_VPD_RAW_READ,                                                 \
+        DT_IOCTL_CMD_PROPS_VPD_RAW_READ2,                                                \
         DT_IOCTL_CMD_PROPS_VPD_RAW_WRITE,                                                \
+        DT_IOCTL_CMD_PROPS_VPD_VERIFY,                                                   \
     }
 
 #define DT_IOCTL_PROPS_VPD_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)                   \

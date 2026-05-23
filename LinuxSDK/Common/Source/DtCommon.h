@@ -8955,6 +8955,8 @@ typedef enum _DtIoctlVpdCmd
     DT_VPD_CMD_ITEM_DELETE = 4,
     DT_VPD_CMD_RAW_READ = 5,
     DT_VPD_CMD_RAW_WRITE = 6,
+    DT_VPD_CMD_VERIFY = 7,
+    DT_VPD_CMD_RAW_READ2 = 8,
 }  DtIoctlVpdCmd;
 
 // DT VPD section ID's
@@ -9059,6 +9061,17 @@ typedef struct _DtIoctlVpdCmdRawReadOutput
 } DtIoctlVpdCmdRawReadOutput;
 ASSERT_SIZE(DtIoctlVpdCmdRawReadOutput, 4)
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- VPD Command - Raw Read2 Command -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlVpdCmdRawRead2Input 
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    UInt  m_StartOffset;            // Start offset
+    Int  m_NumToRead;               // Number of bytes to read
+    Int  m_ReadFromCache;           // Read from cache; else from PROM (TRUE or FALSE)
+} DtIoctlVpdCmdRawRead2Input;
+ASSERT_SIZE(DtIoctlVpdCmdRawRead2Input, 28)
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- VPD Command - Raw Write Command -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 typedef struct _DtIoctlVpdCmdRawWriteInput
@@ -9070,6 +9083,14 @@ typedef struct _DtIoctlVpdCmdRawWriteInput
 } DtIoctlVpdCmdRawWriteInput;
 ASSERT_SIZE(DtIoctlVpdCmdRawWriteInput, 24)
 
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- VPD Command - Verify Command -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlVpdCmdVerifyInput 
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+} DtIoctlVpdCmdVerifyInput;
+ASSERT_SIZE(DtIoctlVpdCmdVerifyInput, 16)
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.- VPD command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // VPD command - Input data
 typedef union _DtIoctlVpdCmdInput 
@@ -9079,7 +9100,9 @@ typedef union _DtIoctlVpdCmdInput
     DtIoctlVpdCmdItemWriteInput  m_ItemWrite;
     DtIoctlVpdCmdItemDeleteInput  m_ItemDelete;
     DtIoctlVpdCmdRawReadInput  m_RawRead;
+    DtIoctlVpdCmdRawRead2Input  m_RawRead2;
     DtIoctlVpdCmdRawWriteInput  m_RawWrite;
+    DtIoctlVpdCmdVerifyInput  m_Verify;
 } DtIoctlVpdCmdInput;
 ASSERT_SIZE(DtIoctlVpdCmdInput, 48)
 
