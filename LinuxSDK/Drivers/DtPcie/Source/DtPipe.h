@@ -16,6 +16,7 @@
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPipe definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+
 #define DT_PIPE_CAP_TX_NRT    (DT_PIPE_CAP_TX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_NRT|DT_PIPE_CAP_KBUF)
 #define DT_PIPE_CAP_TX_RT_HWP (DT_PIPE_CAP_TX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_RT)
 #define DT_PIPE_CAP_TX_RT_SWP (DT_PIPE_CAP_TX|DT_PIPE_CAP_SWP|DT_PIPE_CAP_RT)
@@ -49,6 +50,7 @@ typedef struct _DtPipe
     DT_PIPE_COMMON_DATA;
 } DtPipe;
 
+
 #define DT_PIPE_HWP_COMMON                                                               \
     DT_PIPE_COMMON_DATA;                                                                 \
     DtBcCDMACTO* m_pBcCdma;                                                              \
@@ -56,6 +58,7 @@ typedef struct _DtPipe
     UInt m_OffsetCache
 // m_OffsetCache: RxReadOffset, TxWriteOffset
 
+// Cap: DT_PIPE_CAP_HWP
 typedef struct _DtPipeHwp
 {
     DT_PIPE_HWP_COMMON;
@@ -68,11 +71,13 @@ typedef struct _DtPipeHwp
     UInt m_BufSize;                                                                      \
     UInt m_MaxLoad
 
+// Cap: DT_PIPE_CAP_HWP|DT_PIPE_CAP_KBUF
 typedef struct _DtPipeHwpKbuf
 {
     DT_PIPE_HWP_KBUF;
 }DtPipeHwpKbuf;
 
+// PipeType == DT_PIPE_TX_RT_HWP
 typedef struct _DtPipeTxRtHwp
 {
     DT_PIPE_HWP_COMMON;
@@ -80,6 +85,7 @@ typedef struct _DtPipeTxRtHwp
     DtBcIPSCHED* m_pIpSched;
 } DtPipeTxRtHwp;
 
+// PipeType == DT_PIPE_RX_RT_HWP
 typedef struct _DtPipeRxRtHwp
 {
     DT_PIPE_HWP_COMMON;
@@ -88,6 +94,7 @@ typedef struct _DtPipeRxRtHwp
     UInt m_ReadOffsetCache;
 } DtPipeRxRtHwp;
 
+// PipeType == DT_PIPE_RX_HWQ
 typedef struct _DtPipeRxHwq
 {
     DT_PIPE_HWP_KBUF;
@@ -107,6 +114,7 @@ typedef struct _DtPipeRxHwq
     UInt m_TrigEvtMaxCnt;                                                                \
     UInt m_BufSize
 
+// Cap: DT_PIPE_CAP_SWP
 typedef struct _DtPipeSwp
 {
     DT_PIPE_SWP_COMMON;
@@ -123,6 +131,7 @@ struct _DtRxRtSwpLinkedListEl
     Int Index;                          // Index in DtPipeRxRtSwp struct
 };
 
+// PipeType == DT_PIPE_RX_RT_SWP
 struct _DtPipeRxRtSwp
 {
     DT_PIPE_SWP_COMMON;
@@ -141,32 +150,37 @@ struct _DtPipeRxRtSwp
     DtPageList* m_pPageListK;                                                            \
     UInt m_MaxLoad
 
-
+// Cap: DT_PIPE_CAP_SWP|DT_PIPE_CAP_KBUF
 typedef struct _DtPipeSwpKbuf
 {
     DT_PIPE_SWP_KBUF;
 
 } DtPipeSwpKbuf;
 
+// PipeType == DT_PIPE_RX_NRT
 typedef struct _DtPipeRxNrt
 {
     DT_PIPE_SWP_KBUF;
 } DtPipeRxNrt;
 
+// PipeType == DT_PIPE_TX_NRT
 typedef struct _DtPipeTxNrt
 {
     DT_PIPE_HWP_KBUF;
     DtBcBURSTFIFO* m_pBurstFifo;
 } DtPipeTxNrt;
 
+// PipeType == DT_PIPE_TX_RT_SWP
 typedef struct _DtPipeTxRtSwp
 {
     DT_PIPE_SWP_COMMON;
 } DtPipeTxRtSwp;
 
+// PipeType == DT_PIPE_TX_RT_HWQ
 typedef struct _DtPipeTxRtHwq
 {
     DT_PIPE_HWP_KBUF;
+    DtBcIPSCHED* m_pIpSched;
     DtBcBURSTFIFO* m_pBurstFifo;
 } DtPipeTxRtHwq;
 

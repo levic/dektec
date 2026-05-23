@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuDeviceTable.c *#*#*#*#*#*#*#*#*#* (C) 2024 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuDeviceTable.c *#*#*#*#*#*#*#*#*#* (C) 2025 DekTec
 //
 // CapParser - Device Table
 //

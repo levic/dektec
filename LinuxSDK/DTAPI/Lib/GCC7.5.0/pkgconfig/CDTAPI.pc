@@ -8,5 +8,5 @@ Name: CDTAPI
 Description: C DTAPI.
 Version: 1.0.0
 
-Libs: -L"${libdir}" -l:CDTAPI64.a -lstdc++ -latomic -ldl
+Libs: -L"${libdir}" -l:CDTAPI64.a -lstdc++ -latomic -ldl -fPIC
 Cflags: -I"${includedir}"

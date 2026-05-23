@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI.h *#*#*#*#*#*#*#*#*#* (C) 2000-2024 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI.h *#*#*#*#*#*#*#*#*#* (C) 2000-2025 DekTec
 //
 // DTAPI - C++ API for DekTec PCI/PCI-Express cards, USB adapters and network devices
 //
@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        6
-#define DTAPI_VERSION_MINOR        7
+#define DTAPI_VERSION_MINOR        8
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        234
+#define DTAPI_VERSION_BUILD        235
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 

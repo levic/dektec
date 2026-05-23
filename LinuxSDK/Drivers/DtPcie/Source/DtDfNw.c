@@ -326,6 +326,7 @@ DtStatus DtDfNw_InitPipeTxRtHwq(DtDfNw* pDf, DtBcIPSCHED* pIpSched, DtBcCDMACTO*
     pTxRt->m_pBcCdma = pBcCdma;
     pTxRt->m_pBurstFifo = pBcBurstFifo;
     pTxRt->m_pDfIpFifo = pDfIpFifo;
+    pTxRt->m_pIpSched = pIpSched;
 
     // Initialise IP scheduler behavior
     DtBcIPSCHED_SetErrorBehavior(pIpSched, 0, TRUE);
@@ -3208,8 +3209,7 @@ DtStatus DtIoStubDfNwOnCmdSetIpFilter(const DtIoStubDfNw* pStub, DtPipe* pPipe,
 {
     DtStatus Status = DT_STATUS_OK;
     DtDfNw* pDf = STUB_DF;
-    Bool IsRxRtSwPipe = (pPipe->m_Capabilities & DT_PIPE_CAP_RX_RT_SWP) ==
-                                                                    DT_PIPE_CAP_RX_RT_SWP;
+    Bool IsRxRtSwPipe = pPipe->m_PipeType == DT_PIPE_RX_RT_SWP;
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);

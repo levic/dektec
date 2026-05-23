@@ -324,7 +324,7 @@ DtStatus DtPipe_GetStatus(DtPipe* pPipe, Int* pOpStatus, UInt32* pStatusFlags,
         Status = DtBcCDMACTO_GetStatus(pHwPipe->m_pBcCdma, pOpStatus, pStatusFlags,
                                                                              pErrorFlags);
         *pErrorFlags |= pHwPipe->m_ErrorFlag;
-        if (pPipe->m_Capabilities == DT_PIPE_CAP_TX_RT_HWP)
+        if ((pPipe->m_Capabilities & DT_PIPE_CAP_TX_RT_HWP) != 0)
         {
             // Add scheduler status
             DtPipeTxRtHwp* pTxRtHwp = (DtPipeTxRtHwp*)pPipe;
@@ -382,12 +382,18 @@ DtStatus DtPipe_IssuePipeFlush(DtPipe* pPipe)
             DtBcCDMACTO_GetTxReadOffset(pHwPipe->m_pBcCdma, &ReadOffset);
             DtBcCDMACTO_SetTxWriteOffset(pHwPipe->m_pBcCdma, ReadOffset);
             pHwPipe->m_OffsetCache = ReadOffset;
-            if (pPipe->m_Capabilities == DT_PIPE_CAP_TX_RT_HWP)
+            if (pPipe->m_PipeType == DT_PIPE_TX_RT_HWP)
             {
                 DtPipeTxRtHwp* pTxRtHwp = (DtPipeTxRtHwp*)pPipe;
                 // Flush IpSchedular output. This will reset the invalid time error too
                 // if active
                 DtBcIPSCHED_Flush(pTxRtHwp->m_pIpSched, pPipe->m_Index+1);
+            }
+            else if (pPipe->m_PipeType == DT_PIPE_TX_RT_HWQ)
+            {
+                DtPipeTxRtHwq* pTxRtHwq = (DtPipeTxRtHwq*)pPipe;
+                // Flush IpSchedular output. HWQ is always index 0
+                DtBcIPSCHED_Flush(pTxRtHwq->m_pIpSched, 0);
             }
         }
     }
