@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2025 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2026 DekTec
 //
 // CapParser - Property Store - Tables storing device properties
 //

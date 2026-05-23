@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaTableStore.c *#*#*#*#*#*#*#*#*#*# (C) 2025 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaTableStore.c *#*#*#*#*#*#*#*#*#*# (C) 2026 DekTec
 //
 // CapParser - Device Table Store - Tables with calibration data, filter coefficients, ...
 //

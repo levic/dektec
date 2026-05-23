@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPcieDeviceTable.c *#*#*#*#*#*#*#*#*# (C) 2025 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPcieDeviceTable.c *#*#*#*#*#*#*#*#*# (C) 2026 DekTec
 //
 // CapParser - Device Table
 //

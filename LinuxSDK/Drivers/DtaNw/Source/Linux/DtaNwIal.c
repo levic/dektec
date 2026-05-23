@@ -52,7 +52,7 @@ MODULE_DESCRIPTION("Dta Series Network Driver");
 
 // ADDED TO PREVENT TAINTED MESSAGE. THIS MODULE CAN BE USED FREELY (SEE LICENSE
 // STATEMENT ABOVE).
-MODULE_LICENSE("GPL";)
+MODULE_LICENSE("GPL");
 
 // Global variables
 static DtaNwDeviceData**  g_pDtaNwDeviceData = NULL;

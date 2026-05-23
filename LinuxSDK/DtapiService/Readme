@@ -56,23 +56,41 @@ have installed the following shared library versions.
  - libc.so.6
  - libdl.so.2
 
-To install the DtapiService, execute the self-extracting binary 
-DtapiService.bin. This should be done as super user, for example: 
-"sudo ./DtapiService.bin". The installer will use temporary 
-storage in "/tmp/DtapiServiceInstaller".
+To install the DtapiService, execute the self-extracting installer 
+"DtapiService.bin". Superuser privileges are required because the installer
+installs system files and registers the service with the system’s init system.
+For example:
+ - "sudo ./DtapiService.bin"
+During installation, temporary files are created in 
+"/tmp/DtapiServiceInstaller". This directory is removed automatically when the
+installation completes.
 
-After having installed the DtapiService it should start automatically whenever 
-you boot. To manually start and stop the daemon you can use the 
-DtapiServiceInit script located in your init directory. 
-Type "DtapiServiceInit start" to start the daemon and "DtapiServiceInit stop"
-to stop it.
+After installation, the DtapiService is enabled to start automatically at
+system boot.
+
+Service management (systemd)
+On systems using systemd (most modern Linux distributions), the DtapiService
+is installed as a systemd service.
+You can manually start and stop the service using systemctl:
+ - "sudo systemctl start DtapiServiced"
+ - "sudo systemctl stop DtapiServiced"
+ 
+Legacy init systems
+On systems without systemd, the DtapiService runs as a traditional daemon.
+In this case, the installer installs a legacy init script "DtapiServiceInit",
+located in the system’s init directory.
+In that case you can manually start and stop the daemon as follows:
+ - "DtapiServiceInit start"
+ - "DtapiServiceInit stop"
 
 IMPORTANT: 
-* For the DtapiService to properly work the Dta driver must be
-running. Please refer to the Dta readme file for instructions on how to
-compile and install the driver. 
+* For the DtapiService to function correctly, the DtPcie/Dta driver must be 
+  installed and running. Please refer to the DtPcie/Dta readme file for 
+  instructions on how to compile and install the driver. 
 * The DtapiService also needs write-access to the /tmp directory and the 
-/dev/shm directory.
+  /dev/shm directory.
+* On systemd-based systems, DtapiServices uses the runtime directory  
+  /run/DtapiServiced (automatically created and cleaned up by systemd).
 
 --------------------------------------------------------------------------------
 - 4. Contact Information

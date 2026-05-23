@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPciePropertyStore.c *#*#*#*#*#*#*#*#* (C) 2025 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPciePropertyStore.c *#*#*#*#*#*#*#*#* (C) 2026 DekTec
 //
 // CapParser - Property Store - Tables storing device properties
 //
@@ -3720,9 +3720,9 @@ static const DtProperty  DtProperties2127_0_01[] =
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, 0x00000000, NULL, PROPERTY_VALUE_TYPE_INT, -1, 2, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, 1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, 2, 0, 0, -1,
+    { NULL, 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, 2, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2127_0_02[] =
@@ -4926,7 +4926,13 @@ static const DtProperty  DtProperties2127_0_47[] =
     { "DF_SDIXCFGMGR#1.1", DT_PVE, "BC_SDIXCFG#1", PROPERTY_VALUE_TYPE_STRING, -1, 1, 0,
                                                   0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, DT_PVE, "BC_SDIXCFG#1", PROPERTY_VALUE_TYPE_STRING, -1, 2, 0, 0, -1,
-                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Improves SPI write timing to VPD EEPROM to prevent rare programming issues",
+             PROPERTY_VALUE_TYPE_STRING, -1, 1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, DT_PVE,
+      "Improves SPI write timing to VPD EEPROM to prevent rare programming issues",
+             PROPERTY_VALUE_TYPE_STRING, -1, 2, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2127_0_48[] =
 {
@@ -5416,7 +5422,12 @@ static const DtProperty  DtProperties2127_0_62[] =
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, 2, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
                                                                                    0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 3, 2, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0,
-                                                                                   0, 0 } 
+                                                                                   0, 0 },
+    { "FIRMWARE_RELEASE_BUILD_DATE_1", DT_PVE, "2025.12.11T20:27",
+      PROPERTY_VALUE_TYPE_STRING, -1, 1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, DT_PVE, "2025.12.11T18:38", PROPERTY_VALUE_TYPE_STRING, -1, 2, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2127_0_63[] =
 {
@@ -5502,7 +5513,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2127_0[] =
     { DtProperties2127_0_44, 17 },
     { DtProperties2127_0_45, 16 },
     { DtProperties2127_0_46, 7 },
-    { DtProperties2127_0_47, 8 },
+    { DtProperties2127_0_47, 10 },
     { DtProperties2127_0_48, 23 },
     { DtProperties2127_0_49, 34 },
     { DtProperties2127_0_50, 23 },
@@ -5517,7 +5528,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2127_0[] =
     { DtProperties2127_0_59, 19 },
     { DtProperties2127_0_60, 3 },
     { DtProperties2127_0_61, 7 },
-    { DtProperties2127_0_62, 18 },
+    { DtProperties2127_0_62, 20 },
     { DtProperties2127_0_63, 16 }
 };
 
@@ -14014,7 +14025,7 @@ static const DtProperty  DtProperties2174_2_14[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 0x00010004, NULL, PROPERTY_VALUE_TYPE_INT, -1, 3, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "FIRMWARE_PACKAGE_BUILD_DATE_6", DT_PVE, "2025.11.19T14:13",
+    { "FIRMWARE_PACKAGE_BUILD_DATE_6", DT_PVE, "2025.12.02T14:32",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2174_2_15[] =
@@ -20991,11 +21002,18 @@ static const DtProperty  DtProperties2178_0_01[] =
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, 0x00000000, NULL, PROPERTY_VALUE_TYPE_INT, -1, 3, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "FIRMWARE_LAST_VER", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, 1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 4, NULL, PROPERTY_VALUE_TYPE_INT, -1, 1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, 2, 0, 0, -1,
+    { NULL, 4, NULL, PROPERTY_VALUE_TYPE_INT, -1, 2, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { NULL, 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, 3, 0, 0, -1,
+    { NULL, 4, NULL, PROPERTY_VALUE_TYPE_INT, -1, 3, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_BUILD_DATE_4", DT_PVE, "2025.11.19T18:37",
+      PROPERTY_VALUE_TYPE_STRING, -1, 1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, DT_PVE, "2025.11.19T19:11", PROPERTY_VALUE_TYPE_STRING, -1, 2, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, DT_PVE, "2025.11.19T19:52", PROPERTY_VALUE_TYPE_STRING, -1, 3, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2178_0_02[] =
@@ -22455,7 +22473,9 @@ static const DtProperty  DtProperties2178_0_12[] =
     { NULL, DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, -1, 2, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, -1, 3, 0, 0, -1,
-                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
+                                                         PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
+    { "FIRMWARE_PACKAGE_BUILD_DATE_4", DT_PVE, "2026.01.26T09:58",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2178_0_13[] =
 {
@@ -26432,7 +26452,7 @@ static const DtProperty  DtProperties2178_0_44[] =
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { NULL, DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, -1, 3, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "FIRMWARE_PACKAGE_LAST_VER", 3, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_PACKAGE_LAST_VER", 4, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2178_0_45[] =
@@ -27459,6 +27479,15 @@ static const DtProperty  DtProperties2178_0_50[] =
              PROPERTY_VALUE_TYPE_STRING, -1, 1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, DT_PVE,
       "Optimized internal buses for improved maximum DMA throughput of 3G channel",
+             PROPERTY_VALUE_TYPE_STRING, -1, 3, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N4_0", DT_PVE,
+      "Improves SPI write timing to VPD EEPROM to prevent rare programming issues",
+             PROPERTY_VALUE_TYPE_STRING, -1, 1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, DT_PVE,
+      "Improves SPI write timing to VPD EEPROM to prevent rare programming issues",
+             PROPERTY_VALUE_TYPE_STRING, -1, 2, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { NULL, DT_PVE,
+      "Improves SPI write timing to VPD EEPROM to prevent rare programming issues",
              PROPERTY_VALUE_TYPE_STRING, -1, 3, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "PORT_COUNT", 10, NULL, PROPERTY_VALUE_TYPE_INT, -1, 1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
@@ -29732,7 +29761,7 @@ static const DtProperty  DtProperties2178_0_63[] =
 static const DtPropertyHashSet  DtPropertyHashSets2178_0[] =
 {
     { DtProperties2178_0_00, 62 },
-    { DtProperties2178_0_01, 20 },
+    { DtProperties2178_0_01, 23 },
     { DtProperties2178_0_02, 11 },
     { DtProperties2178_0_03, 3 },
     { DtProperties2178_0_04, 59 },
@@ -29743,7 +29772,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2178_0[] =
     { DtProperties2178_0_09, 88 },
     { DtProperties2178_0_10, 37 },
     { DtProperties2178_0_11, 86 },
-    { DtProperties2178_0_12, 69 },
+    { DtProperties2178_0_12, 70 },
     { DtProperties2178_0_13, 24 },
     { DtProperties2178_0_14, 3 },
     { DtProperties2178_0_15, 50 },
@@ -29781,7 +29810,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2178_0[] =
     { DtProperties2178_0_47, 84 },
     { DtProperties2178_0_48, 67 },
     { DtProperties2178_0_49, 68 },
-    { DtProperties2178_0_50, 73 },
+    { DtProperties2178_0_50, 76 },
     { DtProperties2178_0_51, 61 },
     { DtProperties2178_0_52, 100 },
     { DtProperties2178_0_53, 97 },

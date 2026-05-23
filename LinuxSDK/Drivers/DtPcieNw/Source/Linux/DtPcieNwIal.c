@@ -62,7 +62,7 @@ MODULE_DESCRIPTION("DtPcie Series Network Driver");
 
 // ADDED TO PREVENT TAINTED MESSAGE. THIS MODULE CAN BE USED FREELY (SEE LICENSE
 // STATEMENT ABOVE).
-MODULE_LICENSE("GPL";)
+MODULE_LICENSE("GPL");
 
 // Global variables
 static DtPcieNwDeviceData**  g_pDtPcieNwDeviceData = NULL;
