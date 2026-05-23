@@ -163,6 +163,8 @@ typedef enum _DtPoolType
 
 void*  DtMemAllocPoolLarge(DtPoolType Type, UInt Size, UInt32 Tag, 
                                                                   DtPageList** pPageList);
+void*  DtMemAllocPoolLargeEx(DtPoolType Type, UInt Size, UInt32 Tag, 
+                                              DtPageList** pPageList, Bool AllocDma32Mem);
 void  DtMemFreePoolLarge(void* pPtr, UInt32 Tag, DtPageList* pPageList);
 void*  DtMemAllocPool(DtPoolType Type, UInt Size, UInt32 Tag);
 void  DtMemFreePool(void* pPtr, UInt32 Tag);

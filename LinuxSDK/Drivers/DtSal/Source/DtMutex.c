@@ -95,8 +95,8 @@ DtStatus  DtMutexAcquire(DtMutex* pDtMutex, Int TimeoutMS)
     NTSTATUS  Result;
     LARGE_INTEGER  Timeout;
     LARGE_INTEGER*  pTimeout;
-    DT_ASSERT((KeGetCurrentIrql()<=APC_LEVEL && TimeoutMS>0) ||
-                                    (KeGetCurrentIrql()<=DISPATCH_LEVEL && TimeoutMS<=0));
+    DT_ASSERT((KeGetCurrentIrql()<=APC_LEVEL) ||
+                                    (KeGetCurrentIrql()<=DISPATCH_LEVEL && TimeoutMS==0));
 
     if (TimeoutMS >= 0)
     {
@@ -104,7 +104,7 @@ DtStatus  DtMutexAcquire(DtMutex* pDtMutex, Int TimeoutMS)
         pTimeout = &Timeout;
     } else
         pTimeout = NULL;
-
+    
     Result = KeWaitForSingleObject(&pDtMutex->m_KMutex, Executive, KernelMode, FALSE,
                                                                                 pTimeout);
     if (Result != STATUS_SUCCESS)

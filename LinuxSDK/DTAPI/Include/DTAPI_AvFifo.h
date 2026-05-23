@@ -81,9 +81,12 @@ enum class RxFifoOverflowStrategy
 
 namespace St2022
 {
-    // Selects between FEC disabled and FEC enabled (not implemented yet).
-    enum class FecMode {Disable};
-
+    // Selects between FEC disabled and different FEC modes.
+    enum class FecMode {Disable, 
+                        Mode1,      // FECdT = SDI_PktdT + .5 * SDI_PktdT
+                        Mode2,      // FECdT = SDI_PktdT
+                        Mode1B,     // FECdT = SDI_PktdT + .5 * SDI_PktdT (BLOCK)
+                        Mode2B};    // FECdT = SDI_PktdT (BLOCK)
     // Enumerates SMPTE 2022-7 modes.
     enum class LinkMode {Single, Dual};
 }
@@ -251,6 +254,9 @@ namespace St2022
                                     // If the value is -1, the TroDefault is used.
         int PayloadSize{-1};
         St2022::FecMode FecMode{St2022::FecMode::Disable};
+        int FecNumRows{0};          // 'D' = Number of rows in FEC matrix
+        int FecNumColumns{0};       // 'L' = Number of columns in FEC matrix
+        bool FecColumnOnly{false};  // Only column FEC. Use LxD.
 
         // SMPTE 2022-7 parameters.
         struct {

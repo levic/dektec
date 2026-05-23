@@ -398,12 +398,16 @@ DtStatus  DtIoStubDf_OnExclAccessCmd(const DtIoStub*, DtIoStubIoParams*, Int*  p
 #include "DtCfProps.h"          // Property core-function
 #include "DtCfTod.h"            // TimeOfDay core-function
 #include "DtDfDataFifo.h"       // Data Fifo driver function
-
+#include "DtDfMbcFlash.h"       // Flash prom driver function using mailbox client
+#include "DtDfMbcReboot.h"      // Reboot driver function using mailbox client
+#include "DtDfMbcTemp.h"        // Temperature driver function using mailbox client
+#include "DtDfSfp.h"            // SFP driver function
 
 // Local functions
 #include "DtDfS2CrDemod_2132.h" // Creonix DVB-S2 demodulator and decoder function
 #include "DtDfTxClkCtrl_2178A.h" // DTA-2178-ASI clock control
 #include "DtDfClkGen_2110.h" // DTA-2110 Ethernet clock generator
+#include "DtDfClkGen_2125.h" // DTA-2125 Ethernet clock generator
 #include "DtDfClkCtrl_2116.h"   // DTA-2116 DAC clock control
 
 // List with of well-known driver-functions IDs

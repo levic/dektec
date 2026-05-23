@@ -1474,8 +1474,8 @@ static const DtDfSi534XClockProps SI5342_CONFIG_NON_FRAC_SDI_CLOCK_PROPS_DTA2127
 {
     { 0,                                                // Clock output port index 0
       DT_DF_SI534X_CLK_NON_FRACTIONAL,                  // Non-fractional clock
-      0,                                                // Steps: 0/N0_NUM
-      0,                                                // Range: +/- 0ppm
+      (SI534X_EXP12+62008590336LL-1)/62008590336LL,     // 1e12/N0_NUM
+      200*SI534X_EXP6,                                  // +/- 200ppm
       148*SI534X_EXP12 + 500LL*SI534X_EXP9              // Freq: 148.5MHz
     }
 };
@@ -1483,12 +1483,11 @@ static const DtDfSi534XClockProps SI5342_CONFIG_FRAC_SDI_CLOCK_PROPS_DTA2127_LIK
 {
     { 0,                                                // Clock output port index 0
       DT_DF_SI534X_CLK_FRACTIONAL,                      // Fractional clock
-      0,                                                // Steps: 0/N0_NUM
-      0,                                                // Range: +/- 0ppm
+      (SI534X_EXP12+150709731328LL-1)/150709731328LL,   // 1e12/N0_NUM
+      200*SI534X_EXP6,                                  // +/- 200ppm
       1483516484LL*SI534X_EXP5                          // Freq: 148.35MHz
     }
 };
-
 
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+ SI5342 Non-Fractional SDI clock +=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
@@ -2325,8 +2324,8 @@ static const DtDfSi534XClockProps SI5392_CONFIG_FRAC_SDI_CLOCK_PROPS_DTA2127_LIK
 {
     { 0,                                                // Clock output port index 0
       DT_DF_SI534X_CLK_FRACTIONAL,                      // Fractional clock
-      0,                                                // Steps: 0/N0_NUM
-      0,                                                // Range: +/- 0ppm
+      (SI534X_EXP12+150709731328LL-1)/150709731328LL,   // 1e12/N0_NUM
+      200*SI534X_EXP6,                                  // +/- 200ppm
       1483516484LL*SI534X_EXP5                          // Freq: 148.35MHz
     }
 };
@@ -2334,12 +2333,11 @@ static const DtDfSi534XClockProps SI5392_CONFIG_NON_FRAC_SDI_CLOCK_PROPS_DTA2127
 {
     { 0,                                                // Clock output port index 0
       DT_DF_SI534X_CLK_NON_FRACTIONAL,                  // Non-fractional clock
-      0,                                                // Steps: 0/N0_NUM
-      0,                                                // Range: +/- 0ppm
+      (SI534X_EXP12+62008590336LL-1)/62008590336LL,     // 1e12/N0_NUM
+      200*SI534X_EXP6,                                  // +/- 200ppm
       148*SI534X_EXP12 + 500LL*SI534X_EXP9              // Freq: 148.5MHz
     }
 };
-
 
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ SI5392 Fractional SDI clock +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //

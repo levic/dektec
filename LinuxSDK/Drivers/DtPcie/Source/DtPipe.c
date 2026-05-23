@@ -5,18 +5,6 @@
 
 #define PIPE_TAG  0x45504950   // 'EPIP'
 
-
-
-#define DT_PIPE_CAP_TX_NRT    (DT_PIPE_CAP_TX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_NRT|DT_PIPE_CAP_KBUF)
-#define DT_PIPE_CAP_TX_RT_HWP (DT_PIPE_CAP_TX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_RT)
-#define DT_PIPE_CAP_TX_RT_SWP (DT_PIPE_CAP_TX|DT_PIPE_CAP_SWP|DT_PIPE_CAP_RT)
-#define DT_PIPE_CAP_TX_RT_HWQ (DT_PIPE_CAP_TX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_KBUF)
-
-#define DT_PIPE_CAP_RX_NRT    (DT_PIPE_CAP_RX|DT_PIPE_CAP_SWP|DT_PIPE_CAP_NRT|DT_PIPE_CAP_KBUF)
-#define DT_PIPE_CAP_RX_RT_HWP (DT_PIPE_CAP_RX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_RT)
-#define DT_PIPE_CAP_RX_RT_SWP (DT_PIPE_CAP_RX|DT_PIPE_CAP_SWP|DT_PIPE_CAP_RT)
-#define DT_PIPE_CAP_RX_HWQ    (DT_PIPE_CAP_RX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_KBUF)
-
 #define IsHwp(Pipe) ((Pipe->m_Capabilities&DT_PIPE_CAP_HWP)!=0)
 #define IsHwpKbuf(Pipe) ((Pipe->m_Capabilities&DT_PIPE_CAP_HWP)!=0 && \
                                                (Pipe->m_Capabilities&DT_PIPE_CAP_KBUF)!=0)
@@ -57,6 +45,7 @@ DtPipe* DtPipe_Open(const DtFileObject* pFileObject, DtObject* pPipeOwner,
     DtPipe* pPipe = NULL;
     Int Size = sizeof(DtPipe);
     Int Cap = 0;
+    
     switch (PipeType)
     {
     case DT_PIPE_RX_NRT: Size = sizeof(DtPipeRxNrt); Cap = DT_PIPE_CAP_RX_NRT; break;
@@ -78,6 +67,19 @@ DtPipe* DtPipe_Open(const DtFileObject* pFileObject, DtObject* pPipeOwner,
     pPipe->m_pPipeOwner = pPipeOwner;
     pPipe->m_InUse = FALSE;
     pPipe->m_Capabilities = Cap;
+
+    if (PipeType == DT_PIPE_RX_RT_SWP)
+    {
+        DtPipeRxRtSwp* pSwPipe = (DtPipeRxRtSwp*)pPipe;
+        Int i = 0;
+
+        // Initialise static Linked List entries
+        for (i = 0; i < 3; i++)
+        {
+            pSwPipe->m_LinkedListEl[i].Index = i;
+            pSwPipe->m_LinkedListEl[i].m_pPipe = pSwPipe;
+        }
+    }
     
     DtFastMutexInit(&pPipe->m_FastMutex);
     return pPipe;
@@ -215,7 +217,7 @@ DtStatus DtPipe_SetSharedBufferKernel(DtPipe* pPipe, Int RequestSize, Int* pActu
     DtPageList* pPageList = NULL;
     UInt32 Capabilities;
     Int PrefetchSize;
-    Int ItfDataWidth;
+    Int PipeDataWidth;
     Int ActualSize;
     Int PipeType;
     UInt8* pTmpBuffer;
@@ -228,7 +230,7 @@ DtStatus DtPipe_SetSharedBufferKernel(DtPipe* pPipe, Int RequestSize, Int* pActu
     if (pPipe->m_SharedBufferSet)
         return DT_STATUS_IN_USE;
 
-    Status = DtPipe_GetProperties(pPipe, &Capabilities, &PrefetchSize, &ItfDataWidth, 
+    Status = DtPipe_GetProperties(pPipe, &Capabilities, &PrefetchSize, &PipeDataWidth, 
                                                                                &PipeType);
     if (Status != DT_STATUS_OK)
         return Status;
@@ -242,7 +244,7 @@ DtStatus DtPipe_SetSharedBufferKernel(DtPipe* pPipe, Int RequestSize, Int* pActu
     
     // One data-word is reserved for buffer-full detection
     if (pMaxLoad != NULL)
-        *pMaxLoad = ActualSize - (ItfDataWidth / 8);
+        *pMaxLoad = ActualSize - (PipeDataWidth / 8);
 
     // Note: *ppPageList will be set to NULL if we do not need large memory
     pTmpBuffer = (UInt8*)DtMemAllocPoolLarge(DtPoolNonPaged, ActualSize, PIPE_TAG,
@@ -269,7 +271,7 @@ DtStatus DtPipe_SetSharedBufferKernel(DtPipe* pPipe, Int RequestSize, Int* pActu
         pHwp->m_pPageListK = pPageList;
         pHwp->m_pBuffer = pTmpBuffer;
         pHwp->m_BufSize = ActualSize;
-        pHwp->m_MaxLoad = ActualSize - (ItfDataWidth / 8);
+        pHwp->m_MaxLoad = ActualSize - (PipeDataWidth / 8);
     }
     else
     {
@@ -277,7 +279,7 @@ DtStatus DtPipe_SetSharedBufferKernel(DtPipe* pPipe, Int RequestSize, Int* pActu
         pSwp->m_pPageListK = pPageList;
         pSwp->m_pBuffer = pTmpBuffer;
         pSwp->m_BufSize = ActualSize;
-        pSwp->m_MaxLoad = ActualSize - (ItfDataWidth / 8);
+        pSwp->m_MaxLoad = ActualSize - (PipeDataWidth / 8);
     }
     if (ppBuffer != NULL)
         *ppBuffer = pTmpBuffer;
@@ -299,13 +301,13 @@ DtStatus DtPipe_GetProperties(DtPipe* pPipe, UInt32* pCapabilities, Int* pPrefet
         Int ReorderBufSize;
         UInt32 Capabilities;
         return DtBcCDMACTO_GetProperties(pHwPipe->m_pBcCdma, &Capabilities,
-                                           pPrefetchSize, pPipeDataWidth, &ReorderBufSize);
+                                          pPrefetchSize, pPipeDataWidth, &ReorderBufSize);
     }
     else
     {
         //DtPipeSwp* pSwPipe = (DtPipeSwp*)pPipe;
         *pPrefetchSize = 1;
-        *pPipeDataWidth = 64;    // minimal sizeof(DtEthIpHeader)*8
+        *pPipeDataWidth = 128;    // Default max. for EthIp datapath: 16*8bits: DTA-2125
     }
     return DT_STATUS_OK;
 }
@@ -409,10 +411,7 @@ DtStatus DtPipe_SetOperationalMode(DtPipe* pPipe, Int OpMode)
     if (IsHwp(pPipe))
     {
         DtPipeHwp* pHwPipe = (DtPipeHwp*)pPipe;
-        Status = DtBcCDMACTO_SetOperationalMode(pHwPipe->m_pBcCdma, OpMode);
-        if (Status != DT_STATUS_OK)
-            return Status;
-
+        
         // Configure the burst FIFO in the TX HWQ or TX HWP
         if (pPipe->m_PipeType == DT_PIPE_TX_RT_HWQ)
         {
@@ -420,6 +419,15 @@ DtStatus DtPipe_SetOperationalMode(DtPipe* pPipe, Int OpMode)
             if (pHwq->m_pBurstFifo != NULL)
             {
                 Status = DtBcBURSTFIFO_SetOperationalMode(pHwq->m_pBurstFifo, OpMode);
+                if (Status != DT_STATUS_OK)
+                    return Status;
+            }
+        } else if (pPipe->m_PipeType == DT_PIPE_TX_NRT)
+        {
+            DtPipeTxNrt* pTxNrt = (DtPipeTxNrt*)pPipe;
+            if (pTxNrt->m_pBurstFifo != NULL)
+            {
+                Status = DtBcBURSTFIFO_SetOperationalMode(pTxNrt->m_pBurstFifo, OpMode);
                 if (Status != DT_STATUS_OK)
                     return Status;
             }
@@ -443,6 +451,11 @@ DtStatus DtPipe_SetOperationalMode(DtPipe* pPipe, Int OpMode)
             }
         }
 
+        // Enable DMA controller after TxWritePointer is written
+        Status = DtBcCDMACTO_SetOperationalMode(pHwPipe->m_pBcCdma, OpMode);
+        if (Status != DT_STATUS_OK)
+            return Status;
+
         // It's not allowed to set the OpMode of an IpFifo to IDLE, if it has been
         // started. Otherwise a deadlock can occur in firmware with the memory controller
         if (pHwPipe->m_pDfIpFifo!=NULL && OpMode!=DT_PIPE_OPMODE_IDLE)
@@ -461,6 +474,13 @@ DtStatus DtPipe_SetOperationalMode(DtPipe* pPipe, Int OpMode)
                 if (Status != DT_STATUS_OK)
                     return Status;
             }
+            if (pHwq->m_pBurstFifo != NULL)
+            {
+                Status = DtBcBURSTFIFO_SetOperationalMode(pHwq->m_pBurstFifo, OpMode);
+                if (Status != DT_STATUS_OK)
+                    return Status;
+            }
+
             if (pHwq->m_pEthIpPad != NULL)
             {
                 Status = DtBcETHIPPAD_SetOperationalMode(pHwq->m_pEthIpPad, OpMode);

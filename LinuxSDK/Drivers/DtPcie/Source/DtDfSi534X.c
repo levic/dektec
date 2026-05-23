@@ -71,7 +71,7 @@ static DtStatus  DtDfSi534X_WriteConfigItems(DtDfSi534X*, const DtDfSi534XRegist
 static DtStatus  DtDfSi534X_WriteRegister(DtDfSi534X* , const DtDfSi534XRegister*);
 static int DtDfSi534X_GetClockIdx(DtDfSi534X* pDf, Bool Fractional);
 static int DtDfSi534X_GetNumClocks(DtDfSi534X* pDf);
-static Bool DtDfSi534X_IsInFreeRunOnlyMode(DtDfSi534X* pDf);
+static Bool DtDfSi534X_IsInFreeRunMode(DtDfSi534X* pDf);
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfSi534X - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
@@ -148,13 +148,6 @@ DtStatus DtDfSi534X_GetFreqOffsetPpt(DtDfSi534X* pDf, Bool FracClk, Int* pOffset
     if (pOffsetPpt == NULL)
         return DT_STATUS_INVALID_PARAMETER;
     
-    // Frequency cannot be set in free-run-only-mode
-    if (DtDfSi534X_IsInFreeRunOnlyMode(pDf))
-    {
-        *pOffsetPpt = 0;
-        return DT_STATUS_OK;
-    }
-
     // Protect SI-534X against concurrent access
     DtFastMutexAcquire(&pDf->m_AccessMutex);
     // Convert Clock into ClockIdx
@@ -205,15 +198,6 @@ DtStatus DtDfSi534X_SetFreqOffsetPpt(DtDfSi534X* pDf, Int OffsetPpt, Bool FracCl
         return DT_STATUS_INVALID_PARAMETER;
     else if (!FracClk && pDf->m_CurConfig==DT_DF_SI534X_CFG_FRAC_SDI_CLOCK)
         return DT_STATUS_INVALID_PARAMETER;
-
-    // Frequency cannot be set in free-run-only-mode
-    if (DtDfSi534X_IsInFreeRunOnlyMode(pDf))
-    {
-        if (OffsetPpt == 0)
-            return DT_STATUS_OK;
-        else
-            return DT_STATUS_INVALID_PARAMETER;
-    }
 
     // Protect SI-534X against concurrent access
     DtFastMutexAcquire(&pDf->m_AccessMutex);
@@ -565,8 +549,8 @@ DtStatus  DtDfSi534X_GetStatus(DtDfSi534X* pDf, Bool* pLocked, Bool* pCalibDone)
     // Sanity checks
     DF_SI534X_DEFAULT_PRECONDITIONS(pDf);
 
-    // Not supported in free-run-only-mode
-    DT_ASSERT(!DtDfSi534X_IsInFreeRunOnlyMode(pDf));
+    // Not supported in free-run-mode
+    DT_ASSERT(!DtDfSi534X_IsInFreeRunMode(pDf));
 
     // Check parameters
     if (pLocked==NULL || pCalibDone==NULL)
@@ -901,8 +885,8 @@ DtStatus DtDfSi534X_WriteCurrentConfig(DtDfSi534X*  pDf)
                                          DT_SIZEOF_ARRAY(SI534X_CONFIG_POSTAMBLE), FALSE);
     }
 
-    // Don't wait for lock if in free run only  mode
-    if (DtDfSi534X_IsInFreeRunOnlyMode(pDf))
+    // Don't wait for lock if in free run  mode
+    if (DtDfSi534X_IsInFreeRunMode(pDf))
         return Status;
 
     // Wait for clock to become stable; Poll for locked
@@ -999,12 +983,12 @@ int DtDfSi534X_GetNumClocks(DtDfSi534X* pDf)
     }
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_IsInFreeRunOnlyMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfSi534X_IsInFreeRunMode -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // When configured in free-run-mode. The DSPLL is locked tot the crystal or XO. No 
 // inputs (INx) are configured. LOL and HOLD will always be asserted.
 //
-Bool DtDfSi534X_IsInFreeRunOnlyMode(DtDfSi534X* pDf)
+Bool DtDfSi534X_IsInFreeRunMode(DtDfSi534X* pDf)
 {
     switch (pDf->m_ClockArchitecture)
     {

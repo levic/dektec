@@ -31,6 +31,7 @@
 #include "DtBcBURSTFIFO.h"
 #include "DtBcCDMACTO.h"
 #include "DtBcEMAC10G.h"
+#include "DtBcEMAC25G.h"
 #include "DtBcIPSUMCHK.h"
 #include "DtBcIPSUMINS.h"
 #include "DtDfIpFifo.h"
@@ -39,6 +40,7 @@
 #include "DtBcDDRFIFO.h"
 #include "DtBcETHIPPAD.h"
 #include "DtBcDATACDC.h"
+#include "DtDfSfp.h"
 
 // Name + short-name for the IpNrt function. NOTE: must match names in 
 // FunctionDescriptionsXxx.xml
@@ -46,21 +48,61 @@
 #define DT_DF_NW_SHORTNAME     "NW"
 
 // MACRO: to init an driver-function-ID for the TEMPLATE-DF
-#define DT_DF_NW_INIT_ID(ID, ROLE, INSTANCE, UUID)                                    \
+#define DT_DF_NW_INIT_ID(ID, ROLE, INSTANCE, UUID)                                       \
 do                                                                                       \
 {                                                                                        \
-    DT_DF_INIT_ID(ID, DT_DF_NW_NAME, DT_DF_NW_SHORTNAME, ROLE,                     \
+    DT_DF_INIT_ID(ID, DT_DF_NW_NAME, DT_DF_NW_SHORTNAME, ROLE,                           \
                                                                      INSTANCE, UUID);    \
 }                                                                                        \
 while (0)
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- MAC interface function defines -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+typedef DtStatus (*DtMacGetOperationalModeFunc)(DtBc* pBc, Int* pOpMode);
+typedef DtStatus (*DtMacSetOperationalModeFunc)(DtBc* pBc, Int OpMode);
+typedef DtStatus (*DtMacGetCounterFunc)(DtBc* pBc, const UInt CounterId, UInt64* pValue);
+typedef DtStatus (*DtMacGetSupportedCountersFunc)(DtBc* pBc, UInt MaxCounterIds,
+                                                 UInt* pNumCounterIds, UInt* pCounterIds);
+typedef DtStatus (*DtMacGetPhySpeedFunc)(DtBc* pBc, UInt* pPhySpeed);
+typedef DtStatus (*DtMacSetPhySpeedFunc)(DtBc* pBc, UInt PhySpeed);
+typedef DtStatus (*DtMacGetMacAddressPermFunc)(DtBc* pBc, UInt8* pMacAddress);
+typedef DtStatus (*DtMacGetMacAddressCurrFunc)(DtBc* pBc, UInt8* pMacAddress);
+typedef DtStatus (*DtMacSetMacAddressFunc)(DtBc* pBc, UInt8* pMacAddress);
+typedef DtStatus (*DtMacRegisterLinkCallbackFunc)(DtBc* pBc, DtLinkStatFunc LinkStatCB,
+    void* pContext);
+typedef DtStatus (*DtMacUnregisterLinkCallbackFunc)(DtBc* pBc, void* pContext);
+typedef DtStatus (*DtMacGetLinkStatusFunc)(DtBc* pBc);
+typedef void (*DtMacSetSfpIntCallbackFunc)(DtBc* pBc, DtSfpIntFunc SfpIntCB, 
+                                                                          void* pContext);
+typedef void (*DtMacSetSfpCapabilitiesFunc)(DtBc* pBc, UInt Capabilities);
+
+typedef struct _DtEMACItf
+{
+    DtBc* pBcEMAC;
+    DtMacGetOperationalModeFunc GetOperationalMode;
+    DtMacSetOperationalModeFunc SetOperationalMode;
+    DtMacGetCounterFunc GetCounter;
+    DtMacGetSupportedCountersFunc GetSupportedCounters;
+    DtMacGetPhySpeedFunc GetPhySpeed;
+    DtMacSetPhySpeedFunc SetPhySpeed;
+    DtMacGetMacAddressPermFunc GetMacAddressPerm;
+    DtMacSetMacAddressFunc GetMacAddressCurr;
+    DtMacSetMacAddressFunc SetMacAddress;
+    DtMacRegisterLinkCallbackFunc RegisterLinkCallback;
+    DtMacUnregisterLinkCallbackFunc UnregisterLinkCallback;
+    DtMacGetLinkStatusFunc GetLinkStatus;
+    DtMacSetSfpCapabilitiesFunc SetSfpCapabilities;
+    DtMacSetSfpIntCallbackFunc SetSfpIntCallbackFunc;
+
+} DtEMACItf;
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-#define MAX_NUMBER_RT_HW_PIPES 6
+#define MAX_NUMBER_RT_HW_PIPES 8
 #define MAX_MULTICAST_ITEMS 100
+
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 typedef struct  _DtDfNw
@@ -87,35 +129,44 @@ typedef struct  _DtDfNw
     DtFastMutex m_PipeTxRtSwpListFMutex;
     DtFastMutex m_PipeRxNrtFMutex;      // Protects all Rx NRT pipe/list actions
     DtFastMutex m_PipeTxNrtFMutex;      // Protects all Tx NRT pipe/list actions
-
+    
     // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Block controllers +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
     // Common
-    DtBcEMAC10G* m_pBcEMAC10G;
     DtBcIPSUMCHK* m_pBcIpSumChk;
     DtBcIPSUMINS* m_pBcIpSumIns;
-    DtBcIPSCHED* m_pIpSched;
+    DtBcIPSCHED* m_pBcIpSched;
+
+    // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Driver functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+    DtDfSfp* m_pDfSfp;
+    
+    // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ EMAC Interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+    DtEMACItf m_EMACItf;
 
     // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Threads/DPC +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
     // Periodic interval 
     DtSpinLock  m_PerItvSpinLock;   // Spinlock to protect m_PerItvEnable changes
     Bool  m_PerItvEnable;           // Periodic interval hander enabled
-    DtVectorPipe* m_PerIntEvtList;  // All pipe events who want's to have the PerInt event
+    DtVectorPipe* m_PerIntEvtList;  // All pipe events interested in the PerInt event
     DtFastMutex m_PerIntEvtFMutex;
 
     // RX HWQ thread
     DtThread m_RxHwqThread;         // Helper thread
     DtEvent m_RxHwqStopEvent;       // Helper stop event
 
+    // RX SWP port mapping
+    DtRxRtSwpLinkedListEl* m_RxRtSwpPortMap[0xFFFF+1];
+    DtFastMutex m_RxRtSwpPortMapFMutex;
+
     // Multicast list
-    DtFastMutex m_MulticastListFastMutex;   // Mutex to protect m_MultiucastList changes
+    DtFastMutex m_MulticastListFastMutex;   // Mutex to protect m_MulticastList
     UInt8 m_MulticastList[MAX_MULTICAST_ITEMS][6];
     UInt m_NumMulticasts;
     UInt m_PacketFilter;
 
     // TX RT HWQ thread
-    DtThread m_TxRtHwqThread;       // Helper thread
-    DtEvent m_TxRtHwqStopEvent;     // Helper stop event
+    DtThread m_TxRtHwqThread;       // Realtime transmit HWQ thread
+    DtEvent m_TxRtHwqStopEvent;     // Stop event HWQ thread
 
     // Cached values
     Int  m_OperationalMode;         // Operational mode
@@ -126,6 +177,7 @@ typedef struct  _DtDfNw
     DtSpinLock  m_OpModeCBSpinlock;
 
     Bool m_ReducedFunctionality;
+    Int m_PacketAlignment;
 }DtDfNw;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

@@ -41,11 +41,12 @@
 #define ROLE_RX_HWP        "RX_RT_HWP*"
 #define ROLE_TX_HWP        "TX_RT_HWP*"
 
-#define BC_EMAC10G_ROLE_NONE    NULL
+#define BC_EMAC_ROLE_NONE       NULL
 #define BC_IP_SUMCHK_ROLE_NONE  NULL
 #define BC_IP_SUMINS_ROLE_NONE  NULL
 #define BC_IP_SCHED_ROLE_NONE   NULL
 #define BC_ROLE_NONE            NULL
+#define DF_ROLE_NONE            NULL
 
 #define RX_HWQ_BUFSIZE            (128*1024*1024)
 #define TX_RT_HWQ_BUFSIZE         (128*1024*1024)
@@ -111,7 +112,7 @@ DtStatus DtDfNw_RegisterKEvent(DtPipe* pPipe, DtEvent* pEvent, Int Id);
 DtStatus DtDfNw_DeregisterKEvent(DtPipe* pPipe, DtEvent* pEvent, Int Id);
 DtStatus DtDfNw_DeregisterEvent(DtPipe* pPipe, DtTrigEvtDriver* pTrigEvt);
 DtStatus DtDfNw_CheckFilterDuplication(DtDfNw* pDf);
-
+DtStatus DtDfNw_RemovePipeFromPortmap(DtDfNw* pDf, DtPipeRxRtSwp* pPipe);
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfNw - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -214,9 +215,11 @@ DtStatus  DtDfNw_SetOperationalMode(DtDfNw* pDf, Int OpMode)
         return DT_STATUS_OK;
 
     // Set operational mode of childs to the op mode selected
-    DT_RETURN_ON_ERROR(DtBcEMAC10G_SetOperationalMode(pDf->m_pBcEMAC10G, OpMode));
-    DT_RETURN_ON_ERROR(DtBcIPSUMCHK_SetOperationalMode(pDf->m_pBcIpSumChk, OpMode));
-    DT_RETURN_ON_ERROR(DtBcIPSUMINS_SetOperationalMode(pDf->m_pBcIpSumIns, OpMode));
+    DT_RETURN_ON_ERROR(pDf->m_EMACItf.SetOperationalMode(pDf->m_EMACItf.pBcEMAC, OpMode));
+    if (pDf->m_pBcIpSumChk != NULL)
+        DT_RETURN_ON_ERROR(DtBcIPSUMCHK_SetOperationalMode(pDf->m_pBcIpSumChk, OpMode));
+    if (pDf->m_pBcIpSumIns != NULL)
+        DT_RETURN_ON_ERROR(DtBcIPSUMINS_SetOperationalMode(pDf->m_pBcIpSumIns, OpMode));
 
     // Set operational mode to all kernel pipes
     for (i = 0; i < pDf->m_NumStaticPipes; i++)
@@ -225,6 +228,13 @@ DtStatus  DtDfNw_SetOperationalMode(DtDfNw* pDf, Int OpMode)
         int Count = 0;
         if ((pPipe->m_Capabilities & DT_PIPE_CAP_KBUF) == 0)
             continue;
+
+        // Before setting the pipe to operation mode run, be shure
+        // to flush the pipe so the read and write pointers and cache are synchronised
+        // with the DMA controller.
+        if (pDf->m_OperationalMode == DT_PIPE_OPMODE_RUN)
+            DtPipe_IssuePipeFlush(pPipe);
+
         Status = DT_STATUS_NOT_INITIALISED;
         while (Status == DT_STATUS_NOT_INITIALISED && Count < 50)
         {
@@ -241,7 +251,6 @@ DtStatus  DtDfNw_SetOperationalMode(DtDfNw* pDf, Int OpMode)
     // Save new operational mode
     if (DT_SUCCESS(Status))
         pDf->m_OperationalMode = OpMode;
-
     return Status;
 }
 
@@ -254,6 +263,7 @@ DtStatus DtDfNw_CheckReducedFunctionalityMode(DtDfNw* pDf)
 {
     DtBcDDRFIFO* pDdrFifo;
     pDf->m_ReducedFunctionality = TRUE;
+    
     if (pDf->m_pCore->m_pBcList == NULL)
         return DT_STATUS_FAIL;
     pDdrFifo = (DtBcDDRFIFO*)DtVectorBc_FindByTypeAndRole(pDf->m_pBcList,
@@ -268,7 +278,7 @@ DtStatus DtDfNw_CheckReducedFunctionalityMode(DtDfNw* pDf)
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_InitPipeRxHwq -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtDfNw_InitPipeRxHwq(DtDfNw* pDf, DtBcCDMACTO* pBcCdma, DtDfIpFifo* pDfIpFifo,
-                                           DtBcETHIPPAD* pEthIpPad, DtBcDDRFIFO* pDdrFifo)
+                DtBcETHIPPAD* pEthIpPad, DtBcDDRFIFO* pDdrFifo, DtBcBURSTFIFO* pBurstFifo)
 {
     DtStatus Status = DT_STATUS_OK;
     DtPipe* pPipe = DtPipe_Open(NULL, (DtObject*)pDf, DT_PIPE_RX_HWQ, 
@@ -284,6 +294,8 @@ DtStatus DtDfNw_InitPipeRxHwq(DtDfNw* pDf, DtBcCDMACTO* pBcCdma, DtDfIpFifo* pDf
     // Variant0 only:
     pRx->m_pEthIpPad = pEthIpPad;
     pRx->m_pDdrFifo = pDdrFifo;
+    
+    pRx->m_pBurstFifo = pBurstFifo;
     Status = DtVectorPipe_PushBack(pDf->m_pPipeIdMap, pPipe);
     if (!DT_SUCCESS(Status))
     {
@@ -360,7 +372,8 @@ DtStatus DtDfNw_InitPipeRxNrt(DtDfNw* pDf)
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_InitPipeTxNrt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtDfNw_InitPipeTxNrt(DtDfNw* pDf, DtBcCDMACTO* pBcCdma)
+DtStatus DtDfNw_InitPipeTxNrt(DtDfNw* pDf, DtBcCDMACTO* pBcCdma, 
+                                                              DtBcBURSTFIFO* pBcBurstFifo)
 {
     DtStatus Status = DT_STATUS_OK;
     DtPipe* pPipe = DtPipe_Open(NULL, (DtObject*)pDf, DT_PIPE_TX_NRT, 
@@ -381,6 +394,7 @@ DtStatus DtDfNw_InitPipeTxNrt(DtDfNw* pDf, DtBcCDMACTO* pBcCdma)
     pDf->m_NumStaticPipes++;
     pDf->m_IdMapTxNrt = pDf->m_NumStaticPipes;
     pTxNrt->m_pBcCdma = pBcCdma;
+    pTxNrt->m_pBurstFifo = pBcBurstFifo;
     DT_ASSERT(pPipe->m_Id == DtVectorPipe_Size(pDf->m_pPipeIdMap));
     return Status;
 }
@@ -471,19 +485,18 @@ Bool  DtDfNw_IsPacketForNetworkDriver(DtDfNw* pDf, UInt8* pPacket)
     
     if (!ETH_IS_MULTICAST(pEthIIHeader->m_DstMac))     // It's a unicast
     {
+        UInt8 MacAddr[6];
         if ((pDf->m_PacketFilter & DT_MAC_FLT_DIRECTED) == 0)
             return FALSE;
+        pDf->m_EMACItf.GetMacAddressCurr(pDf->m_EMACItf.pBcEMAC, MacAddr);
         return 
-            pEthIIHeader->m_DstMac[0] == pDf->m_pBcEMAC10G->m_MacAddrCur[0] &&
-            pEthIIHeader->m_DstMac[1] == pDf->m_pBcEMAC10G->m_MacAddrCur[1] &&
-            pEthIIHeader->m_DstMac[2] == pDf->m_pBcEMAC10G->m_MacAddrCur[2] &&
-            pEthIIHeader->m_DstMac[3] == pDf->m_pBcEMAC10G->m_MacAddrCur[3] &&
-            pEthIIHeader->m_DstMac[4] == pDf->m_pBcEMAC10G->m_MacAddrCur[4] &&
-            pEthIIHeader->m_DstMac[5] == pDf->m_pBcEMAC10G->m_MacAddrCur[5];
+         pEthIIHeader->m_DstMac[0]==MacAddr[0] && pEthIIHeader->m_DstMac[1]==MacAddr[1] &&
+         pEthIIHeader->m_DstMac[2]==MacAddr[2] && pEthIIHeader->m_DstMac[3]==MacAddr[3] &&
+         pEthIIHeader->m_DstMac[4]==MacAddr[4] && pEthIIHeader->m_DstMac[5]==MacAddr[5];
     }
     if (ETH_IS_BROADCAST(pEthIIHeader->m_DstMac))
         return (pDf->m_PacketFilter & DT_MAC_FLT_BROADCAST) != 0;
-
+    
     // It's a multicast
     if ((pDf->m_PacketFilter & DT_MAC_FLT_ALL_MULTICAST) != 0)
         return TRUE;
@@ -505,10 +518,11 @@ Bool  DtDfNw_IsPacketForNetworkDriver(DtDfNw* pDf, UInt8* pPacket)
     DtFastMutexRelease(&pDf->m_MulticastListFastMutex);
     if (!Found)
     {
-        DtDbgOutDf(MAX, NW, pDf, "Multicast %02X:%02X:%02X:%02X:%02X:%02X not in list of %i items",
-            pEthIIHeader->m_DstMac[0], pEthIIHeader->m_DstMac[1], pEthIIHeader->m_DstMac[2],
-            pEthIIHeader->m_DstMac[3], pEthIIHeader->m_DstMac[4], pEthIIHeader->m_DstMac[5],
-            pDf->m_NumMulticasts);
+        DtDbgOutDf(MAX, NW, pDf, 
+          "Multicast %02X:%02X:%02X:%02X:%02X:%02X not in list of %i items",
+          pEthIIHeader->m_DstMac[0], pEthIIHeader->m_DstMac[1], pEthIIHeader->m_DstMac[2],
+          pEthIIHeader->m_DstMac[3], pEthIIHeader->m_DstMac[4], pEthIIHeader->m_DstMac[5],
+          pDf->m_NumMulticasts);
     }
     return Found;
 }
@@ -632,6 +646,7 @@ DtStatus  DtDfNw_Init(DtDf* pDfBase)
     DtSpinLockInit(&pDf->m_PerItvSpinLock);
     DtSpinLockInit(&pDf->m_OpModeCBSpinlock);
     DtFastMutexInit(&pDf->m_MulticastListFastMutex);
+    DtFastMutexInit(&pDf->m_RxRtSwpPortMapFMutex);
     pDf->m_NumMulticasts = 0;
 
     pDf->m_PerItvEnable = FALSE;
@@ -675,27 +690,26 @@ DtStatus  DtDfNw_Init(DtDf* pDfBase)
 //
 DtStatus  DtDfNw_LoadParameters(DtDf*  pDfBase)
 {
-    /*DtStatus  Status = DT_STATUS_OK;
+    DtStatus  Status = DT_STATUS_OK;
     DtDfNw* pDf = (DtDfNw*)pDfBase;
 
     // List of Template function parameters
     DtDfParameters  DFNw_PARS[] =
     {
         // Name,  Value Type,  Value*
-        { "PHY_PORT", PROPERTY_VALUE_TYPE_INT, &(pDf->m_PhyPort) },
+        { "PACKET_ALIGNMENT", PROPERTY_VALUE_TYPE_INT, &(pDf->m_PacketAlignment) },
     };
 
     // Sanity checks
     DF_NW_DEFAULT_PRECONDITIONS(pDf);
 
     // Set defaults
-    pDf->m_PhyPort = -1;
+    pDf->m_PacketAlignment = 8;
     
     // Load parameters from property store
     Status = DtDf_LoadParameters(pDfBase, DT_SIZEOF_ARRAY(DFNw_PARS), DFNw_PARS);
     if (!DT_SUCCESS(Status))
         return Status;
-    */
     return DT_STATUS_OK;
 }
 
@@ -721,12 +735,14 @@ DtStatus DtDfNw_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         // Operational mode must be IDLE
         DT_ASSERT(pDf->m_OperationalMode == DT_FUNC_OPMODE_IDLE);
 
-        // Set operational mode of childs to IDLE
-       DT_RETURN_ON_ERROR(DtBcEMAC10G_SetOperationalMode(pDf->m_pBcEMAC10G,
+       // Set operational mode of childs to IDLE
+       DT_RETURN_ON_ERROR(pDf->m_EMACItf.SetOperationalMode(pDf->m_EMACItf.pBcEMAC,
                                                                    DT_BLOCK_OPMODE_IDLE));
-        DT_RETURN_ON_ERROR(DtBcIPSUMCHK_SetOperationalMode(pDf->m_pBcIpSumChk, 
+       if (pDf->m_pBcIpSumChk != NULL)
+            DT_RETURN_ON_ERROR(DtBcIPSUMCHK_SetOperationalMode(pDf->m_pBcIpSumChk, 
                                                                    DT_BLOCK_OPMODE_IDLE));
-        DT_RETURN_ON_ERROR(DtBcIPSUMINS_SetOperationalMode(pDf->m_pBcIpSumIns, 
+       if (pDf->m_pBcIpSumIns != NULL)
+            DT_RETURN_ON_ERROR(DtBcIPSUMINS_SetOperationalMode(pDf->m_pBcIpSumIns, 
                                                                    DT_BLOCK_OPMODE_IDLE));
         //DT_RETURN_ON_ERROR(DtDfIpFifo_SetOperationalMode(pDf->m_pDfIpFifoRxHwq, 
         //                                                          DT_FUNC_OPMODE_IDLE));
@@ -775,15 +791,15 @@ DtStatus DtDfNw_OnEnablePreChildren(DtDf* pDfBase, Bool Enable)
         {
             DtString  Str;
             DtDbgOutDf(ERR, NW, pDf, "Hardware problem detected. Operating in reduced"
-                " functionality mode.");
+                                                                  " functionality mode.");
             DtStringAlloc(&Str, 256);
             DtStringAppendChars(&Str, "[SN=");
             DtStringUInt64ToDtStringAppend(&Str, 10, pDf->m_pCore->m_pDevInfo->m_Serial);
             DtStringAppendChars(&Str, "] ");
             DtStringAppendChars(&Str, "Hardware problem detected. Operating in reduced"
-                " functionality mode.");
+                                                                  " functionality mode.");
             DtEvtLogReport(&pDf->m_pCore->m_Device.m_EvtObject,
-                DTPCIE_LOG_ERROR_GENERIC, &Str, NULL, NULL);
+                                              DTPCIE_LOG_ERROR_GENERIC, &Str, NULL, NULL);
             DtStringFree(&Str);
         }
     }
@@ -849,7 +865,7 @@ static DtStatus  DtDfNw_OnCloseFile(DtDf* pDfBase, const DtFileObject* pFile)
             DtDbgOutDf(ERR, NW, pDf, "ERROR: failed to set operational mode to IDLE");
         }
     }
-    DtDbgOutDf(ERR, NW, pDf, "Check for closing pipe. FileObject: %p", 
+    DtDbgOutDf(AVG, NW, pDf, "Check for closing pipe. FileObject: %p", 
                                                    DtFileGetHandle((DtFileObject*)pFile));
 
     // Clean up pipes still in use by the closing file handle
@@ -867,6 +883,73 @@ static DtStatus  DtDfNw_OnCloseFile(DtDf* pDfBase, const DtFileObject* pFile)
 
     // Use base function to release exclusive access
     return DtDf_OnCloseFile((DtDf*)pDf, pFile);
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNwInitMacItf -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtDfNwInitMacItf(DtDfNw* pDf, DtBcEMAC10G* pBcEMAC10G, DtBcEMAC25G* pBcEMAC25G)
+{
+    if (pBcEMAC10G != NULL)
+    {
+        pDf->m_EMACItf.pBcEMAC = (DtBc*)pBcEMAC10G;
+        pDf->m_EMACItf.GetOperationalMode = (DtMacGetOperationalModeFunc)DtBcEMAC10G_GetOperationalMode;
+        pDf->m_EMACItf.SetOperationalMode = (DtMacSetOperationalModeFunc)DtBcEMAC10G_SetOperationalMode;
+        pDf->m_EMACItf.GetCounter = (DtMacGetCounterFunc)DtBcEMAC10G_GetCounter;
+        pDf->m_EMACItf.GetSupportedCounters = (DtMacGetSupportedCountersFunc)DtBcEMAC10G_GetSupportedCounters;
+        pDf->m_EMACItf.GetPhySpeed = (DtMacGetPhySpeedFunc)DtBcEMAC10G_GetPhySpeed;
+        pDf->m_EMACItf.SetPhySpeed = NULL;
+        pDf->m_EMACItf.GetMacAddressPerm = (DtMacGetMacAddressPermFunc)DtBcEMAC10G_GetMacAddressPerm;
+        pDf->m_EMACItf.GetMacAddressCurr = (DtMacGetMacAddressCurrFunc)DtBcEMAC10G_GetMacAddressCurr;
+        pDf->m_EMACItf.SetMacAddress = (DtMacSetMacAddressFunc)DtBcEMAC10G_SetMacAddress;
+        pDf->m_EMACItf.RegisterLinkCallback = (DtMacRegisterLinkCallbackFunc)DtBcEMAC10G_RegisterLinkCallback;
+        pDf->m_EMACItf.UnregisterLinkCallback = (DtMacUnregisterLinkCallbackFunc)DtBcEMAC10G_UnregisterLinkCallback;
+        pDf->m_EMACItf.GetLinkStatus = (DtMacGetLinkStatusFunc)DtBcEMAC10G_GetLinkStatus;
+        pDf->m_EMACItf.SetSfpCapabilities = NULL;
+        pDf->m_EMACItf.SetSfpIntCallbackFunc = NULL;
+
+        return DT_STATUS_OK;
+    } else if (pBcEMAC25G != NULL)
+    {
+        pDf->m_EMACItf.pBcEMAC = (DtBc*)pBcEMAC25G;
+        pDf->m_EMACItf.GetOperationalMode = (DtMacGetOperationalModeFunc)DtBcEMAC25G_GetOperationalMode;
+        pDf->m_EMACItf.SetOperationalMode = (DtMacSetOperationalModeFunc)DtBcEMAC25G_SetOperationalMode;
+        pDf->m_EMACItf.GetCounter = (DtMacGetCounterFunc)DtBcEMAC25G_GetCounter;
+        pDf->m_EMACItf.GetSupportedCounters = (DtMacGetSupportedCountersFunc)DtBcEMAC25G_GetSupportedCounters;
+        pDf->m_EMACItf.GetPhySpeed = (DtMacGetPhySpeedFunc)DtBcEMAC25G_GetPhySpeed;
+        pDf->m_EMACItf.SetPhySpeed = (DtMacSetPhySpeedFunc)DtBcEMAC25G_SetPhySpeed;
+        pDf->m_EMACItf.GetMacAddressPerm = (DtMacGetMacAddressPermFunc)DtBcEMAC25G_GetMacAddressPerm;
+        pDf->m_EMACItf.GetMacAddressCurr = (DtMacGetMacAddressCurrFunc)DtBcEMAC25G_GetMacAddressCurr;
+        pDf->m_EMACItf.SetMacAddress = (DtMacSetMacAddressFunc)DtBcEMAC25G_SetMacAddress;
+        pDf->m_EMACItf.RegisterLinkCallback = (DtMacRegisterLinkCallbackFunc)DtBcEMAC25G_RegisterLinkCallback;
+        pDf->m_EMACItf.UnregisterLinkCallback = (DtMacUnregisterLinkCallbackFunc)DtBcEMAC25G_UnregisterLinkCallback;
+        pDf->m_EMACItf.GetLinkStatus = (DtMacGetLinkStatusFunc)DtBcEMAC25G_GetLinkStatus;
+        pDf->m_EMACItf.SetSfpCapabilities = (DtMacSetSfpCapabilitiesFunc)DtBcEMAC25G_SetSfpCapabilities;
+        pDf->m_EMACItf.SetSfpIntCallbackFunc = (DtMacSetSfpIntCallbackFunc)DtBcEMAC25G_SetSfpIntCallbackFunc;
+        return DT_STATUS_OK;
+    }
+    return DT_STATUS_NOT_SUPPORTED;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_SfpIntCallbackWi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+void DtDfNw_SfpIntCallbackWi(UInt SfpStatus, void* pContext)
+{
+    DtDfNw* pDf = (DtDfNw*)pContext;
+#ifdef WINBUILD
+    DT_ASSERT(KeGetCurrentIrql() <= APC_LEVEL);
+#endif
+    DT_ASSERT(pDf->m_pDfSfp!=NULL && pDf->m_EMACItf.SetSfpCapabilities!=NULL);
+    if (SfpStatus == SFP_INT_STAT_PRESENT)
+    {
+        UInt Capabilities = 0;
+        // We wait 300ms before reading the EEPROM to give some time to initialize the 
+        // 2-wire interface on a SFP module after inserting. 
+        // In SFF-8431 Rev 4.1 + Addendum:
+        // table7: Time to initialize 2-wire interface (t_2w_start_up) is max 300ms.
+        DtSleep(300);
+        DtDfSfp_GetSfpCapabilities(pDf->m_pDfSfp, &Capabilities);
+        pDf->m_EMACItf.SetSfpCapabilities(pDf->m_EMACItf.pBcEMAC, Capabilities);
+    }
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_OpenChildren -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -890,6 +973,10 @@ DtStatus  DtDfNw_OpenChildren(DtDfNw* pDf)
     DtBcCDMACTO* pBcCdmaTxNrtHwq = NULL;
     DtBcETHIPPAD* pEthIpPadRxHwq = NULL;
     DtBcDDRFIFO* pDdrFifoRxHwq = NULL;
+    DtBcEMAC10G* pBcEMAC10G = NULL;
+    DtBcEMAC25G* pBcEMAC25G = NULL;
+    DtBcBURSTFIFO* pBurstFifoRxHwq = NULL;
+    DtBcBURSTFIFO* pBcBurstFifoTxNrt = NULL;
     
     // List of children supported by the DfNw function
     DtDfSupportedChild  SUPPORTED_CHILDREN[] =
@@ -899,24 +986,30 @@ DtStatus  DtDfNw_OpenChildren(DtDfNw* pDf)
             BC_ROLE_NONE, (DtObjectBcOrDf**)(&pEthIpPadRxHwq), FALSE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_DDRFIFO, DT_BC_DDRFIFO_NAME,
             BC_ROLE_NONE, (DtObjectBcOrDf**)(&pDdrFifoRxHwq), FALSE},
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_BURSTFIFO, DT_BC_BURSTFIFO_NAME,
+            ROLE_RX_HWQ, (DtObjectBcOrDf**)(&pBurstFifoRxHwq), FALSE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
             ROLE_RX_HWQ, (DtObjectBcOrDf**)(&pBcCdmaRxHwq), TRUE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
             ROLE_TX_NRT_HWQ, (DtObjectBcOrDf**)(&pBcCdmaTxNrtHwq), TRUE},
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_BURSTFIFO, DT_BC_BURSTFIFO_NAME,
+            ROLE_TX_NRT_HWQ, (DtObjectBcOrDf**)(&pBcBurstFifoTxNrt), FALSE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
-            ROLE_TX_RT_HWQ, (DtObjectBcOrDf**)(&pBcCdmaTxRtHwq), TRUE },
+            ROLE_TX_RT_HWQ, (DtObjectBcOrDf**)(&pBcCdmaTxRtHwq), FALSE },
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_BURSTFIFO, DT_BC_BURSTFIFO_NAME,
             ROLE_TX_RT_HWQ, (DtObjectBcOrDf**)(&pBcBurstFifoTxRtHwq), FALSE},
         { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_IPFIFO, DT_DF_IPFIFO_NAME,
             ROLE_TX_RT_HWQ, (DtObjectBcOrDf**)(&pDfIpFifoTxRtHwq), FALSE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_EMAC10G, DT_BC_EMAC10G_NAME,
-            BC_EMAC10G_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcEMAC10G), TRUE},
+            BC_EMAC_ROLE_NONE, (DtObjectBcOrDf**)(&pBcEMAC10G), FALSE},
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_EMAC25G, DT_BC_EMAC25G_NAME,
+            BC_EMAC_ROLE_NONE, (DtObjectBcOrDf**)(&pBcEMAC25G), FALSE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_IPSUMCHK, DT_BC_IPSUMCHK_NAME,
             BC_IP_SUMCHK_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcIpSumChk), TRUE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_IPSUMINS, DT_BC_IPSUMINS_NAME,
             BC_IP_SUMINS_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcIpSumIns), TRUE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_IPSCHED, DT_BC_IPSCHED_NAME,
-            BC_IP_SCHED_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pIpSched), TRUE},
+            BC_IP_SCHED_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcIpSched), TRUE},
         { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_IPFIFO, DT_DF_IPFIFO_NAME,
             ROLE_RX_HWQ, (DtObjectBcOrDf**)(&pDfIpFifoRxHwq), FALSE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
@@ -934,6 +1027,9 @@ DtStatus  DtDfNw_OpenChildren(DtDfNw* pDf)
         { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_IPFIFO, DT_DF_IPFIFO_NAME,
             ROLE_TX_HWP, (DtObjectBcOrDf**)(&pDfIpFifoTxRtHwp[0]), FALSE,
             MAX_NUMBER_RT_HW_PIPES},
+        { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_SFP, DT_DF_SFP_NAME,
+            DF_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pDfSfp), FALSE},
+        
     };
 
     DF_NW_DEFAULT_PRECONDITIONS(pDf);
@@ -955,37 +1051,42 @@ DtStatus  DtDfNw_OpenChildren(DtDfNw* pDf)
     if (!DT_SUCCESS(Status))
         return Status;
 
+    Status = DtDfNwInitMacItf(pDf, pBcEMAC10G, pBcEMAC25G);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    if (pDf->m_EMACItf.SetSfpIntCallbackFunc != NULL)
+        pDf->m_EMACItf.SetSfpIntCallbackFunc(pDf->m_EMACItf.pBcEMAC, 
+                                              (DtSfpIntFunc)DtDfNw_SfpIntCallbackWi, pDf);
+
     Status = DtDfNw_InitPipeRxNrt(pDf);
     if (Status != DT_STATUS_OK)
         return Status;
 
-    Status = DtDfNw_InitPipeTxNrt(pDf, pBcCdmaTxNrtHwq);
+    Status = DtDfNw_InitPipeTxNrt(pDf, pBcCdmaTxNrtHwq, pBcBurstFifoTxNrt);
     if (Status != DT_STATUS_OK)
         return Status;
 
-    // TODO: Make EthIpPad and DdrfifoRxHwq 1 DF?? 
     Status = DtDfNw_InitPipeRxHwq(pDf, pBcCdmaRxHwq, pDfIpFifoRxHwq, pEthIpPadRxHwq, 
-                                                                           pDdrFifoRxHwq);
+                                                          pDdrFifoRxHwq, pBurstFifoRxHwq);
     if (Status != DT_STATUS_OK)
         return Status;
     
-    Status = DtDfNw_InitPipeTxRtHwq(pDf, pDf->m_pIpSched, pBcCdmaTxRtHwq,
+    Status = DtDfNw_InitPipeTxRtHwq(pDf, pDf->m_pBcIpSched, pBcCdmaTxRtHwq,
                                                    pBcBurstFifoTxRtHwq, pDfIpFifoTxRtHwq);
     if (Status != DT_STATUS_OK)
         return Status;
-
-    Status = DtDfNw_InitPipeTxRtHwp(pDf, pDf->m_pIpSched, pBcCdmaTxRtHwp, 
+    Status = DtDfNw_InitPipeTxRtHwp(pDf, pDf->m_pBcIpSched, pBcCdmaTxRtHwp, 
                                                    pBcBurstFifoTxRtHwp, pDfIpFifoTxRtHwp);
     if (Status != DT_STATUS_OK)
         return Status;
     Status = DtDfNw_InitPipeRxRtHwp(pDf, pBcCdmaRxRtHwp, pBcIpRoutRxRtHwp);
     if (Status != DT_STATUS_OK)
         return Status;
-
     return DT_STATUS_OK;
 }
 
-#define TOD_TO_NS(TOD) (TOD->m_TodSeconds * 1000000000 + TOD->m_TodNanoseconds)
+#define TOD_TO_NS(TOD) ((UInt64)TOD->m_TodSeconds * 1000000000 + TOD->m_TodNanoseconds)
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_IsTimeEarlier -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -1267,7 +1368,8 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
     DtPipe_IssuePipeFlush(pPipe);
 
     // Create kernel buffer for this pipe
-    Status = DtPipe_SetSharedBufferKernel(pPipe, RX_HWQ_BUFSIZE, &BufSize, NULL, &pBuffer);
+    Status = DtPipe_SetSharedBufferKernel(pPipe, RX_HWQ_BUFSIZE, &BufSize, NULL, 
+                                                                                &pBuffer);
     if (!DT_SUCCESS(Status))
         DtDbgOutPipe(ERR, pPipe, "ERROR: DtPipe_SetSharedBufferKernel. Status: %08xh",
                                                                                   Status);
@@ -1381,7 +1483,7 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
                 Int VlanId1 = 0;
                 EthernetIIHeader* pEthIIHdr;
                 EthernetIIHeaderVlan* pEthIIHdrVlan;
-                Int i;
+                DtRxRtSwpLinkedListEl* pSwpEl;
 
                 Int HeaderSize = (Int)(pEthIpHeader->m_PortOffset*4) + sizeof(UdpHeader);
                 if (HeaderSize > NumBytesToEnd)
@@ -1428,43 +1530,47 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
                     }
                 }
 
-                DtFastMutexAcquire(&pDf->m_PipeRxRtSwpListFMutex);
-                // Loop through all realtime software pipes and copy received packet to
-                // the pipe listening for this IP stream
-                for (i = 0; i < DtVectorPipe_Size(pDf->m_pPipeRxRtSwpList); i++)
+                //DtFastMutexAcquire(&pDf->m_PipeRxRtSwpListFMutex);
+                DtFastMutexAcquire(&pDf->m_RxRtSwpPortMapFMutex);
+
+                // Lookup DstPort in table and loop through all realtime software pipes 
+                // listening for this DstPort IP stream
+                pSwpEl = pDf->m_RxRtSwpPortMap[DstPort];
+                while (pSwpEl != NULL)
                 {
-                    DtPipeSwp* pSwp = (DtPipeSwp*)DtVectorPipe_At(pDf->m_pPipeRxRtSwpList, 
-                                                                                       i);
-                    if (DtPipe_IsPacketForPipe((DtPipeRxRtSwp*)pSwp, pDstIp, DstPort,
+                    DtPipeRxRtSwp* pRxRtSwp = pSwpEl->m_pPipe;
+                    if (DtPipe_IsPacketForPipe((DtPipeRxRtSwp*)pRxRtSwp, pDstIp, DstPort,
                                                 pSrcIp, SrcPort, VlanId0, VlanId1, Flags))
                     {
                         // Copy packet to software receive pipe
-                        Status = DtPipe_CopyData(pPipe, ReadOffset, (DtPipe*)pSwp, 
+                        Status = DtPipe_CopyData(pPipe, ReadOffset, (DtPipe*)pRxRtSwp,
                                                                               PacketSize);
                         if (Status == DT_STATUS_BUFFER_OVERFLOW)
-                            DtDbgOutPipe(ERR, pSwp, "Shared buffer overflow."
+                            DtDbgOutPipe(ERR, pRxRtSwp, "Shared buffer overflow."
                                                                 " Skip received packet.");
 
                         // Check if we need to inform the receiver by triggering an event
-                        if (DtPipe_IsDataAvailCntEvent((DtPipe*)pSwp))
+                        if (DtPipe_IsDataAvailCntEvent((DtPipe*)pRxRtSwp))
                         {
-                            pSwp->m_TrigEvtCnt++;
-                            if (pSwp->m_TrigEvtCnt >= pSwp->m_TrigEvtMaxCnt)
+                            pRxRtSwp->m_TrigEvtCnt++;
+                            if (pRxRtSwp->m_TrigEvtCnt >= pRxRtSwp->m_TrigEvtMaxCnt)
                             {
-                                DtPipe_TriggerEvent((DtPipe*)pSwp);
-                                pSwp->m_TrigEvtCnt = 0;
+                                DtPipe_TriggerEvent((DtPipe*)pRxRtSwp);
+                                pRxRtSwp->m_TrigEvtCnt = 0;
                             }
                         }
-                        if (DtPipe_IsDataAvailThrEvent((DtPipe*)pSwp) && 
-                                                             pSwp->m_TrigEvtCnt != IntCnt)
+                        if (DtPipe_IsDataAvailThrEvent((DtPipe*)pRxRtSwp) &&
+                                                         pRxRtSwp->m_TrigEvtCnt != IntCnt)
                         {
-                            pSwp->m_TrigEvtCnt = IntCnt;
-                            DtPipe_TriggerEvent((DtPipe*)pSwp);
+                            pRxRtSwp->m_TrigEvtCnt = IntCnt;
+                            DtPipe_TriggerEvent((DtPipe*)pRxRtSwp);
                         }
                         PacketForRtPipe = TRUE;
                     }
+                    pSwpEl = pSwpEl->m_pNext;
                 }
-                DtFastMutexRelease(&pDf->m_PipeRxRtSwpListFMutex);
+                DtFastMutexRelease(&pDf->m_RxRtSwpPortMapFMutex);
+                //DtFastMutexRelease(&pDf->m_PipeRxRtSwpListFMutex);
             }
 
             if (!PacketForRtPipe && DtDfNw_IsPacketForNetworkDriver(pDf, pPacket))
@@ -1548,7 +1654,7 @@ DtStatus DtDfNw_PipeOpen(DtDfNw* pDf, const DtFileObject* pFileObject, Int PipeT
     case DT_PIPE_RX_NRT:
         DtFastMutexAcquire(&pDf->m_PipeRxNrtFMutex);
         pPipe = DtVectorPipe_At(pDf->m_pPipeIdMap, pDf->m_IdMapRxNrt-1);
-        if (pPipe->m_InUse)
+        if (pPipe==NULL || pPipe->m_InUse)
             Status = DT_STATUS_IN_USE;
         else
         {
@@ -1561,7 +1667,7 @@ DtStatus DtDfNw_PipeOpen(DtDfNw* pDf, const DtFileObject* pFileObject, Int PipeT
         DtFastMutexAcquire(&pDf->m_PipeTxNrtFMutex);
 
         pPipe = DtVectorPipe_At(pDf->m_pPipeIdMap, pDf->m_IdMapTxNrt-1);
-        if (pPipe->m_InUse)
+        if (pPipe==NULL || pPipe->m_InUse)
             Status = DT_STATUS_IN_USE;
         else
         {
@@ -1572,7 +1678,7 @@ DtStatus DtDfNw_PipeOpen(DtDfNw* pDf, const DtFileObject* pFileObject, Int PipeT
         break;
     case DT_PIPE_RX_HWQ:
         pPipe = DtVectorPipe_At(pDf->m_pPipeIdMap, pDf->m_IdMapRxHwq-1);
-        if (pPipe->m_InUse)
+        if (pPipe==NULL || pPipe->m_InUse)
             Status = DT_STATUS_IN_USE;
         else
         {
@@ -1582,7 +1688,7 @@ DtStatus DtDfNw_PipeOpen(DtDfNw* pDf, const DtFileObject* pFileObject, Int PipeT
         break;
     case DT_PIPE_TX_RT_HWQ:
         pPipe = DtVectorPipe_At(pDf->m_pPipeIdMap, pDf->m_IdMapTxRtHwq-1);
-        if (pPipe->m_InUse)
+        if (pPipe==NULL || pPipe->m_InUse)
             Status = DT_STATUS_IN_USE;
         else
         {
@@ -1601,6 +1707,11 @@ DtStatus DtDfNw_PipeOpen(DtDfNw* pDf, const DtFileObject* pFileObject, Int PipeT
         {
             pVectorPipe = pDf->m_pPipeTxRtHwpList;
             pFastMutex = &pDf->m_PipeTxRtHwpListFMutex;
+        }
+        if (pVectorPipe == NULL)
+        {
+            Status = DT_STATUS_OUT_OF_RESOURCES;
+            break;
         }
         // Search for a HW port not in use
         DtFastMutexAcquire(pFastMutex);
@@ -1806,6 +1917,18 @@ DtStatus DtDfNw_PipeClose(DtDfNw* pDf, const DtFileObject* pFileObject, Int Pipe
         Index = DtVectorPipe_FindPipeIndex(pVectorPipe, pPipe);
         if (Index != -1)
             DtVectorPipe_Erase(pVectorPipe, Index);
+
+        if (PipeType == DT_PIPE_RX_RT_SWP)
+        {
+            DtPipeRxRtSwp* pSwPipe = (DtPipeRxRtSwp*)pPipe;
+            // Remove pipe from Port mapping if still in mapping
+            if (pSwPipe->m_IpParsSet)
+            {
+                DtFastMutexAcquire(&pDf->m_RxRtSwpPortMapFMutex);
+                DtDfNw_RemovePipeFromPortmap(pDf, pSwPipe);
+                DtFastMutexRelease(&pDf->m_RxRtSwpPortMapFMutex);
+            }
+        }
         DtPipe_Close(pPipe);
         DtFastMutexRelease(pFastMutex);
         break;
@@ -1832,7 +1955,7 @@ DtStatus DtDfNw_CheckFilterDuplication(DtDfNw* pDf)
     DtFastMutexAcquire(&pDf->m_PipeRxRtSwpListFMutex);
     DtFastMutexAcquire(&pDf->m_PipeRxRtHwpListFMutex);
 
-    // Loop all Hwp's snd Swp's
+    // Loop all Hwp's and Swp's
     for (i = 0; i < DtVectorPipe_Size(pDf->m_pPipeRxRtHwpList); i++)
     {
         DtPipeRxRtHwp* pHwp = (DtPipeRxRtHwp*)DtVectorPipe_At(pDf->m_pPipeRxRtHwpList, i);
@@ -1935,6 +2058,143 @@ DtStatus DtDfNw_RegisterKEvent(DtPipe* pPipe, DtEvent* pEvent, Int Id)
     return DtDfNw_RegisterEvent(pPipe, &TrigEvtDriver, 0);
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtNwAddPipeToPortmap -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Pre: Mutex of Swp port map is aquired
+//
+DtStatus DtDfNw_AddPipeToPortmap(DtDfNw* pDf, DtPipeRxRtSwp* pPipe)
+{
+    Int i = 0;
+    Int FlagMask = DT_PIPE_IPFLT_FLAG_EN_DSTPORT0;
+    DtDbgOutPipe(ERR, pPipe, "Add pipe to portmap");
+
+    for (i = 0; i < 3; i++)
+    {
+        if ((pPipe->m_Flags & FlagMask) != 0)
+        {
+            UInt16 DstPort = pPipe->m_DstPort[i];
+
+            DT_ASSERT(pPipe->m_LinkedListEl[i].Index==i &&
+                pPipe->m_LinkedListEl[i].m_pPipe==pPipe &&
+                pPipe->m_LinkedListEl[i].m_pNext==NULL &&
+                pPipe->m_LinkedListEl[i].m_pPrev==NULL);
+
+            if (pDf->m_RxRtSwpPortMap[DstPort] == NULL)
+            {
+                // No entries in list
+                pDf->m_RxRtSwpPortMap[DstPort] = &pPipe->m_LinkedListEl[i];
+                DtDbgOutPipe(ERR, pPipe, 
+                         "Pipe added as first entry for DstPort:%i index:%i", DstPort, i);
+            }
+            else
+            {
+                // Add entry at the front of list if not already in this list
+                if (pDf->m_RxRtSwpPortMap[DstPort]->m_pPipe == pPipe)
+                {
+                    // Pipe already in this list, skip
+                    DtDbgOutPipe(ERR, pPipe, 
+                              "Pipe already in list for DstPort:%i index:%i", DstPort, i);
+                }
+                else
+                {
+                    pDf->m_RxRtSwpPortMap[DstPort]->m_pPrev = &(pPipe->m_LinkedListEl[i]);
+                    pPipe->m_LinkedListEl[i].m_pNext = pDf->m_RxRtSwpPortMap[DstPort];
+                    pDf->m_RxRtSwpPortMap[DstPort] = &pPipe->m_LinkedListEl[i];
+                    DtDbgOutPipe(ERR, pPipe, 
+                               "Pipe added to front for DstPort:%i index:%i", DstPort, i);
+                }
+            }
+        }
+        FlagMask = FlagMask << 1;
+    }
+#ifdef _DEBUG
+    for (i = 0; i < 0xFFFF + 1; i++)
+    {
+        DtRxRtSwpLinkedListEl* pEl = pDf->m_RxRtSwpPortMap[i];
+        Int j = 0;
+        if (pEl != NULL)
+            DtDbgOutDf(ERR, NW, pDf, "Listening on DST port %i:", i);
+        while (pEl != NULL)
+        {
+            DtDbgOutPipe(ERR, pEl->m_pPipe, "[%i] Pipe index:%i:", j, pEl->Index);
+            j++;
+            pEl = pEl->m_pNext;
+        }
+    }
+#endif
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtNwRemovePipeFromPortmap -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Pre: Mutex of Swp port map is aquired
+//
+DtStatus DtDfNw_RemovePipeFromPortmap(DtDfNw* pDf, DtPipeRxRtSwp* pPipe)
+{
+    Int i = 0;
+    Int FlagMask = DT_PIPE_IPFLT_FLAG_EN_DSTPORT0;
+    DtDbgOutPipe(ERR, pPipe, "Remove pipe from portmap");
+    for (i=0; i<3; i++)
+    {
+        if ((pPipe->m_Flags & FlagMask) != 0)
+        {
+            Int DstPort = pPipe->m_DstPort[i];
+            // Pipe was added to the list or was already in list
+            
+            // If it's the first element, set next element to first element
+            if (pPipe->m_LinkedListEl[i].m_pPrev == NULL)
+            {
+                if (pDf->m_RxRtSwpPortMap[DstPort] != &pPipe->m_LinkedListEl[i])
+                {
+                    DtDbgOutPipe(ERR, pPipe, 
+                       "Pipe not removed from front for DstPort:%i index:%i", DstPort, i);
+                }
+                else
+                {
+                    DtDbgOutPipe(ERR, pPipe, 
+                           "Pipe removed from front for DstPort:%i index:%i", DstPort, i);
+                    pDf->m_RxRtSwpPortMap[DstPort] = pPipe->m_LinkedListEl[i].m_pNext;
+                }
+            }
+            else
+            {
+                DtDbgOutPipe(ERR, pPipe->m_LinkedListEl[i].m_pPrev->m_pPipe, 
+                          "Not first element. Change next of prev element for DstPort:%i", 
+                          DstPort);
+                pPipe->m_LinkedListEl[i].m_pPrev->m_pNext = 
+                                                         pPipe->m_LinkedListEl[i].m_pNext;
+            }
+            if (pPipe->m_LinkedListEl[i].m_pNext != NULL)
+            {
+                DtDbgOutPipe(ERR, pPipe->m_LinkedListEl[i].m_pNext->m_pPipe, 
+                           "Not last element. Change prev of next element for DstPort:%i", 
+                           DstPort);
+                pPipe->m_LinkedListEl[i].m_pNext->m_pPrev = 
+                                                         pPipe->m_LinkedListEl[i].m_pPrev;
+            }
+            pPipe->m_LinkedListEl[i].m_pNext = NULL;
+            pPipe->m_LinkedListEl[i].m_pPrev = NULL;
+        }
+        FlagMask = FlagMask << 1;
+    }
+#ifdef _DEBUG
+    for (i = 0; i < 0xFFFF + 1; i++)
+    {
+        DtRxRtSwpLinkedListEl* pEl = pDf->m_RxRtSwpPortMap[i];
+        Int j = 0;
+        if (pEl != NULL)
+            DtDbgOutDf(ERR, NW, pDf, "Listening on DST port %i:", i);
+        while (pEl != NULL)
+        {
+            DtDbgOutPipe(ERR, pEl->m_pPipe, "[%i] Pipe index:%i:", j, pEl->Index);
+            j++;
+            pEl = pEl->m_pNext;
+        }
+    }
+#endif
+    return DT_STATUS_OK;
+}
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubDfNw implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -1945,10 +2205,12 @@ DtStatus DtDfNw_RegisterKEvent(DtPipe* pPipe, DtEvent* pEvent, Int Id)
 // Helper macro to cast stub's DtDf member to DtDfNw
 #define STUB_NW   ((DtIoStubDfNw*)pStub)
 #define STUB_DF  ((DtDfNw*)STUB_NW->m_pDf)
-
+#define STUB_EMAC  (STUB_DF->m_EMACItf)
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 static DtStatus DtIoStubDfNwOnCmd(const DtIoStub* pStub, 
                                              DtIoStubIoParams* pIoParams, Int * pOutSize);
+static DtStatus  DtIoStubDfNw_AppendDynamicSize(const DtIoStub* pStub,
+                                                             DtIoStubIoParams* pIoParams);
 static DtStatus  DtIoStubDfNwOnCmdGetOperationalMode(const DtIoStubDfNw*,
                                                       DtIoctlNwCmdGetOpModeOutput*);
 static DtStatus  DtIoStubDfNwOnCmdSetOperationalMode(const DtIoStubDfNw*,
@@ -1991,6 +2253,8 @@ static DtStatus DtIoStubDfNwOnCmdSetIpFilter(const DtIoStubDfNw* pStub, DtPipe*,
                                            const DtIoctlPipeCmdSetIpFilterInput* pInData);
 static DtStatus  DtIoStubDfEMACOnCmd(const DtIoStub* pStub,
                                               DtIoStubIoParams* pIoParams, Int* pOutSize);
+static DtStatus  DtIoStubDfEMAC_AppendDynamicSize(const DtIoStub* pStub,
+                                                             DtIoStubIoParams* pIoParams);
 static DtStatus  DtIoStubDfNw_OnCmdGetMacAddressPerm(const DtIoStubDfNw* pStub,
                                          DtIoctlEMACCmdGetMacAddressPermOutput* pOutData);
 static DtStatus  DtIoStubDfNw_OnCmdSetMacAddress(const DtIoStubDfNw* pStub,
@@ -2008,6 +2272,9 @@ static DtStatus  DtIoStubDfNw_OnCmdGetPacketFilter(const DtIoStubDfNw* pStub,
 static DtStatus  DtIoStubDfNw_OnCmdGetCounter(const DtIoStubDfNw* pStub,
                                              const DtIoctlEMACCmdGetCounterInput* pInData,
                                              DtIoctlEMACCmdGetCounterOutput* pOutData);
+static DtStatus  DtIoStubDfNw_OnCmdGetSupportedCounters(const DtIoStubDfNw* pStub,
+                                   const DtIoctlEMACCmdGetSupportedCountersInput* pInData,
+                                   DtIoctlEMACCmdGetSupportedCountersOutput* pOutData);
 static DtStatus  DtIoStubDfNw_OnCmdGetLinkStatus(const DtIoStubDfNw* pStub);
 static DtStatus  DtIoStubDfNw_OnCmdGetPhySpeed(const DtIoStubDfNw* pStub,
                                                DtIoctlEMACCmdGetPhySpeedOutput* pOutData);
@@ -2023,6 +2290,9 @@ static DtStatus  DtIoStubDfNwOnCmdRegisterOpModeCallback(const DtIoStubDfNw* pSt
                                   const DtIoctlNwCmdRegisterOpModeCallbackInput* pInData);
 DtStatus  DtIoStubDfPipeOnCmd(const DtIoStub* pStub, DtIoStubIoParams* pIoParams,
                                                                            Int* pOutSize);
+DtStatus  DtIoStubDfNwOnCmdSfpRead(const DtIoStubDfNw* pStub,
+             const DtIoctlNwCmdSfpReadInput* pInData, DtIoctlNwCmdSfpReadOutput* pOutData,
+             const DtFileObject* pFileObject);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- List of supported IOCTL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // First declare IOCTL commands
@@ -2038,10 +2308,10 @@ static const DtIoctlProperties  IOSTUB_DF_NW_IOCTLS[] =
         NULL, NULL),
     DT_IOCTL_PROPS_NW_CMD(
         DtIoStubDfNwOnCmd,
-        NULL, NULL),
+        DtIoStubDfNw_AppendDynamicSize, NULL),
     DT_IOCTL_PROPS_EMAC_CMD(
         DtIoStubDfEMACOnCmd,
-        NULL, NULL),
+        DtIoStubDfEMAC_AppendDynamicSize, NULL),
     DT_IOCTL_PROPS_PIPE_CMD(
         DtIoStubDfPipeOnCmd,
         NULL, NULL),
@@ -2081,8 +2351,37 @@ DtIoStubDfNw*  DtIoStubDfNw_Open(DtDf*  pDf)
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubDfNw - Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+
 
-// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubDfNwOnCmd +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNw_AppendDynamicSize -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtIoStubDfNw_AppendDynamicSize(const DtIoStub* pStub,
+                                                              DtIoStubIoParams* pIoParams)
+{
+    DtStatus Status = DT_STATUS_OK;
+    const DtIoctlNwCmdSfpReadInput* pInData = NULL;
 
+    DT_ASSERT(pStub != NULL && pStub->m_Size == sizeof(DtIoStubDfNw));
+    DT_ASSERT(pIoParams != NULL);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_NW_CMD);
+
+    // Get in-/out-data
+    DT_ASSERT(pIoParams->m_pInData != NULL);
+    pInData = &pIoParams->m_pInData->m_NwCmd.m_SfpRead;
+
+    //-.-.-.-.-.-.- Step 1: Append dynamic part to required size of command -.-.-.-.-.-.-.
+
+    switch (pIoParams->m_Cmd)
+    {
+    case DT_NW_CMD_SFP_READ:
+        // Sanity checks
+        DT_ASSERT(!pIoParams->m_InReqSizeIsDynamic && pIoParams->m_OutReqSizeIsDynamic);
+        DT_ASSERT(pIoParams->m_InReqSize >= sizeof(DtIoctlNwCmdSfpReadInput));
+        DT_ASSERT(pIoParams->m_OutReqSize >= sizeof(DtIoctlNwCmdSfpReadOutput));
+        // Add dynamic size (i.e. #bytes to read)
+        pIoParams->m_OutReqSize += pInData->m_NumToRead;
+        break;
+    }
+    return Status;
+}
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNwOnCmd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtIoStubDfNwOnCmd(const DtIoStub* pStub, DtIoStubIoParams* pIoParams, 
@@ -2142,6 +2441,10 @@ DtStatus  DtIoStubDfNwOnCmd(const DtIoStub* pStub, DtIoStubIoParams* pIoParams,
     case DT_NW_CMD_REGISTER_OPMODE_CALLBACK:
         Status = DtIoStubDfNwOnCmdRegisterOpModeCallback(STUB_NW, 
                                                       &pInData->m_RegisterOpModeCallback);
+        break;
+    case DT_NW_CMD_SFP_READ:
+        Status = DtIoStubDfNwOnCmdSfpRead(STUB_NW, &pInData->m_SfpRead,
+                                                &pOutData->m_SfpRead, pIoParams->m_pFile);
         break;
     default:
         DT_ASSERT(FALSE);
@@ -2215,9 +2518,66 @@ DtStatus  DtIoStubDfNwOnCmdRegisterOpModeCallback(const DtIoStubDfNw* pStub,
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNwOnCmdSfpRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtIoStubDfNwOnCmdSfpRead(const DtIoStubDfNw* pStub,
+             const DtIoctlNwCmdSfpReadInput* pInData, DtIoctlNwCmdSfpReadOutput* pOutData, 
+             const DtFileObject* pFileObject)
+{
+    DtStatus Status = DT_STATUS_OK;
+    NW_STUB_DEFAULT_PRECONDITIONS(pStub);
+    DT_ASSERT(pInData != NULL && pOutData != NULL);
+    pOutData->m_NumBytes = 0;
+    if (STUB_DF->m_pDfSfp == NULL)
+        return DT_STATUS_NOT_SUPPORTED;
+    Status = DtDfSfp_ReadEeprom(STUB_DF->m_pDfSfp, pOutData->m_Buf, 
+                                           pInData->m_StartAddress, pInData->m_NumToRead);
+    if (DT_SUCCESS(Status))
+        pOutData->m_NumBytes = pInData->m_NumToRead;
+    return Status;
+}
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ EMACOnCmd +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfEMAC_AppendDynamicSize -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtIoStubDfEMAC_AppendDynamicSize(const DtIoStub* pStub,
+                                                              DtIoStubIoParams* pIoParams)
+{
+    DtStatus Status = DT_STATUS_OK;
+    const DtIoctlEMACCmdInput* pInData = NULL;
+    
+    DT_ASSERT(pStub != NULL && pStub->m_Size == sizeof(DtIoStubDfNw));
+    DT_ASSERT(pIoParams != NULL);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_EMAC_CMD);
+
+    // Get in-/out-data
+    DT_ASSERT(pIoParams->m_pInData != NULL);
+    pInData = &pIoParams->m_pInData->m_EMACCmd;
+
+    //-.-.-.-.-.-.- Step 1: Append dynamic part to required size of command -.-.-.-.-.-.-.
+
+    switch (pIoParams->m_Cmd)
+    {
+    case DT_EMAC_CMD_SET_MULTICAST_LIST:
+        // Sanity checks
+        DT_ASSERT(!pIoParams->m_InReqSizeIsDynamic && pIoParams->m_OutReqSizeIsDynamic);
+        DT_ASSERT(pIoParams->m_InReqSize >= sizeof(DtIoctlEMACCmdSetMulticastListInput));
+        // Add dynamic size (i.e. #bytes to read)
+        pIoParams->m_InReqSize += pInData->m_SetMulticastList.m_NumItems*8;
+        break;
+    case DT_EMAC_CMD_GET_SUPPORTED_COUNTERS:
+        // Sanity checks
+        DT_ASSERT(!pIoParams->m_InReqSizeIsDynamic && pIoParams->m_OutReqSizeIsDynamic);
+        DT_ASSERT(pIoParams->m_InReqSize >= 
+                                         sizeof(DtIoctlEMACCmdGetSupportedCountersInput));
+        // Add dynamic size (i.e. #bytes to read)
+        pIoParams->m_OutReqSize += pInData->m_GetSupportedCounters.m_MaxCounterIds * 
+                                                                             sizeof(UInt);
+        break;
+    }
+    return Status;
+}
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfEMACOnCmd -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtIoStubDfEMACOnCmd(const DtIoStub* pStub, DtIoStubIoParams* pIoParams,
@@ -2285,6 +2645,11 @@ DtStatus  DtIoStubDfEMACOnCmd(const DtIoStub* pStub, DtIoStubIoParams* pIoParams
         Status = DtIoStubDfNw_OnCmdGetCounter(STUB_NW, &pInData->m_GetCounter,
                                                                  &pOutData->m_GetCounter);
         break;
+    case DT_EMAC_CMD_GET_SUPPORTED_COUNTERS:
+        Status = DtIoStubDfNw_OnCmdGetSupportedCounters(STUB_NW, 
+                                                       &pInData->m_GetSupportedCounters,
+                                                       &pOutData->m_GetSupportedCounters);
+        break;
     case DT_EMAC_CMD_GET_LINKSTATUS:
         // This will trigger the callback function to update the status
         Status = DtIoStubDfNw_OnCmdGetLinkStatus(STUB_NW);
@@ -2321,8 +2686,8 @@ DtStatus  DtIoStubDfNw_OnCmdGetMacAddressPerm(const DtIoStubDfNw* pStub,
 {
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pOutData != NULL);
-    DT_ASSERT(STUB_DF->m_pBcEMAC10G);
-    return DtBcEMAC10G_GetMacAddressPerm(STUB_DF->m_pBcEMAC10G, pOutData->m_Address);
+    DT_ASSERT(STUB_EMAC.pBcEMAC);
+    return STUB_EMAC.GetMacAddressPerm(STUB_EMAC.pBcEMAC, pOutData->m_Address);
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNw_OnCmdSetMacAddress -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2332,9 +2697,8 @@ DtStatus  DtIoStubDfNw_OnCmdSetMacAddress(const DtIoStubDfNw* pStub,
 {
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
-    DT_ASSERT(STUB_DF->m_pBcEMAC10G != NULL);
-    return DtBcEMAC10G_SetMacAddress(STUB_DF->m_pBcEMAC10G, 
-                                                        (UInt8*)&(pInData->m_Address[0]));
+    DT_ASSERT(STUB_EMAC.pBcEMAC);
+    return STUB_EMAC.SetMacAddress(STUB_EMAC.pBcEMAC, (UInt8*)&(pInData->m_Address[0]));
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNw_OnCmdGetMacAddress -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2344,8 +2708,8 @@ DtStatus  DtIoStubDfNw_OnCmdGetMacAddress(const DtIoStubDfNw* pStub,
 {
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pOutData != NULL);
-    DT_ASSERT(STUB_DF->m_pBcEMAC10G);
-    return DtBcEMAC10G_GetMacAddressCurr(STUB_DF->m_pBcEMAC10G, pOutData->m_Address);
+    DT_ASSERT(STUB_EMAC.pBcEMAC);
+    return STUB_EMAC.GetMacAddressCurr(STUB_EMAC.pBcEMAC, pOutData->m_Address);
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNw_OnCmdGetMaxMulticastList -.-.-.-.-.-.-.-.-.-.-.-.
@@ -2378,7 +2742,7 @@ DtStatus  DtIoStubDfNw_OnCmdSetMulticastList(const DtIoStubDfNw* pStub,
                                                                 STUB_DF->m_NumMulticasts);
     for (Items = 0; Items < STUB_DF->m_NumMulticasts; Items++)
     {
-        DtDbgOutDf(AVG, NW, STUB_DF, "[%i] Multicast %02X:%02X:%02X:%02X:%02X:%02X",
+        DtDbgOutIoStubDf(AVG, NW, pStub, "[%i] Multicast %02X:%02X:%02X:%02X:%02X:%02X",
                   Items,
                   STUB_DF->m_MulticastList[Items][0], STUB_DF->m_MulticastList[Items][1], 
                   STUB_DF->m_MulticastList[Items][2], STUB_DF->m_MulticastList[Items][3], 
@@ -2396,7 +2760,8 @@ DtStatus  DtIoStubDfNw_OnCmdSetPacketFilter(const DtIoStubDfNw* pStub,
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
     STUB_DF->m_PacketFilter = pInData->m_PacketFilter;
-    DtBcIPSUMCHK_SetPromicuousMode(STUB_DF->m_pBcIpSumChk, 
+    if (STUB_DF->m_pBcIpSumChk != NULL)
+        DtBcIPSUMCHK_SetPromicuousMode(STUB_DF->m_pBcIpSumChk, 
                                  (pInData->m_PacketFilter & DT_MAC_FLT_PROMISCUOUS) != 0);
     return DT_STATUS_OK;
 }
@@ -2420,9 +2785,27 @@ DtStatus  DtIoStubDfNw_OnCmdGetCounter(const DtIoStubDfNw* pStub,
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
     DT_ASSERT(pOutData != NULL);
-    DT_ASSERT(STUB_DF->m_pBcEMAC10G != NULL);
-    return DtBcEMAC10G_GetCounter(STUB_DF->m_pBcEMAC10G, pInData->m_CounterId,
+    DT_ASSERT(STUB_EMAC.pBcEMAC);
+    return STUB_EMAC.GetCounter(STUB_EMAC.pBcEMAC, pInData->m_CounterId,
                                                                       &pOutData->m_Value);
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNw_OnCmdGetSupportedCounters -.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus  DtIoStubDfNw_OnCmdGetSupportedCounters(const DtIoStubDfNw* pStub,
+                                   const DtIoctlEMACCmdGetSupportedCountersInput* pInData, 
+                                   DtIoctlEMACCmdGetSupportedCountersOutput* pOutData)
+{
+    DtStatus Status = DT_STATUS_OK;
+    NW_STUB_DEFAULT_PRECONDITIONS(pStub);
+    DT_ASSERT(pInData != NULL);
+    DT_ASSERT(pOutData != NULL);
+    DT_ASSERT(STUB_EMAC.pBcEMAC);
+    Status = STUB_EMAC.GetSupportedCounters(STUB_EMAC.pBcEMAC, pInData->m_MaxCounterIds,
+                                       &pOutData->m_NumCounterIds, pOutData->m_CounterId);
+    DtDbgOutIoStubDf(AVG, NW, pStub, "NumSupported counters: %u.", 
+                                                               pOutData->m_NumCounterIds);
+    return Status;
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNw_OnCmdGetLinkStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2431,7 +2814,8 @@ DtStatus  DtIoStubDfNw_OnCmdGetLinkStatus(const DtIoStubDfNw* pStub)
 {
     // This will trigger the callback function to update the status
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
-    return DtBcEMAC10G_GetLinkStatus(STUB_DF->m_pBcEMAC10G);
+    DT_ASSERT(STUB_EMAC.pBcEMAC);
+    return STUB_EMAC.GetLinkStatus(STUB_EMAC.pBcEMAC);
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNw_OnCmdGetPhySpeed -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -2441,7 +2825,8 @@ DtStatus  DtIoStubDfNw_OnCmdGetPhySpeed(const DtIoStubDfNw* pStub,
 {
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pOutData != NULL);
-    return DtBcEMAC10G_GetPhySpeed(STUB_DF->m_pBcEMAC10G, &pOutData->m_Speed);
+    DT_ASSERT(STUB_EMAC.pBcEMAC); 
+    return STUB_EMAC.GetPhySpeed(STUB_EMAC.pBcEMAC, &pOutData->m_Speed);
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNw_OnCmdSetPhySpeed -.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -2451,6 +2836,9 @@ DtStatus  DtIoStubDfNw_OnCmdSetPhySpeed(const DtIoStubDfNw* pStub,
 {
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
+    DT_ASSERT(STUB_EMAC.pBcEMAC);
+    if (STUB_EMAC.SetPhySpeed != NULL)
+        return STUB_EMAC.SetPhySpeed(STUB_EMAC.pBcEMAC, pInData->m_Speed);
     return DT_STATUS_OK;
 }
 
@@ -2461,9 +2849,9 @@ DtStatus  DtIoStubDfNw_OnCmdRegisterCallback(const DtIoStubDfNw* pStub,
 {
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
-    DT_ASSERT(STUB_DF->m_pBcEMAC10G != NULL);
+    DT_ASSERT(STUB_EMAC.pBcEMAC);
 
-    return DtBcEMAC10G_RegisterCallback(STUB_DF->m_pBcEMAC10G, 
+    return STUB_EMAC.RegisterLinkCallback(STUB_EMAC.pBcEMAC,
                                       pInData->m_LinkStatusCallback, pInData->m_pContext);
     return DT_STATUS_OK;
 }
@@ -2475,8 +2863,8 @@ DtStatus  DtIoStubDfNw_OnCmdUnregisterCallback(const DtIoStubDfNw* pStub,
 {
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
-    DT_ASSERT(STUB_DF->m_pBcEMAC10G != NULL);
-    return DtBcEMAC10G_UnregisterCallback(STUB_DF->m_pBcEMAC10G, pInData->m_pContext);
+    DT_ASSERT(STUB_EMAC.pBcEMAC);
+    return STUB_EMAC.UnregisterLinkCallback(STUB_EMAC.pBcEMAC, pInData->m_pContext);
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNw_OnCmdResetNwStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2489,8 +2877,6 @@ DtStatus  DtIoStubDfNw_OnCmdResetNwStatus(
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
     // Nothing to do for now, we moved it to the pipe itself. Issue Flush pipe
-    
-    
     return DT_STATUS_OK;
 }
 
@@ -2723,10 +3109,14 @@ DtStatus DtIoStubDfNwOnCmdReleaseSharedBuffer(const DtIoStubDfNw* pStub, DtPipe*
 DtStatus DtIoStubDfNwOnCmdGetProperties(const DtIoStubDfNw* pStub, DtPipe* pPipe, 
                                               DtIoctlPipeCmdGetPropertiesOutput* pOutData)
 {
+    DtDfNw* pDf = (DtDfNw*)((DtIoStubDf*)pStub)->m_pDf;
+    Int DataWidth = 0;
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pOutData != NULL);
+    // For the PipeDataWidth, we need the DataPath packet alignment requirement configured
+    pOutData->m_PipeDataWidth = pDf->m_PacketAlignment * 8;
     return DtPipe_GetProperties(pPipe, &pOutData->m_Capabilities, 
-            &pOutData->m_PrefetchSize, &pOutData->m_PipeDataWidth, &pOutData->m_PipeType);
+            &pOutData->m_PrefetchSize, &DataWidth, &pOutData->m_PipeType);
 
 }
 
@@ -2795,39 +3185,68 @@ DtStatus  DtIoStubDfNwOnCmdSetTxWriteOffset(const DtIoStubDfNw* pStub, DtPipe* p
 DtStatus DtIoStubDfNwOnCmdRegisterEvent(const DtIoStubDfNw* pStub, DtPipe* pPipe,
                                           const DtIoctlPipeCmdRegisterEventInput* pInData)
 {
-    NW_STUB_DEFAULT_PRECONDITIONS(pStub);
-    DT_ASSERT(pInData != NULL);
-    return DtDfNw_RegisterEvent(pPipe, (DtTrigEvtDriver*)&pInData->m_TrigEvt, 
-                                                                        pInData->m_Count);
+NW_STUB_DEFAULT_PRECONDITIONS(pStub);
+DT_ASSERT(pInData != NULL);
+return DtDfNw_RegisterEvent(pPipe, (DtTrigEvtDriver*)&pInData->m_TrigEvt,
+    pInData->m_Count);
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNwOnCmdDeregisterEvent -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtIoStubDfNwOnCmdDeregisterEvent(const DtIoStubDfNw* pStub, DtPipe* pPipe,
-                                        const DtIoctlPipeCmdDeregisterEventInput* pInData)
+    const DtIoctlPipeCmdDeregisterEventInput* pInData)
 {
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
     return DtDfNw_DeregisterEvent(pPipe, (DtTrigEvtDriver*)&pInData->m_TrigEvt);
 }
 
-
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfNwOnCmdSetIpFilter -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus DtIoStubDfNwOnCmdSetIpFilter(const DtIoStubDfNw* pStub, DtPipe* pPipe,
-                                            const DtIoctlPipeCmdSetIpFilterInput* pInData)
+    const DtIoctlPipeCmdSetIpFilterInput* pInData)
 {
     DtStatus Status = DT_STATUS_OK;
+    DtDfNw* pDf = STUB_DF;
+    Bool IsRxRtSwPipe = (pPipe->m_Capabilities & DT_PIPE_CAP_RX_RT_SWP) ==
+                                                                    DT_PIPE_CAP_RX_RT_SWP;
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
     NW_STUB_DEFAULT_PRECONDITIONS(pStub);
     DT_ASSERT(pInData != NULL);
 
-    Status = DtPipe_SetIpFilter(pPipe, (UInt8*)pInData->m_DstIp, 
+    // If it's a software pipe and IP-pars already set, we first remove the pipe from
+    // the port mapping
+    if (IsRxRtSwPipe)
+    {
+        DtPipeRxRtSwp* pSwPipe = (DtPipeRxRtSwp*)pPipe;
+        if (pSwPipe->m_IpParsSet)
+        {
+            DtFastMutexAcquire(&pDf->m_RxRtSwpPortMapFMutex);
+            DtDfNw_RemovePipeFromPortmap(pDf, (DtPipeRxRtSwp*)pPipe);
+            DtFastMutexRelease(&pDf->m_RxRtSwpPortMapFMutex);
+        }
+    }
+
+    Status = DtPipe_SetIpFilter(pPipe, (UInt8*)pInData->m_DstIp,
                                     (UInt16*)pInData->m_DstPort,
                                     (UInt8*)pInData->m_SrcIp, (UInt16*)pInData->m_SrcPort,
                                     (Int*)pInData->m_VlanId, (Int)pInData->m_Flags);
     if (!DT_SUCCESS(Status))
         return Status;
-    return DtDfNw_CheckFilterDuplication(STUB_DF);
+
+    // If it's a software pipe we add the pipe to the port mapping
+    if (IsRxRtSwPipe)
+    {
+        DtPipeRxRtSwp* pSwPipe = (DtPipeRxRtSwp*)pPipe;
+        DT_ASSERT(pSwPipe->m_IpParsSet == TRUE);
+        if ((pSwPipe->m_Flags & DT_PIPE_IPFLT_FLAG_EN_FILT) != 0)
+        {
+            // It's a software pipe. Add to SWP port map
+            DtFastMutexAcquire(&pDf->m_RxRtSwpPortMapFMutex);
+            DtDfNw_AddPipeToPortmap(pDf, pSwPipe);
+            DtFastMutexRelease(&pDf->m_RxRtSwpPortMapFMutex);
+        }
+    }
+    return DtDfNw_CheckFilterDuplication(pDf);
 }

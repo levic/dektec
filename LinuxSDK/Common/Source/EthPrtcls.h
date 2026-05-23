@@ -717,6 +717,7 @@ typedef struct _DtEthIp
 #define  DT_IP_MAX_ETH_PAYLOAD  1600
 #define  DT_IP_MAX_PACKET_SIZE  (ETHII_HDR_LENGTH + DT_IP_MAX_ETH_PAYLOAD)
 #define  DT_ETH_IP_MAX_PACKETSIZE 2048  // ETH_IP_HEADER max size: 11 bits
+#define  DT_IPTX_MAX_PACKET_LENGTH (DT_IP_MAX_PACKET_SIZE + sizeof(DtEthIp))
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTAPI shared IP definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define  DTA_IPTX_MAX_PACKET_LENGTH  (DT_IP_MAX_PACKET_SIZE+sizeof(DtaDmaTxHeader))

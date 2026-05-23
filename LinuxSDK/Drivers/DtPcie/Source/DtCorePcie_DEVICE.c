@@ -368,6 +368,8 @@ DtStatus  DtCorePcie_DEVICE_ParsePciConfig(DtCorePcie* pCore, UInt8* pPciConfig)
     Int  i;
     UInt8  NextCapAddr=pPciConfig[0x34]&0xFC, CapId=0;
     UInt8*  pCapBuf;
+    Int SlotPowerScale = 1;
+    Int SlotPowerLimit = 0;
 
     // Sanity checks
     COREPCIE_DEFAULT_PRECONDITIONS(pCore);
@@ -379,7 +381,7 @@ DtStatus  DtCorePcie_DEVICE_ParsePciConfig(DtCorePcie* pCore, UInt8* pPciConfig)
     pCore->m_DevInfo.m_PcieMaxSpeed = -1;
     pCore->m_DevInfo.m_PcieMaxPayloadSize = -1;
     pCore->m_DevInfo.m_PcieMaxReadRequestSize = -1;
-
+    pCore->m_DevInfo.m_PcieMaxSlotPower = 0;
 
     // We keep track of which bytes we've used as start of a capability struct to make
     // sure we don't end in an infinite loop. 
@@ -420,6 +422,7 @@ DtStatus  DtCorePcie_DEVICE_ParsePciConfig(DtCorePcie* pCore, UInt8* pPciConfig)
             case 5:   pCore->m_DevInfo.m_PcieMaxPayloadSize = 4096; break;
             default:  pCore->m_DevInfo.m_PcieMaxPayloadSize = -1; break;
             }
+
             // Get MRRS from Device-Control-Register (bits 14..12)
             switch ((pCapBuf[0x9]>>4)&0x7)
             {
@@ -432,6 +435,37 @@ DtStatus  DtCorePcie_DEVICE_ParsePciConfig(DtCorePcie* pCore, UInt8* pPciConfig)
             default:  pCore->m_DevInfo.m_PcieMaxReadRequestSize = -1; break;
             }
             
+            // Get slot power limit scale from Device-Capability-Register (bits 27..26)
+            SlotPowerScale = ((pCapBuf[0x7]>>2)&0x3);
+
+            // Get slot power limit from Device-Capability-Register (bits 25..18)
+            SlotPowerLimit = ((pCapBuf[0x7]<<6)&0xC0) | ((pCapBuf[0x6]>>2)&0x3F);
+            if (SlotPowerScale==0 && SlotPowerLimit>0xEF)
+            {
+                // Alternative encodings
+                pCore->m_DevInfo.m_PcieMaxSlotPower = (250 + (SlotPowerLimit-0xF0)*25)
+                                                                                   * 1000;
+            }
+            else if (SlotPowerLimit > 0)
+            {
+                // Power limit is specified, apply scale factor and convert to milliWatt.
+                switch (SlotPowerScale)
+                {
+                default:
+                case 0: pCore->m_DevInfo.m_PcieMaxSlotPower = SlotPowerLimit*1000; break;
+                case 1: pCore->m_DevInfo.m_PcieMaxSlotPower = SlotPowerLimit*100; break;
+                case 2: pCore->m_DevInfo.m_PcieMaxSlotPower = SlotPowerLimit*10;  break;
+                case 3: pCore->m_DevInfo.m_PcieMaxSlotPower = SlotPowerLimit*1;   break;
+                }
+            } else {
+                // Power limit is not available, use the default power limits:
+                // 10 Watt for PCIe x 1 devices, 25 Watt for PCIe x4, x8 and x16 devices.
+                if (pCore->m_DevInfo.m_PcieMaxLanes == 1)
+                    pCore->m_DevInfo.m_PcieMaxSlotPower = 10 * 1000;
+                else
+                    pCore->m_DevInfo.m_PcieMaxSlotPower = 25 * 1000;
+            }
+
             DtDbgOut(AVG, CORE, "Num/Max lanes: %d / %d",
                         pCore->m_DevInfo.m_PcieNumLanes, pCore->m_DevInfo.m_PcieMaxLanes);
             DtDbgOut(AVG, CORE, "Cur/Max speed: %d / %d",
@@ -439,7 +473,6 @@ DtStatus  DtCorePcie_DEVICE_ParsePciConfig(DtCorePcie* pCore, UInt8* pPciConfig)
             DtDbgOut(AVG, CORE, "MPS=%d-bytes, MRRS=%d-bytes",
                                                pCore->m_DevInfo.m_PcieMaxPayloadSize, 
                                                pCore->m_DevInfo.m_PcieMaxReadRequestSize);
-
             break;
         }
     }

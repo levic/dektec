@@ -72,7 +72,8 @@ Extracting LinuxSDK.tar.gz will lead to the following directory structure:
    |
    |
    |- DtapiService           (DTAPI service/daemon)
-   |  |- DtapiService.bin    (self-extracting binairy installer for DtapiService)
+   |  |- DtapiService.bin    (self-extracting binairy installer for DtapiService.
+   |                          Note: requires glibc v2.27 or higher to run.)
    |
    |
    |- DTAPI                  (C++ wrapper library)

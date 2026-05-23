@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+$(dirname "$0")/Install -d "Dta DtaNw" -r "Dta/Source/Linux/51-dta.rules" -n dektec_dta

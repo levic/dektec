@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+# ========================================================================================
+# Install DekTec drivers in the DKMS tree (Linux Dynamic Kernel Module Support).
+# DekTec drivers are automatically rebuilt and reinstalled when the kernel is upgraded.
+#
+# By default this script creates one DKMS package that contains all drivers. The other
+# install scripts in this folder use the CLI options defined below to install a DKMS
+# package with a subset of the drivers.
+# ========================================================================================
+
+PACKAGE_NAME=dektec
+
+# Driver names, in build and load order.
+DRIVERNAMES=(Dta DtaNw Dtu DtPcie DtPcieNw)
+
+# Udev rule files to install.
+UDEVRULES=(
+    Dta/Source/Linux/51-dta.rules
+    Dtu/Source/Linux/51-dtu.rules
+    DtPcie/Source/Linux/51-dtpcie.rules
+)
+
+# Options:
+#   -u
+#     Uninstall the DKMS package.
+#   -t
+#     Test/load/reload installed drivers.
+#   -d <driver_names>
+#     Specify the drivers that should be installed with this DKMS package.
+#   -r <udev_rules>
+#     Specify the udev rules that should be installed with this DKMS package.
+#   -n <name>
+#     Set the DKMS package name. The package will be installed as <name>-<version>.
+CMD=install
+error() { echo >&2 "$CMD: $*"; exit 1; }
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -t) CMD=test;;
+        -u) CMD=uninstall;;
+
+        -d) DRIVERNAMES=($2); shift;;
+        -r) UDEVRULES=($2); shift;;
+        -n) PACKAGE_NAME=$2; shift;;
+
+        *) error "invalid argument $opt"
+    esac
+    shift
+done
+
+# Must be root to install drivers.
+[[ $(id -u) -eq 0 ]] || error "must be root to $CMD drivers, use sudo"
+
+# The LinuxSDK version is in LinuxSDK/Version file.
+DRIVERSDIR=$(cd $(dirname "$0"); pwd)
+SDKROOT=$(cd "$DRIVERSDIR/.."; pwd)
+KERNEL=$(uname -r)
+SDKVERSION=$(head -1 "$SDKROOT/Version" 2>/dev/null)
+DKMSINSTALL="/usr/src/$PACKAGE_NAME-$SDKVERSION"
+UDEVDIR=/etc/udev/rules.d
+[[ -z "$SDKVERSION" ]] && error "file $SDKROOT/Version not found or corrupted"
+
+# Perform install / test / uninstall.
+case $CMD in
+    install)
+        # Requirements to install drivers.
+        [[ -z $(which dkms 2>/dev/null) ]] && error "package 'dkms' is not installed"
+        [[ -d "/lib/modules/$KERNEL/build/kernel" ]] || error "kernel headers are not installed"
+
+        # Install files in DKMS tree.
+        rm -rf "$DKMSINSTALL"
+        install -d -m 755 -o root -g root "$DKMSINSTALL"
+        cp -r "$SDKROOT/Common" "$SDKROOT/License" "$DKMSINSTALL"
+        install -d -m 755 -o root -g root "$DKMSINSTALL/Drivers"
+        for drv in ${DRIVERNAMES[*]}; do
+            cp -r "$SDKROOT/Drivers/$drv" "$DKMSINSTALL/Drivers"
+        done
+        cp -r "$SDKROOT/Drivers/DtDrvCommon" "$DKMSINSTALL/Drivers"
+        cp -r "$SDKROOT/Drivers/DtSal" "$DKMSINSTALL/Drivers"
+
+        # Generate makefile.
+        MAKEFILE="$DKMSINSTALL/Makefile"
+        echo "default:" >"$MAKEFILE"
+        for drv in ${DRIVERNAMES[*]}; do
+            echo -e "\t\$(MAKE) -C Drivers/$drv/Source/Linux" >>"$MAKEFILE"
+        done
+        cat >>"$MAKEFILE" <<EOF
+clean:
+	find . \( -name '.*.o.cmd' -o -name '.*.ko.cmd' -o -name '*.mod.c' -o -name '*.o' -o -name '.*.d' -o -name '*.ko' -o -name '.tmp_versions' -o -name 'modules.order' -o -name 'Module.symvers' \) -print0 | xargs -0 rm -rf
+EOF
+
+        # Generate DKMS configuration file.
+        CONF="$DKMSINSTALL/dkms.conf"
+        cat >"$CONF" <<EOF
+PACKAGE_NAME=$PACKAGE_NAME
+PACKAGE_VERSION=$SDKVERSION
+
+MAKE="'make' KERNELDIR=/lib/modules/\${kernelver}/build"
+CLEAN="make clean"
+AUTOINSTALL=yes
+EOF
+        index=0
+        for drv in ${DRIVERNAMES[*]}; do
+            echo "" >>"$CONF"
+            echo "BUILT_MODULE_NAME[$index]=$drv" >>"$CONF"
+            echo "BUILT_MODULE_LOCATION[$index]=Drivers/$drv/Source/Linux" >>"$CONF"
+            echo "DEST_MODULE_LOCATION[$index]=/kernel/drivers/misc" >>"$CONF"
+            index=$(($index+1))
+        done
+
+        # Cleanup installed files and protections.
+        make -C "$DKMSINSTALL" --no-print-directory --silent clean
+        chown -R root:root "$DKMSINSTALL"
+        find "$DKMSINSTALL" -type f -print0 | xargs -0 chmod 644
+        find "$DKMSINSTALL" -type d -print0 | xargs -0 chmod 755
+
+        # Install udev rules.
+        for f in "${UDEVRULES[@]}"; do
+            install -m 644 -o root -g root "$DRIVERSDIR/$f" $UDEVDIR
+        done
+
+        # Initial build of the drivers.
+        dkms install -m $PACKAGE_NAME -v "$SDKVERSION" --force
+        ;;
+
+    test)
+        # Test reloading the drivers.
+        echo "=== Unload current drivers" # in reverse order
+        for drv in $(printf '%s\n' "${DRIVERNAMES[@]}" | tac); do
+            rmmod $drv 2>/dev/null
+        done
+        echo "=== Load new drivers"
+        for drv in "${DRIVERNAMES[@]}"; do
+            modprobe $drv
+        done
+        echo "=== List loaded drivers"
+        lsmod | grep -e '^Module' -e '^Dt'
+        echo "=== Recent kernel messages"
+        dmesg | tail -20 | grep Dt
+        ;;
+
+    uninstall)
+        # Uninstall drivers (don't unload them in case they are in use).
+        dkms remove -m $PACKAGE_NAME -v "$SDKVERSION" --all
+        rm -rf "$DKMSINSTALL"
+        for f in "${UDEVRULES[@]}"; do
+            rm -f $UDEVDIR/$(basename "$f")
+        done
+        ;;
+esac
+

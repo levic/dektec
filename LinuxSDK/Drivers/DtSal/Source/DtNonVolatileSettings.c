@@ -692,7 +692,7 @@ DtStatus DtNonVolatileManufSettingsRead(
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtNonVolatileSettingsRead -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtNonVolatileSettingsRead(
+static DtStatus  DtNonVolatileSettingsRead(
     DtDrvObject*  pDrvObj,
     UInt64  DvcSerial,
     Int  FwVariant,
@@ -793,7 +793,7 @@ DtStatus  DtNonVolatileSettingsRead(
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtNonVolatileSettingsWrite -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtNonVolatileSettingsWrite(
+static DtStatus  DtNonVolatileSettingsWrite(
     DtDrvObject*  pDrvObj,
     UInt64  DvcSerial,
     Int  FwVariant,

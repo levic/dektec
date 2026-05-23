@@ -50,7 +50,8 @@
 #define  DT_INTERRUPT_GENL_STARTOFFRAME     18
 #define  DT_INTERRUPT_LMH1981_STARTOFFRAME  19
 #define  DT_INTERRUPT_EMAC10G_LINK_STATUS   21
-
+#define  DT_INTERRUPT_EMAC25G_LINK_STATUS   27
+#define  DT_INTERRUPT_MAILBOX_STATUS        28
 
 // Signature of the interrupt handler callback function
 typedef  DtStatus  (*DtBcIntHandlerFunc)(DtBc*, Int  Id, Int  Index, void*);

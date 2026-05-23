@@ -42,10 +42,14 @@
 const DtDfId  DT_DF_KNOWN[] = 
 {
     // Name,                      ShortName,                      Role, Instance, Uuid
+    // MBCREBOOT is the first in the list, such that when the driver is closing and a 
+    // reboot must be triggered, it is triggered as late as possible.
+    { DT_DF_MBCREBOOT_NAME,       DT_DF_MBCREBOOT_SHORTNAME,      NULL, -1, -1 },
     { DT_DF_ADF4360CTRL_NAME,     DT_DF_ADF4360CTRL_SHORTNAME,    NULL, -1, -1 },
     { DT_DF_ASIRX_NAME,           DT_DF_ASIRX_SHORTNAME,          NULL, -1, -1 },
     { DT_DF_GENLOCKCTRL_NAME,     DT_DF_GENLOCKCTRL_SHORTNAME,    NULL, -1, -1 },
     { DT_DF_CLKGEN_2110_NAME,     DT_DF_CLKGEN_2110_SHORTNAME,    NULL, -1, -1 },
+    { DT_DF_CLKGEN_2125_NAME,     DT_DF_CLKGEN_2125_SHORTNAME,    NULL, -1, -1 },
     { DT_DF_NW_NAME,              DT_DF_NW_SHORTNAME,             NULL,  2, -1 },
     { DT_DF_IPFIFO_NAME,          DT_DF_IPFIFO_SHORTNAME,         NULL, -1, -1 },
     { DT_DF_DATAFIFO_NAME,        DT_DF_DATAFIFO_SHORTNAME,       NULL, -1, -1 },
@@ -68,6 +72,9 @@ const DtDfId  DT_DF_KNOWN[] =
     { DT_DF_S2CRDEMOD_2132_NAME,  DT_DF_S2CRDEMOD_2132_SHORTNAME, NULL, -1, -1 },
     { DT_DF_TXCLKCTRL_2178A_NAME, DT_DF_TXCLKCTRL_2178A_SHORTNAME, NULL, -1, -1 },
     { DT_DF_CLKCTRL_2116_NAME,    DT_DF_CLKCTRL_2116_SHORTNAME,   NULL, -1, -1 },
+    { DT_DF_MBCFLASH_NAME,        DT_DF_MBCFLASH_SHORTNAME,       NULL, -1, -1 },
+    { DT_DF_MBCTEMP_NAME,         DT_DF_MBCTEMP_SHORTNAME,        NULL, -1, -1 }, 
+    { DT_DF_SFP_NAME,             DT_DF_SFP_SHORTNAME,            NULL, -1, -1 },
 };
 const Int  DT_DF_NUM_KNOWN = DT_SIZEOF_ARRAY(DT_DF_KNOWN);
 
@@ -998,6 +1005,15 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
     case DT_FUNC_TYPE_DATAFIFO:
         return (DtDf*)DtDfDataFifo_Open(pCore, pPt, pId->m_pRole,
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
+    case DT_FUNC_TYPE_MBCFLASH:
+        return (DtDf*)DtDfMbcFlash_Open(pCore, pPt, pId->m_pRole,
+                                                pId->m_Instance, pId->m_Uuid, CreateStub);
+    case DT_FUNC_TYPE_MBCREBOOT:
+        return (DtDf*)DtDfMbcReboot_Open(pCore, pPt, pId->m_pRole,
+                                                pId->m_Instance, pId->m_Uuid, CreateStub);
+    case DT_FUNC_TYPE_MBCTEMP:
+        return (DtDf*)DtDfMbcTemp_Open(pCore, pPt, pId->m_pRole,
+                                                pId->m_Instance, pId->m_Uuid, CreateStub);
     case DT_FUNC_TYPE_GENLOCKCTRL:
         return (DtDf*)DtDfGenLockCtrl_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
@@ -1013,7 +1029,6 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
     case DT_FUNC_TYPE_MXDS75TEMP:
         return (DtDf*)DtDfMxDs75Temp_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
-
     case DT_FUNC_TYPE_SDITXPHY:
         return (DtDf*)DtDfSdiTxPhy_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
@@ -1026,6 +1041,9 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
     case DT_FUNC_TYPE_SENSTEMP:
         return (DtDf*)DtDfSensTemp_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
+    case DT_FUNC_TYPE_SFP:
+        return (DtDf*)DtDfSfp_Open(pCore, pPt, pId->m_pRole, pId->m_Instance, 
+                                                                             pId->m_Uuid);
     case DT_FUNC_TYPE_SI534X:
         return (DtDf*)DtDfSi534X_Open(pCore, pPt, pId->m_pRole, 
                                                 pId->m_Instance, pId->m_Uuid, CreateStub);
@@ -1083,6 +1101,9 @@ DtDf*  DtDf_OpenType(DtFunctionType  Type, DtCore*  pCore, DtPt*  pPt,
                                                             pId->m_Instance, pId->m_Uuid);
     case DT_FUNC_TYPE_CLKGEN_2110:
         return (DtDf*)DtDfClkGen_2110_Open(pCore, pPt, pId->m_pRole, pId->m_Instance, 
+                                                                             pId->m_Uuid);
+    case DT_FUNC_TYPE_CLKGEN_2125:
+        return (DtDf*)DtDfClkGen_2125_Open(pCore, pPt, pId->m_pRole, pId->m_Instance,
                                                                              pId->m_Uuid);
     default:
         DT_ASSERT(FALSE);
@@ -1843,6 +1864,10 @@ DtIoStubDf*  DtIoStubDf_OpenType(DtDf*  pDf)
         return (DtIoStubDf*)DtIoStubDfAsiRx_Open(pDf);
     case DT_FUNC_TYPE_DATAFIFO:
         return (DtIoStubDf*)DtIoStubDfDataFifo_Open(pDf);
+    case DT_FUNC_TYPE_MBCFLASH:
+        return (DtIoStubDf*)DtIoStubDfMbcFlash_Open(pDf);
+    case DT_FUNC_TYPE_MBCREBOOT:
+        return (DtIoStubDf*)DtIoStubDfMbcReboot_Open(pDf);
     case DT_FUNC_TYPE_GENLOCKCTRL:
         return (DtIoStubDf*)DtIoStubDfGenLockCtrl_Open(pDf);
     case DT_FUNC_TYPE_NW:

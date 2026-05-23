@@ -185,7 +185,9 @@ static DtStatus  DtIoStubCorePcie_Init(DtIoStubCorePcie*);
 static DtStatus  DtIoStubCorePcie_AppendDynamicSize(const DtIoStub*, DtIoStubIoParams*);
 static DtStatus  DtIoStubCorePcie_OnGetDevInfo(const DtIoStub*, DtIoStubIoParams*,
                                                                           Int*  pOutSize);
-static DtStatus  DtIoStubCorePcie_OnGetDriverVersion(const DtIoStub*, DtIoStubIoParams*, 
+static DtStatus  DtIoStubCorePcie_OnGetDevInfo2(const DtIoStub*, DtIoStubIoParams*,
+                                                                           Int* pOutSize); 
+static DtStatus  DtIoStubCorePcie_OnGetDriverVersion(const DtIoStub*, DtIoStubIoParams*,
                                                                           Int*  pOutSize);
 static DtStatus  DtIoStubCorePcie_OnGetNwDriverVersion(const DtIoStub* pStub,
                                               DtIoStubIoParams* pIoParams, Int* pOutSize);
@@ -199,6 +201,7 @@ DECL_DT_IOCTL_CMD_PROPS_DEBUG;
 DECL_DT_IOCTL_CMD_PROPS_EXCL_ACCESS;
 DECL_DT_IOCTL_CMD_PROPS_EVENT;
 DECL_DT_IOCTL_CMD_PROPS_GET_DEV_INFO;
+DECL_DT_IOCTL_CMD_PROPS_GET_DEV_INFO2;
 DECL_DT_IOCTL_CMD_PROPS_GET_DRIVER_VERSION;
 DECL_DT_IOCTL_CMD_PROPS_IOCONFIG;
 DECL_DT_IOCTL_CMD_PROPS_PROPERTY;
@@ -222,6 +225,10 @@ static const DtIoctlProperties  IOSTUB_CORE_PCIE_IOCTLS[] =
         DtIoStubCore_GetChildStub),
     DT_IOCTL_PROPS_GET_DEV_INFO(
         DtIoStubCorePcie_OnGetDevInfo,
+        DtIoStubCorePcie_AppendDynamicSize,
+        NULL),
+    DT_IOCTL_PROPS_GET_DEV_INFO2(
+        DtIoStubCorePcie_OnGetDevInfo2,
         DtIoStubCorePcie_AppendDynamicSize,
         NULL),
     DT_IOCTL_PROPS_GET_DRIVER_VERSION(
@@ -320,7 +327,8 @@ DtStatus  DtIoStubCorePcie_AppendDynamicSize(
     
     DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubCorePcie));
     DT_ASSERT(pIoParams != NULL);
-    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_GET_DEV_INFO);
+    DT_ASSERT(  pIoParams->m_pIoctl->m_FunctionCode==DT_FUNC_CODE_GET_DEV_INFO
+            ||  pIoParams->m_pIoctl->m_FunctionCode==DT_FUNC_CODE_GET_DEV_INFO2);
 
     // Get in-/out-data
     DT_ASSERT(pIoParams->m_pInData != NULL);
@@ -336,7 +344,10 @@ DtStatus  DtIoStubCorePcie_AppendDynamicSize(
         DT_ASSERT(pIoParams->m_InReqSize >= sizeof(DtIoctlGetDevInfoInput));
         DT_ASSERT(pIoParams->m_OutReqSize >= sizeof(DtIoctlGetDevInfoCommonOutput));
         // Add dynamic size (i.e. #bytes to read)
-        pIoParams->m_OutReqSize += sizeof(DtIoctlDevInfoPcie);
+        if (pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_GET_DEV_INFO)
+            pIoParams->m_OutReqSize += sizeof(DtIoctlDevInfoPcie);
+        else
+            pIoParams->m_OutReqSize += sizeof(DtIoctlDevInfoPcie2);
         break;
 
     default:
@@ -358,7 +369,7 @@ DtStatus  DtIoStubCorePcie_OnExclAccessCmd(const DtIoStub*  pStub, Int PortIndex
     return  DT_STATUS_NOT_IMPLEMENTED;// DtIoStubCore_OnExclAccessCmd(pStub, PortIndex, Cmd, pFile);
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubCorePcie_OnGetDevInfo -.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubCorePcie_OnGetDevInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtIoStubCorePcie_OnGetDevInfo(
     const DtIoStub*  pStub, 
@@ -417,7 +428,68 @@ DtStatus  DtIoStubCorePcie_OnGetDevInfo(
 
     return DT_STATUS_OK;
 }
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubCorePcie_OnGetDevInfo2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Device info extended with PcieMaxSlotPower
+//
+DtStatus  DtIoStubCorePcie_OnGetDevInfo2(
+    const DtIoStub* pStub,
+    DtIoStubIoParams* pIoParams,
+    Int* pOutSize)
+{
+    DtCorePcie* pCore = NULL;
+    const DtIoctlGetDevInfoInput* pInData = NULL;
+    DtIoctlGetDevInfoOutput* pOutData = NULL;
 
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubCorePcie));
+    DT_ASSERT(pIoParams!=NULL && pOutSize!=NULL);
+    DT_ASSERT(pIoParams->m_pIoctl->m_FunctionCode == DT_FUNC_CODE_GET_DEV_INFO2);
+    DT_ASSERT(*pOutSize == pIoParams->m_OutReqSize);
+
+    pCore = (DtCorePcie*)pStub->m_pCore;
+    DT_ASSERT(pCore!=NULL && pCore->m_Size>=(sizeof(DtCorePcie)));
+
+    // Get in-/out-data
+    DT_ASSERT(pIoParams->m_pInData != NULL);
+    pInData = &pIoParams->m_pInData->m_GetDevInfo;
+    DT_ASSERT(pIoParams->m_pOutData != NULL);
+    pOutData = &pIoParams->m_pOutData->m_GetDevInfo;
+
+    // Handle the command
+    if (pInData->m_Cmd != DT_IOCTL_CMD_NOP)
+    {
+        DT_ASSERT(pInData->m_Cmd == DT_IOCTL_CMD_NOP);
+        return DT_STATUS_NOT_SUPPORTED;
+    }
+
+    pOutData->m_DeviceId = pCore->m_DevInfo.m_DeviceId;
+    pOutData->m_SubType = pCore->m_DevInfo.m_SubType;
+    pOutData->m_VendorId = pCore->m_DevInfo.m_VendorId;
+    pOutData->m_SubSystemId = pCore->m_DevInfo.m_SubSystemId;
+    pOutData->m_SubVendorId = pCore->m_DevInfo.m_SubVendorId;
+    pOutData->m_TypeNumber = pCore->m_DevInfo.m_TypeNumber;
+    pOutData->m_SubDvc = pCore->m_DevInfo.m_SubDvc;
+    pOutData->m_HardwareRevision = pCore->m_DevInfo.m_HardwareRevision;
+    pOutData->m_FirmwareVersion = pCore->m_DevInfo.m_FirmwareVersion;
+    pOutData->m_FirmwareVariant = pCore->m_DevInfo.m_FirmwareVariant;
+    pOutData->m_FwPackageVersion = pCore->m_DevInfo.m_FwPackageVersion;
+    pOutData->m_FwBuildDate = pCore->m_DevInfo.m_FwBuildDate;
+    pOutData->m_FirmwareStatus = pCore->m_DevInfo.m_FirmwareStatus;
+    pOutData->m_Serial = pCore->m_DevInfo.m_Serial;
+    pOutData->m_DevSpecific.m_Pcie2.m_BusNumber = pCore->m_DevInfo.m_BusNumber;
+    pOutData->m_DevSpecific.m_Pcie2.m_SlotNumber = pCore->m_DevInfo.m_SlotNumber;
+    pOutData->m_DevSpecific.m_Pcie2.m_PcieNumLanes = pCore->m_DevInfo.m_PcieNumLanes;
+    pOutData->m_DevSpecific.m_Pcie2.m_PcieMaxLanes = pCore->m_DevInfo.m_PcieMaxLanes;
+    pOutData->m_DevSpecific.m_Pcie2.m_PcieLinkSpeed = pCore->m_DevInfo.m_PcieLinkSpeed;
+    pOutData->m_DevSpecific.m_Pcie2.m_PcieMaxSpeed = pCore->m_DevInfo.m_PcieMaxSpeed;
+    pOutData->m_DevSpecific.m_Pcie2.m_PcieMaxPayloadSize =
+                                                    pCore->m_DevInfo.m_PcieMaxPayloadSize;
+    pOutData->m_DevSpecific.m_Pcie2.m_PcieMaxReadRequestSize =
+                                                pCore->m_DevInfo.m_PcieMaxReadRequestSize;
+    pOutData->m_DevSpecific.m_Pcie2.m_PcieMaxSlotPower =
+                                                      pCore->m_DevInfo.m_PcieMaxSlotPower;
+    return DT_STATUS_OK;
+}
 //-.-.-.-.-.-.-.-.-.-.- DtIoStubCorePcie_OnGetDriverVersion -.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtIoStubCorePcie_OnGetDriverVersion(

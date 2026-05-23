@@ -67,6 +67,7 @@ typedef struct _DtPcieDeviceInfo
     Int  m_PcieMaxSpeed;        // Maximum PCIe link speed
     Int  m_PcieMaxPayloadSize;  // Maximum-Payload-Size (MPS)
     Int  m_PcieMaxReadRequestSize;  // Maximum-Read-Request-Size (MRRS)
+    Int  m_PcieMaxSlotPower;    // Maximum Slot Power in milliWatt
 } DtPcieDeviceInfo;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieChildDeviceData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

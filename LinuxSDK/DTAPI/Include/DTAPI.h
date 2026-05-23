@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI.h *#*#*#*#*#*#*#*#*#* (C) 2000-2023 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI.h *#*#*#*#*#*#*#*#*#* (C) 2000-2024 DekTec
 //
 // DTAPI - C++ API for DekTec PCI/PCI-Express cards, USB adapters and network devices
 //
@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        6
-#define DTAPI_VERSION_MINOR        2
+#define DTAPI_VERSION_MINOR        6
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        219
+#define DTAPI_VERSION_BUILD        233
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -169,6 +169,7 @@ struct DtDabEtiStreamSelPars;
 struct DtDabStreamSelPars;
 struct DtDabTransmitterIdInfo;
 struct DtDemodParsAtsc3;
+struct DtDemodParsAtsc3Stltp;
 struct DtDemodParsAtsc;
 struct DtDemodParsDab;
 struct DtDemodParsDvbC2;
@@ -176,6 +177,7 @@ struct DtDemodParsDvbS;
 struct DtDemodParsDvbS2;
 struct DtDemodParsDvbT;
 struct DtDemodParsDvbT2;
+struct DtDemodParsDvbT2Mi;
 struct DtDemodParsIq;
 struct DtDemodParsIq2131;
 struct DtDemodParsIsdbt;
@@ -211,6 +213,7 @@ struct DtDvbT2TransmitterIdInfo;
 struct DtFractionInt;
 struct DtIsdbtStreamSelPars;
 struct DtIsdbTmmPars;
+struct DtLnbPowerStatus;
 struct DtPar;
 struct DtPlpInpPars;
 struct DtQamStreamSelPars;
@@ -577,7 +580,7 @@ private:
 //
 struct DtCmmbPars
 {
-    int  m_Bandwidth;               // CMMB Bandwitdh
+    int  m_Bandwidth;               // CMMB Bandwidth
     int  m_TsRate;                  // CMMB TS rate in bps
     int  m_TsPid;                   // PID on which the CMMB stream is found
     int  m_AreaId;                  // Area ID (0..127)
@@ -594,7 +597,7 @@ public:
 #define DTAPI_CMMB_BW_2MHZ          0x00000000
 #define DTAPI_CMMB_BW_8MHZ          0x00000001
 
-//-.-.-.-.-.-.-.-.-.-.-.- DtCmPars - Channel Modelling Parameters -.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.- DtCmPars - Channel modeling Parameters -.-.-.-.-.-.-.-.-.-.-.-.
 
 // Maximum number of fading paths
 #define DTAPI_CM_MAX_PATHS          32
@@ -669,6 +672,7 @@ public:
     virtual void  TuningParsHaveChanged(
                  __int64 /*OldFreqHz*/, int  /*OldModType*/, int[3]  /*OldParXtra[3]*/,
                  __int64 /*NewFreqHz*/, int  /*NewModType*/, int[3]  /*NewParXtra[3]*/) {}
+    virtual void  LnbPowerStatusHasChanged(const DtLnbPowerStatus& /*Status*/) {}
 };
 
 
@@ -764,6 +768,7 @@ struct DtDeviceDesc
     int  m_PcieMaxSpeed;            // Maximum PCIe link speed (GEN1, 2 or 3)
     int  m_PcieMaxPayloadSize;      // Maximum PCIe payload size
     int  m_PcieMaxReadRequestSize;  // Maximum PCIe read request size
+    int  m_PcieMaxSlotPower;        // Maximum PCIe slot power in milliWatt
 };
 
 // Device categories
@@ -824,7 +829,7 @@ struct DtDtaPlusDeviceDesc
 //
 struct DtDvbCidPars
 {
-    bool  m_Enable{0};             // Enable DVB-CID signalling
+    bool  m_Enable{0};             // Enable DVB-CID signaling
     bool  m_MuteDvbS2{0};          // Mute the satellite signal
     bool  m_OverrideGuid{0};       // Use user specified GUID.
     unsigned int  m_GuidHigh{0};   // DVB-CID Global Unique Identifier MSBs
@@ -1254,7 +1259,7 @@ struct DtIsdbtLayerData
                                     // I = (1 << (ti + 2 - mode)) if ti != 0
     DtIsdbtLayerData();
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -1290,7 +1295,7 @@ struct DtIsdbtParamsData
 
     DtIsdbtParamsData();
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -1448,11 +1453,11 @@ struct DtModPars
     int  m_SymRate;                 // Symbol rate in baud
     DtFractionInt  m_TsRate;        // Transport-stream rate in bps
 
-    // Channel modelling per output channel
+    // Channel modeling per output channel
     bool  m_IsCmEnable[DTAPI_MAX_OUTPUTS];
-                                    // Channel modelling is enabled yes/no
+                                    // Channel modeling is enabled yes/no
     DtCmPars  m_CmPars[DTAPI_MAX_OUTPUTS];
-                                    // Channel modelling parameters
+                                    // Channel modeling parameters
 
     bool  m_IsChanAttenEnable;      // Channel attenuation is enable yes/no
     double m_ChanAtten;             // Channel attenuation
@@ -1552,11 +1557,11 @@ struct DtPar
     DTAPI_RESULT  SetValue(double Value);
     DTAPI_RESULT  SetValue(bool Value);
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 
-    // Serialisation of an array of parameters
+    // Serialization of an array of parameters
     static DTAPI_RESULT  FromXml(const std::wstring&, DtPar*& pPars, int& Count);
     static DTAPI_RESULT  ToXml(DtPar* pPars, int Count, std::wstring& XmlString);
 
@@ -1598,6 +1603,18 @@ struct DtPar
 struct DtPhaseNoisePars
 {
     DtFractionInt  m_SampleRate;
+};
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtRawGseHeader -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Header placed in front of all GSE-packets when DTAPI_RXMODE_GSE_RAW mode is used
+//
+struct DtRawGseHeader
+{
+    unsigned int  m_Tag;        // 0x50455347 = ?PESG?
+    unsigned int  m_Length;     // GSE-packet length
+    unsigned int  m_TimeStamp;  // GSE-packet arrival timestamp 
+    unsigned int  m_Reserved;   // Reserved for future use (set to 0)
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtRawIpHeader -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -1731,11 +1748,11 @@ struct DtStatistic
     DTAPI_RESULT  SetValue(DtRsDecStats& pValue);
     DTAPI_RESULT  SetValue(DtVitDecStats& pValue);
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 
-    // Serialisation of an array of statistics
+    // Serialization of an array of statistics
     static DTAPI_RESULT  FromXml(const std::wstring&, DtStatistic*&, int& Count);
     static DTAPI_RESULT  ToXml(DtStatistic* pStatistics, int Count, std::wstring&);
 
@@ -1843,7 +1860,7 @@ struct DtTimeOfDay
 #define DTAPI_STAT_ATSC3_TXID_INFO  0x30F        // ATSC3 transmitter ID information
 #define DTAPI_STAT_DAB_TXID_INFO    0x30C        // DAB transmitter ID information
 #define DTAPI_STAT_DVBC2_L1P2DATA   0x300        // DVB-C2 Layer-1 Part 2 data
-#define DTAPI_STAT_DVBC2_PLPSIGDATA 0x301        // DVB-C2 Layer-1 PLP signalling data
+#define DTAPI_STAT_DVBC2_PLPSIGDATA 0x301        // DVB-C2 Layer-1 PLP signaling data
 #define DTAPI_STAT_DVBS2_ISI        0x310        // DVB-S2 ISI input stream identifiers.
 #define DTAPI_STAT_DVBS2_ISI_SIGDATA 0x311       // DVB-S2 ISI stream data
 #define DTAPI_STAT_DVBT_TPS_INFO    0x30B        // DVB-T TPS information
@@ -2188,7 +2205,7 @@ struct DtTxClockProperties
     int  m_TxClockId;               // Identification of the transmit clock to be used
                                     // in GetTxClockOffset() and SetTxClockOffset()
     DtTxClockType  m_ClockType;     // Fractional / Non-fractional clock
-    double  m_Frequency;            // Centre frequency in Hertz
+    double  m_Frequency;            // Center frequency in Hertz
     double  m_RangePpm;             // Frequency range in ppm (+ and -)
     double  m_StepSizePpm;          // Approximate step size in ppm
     std::vector<int>  m_Ports;      // Associated ports
@@ -2332,11 +2349,12 @@ public:
     DtDemodPars(const DtDemodPars&);
     ~DtDemodPars();
 public:
-    DTAPI_RESULT CheckValidity();
+    DTAPI_RESULT CheckValidity() const;
     int  GetModType() const;
     DTAPI_RESULT  SetModType(int ModType);
     DtDemodParsAtsc*  Atsc() const;
     DtDemodParsAtsc3*  Atsc3() const;
+    DtDemodParsAtsc3Stltp*  Atsc3Stltp() const;
     DtDemodParsDab*  Dab() const;
     DtDemodParsDvbC2*  DvbC2() const;
     DtDemodParsDvbS*  DvbS() const;
@@ -2344,20 +2362,22 @@ public:
     DtDemodParsDvbS2Adv*  DvbS2Adv() const; 
     DtDemodParsDvbT*  DvbT() const;
     DtDemodParsDvbT2*  DvbT2() const;
+    DtDemodParsDvbT2Mi*  DvbT2Mi() const;
     DtDemodParsIq*  Iq() const;
     DtDemodParsIq2131*  Iq2131() const; 
     DtDemodParsIsdbt*  Isdbt() const;
     DtDemodParsQam*  Qam() const;
 
     // Predicates
-    bool IsAtsc() const, IsAtsc3() const, IsDab() const, IsDvbC2() const, IsDvbS() const, 
-        IsDvbS2() const, IsDvbT() const,IsDvbT2() const, IsIq() const, IsIq2131() const,
-        IsIsdbt() const,  IsQam() const, IsQamAC() const, IsQamB() const;
+    bool IsAtsc() const, IsAtsc3() const, IsAtsc3Stltp() const, IsDab() const,
+        IsDvbC2() const, IsDvbS() const, IsDvbS2() const, IsDvbT() const,IsDvbT2() const, 
+        IsDvbT2Mi() const, IsIq() const, IsIq2131() const, IsIsdbt() const, IsQam() const,
+        IsQamAC() const, IsQamB() const;
 
     // Operators
     void  operator = (const DtDemodPars& Pars);
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 
@@ -2391,6 +2411,19 @@ struct DtDemodParsAtsc3
                                     // header for signaling information (2016 spec, 
                                     // Korean mode, non standard); default false
     DtDemodParsAtsc3() :  m_AlpLenIncludesAhSi(false) {}
+};
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDemodParsAtsc3Stltp -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Demodulation parameters for modulation type DTAPI_MOD_ATSC3_STLTP
+//
+struct DtDemodParsAtsc3Stltp
+{
+    int  m_Bandwidth;               // Bandwidth,  See DTAPI_ATSC3_xMHZ
+    bool  m_AlpLenIncludesAhSi;     // If true ALP payload length includes additional 
+                                    // header for signaling information (2016 spec, 
+                                    // Korean mode, non standard); default false
+    DtDemodParsAtsc3Stltp() :  m_AlpLenIncludesAhSi(false) {}
 };
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDemodParsDab -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -2466,7 +2499,7 @@ struct DtDvbS2PlsData
 
     DtDvbS2PlsData();
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -2483,7 +2516,7 @@ struct DtDvbS2IsiSigData
 
     DtDvbS2IsiSigData();
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -2498,7 +2531,7 @@ struct DtDvbS2Isi
 
     DtDvbS2Isi();
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -2514,7 +2547,7 @@ struct DtDvbS2StreamSelPars
 {
     int m_Isi;
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -2541,6 +2574,18 @@ struct DtDemodParsDvbT2
 {
     int  m_Bandwidth;               // Bandwidth
     int  m_T2Profile;               // DVB-T2 profile (Base/Lite)
+};
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDemodParsDvbT2Mi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Demodulation parameters for modulation type DTAPI_MOD_T2MI
+//
+struct DtDemodParsDvbT2Mi
+{
+    int  m_Bandwidth;               // Bandwidth
+    bool  m_MultiProfile{ false };  // Multi profile
+    int  m_T2miPid1{ -1 };          // First T2MI input PID (automatic = -1)
+    int  m_T2miPid2{ -1 };          // Second T2MI input PID
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDemodParsIq -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2671,7 +2716,7 @@ struct DtDemodMaLayerData
     int  m_IssyTto;                 // ISSY: last 'TTO' value (DVB-T2 only)
     int  m_IssyBufStat;             // ISSY: last 'BUFSTAT' value (DVB-C2/S2 only)
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -2687,7 +2732,7 @@ struct DtDemodPlpBlocks
                                     // reset)
     int  m_NumBlocksMax;            // Maximum plp_num_blocks 
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -2706,7 +2751,7 @@ struct DtTransmitter
     int  m_SymbolRate;              // Symbol rate
 };
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBsProgess -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBsProgress -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 // Structure describing the progress of an asynchronous BlindScan.
 // Used by asynchronous DtInpChannel::BlindScan to return current state and the 
@@ -2728,7 +2773,7 @@ struct DtBsProgress
                                 // frequency
     DTAPI_RESULT  m_Result;     // Result of the blindscan
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 
@@ -2737,7 +2782,7 @@ public:
     ~DtBsProgress();
 };
 
-// Function to receive asynchronous progess.
+// Function to receive asynchronous progress.
 typedef void  DtBsProgressFunc(DtBsProgress& Progress, void* pOpaque);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtRfLevel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -2771,7 +2816,7 @@ struct DtSpsProgress
     SpsEvent  m_ProgressEvent;  // Progress event
     DTAPI_RESULT  m_Result;     // Result of the spectrumscan
     
-    //Serialisation
+    //Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
  
@@ -2780,7 +2825,7 @@ public:
     ~DtSpsProgress();
 };
 
-// Function to receive asynchronous spectrum scan progess.
+// Function to receive asynchronous spectrum scan progress.
 typedef void  DtSpsProgressFunc(DtSpsProgress& Progress, void* pOpaque);
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAspectRatio -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -3112,6 +3157,7 @@ public:
     virtual DTAPI_RESULT GetStateFlags(int Port, int &StateFlags);
     virtual DTAPI_RESULT GetTimeOfDay(DtTimeOfDay&) const;
     virtual DTAPI_RESULT GetTimeOfDayState(DtTimeOfDayState&) const;
+    virtual DTAPI_RESULT GetTxClockCount(int TxClockId, int& TxClockCount) const;
     virtual DTAPI_RESULT GetTxClockProperties(std::vector<DtTxClockProperties>&) const;
     virtual DTAPI_RESULT GetTxClockOffset(int TxClockId, double& OffsetPpm) const;
     virtual DTAPI_RESULT GetUsbSpeed(int& UsbSpeed);
@@ -3246,7 +3292,7 @@ public:
 // String conversion - Device serial number in canonical form (e.g. "2180.000.022")
 #define DTAPI_HWF2STR_SN              6
 
-// Status and error flags for GPS-Synchronisation
+// Status and error flags for GPS-Synchronization
 #define DTAPI_GPS_1PPS_SYNC         0x000001
 #define DTAPI_GPS_10MHZ_SYNC        0x000002
 #define DTAPI_GPS_1PPS_ERROR        0x000001
@@ -3327,11 +3373,34 @@ private:
 #define DTAPI_NWSPEED_1GB_MASTER    5
 #define DTAPI_NWSPEED_1GB_SLAVE     6
 #define DTAPI_NWSPEED_10GB          7
+#define DTAPI_NWSPEED_25GB          8
 
 // Microcode upload states
 #define DTAPI_UCODE_NOT_LOADED      0
 #define DTAPI_UCODE_LOADING         1
 #define DTAPI_UCODE_LOADED          2
+
+// LNB error flags
+#define DTAPI_LNB_POWER_OVL         1       // Power overload flag
+#define DTAPI_LNB_THERM_OHT         2       // Thermal overheating flag
+#define DTAPI_LNB_VOLT_LOW          4       // Input voltage too low; power not good
+
+// LNB power in milli ampere
+enum class DtLnbPower
+{
+    LNB_200MA,
+    LNB_400MA,
+    LNB_AUTO
+};
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtLnbPowerStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+struct DtLnbPowerStatus 
+{
+    DtLnbPower  m_MaxPower{ DtLnbPower::LNB_200MA }; // Maximum available LNB current
+                                                     // 200mA or 400mA
+    bool  m_UsingExtPower{ false };         // LNB is powered from external 12V yes/no
+    int   m_ErrorFlags{0};                  // LNB error flags
+};
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtInpChannel -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -3425,8 +3494,9 @@ public:
     DTAPI_RESULT  I2CWriteRead(int DvcAddrWrite, char* pBufferWrite, int NumBytesToWrite,
                                   int DvcAddrRead, char* pBufferRead, int NumBytesToRead);
     DTAPI_RESULT  LedControl(int LedControl);
-    DTAPI_RESULT  LnbEnable(bool Enable);
+    DTAPI_RESULT  LnbEnable(bool Enable, DtLnbPower Power=DtLnbPower::LNB_AUTO);
     DTAPI_RESULT  LnbEnableTone(bool Enable);
+    DTAPI_RESULT  LnbGetPowerStatus(DtLnbPowerStatus& PowerStatus);
     DTAPI_RESULT  LnbSetVoltage(int Level);
     DTAPI_RESULT  LnbSendBurst(int BurstType);
     DTAPI_RESULT  LnbSendDiseqcMessage(const unsigned char* MsgOut, int NumBytesOut);
@@ -3493,9 +3563,11 @@ private:
 };
 
 // Tuner freq has changed
-#define DTAPI_EV_TUNE_FREQ_CHANGED  0x0000000000000001LL
+#define DTAPI_EV_TUNE_FREQ_CHANGED          0x0000000000000001LL
 // Tuning parameters have changed
-#define DTAPI_EV_TUNE_PARS_CHANGED  0x0000000000000002LL
+#define DTAPI_EV_TUNE_PARS_CHANGED          0x0000000000000002LL
+// LNB power status has changed
+#define DTAPI_EV_LNB_POWER_STATUS_CHANGED   0x0000000000000004LL
 
 #define DTAPI_ERRORSTATS_BER        0            // Bit error rate (default)
 #define DTAPI_ERRORSTATS_RS         1            // Reed-Solomon packet errors
@@ -3555,6 +3627,7 @@ private:
 #define DTAPI_RXMODE_RAWASI         (DTAPI_RXMODE_TS | 0x08)
 #define DTAPI_RXMODE_STTRP          (DTAPI_RXMODE_TS | 0x09)
 #define DTAPI_RXMODE_STL3ALL        (DTAPI_RXMODE_TS | 0x0A)
+#define DTAPI_RXMODE_GSE_RAW        (DTAPI_RXMODE_TS | 0x0B)
 #define DTAPI_RXMODE_TS_MASK        (DTAPI_RXMODE_TS | DTAPI_RXMODE_TS_MODE_BITS)
 
 // Receive mode for SDI - Modes
@@ -4558,7 +4631,7 @@ protected:
 
     // Following members are only valid if TOC type is DTAPI_SDI_TOC_ENTRY_HANC or 
     // DTAPI_SDI_TOC_ENTRY_VANC
-    int  m_AncType;                 // Ancillery data packet type (DTAPI_SDI_ANC_TYPE1 or
+    int  m_AncType;                 // Ancillary data packet type (DTAPI_SDI_ANC_TYPE1 or
                                     // DTAPI_SDI_ANC_TYPE2)
     int  m_Did;                     // Ancillary packet data ID
     int  m_SdidOrDbn;               // Ancillary packet data block number (type 1 packet)
@@ -5479,7 +5552,7 @@ public:
     bool  IsEqual(DtVirtualOutPars& VirtOutPars);
     bool  operator == (DtVirtualOutPars& VirtOutPars);
     bool  operator != (DtVirtualOutPars& VirtOutPars);
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString, const std::wstring& Root); 
     DTAPI_RESULT  ToXml(const std::wstring& Root, std::wstring& XmlString);
 };
@@ -5687,7 +5760,7 @@ public:
                                 // value >= 10  gives injection level of 5.0-value dB
     bool  m_BbFrameCounter;     // Enable BB-frame counter
 
-    // Folowing parameters are only used in core layer
+    // Following parameters are only used in core layer
     int  m_PlpType;             // L1D_plp_type; PLP-type, see DTAPI_ATSC3_PLPTYPE_x
     int  m_NumSubslices;        // Number of subslices: 1...16384, if PlpType is dispersed
     int  m_SubsliceInterval;    // Interval: 1.. 2^24-1, if PlpType is dispersed
@@ -5707,7 +5780,7 @@ public:
                                 // for the current PLP: 1..4096
     bool  m_HtiCellInterleaver; // Enable the cell-interleaver
 
-    // Channel bonding (only signaliing)
+    // Channel bonding (only signaling)
     int  m_NumChannelBonded;    // Number of frequencies, not including the present 
                                 // channel, involved in channel bonding of this PLP:
                                 // 0..m_NumRf
@@ -5756,7 +5829,7 @@ class DtAtsc3SubframePars
 public:
     int  m_Miso;                // MISO type, see DTAPI_ATSC3_MISO_x 
     int  m_MisoNumTx;           // Number of MISO transmitters: 2, 3 or 4
-    int  m_MisoTxIndex;         // MISO tranmitter index, range: 0..m_MisoNumTx-1
+    int  m_MisoTxIndex;         // MISO transmitter index, range: 0..m_MisoNumTx-1
     int  m_FftSize;             // FFT-size, see DTAPI_ATSC3_FFT_x
     int  m_ReducedCarriers;     // Carrier reduction coefficient, range 0..4
     int  m_GuardInterval;       // Guard interval see DTAPI_ATSC3_GI_x
@@ -5800,7 +5873,7 @@ public:
     int  m_PreambleReducedCarriers; // Preamble carrier reduction coefficient, range 0..4
     int  m_L1BasicFecMode;      // L1-Basic FEC-type mode 1..7
     int  m_L1DetailFecMode;     // L1 Detail FEC-type mode: 1..7
-    int  m_L1DetailAddParity;   // L1-Detail aditional parity mode K: 0, 1 or 2
+    int  m_L1DetailAddParity;   // L1-Detail additional parity mode K: 0, 1 or 2
     int  m_L1DetailVersion;     // L1-Detail version 0 or 1
 
     int  m_TxIdInjectLevelCode; // Tx-ID injection level see DTAPI_ATSC3_TXIDLVL_xx
@@ -5808,7 +5881,7 @@ public:
   
     // Time information seconds elapsed since the PTP epoch on 1st January 1970
     int   m_TimeInfoFlag;       // Generation of time information: None, Millisecond, 
-                                // Microsecond, Nanosecond precission, 
+                                // Microsecond, Nanosecond precision, 
                                 // see DTAPI_ATSC3_TIME_x
     int  m_TimeSeconds;         // Initial seconds component
     int  m_TimeNanoseconds;     // Initial nanoseconds component
@@ -5851,7 +5924,7 @@ public:
     bool  IsEqual(DtAtsc3Pars& Atsc3Pars);
     bool  operator == (DtAtsc3Pars& Atsc3Pars);
     bool  operator != (DtAtsc3Pars& Atsc3Pars);
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString); 
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -5863,7 +5936,10 @@ struct DtAtsc3PlpInfo
     int  m_BbFramerate;             // Frame rate in BB-frames per second
     int  m_PlpBitrate;              // PLP bitrate in bits per second, excluding the
                                     // bbframe header, assuming a two byte position field.
-    int m_PlpSize;                  // Number of cells for the PLP
+    int m_PlpSize;                  // Number of PLP cells
+    int m_PlpStart;                 // PLP start cell (absolute)
+    int m_PlpFecBlockSize;          // Number of cells in a FEC Block
+    int m_NumTiMemoryCells;         // Number of TI memory cells
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtAtsc3SubframeInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -5873,6 +5949,7 @@ struct DtAtsc3SubframeInfo
     int  m_TotalNumDataCells;       // Total number of data cells available for PLPs
                                     // including the preamble PLP cells for the first
                                     // subframe
+    int  m_NumDummyCells;           // Number of dummy cells
     int  m_NumCellsInDataSym;       // Number of cells in data symbols
     int  m_NumCellsInSbsSym;        // number of cells in SBS symbols
     std::vector<DtAtsc3PlpInfo> m_Plps;  // PLP information
@@ -5919,7 +5996,7 @@ public:
 struct DtAtsc3DemodL1PlpData
 {
     int  m_Id;                  // L1D_plp_id; PLP-ID: 0..63
-    bool  m_LlsFlag;            // L1D_plp_lls_flag; PLP carrying LLS signalling
+    bool  m_LlsFlag;            // L1D_plp_lls_flag; PLP carrying LLS signaling
     int  m_Layer;               // L1D_plp_layer; Core/Enhanced layer: DTAPI_ATSC3_LAYER_x
     int  m_Start;               // L1D_plp_start; index of the PLP's first data cell
     int  m_Size;                // L1D_plp_size; number of data cells allocated
@@ -5969,7 +6046,8 @@ struct DtAtsc3DemodL1PlpData
     int   m_LdmInjectLevel;     // L1D_plp_ldm_injection_level;
                                 // InjectLevel <  10 : InjectLevel/2.0 dB
                                 // InjectLevel >= 10 : InjectLevel - 5.0 dB
-    // Serialisation
+    DtAtsc3DemodL1PlpData();
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -6002,7 +6080,8 @@ struct DtAtsc3DemodL1SubframeData
                                 // subframe boundary symbol(s)
    std::vector<DtAtsc3DemodL1PlpData>  m_Plps;  // PLPs          
 
-   // Serialisation
+   DtAtsc3DemodL1SubframeData();
+   // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -6067,7 +6146,8 @@ struct DtAtsc3DemodL1BasicData
                                 // is a subframe boundary symbol
     bool  m_FirstSubSbsLast;    // L1B_first_sub_sbs_last; last symbol of the subframe is
                                 // a subframe boundary symbol
-    // Serialisation
+    DtAtsc3DemodL1BasicData();
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -6092,7 +6172,8 @@ struct DtAtsc3DemodL1DetailData
     // Note: L1 basic first_sub are copied in the first subframe
     std::vector<DtAtsc3DemodL1SubframeData> m_Subframes;    // Subframes
 
-    // Serialisation
+    DtAtsc3DemodL1DetailData();
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -6107,7 +6188,7 @@ struct DtAtsc3DemodBootstrapData
     int  m_EasWakeup;           // Emergency alert signal wake-up field: 0..3
     int  m_MinTimeToNext;       // Minimum time interval to next frame: 0..31 
     int  m_SystemBandwidth;     // System bandwidth of the post bootstrap signal
-    int  m_BsrCoefficient;      // bsr coefficient; sampe rate bootstrap = (N+16)*0.384MHz
+    int  m_BsrCoefficient;      // bsr coefficient; sample rate bootstrap = (N+16)*0.384MHz
                                 // 0-127
     int  m_PreambleStructure;   // Preample structure, see ATSC PHY standard Annex H
     // Parameters derived from the m_PreambleStructure
@@ -6116,7 +6197,8 @@ struct DtAtsc3DemodBootstrapData
     int  m_PreambleGuardInterval; // Preamble guard interval, see See DTAPI_ATSC3_GI_x
     int  m_PreamblePilotDx;     // Preamble pilot pattern Dx, see DTAPI_ATSC3_PP_DX_x
     
-    // Serialisation
+    DtAtsc3DemodBootstrapData();
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -6130,7 +6212,9 @@ struct DtAtsc3DemodL1Data
     DtAtsc3DemodL1BasicData  m_L1Basic;     // L1-Basic data
     DtAtsc3DemodL1DetailData  m_L1Detail;   // L1-Detail data
 
-   // Serialisation
+   DtAtsc3DemodL1Data() = default;
+   void Clear() { *this = DtAtsc3DemodL1Data(); }
+   // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -6142,7 +6226,7 @@ struct DtAtsc3StreamSelPars
 {
     int  m_PlpId;                   // ID of the data PLP
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -6177,7 +6261,8 @@ enum DtDabExtractionMode
 {
     DAB_RAW,                        // Raw DAB stream, no extraction
     DAB_EXTRACTION_AAC,             // AAC/DAB+ stream extraction 
-    DAB_EXTRACTION_DMB              // DMB stream extraction
+    DAB_EXTRACTION_DMB,             // DMB stream extraction
+    DAB_EXTRACTION_SUPERFRAME       // DAB superframe
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDabEtiStreamSelPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -6201,7 +6286,8 @@ struct DtDabStreamSelPars
     int  m_ErrProtOption;           // Error protection option (EEP only): 0 or 1
     int  m_StartAddress;            // Start address in DAB capacity units (64bits)
 
-    // DAB data extraction mode: DAB_RAW, DAB_EXTRACTION_AAC or DAB_EXTRACTION_DMB
+    // DAB data extraction mode: DAB_RAW, DAB_EXTRACTION_AAC, DAB_EXTRACTION_DMB 
+    // or DAB_EXTRACTION_SUPERFRAME
     DtDabExtractionMode  m_ExtractionMode;
 };
 
@@ -6277,7 +6363,7 @@ struct DtDabServiceComp
     bool  m_HasCondAccess;          // True if access control applies
     bool  m_IsPrimary;              // True if this is the primary component
     std::wstring  m_Label;          // Label identifying this service component
-    int  m_Language;                // Service compoment language or -1
+    int  m_Language;                // Service component language or -1
     int  m_SubChannelId;            // Subchannel identifier: 0..63; -1 if not applicable
     int  m_ServiceCompId;           // Service component identifier; -1 if not applicable
     int  m_TransportMechanismId;    // Transport mechanism identifier
@@ -6701,7 +6787,7 @@ struct DtDvbC2PlpPars
     int  m_TsId;                    // Transport Stream ID (if m_PsiSiReproc=false)
     int  m_OnwId;                   // Original Network ID (if m_PsiSiReproc=false)
     bool  m_NoData;                 // No input data is provided for this PLP. 
-                                    // It is implicitely true for all PLPs in a data slice 
+                                    // It is implicitly true for all PLPs in a data slice 
                                     // with m_OffsetLeft = m_OffsetRight
 public:
     void  Init(int PlpId = 0);
@@ -6804,10 +6890,10 @@ public:
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbC2DemodL1PlpSigDataPlp -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
  //
-// Struct for storing layer 1 PLP signalling information per PLP.
-// For type 1 data slices this struct contains the PLP-signalling information
-// from the layer 1 part 2 signalling.
-// For type 2 data slices this struct contains the PLP-signalling information
+// Struct for storing layer 1 PLP signaling information per PLP.
+// For type 1 data slices this struct contains the PLP-signaling information
+// from the layer 1 part 2 signaling.
+// For type 2 data slices this struct contains the PLP-signaling information
 // from the layer 1 part 1 (=FEC-frame header).
 //
 struct DtDvbC2DemodL1PlpSigDataPlp
@@ -6822,14 +6908,14 @@ struct DtDvbC2DemodL1PlpSigDataPlp
 
     DtDvbC2DemodL1PlpSigDataPlp();
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbC2DemodL1PlpSigData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// Struct for storing the DVB-C2 layer 1 PLP signalling data
+// Struct for storing the DVB-C2 layer 1 PLP signaling data
 //
 struct DtDvbC2DemodL1PlpSigData
 {
@@ -6838,7 +6924,7 @@ struct DtDvbC2DemodL1PlpSigData
 
     DtDvbC2DemodL1PlpSigData();
     
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 
@@ -6867,7 +6953,7 @@ struct DtDvbC2DemodL1Part2Plp
  
     DtDvbC2DemodL1Part2Plp();
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -6903,7 +6989,7 @@ struct DtDvbC2DemodL1Part2DSlice
 
     DtDvbC2DemodL1Part2DSlice();
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -6937,7 +7023,7 @@ struct DtDvbC2DemodL1Part2Data
 
     DtDvbC2DemodL1Part2Data();
     
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -6952,7 +7038,7 @@ struct DtDvbC2StreamSelPars
     int  m_PlpId;                   // ID of the data PLP or DTAPI_DVBC2_PLP_ID_xxx
     int  m_CommonPlpId;             // ID of the common PLP or DTAPI_DVBC2_PLP_ID_xxx
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -7153,7 +7239,7 @@ public:
 #define DTAPI_DVBT2_7MHZ            3            // 7 MHz
 #define DTAPI_DVBT2_8MHZ            4            // 8 MHz
 #define DTAPI_DVBT2_10MHZ           5            // 10 MHz
-#define DTAPI_DVBT2_BW_UNK          -1           // Unknown bandwith
+#define DTAPI_DVBT2_BW_UNK          -1           // Unknown bandwidth
 #define DTAPI_DVBT2MI_BW_MSK        0xF          // Mask for T2MI ParXtra2
 #define DTAPI_DVBT2MI_BW_UNK        0xF          //Val in ParXtra2 if not set, map to 8MHz
 
@@ -7410,7 +7496,7 @@ struct DtDvbT2PaprPars
     int  m_L1ExtLength;             // L1 extension field length 0..65535
     bool  m_L1AceEnabled;           // L1 ACE enabled
     double  m_L1AceCMax;            // L1 ACE maximum constellation extension value
-    bool  m_L1Scrambling;           // L1 post scrabling (requires T2-version 1.3.1)
+    bool  m_L1Scrambling;           // L1 post scrambling (requires T2-version 1.3.1)
 
     // Parameters below only apply if DVB-T2 V1.2.1 is selected
     int  m_NumBiasBalCells;         // Dummy cells added to reduce the P2 PAPR
@@ -7437,7 +7523,7 @@ struct DtDvbT2ParamInfo
     int  m_L1CellsPerFrame;         // Total #cells per frame used for L1 signaling
                                     // Overhead: m_L1CellsPerFrame/m_TotalCellsPerFrame
     int  m_AuxCellsPerFrame;        // Total number of auxiliary stream cells per frame 
-                                    // (currently only used for TX signalling if enabled)
+                                    // (currently only used for TX signaling if enabled)
     int  m_BiasBalCellsPerFrame;    // Total number of L1 bias balancing cells per frame
     int  m_BiasBalCellsMax;         // Maximum number of L1 bias balancing cells per P2
     int  m_DummyCellsPerFrame;      // Total number of cells lost per frame. Dummy cells
@@ -7563,7 +7649,7 @@ enum DtDvbT2RbmEventType
 //
 struct DtDvbT2RbmEvent
 {
-    int  m_DataPlpId;               // Data plp ID identifiying the stream
+    int  m_DataPlpId;               // Data plp ID identifying the stream
     int  m_DataPlpIndex;            // Data plp index
     double  m_Time;                 // Time in T units
     int  m_IsCommonPlp;             // 1 = common PLP, 0 = data PLP,
@@ -7589,7 +7675,7 @@ struct DtDvbT2RbmEvent
             int  m_Tto;             // TTO value
         } TtoInThePast;
 
-        // DTAPI_DVBT2_RBM_EVENT_DJB_OVERFLOW paraneters
+        // DTAPI_DVBT2_RBM_EVENT_DJB_OVERFLOW parameters
         struct {
             int  m_DjbSize;         // Dejitter buffer size in bits
             int  m_DjbMaxSize;
@@ -7716,7 +7802,7 @@ public:
     int  m_Miso;                    // MISO. See DVBT2_MISO_x
     int  m_GuardInterval;           // Guard interval. See DVBT2_GI_x
     int  m_Papr;                    // PAPR. See DVBT2_PAPR_x
-    bool  m_BwtExt;                 // Bandwidth extention
+    bool  m_BwtExt;                 // Bandwidth extension
     int  m_PilotPattern;            // Pilot pattern. Pattern 1 .. 8.
     int  m_L1Modulation;            // L1 modulation. See DVBT2_BPSK/... 
     int  m_CellId;                  // Cell ID.  0..0xFFFF.
@@ -7745,7 +7831,7 @@ public:
     // RF channels for TFS
     int  m_NumRfChans;              // Number of RF channels 1..7
     int  m_RfChanFreqs[DTAPI_DVBT2_NUM_RF_MAX];
-                                    // Channel frequencis
+                                    // Channel frequencies
     int  m_StartRfIdx;              // First used RF channel
 
     // PLPs
@@ -7809,7 +7895,8 @@ public:
     // Helper function to determine T2MI ts rate.
     static DTAPI_RESULT  RetrieveT2miTsRateFromTs(char* pBuffer, int NumBytes,
                                                             int  Bandwidth, int&  TsRate);
-
+    static DTAPI_RESULT  RetrieveT2miParsFromTs(char* pBuffer, int NumBytes,
+                                   std::vector<int>& Pids, int&  Bandwidth, int&  TsRate);
     // Operators
     virtual bool  operator == (DtDvbT2Pars& T2Pars);
     virtual bool  operator != (DtDvbT2Pars& T2Pars);
@@ -7872,7 +7959,7 @@ struct DtDvbT2DemodL1PostPlp
                                     // used
     DtDvbT2DemodL1PostPlp();
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -7884,7 +7971,7 @@ struct DtDvbT2DemodL1PostPlp
 struct DtDvbT2DemodRfPars
 {
     int  m_RfIdx;                   // Index of the RF-frequency
-    int  m_Frequency;               // Centre frequency in Hz
+    int  m_Frequency;               // Center frequency in Hz
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbT2DemodL1Data -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -7910,8 +7997,8 @@ struct DtDvbT2DemodL1Data
 
         int  m_Type;                // Stream type within the current T2 super-frame
         int  m_BwtExt;              // Bandwidth extension
-        int  m_S1;                  // S1 signalling. P1 S1. 
-        int  m_S2;                  // S2 signalling. P1 S2.
+        int  m_S1;                  // S1 signaling. P1 S1. 
+        int  m_S2;                  // S2 signaling. P1 S2.
         int  m_L1Repetition;        // L1 repetition
         int  m_GuardInterval;       // Guard interval, see DVBT2_GI_x
         int  m_Papr;                // PAPR. see DVBT2_PAPR_x
@@ -7957,14 +8044,15 @@ struct DtDvbT2DemodL1Data
         // PLPs
         std::vector<DtDvbT2DemodL1PostPlp>  m_Plps;    
 
-        // Auxiliary stream signalling information
+        // Auxiliary stream signaling information
         std::vector<DtDvbT2DemodAuxPars>  m_AuxPars;   
 
     } m_L1Post;
 
     DtDvbT2DemodL1Data();
+    void Clear() {*this = DtDvbT2DemodL1Data(); }
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -8031,12 +8119,16 @@ enum DtStreamType
     STREAM_DVBC2,                   // DVB-C2 stream (Transport Stream packets)
     STREAM_DVBC2_BBFRAME,           // DVB-C2 stream base-band frames
     STREAM_DVBC2_GSE,               // DVB-C2 stream GSE-packets
+    STREAM_DVBC2_GSE_RAW,           // DVB-C2 stream raw GSE-packet
     STREAM_DVBS,                    // DVB-S stream
     STREAM_DVBS2,                   // DVB-S2 stream
+    STREAM_DVBS2_L3,                // DVB-S2 L3 stream
+    STREAM_DVBS2_GSE_RAW,           // DVB-S2 raw GSE-packets
     STREAM_DVBT,                    // DVB-T stream
     STREAM_DVBT2,                   // DVB-T2 stream (Transport Stream packets)
     STREAM_DVBT2_BBFRAME,           // DVB-T2 stream base band frames
     STREAM_DVBT2_GSE,               // DVB-T2 stream GSE-packets
+    STREAM_DVBT2_GSE_RAW,           // DVB-T2 stream raw GSE-packets
     STREAM_IMPRESP,                 // Impulse response
     STREAM_ISDBT,                   // ISDB-T stream
     STREAM_MER,                     // MER
@@ -8081,7 +8173,7 @@ struct DtDvbTStreamSelPars
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbTTpsInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// DVB-T Transmission Parameter Signalling (TPS) information structure
+// DVB-T Transmission Parameter signaling (TPS) information structure
 //
 struct DtDvbTTpsInfo
 {
@@ -8099,7 +8191,7 @@ struct DtDvbTTpsInfo
     int  m_OddS50_S53;              // S50..S53 of the odd frames
     int  m_EvenS50_S53;             // S50..S53 of the even frames
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -8114,7 +8206,7 @@ struct DtDvbT2StreamSelPars
     int  m_PlpId;                   // ID of the data PLP or DTAPI_DVBT2_PLP_ID_xxx
     int  m_CommonPlpId;             // ID of the common PLP or DTAPI_DVBT2_PLP_ID_xxx
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
 };
@@ -8175,7 +8267,7 @@ struct DtSpectrumPars
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtT2MiStreamSelPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // This structure specifies the selection parameters for a T2-MI transport stream
-// containing a com-plete DVB-T2 stream.
+// containing a complete DVB-T2 stream.
 //
 struct DtT2MiStreamSelPars
 {
@@ -8246,11 +8338,11 @@ struct DtStreamSelPars
         DtTxIdImpRespPars   m_TxIdImpResp;
     } u;
 
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  ToXml(std::wstring& XmlString);
     DTAPI_RESULT  FromXml(const std::wstring& XmlString);
 
-    // Serialisation of an array of DtStreamSelPars
+    // Serialization of an array of DtStreamSelPars
     static DTAPI_RESULT  FromXml(const std::wstring&, std::vector<DtStreamSelPars>&);
     static DTAPI_RESULT  ToXml(std::vector<DtStreamSelPars>&, std::wstring&);
 
@@ -8260,8 +8352,7 @@ struct DtStreamSelPars
 
 // Software demodulator callback functions
 typedef void  DtOutputRateChangedFunc(void *pOpaque, DtStreamSelPars&, int Bitrate);
-typedef void  DtReadIqFunc(void* pOpaque, 
-                                     unsigned char* pIqBuf, int IqBufSize, int& IqLength);
+typedef void  DtReadIqFunc(void* pOpaque, unsigned char* pBuf, int BufSize, int& Length);
 typedef void  DtWriteMeasFunc(void *pOpaque, DtStreamSelPars&, DtMeasurement*);
 typedef void  DtWriteStreamFunc(void* pOpaque, DtStreamSelPars& StreamSel, 
                                                   const unsigned char* pData, int Length);
@@ -8297,7 +8388,7 @@ public:
     DTAPI_RESULT  AttachToPort(DtDevice* pDtDvc, int Port,
                                                bool Exclusive=true, bool ProbeOnly=false);
     DTAPI_RESULT  AttachVirtual(DtDevice* pDtDvc,
-                                                DtReadIqFunc* pReadIqFunc, void* pOpaque);
+                                              DtReadIqFunc* pReadIqMiFunc, void* pOpaque);
     DTAPI_RESULT  ClearFlags(int Latched);
     DTAPI_RESULT  CloseStream(intptr_t Id);
     DTAPI_RESULT  Detach(int DetachMode);
@@ -8604,7 +8695,7 @@ public:
     std::vector<DtMxPlaneProps>  m_Planes;  // Properties of the planes
 protected:
     PieceType  m_Type;              // Type of piece
-    DtMxPixelFormatProps  m_PxFmtProps;  // Properties of te overaal pixel formart
+    DtMxPixelFormatProps  m_PxFmtProps;  // Properties of the overal pixel format
 
                                          // Constructor / Destructor
 public:
@@ -8793,6 +8884,14 @@ public:
     int  m_Index;               // Identifies the corresponding audio channel.
     bool  m_DeEmbed;            // If true, decode the input to data buffers per stream.
                                 // m_DeEmbed is ignored for output rows.
+    bool m_IgnoreVBit;          // Ignore the AES3 validity bit (V-bit) while 
+                                // de-embedding PCM samples. If true the audio parser will 
+                                // extract PCM samples regardless of the V-bit state.
+                                // Otherwise, PCM samples are only extracted if the V-bit
+                                // marks them as valid. 
+                                // By default this option is turned OFF. Turn this option 
+                                // ON, for interoperability with non-compliant equipment, 
+                                // that does set the V-bit correctly. 
     DtMxOutputMode  m_OutputMode;  
                                 // DROP: Audio group is not generated at output, whether
                                 //       or not it was available at input. Data buffers
@@ -8807,7 +8906,7 @@ public:
                                 //       initialized with input data if m_DeEmbed is
                                 //       true, otherwise they're initially empty.
                                 // m_OutputMode is ignored for input rows.
-    DtMxAudioSampleType  m_Format; // Inidicate whether to (de-)embed PCM samples or
+    DtMxAudioSampleType  m_Format; // Indicates whether to (de-)embed PCM samples or
                                 // AES subframes. Dolby E can be (de-)embedded as
                                 // AES samples.
 
@@ -9269,7 +9368,7 @@ public:
     // Get or set the sampling structure
     DTAPI_RESULT  GetSamplingStructure(SamplingStructure&  Structure);
     DTAPI_RESULT  SetSamplingStructure(SamplingStructure  Structure);
-    // Get or set the pand and scan data
+    // Get or set the pan and scan data
     DTAPI_RESULT  GetPanAndScan(int& Pan, int& Tilt, int& Zoom, bool& X, bool& Y, bool& Z);
     DTAPI_RESULT  SetPanAndScan(int Pan, int Tilt, int Zoom, bool X, bool Y, bool Z);
     // Get or set the color field
@@ -9524,7 +9623,7 @@ public:
     // Get or set whether the channel contains linear audio PCM data or something else.
     DTAPI_RESULT  GetPcmAudio(bool&  IsPcm);
     DTAPI_RESULT  SetPcmAudio(bool  IsPcm);
-    // Get or set the the significant and maximum number of bits
+    // Get or set the significant and maximum number of bits
     DTAPI_RESULT  GetPcmNumBits(int&  NumBits, int&  NumAuxBits);
     DTAPI_RESULT  SetPcmNumBits(int  NumBits, int  NumAuxBits=0);
 
@@ -9710,7 +9809,7 @@ public:
     DtTimeOfDay m_TodTimestamp; // TOD arrival time-stamp of the frame
 
     bool m_TxTimestampValid;        // True when m_TxTodTimestamp and m_TxRawTimestamp 
-                                    // are are valid. 
+                                    // are valid. 
     DtTimeOfDay m_TxTodTimestamp;   // Predicted transmit time of this frame.
                                     // Note: only valid when m_TxTimestampValid is true.
     __int64 m_TxRawTimestamp;       // 64-bit timestamp with predicted transmit time of 
@@ -10034,7 +10133,7 @@ public:
     // Makes sure the configuration of all rows and global matrix settings is consistent.
     // If it is, start the matrix process.
     DTAPI_RESULT  Start();
-    // Stop a runnig matrix process and return to IDLE.
+    // Stop a running matrix process and return to IDLE.
     DTAPI_RESULT  Stop();
     // Check if matrix is started
     bool  IsStarted() const;
@@ -10127,7 +10226,7 @@ enum DtEncResult
     DT_ENC_E_INV_SOURCEPORT,        // Invalid source port selection
     DT_ENC_E_INV_STREAMID,          // Invalid stream ID
     DT_ENC_E_INV_TELECINE,          // Invalid inverse telecine operation
-    DT_ENC_E_INV_TRANSBLOCKSIZE,    // Invalid transform block size (8x8 tranform)
+    DT_ENC_E_INV_TRANSBLOCKSIZE,    // Invalid transform block size (8x8 transform)
     DT_ENC_E_INV_TSID,              // Invalid TS ID
     DT_ENC_E_INV_TYPE,              // Type number is not valid encoding hardware
     DT_ENC_E_INV_UVSAMPLING,        // Invalid chroma sampling
@@ -10136,7 +10235,7 @@ enum DtEncResult
     DT_ENC_E_INV_VIDPID,            // Invalid video PID
     DT_ENC_E_INV_VIDSTD,            // Invalid video standard
     DT_ENC_E_INV_VOLUMEADJUST,      // Invalid volume adjustment
-    DT_ENC_E_PASSTHROUGHONLY,       // Standard is only supported in passthrough mode
+    DT_ENC_E_PASSTHROUGHONLY,       // Standard is only supported in pass-through mode
     DT_ENC_E_TYPE_NOT_SET,          // No type number has been set
     DT_ENC_E_UNSUP_PRF_LVL          // Unsupported profile level combination
 };
@@ -10147,7 +10246,7 @@ const char*  DtEncResult2Str(DtEncResult);
 // Video encoder status (see also DTAPI_STAT_VID_STATUS)
 #define DTAPI_VIDSTATUS_IDLE         0           // Not encoding
 #define DTAPI_VIDSTATUS_OK           1           // Encoding
-#define DTAPI_VIDSTATUS_SYNCLOSS     2           // Lost input synchronisation
+#define DTAPI_VIDSTATUS_SYNCLOSS     2           // Lost input synchronization
 #define DTAPI_VIDSTATUS_ERROR        -1          // Unknown encoding error
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+ ENCODING PARAMETERS BASE CLASS +=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -10479,7 +10578,7 @@ public:
     DtEncAudPars&  operator = (const DtEncAudPars&);
     bool  operator == (const DtEncAudPars&) const;
     bool  operator != (const DtEncAudPars&) const;
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring&); 
     DTAPI_RESULT  ToXml(std::wstring&);
 
@@ -10858,7 +10957,7 @@ public:
     bool  operator == (const DtEncPars&) const;
     bool  operator != (const DtEncPars&) const;
        
-    // Serialisation
+    // Serialization
     DTAPI_RESULT  FromXml(const std::wstring&); 
     DTAPI_RESULT  ToXml(std::wstring&);
 };
@@ -11179,7 +11278,7 @@ const char*  DtapiMxFrameStatus2Str(DtMxFrameStatus  Status);
 //
 enum DtColorSpace
 {
-    DT_CS_AUTO,             // Select colorspace depending on signal type.
+    DT_CS_AUTO,             // Select color space depending on signal type.
     DT_CS_BT601,            // Used for SD signals
     DT_CS_BT709,            // For HD-SDI and 3G-SDI
     DT_CS_BT2020,           // For 4K
@@ -11235,7 +11334,7 @@ enum class DtCidEventType
     ACQ_NEW,                // Acquisition has detected a new CID signal
     NEW_FRAME,              // A CidDemod instance has received a new frame
     ACQ_STATE_UPDATE,       // Acquisition state updates
-    DEMOD_LOCK_LOST,        // State updates from a CidDemod intance
+    DEMOD_LOCK_LOST,        // State updates from a CidDemod instance
     QUEUE_OVERFLOW,         // EventQueue has reached max size, new events are discarded
     HARDWARE_FIFO_OVERFLOW, // Performance issue, processing of samples from hardware
                             // is too slow.
@@ -11243,11 +11342,11 @@ enum class DtCidEventType
                             // samplebuffer is too slow.
 };
 
-// Describes the states of the Acquisition algoritm
+// Describes the states of the Acquisition algorithm
 enum class  DtCidAcqState
 {
     NOT_STARTED,	// Acquisition has not yet started
-    PROCESSING,     // Acquisition is acquiering CID signals
+    PROCESSING,     // Acquisition is acquiring CID signals
     FINISHED        // The required number of samples for all the signals to be detected,
                     // have been processed.
 };
@@ -11261,7 +11360,7 @@ enum class  DtCidDemodState
     SEARCHING,
     // Locked on the CID signal; No error-free/correctable frames have been received yet.
     LOCKED_PROCESSING,
-    // Locked on the CID signal; Atleast one error-free/correctable frame has been 
+    // Locked on the CID signal; At least one error-free/correctable frame has been 
     // received. Global Unique Identifier is available.
     LOCKED_GUID_RECEIVED,
     // Not locked; Lock is lost and no further action will be performed. Restart 
@@ -11269,7 +11368,7 @@ enum class  DtCidDemodState
     NOT_LOCKED
 };
 
-// Describes the measured status of the LNB that is used. This is indirectily measured
+// Describes the measured status of the LNB that is used. This is indirectly measured
 // by measuring the frequency stability. Compared to other factors the LNB has by far
 // the strongest effect on this stability.
 enum class DtCidLnbStatus
@@ -11315,8 +11414,8 @@ struct CidSpectrum
 
 struct DtCidFrame
 {
-    unsigned int  m_GuidHigh{0};           // Global unique indentifier high
-    unsigned int  m_GuidLow{0};            // Global unqiue identifier low
+    unsigned int  m_GuidHigh{0};           // Global unique identifier high
+    unsigned int  m_GuidLow{0};            // Global unique identifier low
     unsigned char  m_ContentId1{0};        // CID content id 1
     unsigned int  m_ContentInfo1{0};       // CID content information 1
     unsigned char  m_Crc1{0};              // CRC-8 checksum CID message 1
@@ -11371,7 +11470,7 @@ public:
 
     int m_CidSignalId{0};         // The signal id given by the acquisition algorithm
     double m_SNR{0};              // The signal to noise ratio of the acquired signal
-    double m_CarrierOffset{0};    // The carrier offset of the aquired signal
+    double m_CarrierOffset{0};    // The carrier offset of the acquired signal
 };
 
 // Indicates that a new CID frame has been received by one of the CidDemod
@@ -11554,4 +11653,4 @@ public:
 using namespace Dtapi;
 #endif
 
-#endif //#ifndef __DTAPI_H
+#endif //#ifndef __DTAPI_

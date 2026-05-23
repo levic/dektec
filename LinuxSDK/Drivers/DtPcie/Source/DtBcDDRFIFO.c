@@ -1,4 +1,4 @@
-// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBcDDRFIFO.c *#*#*#*#*#*#*#* (C) 2018-2023 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBcDDRFIFO.c *#*#*#*#*#*#*#* (C) 2018-2024 DekTec
 //
 // This file is not part of the PCIe driver. It can be used as template to create a new
 // block controller. Replace "DDRFIFO" by the building block's shortname (all uppercase)
@@ -107,7 +107,7 @@ DtStatus  DtBcDDRFIFO_GetFifoLoad(DtBcDDRFIFO* pBc, Int* pFifoLoad)
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcDDRFIFO_GetProperties -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtBcDDRFIFO_GetProperties(DtBcDDRFIFO* pBc, Int* pBurstSize, Int* pFifoSize,
+DtStatus  DtBcDDRFIFO_GetProperties(DtBcDDRFIFO* pBc, Int* pBurstSize, Int64* pFifoSize,
                                                                           Int* pDataWidth)
 {
     // Sanity check
@@ -224,12 +224,12 @@ DtStatus  DtBcDDRFIFO_CheckMemoryControllerStatus(DtBcDDRFIFO* pBc)
 
     // Wait for PLL in lock
     TimeoutCount = 0;
-    while (TimeoutCount<500 && DDRFIFO_Status_READ_MemPllLocked(pBc)==0)
+    while (TimeoutCount<500 && !DtBcDDRFIFO_IsMemPllLocked(pBc))
     {
         DtWaitBlock(10);
         TimeoutCount++;
     }
-    if (DDRFIFO_Status_READ_MemPllLocked(pBc) == 0)
+    if (!DtBcDDRFIFO_IsMemPllLocked(pBc))
     {
         DtString  Str;
         DtDbgOutBc(ERR, DDRFIFO, pBc, "PLL memory not in lock");
@@ -359,8 +359,8 @@ DtStatus  DtBcDDRFIFO_Init(DtBc* pBcBase)
     pBc->m_BurstSize = (1 << DDRFIFO_Config_GET_BurstSize(Properties)) * 
                                                            (pBc->m_DataWidth/8); // #bytes
 
-    pBc->m_FifoSize = 1 << DDRFIFO_Config_GET_FifoSize(Properties);              // #bytes
-    
+    pBc->m_FifoSize = 1LL << DDRFIFO_Config_GET_FifoSize(Properties);            // #bytes
+
     return Status;
 }
 
@@ -537,7 +537,9 @@ Bool  DtBcDDRFIFO_IsMemCalibrated(DtBcDDRFIFO* pBc)
 //
 Bool  DtBcDDRFIFO_IsMemPllLocked(DtBcDDRFIFO* pBc)
 {
-    return DDRFIFO_Status_READ_MemPllLocked(pBc) != 0;
+    // NOTE: the Status.MemPllLocked field was added in DdrFifo v1, so for v0 assume the 
+    // PLL is locked by definition.
+    return (pBc->m_Version==0 || DDRFIFO_Status_READ_MemPllLocked(pBc)!=0);
 }
 
 // =+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubBcDDRFIFO- Private functions +=+=+=+=+=+=+=+=+=+=+=+=+

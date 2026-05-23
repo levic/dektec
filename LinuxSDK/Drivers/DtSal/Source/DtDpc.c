@@ -68,7 +68,7 @@ void  DtDpcWorker(KDPC* pKdpc, void* pContext, void* pArg1, void* pArg2)
 // assert triggers, there are problems with free_pages in DtUtility.c too.
 extern const int g_StaticAssert[sizeof(unsigned long) >= sizeof(void*)];
 
-void  DtDpcWorker(unsigned long pContext)
+static void  DtDpcWorker(unsigned long pContext)
 #endif
 {
     Bool  DeQueue;

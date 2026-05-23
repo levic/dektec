@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+$(dirname "$0")/Install -d "DtPcie DtPcieNw" -r "DtPcie/Source/Linux/51-dtpcie.rules" -n dektec_dtpcie

@@ -32,9 +32,9 @@
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA log levels -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
 // IAL related
-#define  LOG_LEVEL_IAL          LOG_AVG
+#define  LOG_LEVEL_IAL          LOG_ERR
 // Toplevel related
-#define  LOG_LEVEL_DTPCIENW     LOG_AVG
+#define  LOG_LEVEL_DTPCIENW     LOG_ERR
 
 
 // Minimum version of DtPcie driver with which DtPcieNw can work
@@ -124,6 +124,9 @@ struct _DtPcieNwDeviceData
     //UInt  m_PacketAlignment;            // Number of alignment bytes
                                         // boundaries
     UInt  m_MaxNumMulticastItems;
+
+    UInt m_NumSupportedStatisticCounters;
+    UInt m_SupportedCounters[DT_MAC_CNT_IDS];
     
     // Shared buffer RX
     UInt  m_RxUuid;
@@ -142,6 +145,7 @@ struct _DtPcieNwDeviceData
     UInt  m_TxMaxLoad;
     UInt32  m_TxWriteOffset;
     UInt32  m_TxReadOffsetCache;
+    Int  m_DataAlignment;
 
     // TX Timestamping
     UInt8  m_Fingerprint;

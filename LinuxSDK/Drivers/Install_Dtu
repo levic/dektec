@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+$(dirname "$0")/Install -d "Dtu" -r "Dtu/Source/Linux/51-dtu.rules" -n dektec_dtu

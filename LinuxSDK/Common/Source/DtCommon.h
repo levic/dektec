@@ -477,7 +477,10 @@ typedef enum  _DtBcType
     DT_BLOCK_TYPE_IQINV,        // IqInv
     DT_BLOCK_TYPE_IQPWR,        // IqPowerEstimator
     DT_BLOCK_TYPE_AD9789ITF,    // Ad9789Itf
-
+    DT_BLOCK_TYPE_CLKCNT,       // Clock Counter
+    DT_BLOCK_TYPE_EMAC25G,      // EthMac25G
+    DT_BLOCK_TYPE_GPIO,         // GPIO
+    DT_BLOCK_TYPE_FMBC,         // FpgaMailboxClient
 
     // Local DTA-2132 blocks. DONOT RENUMBER!!
     DT_BLOCK_TYPE_AD5320_2132   = LTYPE_SEQNUM(2132, 1),
@@ -590,21 +593,35 @@ typedef enum  _DtFunctionType
     DT_FUNC_TYPE_SFNCTRL,           // SFN control
     DT_FUNC_TYPE_GPSTIME,           // GPS time
     DT_FUNC_TYPE_DATAFIFO,
-    DT_FUNC_TYPE_CHSDIRX,         // SDI Receive Channel
-    DT_FUNC_TYPE_CHSDIRXPHYONLY,  // SDI PHY-Only Receive Channel
+    DT_FUNC_TYPE_CHSDIRX,           // SDI Receive Channel
+    DT_FUNC_TYPE_CHSDIRXPHYONLY,    // SDI PHY-Only Receive Channel
     DT_FUNC_TYPE_MCTC72TEMP,
     DT_FUNC_TYPE_IQDEMODRX,         // IQ-demodulation receive channel (API-function)
     DT_FUNC_TYPE_SDRFRONTEND,       // SDR-Front-end (API-function)
     DT_FUNC_TYPE_ADF4360CTRL,       // ADF4360 Control
-
+    DT_FUNC_TYPE_TXCLKCNTRS,        // Transmit-clock counters (API-function)
+    DT_FUNC_TYPE_MBCFLASH,          // Flash prom using mailbox client (driver-function)
+    DT_FUNC_TYPE_MBCFLASH_AF,       // Flash prom using mailbox client (API-function)
+    DT_FUNC_TYPE_MBCREBOOT,         // Reboot function using mailbox client (driver func)
+    DT_FUNC_TYPE_MBCREBOOT_AF,      // Reboot function using mailbox client (API-func)
+    DT_FUNC_TYPE_MBCTEMP,           // Temperature sensor using mailbox client
+    
     // Local DTA-2110 functions. DO NOT RENUMBER!!
     DT_FUNC_TYPE_CLKGEN_2110 = LTYPE_SEQNUM(2110, 1),
 
+    // Local DTA-2125 functions. DO NOT RENUMBER!!
+    DT_FUNC_TYPE_CLKGEN_2125 = LTYPE_SEQNUM(2125, 1),
+
     // Local DTA-2127 functions. DONOT RENUMBER!!
     DT_FUNC_TYPE_DEMODCHANNEL_2127 = LTYPE_SEQNUM(2127, 1),
-    DT_FUNC_TYPE_CIDCHANNEL_2127 = LTYPE_SEQNUM(2127, 2),
+    // DT_FUNC_TYPE_CIDCHANNEL_2127 = LTYPE_SEQNUM(2127, 2),
     DT_FUNC_TYPE_DISEQCCONTROL_2127 = LTYPE_SEQNUM(2127, 3),
     
+    // Local DTA-2128 functions. DONOT RENUMBER!!
+    DT_FUNC_TYPE_DEMODCHANNEL_2128 = LTYPE_SEQNUM(2128, 1),
+    DT_FUNC_TYPE_DISEQCCONTROL_2128 = LTYPE_SEQNUM(2128, 2),
+    DT_FUNC_TYPE_LNBPOWERCTRL_2128 = LTYPE_SEQNUM(2128, 3),
+
     // Local DTA-2132 functions. DONOT RENUMBER!!
     DT_FUNC_TYPE_SPIM_2132 = LTYPE_SEQNUM(2132, 1),
     DT_FUNC_TYPE_I2CM_2132 = LTYPE_SEQNUM(2132, 2),
@@ -783,7 +800,12 @@ enum {
     DT_FUNC_CODE_IQFIR2XCLK_CMD,
     DT_FUNC_CODE_IQINV_CMD,
     DT_FUNC_CODE_IQPWR_CMD,
-    DT_FUNC_CODE_AD9789ITF_CMD
+    DT_FUNC_CODE_AD9789ITF_CMD,
+    DT_FUNC_CODE_CLKCNT_CMD,
+    DT_FUNC_CODE_GET_DEV_INFO2,
+    DT_FUNC_CODE_GPIO_CMD,
+    DT_FUNC_CODE_SFP_CMD,
+    DT_FUNC_CODE_MBCREBOOT_CMD
 };
 
 // NOP command
@@ -1728,11 +1750,11 @@ typedef DtIoctlInputDataHdr DtIoctlDdrFifoCmdGetPropertiesInput;
 ASSERT_SIZE(DtIoctlDdrFifoCmdGetPropertiesInput, 16)
 typedef struct _DtIoctlDdrFifoCmdGetPropertiesOutput
 {
-    Int  m_FifoSize;           // Current FIFO size in #bytes
-    Int  m_BurstSize;          // Burst size in #bytes
-    Int  m_DataWidth;          // DataWidth (#bits)
+    Int64A m_FifoSize;          // Current FIFO size in #bytes
+    Int m_BurstSize;            // Burst size in #bytes
+    Int m_DataWidth;            // DataWidth (#bits)
 }  DtIoctlDdrFifoCmdGetPropertiesOutput;
-ASSERT_SIZE(DtIoctlDdrFifoCmdGetPropertiesOutput, 12)
+ASSERT_SIZE(DtIoctlDdrFifoCmdGetPropertiesOutput, 16)
 
 // -.-.-.-.-.-.-.-.-.-.-.- DDRFIFO Command - Set Operational Mode -.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -1770,6 +1792,7 @@ typedef union _DtIoctlDdrFifoCmdInOut
 #define DT_IOCTL_DDRFIFO_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_DDRFIFO_CMD,     \
                                                                   DtIoctlDdrFifoCmdInOut)
 #endif
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_CDMAC_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -1980,6 +2003,51 @@ typedef union _DtIoctlCDmaCCmdOutput
     }  DtIoctlCDmaCCmdInOut;
     #define DT_IOCTL_CDMAC_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_CDMAC_CMD,       \
                                                                      DtIoctlCDmaCCmdInOut)
+#endif
+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_CLKCMT_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- CLKCNT Commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlClkCntCmd
+{
+    DT_CLKCNT_CMD_GET_TICK_COUNT = 0,
+} DtIoctlClkCntCmd;
+
+typedef DtIoctlInputDataHdr DtIoctlClkCntCmdGetTickCountInput;
+ASSERT_SIZE(DtIoctlClkCntCmdGetTickCountInput, 16)
+
+typedef struct _DtIoctlClkCntCmdGetTickCountOutput
+{
+    UInt32 m_TickCount;             // 32-bit tick count value
+    Int m_ClockFreqHz;              // Frequency the of clock the counter runs on.
+} DtIoctlClkCntCmdGetTickCountOutput;
+ASSERT_SIZE(DtIoctlClkCntCmdGetTickCountOutput, 8)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.- CLKCNT Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// CLKCNT command - IOCTL input data
+typedef union _DtIoctlClkCntCmdInput
+{
+    DtIoctlClkCntCmdGetTickCountInput m_GetTickCount;       // CLKCNT - Get tick count
+}  DtIoctlClkCntCmdInput;
+// CLKCNT command - IOCTL output data
+typedef union _DtIoctlClkCntCmdOutput
+{
+    DtIoctlClkCntCmdGetTickCountOutput m_GetTickCount;      // CLKCNT - Get tick count
+}  DtIoctlClkCntCmdOutput;
+#ifdef WINBUILD
+    #define DT_IOCTL_CLKCNT_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_CLKCNT_CMD,       \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlClkCntCmdInOut
+    {
+        DtIoctlClkCntCmdInput  m_Input;
+        DtIoctlClkCntCmdOutput  m_Output;
+    }  DtIoctlClkCntCmdInOut;
+    #define DT_IOCTL_CLKCNT_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_CLKCNT_CMD,     \
+                                                                    DtIoctlClkCntCmdInOut)
 #endif
 
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -2631,6 +2699,22 @@ typedef struct _DtIoctlDevInfoPcie
 }  DtIoctlDevInfoPcie;
 ASSERT_SIZE(DtIoctlDevInfoPcie, 32)
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoctlDevInfoPcie2 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// PCIE specific device info 2
+typedef struct _DtIoctlDevInfoPcie2
+{
+    Int  m_BusNumber;           // PCI-bus number
+    Int  m_SlotNumber;          // PCI-slot number
+    Int  m_PcieNumLanes;        // Number of allocated PCIe lanes
+    Int  m_PcieMaxLanes;        // Maximum number of PCIe lanes
+    Int  m_PcieLinkSpeed;       // Current PCIe link speed
+    Int  m_PcieMaxSpeed;        // Maximum PCIe link speed
+    Int  m_PcieMaxPayloadSize;  // Maximum-Payload-Size (MPS)
+    Int  m_PcieMaxReadRequestSize;  // Maximum-Read-Request-Size (MRRS)
+    Int  m_PcieMaxSlotPower;    // Maximum slot power in milliWatt
+    Int  m_Padding;             // Padding. We need 8 byte alignment
+}  DtIoctlDevInfoPcie2;
+ASSERT_SIZE(DtIoctlDevInfoPcie2, 40)
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoctlDevInfoUsb -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 // USB specific device info
 typedef struct _DtIoctlDevInfoUsb
@@ -2639,7 +2723,6 @@ typedef struct _DtIoctlDevInfoUsb
     Int  m_UsbSpeed;            // USB Speed
 }  DtIoctlDevInfoUsb;
 ASSERT_SIZE(DtIoctlDevInfoUsb, 8)
-
 
 // Get Device Info - IOCTL input data
 typedef DtIoctlInputDataHdr DtIoctlGetDevInfoInput;
@@ -2675,30 +2758,46 @@ typedef struct _DtIoctlGetDevInfoOutput
     // Common device info
     DT_IOCTL_GET_DEV_INFO_COMMON_OUTPUT_DATA;
     
-    // Device category specific info
+    // Device category specific info (must be 8-byte aligned)
     union
     {
         DtIoctlDevInfoPcie  m_Pcie;
+        DtIoctlDevInfoPcie2  m_Pcie2;
         DtIoctlDevInfoUsb  m_Usb;
     }  m_DevSpecific;
-    
 }  DtIoctlGetDevInfoOutput;
-ASSERT_SIZE(DtIoctlGetDevInfoOutput, 96)
+ASSERT_SIZE(DtIoctlGetDevInfoOutput, 104)
 
 #ifdef WINBUILD
     #define DT_IOCTL_GET_DEV_INFO  CTL_CODE(DT_DEVICE_TYPE,                              \
                                                         DT_FUNC_CODE_GET_DEV_INFO,       \
                                                         METHOD_OUT_DIRECT, FILE_READ_DATA)
+    #define DT_IOCTL_GET_DEV_INFO2  CTL_CODE(DT_DEVICE_TYPE,                             \
+                                                        DT_FUNC_CODE_GET_DEV_INFO2,      \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
 #else
-    typedef union _DtIoctlGetDevInfoInOut
+    // Under Linux keep using the original DtIoctlGetDevInfoOutput in _IOWR for backwards
+    // compatibility.
+    typedef struct _DtIoctlGetDevInfoOutputOrig
     {
-        DtIoctlGetDevInfoInput  m_Input;
-        DtIoctlGetDevInfoOutput  m_Output;
-    }  DtIoctlGetDevInfoInOut;
-
+        // Common device info
+        DT_IOCTL_GET_DEV_INFO_COMMON_OUTPUT_DATA;
+        // Device category specific info (must be 8-byte aligned)
+        union
+        {
+            DtIoctlDevInfoPcie  m_Pcie;
+            DtIoctlDevInfoUsb  m_Usb;
+        }  m_DevSpecific;
+    }  DtIoctlGetDevInfoOutputOrig;
+    ASSERT_SIZE(DtIoctlGetDevInfoOutputOrig, 96)
     #define DT_IOCTL_GET_DEV_INFO  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_GET_DEV_INFO, \
-                                                                   DtIoctlGetDevInfoInOut)
+                                                              DtIoctlGetDevInfoOutputOrig)
+
+    #define DT_IOCTL_GET_DEV_INFO2  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_GET_DEV_INFO2, \
+                                                              DtIoctlGetDevInfoOutputOrig)
 #endif
+
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_GET_DRIVER_VERSION +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -2800,6 +2899,78 @@ typedef union _DtIoctlSetNwDriverVersionInOut
                                                        DT_FUNC_CODE_SET_NWDRIVER_VERSION,\
                                                        DtIoctlSetNwDriverVersionInOut)
 #endif
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_GPIO_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- GPIO commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlGpioCmd
+{
+    DT_GPIO_CMD_READ                = 0,  // Read data
+    DT_GPIO_CMD_WRITE               = 1,  // Write data
+}  DtIoctlGpioCmd;
+
+#define GPIO_MNEMONIC_MAX_LENGTH      32    // Excluding null-termination
+//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- GPIO - Read Command  -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlGpioCmdReadInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    char  m_FieldMnem[GPIO_MNEMONIC_MAX_LENGTH+1];  // Mnemonic of field to read; null
+                                                    // terminated string
+}  DtIoctlGpioCmdReadInput;
+ASSERT_SIZE(DtIoctlGpioCmdReadInput, 52)
+
+typedef struct _DtIoctlGpioCmdReadOutput
+{
+    UInt32  m_Value;                // Read value
+}  DtIoctlGpioCmdReadOutput;
+ASSERT_SIZE(DtIoctlGpioCmdReadOutput, 4)
+
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- GPIO - Write Command  -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlGpioCmdWriteInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    char  m_FieldMnem[GPIO_MNEMONIC_MAX_LENGTH+1];  // Mnemonic of field to write; null
+                                                    // terminated string
+    UInt32  m_Value;                                // Write value
+}  DtIoctlGpioCmdWriteInput;
+ASSERT_SIZE(DtIoctlGpioCmdWriteInput, 56)
+
+
+//-.-.-.-.-.-.-.-.-.-.-.-.-.- GPIO command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// GPIO command - Input data
+typedef union _DtIoctlGpioCmdInput
+{
+    DtIoctlGpioCmdReadInput  m_Read;
+    DtIoctlGpioCmdWriteInput  m_Write;
+} DtIoctlGpioCmdInput;
+ASSERT_SIZE(DtIoctlGpioCmdInput, 56)
+
+// GPIO command - Output data
+typedef union _DtIoctlGpioCmdOutput
+{
+    DtIoctlGpioCmdReadOutput  m_Read;
+}  DtIoctlGpioCmdOutput;
+ASSERT_SIZE(DtIoctlGpioCmdOutput, 4)
+
+#ifdef WINBUILD
+#define DT_IOCTL_GPIO_CMD  CTL_CODE(DT_DEVICE_TYPE, DT_FUNC_CODE_GPIO_CMD,              \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+typedef union _DtIoctlGpioCmdInOut {
+    DtIoctlGpioCmdInput  m_Input;
+    DtIoctlGpioCmdOutput  m_Output;
+} DtIoctlGpioCmdInOut;
+
+#define DT_IOCTL_GPIO_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE, DT_FUNC_CODE_GPIO_CMD,         \
+                                                                      DtIoctlGpioCmdInOut)
+#endif
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_GPSTIME_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -4909,6 +5080,105 @@ typedef union _DtIoctlLmh1981CmdOutput
 #endif
 
 
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_MBCREBOOT_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- MBCREBOOT commands -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// NOTE: ALWAYS ADD NEW CMDs TO END FOR BACKWARDS COMPATIBILITY. # SEQUENTIAL START AT 0
+typedef enum _DtIoctlMbcRebootCmd
+{
+    DT_MBCREBOOT_CMD_GET_SPT_ADDRESS    = 0,  // Get Sub-partition table addresses
+    DT_MBCREBOOT_CMD_GET_STATUS         = 1,  // Get reconfig/reboot status
+    DT_MBCREBOOT_CMD_REBOOT             = 2,  // Reboot
+}  DtIoctlMbcRebootCmd;
+
+
+// Clock properties
+typedef struct _DtIoctlMbcRebootStatus
+{
+    UInt64A  m_CurrentImage;        // Current running application image
+    UInt64A  m_FailingImage;        // Offset of failing application image (0 = no error)
+    UInt32  m_State;                // Reserved, for internal use only
+    UInt32  m_Version;              // Reserved, for internal use only
+    UInt32  m_ErrorLocation;        // Reserved, for internal use only
+    UInt32  m_ErrorDetails;         // Reserved, for internal use only
+    UInt32  m_RetryCounter;         // Reserved, for internal use only
+} DtIoctlMbcRebootStatus;
+
+
+// -.-.-.-.-.-.-.-.-.-.-.-.- MBCREBOOT - Get SPT Address Command -.-.-.-.-.-.-.-.-.-.-.-.-
+typedef DtIoctlInputDataHdr DtIoctlMbcRebootCmdGetSptAddressInput;
+ASSERT_SIZE(DtIoctlMbcRebootCmdGetSptAddressInput, 16)
+
+typedef struct _DtIoctlMbcRebootCmdGetSptAddressOutput
+{
+    UInt64A  m_Spt0;        // SPT0 address
+    UInt64A  m_Spt1;        // SPT1 address
+}  DtIoctlMbcRebootCmdGetSptAddressOutput;
+ASSERT_SIZE(DtIoctlMbcRebootCmdGetSptAddressOutput, 16)
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- MBCREBOOT - Get Status Command -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+typedef DtIoctlInputDataHdr DtIoctlMbcRebootCmdGetStatusInput;
+ASSERT_SIZE(DtIoctlMbcRebootCmdGetStatusInput, 16)
+
+typedef struct _DtIoctlMbcRebootCmdGetStatusOutput
+{
+    UInt64A  m_CurrentImage;        // Current running application image
+    UInt64A  m_FailingImage;        // Offset of failing application image (0 = no error)
+    UInt32  m_State;                // Reserved, for internal use only
+    UInt32  m_Version;              // Reserved, for internal use only
+    UInt32  m_ErrorLocation;        // Reserved, for internal use only
+    UInt32  m_ErrorDetails;         // Reserved, for internal use only
+    UInt32  m_RetryCounter;         // Reserved, for internal use only
+}  DtIoctlMbcRebootCmdGetStatusOutput;
+ASSERT_SIZE(DtIoctlMbcRebootCmdGetStatusOutput, 40)
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- MBCREBOOT - Reconfigure -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+typedef struct _DtIoctlMbcRebootCmdRebootInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    UInt64A  m_ImageAddress;        // New application image
+}  DtIoctlMbcRebootCmdRebootInput;
+ASSERT_SIZE(DtIoctlMbcRebootCmdRebootInput, 24)
+
+
+// -.-.-.-.-.-.-.-.-.-.-.- MBCREBOOT command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-
+// MBCREBOOT command - Input data
+typedef union _DtIoctlMbcRebootCmdInput
+{
+    DtIoctlMbcRebootCmdRebootInput  m_Reboot;
+} DtIoctlMbcRebootCmdInput;
+ASSERT_SIZE(DtIoctlMbcRebootCmdInput, 24)
+
+// MBCREBOOT command - Output data
+typedef union _DtIoctlMbcRebootCmdOutput
+{
+    DtIoctlMbcRebootCmdGetSptAddressOutput  m_GetSptAddress;
+    DtIoctlMbcRebootCmdGetStatusOutput  m_GetStatus;
+}  DtIoctlMbcRebootCmdOutput;
+ASSERT_SIZE(DtIoctlMbcRebootCmdOutput, 40)
+
+
+#ifdef WINBUILD
+    #define DT_IOCTL_MBCREBOOT_CMD  CTL_CODE(DT_DEVICE_TYPE,                             \
+                                                        DT_FUNC_CODE_MBCREBOOT_CMD,      \
+                                                        METHOD_OUT_DIRECT, FILE_READ_DATA)
+#else
+    typedef union _DtIoctlMbcRebootCmdInOut {
+        DtIoctlMbcRebootCmdInput  m_Input;
+        DtIoctlMbcRebootCmdOutput  m_Output;
+    } DtIoctlMbcRebootCmdInOut;
+
+    #define DT_IOCTL_MBCREBOOT_CMD  _IOWR(DT_IOCTL_MAGIC_SIZE,                           \
+                                                         DT_FUNC_CODE_MBCREBOOT_CMD,     \
+                                                         DtIoctlMbcRebootCmdInOut)
+#endif
+
+
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPERTY_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -5085,6 +5355,7 @@ typedef union _DtIoctlTrigEvtCmdInOut
 #define DT_PHY_SPEED_AUTO_DETECT      0x6     // Set speed
 #define DT_PHY_SPEED_NO_LINK          0x6     // Get speed
 #define DT_PHY_SPEED_10000            0x7
+#define DT_PHY_SPEED_25000            0x8
 
 // Phy link status
 #define DT_PHY_LINK_DOWN              0x0
@@ -5110,7 +5381,8 @@ typedef enum _DtIoctlEMACCmd
     DT_EMAC_CMD_SET_PHY_SPEED = 12,
     DT_EMAC_CMD_REGISTER_CALLBACK = 13,
     DT_EMAC_CMD_UNREGISTER_CALLBACK = 14,
-    DT_EMAC_CMD_RESET_NW_STATUS = 15
+    DT_EMAC_CMD_RESET_NW_STATUS = 15,
+    DT_EMAC_CMD_GET_SUPPORTED_COUNTERS = 16
 }  DtIoctlEMACCmd;
 
 // -.-.-.-.-.-.-.-.-.-.-.-.- EMAC Command - Get Operational Mode -.-.-.-.-.-.-.-.-.-.-.-.-
@@ -5234,7 +5506,7 @@ ASSERT_SIZE(DtIoctlEMACCmdGetPacketFilterOutput, 4)
 #define DT_MAC_CNT_802_3_XMIT_TIMES_CRS_LOST      18
 #define DT_MAC_CNT_802_3_XMIT_LATE_COLLISIONS     19
 #define DT_MAC_CNT_GEN_RCV_HDR_ERROR              20
-
+#define DT_MAC_CNT_IDS                            20
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.- EMAC Command - Get Counter -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 typedef struct _DtIoctlEMACCmdGetCounterInput {
@@ -5247,6 +5519,20 @@ typedef struct _DtIoctlEMACCmdGetCounterOutput {
     UInt64A  m_Value;
 } DtIoctlEMACCmdGetCounterOutput;
 ASSERT_SIZE(DtIoctlEMACCmdGetCounterOutput, 8)
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- EMAC Command - Get Supported Counters --.-.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlEMACCmdGetSupportedCountersInput {
+    DtIoctlInputDataHdr  m_CmdHdr;
+    UInt  m_MaxCounterIds;
+} DtIoctlEMACCmdGetSupportedCountersInput;
+ASSERT_SIZE(DtIoctlEMACCmdGetSupportedCountersInput, 20)
+
+typedef struct _DtIoctlEMACCmdGetSupportedCountersOutput {
+    UInt  m_NumCounterIds;
+    UInt  m_CounterId[0];
+} DtIoctlEMACCmdGetSupportedCountersOutput;
+ASSERT_SIZE(DtIoctlEMACCmdGetSupportedCountersOutput, 4)
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- EMAC Command - Get LinkStatus -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -5312,6 +5598,7 @@ typedef union _DtIoctlEMACCmdInput
     DtIoctlEMACCmdGetPacketFilterInput  m_GetPacketFilter;
     DtIoctlEMACCmdSetPacketFilterInput  m_SetPacketFilter;
     DtIoctlEMACCmdGetCounterInput  m_GetCounter;
+    DtIoctlEMACCmdGetSupportedCountersInput  m_GetSupportedCounters;
     DtIoctlEMACCmdGetPhySpeedInput  m_GetPhySpeed;
     DtIoctlEMACCmdSetPhySpeedInput  m_SetPhySpeed;
     DtIoctlEMACCmdRegisterCallbackInput  m_RegisterCallback;
@@ -5328,6 +5615,7 @@ typedef union _DtIoctlEMACCmdOutput
     DtIoctlEMACCmdGetMaxMulticastListOutput  m_GetMaxMulticastList;
     DtIoctlEMACCmdGetPacketFilterOutput  m_GetPacketFilter;
     DtIoctlEMACCmdGetCounterOutput  m_GetCounter;
+    DtIoctlEMACCmdGetSupportedCountersOutput  m_GetSupportedCounters;
     DtIoctlEMACCmdGetPhySpeedOutput  m_GetPhySpeed;
 }  DtIoctlEMACCmdOutput;
 
@@ -5655,6 +5943,7 @@ typedef enum _DtIoctlNwCmd
     DT_NW_CMD_PIPE_OPEN = 2,
     DT_NW_CMD_PIPE_CLOSE = 3,
     DT_NW_CMD_REGISTER_OPMODE_CALLBACK = 4,
+    DT_NW_CMD_SFP_READ = 5,
 }  DtIoctlNwCmd;
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.- Nw Command - Get Operational Mode -.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -5711,6 +6000,24 @@ typedef struct _DtIoctlNwCmdRegisterOpModeCallbackInput {
     OpModeFunc  m_OpModeCallback;
 } DtIoctlNwCmdRegisterOpModeCallbackInput;
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- Nw Command - Read SFP EEPROM -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+typedef struct _DtIoctlNwCmdSfpReadInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_StartAddress;        // Start address
+    Int  m_NumToRead;           // Number of bytes to read
+}  DtIoctlNwCmdSfpReadInput;
+ASSERT_SIZE(DtIoctlNwCmdSfpReadInput, 24)
+
+typedef struct _DtIoctlNwCmdSfpReadOutput
+{
+    Int  m_NumBytes;            // Number of bytes in buffer
+    UInt8  m_Buf[0];            // Dynamic sized buffer
+}  DtIoctlNwCmdSfpReadOutput;
+ASSERT_SIZE(DtIoctlNwCmdSfpReadOutput, 4)
+
+
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- Nw Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // Nw command - IOCTL input data
 typedef union _DtIoctlNwCmdInput
@@ -5720,6 +6027,7 @@ typedef union _DtIoctlNwCmdInput
     DtIoctlNwCmdPipeOpenInput  m_PipeOpen;
     DtIoctlNwCmdPipeCloseInput  m_PipeClose;
     DtIoctlNwCmdRegisterOpModeCallbackInput  m_RegisterOpModeCallback;
+    DtIoctlNwCmdSfpReadInput  m_SfpRead;
 }  DtIoctlNwCmdInput;
 
 // Nw command - IOCTL output data
@@ -5727,6 +6035,7 @@ typedef union _DtIoctlNwCmdOutput
 {
     DtIoctlNwCmdGetOpModeOutput  m_GetOpMode;
     DtIoctlNwCmdPipeOpenOutput  m_PipeOpen;
+    DtIoctlNwCmdSfpReadOutput  m_SfpRead;
 }  DtIoctlNwCmdOutput;
 
 #ifdef WINBUILD
@@ -10388,6 +10697,7 @@ ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
     DtIoctlDataFifoCmdInput m_DataFifoCmd;                                               \
     DtIoctlDdrFifoCmdInput m_DdrFifoCmd;                                                 \
     DtIoctlCDmaCCmdInput  m_CDmaCCmd;                                                    \
+    DtIoctlClkCntCmdInput  m_ClkCntCmd;                                                  \
     DtIoctlChSdiRxCmdInput  m_ChSdiRxCmd;                                                \
     DtIoctlChSdiRxPhyOnlyCmdInput  m_ChSdiRxPhyOnlyCmd;                                  \
     DtIoctlDebugCmdInput  m_DebugCmd;                                                    \
@@ -10397,6 +10707,7 @@ ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
     DtIoctlGenLockCtrlCmdInput  m_GenLockCtrlCmd;                                        \
     DtIoctlGetDriverVersionInput  m_GetDriverVersion;                                    \
     DtIoctlGetDevInfoInput  m_GetDevInfo;                                                \
+    DtIoctlGpioCmdInput  m_GpioCmd;                                                      \
     DtIoctlGpsTimeCmdInput  m_GpsTimeCmd;                                                \
     DtIoctlI2cMCmdInput  m_I2cMCmd;                                                      \
     DtIoctlIpSecGCmdInput  m_IpSecGCmd;                                                  \
@@ -10421,6 +10732,7 @@ ASSERT_SIZE(DtIoctlConstSourceCmdOutput, 8)
     DtIoctlPropCmdInput  m_PropCmd;                                                      \
     DtIoctlKaCmdInput  m_KaCmd;                                                          \
     DtIoctlLedBCmdInput  m_LedBCmd;                                                      \
+    DtIoctlMbcRebootCmdInput  m_MbcRebootCmd;                                            \
     DtIoctlRebootCmdInput  m_Reboot;                                                     \
     DtIoctlS12Gto3GCmdInput  m_S12Gto3GCmd;                                              \
     DtIoctlSdiXCfgCmdInput  m_SdiXCfgCmd;                                                \
@@ -10483,6 +10795,7 @@ typedef union _DtIoctlInputData
     DtIoctlDataFifoCmdOutput  m_DataFifoCmd;                                             \
     DtIoctlDdrFifoCmdOutput  m_DdrFifoCmd;                                               \
     DtIoctlCDmaCCmdOutput  m_CDmaCCmd;                                                   \
+    DtIoctlClkCntCmdOutput  m_ClkCntCmd;                                                 \
     DtIoctlChSdiRxCmdOutput  m_ChSdiRxCmd;                                               \
     DtIoctlChSdiRxPhyOnlyCmdOutput  m_ChSdiRxPhyOnlyCmd;                                 \
     DtIoctlDebugCmdOutput  m_DebugCmd;                                                   \
@@ -10491,6 +10804,7 @@ typedef union _DtIoctlInputData
     DtIoctlGenLockCtrlCmdOutput  m_GenLockCtrlCmd;                                       \
     DtIoctlGetDriverVersionOutput  m_GetDriverVersion;                                   \
     DtIoctlGetDevInfoOutput  m_GetDevInfo;                                               \
+    DtIoctlGpioCmdOutput  m_GpioCmd;                                                     \
     DtIoctlGpsTimeCmdOutput  m_GpsTimeCmd;                                               \
     DtIoctlI2cMCmdOutput  m_I2cMCmd;                                                     \
     DtIoctlIpSecGCmdOutput  m_IpSecGCmd;                                                 \
@@ -10515,6 +10829,7 @@ typedef union _DtIoctlInputData
     DtIoctlIoCmdOutput_2116  m_GpioCmd_2116;                                             \
     DtIoctlLedBCmdOutput  m_LedBCmd;                                                     \
     DtIoctlLmh1981CmdOutput  m_Lmh1981Cmd;                                               \
+    DtIoctlMbcRebootCmdOutput  m_MbcRebootCmd;                                           \
     DtIoctlPropCmdOutput  m_PropCmd;                                                     \
     DtIoctlS12Gto3GCmdOutput  m_S12Gto3GCmd;                                             \
     DtIoctlSdiDmx12GCmdOutput  m_SdiDmx12GCmd;                                           \

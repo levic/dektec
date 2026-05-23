@@ -156,9 +156,13 @@ void  DtEvtLogReport(DtEvtLog* pEvtObject, UInt32 ErrorCode, DtString* pInsert1,
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Memory functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtMemAllocPoolLarge -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtMemAllocPoolLargeEx -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-void*  DtMemAllocPoolLarge(DtPoolType Type, UInt Size, UInt32 Tag, DtPageList** ppPageList)
+// Allocates a large buffer suitable for DMA transfers. Use AllocDma32Mem to signal the
+// buffer must be allocated below the 32-bit boundary.
+//
+void* DtMemAllocPoolLargeEx(DtPoolType Type, UInt Size, UInt32 Tag, 
+                                              DtPageList** ppPageList, Bool AllocDma32Mem)
 {
 #ifdef WINBUILD
 
@@ -178,7 +182,11 @@ void*  DtMemAllocPoolLarge(DtPoolType Type, UInt Size, UInt32 Tag, DtPageList** 
         return DtMemAllocPool(Type, Size, Tag);
     
     // Check if we can allocate one contiguous piece of memory 
-    if (get_order(Size) < MAX_ORDER )   
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
+    if (get_order(Size) < MAX_PAGE_ORDER)
+#else
+    if (get_order(Size) < MAX_ORDER)
+#endif
     {   
         *ppPageList = NULL;
         return DtMemAllocPool(Type, Size, Tag);    
@@ -214,10 +222,16 @@ void*  DtMemAllocPoolLarge(DtPoolType Type, UInt Size, UInt32 Tag, DtPageList** 
         return NULL;
     }
 
-    // allocate memory located < 4GB and create our own page table
+    // Allocate memory and create our own page table. If AllocDma32Mem has been set 
+    // allocate a buffer < 4GB.
     for (i = 0; i < pPageList->m_NumPages; i++)
     {
-        pPageList->m_pPages[i] = virt_to_page(__get_free_page(GFP_KERNEL | GFP_DMA32));
+        unsigned long PageAddr = 0;
+        gfp_t PageFlags = GFP_KERNEL;
+        if (AllocDma32Mem)
+            PageFlags |= GFP_DMA32;
+        PageAddr = __get_free_page(PageFlags);
+        pPageList->m_pPages[i] = (PageAddr != 0) ? virt_to_page(PageAddr) : NULL;
         if(pPageList->m_pPages[i] == NULL)
         {
             // on error free allocated pages
@@ -253,6 +267,17 @@ void*  DtMemAllocPoolLarge(DtPoolType Type, UInt Size, UInt32 Tag, DtPageList** 
     return pPageList->m_pVirtualKernel;
 
 #endif
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtMemAllocPoolLarge -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Legacy version, always allocates a large buffer below the 32-bit boundary. Recommended 
+// to use DtMemAllocPoolLargeEx instead. This function exists for backward compatibility 
+// reasons.
+//
+void* DtMemAllocPoolLarge(DtPoolType Type, UInt Size, UInt32 Tag, DtPageList** pPageList)
+{
+    return DtMemAllocPoolLargeEx(Type, Size, Tag, pPageList, TRUE /*32-bit*/);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtMemFreePoolLarge -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -403,7 +428,7 @@ void  DtMemMove(void* pDest, void* pSrc, UInt Size)
 #ifdef WINBUILD    
     RtlMoveMemory(pDest, pSrc, Size);
 #else
-    memcpy(pDest, pSrc, Size);
+    memmove(pDest, pSrc, Size);
 #endif
 }
 

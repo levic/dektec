@@ -1,4 +1,4 @@
-// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtIoctlProperties.h *#*#*#*#*#*# (C) 2017-2022 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtIoctlProperties.h *#*#*#*#*#*# (C) 2017-2024 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -942,6 +942,33 @@ typedef struct  _DtIoctlProperties
         ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
     )
 
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_CLKCNT_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+#define DT_IOCTL_CMD_PROPS_CLKCNT_GET_TICK_COUNT                                         \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_CLKCNT_CMD_GET_TICK_COUNT,                                                    \
+        "GET_TICK_COUNT",                                                                \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlClkCntCmdGetTickCountInput),                                       \
+        sizeof(DtIoctlClkCntCmdGetTickCountOutput))
+
+#define DECL_DT_IOCTL_CMD_PROPS_CLKCNT                                                   \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_CLKCNT[] =                     \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_CLKCNT_GET_TICK_COUNT,                                        \
+    }
+
+#define DT_IOCTL_PROPS_CLKCNT_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)                \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_CLKCNT_CMD,                                                             \
+        "DT_IOCTL_CLKCNT_CMD",                                                           \
+        DT_IOCTL_CMD_PROPS_CLKCNT,                                                       \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // =+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_DATAC_CMD +=+=+=+=+=+=+=+=+=+= +=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -1208,6 +1235,14 @@ typedef struct  _DtIoctlProperties
         FALSE,                                                                           \
         sizeof(DtIoctlEMACCmdGetCounterInput),                                           \
         sizeof(DtIoctlEMACCmdGetCounterOutput))
+#define DT_IOCTL_CMD_PROPS_EMAC_GET_SUPPORTED_COUNTERS                                   \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_EMAC_CMD_GET_SUPPORTED_COUNTERS,                                              \
+        "GET_SUPPORTED_COUNTERS",                                                        \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlEMACCmdGetSupportedCountersInput),                                 \
+        sizeof(DtIoctlEMACCmdGetSupportedCountersOutput))
 #define DT_IOCTL_CMD_PROPS_EMAC_GET_LINKSTATUS                                           \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_EMAC_CMD_GET_LINKSTATUS,                                                      \
@@ -1270,6 +1305,7 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_EMAC_SET_PACKET_FILTER,                                       \
         DT_IOCTL_CMD_PROPS_EMAC_GET_PACKET_FILTER,                                       \
         DT_IOCTL_CMD_PROPS_EMAC_GET_COUNTER,                                             \
+        DT_IOCTL_CMD_PROPS_EMAC_GET_SUPPORTED_COUNTERS,                                  \
         DT_IOCTL_CMD_PROPS_EMAC_GET_LINKSTATUS,                                          \
         DT_IOCTL_CMD_PROPS_EMAC_GET_PHY_SPEED,                                           \
         DT_IOCTL_CMD_PROPS_EMAC_SET_PHY_SPEED,                                           \
@@ -1564,6 +1600,32 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_GET_DEV_INFO,                                                 \
         ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
     )
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_GET_DEV_INFO2 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define IOCTL_CMD_PROPS_GET_DEV_INFO2                                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_IOCTL_CMD_NOP,                                                                \
+        "NULL",                                                                          \
+        FALSE,                                                                           \
+        FALSE,                                                                           \
+        sizeof(DtIoctlGetDevInfoInput),                                                  \
+        DT_IOCTL_DYNAMIC_SIZEOF(DtIoctlGetDevInfoCommonOutput))
+
+#define DECL_DT_IOCTL_CMD_PROPS_GET_DEV_INFO2                                            \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_GET_DEV_INFO2[] =              \
+    {                                                                                    \
+        IOCTL_CMD_PROPS_GET_DEV_INFO2,                                                   \
+    }
+
+#define DT_IOCTL_PROPS_GET_DEV_INFO2(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)             \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_GET_DEV_INFO2,                                                          \
+        "DT_IOCTL_GET_DEV_INFO2",                                                        \
+        DT_IOCTL_CMD_PROPS_GET_DEV_INFO2,                                                \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_GET_DRIVER_VERSION +=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -1827,6 +1889,14 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlNwCmdRegisterOpModeCallbackInput),                                 \
         0)
 
+#define DT_IOCTL_CMD_PROPS_NW_SFP_READ                                                   \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_NW_CMD_SFP_READ,                                                              \
+        "SFP_READ",                                                                      \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlNwCmdSfpReadInput),                                                \
+        sizeof(DtIoctlNwCmdSfpReadOutput))
 
 #define DECL_DT_IOCTL_CMD_PROPS_NW                                                       \
     static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_NW[] =                         \
@@ -1836,6 +1906,7 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_NW_PIPE_OPEN,                                                 \
         DT_IOCTL_CMD_PROPS_NW_PIPE_CLOSE,                                                \
         DT_IOCTL_CMD_PROPS_NW_REGISTER_OPMODE_CALLBACK,                                  \
+        DT_IOCTL_CMD_PROPS_NW_SFP_READ,                                                  \
     }
 
 #define DT_IOCTL_PROPS_NW_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)                    \
@@ -2071,6 +2142,43 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_IOSERIN_CMD,                                                            \
         "DT_IOCTL_IOSERIN_CMD",                                                          \
         DT_IOCTL_CMD_PROPS_IOSERIN,                                                      \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_GPIO_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_GPIO_READ                                                     \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_GPIO_CMD_READ,                                                                \
+        "READ",                                                                          \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlGpioCmdReadInput),                                                 \
+        sizeof(DtIoctlGpioCmdReadOutput))
+
+#define DT_IOCTL_CMD_PROPS_GPIO_WRITE                                                    \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_GPIO_CMD_WRITE,                                                               \
+        "WRITE",                                                                         \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlGpioCmdWriteInput),                                                \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_GPIO                                                     \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_GPIO[] =                       \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_GPIO_READ,                                                    \
+        DT_IOCTL_CMD_PROPS_GPIO_WRITE,                                                   \
+    }
+
+#define DT_IOCTL_PROPS_GPIO_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)                  \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_GPIO_CMD,                                                               \
+        "DT_IOCTL_GPIO_CMD",                                                             \
+        DT_IOCTL_CMD_PROPS_GPIO,                                                         \
         ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
     )
 
@@ -3272,6 +3380,56 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_LMH1981,                                                      \
         ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
     )
+
+
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_MBCREBOOT_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+#define DT_IOCTL_CMD_PROPS_MBCREBOOT_GET_SPT_ADDRESS                                     \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_MBCREBOOT_CMD_GET_SPT_ADDRESS,                                                \
+        "GET_SPT_ADDRESS",                                                               \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlMbcRebootCmdGetSptAddressInput),                                   \
+        sizeof(DtIoctlMbcRebootCmdGetSptAddressOutput))
+
+#define DT_IOCTL_CMD_PROPS_MBCREBOOT_GET_STATUS                                          \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_MBCREBOOT_CMD_GET_STATUS,                                                     \
+        "GET_STATUS",                                                                    \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlMbcRebootCmdGetStatusInput),                                       \
+        sizeof(DtIoctlMbcRebootCmdGetStatusOutput))
+
+#define DT_IOCTL_CMD_PROPS_MBCREBOOT_REBOOT                                              \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_MBCREBOOT_CMD_REBOOT,                                                         \
+        "REBOOT",                                                                        \
+        FALSE,                                                                           \
+        FALSE,                                                                           \
+        sizeof(DtIoctlMbcRebootCmdRebootInput),                                          \
+        0)
+
+#define DECL_DT_IOCTL_CMD_PROPS_MBCREBOOT                                                \
+    static const DtIoctlPropertiesCmd  DT_IOCTL_CMD_PROPS_MBCREBOOT[] =                  \
+    {                                                                                    \
+        DT_IOCTL_CMD_PROPS_MBCREBOOT_GET_SPT_ADDRESS,                                    \
+        DT_IOCTL_CMD_PROPS_MBCREBOOT_GET_STATUS,                                         \
+        DT_IOCTL_CMD_PROPS_MBCREBOOT_REBOOT,                                             \
+    }
+
+#define DT_IOCTL_PROPS_MBCREBOOT_CMD(ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC)             \
+    INIT_DT_IOCTL_PROPS(                                                                 \
+        DT_IOCTL_MBCREBOOT_CMD,                                                          \
+        "DT_IOCTL_MBCREBOOT_CMD",                                                        \
+        DT_IOCTL_CMD_PROPS_MBCREBOOT,                                                    \
+        ON_IOCTL_FUNC, DYN_SZ_FUNC, CHILD_FUNC                                           \
+    )
+
+
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DT_IOCTL_PROPS_PROPERTY_CMD +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=

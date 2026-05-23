@@ -705,6 +705,13 @@ DtStatus DtPtSdiPhyOnlyRxTx_SetIoConfigPrepare(DtPt* pPtBase,
         if (!DT_SUCCESS(Status))
         {
             DtDbgOutPt(ERR, SDIPHYONLYRXTX, pPt, "ERROR: Cannot acquire exclusive access");
+            // Do not forget to unlock channel, if we hold the channel-lock!
+            if (pPt->m_HoldChannelLock && pPt->m_pDfChSdiRxPhyOnly)
+            {
+                // Unlock the channel
+                DtDfCh_Unlock((DtDfCh*)pPt->m_pDfChSdiRxPhyOnly);
+                pPt->m_HoldChannelLock = FALSE;
+            }
             // Failed
             return Status;
         }

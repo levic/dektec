@@ -64,10 +64,6 @@ endif
 # driver.
 EXTRA_CFLAGS += -DEXPORT_SYMTAB
 
-# Force using inline code to mitigate against straight line speculation in stead of using
-# the current default thunk-extern which generates duplicate functions.
-EXTRA_CFLAGS += -mindirect-branch=thunk-inline
-
 # ========================================================================================
 # Include version evironment vars
 
@@ -103,6 +99,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcBURSTFIFO.o            \
          $(SRCDIR)/DtBcCDMAC.o                \
          $(SRCDIR)/DtBcCDMACTO.o              \
+         $(SRCDIR)/DtBcCLKCNT.o               \
          $(SRCDIR)/DtBcCONSTSINK.o            \
          $(SRCDIR)/DtBcCONSTSOURCE.o          \
          $(SRCDIR)/DtBcDATAC.o                \
@@ -112,10 +109,13 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtBcDDRFRONT.o             \
          $(SRCDIR)/DtBcDISEQC.o               \
          $(SRCDIR)/DtBcEMAC10G.o              \
+         $(SRCDIR)/DtBcEMAC25G.o              \
          $(SRCDIR)/DtBcETHIPPAD.o             \
          $(SRCDIR)/DtBcFANC.o                 \
+         $(SRCDIR)/DtBcFMBC.o                 \
          $(SRCDIR)/DtBcFPGATEMP.o             \
          $(SRCDIR)/DtBcGENL.o                 \
+         $(SRCDIR)/DtBcGPIO.o                 \
          $(SRCDIR)/DtBcGPSTIME.o              \
          $(SRCDIR)/DtBcGS2988.o               \
          $(SRCDIR)/DtBcI2CM.o                 \
@@ -178,7 +178,11 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtDfChSdiRxPhyOnly.o       \
          $(SRCDIR)/DtDfClkCtrl_2116.o         \
          $(SRCDIR)/DtDfClkGen_2110.o          \
+         $(SRCDIR)/DtDfClkGen_2125.o          \
          $(SRCDIR)/DtDfDataFifo.o             \
+         $(SRCDIR)/DtDfMbcFlash.o             \
+         $(SRCDIR)/DtDfMbcReboot.o            \
+         $(SRCDIR)/DtDfMbcTemp.o              \
          $(SRCDIR)/DtDfIpFifo.o               \
          $(SRCDIR)/DtDfNw.o                   \
          $(SRCDIR)/DtDfGenLockCtrl.o          \
@@ -188,6 +192,7 @@ SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
          $(SRCDIR)/DtDfSdiTxPhy.o             \
          $(SRCDIR)/DtDfSdiXCfgMgr.o           \
          $(SRCDIR)/DtDfSensTemp.o             \
+         $(SRCDIR)/DtDfSfp.o                  \
          $(SRCDIR)/DtDfSi534X.o               \
          $(SRCDIR)/DtDfSpiCableDrvEq.o        \
          $(SRCDIR)/DtDfSpiProm.o              \
@@ -288,11 +293,11 @@ PREREQ:
 
 $(DTSAL):
 	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	$(MAKE) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
+	$(MAKE) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) CONFIG_PREFIX_SYMBOLS=n
 
 $(DTDRVCOMMON): PREREQ
 	$(MAKE) MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	$(MAKE) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
+	$(MAKE) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) CONFIG_PREFIX_SYMBOLS=n
 # ========================================================================================
 # Clean all option
 

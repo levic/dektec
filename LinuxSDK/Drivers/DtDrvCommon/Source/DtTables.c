@@ -90,8 +90,10 @@ DtStatus  DtTableGet(
     *pNumEntries = 0;
     if (pPropData->m_pTableStore == NULL)
     {
+#ifdef DEBUG
         DtDbgOut(ERR, TABLE, "There are no tables defined at all for DTX-%d", 
                                                                  pPropData->m_TypeNumber);
+#endif // DEBUG
         return DT_STATUS_NOT_FOUND;
     }
 

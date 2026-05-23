@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaIal.c *#*#*#*#*#*#*#*#*# (C) 2010-2016 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaIal.c *#*#*#*#*#*#*#*#*# (C) 2010-2024 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -786,8 +786,14 @@ static Int  DtaMapRegsToUserSpace(
     }
     pDvcData->m_pUserMapping = pUserMapping;
 
+#if defined(RHEL_RELEASE_CODE)
+#if RHEL_RELEASE_CODE>=RHEL_RELEASE_VERSION(9,5)
+#define BACKPORTED_VM_FLAGS_SET_RHEL
+#endif
+#endif
+
     // Be sure the memory is mapped non-cacheable
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,3,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,3,0) || defined(BACKPORTED_VM_FLAGS_SET_RHEL)
     vm_flags_set(pVma, VM_IO);
 #else
     pVma->vm_flags |= VM_IO;
@@ -1065,6 +1071,16 @@ static long  DtaUnlockedIoctl(struct file* pFile, unsigned int Cmd, unsigned lon
 #endif
 #endif
 
+#if defined(KYLIN_RELEASE_CODE)
+#if KYLIN_RELEASE_CODE>=KYLIN_RELEASE_VERSION(10,1)
+#define NEW_ACCESS_OK_MACRO_KYLIN
+#endif
+#endif
+
+#if defined(NEW_ACCESS_OK_MACRO_RHEL) || defined(NEW_ACCESS_OK_MACRO_KYLIN)
+#define NEW_ACCESS_OK_MACRO
+#endif
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIoctl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 #pragma GCC diagnostic push
@@ -1113,7 +1129,7 @@ static int  DtaIoctl(
             UInt*  pBufSizeLoc = (UInt*)Arg;
 
             ReservedForSizeParam = 2*sizeof(UInt);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO))
             if (access_ok(VERIFY_READ, (void*)Arg, ReservedForSizeParam) == 0)
 #else
             if (access_ok((void*)Arg, ReservedForSizeParam) == 0)
@@ -1161,7 +1177,7 @@ static int  DtaIoctl(
             DtDbgOut(MAX, IAL, "Output buffer size %d", Ioctl.m_OutputBufferSize);
 
             // Ioctl reads --> driver needs write access for user memory
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO))
             if (access_ok(VERIFY_WRITE, (void*)Arg, Ioctl.m_OutputBufferSize) == 0)
 #else
             if (access_ok((void*)Arg, Ioctl.m_OutputBufferSize) == 0)
@@ -1197,7 +1213,7 @@ static int  DtaIoctl(
             DtDbgOut(MAX, IAL, "Input buffer size %d", Ioctl.m_InputBufferSize);
             
             // Ioctl writes --> driver needs read access for user memory
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO))
             if (access_ok(VERIFY_READ, (void*)Arg,
                                        Ioctl.m_InputBufferSize+ReservedForSizeParam) == 0)
 #else
@@ -1888,8 +1904,13 @@ static Int  DtaModuleInit(void)
     // Only proceed if no errors
     if (Result >= 0)
     {
+#if defined(RHEL_RELEASE_CODE)
+#if RHEL_RELEASE_CODE>=RHEL_RELEASE_VERSION(9,4)
+#define NEW_CLASS_CREATE_RHEL
+#endif
+#endif
         // Create Device class
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0) && !defined(NEW_CLASS_CREATE_RHEL))
         g_pDtaClass = class_create(THIS_MODULE, DRIVER_NAME);
 #else
         g_pDtaClass = class_create(DRIVER_NAME);

@@ -53,7 +53,7 @@ static DtStatus  DtBcEMAC10G_Init(DtBc*);
 static DtStatus  DtBcEMAC10G_OnCloseFile(DtBc*, const DtFileObject*);
 static DtStatus  DtBcEMAC10G_OnEnable(DtBc*, Bool  Enable);
 static DtStatus  DtBcEMAC10G_RegisterIntHandlers(DtBcEMAC10G*);
-static void  DtBcEMAC10G_InterruptDpcDone(DtDpcArgs* pArgs);
+static void  DtBcEMAC10G_LinkInterruptDpc(DtDpcArgs* pArgs);
 static DtStatus  DtBcEMAC10G_InterruptHandler(DtBc*, Int, Int, void*);
 static void  DtBcEMAC10G_SetControlRegs(DtBcEMAC10G*, Bool BlkEna, Int OpMode);
 static DtStatus  DtBcEMAC10G_ReadMacAddressFromVPD(DtBcEMAC10G* pBc);
@@ -182,17 +182,8 @@ DtStatus  DtBcEMAC10G_Init(DtBc* pBcBase)
     pBc->m_LinkStatCB = NULL;
     DtSpinLockInit(&pBc->m_LinkStatCBSpinlock);
     
-    // Initialize Done event
-    Status = DtEventInit(&pBc->m_DoneEvent, TRUE);
-    if(!DT_SUCCESS(Status))
-    {
-        DtDbgOutBc(ERR, EMAC10G, pBc, 
-                              "ERROR: failed to init done event (Status=0x%08X)", Status);
-        return Status;
-    }
-    
     // Init interrupt DPC
-    Status = DtDpcInit(&pBc->m_IntDpc, DtBcEMAC10G_InterruptDpcDone, TRUE);
+    Status = DtDpcInit(&pBc->m_IntDpc, DtBcEMAC10G_LinkInterruptDpc, TRUE);
     if(!DT_SUCCESS(Status))
     {
         DtDbgOutBc(ERR, EMAC10G, pBc, "ERROR: failed to init DPC (Status=0x%08X)",
@@ -387,9 +378,9 @@ DtStatus  DtBcEMAC10G_RegisterIntHandlers(DtBcEMAC10G* pBc)
     return Status;
 }
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcEMAC10G_InterruptDpcDone -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcEMAC10G_LinkInterruptDpc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-void DtBcEMAC10G_InterruptDpcDone(DtDpcArgs* pArgs)
+void DtBcEMAC10G_LinkInterruptDpc(DtDpcArgs* pArgs)
 {
     DtBcEMAC10G*  pBc = (DtBcEMAC10G*)pArgs->m_pContext;
 
@@ -401,12 +392,6 @@ void DtBcEMAC10G_InterruptDpcDone(DtDpcArgs* pArgs)
     BC_EMAC10G_DEFAULT_PRECONDITIONS(pBc);
     // TRIGGER callback
     DtBcEMAC10G_GetLinkStatus(pBc);
-
-    // If necessary, re-enable the interrupt that was fired
-    // In that case a spinlock is required for checking the current operational mode or
-    // state, to prevent an interrupt is re-enabled while the driver is shutting down.
-
-    DtEventSet(&pBc->m_DoneEvent);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcEMAC10G_InterruptHandler -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -524,6 +509,9 @@ DtStatus  DtBcEMAC10G_ReadMacAddressFromVPD(DtBcEMAC10G* pBc)
     pBc->m_MacAddrPer[1] = (MacAddrLow & 0xff);
     pBc->m_MacAddrPer[0] = (MacAddrLow >> 8) & 0xff;
 
+    // Update current MAC address
+    DtBcEMAC10G_SetMacAddress(pBc, pBc->m_MacAddrPer);
+
     DtDbgOutBc(MIN, EMAC10G, pBc, "MAC address: %02x:%02x:%02x:%02x:%02x:%02x",
                         pBc->m_MacAddrPer[0], pBc->m_MacAddrPer[1], pBc->m_MacAddrPer[2],
                         pBc->m_MacAddrPer[3], pBc->m_MacAddrPer[4], pBc->m_MacAddrPer[5]);
@@ -562,12 +550,34 @@ DtStatus  DtBcEMAC10G_SetMacAddress(DtBcEMAC10G* pBc, UInt8* pMacAddress)
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcEMAC10G_GetSupportedCounters -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus  DtBcEMAC10G_GetSupportedCounters(DtBcEMAC10G* pBc, UInt MaxCounterIds, 
+                                                  UInt* pNumCounterIds, UInt* pCounterIds)
+{
+    const UInt SupportedIds[] = { DT_MAC_CNT_GEN_BYTES_RCV, DT_MAC_CNT_GEN_BYTES_XMIT,
+                 DT_MAC_CNT_GEN_XMIT_OK, DT_MAC_CNT_GEN_RCV_OK, DT_MAC_CNT_GEN_XMIT_ERROR,
+                 DT_MAC_CNT_GEN_RCV_ERROR, DT_MAC_CNT_GEN_RCV_NO_BUFFER, 
+                 DT_MAC_CNT_GEN_RCV_CRC_ERROR };
+    UInt NumToCopy = sizeof(SupportedIds) / sizeof(UInt);
+    if (MaxCounterIds == 0)
+    {
+        *pNumCounterIds = NumToCopy;
+        return DT_STATUS_OK;
+    }
+    if (NumToCopy > MaxCounterIds)
+    {
+        DT_ASSERT(FALSE);
+        NumToCopy = MaxCounterIds;
+    }
+    *pNumCounterIds = NumToCopy;
+    DtMemCopy(pCounterIds, SupportedIds, sizeof(UInt)*NumToCopy);
+    return DT_STATUS_OK;
+}
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtbBcEMAC10G_GetCounter -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtBcEMAC10G_GetCounter(DtBcEMAC10G* pBc, 
-    const UInt  CounterId,
-    UInt64*  pValue)
+DtStatus  DtBcEMAC10G_GetCounter(DtBcEMAC10G* pBc, const UInt  CounterId, UInt64*  pValue)
 {
     BC_EMAC10G_DEFAULT_PRECONDITIONS(pBc);
     DT_ASSERT(pValue != NULL);
@@ -609,18 +619,6 @@ DtStatus  DtBcEMAC10G_GetCounter(DtBcEMAC10G* pBc,
         *pValue = EMAC10G_LlEthMac1G10GA10_RxStatsCrcErrL_READ_RxStatsCrcErrL(pBc) |
              (UInt64)EMAC10G_LlEthMac1G10GA10_RxStatsCrcErrH_READ_RxStatsCrcErrH(pBc)<<32;
         break;
-/*#define DT_MAC_CNT_GEN_TRANSMIT_QUEUE_LENGTH      9
-#define DT_MAC_CNT_802_3_RCV_ERROR_ALIGNMENT      10
-#define DT_MAC_CNT_802_3_XMIT_ONE_COLLISION       11
-#define DT_MAC_CNT_802_3_XMIT_MORE_COLLISIONS     12
-#define DT_MAC_CNT_802_3_XMIT_DEFERRED            13
-#define DT_MAC_CNT_802_3_XMIT_MAX_COLLISIONS      14
-#define DT_MAC_CNT_802_3_RCV_OVERRUN              15
-#define DT_MAC_CNT_802_3_XMIT_UNDERRUN            16
-#define DT_MAC_CNT_802_3_XMIT_HEARTBEAT_FAILURE   17
-#define DT_MAC_CNT_802_3_XMIT_TIMES_CRS_LOST      18
-#define DT_MAC_CNT_802_3_XMIT_LATE_COLLISIONS     19
-#define DT_MAC_CNT_GEN_RCV_HDR_ERROR              20*/
     default:
         DtDbgOutBc(AVG, EMAC10G, pBc, "Counter with ID: %d not supported", CounterId);
         return DT_STATUS_NOT_SUPPORTED;
@@ -647,9 +645,9 @@ DtStatus  DtBcEMAC10G_GetPhySpeed(DtBcEMAC10G* pBc, UInt* pPhySpeed)
     return DT_STATUS_OK;
 }
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcEMAC10G_RegisterCallback -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtBcEMAC10G_RegisterLinkCallback -.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtBcEMAC10G_RegisterCallback(DtBcEMAC10G* pBc, DtLinkStatFunc LinkStatCB,
+DtStatus  DtBcEMAC10G_RegisterLinkCallback(DtBcEMAC10G* pBc, DtLinkStatFunc LinkStatCB,
                                                                            void* pContext)
 {
     BC_EMAC10G_DEFAULT_PRECONDITIONS(pBc);
@@ -665,9 +663,9 @@ DtStatus  DtBcEMAC10G_RegisterCallback(DtBcEMAC10G* pBc, DtLinkStatFunc LinkStat
     return DT_STATUS_OK;
 }
 
-// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcEMAC10G_UnregisterCallback -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtBcEMAC10G_UnregisterLinkCallback -.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtBcEMAC10G_UnregisterCallback(DtBcEMAC10G* pBc, void* pContext)
+DtStatus  DtBcEMAC10G_UnregisterLinkCallback(DtBcEMAC10G* pBc, void* pContext)
 {
     BC_EMAC10G_DEFAULT_PRECONDITIONS(pBc);
     DtDbgOutBc(ERR, EMAC10G, pBc, "Start");

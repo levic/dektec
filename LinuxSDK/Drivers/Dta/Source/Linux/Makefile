@@ -64,10 +64,6 @@ endif
 # driver.
 EXTRA_CFLAGS += -DEXPORT_SYMTAB
 
-# Force using inline code to mitigate against straight line speculation in stead of using
-# the current default thunk-extern which generates duplicate functions.
-EXTRA_CFLAGS += -mindirect-branch=thunk-inline
-
 # ========================================================================================
 # Include version evironment vars
 
@@ -178,11 +174,11 @@ PREREQ:
 
 $(DTSAL): PREREQ
 	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	$(MAKE) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
+	$(MAKE) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) CONFIG_PREFIX_SYMBOLS=n
 	
 $(DTDRVCOMMON): PREREQ
 	$(MAKE) MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	$(MAKE) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
+	$(MAKE) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) CONFIG_PREFIX_SYMBOLS=n
 # ========================================================================================
 # Clean all option
 

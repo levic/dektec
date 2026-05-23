@@ -302,10 +302,10 @@ DtStatus DtDfChSdiRx_AllocateDmaBuffer(DtDfChSdiRx* pDf, Int ReqMinSize)
     // Ensure our buffer size will be both a multiple of pages and of the pre-fetch size
     AllocSize = ((ReqMinSize + MinDmaBufSize - 1) / MinDmaBufSize) * MinDmaBufSize;
 
-    // Allocated our kernel buffer
-    pDf->m_DmaBuf.m_pBuffer = (UInt8*)DtMemAllocPoolLarge(
-                                             DtPoolNonPaged, AllocSize, 
-                                             DF_CHSDIRX_TAG, &pDf->m_DmaBuf.m_pPageList);
+    // Allocated our kernel buffer (not limited to 32-bit DMA).
+    pDf->m_DmaBuf.m_pBuffer = (UInt8*)DtMemAllocPoolLargeEx(
+                                       DtPoolNonPaged, AllocSize, 
+                                       DF_CHSDIRX_TAG, &pDf->m_DmaBuf.m_pPageList, FALSE);
     if (!pDf->m_DmaBuf.m_pBuffer)
     {
         DtDbgOutDf(ERR, CHSDIRX, pDf, 
@@ -406,18 +406,22 @@ DtStatus DtDfChSdiRx_CheckAndUpdateReadOffset(DtDfChSdiRx* pDf, Bool ForceUpdate
         // Compute load for this user.
         Load = (Int)((CurWriteOffset+DmaBufSize-pUser->m_DmaReadOffset) % DmaBufSize);
 
-        // Next, check is user is too slow. Note: clearing of the slow flag requires an 
-        // explicit call to set-operational-mode or to set-read-offset by the user (i.e. 
-        // we do not clear the flag here even if the load condition has been resolved).
-        DT_ASSERT(pDf->m_DmaBuf.m_SlowLoad>0 
-                                    && pDf->m_DmaBuf.m_SlowLoad<=pDf->m_DmaBuf.m_MaxLoad);
-        pUser->m_IsSlow = Load>=pDf->m_DmaBuf.m_SlowLoad;
-        if (pUser->m_IsSlow)
+        // Next, if we have multiple users check is user is too slow. Note: clearing of 
+        // the slow flag requires an explicit call to set-operational-mode or to 
+        // set-read-offset by the user (i.e. we do not clear the flag here even if the 
+        // load condition has been resolved).
+        if (NumUsers > 1)
         {
-            DtDbgOutDf(MIN, CHSDIRX, pDf, 
-                                     "User '%s' is to slow -> ignoring it's read offset",
+            DT_ASSERT(pDf->m_DmaBuf.m_SlowLoad>0 
+                                    && pDf->m_DmaBuf.m_SlowLoad<=pDf->m_DmaBuf.m_MaxLoad);
+            pUser->m_IsSlow |= (Load>pDf->m_DmaBuf.m_SlowLoad);
+            if (pUser->m_IsSlow)
+            {
+                DtDbgOutDf(MIN, CHSDIRX, pDf, 
+                                     "User '%s' is too slow -> ignoring it's read offset",
                                      pUser->m_FriendlyName);
-            continue;   // Skip too slow users, do not want them to block others
+                continue;   // Skip too slow users, do not want them to block others
+            }
         }
         
         // Finally, check if user is the furthest behind so far.

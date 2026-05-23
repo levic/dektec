@@ -448,7 +448,11 @@ static Int  DtaNwEvtSetMacAddr(struct net_device* pDevice, void* pAddr)
 
     // Update current MAC address
     DtMemCopy(pDvcData->m_MacAddressCur, pSockAddr->sa_data, 6);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
+    dev_addr_set(pDevice, pSockAddr->sa_data);
+#else
     DtMemCopy((void*)pDevice->dev_addr, pSockAddr->sa_data, 6);
+#endif
     return 0;
 }
 
@@ -991,12 +995,18 @@ Int  DtaNwEvtProbe(DtaDeviceItf* pDevItf, Int Id)
 
     if (Result >= 0)
     {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
+        dev_addr_set(pNwDev, pDvcData->m_MacAddressCur);
+#else
         DtMemCopy((void*)pNwDev->dev_addr, pDvcData->m_MacAddressCur, 6);
+#endif
+#ifdef NET_ADDR_PERM
+        DtMemCopy((void*)pNwDev->perm_addr, pDvcData->m_MacAddressPerm, 6);
+        pNwDev->addr_assign_type = NET_ADDR_PERM;
+#endif
 #ifdef PERM_ADDR_SUPPORT
         DtMemCopy((void*)pNwDev->perm_addr, pDvcData->m_MacAddressPerm, 6);
 #endif
-
-
         pDvcData->m_IalData.m_Driver.m_pModule = THIS_MODULE;
         DtEvtLogInit(&pDvcData->m_IalData.m_Driver.m_EvtObject, &EventGetMessage);
          

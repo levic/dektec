@@ -51,6 +51,7 @@ static DtStatus  DtPcieNwSetPacketFilterIoCtrl(DtPcieNwDeviceData* pDvcData,
                                                                        UInt PacketFilter);
 static DtStatus  DtPcieNwGetStatisticCounterIoCtrl(DtPcieNwDeviceData* pDvcData, 
                                                         UInt StatisticId, UInt64* pValue);
+static DtStatus  DtPcieNwGetSupportedStatisticCounters(DtPcieNwDeviceData* pDvcData);
 static DtStatus  DtPcieNwRegisterCallbackIoCtrl(DtPcieNwDeviceData* pDvcData, 
                                                            LinkStatFunc LinkStatCallback);
 static DtStatus  DtPcieNwRegisterOpModeCallbackIoCtrl(DtPcieNwDeviceData* pDvcData,
@@ -92,6 +93,8 @@ static DtStatus  DtPcieNwOpenPipe(DtPcieNwDeviceData* pDvcData, Int PipeType,
                                                                          UInt* pPipeUuid);
 static DtStatus  DtPcieNwClosePipe(DtPcieNwDeviceData* pDvcData, Int PipeType, 
                                                                            UInt PipeUuid);
+static DtStatus DtPcieNwGetPipePropertiesIoCtrl(DtPcieNwDeviceData* pDvcData,
+                                                      UInt PipeUuid, Int* pDataAlignment);
 static DtStatus  DtPcieNwSetSharedKBufferIoCtrl(DtPcieNwDeviceData* pDvcData, 
   UInt PipeUuid, UInt ReqbufSize, UInt8** ppBuffer, UInt* pActualBufSize, UInt* pMaxLoad);
 static DtStatus  DtPcieNwGetLinkStatusCB(DtPcieNwDeviceData* pDvcData);
@@ -104,7 +107,7 @@ static void  DtPciNwLinkStatusWi(DtWorkItemArgs* pArgs);
 DtStatus  DtPcieNwDeviceDataInit(DtPcieNwDeviceData* pDvcData)
 {
     pDvcData->m_PromiscuousModeSet = FALSE;
-    pDvcData->m_PhySpeedSet = DTA_PHY_SPEED_AUTO_DETECT;
+    pDvcData->m_PhySpeedSet = DT_PHY_SPEED_AUTO_DETECT;
     pDvcData->m_MacAddressOverride = FALSE;
     pDvcData->m_Support8021P_Priority = TRUE;
     pDvcData->m_Supports8021Q_Vlan = TRUE;
@@ -251,9 +254,17 @@ DtStatus  DtPcieNwDeviceInit(DtPcieNwDeviceData* pDvcData)
         DtDbgOut(ERR, DTPCIENW, "Error setting current MAC address. Error: 0x%x", Status);
         return Status;
     }
-    
+
+    // Get supported statistics
+    Status = DtPcieNwGetSupportedStatisticCounters(pDvcData);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOut(ERR, DTPCIENW, "Error getting supported statistics from DtPcie driver."
+                                                                  " Error: 0x%x", Status);
+        // Continue without supported list
+    }
+
     DtDbgOut(MAX, DTPCIENW, "Exit");
-    
     return DT_STATUS_OK;
 }
 
@@ -281,7 +292,7 @@ DtStatus  DtPcieNwDeviceOpen(DtPcieNwDeviceData* pDvcData)
     
     // Reset status in DtPcie driver
     if (DT_SUCCESS(Status))
-        Status = DtPcieNwResetNwStatusIoCtrl(pDvcData);
+        Status = DtPcieNwResetNwStatusIoCtrl(pDvcData); 
 
     // Set Network driver version
     if (DT_SUCCESS(Status))
@@ -420,8 +431,9 @@ DtStatus  DtPcieNwTxGetPointerNewPacket(
 
     TotalLength = PacketSize + sizeof(DtEthIp);
 
-    if (TotalLength % 8 != 0)
-        TotalLength += 8 - (TotalLength % 8);
+    if ((TotalLength % pDvcData->m_DataAlignment) != 0)
+        TotalLength += pDvcData->m_DataAlignment -
+                                                (TotalLength % pDvcData->m_DataAlignment);
 
     ReadOffset = pDvcData->m_TxReadOffsetCache;
 
@@ -740,7 +752,7 @@ DtStatus  DtPcieNwTransmitPacket(
     DtEthIpHeader* pEthIpHeader;
 
     DT_ASSERT(PacketSize + sizeof(DtEthIp) <= TotalWriteOffset);
-    DT_ASSERT((TotalWriteOffset % 8) == 0);
+    DT_ASSERT((TotalWriteOffset % pDvcData->m_DataAlignment) == 0);
 
     pDst = pDvcData->m_pTxBuffer + pDvcData->m_TxWriteOffset;
 
@@ -829,7 +841,7 @@ DtStatus  DtPcieNwGetPacketFilter(DtPcieNwDeviceData* pDvcData, UInt* pPacketFil
 DtStatus  DtPcieNwSetPacketFilter(DtPcieNwDeviceData* pDvcData, UInt PacketFilter)
 {
     if (pDvcData->m_PromiscuousModeSet)
-        PacketFilter |= DTA_MAC_FLT_PROMISCUOUS;
+        PacketFilter |= DT_MAC_FLT_PROMISCUOUS;
     return DtPcieNwSetPacketFilterIoCtrl(pDvcData, PacketFilter);
 }
 
@@ -840,10 +852,21 @@ DtStatus  DtPcieNwGetStatisticCounter(
     UInt  StatisticId,
     UInt64*  pValue)
 {
-    DtStatus  Status = DtPcieNwGetStatisticCounterIoCtrl(pDvcData, StatisticId, pValue);
-    if (StatisticId == DTA_MAC_CNT_GEN_RCV_NO_BUFFER)
-        *pValue+= pDvcData->m_NwRcvNoBuffer;
-
+    DtStatus  Status = DT_STATUS_OK;
+    Bool Supported = FALSE;
+    UInt Counter = 0;
+    *pValue = 0;
+    while (!Supported && Counter<pDvcData->m_NumSupportedStatisticCounters)
+    {
+        if (pDvcData->m_SupportedCounters[Counter] == StatisticId)
+            Supported = TRUE;
+        else
+            Counter++;
+    }
+    if (Supported || pDvcData->m_NumSupportedStatisticCounters==0)
+        Status = DtPcieNwGetStatisticCounterIoCtrl(pDvcData, StatisticId, pValue);
+    if (StatisticId == DT_MAC_CNT_GEN_RCV_NO_BUFFER)
+        *pValue += pDvcData->m_NwRcvNoBuffer;
     return Status;
 }
 
@@ -897,6 +920,9 @@ DtStatus  DtPcieNwGetSpeed(DtPcieNwDeviceData* pDvcData, UInt64* pSpeed)
     case DT_PHY_SPEED_10000:
         *pSpeed = 10000000000;
         break;
+    case DT_PHY_SPEED_25000:
+        *pSpeed = 25000000000;
+        break;
     default: 
         *pSpeed = 0; 
     }
@@ -932,7 +958,12 @@ static DtStatus  DtPcieNwOpenNrtPipes(DtPcieNwDeviceData* pDvcData)
     Status = DtPcieNwOpenPipe(pDvcData, DT_PIPE_RX_NRT, &pDvcData->m_RxUuid);
     if (!DT_SUCCESS(Status))
         return Status;
-    return DtPcieNwOpenPipe(pDvcData, DT_PIPE_TX_NRT, &pDvcData->m_TxUuid);
+    Status = DtPcieNwOpenPipe(pDvcData, DT_PIPE_TX_NRT, &pDvcData->m_TxUuid);
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    return DtPcieNwGetPipePropertiesIoCtrl(pDvcData, pDvcData->m_TxUuid, 
+                                                              &pDvcData->m_DataAlignment);
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwInitSharedBuffers -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -991,7 +1022,7 @@ DtStatus  DtPcieNwGetFingerprint(DtPcieNwDeviceData* pDvcData, void* pPacket,
         *pFingerprint = Fingerprint;
         pDvcData->m_Fingerprint = Fingerprint;
         pDvcData->m_NumTxTimestampRequests++;
-        DtDbgOut(ERR, DTPCIENW, "New fingerprint: %i. #pending:%i", Fingerprint,
+        DtDbgOut(AVG, DTPCIENW, "New fingerprint: %i. #pending:%i", Fingerprint,
                                                       pDvcData->m_NumTxTimestampRequests);
 
     }
@@ -1076,7 +1107,7 @@ DtStatus  DtPcieNwIncomingFingerprint(DtPcieNwDeviceData* pDvcData, UInt8 Finger
         Status = DT_STATUS_FAIL;
     }
     else {
-        DtDbgOut(ERR, DTPCIENW, "Timestamp received for fingerprint with ID: %i %is,%ins", 
+        DtDbgOut(AVG, DTPCIENW, "Timestamp received for fingerprint with ID: %i %is,%ins", 
                                                  Fingerprint, TodSeconds, TodNanoSeconds);
 
         DtPcieNwEvtHwTxTimestampReceived(pDvcData, 
@@ -1149,7 +1180,7 @@ void  DtPcieNwRxThread(DtThread* pThread, void* pContext)
             {
                 if (pEthIpHeader->m_SyncWord == DT_ETHIP_SYNCWORD)
                 {
-                    DtDbgOut(ERR, DTPCIENW, "Not a complete packet received with DMA. %i "
+                    DtDbgOut(AVG, DTPCIENW, "Not a complete packet received with DMA. %i "
                           "bytes received. Needs %i bytes. Wait for complete packet (%i)", 
                           BufLoad, pEthIpHeader->m_SizeInQWords * 8, Retry + 1);
                     DtSleep(1);
@@ -1441,6 +1472,42 @@ static DtStatus  DtPcieNwCheckDtDriverVersion(
         DtEvtLogReport(&pDvcData->m_Device.m_EvtObject, DTPCIENW_LOG_VERSION_MISMATCH,
                                                                &DtStrVersion, NULL, NULL);
     }
+    return Status;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwGetSupportedStatisticCounters -.-.-.-.-.-.-.-.-.-.-.-.
+//
+static DtStatus  DtPcieNwGetSupportedStatisticCounters(DtPcieNwDeviceData* pDvcData)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    DtIoctlEMACCmdGetSupportedCountersInput IoCtrlInput;
+    DtIoctlEMACCmdGetSupportedCountersOutput* pIoCtrlOutput;
+
+
+    UInt SizeIn = sizeof(DtIoctlEMACCmdGetSupportedCountersInput);
+    UInt SizeOut = sizeof(DtIoctlEMACCmdGetSupportedCountersOutput);
+    SizeOut += DT_MAC_CNT_IDS * sizeof(UInt);
+
+    pIoCtrlOutput = DtMemAllocPool(DtPoolNonPaged, SizeOut, DTPCIENW_MEM_TAG);
+    if (pIoCtrlOutput == NULL)
+        return DT_STATUS_OUT_OF_MEMORY;
+    IoCtrlInput.m_CmdHdr.m_PortIndex = pDvcData->m_PortIndex;
+    IoCtrlInput.m_CmdHdr.m_Uuid = pDvcData->m_NwUuid;
+    IoCtrlInput.m_CmdHdr.m_Cmd = DT_EMAC_CMD_GET_SUPPORTED_COUNTERS;
+    IoCtrlInput.m_CmdHdr.m_CmdEx = DT_IOCTL_CMD_NOP;
+    IoCtrlInput.m_MaxCounterIds = DT_MAC_CNT_IDS;
+    
+    Status = DtIoctl(&pDvcData->m_IoCtrlParent, DT_IOCTL_EMAC_CMD, SizeIn, &IoCtrlInput,
+        SizeOut, pIoCtrlOutput, NULL);
+    if (DT_SUCCESS(Status))
+    {
+        DtMemCopy(pDvcData->m_SupportedCounters, pIoCtrlOutput->m_CounterId, 
+                                           pIoCtrlOutput->m_NumCounterIds * sizeof(UInt));
+        pDvcData->m_NumSupportedStatisticCounters = pIoCtrlOutput->m_NumCounterIds;
+    }
+    else
+        pDvcData->m_NumSupportedStatisticCounters = 0;
+    DtMemFreePool(pIoCtrlOutput, DTPCIENW_MEM_TAG);
     return Status;
 }
 
@@ -1836,6 +1903,34 @@ static DtStatus  DtPcieNwClosePipe(DtPcieNwDeviceData* pDvcData, Int PipeType,
 
     return DtIoctl(&pDvcData->m_IoCtrlParent, DT_IOCTL_NW_CMD, SizeIn, &IoCtrlInput,
                                                                            0, NULL, NULL);
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwSetSharedKBufferIoCtrl -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static DtStatus DtPcieNwGetPipePropertiesIoCtrl(DtPcieNwDeviceData* pDvcData,
+                                                       UInt PipeUuid, Int* pDataAlignment)
+{
+    DtStatus Status = DT_STATUS_OK;
+    DtIoctlPipeCmdGetPropertiesInput IoCtrlInput;
+    DtIoctlPipeCmdGetPropertiesOutput IoCtrlOutput;
+
+    UInt  SizeIn = sizeof(DtIoctlPipeCmdGetPropertiesInput);
+    UInt  SizeOut = sizeof(DtIoctlPipeCmdGetPropertiesOutput);
+
+    IoCtrlInput.m_CmdHdr.m_PortIndex = pDvcData->m_PortIndex;
+    IoCtrlInput.m_CmdHdr.m_Uuid = PipeUuid;
+    IoCtrlInput.m_CmdHdr.m_Cmd = DT_PIPE_CMD_GET_PROPERTIES;
+    IoCtrlInput.m_CmdHdr.m_CmdEx = DT_IOCTL_CMD_NOP;
+    Status = DtIoctl(&pDvcData->m_IoCtrlParent, DT_IOCTL_PIPE_CMD, SizeIn, &IoCtrlInput,
+                                                            SizeOut, &IoCtrlOutput, NULL);
+    if (DT_SUCCESS(Status))
+    {
+        *pDataAlignment = IoCtrlOutput.m_PipeDataWidth / 8;
+    }
+    else {
+        *pDataAlignment = 16;
+    }
+    return Status;
 }
 
 

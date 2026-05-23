@@ -1,4 +1,4 @@
-//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuIal.c *#*#*#*#*#*#*#*#*# (C) 2011-2016 DekTec
+//*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtuIal.c *#*#*#*#*#*#*#*#*# (C) 2011-2024 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -440,6 +440,16 @@ long  DtuUnlockedIoctl(struct file* pFile, unsigned int Cmd, unsigned long Arg)
 #endif
 #endif
 
+#if defined(KYLIN_RELEASE_CODE)
+#if KYLIN_RELEASE_CODE>=KYLIN_RELEASE_VERSION(10,1)
+#define NEW_ACCESS_OK_MACRO_KYLIN
+#endif
+#endif
+
+#if defined(NEW_ACCESS_OK_MACRO_RHEL) || defined(NEW_ACCESS_OK_MACRO_KYLIN)
+#define NEW_ACCESS_OK_MACRO
+#endif
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtuIoctl -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 static long  DtuIoctl(
@@ -484,7 +494,7 @@ static long  DtuIoctl(
             UInt*  pBufSizeLoc = (UInt*)Arg;
 
             ReservedForSizeParam = 2*sizeof(UInt);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO))
             if (access_ok(VERIFY_READ, (void*)Arg, ReservedForSizeParam) == 0)
 #else
             if (access_ok((void*)Arg, ReservedForSizeParam) == 0)
@@ -532,7 +542,7 @@ static long  DtuIoctl(
             DtDbgOut(MAX, IAL, "Output buffer size %d", Ioctl.m_OutputBufferSize);
 
             // Ioctl reads --> driver needs write access for user memory
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO))
             if (access_ok(VERIFY_WRITE, (void*)Arg, Ioctl.m_OutputBufferSize) == 0)
 #else
             if (access_ok((void*)Arg, Ioctl.m_OutputBufferSize) == 0)
@@ -568,7 +578,7 @@ static long  DtuIoctl(
             DtDbgOut(MAX, IAL, "Input buffer size %d", Ioctl.m_InputBufferSize);
             
             // Ioctl writes --> driver needs read access for user memory
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO_RHEL))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0) && !defined(NEW_ACCESS_OK_MACRO))
             if (access_ok(VERIFY_READ, (void*)Arg,
                                        Ioctl.m_InputBufferSize+ReservedForSizeParam) == 0)
 #else

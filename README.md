@@ -9,6 +9,11 @@ This repository is simply a periodic commit of DekTec source downloaded from htt
 
 
 List of previous LinuxSDK download URLs
+- https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2024.09.0.tar.gz
+- https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2024.06.1.tar.gz (missing)
+- https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2024.06.0.tar.gz (missing)
+- https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2024.04.0.tar.gz (missing)
+- https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2024.01.0.tar.gz (missing)
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2023.10.0.tar.gz
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2023.08.0.tar.gz
 - https://www.dektec.com/products/SDK/DTAPI/Downloads/LinuxSDK_v2023.06.0.tar.gz

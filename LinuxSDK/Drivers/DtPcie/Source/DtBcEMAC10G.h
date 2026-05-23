@@ -62,7 +62,7 @@ typedef  struct _DtBcEMAC10G
 
     // Interrupts related
     DtDpc  m_IntDpc;
-    DtEvent  m_DoneEvent;
+    //DtEvent  m_DoneEvent;
 
     // MAC address
     UInt8  m_MacAddrPer[6];             // Network MAC address retrieved from VPD
@@ -83,12 +83,14 @@ DtStatus DtBcEMAC10G_GetOperationalMode(DtBcEMAC10G* pBc, Int* pOpMode);
 DtStatus DtBcEMAC10G_SetOperationalMode(DtBcEMAC10G* pBc, Int OpMode);
 DtStatus  DtBcEMAC10G_GetCounter(DtBcEMAC10G* pBc, const UInt  CounterId,
                                                                           UInt64* pValue);
+DtStatus  DtBcEMAC10G_GetSupportedCounters(DtBcEMAC10G* pBc, UInt MaxCounterIds,
+                                                 UInt* pNumCounterIds, UInt* pCounterIds);
 DtStatus  DtBcEMAC10G_GetPhySpeed(DtBcEMAC10G* pBc, UInt* pPhySpeed);
 DtStatus  DtBcEMAC10G_GetMacAddressPerm(DtBcEMAC10G* pBc, UInt8* pMacAddress);
 DtStatus  DtBcEMAC10G_GetMacAddressCurr(DtBcEMAC10G* pBc, UInt8* pMacAddress);
 DtStatus  DtBcEMAC10G_SetMacAddress(DtBcEMAC10G* pBc, UInt8* pMacAddress);
-DtStatus  DtBcEMAC10G_RegisterCallback(DtBcEMAC10G* pBc, DtLinkStatFunc LinkStatCB, 
+DtStatus  DtBcEMAC10G_RegisterLinkCallback(DtBcEMAC10G* pBc, DtLinkStatFunc LinkStatCB, 
                                                                           void* pContext);
-DtStatus  DtBcEMAC10G_UnregisterCallback(DtBcEMAC10G* pBc, void* pContext);
+DtStatus  DtBcEMAC10G_UnregisterLinkCallback(DtBcEMAC10G* pBc, void* pContext);
 DtStatus  DtBcEMAC10G_GetLinkStatus(DtBcEMAC10G* pBc);
 #endif  // #ifndef __DT_BC_EMAC10G_H

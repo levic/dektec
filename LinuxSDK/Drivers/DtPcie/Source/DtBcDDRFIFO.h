@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBcDDRFIFO.h *#*#*#*#*#*#*#*#*#*# (C) 2018 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBcDDRFIFO.h *#*#*#*#*#*#*#* (C) 2018-2024 DekTec
 //
 // This file is not part of the PCIe driver. It can be used as template to create a new
 // block controller. Replace "DDRFIFO" by the building block's shortname (all uppercase)
@@ -57,24 +57,25 @@ typedef  struct _DtBcDDRFIFO
     DT_BC_COMMON_DATA;
 
     // Cached settings
-    Bool  m_BlockEnabled;
-    Int  m_OperationalMode;
-    Int  m_BurstSize;   // #bytes
-    Int  m_FifoSize;    // #bytes
-    Int  m_DataWidth;   // #bits
+    Bool m_BlockEnabled;
+    Int m_OperationalMode;
+    Int m_BurstSize;   // #bytes
+    Int64 m_FifoSize; // #bytes
+    Int m_DataWidth;   // #bits
 }  DtBcDDRFIFO;
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-. DtBcDDRFIFO public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
-
 void  DtBcDDRFIFO_Close(DtBc*);
 DtStatus  DtBcDDRFIFO_OnCloseFile(DtBc* pBcBase, const DtFileObject* pFile);
 DtStatus  DtBcDDRFIFO_GetFifoLoad(DtBcDDRFIFO* pBc, Int* pFifoLoad);
 DtStatus  DtBcDDRFIFO_GetOperationalMode(DtBcDDRFIFO* pBc, Int* pOpMode);
-DtStatus  DtBcDDRFIFO_GetProperties(DtBcDDRFIFO* pBc, Int* pBurstSize, Int* pFifoSize, 
+DtStatus  DtBcDDRFIFO_GetProperties(DtBcDDRFIFO* pBc, Int* pBurstSize, Int64* pFifoSize, 
                                                                          Int* pDataWidth);
 DtBcDDRFIFO*  DtBcDDRFIFO_Open(Int  Address, DtCore*, DtPt*  pPt, const char*  pRole,
                                                Int  Instance, Int  Uuid, Bool CreateStub);
 DtStatus  DtBcDDRFIFO_SetOperationalMode(DtBcDDRFIFO* pBc, Int OpMode);
+Bool  DtBcDDRFIFO_IsMemCalibrated(DtBcDDRFIFO*);
+Bool  DtBcDDRFIFO_IsMemPllLocked(DtBcDDRFIFO*);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcDDRFIFO definitions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -90,9 +91,8 @@ typedef struct _DtIoStubBcDDRFIFO
 }  DtIoStubBcDDRFIFO;
 
 
-//.-.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcSWITCH public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
+// -.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubBcDDRFIFO public functions -.-.-.-.-.-.-.-.-.-.-.-.-.
 void  DtIoStubBcDDRFIFO_Close(DtIoStub*);
 DtIoStubBcDDRFIFO*  DtIoStubBcDDRFIFO_Open(DtBc*);
-Bool  DtBcDDRFIFO_IsMemCalibrated(DtBcDDRFIFO*);
-Bool  DtBcDDRFIFO_IsMemPllLocked(DtBcDDRFIFO*);
+
 #endif  // #ifndef __DT_BC_DDRFIFO_H

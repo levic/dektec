@@ -1036,11 +1036,15 @@ DtStatus  DtBcSPIMF_InitializeFlashProperties(DtBcSPIMF*  pBc)
                                                                pParamTable, &TableLength);
     if (DT_SUCCESS(Status) && TableLength<16)
     {
+        DtDbgOutBc(ERR, SPIMF, pBc, "ERROR: Invalid Basic Flash Parameter Table "
+                                    "(length=%d)", TableLength);
         DtMemFreePool(pParamTable, COMMON_TAG);
         return DT_STATUS_NOT_FOUND;
     }
     else if(!DT_SUCCESS(Status))
     {
+        DtDbgOutBc(ERR, SPIMF, pBc, "ERROR: Read Basic Flash Parameter Table failed "
+                                    "(status=0x%X)", Status);
         DtMemFreePool(pParamTable, COMMON_TAG);
         return Status;
     }
@@ -1098,11 +1102,15 @@ DtStatus  DtBcSPIMF_InitializeFlashProperties(DtBcSPIMF*  pBc)
                                                          1, 0, pParamTable, &TableLength);
         if (DT_SUCCESS(Status) && TableLength<2)
         {
+            DtDbgOutBc(ERR, SPIMF, pBc, "ERROR: Invalid 4-byte Address Instruction "
+                                        "Parameter Table (length=%d)", TableLength);
             DtMemFreePool(pParamTable, COMMON_TAG);
             return DT_STATUS_NOT_FOUND;
         }
         else if(!DT_SUCCESS(Status))
         {
+            DtDbgOutBc(ERR, SPIMF, pBc, "ERROR: Read 4-byte Address Instruction "
+                                        "Parameter Table failed (status=0x%X)", Status);
             DtMemFreePool(pParamTable, COMMON_TAG);
             return Status;
         }
@@ -1255,9 +1263,8 @@ DtStatus  DtBcSPIMF_ReadParamTable(DtBcSPIMF*  pBc, Int TableId, Int Major, Int 
     
     if (!SfdpHdrFound)
     {
-        DtDbgOutBc(ERR, SPIMF, pBc, "ERROR: flash parameters table not found;"
-                                    " TableId: 0x%x", TableId);
-        return DT_STATUS_FAIL;
+        // If necessary, the error is logged by the caller
+        return DT_STATUS_NOT_FOUND;
     }
     if (SfdpNumDWords < 1)
     {

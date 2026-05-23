@@ -895,10 +895,12 @@ DtStatus  DtIoStubCfEvt_OnCmdUnregister(
 DtStatus  DtIoStubCfEvt_Dequeue(DtIoStubCfEvt*  pStub, DtDriverEvents*  pDrvEvents)
 {
 #ifdef WINBUILD
+    DtStatus Status = DT_STATUS_OK;
     WDF_REQUEST_PARAMETERS  Params;
     WDFREQUEST  Request;
     WDFREQUEST  Request2;
     NTSTATUS  NtStatus = STATUS_SUCCESS;
+    Int  Timeout;
     size_t  BufSize;
     DtIoctlEventCmdOutput*  pOutBuf;
     DtFileObject*  pFile;
@@ -909,8 +911,17 @@ DtStatus  DtIoStubCfEvt_Dequeue(DtIoStubCfEvt*  pStub, DtDriverEvents*  pDrvEven
     pFile = &pDrvEvents->m_File;
     DT_ASSERT(pFile != NULL);
 
-    // Prevent mutual access to event queue (can be called at DISPACH level => no timeout)
-    DtMutexAcquire(&pStub->m_EventQueueMutex, -1);
+    // Prevent mutual access to event queue 
+    // (can be called at DISPACH level, then timeout must be 0)
+    if (KeGetCurrentIrql() == DISPATCH_LEVEL)
+        Timeout = 0;
+    else
+        Timeout = -1;
+    
+    do {
+        Status = DtMutexAcquire(&pStub->m_EventQueueMutex, Timeout);
+    } while (Status == DT_STATUS_TIMEOUT);
+    DT_ASSERT(DT_SUCCESS(Status));
     
     // Get all pending requests from queue for this file object
     for(;;)

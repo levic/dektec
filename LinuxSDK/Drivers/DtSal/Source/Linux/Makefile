@@ -58,10 +58,6 @@ else
 	EXTRA_CFLAGS += -DSKIP_USB
 endif
 
-# Force using inline code to mitigate against straight line speculation in stead of using
-# the current default thunk-extern which generates duplicate functions.
-EXTRA_CFLAGS += -mindirect-branch=thunk-inline
-
 # ========================================================================================
 # Source definitions
 

@@ -59,10 +59,6 @@ endif
 
 EXTRA_CFLAGS += -DNW_DRIVER
 
-# Force using inline code to mitigate against straight line speculation in stead of using
-# the current default thunk-extern which generates duplicate functions.
-EXTRA_CFLAGS += -mindirect-branch=thunk-inline
-
 # ========================================================================================
 # Include version evironment vars
 
@@ -147,7 +143,7 @@ PREREQ:
 	@if [ -f MakefilePrereq ]; then $(MAKE) -f MakefilePrereq ; fi
 
 $(DTSAL): PREREQ
-	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME)
+	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) CONFIG_PREFIX_SYMBOLS=n
 
 # ========================================================================================
 # Clean all option

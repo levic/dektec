@@ -345,13 +345,6 @@ DtStatus  DtBcIQJESD_ResetAndCalibratePll_V0(DtBcIQJESD* pBc)
     // Sanity check
     BC_IQJESD_DEFAULT_PRECONDITIONS(pBc);
 
-   
-    // Power-up calibration may still be running, so wait until it is completed
-    WAIT_UNTIL_READ(IQJESD_Pll_Status_READ_CalBusy, 0,
-                            "ERROR: Waiting for PLL-CalBusy flag to become 0 timed out.");
-    WAIT_UNTIL_READ(IQJESD_JesdPhy_Status2_READ_TxCalBusy, 0,
-                          "ERROR: Waiting for Phy-TxCalBusy flag to become 0 timed out.");
-
     // Reset PLL
     RegData = IQJESD_Pll_Control_READ(pBc);
     RegData = IQJESD_Pll_Control_SET_PllPowerdown(RegData, 1);
@@ -413,13 +406,6 @@ DtStatus  DtBcIQJESD_ResetAndCalibratePll(DtBcIQJESD* pBc)
     // Sanity check
     BC_IQJESD_DEFAULT_PRECONDITIONS(pBc);
 
-
-    // Power-up calibration may still be running, so wait until it is completed
-    WAIT_UNTIL_READ(IQJESD_Pll_Status_READ_CalBusy, 0,
-        "ERROR: Waiting for PLL-CalBusy flag to become 0 timed out.");
-    WAIT_UNTIL_READ(IQJESD_JesdPhy_Status2_READ_TxCalBusy, 0,
-        "ERROR: Waiting for Phy-TxCalBusy flag to become 0 timed out.");
-
     // Reset PLL
     RegData = IQJESD_Pll_Control_READ(pBc);
     RegData = IQJESD_Pll_Control_SET_PllPowerdown(RegData, 1);
@@ -433,7 +419,7 @@ DtStatus  DtBcIQJESD_ResetAndCalibratePll(DtBcIQJESD* pBc)
     RegData = IQJESD_Pll_AvmmArbitration_SET_CalDone(RegData, 1);
     IQJESD_Pll_AvmmArbitration_WRITE(pBc, RegData);
     WAIT_UNTIL_READ(IQJESD_Pll_Status_READ_AvMmBusy, IQJESD_BUSOWNER_User,
-        "ERROR: Waiting for Pll-AvmBusy timed out.");
+                                             "ERROR: Waiting for Pll-AvmBusy timed out.");
 
     // Request FPGA calibration engine (PreSICE) to calibrate the ATX PLL.
     RegData = 0;
@@ -450,7 +436,7 @@ DtStatus  DtBcIQJESD_ResetAndCalibratePll(DtBcIQJESD* pBc)
 
     // Wait until calibration is finished.
     WAIT_UNTIL_READ(IQJESD_Pll_Status_READ_CalBusy, 0,
-        "ERROR: Waiting for PLL-CalBusy timed out.");
+                                             "ERROR: Waiting for PLL-CalBusy timed out.");
 
     RegData = IQJESD_Pll_Control_READ(pBc);
     RegData = IQJESD_Pll_Control_SET_PllPowerdown(RegData, 0);

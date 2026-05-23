@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2023 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtaPropertyStore.c *#*#*#*#*#*#*#*#*# (C) 2024 DekTec
 //
 // CapParser - Property Store - Tables storing device properties
 //
@@ -18017,7 +18017,7 @@ static const DtProperty  DtProperties2179_0_00[] =
 };
 static const DtProperty  DtProperties2179_0_01[] =
 {
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2179_0_02[] =
@@ -18505,6 +18505,9 @@ static const DtProperty  DtProperties2179_0_47[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 3, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Bug fix: video switching could result in no frames for SD input",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MATRIX_MEM_PCK_SIZE", 128, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
@@ -18702,7 +18705,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_0[] =
     { DtProperties2179_0_44, 1 },
     { DtProperties2179_0_45, 6 },
     { DtProperties2179_0_46, 5 },
-    { DtProperties2179_0_47, 5 },
+    { DtProperties2179_0_47, 6 },
     { NULL, 0 },
     { DtProperties2179_0_49, 3 },
     { DtProperties2179_0_50, 1 },
@@ -18734,7 +18737,7 @@ static const DtProperty  DtProperties2179_1_00[] =
 };
 static const DtProperty  DtProperties2179_1_01[] =
 {
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2179_1_04[] =
@@ -19103,6 +19106,9 @@ static const DtProperty  DtProperties2179_1_47[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Bug fix: video switching could result in no frames for SD input",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MATRIX_MEM_PCK_SIZE", 128, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
@@ -19262,7 +19268,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_1[] =
     { DtProperties2179_1_44, 1 },
     { DtProperties2179_1_45, 6 },
     { DtProperties2179_1_46, 4 },
-    { DtProperties2179_1_47, 3 },
+    { DtProperties2179_1_47, 4 },
     { NULL, 0 },
     { DtProperties2179_1_49, 2 },
     { DtProperties2179_1_50, 1 },
@@ -19296,7 +19302,7 @@ static const DtProperty  DtProperties2179_2_00[] =
 };
 static const DtProperty  DtProperties2179_2_01[] =
 {
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2179_2_04[] =
@@ -19726,6 +19732,9 @@ static const DtProperty  DtProperties2179_2_47[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Bug fix: video switching could result in no frames for SD input",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MATRIX_MEM_PCK_SIZE", 128, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
@@ -19905,7 +19914,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_2[] =
     { DtProperties2179_2_44, 1 },
     { DtProperties2179_2_45, 6 },
     { DtProperties2179_2_46, 4 },
-    { DtProperties2179_2_47, 4 },
+    { DtProperties2179_2_47, 5 },
     { NULL, 0 },
     { DtProperties2179_2_49, 3 },
     { DtProperties2179_2_50, 1 },
@@ -19937,7 +19946,7 @@ static const DtProperty  DtProperties2179_3_00[] =
 };
 static const DtProperty  DtProperties2179_3_01[] =
 {
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2179_3_04[] =
@@ -20306,6 +20315,9 @@ static const DtProperty  DtProperties2179_3_47[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Bug fix: video switching could result in no frames for SD input",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MATRIX_MEM_PCK_SIZE", 128, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
@@ -20465,7 +20477,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_3[] =
     { DtProperties2179_3_44, 1 },
     { DtProperties2179_3_45, 6 },
     { DtProperties2179_3_46, 4 },
-    { DtProperties2179_3_47, 3 },
+    { DtProperties2179_3_47, 4 },
     { NULL, 0 },
     { DtProperties2179_3_49, 2 },
     { DtProperties2179_3_50, 1 },
@@ -20499,7 +20511,7 @@ static const DtProperty  DtProperties2179_4_00[] =
 };
 static const DtProperty  DtProperties2179_4_01[] =
 {
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2179_4_04[] =
@@ -20929,6 +20941,9 @@ static const DtProperty  DtProperties2179_4_47[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 2, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Bug fix: video switching could result in no frames for SD input",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MATRIX_MEM_PCK_SIZE", 128, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
@@ -21108,7 +21123,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_4[] =
     { DtProperties2179_4_44, 1 },
     { DtProperties2179_4_45, 6 },
     { DtProperties2179_4_46, 4 },
-    { DtProperties2179_4_47, 4 },
+    { DtProperties2179_4_47, 5 },
     { NULL, 0 },
     { DtProperties2179_4_49, 3 },
     { DtProperties2179_4_50, 1 },
@@ -21140,7 +21155,7 @@ static const DtProperty  DtProperties2179_5_00[] =
 };
 static const DtProperty  DtProperties2179_5_01[] =
 {
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2179_5_04[] =
@@ -21509,6 +21524,9 @@ static const DtProperty  DtProperties2179_5_47[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { NULL, 1, NULL, PROPERTY_VALUE_TYPE_BOOL, 1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE,
+      "Bug fix: video switching could result in no frames for SD input",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "MATRIX_MEM_PCK_SIZE", 128, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 } 
 };
@@ -21668,7 +21686,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2179_5[] =
     { DtProperties2179_5_44, 1 },
     { DtProperties2179_5_45, 6 },
     { DtProperties2179_5_46, 4 },
-    { DtProperties2179_5_47, 3 },
+    { DtProperties2179_5_47, 4 },
     { NULL, 0 },
     { DtProperties2179_5_49, 2 },
     { DtProperties2179_5_50, 1 },

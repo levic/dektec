@@ -407,7 +407,8 @@ DtStatus DtDfGenLockCtrl_SetDcoFreqOffset(DtDfGenLockCtrl* pDf, Int ClockIdx,
     pClkProps = &pDf->m_pSi534XClockProps[ClockIdx];
     IsFractional = (pClkProps->m_ClockType == DT_DF_SI534X_CLK_FRACTIONAL);
     // Internal virtual genref must be used and free running
-    if (pDf->m_GenRefData.m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_VIRTUAL
+    if ((   pDf->m_GenRefData.m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_VIRTUAL
+         && pDf->m_GenRefData.m_GenRefType!=DT_DF_GENLOCKCTRL_GENREF_UNDEFINED)
           || ( pDf->m_Genl[0].m_DcoControlState!=DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING
                && pDf->m_Genl[0].m_GenLockControlEnabled)
           || ( pDf->m_Genl[1].m_DcoControlState!=DT_DF_GENLOCKCTRL_STATE_FREE_RUNNING
@@ -633,7 +634,7 @@ DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
                                              = pGenl->m_GenLockSofTod[1].m_Nanoseconds=-1;
 
             // Enable only primary genlock control
-            pGenl->m_GenLockControlEnabled = (i==0);
+            pGenl->m_GenLockControlEnabled = (i==0) && (pGenl->m_pBcGenLock != NULL);
 
             // Register Genlock start-of-frame handlers
             if (pGenl->m_pBcGenLock != NULL)
@@ -665,8 +666,12 @@ DtStatus DtDfGenLockCtrl_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
         DtSpinLockRelease(&pDf->m_SofSpinLock);
 
         // Set default DCO frequency
-        DT_RETURN_ON_ERROR(DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, FALSE));
-        DT_RETURN_ON_ERROR(DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, TRUE));
+        if (pDf->m_NumSi534XClockProps > 0)
+            DT_RETURN_ON_ERROR(DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, 
+                 (pDf->m_pSi534XClockProps[0].m_ClockType==DT_DF_SI534X_CLK_FRACTIONAL)));
+        if (pDf->m_NumSi534XClockProps > 1)
+            DT_RETURN_ON_ERROR(DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, 
+                 (pDf->m_pSi534XClockProps[1].m_ClockType==DT_DF_SI534X_CLK_FRACTIONAL)));
 
         // Set operational mode of primary GENL block to RUN
         pGenl = &pDf->m_Genl[0];
@@ -1130,9 +1135,14 @@ void  DtDfGenLockCtrl_DcoControlInit(DtDfGenLockCtrl* pDf,
         DtStatus  Status;
         // Free running set nominal DCO frequency
         pGenl->m_DcoFreqOffsetPpt = 0;
-        Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, FALSE);
+        if (pDf->m_NumSi534XClockProps > 0)
+            Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, 
+                  (pDf->m_pSi534XClockProps[0].m_ClockType==DT_DF_SI534X_CLK_FRACTIONAL));
         DT_ASSERT(DT_SUCCESS(Status));
-        Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, TRUE);
+
+        if (pDf->m_NumSi534XClockProps > 1)
+            Status = DtDfSi534X_SetFreqOffsetPpt(pDf->m_pDfSi534X, 0, 
+                  (pDf->m_pSi534XClockProps[1].m_ClockType==DT_DF_SI534X_CLK_FRACTIONAL));
         DT_ASSERT(DT_SUCCESS(Status));
         DtDbgOutDf(AVG, GENLOCKCTRL, pDf, "DCO State[%d] => FREE RUNNING",
                                                                pGenl->m_FractionalClock);

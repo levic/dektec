@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPcieTableStore.c *#*#*#*#*#*#*#*#*# (C) 2023 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPcieTableStore.c *#*#*#*#*#*#*#*#*# (C) 2024 DekTec
 //
 // CapParser - Device Table Store - Tables with calibration data, filter coefficients, ...
 //
@@ -3870,23 +3870,23 @@ static const DtTableEntry  DtTable2174_2_000[] =
 };
 static const DtTableEntry  DtTable2174_2_001[] =
 {
-    { 4, 4 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 0, 0 }
+    { 5, 5 }, { 4, 4 }, { 3, 3 }, { 2, 2 }, { 1, 1 }, { 0, 0 }
 };
 static const DtTableEntry  DtTable2174_2_002[] =
 {
-    { 4, 3 }, { 3, 2 }, { 2, 1 }, { 1, 0 }, { 0, -1 }
+    { 5, 4 }, { 4, 3 }, { 3, 2 }, { 2, 1 }, { 1, 0 }, { 0, -1 }
 };
 static const DtTableEntry  DtTable2174_2_003[] =
 {
-    { 4, 3 }, { 3, 2 }, { 2, 1 }, { 1, 0 }, { 0, -1 }
+    { 5, 4 }, { 4, 3 }, { 3, 2 }, { 2, 1 }, { 1, 0 }, { 0, -1 }
 };
 
 static const DtTableLink  DtTableLink2174_2[] = 
 {
     { "DVC_FW_VARIANTS", -1, -1, 0, 0, 3, DtTable2174_2_000 },
-    { "FIRMWARE_PACKAGE_HISTORY", -1, 1, 0, 0, 5, DtTable2174_2_001 },
-    { NULL, -1, 2, 0, 0, 5, DtTable2174_2_002 },
-    { NULL, -1, 3, 0, 0, 5, DtTable2174_2_003 }
+    { "FIRMWARE_PACKAGE_HISTORY", -1, 1, 0, 0, 6, DtTable2174_2_001 },
+    { NULL, -1, 2, 0, 0, 6, DtTable2174_2_002 },
+    { NULL, -1, 3, 0, 0, 6, DtTable2174_2_003 }
 };
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA-2178; Sub-device=0 -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -3897,23 +3897,23 @@ static const DtTableEntry  DtTable2178_0_000[] =
 };
 static const DtTableEntry  DtTable2178_0_001[] =
 {
-    { 2, 2 }, { 1, 1 }, { 0, 0 }
+    { 3, 3 }, { 2, 2 }, { 1, 1 }, { 0, 0 }
 };
 static const DtTableEntry  DtTable2178_0_002[] =
 {
-    { 2, 2 }, { 1, 1 }, { 0, 0 }
+    { 3, 3 }, { 2, 2 }, { 1, 1 }, { 0, 0 }
 };
 static const DtTableEntry  DtTable2178_0_003[] =
 {
-    { 2, 2 }, { 1, 1 }, { 0, 0 }
+    { 3, 3 }, { 2, 2 }, { 1, 1 }, { 0, 0 }
 };
 
 static const DtTableLink  DtTableLink2178_0[] = 
 {
     { "DVC_FW_VARIANTS", -1, -1, 0, 0, 3, DtTable2178_0_000 },
-    { "FIRMWARE_PACKAGE_HISTORY", -1, 1, 0, 0, 3, DtTable2178_0_001 },
-    { NULL, -1, 2, 0, 0, 3, DtTable2178_0_002 },
-    { NULL, -1, 3, 0, 0, 3, DtTable2178_0_003 }
+    { "FIRMWARE_PACKAGE_HISTORY", -1, 1, 0, 0, 4, DtTable2178_0_001 },
+    { NULL, -1, 2, 0, 0, 4, DtTable2178_0_002 },
+    { NULL, -1, 3, 0, 0, 4, DtTable2178_0_003 }
 };
 
 const Int  DtTableStoreCount = 8;

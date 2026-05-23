@@ -16,6 +16,16 @@
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPipe definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
+#define DT_PIPE_CAP_TX_NRT    (DT_PIPE_CAP_TX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_NRT|DT_PIPE_CAP_KBUF)
+#define DT_PIPE_CAP_TX_RT_HWP (DT_PIPE_CAP_TX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_RT)
+#define DT_PIPE_CAP_TX_RT_SWP (DT_PIPE_CAP_TX|DT_PIPE_CAP_SWP|DT_PIPE_CAP_RT)
+#define DT_PIPE_CAP_TX_RT_HWQ (DT_PIPE_CAP_TX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_KBUF)
+
+#define DT_PIPE_CAP_RX_NRT    (DT_PIPE_CAP_RX|DT_PIPE_CAP_SWP|DT_PIPE_CAP_NRT|DT_PIPE_CAP_KBUF)
+#define DT_PIPE_CAP_RX_RT_HWP (DT_PIPE_CAP_RX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_RT)
+#define DT_PIPE_CAP_RX_RT_SWP (DT_PIPE_CAP_RX|DT_PIPE_CAP_SWP|DT_PIPE_CAP_RT)
+#define DT_PIPE_CAP_RX_HWQ    (DT_PIPE_CAP_RX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_KBUF)
+
 // Common data for a DtPipe object
 #define DT_PIPE_COMMON_DATA                                                              \
     DT_OBJECT_COMMON_DATA;                                                               \
@@ -84,6 +94,7 @@ typedef struct _DtPipeRxHwq
     UInt m_ReadOffsetCache;
     DtBcETHIPPAD* m_pEthIpPad;
     DtBcDDRFIFO* m_pDdrFifo;
+    DtBcBURSTFIFO* m_pBurstFifo;
 } DtPipeRxHwq;
 
 #define DT_PIPE_SWP_COMMON                                                               \
@@ -101,7 +112,18 @@ typedef struct _DtPipeSwp
     DT_PIPE_SWP_COMMON;
 } DtPipeSwp;
 
-typedef struct _DtPipeRxRtSwp
+
+typedef struct _DtPipeRxRtSwp  DtPipeRxRtSwp;
+typedef struct _DtRxRtSwpLinkedListEl  DtRxRtSwpLinkedListEl;
+struct _DtRxRtSwpLinkedListEl
+{
+    DtPipeRxRtSwp* m_pPipe;
+    DtRxRtSwpLinkedListEl* m_pNext;       // Link to previous element in list
+    DtRxRtSwpLinkedListEl* m_pPrev;       // Link to next element in list
+    Int Index;                          // Index in DtPipeRxRtSwp struct
+};
+
+struct _DtPipeRxRtSwp
 {
     DT_PIPE_SWP_COMMON;
     UInt8 m_DstIp[16];
@@ -111,7 +133,8 @@ typedef struct _DtPipeRxRtSwp
     Int m_VlanId[2];
     Int m_Flags;
     Bool m_IpParsSet;
-} DtPipeRxRtSwp;
+    DtRxRtSwpLinkedListEl m_LinkedListEl[3];
+};
 
 #define DT_PIPE_SWP_KBUF                                                                 \
     DT_PIPE_SWP_COMMON;                                                                  \
@@ -133,6 +156,7 @@ typedef struct _DtPipeRxNrt
 typedef struct _DtPipeTxNrt
 {
     DT_PIPE_HWP_KBUF;
+    DtBcBURSTFIFO* m_pBurstFifo;
 } DtPipeTxNrt;
 
 typedef struct _DtPipeTxRtSwp

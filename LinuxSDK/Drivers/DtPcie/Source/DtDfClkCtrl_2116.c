@@ -1,8 +1,8 @@
-// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtDfTxClkCtrl_2116.c *#*#*#*#*#*#*#*#* (C) 2021 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtDfClkCtrl_2116.c *#*#*#*#*#*#* (C) 2021-2024 DekTec
 //
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2017 DekTec Digital Video B.V.
+// Copyright (C) 2024 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -132,7 +132,14 @@ DtStatus  DtDfClkCtrl_2116_OnEnablePostChildren(DtDf* pDfBase, Bool  Enable)
     DF_CLKCTRL_2116_DEFAULT_PRECONDITIONS(pDf);
 
     if (Enable)
+    {
+        // Initialize the clock chip and sleep 'shortly' afterwards, to allow BBs that are
+        // dependent on this clock to settle and any power-up calibration tasks the FPGA
+        // may be executing to complete.
         Status = DtDfClkCtrl_2116_InitClock(pDf);
+        if (DT_SUCCESS(Status))
+            DtSleep(500);
+    }
 
     return Status;
 }
