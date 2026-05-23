@@ -109,10 +109,12 @@ DtStatus DtBcXPLL_OnEnable(DtBc* pBcBase, Bool Enable)
         // DISABLE -> ENABLE
         DtDbgOutBc(AVG, XPLL, pBc, "OnEnable from disable -> enable");
 
+        // Clear timed-out status flags.
+        XPLL_Status_CLEAR_AccessTimedout(pBc);
+
         // Block can now be enabled: PLL remain in reset by the other flags.
         XPLL_Control_WRITE(pBc, XPLL_Control_SET_BlockEnable(0, 1));
 
-       
         pBc->m_BlockEnabled = TRUE;
         return DT_STATUS_OK;
     }
@@ -184,6 +186,7 @@ DtStatus  DtBcXPLL_ResetAndCalibrateFPLLPll(DtBcXPLL* pBc)
     // Reset PLL
     RegData = XPLL_C10A10_PllCore_Control_READ(pBc);
     RegData = XPLL_C10A10_PllCore_Control_SET_PllPowerdown(RegData, 1);
+    RegData = XPLL_C10A10_PllCore_Control_SET_OverridePllPowerdown(RegData, 1);
     XPLL_C10A10_PllCore_Control_WRITE(pBc, RegData);
 
     // Request access to the PLL’s configuration bus so that we can start calibration.
@@ -254,6 +257,7 @@ DtStatus  DtBcXPLL_ResetAndCalibrateAtxPll(DtBcXPLL* pBc)
     // Reset PLL
     RegData = XPLL_C10A10_PllCore_Control_READ(pBc);
     RegData = XPLL_C10A10_PllCore_Control_SET_PllPowerdown(RegData, 1);
+    RegData = XPLL_C10A10_PllCore_Control_SET_OverridePllPowerdown(RegData, 1);
     XPLL_C10A10_PllCore_Control_WRITE(pBc, RegData);
     
     // Request access to the PLL’s configuration bus so that we can start calibration.

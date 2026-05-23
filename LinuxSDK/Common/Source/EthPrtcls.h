@@ -450,6 +450,25 @@ typedef struct _Smpte2110_40_Pl
     //UInt16 ChecksumWord:10;
 } Smpte2110_40_Pl;
 
+typedef struct _Smpte2110_41_Pl
+{
+    UInt32 DataItemTypeH:16;
+    UInt32 LengthH : 1;       // Length: Total number of 32-bit data items. 0 is not allowed
+    UInt32 KBit:1;
+    UInt32 DataItemTypeL:6;
+    UInt32 LengthL:8;
+} Smpte2110_41_Pl;
+
+typedef struct _Smpte2110_41_OSM_Pl
+{
+    UInt32 DataItemTypeH : 16;
+    UInt32 LengthH : 1;       // Length: Total number of 32-bit data items. 0 is not allowed
+    UInt32 KBit : 1;
+    UInt32 DataItemTypeL : 6;
+    UInt32 LengthL : 8;
+    UInt32 DataOffset;
+} Smpte2110_41_OSM_Pl;
+
 typedef struct _Smpte2110_31_Pl
 {
     UInt32 Reserved : 2;

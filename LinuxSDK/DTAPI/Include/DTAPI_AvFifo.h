@@ -1,4 +1,4 @@
-// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI_AvFifo.h *#*#*#*#*#*#*#*#*#*# (C) 2023 DekTec
+// *#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DTAPI_AvFifo.h *#*#*#*#*#*#*#* (C) 2023-2025 DekTec
 //
 // DTAPI - AvFifo API - Audio/video FIFO interface for DekTec devices
 //
@@ -10,8 +10,9 @@
 // function reference information and a tutorial, providing comprehensive guidance on
 // the usage of the API.
 //
-// Supported DekTec devices: DTA-2110
-// Supported A/V standards : SMPTE 2110-20/21, SMPTE 2022-5/6
+// Supported DekTec devices: DTA-2110, DTA-2125
+// Supported A/V standards : SMPTE 2110-20/21/30/40/41/RAW, SMPTE 2022-5/6
+// 
 //
 // Namespaces:
 //   Dtapi::AvFifo             General classes defining the A/V FIFO Interface.
@@ -27,6 +28,8 @@
 #include <array>                    // Standard library: Fixed-size array handling.
 #include <stdexcept>                // Standard library: Exception handling.
 #include <vector>                   // Standard library: Dynamic-size array handling.
+#include <optional>                 // Standard library: 'optional' template.
+#include <variant>                  // Standard library: 'variant' type.
 
 // The AvFifo classes are defined in namespace Dtapi::AvFifo.
 namespace Dtapi
@@ -426,7 +429,7 @@ public:
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct Frame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// Represents a single timestamped unit from a video, audio or ANC data stream.
+// Represents a single timestamped unit from a video, audio or RAW data stream.
 // As far as A/V FIFO is concerned, a Frame is a timestamped bag of bytes (a BLOB).
 // 
 // NOTE: Terminology may be somewhat confusing: In a video stream, a 'Frame' may 
@@ -694,6 +697,468 @@ private:
     class Impl;
     unique_ptr<Impl> Pimpl;
 };
+
+
+namespace St2110
+{
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ SMPTE 2110-40 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct AncLocation -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct AncLocation
+{
+    bool IsColorDiff{ false }; // If true, the ANC packet is located in the color 
+    // difference data channel. Otherwise, it is located in the luma data channel, 
+    // originates from an SD signal, or comes from a source without specific luma or
+    // color difference data channels.
+
+    int LineNumber{ 0x7FF }; // Either the SDI line number or:
+    //   0x7FF: No specific location.
+    //   0x7FE: Any line in the range from the second line after
+    //          the line specified for switching, as defined in
+    //          SMPTE RP 168 [RP168], to the last line before 
+    //          active video,  inclusive.
+    //   0x7FD: A line number larger than can be represented in
+    //          11-bits.
+
+    int HorizontalOffset{ 0xFFF }; // Either the horizontal offset in 10-bit words
+    // relative to the SAV or:
+    //   0xFFF: No specific offset.
+    //   0xFFE: Within HANC data space.
+    //   0xFFD: Within VANC data space.
+    //   0xFFC: An offset larger than can be represented in
+    //          12-bits.
+};
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct AncId -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+struct AncId
+{
+    uint8_t Did{ 0 };
+    optional<uint8_t> Sdid; // Used when Did < 0x80
+};
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct RxAncPacket -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct RxAncPacket
+{
+    AncLocation Location{};
+    optional<int> StreamNumber;
+
+    AncId Id;
+    optional<uint8_t> Dbn;
+    optional<vector<uint16_t>> UserWords;
+    optional<vector<uint16_t>> RawData;
+};
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct TxAncPacket_Sdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct TxAncPacket_Sdi
+{
+    uint8_t Did{0};
+    uint8_t SdidOrDbn{0};
+    vector<uint16_t> UserWords;
+};
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct TxAncPacket -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct TxAncPacket
+{
+    AncLocation Location{};
+    optional<int> StreamNumber;
+
+    variant<TxAncPacket_Sdi, vector<uint16_t>> Packet; // Either a simple struct or a
+    // vector with the raw 10-bit
+    // words.
+};
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct RxConfigAnc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct RxConfigAnc
+{
+    vector<AncId> Filter; // Only receive ANC packets specified in this filter. If the
+    // filter is empty all ANC packets are received.
+    bool IncludeUserWords{true};
+    bool IncludeRawData{false}; // DID+SDID+count+UDW[count]+checksum
+};
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct TxConfigAnc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct TxConfigAnc
+{
+    St2110::VideoScanning VideoScanning{ St2110::VideoScanning::Progressive };
+};
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct RxAncFrame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct RxAncFrame
+{
+    uint32_t RtpTime{0};
+    DtTimeOfDay ToD{};
+
+    int Field{0};
+    vector<RxAncPacket> Packets;
+};
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class RxFifoAnc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+class RxFifoAnc
+{
+public:
+    // Attaches an RxFifo object to a specified DekTec device and port.
+    void Attach(const DtDevice&, int Port, HwOrSwPipe Pref = HwOrSwPipe::Auto,
+        RxFifoOverflowStrategy OvfStrategy = RxFifoOverflowStrategy::DropFrame);
+
+    // Empties the RxFifo.
+    void Clear();
+
+    // Configures for SMPTE 2110-40 stream reception.
+    void Configure(const St2110::RxConfigAnc&);
+
+    // Detaches the RxFifo from the hardware.
+    void Detach();
+
+    // Gets the number of frames currently stored in the RxFifo.
+    int GetFifoLoad() const;
+
+    // Retrieves the maximum number of frames that the RxFifo can store.
+    int GetMaxSize() const;
+
+    // Gets the current size of the shared buffer (in bytes) used to pass data from the
+    // NIC to the RxFifo.
+    int GetSharedBufferSize() const;
+
+    // Gets receive statistics. Statistics will be cleared when Start() is called.
+    RxStatistics GetStatistics() const;
+
+    // Gets the status of the FIFO's IP connection.
+    FifoStatus GetStatus() const;
+
+    // Reads one ANC frame from the RxFifo. 
+    // The RxFifo must not be empty, or an exception will be thrown.
+    RxAncFrame* Read();
+
+    // Returns a frame to the memory pool.
+    // After processing a frame read from the RxFifo, the frame must be returned to the
+    // memory pool.
+    void ReturnToMemPool(RxAncFrame*);
+
+    // Configures the RxFifo's networking parameters, including the IP address, 
+    // port number, and other related IP settings.
+    void SetIpPars(const IpPars&);
+
+    // Sets the maximum number of frames that the RxFifo can store (default: 4).
+    void SetMaxSize(int Size);
+
+    // Sets the size of the shared buffer (in bytes) used to pass data from the NIC to
+    // the RxFifo.
+    // The size of the shared buffer can only be changed if the RxFifo is not started.
+    void SetSharedBufferSize(int Size);
+
+    // Starts receiving frames in the RxFifo.
+    // Returns true if starting is successful, false otherwise.
+    // If false, use RxFifo::GetStatus() to get the reason. 
+    bool Start();
+
+    // Stops receiving frames in the RxFifo.
+    void Stop();
+
+    // Indicates whether a hardware pipe (true) or software pipe (false) is used.
+    bool UsesHwPipe() const;
+
+    // Constructor/destructor.
+    RxFifoAnc();
+    ~RxFifoAnc();
+
+private:
+    // Use the PIMPL pattern to move implementation details to RxFifoAnc::Impl.
+    class Impl;
+    unique_ptr<Impl> Pimpl;
+};
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct TxAncFrame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+struct TxAncFrame
+{
+    uint32_t RtpTime{0};
+    DtTimeOfDay ToD{};
+
+    int Field{0};
+    vector<TxAncPacket> Packets;
+};
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class TxFifoAnc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+class TxFifoAnc
+{
+public:
+    // Attaches a TxFifo object to a specified DekTec device and port.
+    void Attach(const DtDevice&, int Port, HwOrSwPipe Pref = HwOrSwPipe::Auto);
+
+    // Empties the TxFifo and the frame memory pool.
+    void Clear();
+
+    // -.-.-.-.-.-.-.-.-.-.-.-.- Configuration of the TxFifoAnc -.-.-.-.-.-.-.-.-.-.-.-.-.
+
+    // Configures for SMPTE 2110-40 anc stream transmission.
+    void Configure(const St2110::TxConfigAnc&);
+
+    // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+    // Detaches the TxFifo from the hardware.
+    void Detach();
+
+    // Gets the number of frames currently stored in the TxFifo.
+    int GetFifoLoad() const;
+
+    // Gets a TxAncFrame object from the memory pool.
+    // If there are no available frames in the memory pool, a new Frame object will be
+    // allocated.
+    // The application writes frames to the TxFifo, DTAPI will return the frames to the 
+    // memory pool for recycling when it has been transmitted.
+    // NOTE: The application should not attempt to free TxAncFrame objects itself.
+    TxAncFrame* GetFrameFromMemPool();
+
+    // Retrieves the maximum number of frames that the TxFifo can store.
+    int GetMaxSize() const;
+
+    // Gets the current size of the shared buffer (in bytes) used to pass data from the
+    // TxFifo to the NIC.
+    int GetSharedBufferSize() const;
+
+    // Gets transmit statistics. Statistics will be cleared when Start() is called.
+    TxStatistics GetStatistics() const;
+
+    // Gets the status of the FIFO's IP connection.
+    FifoStatus GetStatus() const;
+
+    // Indicates whether the TxFifo has been started.
+    bool IsStarted() const;
+
+    // Configures the TxFifo's networking parameters, including the IP address, 
+    // port number, and other related IP settings.
+    void SetIpPars(const IpPars&);
+
+    // Sets the maximum number of frames that the TxFifo can store (default: 4).
+    void SetMaxSize(int Size);
+
+    // Sets the size of the shared buffer (in bytes) used to pass data from the TxFifo to
+    // the NIC.
+    // The size of the shared buffer can only be changed if the TxFifo is not started.
+    void SetSharedBufferSize(int Size);
+
+    // Starts transmitting frames from the TxFifo.
+    // Returns true if starting is successful, false otherwise.
+    // If false, use TxFifo::GetStatus() to get the reason. 
+    bool Start();
+
+    // Stops transmitting frames.
+    void Stop();
+
+    // Indicates whether a hardware pipe (true) or software pipe (false) is used.
+    bool UsesHwPipe() const;
+
+    // Writes a frame to the TxFifo.
+    void Write(const TxAncFrame*);
+
+    // Constructor/destructor.
+    TxFifoAnc();
+    ~TxFifoAnc();
+
+private:
+    // Use the PIMPL pattern to move implementation details to TxFifoAnc::Impl.
+    class Impl;
+    unique_ptr<Impl> Pimpl;
+};
+
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ SMPTE 2110-41 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+// +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+struct FastMetadataItem
+{
+    uint32_t Type{};
+    bool KBit{false};        // Unused if IsSegmented is set.
+    vector<uint32_t> Data;
+};
+
+struct FastMetadataFrame
+{
+    uint32_t RtpTime{0};
+    DtTimeOfDay ToD{};
+    bool IsSegmented{false}; // Enable Simple Object Segmentation.
+    vector<FastMetadataItem> Items;
+};
+
+struct RxConfigFastMetadata
+{
+    // Only receive fast metadata item types specified in these filters. If both filters
+    // are empty all items are received.
+    vector<uint32_t> Filter;    // Type filter for regular packets
+    vector<uint32_t> SegFilter; // Type filter for segmented packets (using Simple Object
+    // Segmentation)
+};
+struct TxConfigFastMetadata
+{
+};
+
+
+class RxFifoFastMetadata
+{
+public:
+    // Attaches an RxFifo object to a specified DekTec device and port.
+    void Attach(const DtDevice&, int Port, HwOrSwPipe Pref = HwOrSwPipe::Auto,
+        RxFifoOverflowStrategy OvfStrategy = RxFifoOverflowStrategy::DropFrame);
+
+    // Empties the RxFifo.
+    void Clear();
+
+    // Configures for SMPTE 2110-41 stream reception.
+    void Configure(const RxConfigFastMetadata&);
+
+    // Detaches the RxFifo from the hardware.
+    void Detach();
+
+    // Gets the number of frames currently stored in the RxFifo.
+    int GetFifoLoad() const;
+
+    // Retrieves the maximum number of frames that the RxFifo can store.
+    int GetMaxSize() const;
+
+    // Gets the current size of the shared buffer (in bytes) used to pass data from the
+    // NIC to the RxFifo.
+    int GetSharedBufferSize() const;
+
+    // Gets receive statistics. Statistics will be cleared when Start() is called.
+    RxStatistics GetStatistics() const;
+
+    // Gets the status of the FIFO's IP connection.
+    FifoStatus GetStatus() const;
+
+    // Reads one FastMetadata frame from the RxFifo. 
+    // The RxFifo must not be empty, or an exception will be thrown.
+    FastMetadataFrame* Read();
+
+    // Returns a frame to the memory pool.
+    // After processing a frame read from the RxFifo, the frame must be returned to the
+    // memory pool.
+    void ReturnToMemPool(FastMetadataFrame*);
+
+    // Configures the RxFifo's networking parameters, including the IP address, 
+    // port number, and other related IP settings.
+    void SetIpPars(const IpPars&);
+
+    // Sets the maximum number of frames that the RxFifo can store (default: 4).
+    void SetMaxSize(int Size);
+
+    // Sets the size of the shared buffer (in bytes) used to pass data from the NIC to
+    // the RxFifo.
+    // The size of the shared buffer can only be changed if the RxFifo is not started.
+    void SetSharedBufferSize(int Size);
+
+    // Starts receiving frames in the RxFifo.
+    // Returns true if starting is successful, false otherwise.
+    // If false, use RxFifo::GetStatus() to get the reason. 
+    bool Start();
+
+    // Stops receiving frames in the RxFifo.
+    void Stop();
+
+    // Indicates whether a hardware pipe (true) or software pipe (false) is used.
+    bool UsesHwPipe() const;
+
+    // Constructor/destructor.
+    RxFifoFastMetadata();
+    ~RxFifoFastMetadata();
+
+private:
+    // Use the PIMPL pattern to move implementation details to RxFifoFastMetadata::Impl.
+    class Impl;
+    unique_ptr<Impl> Pimpl;
+};
+
+class TxFifoFastMetadata
+{
+public:
+    // Attaches a TxFifo object to a specified DekTec device and port.
+    void Attach(const DtDevice&, int Port, HwOrSwPipe Pref = HwOrSwPipe::Auto);
+
+    // Empties the TxFifo and the frame memory pool.
+    void Clear();
+
+    // -.-.-.-.-.-.-.-.-.-.-.-.- Configuration of the TxFifoFastMetadata -.-.-.-.-.-.-.-.-.-.-.-.-.
+
+    // Configures for SMPTE 2110-41 FastMetadata stream transmission.
+    void Configure(const TxConfigFastMetadata&);
+
+    // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+
+    // Detaches the TxFifo from the hardware.
+    void Detach();
+
+    // Gets the number of frames currently stored in the TxFifo.
+    int GetFifoLoad() const;
+
+    // Gets a FastMetadataFrame object from the memory pool.
+    // If there are no available frames in the memory pool, a new Frame object will be
+    // allocated.
+    // The application writes frames to the TxFifo, DTAPI will return the frames to the 
+    // memory pool for recycling when it has been transmitted.
+    // NOTE: The application should not attempt to free FastMetadataFrame objects itself.
+    FastMetadataFrame* GetFrameFromMemPool();
+
+    // Retrieves the maximum number of frames that the TxFifo can store.
+    int GetMaxSize() const;
+
+    // Gets the current size of the shared buffer (in bytes) used to pass data from the
+    // TxFifo to the NIC.
+    int GetSharedBufferSize() const;
+
+    // Gets transmit statistics. Statistics will be cleared when Start() is called.
+    TxStatistics GetStatistics() const;
+
+    // Gets the status of the FIFO's IP connection.
+    FifoStatus GetStatus() const;
+
+    // Indicates whether the TxFifo has been started.
+    bool IsStarted() const;
+
+    // Configures the TxFifo's networking parameters, including the IP address, 
+    // port number, and other related IP settings.
+    void SetIpPars(const IpPars&);
+
+    // Sets the maximum number of frames that the TxFifo can store (default: 4).
+    void SetMaxSize(int Size);
+
+    // Sets the size of the shared buffer (in bytes) used to pass data from the TxFifo to
+    // the NIC.
+    // The size of the shared buffer can only be changed if the TxFifo is not started.
+    void SetSharedBufferSize(int Size);
+
+    // Starts transmitting frames from the TxFifo.
+    // Returns true if starting is successful, false otherwise.
+    // If false, use TxFifo::GetStatus() to get the reason. 
+    bool Start();
+
+    // Stops transmitting frames.
+    void Stop();
+
+    // Indicates whether a hardware pipe (true) or software pipe (false) is used.
+    bool UsesHwPipe() const;
+
+    void Write(const FastMetadataFrame*);
+
+    // Constructor/destructor.
+    TxFifoFastMetadata();
+    ~TxFifoFastMetadata();
+
+private:
+    // Use the PIMPL pattern to move implementation details to TxFifoFastMetadata::Impl.
+    class Impl;
+    unique_ptr<Impl> Pimpl;
+};
+} // namespace St2110
 
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Helper functions - Timing +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
