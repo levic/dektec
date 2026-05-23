@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.cpp *#*#*#*#*#*#*#*#* (C) 2000-2024 DekTec
+//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.cpp *#*#*#*#*#*#*#*#* (C) 2000-2025 DekTec
 //
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -7,6 +7,7 @@
 #include "DTAPI.h"
 #include "DtPlay.h"
 #include "DtSdiFileFmt.h"
+#include "SdiFileFmt.h"
 #include "DtOpt.h"
 
 #ifdef WINBUILD
@@ -54,7 +55,7 @@ int  _kbhit()
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlay Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DTPLAY_VERSION_MAJOR        4
-#define DTPLAY_VERSION_MINOR        18
+#define DTPLAY_VERSION_MINOR        19
 #define DTPLAY_VERSION_BUGFIX       0
 
 const int c_BufSize = 1*1024*1024;      // Data transfer buffer size
@@ -98,6 +99,7 @@ const char c_ErrFailSetTsRate[]         = "SetTsrateBps failed (ERROR: %s)";
 const char c_ErrFailWrite[]             = "Write failed (ERROR: %s)";
 const char c_ErrInvalidFileSize[]       = "Invalid file size";
 const char c_ErrInvalidDtSdiFileHdr[]   = "Invalid DTSDI file header";
+const char c_ErrInvalidSdiFileHdr[]     = "Invalid SDI file header";
 const char c_ErrInvalidDcpFileHdr[]     = "Invalid DCP file header";
 const char c_ErrInvalidPcapFileHdr[]    = "Invalid PCAP file header";
 const char c_ErrInvalidPcapLinkType[]   = "Invalid PCAP link-type";
@@ -151,6 +153,7 @@ CommandLineParams::~CommandLineParams()
 void CommandLineParams::Init()
 {
     m_PlayDtSdiFile = false;
+    m_PlaySdiFile = false;
     m_PlayPcapFile = false;
     m_PlayDcpFile = false;
 }
@@ -169,7 +172,8 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         {L"MIN16",      DTAPI_TXMODE_MIN16,    L"204-byte packets in file, 188-byte packets transmitted\n"
                                                L"(last 16 bytes are invalidated)"},
         {L"RAW",        DTAPI_TXMODE_RAW,      L"No notion of packets, data is transmitted as is"},
-        {L"DTSDI",      0,                     L".dtsdi file, SDI format is auto detected"},
+        {L"DTSDI",      0,                     L".dtsdi file, video standard is auto detected"},
+        {L"SDI",        0,                     L".sdi file, video standard is auto detected"},
         {L"RAWASI",     DTAPI_TXMODE_RAWASI,   L"Play-out of RAW ASI symbols (270Mbit/s)"},
         OPT_PAIR_END,
     };
@@ -374,14 +378,16 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         DtOptItem(L"mH",  m_DtmbFrameHdrMode, DTAPI_MOD_DTMB_PN420, L"DTMB frame-header-mode (default: PN420)", DtmbFrameHeaderMode),
         DtOptItem(L"mP",  m_DvbS2Pilots, DTAPI_MOD_S2_NOPILOTS, L"Enable Pilots in DVB-S2 (default: OFF)", DvbS2Pilots),
         DtOptItem(L"mF",  m_DvbS2FecFrameLength, DTAPI_MOD_S2_LONGFRM, L"Long/short FEC frame in DVB-S2 (default: LONG)", DvbS2FecFrames),
-        DtOptItem(L"mI",  m_DvbS2GoldSeqInit, 0, L"Gold sequence initialisation value (default: 0)\n"
+        DtOptItem(L"mI",  m_DvbS2GoldSeqInit, 0, L"Gold sequence initialization value (default: 0)\n"
                 L"  0 ... 262143", 0, 262143),
         DtOptItem(L"mIpDp", m_PcapIpDestPort, -1, L"PCAP IP destination port filter"),
         DtOptItem(L"msi", m_SpecInvers, false, L"Invert spectrum"),
         DtOptItem(L"dm",  m_DrmMode, DtDrmPars::MODE_ABCD, L"DRM Mode (default: MODE ABCD)", DrmMode),
         DtOptItem(L"if",  m_IqInterpFilter, DTAPI_MOD_INTERPOL_OFDM, L"Interpolation filter used in IQ mode (default: OFDM)", IqInterpolFilter),
         DtOptItem(L"snr", m_Snr, -1.0, L"Enable noise generation and set SNR in dB (e.g. -snr 26.0)", 0.0, 36.0),
-        DtOptItem(L"ipa", m_Ipa, L"IP address/port (e.g. 192.168.0.1[:5768], port is optional)"),
+        DtOptItem(L"ipa", m_Ipa, L"IPv4/v6 address / port  \n"
+                L"  IPv4 address / port e.g. 192.168.0.1[:5768], port is optional \n"
+                L"  IPv6 address / port e.g.'fe80::18d6:e0ed:def1:1805'[:5768], port is optional"),
         DtOptItem(L"ipp", m_Ipp, DTAPI_PROTO_UDP, L"IP Protocol (default: UDP)", IpProtocol),
         DtOptItem(L"ipn", m_Ipn, 7, L"Number of TPs per IP packet (valid range: 1-7, default: 7)", 1, 7),
         DtOptItem(L"ipt", m_Ipt, 0, L"Time-To-Live value (for TX only)"),
@@ -401,6 +407,8 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
     {
         if (m_TxMode.ToString() == L"DTSDI")
             m_PlayDtSdiFile = true;
+        else if (m_TxMode.ToString() == L"SDI")
+            m_PlaySdiFile = true;
     }
     else if (m_ModType == DTAPI_MOD_ISDBT)
         m_TxMode = DTAPI_TXMODE_204;
@@ -478,14 +486,39 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
         m_IpPars.m_TimeToLive = m_Ipt;
 
         wstring  Address = m_Ipa.ToString();
-        size_t  Pos = Address.find(L":");
-        if (Pos != wstring::npos)
+        int Port = -1;
+
+        // Check for IPv6 in single quotes: 'fe80::18d6:e0ed:def1:1805':5768
+        if (!Address.empty() && Address.front() == L'\'') 
         {
-            int  Port = wtoi(Address.c_str() + Pos + 1);
-            if (Port<0 || Port>0xFFFF)
-                throw Exc(c_CleInvalidArgument, "ipa");
-            m_IpPars.m_Port  = Port;
-            Address.resize(Pos);
+            size_t EndQuote = Address.find(L'\'', 1);
+            if (EndQuote != wstring::npos) 
+            {
+                wstring AddrPart = Address.substr(1, EndQuote - 1);
+                size_t ColonAfter = Address.find(L':', EndQuote);
+                if (ColonAfter != wstring::npos) 
+                {
+                    Port = wtoi(Address.c_str() + ColonAfter + 1);
+                    if (Port < 0 || Port > 0xFFFF)
+                        throw Exc(c_CleInvalidArgument, "ipa");
+                    m_IpPars.m_Port = Port;
+                }
+                Address = AddrPart;
+            }
+        } else {
+            // For IPv4 or plain IPv6 (no port), or IPv4:port
+            size_t LastColon = Address.rfind(L':');
+            size_t FirstColon = Address.find(L':');
+            if (LastColon != wstring::npos && FirstColon == LastColon) 
+            {
+                // Only one colon: IPv4:port
+                Port = wtoi(Address.c_str() + LastColon + 1);
+                if (Port < 0 || Port > 0xFFFF)
+                    throw Exc(c_CleInvalidArgument, "ipa");
+                m_IpPars.m_Port = Port;
+                Address.resize(LastColon);
+            }
+            // else: treat as address only (IPv6 or IPv4 without port)
         }
         DTAPI_RESULT dr = ::DtapiInitDtTsIpParsFromIpString(m_IpPars, Address.c_str(), NULL);
         if (dr != DTAPI_OK)
@@ -504,10 +537,13 @@ void CommandLineParams::ParseCommandLine(int argc, char* argv[])
 //
 const char* CommandLineParams::TxMode2Str() const
 {
-    if ( m_PlayDtSdiFile )
+    if (m_PlayDtSdiFile || m_PlaySdiFile)
     {
         static char sz[256];
-        strcpy(sz, "DTSDI (");
+        if (m_PlayDtSdiFile)
+            strcpy(sz, "DTSDI (");
+        else
+            strcpy(sz, "SDI (");
 
         // Full-frame or active video only?
         if ( ((m_TxMode & DTAPI_TXMODE_SDI_MASK) | DTAPI_TXMODE_SDI) == DTAPI_TXMODE_SDI_FULL )
@@ -999,7 +1035,7 @@ void Player::AttachToOutput()
     // At this point we're sure the chosen port is valid and configured as output.
 
     if ((HwFuncs[Port-1].m_Flags & DTAPI_CAP_FRACMODE)!=0 &&
-                                                          m_CmdLineParams.m_PlayDtSdiFile)
+                       (m_CmdLineParams.m_PlayDtSdiFile || m_CmdLineParams.m_PlaySdiFile))
     {
         DtVidStdInfo  Info;
         dr = DtapiGetVidStdInfo(m_CmdLineParams.m_SdiSubValue, Info);
@@ -1063,55 +1099,86 @@ void Player::AttachToOutput()
     m_Ip = (m_DtOutp.m_HwFuncDesc.m_Flags&DTAPI_CAP_IP) !=0;
 }
 
-//-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Player::AutoDetectSdiFormat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- Player::AutoDetectSdiFormat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void Player::AutoDetectSdiFormat()
 {
-    m_SizeOfDtSdiHdr = 0;
-
-    // Load file header from file
-    DtSdiFileHdrV2 FileHdr;
-    int NumBytesRead = (int)fread(&FileHdr, 1, sizeof(FileHdr), m_pFile);
-    // Sanity check
-    if ( NumBytesRead != sizeof(FileHdr) )
-        throw Exc(c_ErrInvalidFileSize);
-
-    // Check if we have a valid header
-    if (   FileHdr.m_BaseHdr.m_MagicCode1!=DTSDI_MAGIC_CODE1 
-        || FileHdr.m_BaseHdr.m_MagicCode2!=DTSDI_MAGIC_CODE2
-        || FileHdr.m_BaseHdr.m_MagicCode3!=DTSDI_MAGIC_CODE3 )
-        throw Exc(c_ErrInvalidDtSdiFileHdr);
-    // Version 1 or version 2
-    if (FileHdr.m_BaseHdr.m_FmtVersion == DTSDI_FMT_VERSION)
+    m_SizeOfSdiHdr = 0;
+    if (m_CmdLineParams.m_PlayDtSdiFile)
     {
-        m_SizeOfDtSdiHdr = sizeof(DtSdiFileHdr);
-        fseek(m_pFile, sizeof(DtSdiFileHdr), SEEK_SET);
+        // Load DtSdi file header from file
+        DtSdiFileHdrV2 FileHdr;
+        int NumBytesRead = (int)fread(&FileHdr, 1, sizeof(FileHdr), m_pFile);
+        // Sanity check
+        if ( NumBytesRead != sizeof(FileHdr) )
+            throw Exc(c_ErrInvalidFileSize);
+
+        // Check if we have a valid header
+        if (   FileHdr.m_BaseHdr.m_MagicCode1!=DTSDI_MAGIC_CODE1 
+            || FileHdr.m_BaseHdr.m_MagicCode2!=DTSDI_MAGIC_CODE2
+            || FileHdr.m_BaseHdr.m_MagicCode3!=DTSDI_MAGIC_CODE3 )
+            throw Exc(c_ErrInvalidDtSdiFileHdr);
+        // Version 1 or version 2
+        if (FileHdr.m_BaseHdr.m_FmtVersion == DTSDI_FMT_VERSION)
+            m_SizeOfSdiHdr = sizeof(DtSdiFileHdr);
+        else if (FileHdr.m_BaseHdr.m_FmtVersion == DTSDI_FMT_VERSION2)
+            m_SizeOfSdiHdr = sizeof(DtSdiFileHdrV2);
+        else
+            throw Exc(c_ErrInvalidDtSdiFileHdr);
+    
+        // Init tx-mode from settings in header
+        m_CmdLineParams.m_TxMode = 0;
+        if ( (FileHdr.m_BaseHdr.m_Flags & 0x3) == DTSDI_SDI_FULL )
+            m_CmdLineParams.m_TxMode = DTAPI_TXMODE_SDI_FULL;
+        else
+            m_CmdLineParams.m_TxMode = DTAPI_TXMODE_SDI_ACTVID;
+
+        if ( 0!=(FileHdr.m_BaseHdr.m_Flags & DTSDI_SDI_16B) )
+            m_CmdLineParams.m_TxMode = m_CmdLineParams.m_TxMode | DTAPI_TXMODE_SDI_16B;
+        if ( 0!=(FileHdr.m_BaseHdr.m_Flags & DTSDI_SDI_10B) )
+            m_CmdLineParams.m_TxMode = m_CmdLineParams.m_TxMode | DTAPI_TXMODE_SDI_10B;
+
+        if ( 0!=(FileHdr.m_BaseHdr.m_Flags & DTSDI_SDI_HUFFMAN) )
+            m_CmdLineParams.m_TxMode = m_CmdLineParams.m_TxMode | DTAPI_TXMODE_SDI_HUFFMAN;
+    
+        m_CmdLineParams.m_SdiSubValue = DtSdiDataType2VidStd(FileHdr.m_BaseHdr.m_DataType);
     }
-    else if (FileHdr.m_BaseHdr.m_FmtVersion == DTSDI_FMT_VERSION2)
+    else if (m_CmdLineParams.m_PlaySdiFile)
     {
-        m_SizeOfDtSdiHdr = sizeof(DtSdiFileHdrV2);
+        // Load Sdi file header from file
+        uint8_t Buffer[sizeof(SdiFileHeader)];
+        int NumBytesRead = (int)fread(&Buffer, 1, sizeof(Buffer), m_pFile);
+        try
+        {
+            SdiFileHeader Header = {};
+            ReadSdiFileHeader(Buffer, NumBytesRead, Header);
+
+            if (Header.MagicCode != SDI_MAGIC)
+                throw Exc(c_ErrInvalidSdiFileHdr);
+
+            int VidStd = GetVidStd(Header);
+            if (VidStd == DTAPI_VIDSTD_UNKNOWN)
+                throw Exc(c_ErrInvalidSdiFileHdr);
+
+            m_SizeOfSdiHdr = Header.HeaderSize;
+            m_CmdLineParams.m_SdiSubValue = GetVidStd(Header);
+            int NumBits = Header.LogicalFrameProperties.BitDepth;
+            m_CmdLineParams.m_TxMode  = DTAPI_TXMODE_SDI_FULL;
+            if (NumBits == 10)
+                m_CmdLineParams.m_TxMode = DTAPI_TXMODE_SDI_FULL | DTAPI_TXMODE_SDI_10B;
+            else if (NumBits == 16)
+                m_CmdLineParams.m_TxMode  = DTAPI_TXMODE_SDI_FULL | DTAPI_TXMODE_SDI_16B;
+        }
+        catch (...)
+        {
+            throw Exc(c_ErrInvalidSdiFileHdr);
+        }
     }
-    else
-        throw Exc(c_ErrInvalidDtSdiFileHdr);
-    
-    // Init tx-mode from settings in header
-    m_CmdLineParams.m_TxMode = 0;
-    if ( (FileHdr.m_BaseHdr.m_Flags & 0x3) == DTSDI_SDI_FULL )
-        m_CmdLineParams.m_TxMode = DTAPI_TXMODE_SDI_FULL;
-    else
-        m_CmdLineParams.m_TxMode = DTAPI_TXMODE_SDI_ACTVID;
-
-    if ( 0!=(FileHdr.m_BaseHdr.m_Flags & DTSDI_SDI_16B) )
-        m_CmdLineParams.m_TxMode = m_CmdLineParams.m_TxMode | DTAPI_TXMODE_SDI_16B;
-    if ( 0!=(FileHdr.m_BaseHdr.m_Flags & DTSDI_SDI_10B) )
-        m_CmdLineParams.m_TxMode = m_CmdLineParams.m_TxMode | DTAPI_TXMODE_SDI_10B;
-
-    if ( 0!=(FileHdr.m_BaseHdr.m_Flags & DTSDI_SDI_HUFFMAN) )
-        m_CmdLineParams.m_TxMode = m_CmdLineParams.m_TxMode | DTAPI_TXMODE_SDI_HUFFMAN;
-    
-    m_CmdLineParams.m_SdiSubValue
-        = DtSdiDataType2VidStd(FileHdr.m_BaseHdr.m_DataType);
+    // Skip header
+    fseek(m_pFile, m_SizeOfSdiHdr, SEEK_SET);
 }
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Player::DetectPcapFormat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 void Player::DetectPcapFormat()
@@ -1335,7 +1402,7 @@ void Player::InitIsdbtPars(DtIsdbtPars& IsdbtPars)
     // Reset file pointer
     ::fseek(m_pFile, 0, SEEK_SET);
 
-    // Look for synchronisation
+    // Look for synchronization
     for ( int i=0; i<NumBytes-(c_PckSize*4); i++ )
     {
         // If we find four syncs in a row => we are in sync
@@ -1352,7 +1419,7 @@ void Player::InitIsdbtPars(DtIsdbtPars& IsdbtPars)
     
     // No muxing wanted, we have a 204 byte stream (with TMCC data) 
     IsdbtPars.m_DoMux = false;
-    // Init structure by retrieveing paramters from TMCC information in packets
+    // Init structure by retrieving parameters from TMCC information in packets
     dr = IsdbtPars.RetrieveParsFromTs(pTempBuf, NumBytes);
     // Free temp buffer
     delete [] pTempBuf;
@@ -1687,7 +1754,7 @@ void Player::InitOutput()
             throw Exc( c_ErrFailedToSetSNR, ::DtapiResult2Str(dr) );
     }
 
-    // Final initialisation
+    // Final initialization
     dr = m_DtOutp.ClearFifo();          // Clear FIFO (i.e. start with zero load)
 
     // Set exit load. 4k for all none modulator
@@ -1700,7 +1767,7 @@ Player::PortType Player::GuessPortTypeFromPars()
         return PT_MOD;
     if (m_CmdLineParams.m_Ipa.IsSet())
         return PT_IP;
-    if (m_CmdLineParams.m_PlayDtSdiFile)
+    if (m_CmdLineParams.m_PlayDtSdiFile || m_CmdLineParams.m_PlaySdiFile)
         return PT_SDI;
     return PT_UNKNOWN;
 }
@@ -1753,6 +1820,7 @@ void Player::LogF(const wchar_t* pMessage, ... )
 void Player::LoopFile()
 {
     bool EoF(false), TxStarted(false);
+    bool SdiPlayout = m_CmdLineParams.m_PlayDtSdiFile || m_CmdLineParams.m_PlaySdiFile;
     DTAPI_RESULT dr;
     int NumBytesRead, FifoLoad, FifoSize;
     int MinFifoLoad;
@@ -1771,7 +1839,12 @@ void Player::LoopFile()
         throw Exc(c_ErrFailGetFifoSize, ::DtapiResult2Str(dr));
 
     // Set Minimum Fifoload for SDI playout to FifoSize *3/4 
-    MinFifoLoad = (m_CmdLineParams.m_PlayDtSdiFile == false) ? c_MinFifoLoad : (FifoSize*3)/4;
+    if (SdiPlayout)
+    {
+        // Set minimum fifoload to 3/4 of the FIFO size
+        MinFifoLoad = (FifoSize*3)/4;
+    } else
+        MinFifoLoad = c_MinFifoLoad;
 
     while (!_kbhit())
     {
@@ -1938,27 +2011,16 @@ void Player::LoopFile()
                 LoopCnt--;
 
             // Reset file position and end-of-file flag
-            ::fseek(m_pFile, 0, SEEK_SET);
             EoF = false;
 
-            // Skip DTSDI file header
-            if ( m_CmdLineParams.m_PlayDtSdiFile )
-            {
-                DtSdiFileHdrV2 FileHdr;
-                NumBytesRead = (int)fread(&FileHdr, 1, m_SizeOfDtSdiHdr, m_pFile);
-                // Sanity check
-                if ( NumBytesRead != m_SizeOfDtSdiHdr )
-                    throw Exc(c_ErrInvalidFileSize);
-            }
+            // Skip SDI file header
+            if (SdiPlayout)
+                ::fseek(m_pFile, m_SizeOfSdiHdr, SEEK_SET);
             // Skip PCAP file header
-            else if ( m_CmdLineParams.m_PlayPcapFile )
-            {
-                PcapFileHeader  FileHdr;
-                NumBytesRead = (int)fread(&FileHdr, 1, sizeof(PcapFileHeader), m_pFile);
-                // Sanity check
-                if ( NumBytesRead != sizeof(PcapFileHeader) )
-                    throw Exc(c_ErrInvalidFileSize);
-            }
+            else if (m_CmdLineParams.m_PlayPcapFile)
+                ::fseek(m_pFile, sizeof(PcapFileHeader), SEEK_SET);
+            else
+                ::fseek(m_pFile, 0, SEEK_SET);
         }
     }
 }
@@ -2001,7 +2063,7 @@ int Player::Play(int argc, char* argv[])
 
         //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Print start message -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-        LogF("DtPlay player V%d.%d.%d (c) 2000-2023 DekTec Digital Video B.V.\n",
+        LogF("DtPlay player V%d.%d.%d (c) 2000-2025 DekTec Digital Video B.V.\n",
               DTPLAY_VERSION_MAJOR, DTPLAY_VERSION_MINOR, DTPLAY_VERSION_BUGFIX);
 
         LogF("DTAPI compile version: V%d.%d.%d.%d\n",
@@ -2027,7 +2089,7 @@ int Player::Play(int argc, char* argv[])
 
         //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Auto detect SDI format -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-        if ( m_CmdLineParams.m_PlayDtSdiFile )
+        if (m_CmdLineParams.m_PlayDtSdiFile || m_CmdLineParams.m_PlaySdiFile)
             AutoDetectSdiFormat();
         else if ( m_CmdLineParams.m_PlayPcapFile )
             DetectPcapFormat();
@@ -2037,7 +2099,7 @@ int Player::Play(int argc, char* argv[])
         //-.-.-.-.-.-.-.-.-.-.-.-.- Attach to the output channel -.-.-.-.-.-.-.-.-.-.-.-.-
         AttachToOutput();
 
-        //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Final initialisation -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+        //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Final initialization -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
         // Init output
         InitOutput();
@@ -2069,7 +2131,7 @@ int Player::Play(int argc, char* argv[])
         m_pBuf = NULL;
     }
 
-    // donot forget to close our file
+    // Do not forget to close our file
     if ( m_pFile != NULL ) {
         ::fclose(m_pFile);
         m_pFile = NULL;
@@ -2103,6 +2165,7 @@ void Player::ShowHelp()
     Log("   DtPlay myfile.ts -r 38000000 -t 100 -n 2 -m RAW ");
     Log("   DtPlay myfile.ts -r 38000000 -t 107 -mt DVBS -mf 1915.0 -mc 7/8 -snr 26.0");
     Log("   DtPlay myfile.dtsdi -t 2144 -i 1 -m DTSDI -l 0 -mS ON");
+    Log("   DtPlay myfile.sdi -t 2144 -i 1 -m SDI -l 0 -mS ON");
     Log("   DtPlay myfile.pcap -t 2115 -mt ISDBS3 -mf 1578");
     LogF("DtPlay version: %d.%d.%d\n", DTPLAY_VERSION_MAJOR, DTPLAY_VERSION_MINOR,
          DTPLAY_VERSION_BUGFIX);

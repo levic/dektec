@@ -27,6 +27,10 @@
     <DtapiExportDir>VC16</DtapiExportDir>
     <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(VisualStudioVersion)'=='17.0'">
+    <DtapiExportDir>VC17</DtapiExportDir>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -174,10 +178,12 @@
     <ClInclude Include="Import\DtOpt.h" />
     <ClInclude Include="$(DtapiIncludePath)\DTAPI.h" />
     <ClInclude Include="Import\DtSdiFileFmt.h" />
+    <ClInclude Include="Import\SdiFileFmt.h" />
     <ClInclude Include="Source\DtPlay.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Import\DtOpt.cpp" />
+    <ClCompile Include="Import\SdiFileFmt.cpp" />
     <ClCompile Include="Source\DtPlay.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

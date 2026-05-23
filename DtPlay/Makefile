@@ -25,7 +25,7 @@ CPPFLAGS = -g -O2 -I$(INCLUDEDIR) -fexceptions \
 SRCDIR = ./Source/
 TARGET = DtPlay
 OBJS = $(TARGET).o
-SRC = $(SRCDIR)DtPlay.cpp $(IMPORT)/DtOpt.cpp
+SRC = $(SRCDIR)DtPlay.cpp $(IMPORT)/DtOpt.cpp $(IMPORT)/SdiFileFmt.cpp
 
 # ========================================================================================
 # Make all option. Make sure the path to DTPAI.o is set correct
@@ -54,6 +54,7 @@ $(TARGET): $(SRC:.cpp=.o)
 clean:
 	rm -f $(SRCDIR)*.o $(SRCDIR)*~ $(SRCDIR)core $(SRCDIR).depend
 	rm -f $(IMPORT)/DtOpt.o
+	rm -f $(IMPORT)/SdiFileFmt.o
 	rm -f *.o *~ core .depend $(TARGET)
 
 

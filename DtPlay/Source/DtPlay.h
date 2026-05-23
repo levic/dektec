@@ -159,6 +159,7 @@ public:
     DtOpt  m_ShowHelp;          // -?: show help
 
     bool m_PlayDtSdiFile;       // Play .dtsdi file
+    bool m_PlaySdiFile;         // Play .sdi file
     bool m_PlayPcapFile;        // Play .pcap file
     bool m_PlayDcpFile;         // Play .dcp file
 
@@ -218,7 +219,7 @@ protected:
     bool  m_Modulator;              // Current output is a modulator
     bool  m_Ip;                     // Current output is a IP port
     FILE* m_pFile;                  // Our play file
-    int  m_SizeOfDtSdiHdr;          // Size of DtSdi file header
+    int  m_SizeOfSdiHdr = 0;        // Size of (Dt)Sdi file header
     bool  m_m_PcapUsesNanoSeconds;  // If true PCAP-file timestamps in nanoseconds
                                     // otherwise microseconds
     bool  m_PcapEthernetLinkType;   // If true PCAP uses Ethernet linktype otherwise IP
