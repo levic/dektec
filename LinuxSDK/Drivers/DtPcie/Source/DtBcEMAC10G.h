@@ -77,6 +77,7 @@ typedef  struct _DtBcEMAC10G
 //.-.-.-.-.-.-.-.-.-.-.-.-.-. DtBcEMAC10G public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-
 
 void  DtBcEMAC10G_Close(DtBc*);
+DtStatus  DtBcEMAC10G_EnableJumboFrames(DtBcEMAC10G* pBc, Bool Enable);
 DtBcEMAC10G*  DtBcEMAC10G_Open(Int  Address, DtCore*, DtPt*  pPt, 
                                             const char*  pRole, Int  Instance, Int  Uuid);
 DtStatus DtBcEMAC10G_GetOperationalMode(DtBcEMAC10G* pBc, Int* pOpMode);
@@ -88,6 +89,8 @@ DtStatus  DtBcEMAC10G_GetSupportedCounters(DtBcEMAC10G* pBc, UInt MaxCounterIds,
 DtStatus  DtBcEMAC10G_GetPhySpeed(DtBcEMAC10G* pBc, UInt* pPhySpeed);
 DtStatus  DtBcEMAC10G_GetMacAddressPerm(DtBcEMAC10G* pBc, UInt8* pMacAddress);
 DtStatus  DtBcEMAC10G_GetMacAddressCurr(DtBcEMAC10G* pBc, UInt8* pMacAddress);
+
+Bool  DtBcEMAC10G_SupportsJumboFrames(DtBcEMAC10G* pBc);
 DtStatus  DtBcEMAC10G_SetMacAddress(DtBcEMAC10G* pBc, UInt8* pMacAddress);
 DtStatus  DtBcEMAC10G_RegisterLinkCallback(DtBcEMAC10G* pBc, DtLinkStatFunc LinkStatCB, 
                                                                           void* pContext);

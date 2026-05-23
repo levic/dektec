@@ -938,7 +938,7 @@ ASSERT_SIZE(DtIoctlAccuFifoCmdReadMeasmsInput, 20)
 typedef struct _DtIoctlAccuFifoCmdReadMeasmsOutput
 {
     Int  m_NumRead;
-    Int  m_Buf[0];  // Dynamic sized buffer
+    Int  m_Buf[];  // Dynamic sized buffer
 } DtIoctlAccuFifoCmdReadMeasmsOutput;
 ASSERT_SIZE(DtIoctlAccuFifoCmdReadMeasmsOutput, 4)
 
@@ -2201,7 +2201,7 @@ typedef struct _DtIoctlDebugCmdBulkReadOutput
 {
     Int  m_NumRead;             // Number of register values read
     UInt64A  m_Dummy;           // Only here for alignment reason
-    UInt32  m_RegValues[0];     // List of register values
+    UInt32  m_RegValues[];     // List of register values
 }  DtIoctlDebugCmdBulkReadOutput;
 ASSERT_SIZE(DtIoctlDebugCmdBulkReadOutput, 16)
 
@@ -2211,14 +2211,14 @@ typedef struct _DtIoctlDebugCmdRegReadInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_NumToRead;           // Number of register to read
-    UInt32  m_Address[0];       // List of register addresses to be read
+    UInt32  m_Address[];       // List of register addresses to be read
 }  DtIoctlDebugCmdRegReadInput;
 ASSERT_SIZE(DtIoctlDebugCmdRegReadInput, 20)
 
 typedef struct _DtIoctlDebugCmdRegReadOutput
 {
     Int  m_NumRead;             // Number of address+value pairs read
-    DtIoctlRegAddressValuePair  m_Regs[0];  // List of address+value pairs
+    DtIoctlRegAddressValuePair  m_Regs[];  // List of address+value pairs
 }  DtIoctlDebugCmdRegReadOutput;
 ASSERT_SIZE(DtIoctlDebugCmdRegReadOutput, 4)
 
@@ -2228,7 +2228,7 @@ typedef struct _DtIoctlDebugCmdRegWriteInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_NumToWrite;          // Number of registers to write
-    DtIoctlRegAddressValuePair  m_Regs[0];  // List of address+value pairs to write
+    DtIoctlRegAddressValuePair  m_Regs[];  // List of address+value pairs to write
 }  DtIoctlDebugCmdRegWriteInput;
 ASSERT_SIZE(DtIoctlDebugCmdRegWriteInput, 20)
 
@@ -2313,7 +2313,7 @@ typedef union _DtIoctlDebugCmdOutput
     {
         DtIoctlInputDataHdr  m_CmdHdr;
         Int  m_NumToSend;           // Number of bytes in send buffer
-        UInt8  m_Buf[0];            // Dynamic sized buffer
+        UInt8  m_Buf[];            // Dynamic sized buffer
     }  DtIoctlDiseqcCmd_SendMessageInput;
     ASSERT_SIZE(DtIoctlDiseqcCmd_SendMessageInput, 20)
     // .-.-.-.-.-.-.-.-.-.-.-.-.- DISEQC - Send Receive Message -.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -2323,13 +2323,13 @@ typedef union _DtIoctlDebugCmdOutput
         DtIoctlInputDataHdr  m_CmdHdr;
         Int  m_NumToSend;          // Number of bytes in send buffer
         Int  m_RcvBufSize;         // Receive buffer size 
-        UInt8  m_Buf[0];           // Dynamic sized buffer
+        UInt8  m_Buf[];           // Dynamic sized buffer
     }  DtIoctlDiseqcCmd_SendReceiveMessageInput;
     ASSERT_SIZE(DtIoctlDiseqcCmd_SendReceiveMessageInput, 24)
     typedef struct _DtIoctlDiseqcCmd_SendReceiveMessageOutput
     {
         Int  m_NumRcvd;             // Number of bytes received in buffer
-        UInt8  m_Buf[0];            // Dynamic sized buffer
+        UInt8  m_Buf[];            // Dynamic sized buffer
     }  DtIoctlDiseqcCmd_SendReceiveMessageOutput;
     ASSERT_SIZE(DtIoctlDiseqcCmd_SendReceiveMessageOutput, 4)
     //-.-.-.-.-.-.-.-.-.-.-.- DISEQC Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-
@@ -2589,7 +2589,7 @@ typedef struct _DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput
 {
     Int  m_NumEntries;
     UInt64A  m_Dummy;           // Only here for alignment reason
-    DtIoctlGenLockCtrlClockProps  m_Properties[0];  // Dynamic sized buffer
+    DtIoctlGenLockCtrlClockProps  m_Properties[];  // Dynamic sized buffer
 } DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput;
 ASSERT_SIZE(DtIoctlGenLockCtrlCmdGetDcoClockPropsOutput, 16)
 
@@ -3079,7 +3079,7 @@ ASSERT_SIZE(DtIoctlI2cMCmdReadInput, 24)
 typedef struct _DtIoctlI2cMCmdReadOutput 
 {
     Int  m_NumBytes;            // Number of bytes in buffer
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlI2cMCmdReadOutput;
 ASSERT_SIZE(DtIoctlI2cMCmdReadOutput, 4)
 
@@ -3090,7 +3090,7 @@ typedef struct _DtIoctlI2cMCmdWriteInput
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_SlaveAddr;           // Start address
     Int  m_NumToWrite;          // Number of bytes in buffer to write
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlI2cMCmdWriteInput;
 ASSERT_SIZE(DtIoctlI2cMCmdWriteInput, 24)
 
@@ -3102,13 +3102,13 @@ typedef struct _DtIoctlI2cMCmdWriteReadInput
     Int  m_SlaveAddr;           // Start address
     Int  m_NumToRead;           // Number of bytes to read
     Int  m_NumToWrite;          // Number of bytes in buffer to write
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlI2cMCmdWriteReadInput;
 ASSERT_SIZE(DtIoctlI2cMCmdWriteReadInput, 28)
 typedef struct _DtIoctlI2cMCmdWriteReadOutput 
 {
     Int  m_NumBytes;            // Number of bytes in buffer
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlI2cMCmdWriteReadOutput;
 ASSERT_SIZE(DtIoctlI2cMCmdWriteReadOutput, 4)
 
@@ -3178,7 +3178,7 @@ typedef struct _DtIoctlIpSecGCmdCheckInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_NumWords;
-    UInt32  m_Data[0];
+    UInt32  m_Data[];
 }  DtIoctlIpSecGCmdCheckInput;
 ASSERT_SIZE(DtIoctlIpSecGCmdCheckInput, 20)
 
@@ -3280,13 +3280,13 @@ typedef struct _DtIoctlIoConfigCmdGetIoConfigInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_IoConfigCount;           // Number of IO-configs to get
-    DtIoctlIoConfigId m_IoCfgId[0];      // Array of IO-config IDs to get
+    DtIoctlIoConfigId m_IoCfgId[];      // Array of IO-config IDs to get
 }  DtIoctlIoConfigCmdGetIoConfigInput;
 ASSERT_SIZE(DtIoctlIoConfigCmdGetIoConfigInput, 20)
 typedef struct _DtIoctlIoConfigCmdGetIoConfigOutput
 {
     Int  m_IoConfigCount;               // Number of IO-configs got
-    DtIoctlIoConfigValue  m_IoCfgValue[0];   // Array of IO-config values
+    DtIoctlIoConfigValue  m_IoCfgValue[];   // Array of IO-config values
 }  DtIoctlIoConfigCmdGetIoConfigOutput;
 ASSERT_SIZE(DtIoctlIoConfigCmdGetIoConfigOutput, 8)
 //-.-.-.-.-.-.-.-.-.-.-.- IOCONFIG Command - Set IO-Config Command -.-.-.-.-.-.-.-.-.-.-.-
@@ -3295,7 +3295,7 @@ typedef struct _DtIoctlIoConfigCmdSetIoConfigInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_IoConfigCount;               // Number of IO-configs to set
-    DtIoctlIoConfig  m_IoCfgPars[0];     // Array of IO-config parameters
+    DtIoctlIoConfig  m_IoCfgPars[];     // Array of IO-config parameters
 }  DtIoctlIoConfigCmdSetIoConfigInput;
 ASSERT_SIZE(DtIoctlIoConfigCmdSetIoConfigInput, 24)
 //-.-.-.-.-.-.-.-.-.-.-.-.- IOCONFIG Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-.-
@@ -3817,7 +3817,7 @@ ASSERT_SIZE(DtIoctlIqFirCmdGetCoefsInput, 20)
 typedef struct _DtIoctlIqFirCmdGetCoefsOutput 
 {
     Int  m_NumCoefs;            // Number of coefficients in buffer
-    Int  m_pCoefs[0];           // Dynamic sized buffer
+    Int  m_pCoefs[];           // Dynamic sized buffer
 }  DtIoctlIqFirCmdGetCoefsOutput;
 ASSERT_SIZE(DtIoctlIqFirCmdGetCoefsOutput, 4)
 
@@ -3837,7 +3837,7 @@ typedef struct _DtIoctlIqFirCmdSetCoefsInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_NumCoefsToSet;       // Number of coefficients to get
-    Int  m_pCoefs[0];           // Dynamic sized buffer
+    Int  m_pCoefs[];           // Dynamic sized buffer
 }  DtIoctlIqFirCmdSetCoefsInput;
 ASSERT_SIZE(DtIoctlIqFirCmdSetCoefsInput, 20)
 
@@ -3929,7 +3929,7 @@ ASSERT_SIZE(DtIoctlIqFir2xClkCmdGetCoefsInput, 20)
 typedef struct _DtIoctlIqFir2xClkCmdGetCoefsOutput 
 {
     Int  m_NumCoefs;            // Number of coefficients in buffer
-    Int  m_pCoefs[0];           // Dynamic sized buffer
+    Int  m_pCoefs[];           // Dynamic sized buffer
 }  DtIoctlIqFir2xClkCmdGetCoefsOutput;
 ASSERT_SIZE(DtIoctlIqFir2xClkCmdGetCoefsOutput, 4)
 
@@ -3949,7 +3949,7 @@ typedef struct _DtIoctlIqFir2xClkCmdSetCoefsInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_NumCoefsToSet;       // Number of coefficients to get
-    Int  m_pCoefs[0];           // Dynamic sized buffer
+    Int  m_pCoefs[];           // Dynamic sized buffer
 }  DtIoctlIqFir2xClkCmdSetCoefsInput;
 ASSERT_SIZE(DtIoctlIqFir2xClkCmdSetCoefsInput, 20)
 
@@ -5253,7 +5253,7 @@ ASSERT_SIZE(DtIoctlPropCmdGetTableInput, 108)
 typedef struct _DtIoctlPropCmdGetTableOutput 
 {
     Int  m_NumEntries;
-    DtTableEntry  m_TableEntry[0];
+    DtTableEntry  m_TableEntry[];
 } DtIoctlPropCmdGetTableOutput;
 ASSERT_SIZE(DtIoctlPropCmdGetTableOutput, 8)
 
@@ -5454,7 +5454,7 @@ ASSERT_SIZE(DtIoctlEMACCmdGetMaxMulticastListOutput, 4)
 typedef struct _DtIoctlEMACCmdSetMulticastListInput {
     DtIoctlInputDataHdr  m_CmdHdr;
     UInt  m_NumItems;
-    UInt8  m_Items[0][8];
+    UInt8  m_Items[][8];
 } DtIoctlEMACCmdSetMulticastListInput;
 ASSERT_SIZE(DtIoctlEMACCmdSetMulticastListInput, 20)
 
@@ -5530,7 +5530,7 @@ ASSERT_SIZE(DtIoctlEMACCmdGetSupportedCountersInput, 20)
 
 typedef struct _DtIoctlEMACCmdGetSupportedCountersOutput {
     UInt  m_NumCounterIds;
-    UInt  m_CounterId[0];
+    UInt  m_CounterId[];
 } DtIoctlEMACCmdGetSupportedCountersOutput;
 ASSERT_SIZE(DtIoctlEMACCmdGetSupportedCountersOutput, 4)
 
@@ -5672,13 +5672,14 @@ typedef enum _DtPipeType
 } DtPipeType;
 
 // Pipe capability flags
-#define DT_PIPE_CAP_RX   0x00001        // Receive capability
-#define DT_PIPE_CAP_TX   0x00002        // Transmit capability
-#define DT_PIPE_CAP_RT   0x00004        // Realtime capability
-#define DT_PIPE_CAP_NRT  0x00008        // Non-realtime capability
-#define DT_PIPE_CAP_HWP  0x00010        // Hardware pipe
-#define DT_PIPE_CAP_SWP  0x00020        // Software pipe
-#define DT_PIPE_CAP_KBUF 0x00100        // Kernel shared buffer
+#define DT_PIPE_CAP_RX      0x00001        // Receive capability
+#define DT_PIPE_CAP_TX      0x00002        // Transmit capability
+#define DT_PIPE_CAP_RT      0x00004        // Realtime capability
+#define DT_PIPE_CAP_NRT     0x00008        // Non-realtime capability
+#define DT_PIPE_CAP_HWP     0x00010        // Hardware pipe
+#define DT_PIPE_CAP_SWP     0x00020        // Software pipe
+#define DT_PIPE_CAP_KBUF    0x00100        // Kernel shared buffer
+#define DT_PIPE_CAP_JFRAME  0x00200        // Jumbo Frames
 
 // Pipe status flags
 #define DT_PIPE_STATUS_WAIT_PCIE      0x01 // Waiting for data to/from the PCI Express bus 
@@ -6013,7 +6014,7 @@ ASSERT_SIZE(DtIoctlNwCmdSfpReadInput, 24)
 typedef struct _DtIoctlNwCmdSfpReadOutput
 {
     Int  m_NumBytes;            // Number of bytes in buffer
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlNwCmdSfpReadOutput;
 ASSERT_SIZE(DtIoctlNwCmdSfpReadOutput, 4)
 
@@ -6078,7 +6079,7 @@ ASSERT_SIZE(DtIoctlDdrFrontCmdReadAddressInput, 24)
 typedef struct _DtIoctlDdrFrontCmdReadAddressOutput
 {
     Int     m_Num32bItemsRead;
-    UInt32  m_Buf[0];  // Dynamic sized buffer
+    UInt32  m_Buf[];  // Dynamic sized buffer
 }  DtIoctlDdrFrontCmdReadAddressOutput;
 ASSERT_SIZE(DtIoctlDdrFrontCmdReadAddressOutput, 4)
 
@@ -6089,7 +6090,7 @@ typedef struct _DtIoctlDdrFrontCmdWriteAddressInput
     DtIoctlInputDataHdr  m_CmdHdr;
     UInt32  m_Address;
     Int     m_Num32bItemsToWrite;
-    UInt32  m_Buf[0];  // Dynamic sized buffer
+    UInt32  m_Buf[];  // Dynamic sized buffer
 }  DtIoctlDdrFrontCmdWriteAddressInput;
 ASSERT_SIZE(DtIoctlDdrFrontCmdWriteAddressInput, 24)
 
@@ -7687,7 +7688,7 @@ ASSERT_SIZE(DtIoctlSdiXCfgCmdGetConfigInput, 20)
 
 typedef struct _DtIoctlSdiXCfgCmdGetConfigOutput {
     Int  m_NumGot;
-    DtSdiXCfgChanConfig  m_Buf[0];  // Dynamic sized buffer
+    DtSdiXCfgChanConfig  m_Buf[];  // Dynamic sized buffer
 } DtIoctlSdiXCfgCmdGetConfigOutput;
 ASSERT_SIZE(DtIoctlSdiXCfgCmdGetConfigOutput, 4)
 
@@ -7962,7 +7963,7 @@ ASSERT_SIZE(DtIoctlSpiMCmdReadInput, 20)
 typedef struct _DtIoctlSpiMCmdReadOutput 
 {
     Int  m_NumBytes;            // Number of bytes in buffer
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlSpiMCmdReadOutput;
 ASSERT_SIZE(DtIoctlSpiMCmdReadOutput, 4)
 
@@ -7972,7 +7973,7 @@ typedef struct _DtIoctlSpiMCmdWriteInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_NumToWrite;          // Number of bytes in buffer to write
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlSpiMCmdWriteInput;
 ASSERT_SIZE(DtIoctlSpiMCmdWriteInput, 20)
 
@@ -7983,13 +7984,13 @@ typedef struct _DtIoctlSpiMCmdWriteReadInput
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_NumToRead;           // Number of bytes to read
     Int  m_NumToWrite;          // Number of bytes in buffer to write
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlSpiMCmdWriteReadInput;
 ASSERT_SIZE(DtIoctlSpiMCmdWriteReadInput, 24)
 typedef struct _DtIoctlSpiMCmdWriteReadOutput 
 {
     Int  m_NumBytes;            // Number of bytes in buffer
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlSpiMCmdWriteReadOutput;
 ASSERT_SIZE(DtIoctlSpiMCmdWriteReadOutput, 4)
 
@@ -8094,7 +8095,7 @@ ASSERT_SIZE(DtIoctlSpiMfCmdReadInput, 24)
 typedef struct _DtIoctlSpiMfCmdReadOutput 
 {
     Int  m_NumBytes;            // Number of bytes in buffer
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlSpiMfCmdReadOutput;
 ASSERT_SIZE(DtIoctlSpiMfCmdReadOutput, 4)
 
@@ -8105,7 +8106,7 @@ typedef struct _DtIoctlSpiMfCmdWriteInput
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_StartAddress;        // Start address
     Int  m_NumToWrite;          // Number of bytes in buffer to write
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlSpiMfCmdWriteInput;
 ASSERT_SIZE(DtIoctlSpiMfCmdWriteInput, 24)
 
@@ -8197,7 +8198,7 @@ ASSERT_SIZE(DtIoctlSpiPromCmdReadInput, 24)
 typedef struct _DtIoctlSpiPromCmdReadOutput 
 {
     Int  m_NumBytes;            // Number of bytes in buffer
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlSpiPromCmdReadOutput;
 ASSERT_SIZE(DtIoctlSpiPromCmdReadOutput, 4)
 
@@ -8208,7 +8209,7 @@ typedef struct _DtIoctlSpiPromCmdWriteInput
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_StartAddress;        // Start address
     Int  m_NumToWrite;          // Number of bytes in buffer to write
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlSpiPromCmdWriteInput;
 ASSERT_SIZE(DtIoctlSpiPromCmdWriteInput, 24)
 
@@ -8279,7 +8280,7 @@ ASSERT_SIZE(DtIoctlStubCmdGetIoctlsInput, 20)
 
 typedef struct _DtIoctlStubCmdGetIoctlsOutput {
     Int  m_NumIoctls;           // Number of IOCTL returned
-    UInt32  m_IoctlCodes[0];    // Dynamically sized list with IOCTLs the stub supports.
+    UInt32  m_IoctlCodes[];    // Dynamically sized list with IOCTLs the stub supports.
                                 // NOTE1: must have size indicated by m_MaxNumIoctls
                                 // NOTE2: if m_MaxNumIoctls is '-1', only m_NumIoctls is 
                                 // retuned
@@ -9011,7 +9012,7 @@ ASSERT_SIZE(DtIoctlVpdCmdItemReadInput, 48)
 
 typedef struct _DtIoctlVpdCmdItemReadOutput {
     Int  m_NumRead;
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtIoctlVpdCmdItemReadOutput;
 ASSERT_SIZE(DtIoctlVpdCmdItemReadOutput, 4)
 
@@ -9025,7 +9026,7 @@ typedef struct _DtIoctlVpdCmdItemWriteInput
     char  m_Keyword[DT_VPD_MAX_KEY_LENGTH];
     Int  m_Flags;
     Int  m_NumToWrite;
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtIoctlVpdCmdItemWriteInput;
 ASSERT_SIZE(DtIoctlVpdCmdItemWriteInput, 48)
 
@@ -9054,7 +9055,7 @@ ASSERT_SIZE(DtIoctlVpdCmdRawReadInput, 24)
 typedef struct _DtIoctlVpdCmdRawReadOutput 
 {
     Int  m_NumRead;                 // Number read
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtIoctlVpdCmdRawReadOutput;
 ASSERT_SIZE(DtIoctlVpdCmdRawReadOutput, 4)
 
@@ -9065,7 +9066,7 @@ typedef struct _DtIoctlVpdCmdRawWriteInput
     DtIoctlInputDataHdr  m_CmdHdr;
     UInt  m_StartOffset;            // Start offset
     Int  m_NumToWrite;              // Number of bytes to write
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtIoctlVpdCmdRawWriteInput;
 ASSERT_SIZE(DtIoctlVpdCmdRawWriteInput, 24)
 
@@ -9587,7 +9588,7 @@ ASSERT_SIZE(DtIoctlIqCGrabCmd_2132GetIqPointsInput, 24)
 typedef struct _DtIoctlIqCGrabCmd_2132GetIqPointsOutput 
 {
     Int  m_NumIqPoints;            // Number of IQ constellation points in buffer
-    Int16  m_pIqPoints[0];         // Dynamic sized buffer
+    Int16  m_pIqPoints[];         // Dynamic sized buffer
 }  DtIoctlIqCGrabCmd_2132GetIqPointsOutput;
 ASSERT_SIZE(DtIoctlIqCGrabCmd_2132GetIqPointsOutput, 4)
 
@@ -9654,7 +9655,7 @@ ASSERT_SIZE(DtIoctlIqFirCmd_2132GetCoefsInput, 20)
 typedef struct _DtIoctlIqFirCmd_2132GetCoefsOutput 
 {
     Int  m_NumCoefs;            // Number of coefficients in buffer
-    Int  m_pCoefs[0];           // Dynamic sized buffer
+    Int  m_pCoefs[];           // Dynamic sized buffer
 }  DtIoctlIqFirCmd_2132GetCoefsOutput;
 ASSERT_SIZE(DtIoctlIqFirCmd_2132GetCoefsOutput, 4)
 
@@ -9664,7 +9665,7 @@ typedef struct _DtIoctlIqFirCmd_2132SetCoefsInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_NumCoefsToSet;       // Number of coefficients to get
-    Int  m_pCoefs[0];           // Dynamic sized buffer
+    Int  m_pCoefs[];           // Dynamic sized buffer
 }  DtIoctlIqFirCmd_2132SetCoefsInput;
 ASSERT_SIZE(DtIoctlIqFirCmd_2132SetCoefsInput, 20)
 
@@ -9875,7 +9876,7 @@ typedef struct _DtIoctlLnbh25Cmd_2132SendMessageInput
 {
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_NumToSend;           // Number of bytes in send buffer
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlLnbh25Cmd_2132SendMessageInput;
 ASSERT_SIZE(DtIoctlLnbh25Cmd_2132SendMessageInput, 20)
 //.-.-.-.-.-.-.-.-.-.-.-.-.- LNBH25_2132 - Send Receive Message -.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -9885,13 +9886,13 @@ typedef struct _DtIoctlLnbh25Cmd_2132SendReceiveMessageInput
     DtIoctlInputDataHdr  m_CmdHdr;
     Int  m_NumToSend;          // Number of bytes in send buffer
     Int  m_RcvBufSize;         // Receive buffer size 
-    UInt8  m_Buf[0];           // Dynamic sized buffer
+    UInt8  m_Buf[];           // Dynamic sized buffer
 }  DtIoctlLnbh25Cmd_2132SendReceiveMessageInput;
 ASSERT_SIZE(DtIoctlLnbh25Cmd_2132SendReceiveMessageInput, 24)
 typedef struct _DtIoctlLnbh25Cmd_2132SendReceiveMessageOutput 
 {
     Int  m_NumRcvd;             // Number of bytes received in buffer
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 }  DtIoctlLnbh25Cmd_2132SendReceiveMessageOutput;
 ASSERT_SIZE(DtIoctlLnbh25Cmd_2132SendReceiveMessageOutput, 4)
 //-.-.-.-.-.-.-.-.-.-.-.- LNBH25_2132 Command - IOCTL In/Out Data -.-.-.-.-.-.-.-.-.-.-.-
@@ -10231,7 +10232,7 @@ ASSERT_SIZE(DtIoctlS2StatsCmd_2132ReadStatisticsInput, 20)
 
 typedef struct _DtIoctlS2StatsCmd_2132ReadStatisticsOutput {
     Int  m_NumRead;
-    DtS2Stats_2132_FrameStatus  m_Buf[0];  // Dynamic sized buffer
+    DtS2Stats_2132_FrameStatus  m_Buf[];  // Dynamic sized buffer
 } DtIoctlS2StatsCmd_2132ReadStatisticsOutput;
 ASSERT_SIZE(DtIoctlS2StatsCmd_2132ReadStatisticsOutput, 4)
 

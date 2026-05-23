@@ -30,6 +30,7 @@
 #include "DtBc.h"
 #include "DtBcEMAC10G.h"
 #include "DtBcEMAC10G_RegAccess.h"
+#include "EthPrtcls.h"
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcEMAC10G implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -50,13 +51,14 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards of private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 static DtStatus  DtBcEMAC10G_Init(DtBc*);
+static DtStatus  DtBcEMAC10G_InterruptHandler(DtBc*, Int, Int, void*);
+static void  DtBcEMAC10G_LinkInterruptDpc(DtDpcArgs* pArgs);
+static DtStatus  DtBcEMAC10G_MacInitAfterClkEnable(DtBcEMAC10G* pBc);
 static DtStatus  DtBcEMAC10G_OnCloseFile(DtBc*, const DtFileObject*);
 static DtStatus  DtBcEMAC10G_OnEnable(DtBc*, Bool  Enable);
-static DtStatus  DtBcEMAC10G_RegisterIntHandlers(DtBcEMAC10G*);
-static void  DtBcEMAC10G_LinkInterruptDpc(DtDpcArgs* pArgs);
-static DtStatus  DtBcEMAC10G_InterruptHandler(DtBc*, Int, Int, void*);
-static void  DtBcEMAC10G_SetControlRegs(DtBcEMAC10G*, Bool BlkEna, Int OpMode);
 static DtStatus  DtBcEMAC10G_ReadMacAddressFromVPD(DtBcEMAC10G* pBc);
+static DtStatus  DtBcEMAC10G_RegisterIntHandlers(DtBcEMAC10G*);
+static void  DtBcEMAC10G_SetControlRegs(DtBcEMAC10G*, Bool BlkEna, Int OpMode);
 
 // Utility functions for MAC-address conversion (also used in this file)
 static __inline  UInt32  MAC_ADDRESS_LOW(UInt8* MacAddr) {
@@ -604,11 +606,11 @@ DtStatus  DtBcEMAC10G_GetCounter(DtBcEMAC10G* pBc, const UInt  CounterId, UInt64
            (UInt64)EMAC10G_LlEthMac1G10GA10_RxStatsFrameOkH_READ_RxStatsFrameOkH(pBc)<<32;
         break;
     case DT_MAC_CNT_GEN_XMIT_ERROR:
-        *pValue = EMAC10G_LlEthMac1G10GA10_TxStatsFramErrL_READ_TxStatsFramErrL(pBc) |
+        *pValue = EMAC10G_LlEthMac1G10GA10_TxStatsFrameErrL_READ_TxStatsFrameErrL(pBc) |
          (UInt64)EMAC10G_LlEthMac1G10GA10_TxStatsFrameErrH_READ_TxStatsFrameErrH(pBc)<<32;
         break;
     case DT_MAC_CNT_GEN_RCV_ERROR:
-        *pValue = EMAC10G_LlEthMac1G10GA10_RxStatsFramErrL_READ_RxStatsFramErrL(pBc) |
+        *pValue = EMAC10G_LlEthMac1G10GA10_RxStatsFrameErrL_READ_RxStatsFrameErrL(pBc) |
         (UInt64)EMAC10G_LlEthMac1G10GA10_RxStatsFrameErrH_READ_RxStatsFrameErrH(pBc)<<32;
         break;
     case DT_MAC_CNT_GEN_RCV_NO_BUFFER:
@@ -651,7 +653,7 @@ DtStatus  DtBcEMAC10G_RegisterLinkCallback(DtBcEMAC10G* pBc, DtLinkStatFunc Link
                                                                            void* pContext)
 {
     BC_EMAC10G_DEFAULT_PRECONDITIONS(pBc);
-    DtDbgOutBc(ERR, EMAC10G, pBc, "Start");
+    DtDbgOutBc(MAX, EMAC10G, pBc, "Start");
 
     if (pBc->m_LinkStatCB != NULL)
         return DT_STATUS_IN_USE;
@@ -659,7 +661,7 @@ DtStatus  DtBcEMAC10G_RegisterLinkCallback(DtBcEMAC10G* pBc, DtLinkStatFunc Link
     pBc->m_LinkStatCB = LinkStatCB;
     pBc->m_pContexLinkStatCB = pContext;
     DtSpinLockRelease(&pBc->m_LinkStatCBSpinlock);
-    DtDbgOutBc(ERR, EMAC10G, pBc, "Exit");
+    DtDbgOutBc(MAX, EMAC10G, pBc, "Exit");
     return DT_STATUS_OK;
 }
 
@@ -668,7 +670,7 @@ DtStatus  DtBcEMAC10G_RegisterLinkCallback(DtBcEMAC10G* pBc, DtLinkStatFunc Link
 DtStatus  DtBcEMAC10G_UnregisterLinkCallback(DtBcEMAC10G* pBc, void* pContext)
 {
     BC_EMAC10G_DEFAULT_PRECONDITIONS(pBc);
-    DtDbgOutBc(ERR, EMAC10G, pBc, "Start");
+    DtDbgOutBc(MAX, EMAC10G, pBc, "Start");
     if (pBc->m_LinkStatCB == NULL)
         return DT_STATUS_NOT_INITIALISED;
     if (pBc->m_pContexLinkStatCB != pContext)
@@ -677,7 +679,7 @@ DtStatus  DtBcEMAC10G_UnregisterLinkCallback(DtBcEMAC10G* pBc, void* pContext)
     pBc->m_LinkStatCB = NULL;
     pBc->m_pContexLinkStatCB = NULL;
     DtSpinLockRelease(&pBc->m_LinkStatCBSpinlock);
-    DtDbgOutBc(ERR, EMAC10G, pBc, "Exit");
+    DtDbgOutBc(MAX, EMAC10G, pBc, "Exit");
     return DT_STATUS_OK;
 }
 
@@ -688,7 +690,7 @@ DtStatus  DtBcEMAC10G_GetLinkStatus(DtBcEMAC10G* pBc)
     UInt32 LinkStatReg;
     UInt32 LinkUp;
     BC_EMAC10G_DEFAULT_PRECONDITIONS(pBc);
-    DtDbgOutBc(ERR, EMAC10G, pBc, "Start");
+    DtDbgOutBc(AVG, EMAC10G, pBc, "Start");
     DtSpinLockAcquire(&pBc->m_LinkStatCBSpinlock);
     if (pBc->m_LinkStatCB == NULL)
     {
@@ -699,6 +701,37 @@ DtStatus  DtBcEMAC10G_GetLinkStatus(DtBcEMAC10G* pBc)
     LinkUp = EMAC10G_Status_GET_LinkStat(LinkStatReg);
     pBc->m_LinkStatCB((LinkUp!=0?DT_PHY_LINK_UP:DT_PHY_LINK_DOWN), pBc->m_pContexLinkStatCB);
     DtSpinLockRelease(&pBc->m_LinkStatCBSpinlock);
-    DtDbgOutBc(ERR, EMAC10G, pBc, "Exit");
+    DtDbgOutBc(AVG, EMAC10G, pBc, "Exit");
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcEMAC10G_SupportsJumboFrames -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool DtBcEMAC10G_SupportsJumboFrames(DtBcEMAC10G* pBc)
+{
+    return EMAC10G_Configuration_READ_JumboSupport(pBc) != 0;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcEMAC10G_EnableJumboFrames -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcEMAC10G_EnableJumboFrames(DtBcEMAC10G* pBc, Bool Enable)
+{
+    // TODO Use constants form header or MTU size from network driver to align sizes
+    // with everyone
+    // Firware supports max. 9600
+    const UInt32 JumboSize = DT_IP_MAX_JUMBO_BUF;
+    const UInt32 DefaultSize = DT_IP_MAX_PACKET_SIZE;
+    BC_EMAC10G_DEFAULT_PRECONDITIONS(pBc);
+
+    if (Enable)
+    {
+        EMAC10G_LlEthMac1G10GA10_RxFrameMaxLen_WRITE_RxFrameMaxLen(pBc, JumboSize);
+        EMAC10G_LlEthMac1G10GA10_TxFrameMaxLen_WRITE_TxFrameMaxLen(pBc, JumboSize);
+    }
+    else
+    {
+        EMAC10G_LlEthMac1G10GA10_RxFrameMaxLen_WRITE_RxFrameMaxLen(pBc, DefaultSize);
+        EMAC10G_LlEthMac1G10GA10_TxFrameMaxLen_WRITE_TxFrameMaxLen(pBc, DefaultSize);
+    }
     return DT_STATUS_OK;
 }

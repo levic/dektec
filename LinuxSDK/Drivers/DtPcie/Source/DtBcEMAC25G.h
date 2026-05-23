@@ -125,4 +125,7 @@ DtStatus  DtBcEMAC25G_GetLinkStatus(DtBcEMAC25G* pBc);
 void DtBcEMAC25G_SetSfpCapabilities(DtBcEMAC25G* pBc, UInt Capabilities);
 void DtBcEMAC25G_SetSfpIntCallbackFunc(DtBcEMAC25G* pBc, DtEMAC25GSfpIntFunc SfpIntCB,
                                                                           void* pContext);
+DtStatus DtBcEMAC25G_EnableJumboFrames(DtBcEMAC25G* pBc, Bool Enable);
+Bool DtBcEMAC25G_SupportsJumboFrames(DtBcEMAC25G* pBc);
+
 #endif  // #ifndef __DT_BC_EMAC25G_H

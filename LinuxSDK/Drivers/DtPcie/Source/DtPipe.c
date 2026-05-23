@@ -40,7 +40,7 @@ const char* PipeType2Str(DtPipeType Type)
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPipe_Open -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtPipe* DtPipe_Open(const DtFileObject* pFileObject, DtObject* pPipeOwner, 
-                                                   DtPipeType PipeType, Int Id, Int Index)
+                                DtPipeType PipeType, Int Id, Int Index, Bool JumboSupport)
 {
     DtPipe* pPipe = NULL;
     Int Size = sizeof(DtPipe);
@@ -58,6 +58,7 @@ DtPipe* DtPipe_Open(const DtFileObject* pFileObject, DtObject* pPipeOwner,
     case DT_PIPE_TX_RT_HWQ: Size = sizeof(DtPipeTxRtHwq); Cap = DT_PIPE_CAP_TX_RT_HWQ; break;
     default: DT_ASSERT(FALSE);
     }
+    
     pPipe = (DtPipe*)DtObject_Open(DT_OBJECT_TYPE_PIPE, Size, PIPE_TAG);
     if (pFileObject != NULL)
         pPipe->m_FileObject = *pFileObject;
@@ -66,6 +67,10 @@ DtPipe* DtPipe_Open(const DtFileObject* pFileObject, DtObject* pPipeOwner,
     pPipe->m_Index = Index;
     pPipe->m_pPipeOwner = pPipeOwner;
     pPipe->m_InUse = FALSE;
+
+    if (JumboSupport)
+        Cap |= DT_PIPE_CAP_JFRAME;
+
     pPipe->m_Capabilities = Cap;
 
     if (PipeType == DT_PIPE_RX_RT_SWP)
@@ -324,7 +329,7 @@ DtStatus DtPipe_GetStatus(DtPipe* pPipe, Int* pOpStatus, UInt32* pStatusFlags,
         Status = DtBcCDMACTO_GetStatus(pHwPipe->m_pBcCdma, pOpStatus, pStatusFlags,
                                                                              pErrorFlags);
         *pErrorFlags |= pHwPipe->m_ErrorFlag;
-        if ((pPipe->m_Capabilities & DT_PIPE_CAP_TX_RT_HWP) != 0)
+        if (pPipe->m_PipeType == DT_PIPE_TX_RT_HWP)
         {
             // Add scheduler status
             DtPipeTxRtHwp* pTxRtHwp = (DtPipeTxRtHwp*)pPipe;
@@ -382,6 +387,7 @@ DtStatus DtPipe_IssuePipeFlush(DtPipe* pPipe)
             DtBcCDMACTO_GetTxReadOffset(pHwPipe->m_pBcCdma, &ReadOffset);
             DtBcCDMACTO_SetTxWriteOffset(pHwPipe->m_pBcCdma, ReadOffset);
             pHwPipe->m_OffsetCache = ReadOffset;
+
             if (pPipe->m_PipeType == DT_PIPE_TX_RT_HWP)
             {
                 DtPipeTxRtHwp* pTxRtHwp = (DtPipeTxRtHwp*)pPipe;
@@ -1017,32 +1023,29 @@ Bool DtPipe_IsPacketForPipe(DtPipeRxRtSwp* pPipe, UInt8* DstIp, UInt16 DstPort,
                                                             pPipe->m_VlanId[1] != VlanId2)
             return FALSE;
     }
-    if ((pPipe->m_Flags & DT_PIPE_IPFLT_FLAG_EN_SRCPORT0) != 0)
-    {
-        if (pPipe->m_SrcPort[0] != SrcPort)
-        {
-            if ((pPipe->m_Flags & DT_PIPE_IPFLT_FLAG_EN_SRCPORT1) == 0 ||
-                                                           pPipe->m_SrcPort[1] != SrcPort)
-            {
-                if ((pPipe->m_Flags & DT_PIPE_IPFLT_FLAG_EN_SRCPORT2) == 0 || 
-                                                           pPipe->m_SrcPort[2] != SrcPort)
-                    return FALSE;
-            }
-        }
-    }
-    if ((pPipe->m_Flags & DT_PIPE_IPFLT_FLAG_EN_DSTPORT0) != 0)
-    {
-        if (pPipe->m_DstPort[0] != DstPort)
-        {
-            if ((pPipe->m_Flags & DT_PIPE_IPFLT_FLAG_EN_DSTPORT1) == 0 || 
-                                                           pPipe->m_DstPort[1] != DstPort)
-            {
-                if ((pPipe->m_Flags & DT_PIPE_IPFLT_FLAG_EN_DSTPORT2) == 0 || 
-                                                           pPipe->m_DstPort[2] != DstPort)
-                    return FALSE;
-            }
-        }
-    }
+
+    // Check if receive substream is enabled and src port is same. If not return FALSE
+    if ((Flags&DT_PIPE_IPFLT_FLAG_EN_SRCPORT0)!=0 && 
+       (pPipe->m_Flags&DT_PIPE_IPFLT_FLAG_EN_SRCPORT0)!=0 && pPipe->m_SrcPort[0]!=SrcPort)
+        return FALSE;
+    if ((Flags&DT_PIPE_IPFLT_FLAG_EN_SRCPORT1)!=0 && 
+       (pPipe->m_Flags&DT_PIPE_IPFLT_FLAG_EN_SRCPORT1)!=0 && pPipe->m_SrcPort[1]!=SrcPort)
+        return FALSE;
+    if ((Flags&DT_PIPE_IPFLT_FLAG_EN_SRCPORT2)!=0 && 
+       (pPipe->m_Flags&DT_PIPE_IPFLT_FLAG_EN_SRCPORT2)!=0 && pPipe->m_SrcPort[2]!=SrcPort)
+        return FALSE;
+
+    // Check if receive substream is enabled and dst port is same. If not return FALSE
+    if ((Flags&DT_PIPE_IPFLT_FLAG_EN_DSTPORT0)!=0 && 
+       (pPipe->m_Flags&DT_PIPE_IPFLT_FLAG_EN_DSTPORT0)!=0 && pPipe->m_DstPort[0]!=DstPort)
+        return FALSE;
+    if ((Flags&DT_PIPE_IPFLT_FLAG_EN_DSTPORT1)!=0 && 
+       (pPipe->m_Flags&DT_PIPE_IPFLT_FLAG_EN_DSTPORT1)!=0 && pPipe->m_DstPort[1]!=DstPort)
+        return FALSE;
+    if ((Flags&DT_PIPE_IPFLT_FLAG_EN_DSTPORT2)!=0 && 
+       (pPipe->m_Flags&DT_PIPE_IPFLT_FLAG_EN_DSTPORT2)!=0 && pPipe->m_DstPort[2]!=DstPort)
+        return FALSE;
+    
     return TRUE;
 }
 

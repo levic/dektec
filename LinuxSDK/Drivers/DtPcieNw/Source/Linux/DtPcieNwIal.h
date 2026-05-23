@@ -99,6 +99,10 @@ static inline void *netdev_priv(struct net_device *dev)
     #define netdev_mc_count(dev) ((dev)->mc_count)
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
+#define SUPPORT_RECEIVE_SKB_LIST
+#endif
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Type definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 
@@ -112,6 +116,11 @@ typedef struct _DtPcieNwIalData
     struct net_device_stats  m_NetStats;    // Network statistics
     DtDrvObject  m_Driver;
     Bool  m_AutoNegEn;
+#ifdef SUPPORT_RECEIVE_SKB_LIST
+    UInt  m_RxBatchSize;
+    struct list_head m_RxPacketList;
+    UInt  m_RxPacketBatchCount;
+#endif
 #ifdef HAVE_HW_TIME_STAMP
     struct hwtstamp_config  m_HwTsConfig;
 #endif
@@ -121,10 +130,9 @@ typedef struct _DtPcieNwIalData
 void  DtPcieNwEvtLinkStatusCallback(DtPcieNwDeviceData* pDvcData);
 void  DtPcieNwEvtNewPacketRxCallback(DtPcieNwDeviceData* pDvcData, 
                                  UInt32 TodSeconds, UInt32 TodNanoSeconds, UInt8* pPacket,
-                                 UInt PacketSize, UInt RxFlags, DektecTlvs* pDektecTlv);
+                                 UInt PacketSize, UInt RxFlags, DektecTlvs* pDektecTlv,
+                                 Bool SendImmediately);
 void  DtPcieNwEvtHwTxTimestampReceived(DtPcieNwDeviceData* pDvcData, void* pPkt, 
                                                 UInt32 TodSeconds, UInt32 TodNanoSeconds);
 void  DtPcieNwEvtHwTxTimestampNotReceived(DtPcieNwDeviceData* pDvcData, void* pPkt);
-void  DtPcieNwAquireLockIal(DtPcieNwDeviceData* pDvcData);
-void  DtPcieNwReleaseLockIal(DtPcieNwDeviceData* pDvcData);
 #endif // __DTPCIENW_IAL_H

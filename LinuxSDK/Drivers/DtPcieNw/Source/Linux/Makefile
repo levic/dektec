@@ -10,9 +10,9 @@ DRIVER_NAME = $(TARGET)
 # Directory / file structure definition
 
 SALDIR := ../../../DtSal
-SALSRCDIR = $(SALDIR)/Source
-SALBUILDDIR = $(SALDIR)/Source/Linux
-DTSAL = $(SALBUILDDIR)/DtSal$(DRIVER_NAME).o
+SALSRCDIR := $(SALDIR)/Source
+SALSRC := $(wildcard $(MYPWD)/$(SALSRCDIR)/*.c)
+SALOBJ := $(patsubst $(MYPWD)/%,%,$(SALSRC:.c=.o))
 
 COMMON_DIR := ../../../../Common/Source
 DTPCIE_COMMON := ../../../DtPcie/Source
@@ -33,7 +33,7 @@ ifndef KERNELDIR
 	#KERNELDIR = /usr/include/linux
 endif
 
-KBUILD_EXTRA_SYMBOLS := $(MYPWD)/$(DTA_LINUX)/Module.symvers
+KBUILD_EXTRA_SYMBOLS := $(MYPWD)/$(DTPCIE_LINUX)/Module.symvers
 # ========================================================================================
 # kbuild part of makefile
 # ========================================================================================
@@ -41,23 +41,24 @@ ifneq ($(KERNELRELEASE),)
 
 # Check for debug
 ifdef DEBUG
-	EXTRA_CFLAGS += -g -Wall -D_DEBUG
+	ccflags-y += -g -Wall -D_DEBUG
 endif
 
 # Check for SMP
-ifdef CONFIG_SMP
-	EXTRA_CFLAGS += -D__SMP__ -DSMP
-endif
+ccflags-$(CONFIG_SMP) += -D__SMP__ -DSMP
+
+# Add default KBUILD module CFLAGS 
+ccflags-y += $(KBUILD_CFLAGS_MODULE)
 
 # Check for 32/64 bit system
-EXTRA_CFLAGS += -DLINBUILD
+ccflags-y += -DLINBUILD
 ifeq ($(NUMLBITS), 32)
-    EXTRA_CFLAGS += -DLIN32
+    ccflags-y += -DLIN32
 else
-    EXTRA_CFLAGS += -DLIN64
+    ccflags-y += -DLIN64
 endif
 
-EXTRA_CFLAGS += -DNW_DRIVER
+ccflags-y += -DNW_DRIVER
 
 # ========================================================================================
 # Include version evironment vars
@@ -68,34 +69,39 @@ include $(MYPWD)/../Version.inc
 # Source definitions
 
 SRCDIR = ..
-SRC    = $(SRCDIR)/Linux/DtPcieNwIal.o         \
-	$(SRCDIR)/DtPcieNw.o	\
+SRC    = $(SRCDIR)/Linux/DtPcieNwIal.o \
+		 $(SRCDIR)/DtPcieNw.o          \
 		 Messages.o
 
-EXTRA_CFLAGS += -I$(MYPWD) -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR)
-EXTRA_CFLAGS += -I$(MYPWD)/$(SALSRCDIR)
-EXTRA_CFLAGS += -I$(MYPWD)/$(DTPCIE_LINUX) -I$(MYPWD)/$(DTPCIE_COMMON)
+ccflags-y += -I$(MYPWD) -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR)
+ccflags-y += -I$(MYPWD)/$(SALSRCDIR)
+ccflags-y += -I$(MYPWD)/$(DTPCIE_LINUX) -I$(MYPWD)/$(DTPCIE_COMMON)
 
 # ========================================================================================
 # Preprocessor definitions
 
-EXTRA_CFLAGS += -D_DRIVER_NAME=$(DRIVER_NAME)                  \
-                -DDTPCIENW_VERSION_MAJOR=$(DTPCIENW_VERSION_MAJOR) \
-                -DDTPCIENW_VERSION_MINOR=$(DTPCIENW_VERSION_MINOR) \
-                -DDTPCIENW_VERSION_MICRO=$(DTPCIENW_VERSION_MICRO) \
-                -DDTPCIENW_VERSION_BUILD=$(DTPCIENW_VERSION_BUILD) \
-                -DDTPCIENW_VERSION=$(DTPCIENW_VERSION)
+ccflags-y += -D_DRIVER_NAME=$(DRIVER_NAME)                      \
+             -DDTPCIENW_VERSION_MAJOR=$(DTPCIENW_VERSION_MAJOR) \
+             -DDTPCIENW_VERSION_MINOR=$(DTPCIENW_VERSION_MINOR) \
+             -DDTPCIENW_VERSION_MICRO=$(DTPCIENW_VERSION_MICRO) \
+             -DDTPCIENW_VERSION_BUILD=$(DTPCIENW_VERSION_BUILD) \
+             -DDTPCIENW_VERSION=$(DTPCIENW_VERSION)
+
+# ========================================================================================
+# set subdirs flags identical to main flags and add extras for DtSal build
+subdir-ccflags-y := $(ccflags-y) -DSKIP_USB
 
 # ========================================================================================
 # Objects to build
 
 obj-m := $(TARGET).o
-$(TARGET)-objs = $(SRC) $(DTSAL)
+$(TARGET)-objs = $(SRC) $(SALOBJ) 
+
 
 # ========================================================================================
 # Objects to clean
 
-clean-files = $(SRC)
+clean-files = $(SRC) $(SALOBJ)
 
 
 # ========================================================================================
@@ -109,7 +115,7 @@ INSTALLDIR = /lib/modules/$(CURRENT)/kernel/drivers/misc
 # ========================================================================================
 # Default option
 
-all: PREREQ $(DTPCIE_LINUX)/Module.symvers $(DTSAL)
+all: clean PREREQ $(DTPCIE_LINUX)/Module.symvers
 	cp $(DTPCIE_LINUX)/Module.symvers ./Module.symvers
 	$(MAKE) MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) modules
 
@@ -142,16 +148,12 @@ install:
 PREREQ:
 	@if [ -f MakefilePrereq ]; then $(MAKE) -f MakefilePrereq ; fi
 
-$(DTSAL): PREREQ
-	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) CONFIG_PREFIX_SYMBOLS=n
-
 # ========================================================================================
 # Clean all option
 
 clean:
 	@if [ -f MakefilePrereq ]; then $(MAKE) -f MakefilePrereq clean ; fi
 	$(MAKE) MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
-	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 
 # ========================================================================================
 endif

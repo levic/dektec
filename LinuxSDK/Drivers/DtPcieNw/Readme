@@ -28,11 +28,11 @@ changes included in the release.
 
 The DtPcieNw driver is a network driver for DekTec's DTA-series of PCI/PCIe cards.
 Currently the driver provides support for the following cards:
-- DTA-2110  (Single 10GbE SFP+ Port)
+- DTA-2110  (10G SmartNIC Optimized for SMPTE 2110)
+- DTA-2125  (25G SmartNIC Optimized for SMPTE 2110)
 
 The DtPcieNw driver has the following system requirements:
- - Kernel version 2.6.32 or higher. 
- - For PTP support, minimal kernel version v3.0 is needed
+ - Kernel version 4.14 or higher
  - Linux hotplug should be installed
 
 
@@ -103,7 +103,7 @@ To install the driver, perform the following steps:
 - 5. Advanced setup
 --------------------------------------------------------------------------------
 
-The DtaNw driver supports some advanced features that can be enabled/disabled.
+The DtPcieNw driver supports some advanced features that can be enabled/disabled.
 
 These features can be set using a tool such as ethtool. The changes you make
 with this tool are not persistent. Some distributions supports the
@@ -112,19 +112,10 @@ during system boot. See the distribution documentation for details.
 
 The advanced features are:
 
- - Network Speed/Duplex: You can force the network speed and duplex to a
-   specified speed and duplex or set it back to auto-negotiation (default).
-   Example:
-     Force the speed to 100Mb full-duplex:
-        ethtool -s eth1 speed 100 duplex full autoneg off
-     Enable auto-negotiation:
-        ethtool -s eth1 autoneg on
-     Replace "eth1" by the name of the interface in your system.
-
-- Task Offloading: If enabled for transmit, the IP, UDP and TCP checksum
+ - Task Offloading: If enabled for transmit, the IP, UDP and TCP checksum
   generation is performed by hardware. If enabled for receive the IP, UDP
   and TCP checksum checking is performed by hardware. This feature is
-  enabled by default if supported. Only supported by the DTA-2162.
+  enabled by default if supported.
   Example:
     Disable hardware checksum checking:
         ethtool -K eth1 rx off
@@ -140,8 +131,14 @@ The advanced features are:
   is disabled by default.
   Remark: It's possible that the ethtool does not support enabling the FCS.
   You can also enable this feature by setting the module parameter 
-  'g_DtaNwEnableFCS' to 1 during driver load.
+  'g_DtPcieNwEnableFCS' to 1 during driver load.
 
+- Jumbo Frames. If enabled, ethernet frames with a payload of more than 1500 byte can
+  be transmitted and received. Setting the module parameter 'g_DtPcieNwEnableJumboFrames' 
+  to 1 during driver load, enables the possibility to send Jumbo Frames. 
+  If enabled, and the firmware supports Jumbo Frames, the MTU size can be increased.
+  If switches/routers are used, check if these devices also supports Jumbo Frames and
+  the larger MTU size.
 
 --------------------------------------------------------------------------------
 - 6. Usage
@@ -166,6 +163,6 @@ Godelindeweg 4
 1217 HR Hilversum
 The Netherlands
 
-Tel:        +31 (0)35 2030 100
-email:      support@dektec.com / info@dektec.com
-website:    www.dektec.com
+Tel:     +31 (0)35 2030 100
+Email:   support@dektec.com / info@dektec.com
+Website: www.dektec.com

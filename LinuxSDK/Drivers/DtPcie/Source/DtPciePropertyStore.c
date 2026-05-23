@@ -449,7 +449,7 @@ static const DtProperty  DtProperties2110_0_01[] =
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "DF_CORE#1_UUID", 0x00000000, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "FIRMWARE_LAST_VER", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "FIRMWARE_LAST_VER", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2110_0_02[] =
@@ -937,6 +937,11 @@ static const DtProperty  DtProperties2110_0_46[] =
     { "FIRMWARE_RELEASE_N0_0", DT_PVE, "First firmware version released to the field",
             PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
+static const DtProperty  DtProperties2110_0_47[] =
+{
+    { "FIRMWARE_RELEASE_N1_0", DT_PVE, "Added support for ST2110 Jumbo Frames",
+            PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1, PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+};
 static const DtProperty  DtProperties2110_0_48[] =
 {
     { "AF_IPSECG#1_UUID", 0x00020001, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
@@ -1121,6 +1126,9 @@ static const DtProperty  DtProperties2110_0_62[] =
     { "BC_IPSCHED#1_TYPE", DT_BLOCK_TYPE_IPSCHED, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0,
                                                   0, -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_NW#2_UUID", 0x00040006, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_BUILD_DATE_1", DT_PVE, "2025.08.18T10:26",
+      PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2110_0_63[] =
@@ -1185,7 +1193,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2110_0[] =
     { DtProperties2110_0_44, 6 },
     { DtProperties2110_0_45, 3 },
     { DtProperties2110_0_46, 3 },
-    { NULL, 0 },
+    { DtProperties2110_0_47, 1 },
     { DtProperties2110_0_48, 2 },
     { DtProperties2110_0_49, 6 },
     { DtProperties2110_0_50, 9 },
@@ -1200,7 +1208,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2110_0[] =
     { DtProperties2110_0_59, 7 },
     { DtProperties2110_0_60, 3 },
     { DtProperties2110_0_61, 6 },
-    { DtProperties2110_0_62, 6 },
+    { DtProperties2110_0_62, 7 },
     { DtProperties2110_0_63, 5 }
 };
 
@@ -3090,7 +3098,7 @@ static const DtProperty  DtProperties2125_0_30[] =
                                                      -1, PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "DF_NW#2.17", DT_PVE, "BC_IPROUT#1", PROPERTY_VALUE_TYPE_STRING, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
-    { "PCIE_REQUIRED_BW", 13462, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
+    { "PCIE_REQUIRED_BW", 33643, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2125_0_31[] =

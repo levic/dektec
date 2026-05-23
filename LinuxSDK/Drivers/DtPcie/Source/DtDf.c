@@ -728,7 +728,7 @@ DtStatus  DtDf_OpenChildren(DtDf*  pDf, const DtDfSupportedChild*  pSupported,
             else
             {
                 // For normal-DF log as WARNING
-                DtDbgOutDf(ERR, COMMON, pDf, "WARNING: found unsupported child '%s#%d'", 
+                DtDbgOutDf(MIN, COMMON, pDf, "WARNING: found unused child '%s#%d'",
                                                                  pChildProps->m_ShortName,
                                                                  pChildProps->m_Instance);
             }

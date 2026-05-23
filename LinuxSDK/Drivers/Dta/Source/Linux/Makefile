@@ -11,14 +11,14 @@ DRIVER_NAME = $(TARGET)
 COMMON_DIR := ../../../../Common/Source
 
 SALDIR := ../../../DtSal
-SALSRCDIR = $(SALDIR)/Source
-SALBUILDDIR = $(SALDIR)/Source/Linux
-DTSAL = $(SALBUILDDIR)/DtSal$(DRIVER_NAME).o
+SALSRCDIR := $(SALDIR)/Source
+SALSRC := $(wildcard $(MYPWD)/$(SALSRCDIR)/*.c)
+SALOBJ := $(patsubst $(MYPWD)/%,%,$(SALSRC:.c=.o))
 
 DRVCOMMONDIR := ../../../DtDrvCommon
-DRVCOMMONSRCDIR = $(DRVCOMMONDIR)/Source
-DRVCOMMONBUILDDIR = $(DRVCOMMONDIR)/Source/Linux
-DTDRVCOMMON = $(DRVCOMMONBUILDDIR)/DtDrvCommon$(DRIVER_NAME).o
+DRVCOMMONSRCDIR := $(DRVCOMMONDIR)/Source
+DRVCOMMONSRC := $(wildcard $(MYPWD)/$(DRVCOMMONSRCDIR)/*.c)
+DRVCOMMONOBJ := $(patsubst $(MYPWD)/%,%,$(DRVCOMMONSRC:.c=.o))
 
 NUMLBITS = $(shell getconf LONG_BIT)
 
@@ -42,27 +42,28 @@ ifneq ($(KERNELRELEASE),)
 
 # Check for debug
 ifdef DEBUG
-	EXTRA_CFLAGS += -g -Wall -D_DEBUG
+	ccflags-y += -g -Wall -D_DEBUG
 endif
 
 # Check for SMP
-ifdef CONFIG_SMP
-	EXTRA_CFLAGS += -D__SMP__ -DSMP
-endif
+ccflags-$(CONFIG_SMP) += -D__SMP__ -DSMP
+
+# Add default KBUILD module CFLAGS 
+ccflags-y += $(KBUILD_CFLAGS_MODULE)
 
 # Check for 32/64 bit system
-EXTRA_CFLAGS += -DLINBUILD
+ccflags-y += -DLINBUILD
 ifeq ($(NUMLBITS), 32)
-    EXTRA_CFLAGS += -DLIN32
+    ccflags-y += -DLIN32
 else
-    EXTRA_CFLAGS += -DLIN64
+    ccflags-y += -DLIN64
 endif
 
 # Add EXPORT_SYMTAB to have a Module.symvers file generated, which contains the symbol
 # version information of the exported symbols in the Dta driver. These symbols are used
 # by the DtaNw driver and version info is required during the modpost of the DtaNw
 # driver.
-EXTRA_CFLAGS += -DEXPORT_SYMTAB
+ccflags-y += -DEXPORT_SYMTAB
 
 # ========================================================================================
 # Include version evironment vars
@@ -117,28 +118,32 @@ SRC    = $(SRCDIR)/Linux/DtaIal.o         \
          $(SRCDIR)/Linux/DtaDeviceTable.o \
          Messages.o
 
-EXTRA_CFLAGS += -I$(MYPWD) -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR)
-EXTRA_CFLAGS += -I$(MYPWD)/$(SALSRCDIR) -I$(MYPWD)/$(DRVCOMMONSRCDIR)
+ccflags-y += -I$(MYPWD) -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR)
+ccflags-y += -I$(MYPWD)/$(SALSRCDIR) -I$(MYPWD)/$(DRVCOMMONSRCDIR)
 
 # ========================================================================================
 # Preprocessor definitions
 
-EXTRA_CFLAGS += -D_DRIVER_NAME=$(DRIVER_NAME)                  \
-                -DDTA_VERSION_MAJOR=$(DTA_VERSION_MAJOR) \
-                -DDTA_VERSION_MINOR=$(DTA_VERSION_MINOR) \
-                -DDTA_VERSION_MICRO=$(DTA_VERSION_MICRO) \
-                -DDTA_VERSION_BUILD=$(DTA_VERSION_BUILD)
+ccflags-y += -D_DRIVER_NAME=$(DRIVER_NAME)            \
+             -DDTA_VERSION_MAJOR=$(DTA_VERSION_MAJOR) \
+             -DDTA_VERSION_MINOR=$(DTA_VERSION_MINOR) \
+             -DDTA_VERSION_MICRO=$(DTA_VERSION_MICRO) \
+             -DDTA_VERSION_BUILD=$(DTA_VERSION_BUILD)
+
+# ========================================================================================
+# set subdirs flags identical to main flags and add extras for DtSal and DtDrvCommon build
+subdir-ccflags-y := $(ccflags-y) -DSKIP_USB
 
 # ========================================================================================
 # Objects to build
 
 obj-m := $(TARGET).o
-$(TARGET)-objs = $(SRC) $(DTSAL) $(DTDRVCOMMON)
+$(TARGET)-objs = $(SRC) $(SALOBJ) $(DRVCOMMONOBJ)
 
 # ========================================================================================
 # Objects to clean
 
-clean-files = $(SRC)
+clean-files = $(SRC) $(SALOBJ) $(DRVCOMMONOBJ)
 
 
 # ========================================================================================
@@ -152,7 +157,7 @@ INSTALLDIR = /lib/modules/$(CURRENT)/kernel/drivers/misc
 # ========================================================================================
 # Default option
 
-all:	PREREQ $(DTSAL) $(DTDRVCOMMON)
+all:	clean PREREQ
 	$(MAKE) MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) modules
 
 INSTALL_CMD := "/sbin/rmmod $(TARGET) 2>/dev/null || true &&          \
@@ -172,21 +177,12 @@ install:
 PREREQ:
 	@if [ -f MakefilePrereq ]; then $(MAKE) -f MakefilePrereq ; fi
 
-$(DTSAL): PREREQ
-	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	$(MAKE) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) CONFIG_PREFIX_SYMBOLS=n
-	
-$(DTDRVCOMMON): PREREQ
-	$(MAKE) MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	$(MAKE) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) CONFIG_PREFIX_SYMBOLS=n
 # ========================================================================================
 # Clean all option
 
 clean:
 	@if [ -f MakefilePrereq ]; then $(MAKE) -f MakefilePrereq clean ; fi 
 	$(MAKE) MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
-	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	$(MAKE) MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 	
 # ========================================================================================
 endif

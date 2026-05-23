@@ -19,7 +19,7 @@
 
 Refer to the "SDK - Revision History.pdf" document for an overview of the 
 changes included in the release.
-						
+
 --------------------------------------------------------------------------------
 - 2. Introduction
 --------------------------------------------------------------------------------
@@ -64,9 +64,9 @@ Currently the driver provides support for the following cards:
 - DTA-2182	(Dual H.264 HD Contribution Encoder for PCI Express)
 - DTA-2195	(12G-SDI inp+out with HDMI 2.0 for PCI Express)
 
- 
+
 NOTE: The DTA-110T is not supported
- 
+
 --------------------------------------------------------------------------------
 - 3. Installation Instructions
 --------------------------------------------------------------------------------
@@ -86,10 +86,9 @@ NOTE: MAKE SURE THE 'KERNEL_DIR' DEFINE IN THE MAKEFILE SPECIFIES THE CORRECT
 --------------------------------------------------------------------------------
 
 The Dta driver has the following system requirements:
- - Kernel version 2.6.18 or higher   
- - DTA-2139, DTA-2160 and DTA-2162; Kernel version 2.6.32 or higher
+ - Kernel version 4.14 or higher
  - Linux hotplug should be installed
- 
+
 For easy usage of the driver, DekTec provides the DTAPI wrapper library.
 The DTAPI hides the complexities of using the driver in a few easy-to-use
 classes. The DTAPI is included in the Linux SDK.
@@ -105,6 +104,6 @@ Godelindeweg 4
 1217 HR Hilversum
 The Netherlands
 
-Tel:		+31 (0)35 2030 100
-email: 		support@dektec.com / info@dektec.com
-website:	www.dektec.com
+Tel:     +31 (0)35 2030 100
+Email:   support@dektec.com / info@dektec.com
+Website: www.dektec.com

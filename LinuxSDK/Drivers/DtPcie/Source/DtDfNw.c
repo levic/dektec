@@ -91,28 +91,40 @@ const int NsInSec = 1000 * 1000 * 1000;
 
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards for private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.
-static DtStatus  DtDfNw_Init(DtDf*);
+static DtStatus DtDfNw_AddPipeToPortmap(DtDfNw* pDf, DtPipeRxRtSwp* pPipe);
+static DtStatus DtDfNw_CheckFilterDuplication(DtDfNw* pDf);
+static DtStatus DtDfNw_CheckReducedFunctionalityMode(DtDfNw* pDf);
+static void DtDfNw_CleanupPipes(DtDfNw* pDf);
+static DtStatus DtDfNw_DeregisterKEvent(DtPipe* pPipe, DtEvent* pEvent, Int Id);
+static DtStatus DtDfNw_DeregisterEvent(DtPipe* pPipe, DtTrigEvtDriver* pTrigEvt);
+static void DtDfNw_EnablePeriodicIntervalHandler(DtDfNw*, Bool  Enable);
+static DtPipe* DtDfNw_FindPipe(DtDfNw* pDf, const DtFileObject* pFileObject);
+static DtEthIpTod* DtDfNw_GetFirstTxTodPacketPipe(DtPipeTxRtSwp*, DtEthIpTod*);
+static DtStatus DtDfNw_Init(DtDf*);
+static DtStatus DtDfNw_InitMacItf(DtDfNw*, DtBcEMAC10G*, DtBcEMAC25G*);
+static DtStatus DtDfNw_InitPipeRxHwq(DtDfNw*);
+static DtStatus DtDfNw_InitPipeRxRtHwp(DtDfNw*);
+static DtStatus DtDfNw_InitPipeTxRtHwq(DtDfNw*, DtBcIPSCHED*);
+static DtStatus DtDfNw_InitPipeRxNrt(DtDfNw* pDf);
+static DtStatus DtDfNw_InitPipeTxNrt(DtDfNw*);
+static DtStatus DtDfNw_InitPipeTxRtHwp(DtDfNw*, DtBcIPSCHED*);
+static Bool DtDfNw_IsPacketForNetworkDriver(DtDfNw* pDf, UInt8* pPacket);
+static Bool DtDfNw_IsTimeEarlier(DtPipeTxRtSwp*, DtEthIpTod*, DtEthIpTod*);
+static DtStatus DtDfNw_LoadParameters(DtDf*);
+static DtStatus DtDfNw_OnCloseFile(DtDf*, const DtFileObject*);
+static DtStatus DtDfNw_OnEnablePostChildren(DtDf*, Bool  Enable);
+static DtStatus DtDfNw_OnEnablePreChildren(DtDf*, Bool  Enable);
+static DtStatus DtDfNw_OpenChildren(DtDfNw*);
+static void DtDfNw_PeriodicIntervalHandler(DtObject*, DtTodTime  Time);
+static DtStatus DtDfNw_PipeClose(DtDfNw*, const DtFileObject*, Int, UInt);
+static DtStatus DtDfNw_PipeOpen(DtDfNw*, const DtFileObject*, Int, UInt*, DtPipe**);
+static DtStatus DtDfNw_RegisterEvent(DtPipe*, DtTrigEvtDriver*, UInt);
+static DtStatus DtDfNw_RegisterKEvent(DtPipe*, DtEvent*, Int);
+static DtStatus DtDfNw_RemovePipeFromPortmap(DtDfNw* pDf, DtPipeRxRtSwp* pPipe);
+static void DtDfNw_RxHwqThread(DtThread*, void* pContext);
+static void DtDfNw_SfpIntCallbackWi(UInt SfpStatus, void* pContext);
+static void DtDfNw_TxRtHwqThread(DtThread*, void* pContext);
 
-static DtStatus  DtDfNw_LoadParameters(DtDf*);
-static DtStatus  DtDfNw_OnCloseFile(DtDf*, const DtFileObject*);
-static DtStatus  DtDfNw_OnEnablePostChildren(DtDf*, Bool  Enable);
-static DtStatus  DtDfNw_OnEnablePreChildren(DtDf*, Bool  Enable);
-static DtStatus  DtDfNw_OpenChildren(DtDfNw*);
-static void  DtDfNw_RxHwqThread(DtThread*, void* pContext);
-static void  DtDfNw_TxRtHwqThread(DtThread*, void* pContext);
-static void  DtDfNw_EnablePeriodicIntervalHandler(DtDfNw*, Bool  Enable);
-static void  DtDfNw_PeriodicIntervalHandler(DtObject*, DtTodTime  Time);
-static void  DtDfNw_CleanupPipes(DtDfNw* pDf);
-DtStatus DtDfNw_PipeOpen(DtDfNw* pDf, const DtFileObject* pFileObject, Int PipeType,
-    UInt* pUuid, DtPipe** ppPipe);
-DtStatus DtDfNw_PipeClose(DtDfNw* pDf, const DtFileObject* pFileObject, Int PipeType,
-    UInt Uuid);
-DtPipe* DtDfNw_FindPipe(DtDfNw* pDf, const DtFileObject* pFileObject);
-DtStatus DtDfNw_RegisterKEvent(DtPipe* pPipe, DtEvent* pEvent, Int Id);
-DtStatus DtDfNw_DeregisterKEvent(DtPipe* pPipe, DtEvent* pEvent, Int Id);
-DtStatus DtDfNw_DeregisterEvent(DtPipe* pPipe, DtTrigEvtDriver* pTrigEvt);
-DtStatus DtDfNw_CheckFilterDuplication(DtDfNw* pDf);
-DtStatus DtDfNw_RemovePipeFromPortmap(DtDfNw* pDf, DtPipeRxRtSwp* pPipe);
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtDfNw - Public functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -232,7 +244,7 @@ DtStatus  DtDfNw_SetOperationalMode(DtDfNw* pDf, Int OpMode)
         // Before setting the pipe to operation mode run, be shure
         // to flush the pipe so the read and write pointers and cache are synchronised
         // with the DMA controller.
-        if (pDf->m_OperationalMode == DT_PIPE_OPMODE_RUN)
+        if (OpMode == DT_PIPE_OPMODE_RUN)
             DtPipe_IssuePipeFlush(pPipe);
 
         Status = DT_STATUS_NOT_INITIALISED;
@@ -277,18 +289,46 @@ DtStatus DtDfNw_CheckReducedFunctionalityMode(DtDfNw* pDf)
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_InitPipeRxHwq -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtDfNw_InitPipeRxHwq(DtDfNw* pDf, DtBcCDMACTO* pBcCdma, DtDfIpFifo* pDfIpFifo,
-                DtBcETHIPPAD* pEthIpPad, DtBcDDRFIFO* pDdrFifo, DtBcBURSTFIFO* pBurstFifo)
+DtStatus DtDfNw_InitPipeRxHwq(DtDfNw* pDf)
 {
     DtStatus Status = DT_STATUS_OK;
-    DtPipe* pPipe = DtPipe_Open(NULL, (DtObject*)pDf, DT_PIPE_RX_HWQ, 
-                                                            pDf->m_NumStaticPipes + 1, 0);
-    DtPipeRxHwq* pRx = (DtPipeRxHwq*)pPipe;
+    DtBcCDMACTO* pBcCdma = NULL;
+    DtDfIpFifo* pDfIpFifo = NULL;
+    DtBcETHIPPAD* pEthIpPad = NULL;
+    DtBcDDRFIFO* pDdrFifo = NULL;
+    DtBcBURSTFIFO* pBurstFifo = NULL;
+    DtPipe* pPipe = NULL;
+    DtPipeRxHwq* pRx = NULL;
+
+    DtDfSupportedChild  SUPPORTED_CHILDREN_RXHWQ[] =
+    {
+        //  ObjectType,  BC or DF/CF Type,  Name,  Role,  Shortcut,  IsMandatory
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_ETHIPPAD, DT_BC_ETHIPPAD_NAME,
+            BC_ROLE_NONE, (DtObjectBcOrDf**)(&pEthIpPad), FALSE},
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_DDRFIFO, DT_BC_DDRFIFO_NAME,
+            BC_ROLE_NONE, (DtObjectBcOrDf**)(&pDdrFifo), FALSE},
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_BURSTFIFO, DT_BC_BURSTFIFO_NAME,
+            ROLE_RX_HWQ, (DtObjectBcOrDf**)(&pBurstFifo), FALSE},
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
+            ROLE_RX_HWQ, (DtObjectBcOrDf**)(&pBcCdma), TRUE},
+        { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_IPFIFO, DT_DF_IPFIFO_NAME,
+            ROLE_RX_HWQ, (DtObjectBcOrDf**)(&pDfIpFifo), FALSE},
+    };
+
+    // Use base function to get the RXHWQ children
+    Status = DtDf_OpenChildren((DtDf*)pDf, SUPPORTED_CHILDREN_RXHWQ,
+                                               DT_SIZEOF_ARRAY(SUPPORTED_CHILDREN_RXHWQ));
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    pPipe = DtPipe_Open(NULL, (DtObject*)pDf, DT_PIPE_RX_HWQ,
+                                        pDf->m_NumStaticPipes + 1, 0, pDf->m_JumboFrames);
     if (pPipe == NULL)
     {
         DtDbgOutDf(ERR, NW, pDf, "ERROR: DtPipe_Open failed: DT_PIPE_RX_HWQ");
         return DT_STATUS_OUT_OF_MEMORY;
     }
+    pRx = (DtPipeRxHwq*)pPipe;
     pRx->m_pBcCdma = pBcCdma;
     pRx->m_pDfIpFifo = pDfIpFifo;
     // Variant0 only:
@@ -311,24 +351,47 @@ DtStatus DtDfNw_InitPipeRxHwq(DtDfNw* pDf, DtBcCDMACTO* pBcCdma, DtDfIpFifo* pDf
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_InitPipeTxRtHwq -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus DtDfNw_InitPipeTxRtHwq(DtDfNw* pDf, DtBcIPSCHED* pIpSched, DtBcCDMACTO* pBcCdma,
-                                       DtBcBURSTFIFO* pBcBurstFifo, DtDfIpFifo* pDfIpFifo)
+DtStatus DtDfNw_InitPipeTxRtHwq(DtDfNw* pDf, DtBcIPSCHED* pIpSched)
 {
     DtStatus Status = DT_STATUS_OK;
-    DtPipe* pPipe = DtPipe_Open(NULL, (DtObject*)pDf, DT_PIPE_TX_RT_HWQ, 
-                                                              pDf->m_NumStaticPipes+1, 0);
-    DtPipeTxRtHwq* pTxRt = (DtPipeTxRtHwq*)pPipe;
+    DtBcCDMACTO* pBcCdma = NULL;
+    DtBcBURSTFIFO* pBcBurstFifo = NULL;
+    DtDfIpFifo* pDfIpFifo = NULL;
+    DtPipe* pPipe = NULL;
+    DtPipeTxRtHwq* pTxRt = NULL;
+
+    DtDfSupportedChild  SUPPORTED_CHILDREN_TXRTHWQ[] =
+    {
+        //  ObjectType,  BC or DF/CF Type,  Name,  Role,  Shortcut,  IsMandatory
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
+            ROLE_TX_RT_HWQ, (DtObjectBcOrDf**)(&pBcCdma), FALSE },
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_BURSTFIFO, DT_BC_BURSTFIFO_NAME,
+            ROLE_TX_RT_HWQ, (DtObjectBcOrDf**)(&pBcBurstFifo), FALSE},
+        { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_IPFIFO, DT_DF_IPFIFO_NAME,
+            ROLE_TX_RT_HWQ, (DtObjectBcOrDf**)(&pDfIpFifo), FALSE},
+    };
+
+    // Use base function to get the TXRTHWQ children
+    Status = DtDf_OpenChildren((DtDf*)pDf, SUPPORTED_CHILDREN_TXRTHWQ,
+                                             DT_SIZEOF_ARRAY(SUPPORTED_CHILDREN_TXRTHWQ));
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    pPipe = DtPipe_Open(NULL, (DtObject*)pDf, DT_PIPE_TX_RT_HWQ,
+                                        pDf->m_NumStaticPipes + 1, 0, pDf->m_JumboFrames);
     if (pPipe == NULL)
     {
         DtDbgOutDf(ERR, NW, pDf, "ERROR: DtPipe_Open failed: DT_PIPE_TX_RT_HWQ");
         return DT_STATUS_OUT_OF_MEMORY;
     }
+
+    pTxRt = (DtPipeTxRtHwq*)pPipe;
     pTxRt->m_pBcCdma = pBcCdma;
     pTxRt->m_pBurstFifo = pBcBurstFifo;
     pTxRt->m_pDfIpFifo = pDfIpFifo;
     pTxRt->m_pIpSched = pIpSched;
 
-    // Initialise IP scheduler behavior
+    // Initialise IP scheduler behavior. HWQ is always index 0
     DtBcIPSCHED_SetErrorBehavior(pIpSched, 0, TRUE);
     DtBcIPSCHED_SetMaxDelay(pIpSched, 0, MAX_DELAY_TX_RT_HWQ_MS);
 
@@ -350,8 +413,7 @@ DtStatus DtDfNw_InitPipeRxNrt(DtDfNw* pDf)
 {
     DtStatus Status = DT_STATUS_OK;
     DtPipe* pPipe = DtPipe_Open(NULL, (DtObject*)pDf, DT_PIPE_RX_NRT, 
-                                                            pDf->m_NumStaticPipes + 1, 0);
-    //DtPipeRxNrt* pRxNrt = (DtPipeRxNrt*)pPipe;
+                                        pDf->m_NumStaticPipes + 1, 0, pDf->m_JumboFrames);
     if (pPipe == NULL)
     {
         DtDbgOutDf(ERR, NW, pDf, "ERROR: DtPipe_Open failed: DT_PIPE_RX_NRT");
@@ -373,19 +435,39 @@ DtStatus DtDfNw_InitPipeRxNrt(DtDfNw* pDf)
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_InitPipeTxNrt -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus DtDfNw_InitPipeTxNrt(DtDfNw* pDf, DtBcCDMACTO* pBcCdma, 
-                                                              DtBcBURSTFIFO* pBcBurstFifo)
+DtStatus DtDfNw_InitPipeTxNrt(DtDfNw* pDf)
 {
     DtStatus Status = DT_STATUS_OK;
-    DtPipe* pPipe = DtPipe_Open(NULL, (DtObject*)pDf, DT_PIPE_TX_NRT, 
-                                                            pDf->m_NumStaticPipes + 1, 0);
-    DtPipeTxNrt* pTxNrt = (DtPipeTxNrt*)pPipe;
+    DtBcBURSTFIFO* pBcBurstFifo = NULL;
+    DtBcCDMACTO* pBcCdma = NULL;
+    DtPipe* pPipe = NULL;
+    DtPipeTxNrt* pTxNrt = NULL;
+
+    DtDfSupportedChild  SUPPORTED_CHILDREN_TXNRTHWQ[] =
+    {
+        //  ObjectType,  BC or DF/CF Type,  Name,  Role,  Shortcut,  IsMandatory
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
+            ROLE_TX_NRT_HWQ, (DtObjectBcOrDf**)(&pBcCdma), TRUE},
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_BURSTFIFO, DT_BC_BURSTFIFO_NAME,
+            ROLE_TX_NRT_HWQ, (DtObjectBcOrDf**)(&pBcBurstFifo), FALSE},
+    };
+
+    // Use base function to get the TXNRTHWQ children
+    Status = DtDf_OpenChildren((DtDf*)pDf, SUPPORTED_CHILDREN_TXNRTHWQ,
+                                            DT_SIZEOF_ARRAY(SUPPORTED_CHILDREN_TXNRTHWQ));
+    if (!DT_SUCCESS(Status))
+        return Status;
+
+    pPipe = DtPipe_Open(NULL, (DtObject*)pDf, DT_PIPE_TX_NRT,
+                                        pDf->m_NumStaticPipes + 1, 0, pDf->m_JumboFrames);
     if (pPipe == NULL)
     {
         DtDbgOutDf(ERR, NW, pDf, "ERROR: DtPipe_Open failed: DT_PIPE_TX_NRT");
         return DT_STATUS_OUT_OF_MEMORY;
     }
-    
+
+    pTxNrt = (DtPipeTxNrt*)pPipe;
+
     Status = DtVectorPipe_PushBack(pDf->m_pPipeIdMap, pPipe);
     if (!DT_SUCCESS(Status))
     {
@@ -403,14 +485,42 @@ DtStatus DtDfNw_InitPipeTxNrt(DtDfNw* pDf, DtBcCDMACTO* pBcCdma,
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_InitPipeTxRtHwp -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtDfNw_InitPipeTxRtHwp(DtDfNw* pDf, DtBcIPSCHED* pIpSched,
-                                      DtBcCDMACTO* pBcCdma[MAX_NUMBER_RT_HW_PIPES],
-                                      DtBcBURSTFIFO* pBcBurstFifo[MAX_NUMBER_RT_HW_PIPES],
-                                      DtDfIpFifo* pDfIpFifo[MAX_NUMBER_RT_HW_PIPES])
+DtStatus  DtDfNw_InitPipeTxRtHwp(DtDfNw* pDf, DtBcIPSCHED* pIpSched)
 {
     DtStatus Status = DT_STATUS_OK;
+    DtBcCDMACTO* pBcCdma[MAX_NUMBER_RT_HW_PIPES];
+    DtBcBURSTFIFO* pBcBurstFifo[MAX_NUMBER_RT_HW_PIPES];
+    DtDfIpFifo* pDfIpFifo[MAX_NUMBER_RT_HW_PIPES];
     Int i;
     Int NumHwPipes = 0;
+
+    DtDfSupportedChild  SUPPORTED_CHILDREN_TXRTHWP[] =
+    {
+        //  ObjectType,  BC or DF/CF Type,  Name,  Role,  Shortcut,  IsMandatory
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
+            ROLE_TX_HWP, (DtObjectBcOrDf**)(&pBcCdma[0]), TRUE,
+            MAX_NUMBER_RT_HW_PIPES},
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_BURSTFIFO, DT_BC_BURSTFIFO_NAME,
+            ROLE_TX_HWP, (DtObjectBcOrDf**)(&pBcBurstFifo[0]), FALSE,
+            MAX_NUMBER_RT_HW_PIPES},
+        { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_IPFIFO, DT_DF_IPFIFO_NAME,
+            ROLE_TX_HWP, (DtObjectBcOrDf**)(&pDfIpFifo[0]), FALSE,
+            MAX_NUMBER_RT_HW_PIPES},
+    };
+
+    for (i = 0; i < MAX_NUMBER_RT_HW_PIPES; i++)
+    {
+        pBcCdma[i] = NULL; 
+        pBcBurstFifo[i] = NULL;
+        pDfIpFifo[i] = NULL;
+    }
+
+    // Use base function to get the TXRTHWP children
+    Status = DtDf_OpenChildren((DtDf*)pDf, SUPPORTED_CHILDREN_TXRTHWP,
+                                             DT_SIZEOF_ARRAY(SUPPORTED_CHILDREN_TXRTHWP));
+    if (!DT_SUCCESS(Status))
+        return Status;
+    
     // Count the number of hardware pipes
     for (i = 0; i < MAX_NUMBER_RT_HW_PIPES; i++)
     {
@@ -427,7 +537,7 @@ DtStatus  DtDfNw_InitPipeTxRtHwp(DtDfNw* pDf, DtBcIPSCHED* pIpSched,
     for (i = 0; i < NumHwPipes; i++)
     {
         DtPipe* pPipe = DtPipe_Open(NULL, (DtObject*)pDf, DT_PIPE_TX_RT_HWP, 
-                                                            pDf->m_NumStaticPipes + 1, i);
+                                        pDf->m_NumStaticPipes + 1, i, pDf->m_JumboFrames);
         DtPipeTxRtHwp* pHwp = (DtPipeTxRtHwp*)pPipe;
         if (pPipe == NULL)
         {
@@ -505,7 +615,7 @@ Bool  DtDfNw_IsPacketForNetworkDriver(DtDfNw* pDf, UInt8* pPacket)
         return FALSE;
 
     // Check multicast list
-    DtFastMutexAcquire(&pDf->m_MulticastListFastMutex);
+    DtSpinLockAcquire(&pDf->m_MulticastListSpinlock);
     for (Items = 0; Items < pDf->m_NumMulticasts && !Found; Items++)
     {
         if (pEthIIHeader->m_DstMac[0] == pDf->m_MulticastList[Items][0] &&
@@ -516,7 +626,7 @@ Bool  DtDfNw_IsPacketForNetworkDriver(DtDfNw* pDf, UInt8* pPacket)
             pEthIIHeader->m_DstMac[5] == pDf->m_MulticastList[Items][5])
             Found = TRUE;
     }
-    DtFastMutexRelease(&pDf->m_MulticastListFastMutex);
+    DtSpinLockRelease(&pDf->m_MulticastListSpinlock);
     if (!Found)
     {
         DtDbgOutDf(MAX, NW, pDf, 
@@ -530,19 +640,44 @@ Bool  DtDfNw_IsPacketForNetworkDriver(DtDfNw* pDf, UInt8* pPacket)
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_InitPipeRxRtHwp -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus  DtDfNw_InitPipeRxRtHwp(DtDfNw* pDf,
-                                            DtBcCDMACTO* pBcCdma[MAX_NUMBER_RT_HW_PIPES], 
-                                            DtBcIPROUT* pBcIpRout[MAX_NUMBER_RT_HW_PIPES])
+DtStatus  DtDfNw_InitPipeRxRtHwp(DtDfNw* pDf)
 {
     DtStatus Status = DT_STATUS_OK;
+    DtBcCDMACTO* pBcCdma[MAX_NUMBER_RT_HW_PIPES];
+    DtBcIPROUT* pBcIpRout[MAX_NUMBER_RT_HW_PIPES];
+
     Int i;
     Int NumHwPipes = 0;
+
+    DtDfSupportedChild  SUPPORTED_CHILDREN_RXRTHWP[] =
+    {
+        //  ObjectType,  BC or DF/CF Type,  Name,  Role,  Shortcut,  IsMandatory
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
+            ROLE_RX_HWP, (DtObjectBcOrDf**)(&pBcCdma[0]), TRUE,
+            MAX_NUMBER_RT_HW_PIPES},
+        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_IPROUT, DT_BC_IPROUT_NAME,
+            ROLE_RX_HWP, (DtObjectBcOrDf**)(&pBcIpRout[0]), TRUE,
+            MAX_NUMBER_RT_HW_PIPES},
+    };
+
+    for (i = 0; i < MAX_NUMBER_RT_HW_PIPES; i++)
+    {
+        pBcCdma[i] = NULL;
+        pBcIpRout[i] = NULL;
+    }
+
+    // Use base function to get the RXRTHWP children
+    Status = DtDf_OpenChildren((DtDf*)pDf, SUPPORTED_CHILDREN_RXRTHWP,
+                                             DT_SIZEOF_ARRAY(SUPPORTED_CHILDREN_RXRTHWP));
+    if (!DT_SUCCESS(Status))
+        return Status;
+
     // Count the number of hardware pipes
     for (i = 0; i < MAX_NUMBER_RT_HW_PIPES; i++)
     {
-        if (pBcCdma[i] != NULL && pBcIpRout[i] != NULL)
+        if (pBcCdma[i]!=NULL && pBcIpRout[i]!=NULL)
             NumHwPipes++;
-        else if (!(pBcCdma[i] == NULL && pBcIpRout[i] == NULL))
+        else if (!(pBcCdma[i]==NULL && pBcIpRout[i]==NULL))
         {
             DtDbgOutDf(ERR, NW, pDf, "ERROR: invalid xml config role: %s", ROLE_RX_HWP);
             return DT_STATUS_CONFIG_ERROR;
@@ -553,7 +688,7 @@ DtStatus  DtDfNw_InitPipeRxRtHwp(DtDfNw* pDf,
     for (i = 0; i < NumHwPipes; i++)
     {
         DtPipe* pPipe = DtPipe_Open(NULL, (DtObject*)pDf, DT_PIPE_RX_RT_HWP, 
-                                                            pDf->m_NumStaticPipes + 1, i);
+                                        pDf->m_NumStaticPipes + 1, i, pDf->m_JumboFrames);
         DtPipeRxRtHwp* pHwp = (DtPipeRxRtHwp*)pPipe;
         if (pPipe == NULL)
         {
@@ -646,7 +781,7 @@ DtStatus  DtDfNw_Init(DtDf* pDfBase)
     DtFastMutexInit(&pDf->m_PerIntEvtFMutex);
     DtSpinLockInit(&pDf->m_PerItvSpinLock);
     DtSpinLockInit(&pDf->m_OpModeCBSpinlock);
-    DtFastMutexInit(&pDf->m_MulticastListFastMutex);
+    DtSpinLockInit(&pDf->m_MulticastListSpinlock);
     DtFastMutexInit(&pDf->m_RxRtSwpPortMapFMutex);
     pDf->m_NumMulticasts = 0;
 
@@ -886,10 +1021,11 @@ static DtStatus  DtDfNw_OnCloseFile(DtDf* pDfBase, const DtFileObject* pFile)
     return DtDf_OnCloseFile((DtDf*)pDf, pFile);
 }
 
-// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNwInitMacItf -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfNw_InitMacItf -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-DtStatus DtDfNwInitMacItf(DtDfNw* pDf, DtBcEMAC10G* pBcEMAC10G, DtBcEMAC25G* pBcEMAC25G)
+DtStatus DtDfNw_InitMacItf(DtDfNw* pDf, DtBcEMAC10G* pBcEMAC10G, DtBcEMAC25G* pBcEMAC25G)
 {
+    pDf->m_JumboFrames = FALSE;
     if (pBcEMAC10G != NULL)
     {
         pDf->m_EMACItf.pBcEMAC = (DtBc*)pBcEMAC10G;
@@ -908,6 +1044,8 @@ DtStatus DtDfNwInitMacItf(DtDfNw* pDf, DtBcEMAC10G* pBcEMAC10G, DtBcEMAC25G* pBc
         pDf->m_EMACItf.SetSfpCapabilities = NULL;
         pDf->m_EMACItf.SetSfpIntCallbackFunc = NULL;
 
+        pDf->m_JumboFrames = DtBcEMAC10G_SupportsJumboFrames(pBcEMAC10G);
+        DtBcEMAC10G_EnableJumboFrames(pBcEMAC10G, pDf->m_JumboFrames);
         return DT_STATUS_OK;
     } else if (pBcEMAC25G != NULL)
     {
@@ -926,6 +1064,8 @@ DtStatus DtDfNwInitMacItf(DtDfNw* pDf, DtBcEMAC10G* pBcEMAC10G, DtBcEMAC25G* pBc
         pDf->m_EMACItf.GetLinkStatus = (DtMacGetLinkStatusFunc)DtBcEMAC25G_GetLinkStatus;
         pDf->m_EMACItf.SetSfpCapabilities = (DtMacSetSfpCapabilitiesFunc)DtBcEMAC25G_SetSfpCapabilities;
         pDf->m_EMACItf.SetSfpIntCallbackFunc = (DtMacSetSfpIntCallbackFunc)DtBcEMAC25G_SetSfpIntCallbackFunc;
+        pDf->m_JumboFrames = DtBcEMAC25G_SupportsJumboFrames(pBcEMAC25G);
+        DtBcEMAC25G_EnableJumboFrames(pBcEMAC25G, pDf->m_JumboFrames);
         return DT_STATUS_OK;
     }
     return DT_STATUS_NOT_SUPPORTED;
@@ -958,49 +1098,16 @@ void DtDfNw_SfpIntCallbackWi(UInt SfpStatus, void* pContext)
 DtStatus  DtDfNw_OpenChildren(DtDfNw* pDf)
 {
     DtStatus  Status = DT_STATUS_OK;
-    Int i;
     
-    // Realtime hardware pipes
-    DtBcCDMACTO* pBcCdmaTxRtHwp[MAX_NUMBER_RT_HW_PIPES];
-    DtBcBURSTFIFO* pBcBurstFifoTxRtHwp[MAX_NUMBER_RT_HW_PIPES];
-    DtBcCDMACTO* pBcCdmaRxRtHwp[MAX_NUMBER_RT_HW_PIPES];
-    DtDfIpFifo* pDfIpFifoTxRtHwp[MAX_NUMBER_RT_HW_PIPES];
-    DtBcIPROUT* pBcIpRoutRxRtHwp[MAX_NUMBER_RT_HW_PIPES];
-    DtBcCDMACTO* pBcCdmaRxHwq = NULL;
-    DtDfIpFifo* pDfIpFifoRxHwq = NULL;
-    DtBcCDMACTO* pBcCdmaTxRtHwq = NULL;
-    DtBcBURSTFIFO* pBcBurstFifoTxRtHwq = NULL;
-    DtDfIpFifo* pDfIpFifoTxRtHwq = NULL;
-    DtBcCDMACTO* pBcCdmaTxNrtHwq = NULL;
-    DtBcETHIPPAD* pEthIpPadRxHwq = NULL;
-    DtBcDDRFIFO* pDdrFifoRxHwq = NULL;
+    // MAC
     DtBcEMAC10G* pBcEMAC10G = NULL;
     DtBcEMAC25G* pBcEMAC25G = NULL;
-    DtBcBURSTFIFO* pBurstFifoRxHwq = NULL;
-    DtBcBURSTFIFO* pBcBurstFifoTxNrt = NULL;
     
-    // List of children supported by the DfNw function
-    DtDfSupportedChild  SUPPORTED_CHILDREN[] =
+    // List of generic children supported by the DfNw function.
+    // Pipe specific children are opened in the pipe specific init functions.
+    DtDfSupportedChild  SUPPORTED_CHILDREN_GEN[] =
     {
         //  ObjectType,  BC or DF/CF Type,  Name,  Role,  Shortcut,  IsMandatory
-        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_ETHIPPAD, DT_BC_ETHIPPAD_NAME,
-            BC_ROLE_NONE, (DtObjectBcOrDf**)(&pEthIpPadRxHwq), FALSE},
-        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_DDRFIFO, DT_BC_DDRFIFO_NAME,
-            BC_ROLE_NONE, (DtObjectBcOrDf**)(&pDdrFifoRxHwq), FALSE},
-        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_BURSTFIFO, DT_BC_BURSTFIFO_NAME,
-            ROLE_RX_HWQ, (DtObjectBcOrDf**)(&pBurstFifoRxHwq), FALSE},
-        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
-            ROLE_RX_HWQ, (DtObjectBcOrDf**)(&pBcCdmaRxHwq), TRUE},
-        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
-            ROLE_TX_NRT_HWQ, (DtObjectBcOrDf**)(&pBcCdmaTxNrtHwq), TRUE},
-        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_BURSTFIFO, DT_BC_BURSTFIFO_NAME,
-            ROLE_TX_NRT_HWQ, (DtObjectBcOrDf**)(&pBcBurstFifoTxNrt), FALSE},
-        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
-            ROLE_TX_RT_HWQ, (DtObjectBcOrDf**)(&pBcCdmaTxRtHwq), FALSE },
-        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_BURSTFIFO, DT_BC_BURSTFIFO_NAME,
-            ROLE_TX_RT_HWQ, (DtObjectBcOrDf**)(&pBcBurstFifoTxRtHwq), FALSE},
-        { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_IPFIFO, DT_DF_IPFIFO_NAME,
-            ROLE_TX_RT_HWQ, (DtObjectBcOrDf**)(&pDfIpFifoTxRtHwq), FALSE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_EMAC10G, DT_BC_EMAC10G_NAME,
             BC_EMAC_ROLE_NONE, (DtObjectBcOrDf**)(&pBcEMAC10G), FALSE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_EMAC25G, DT_BC_EMAC25G_NAME,
@@ -1011,48 +1118,19 @@ DtStatus  DtDfNw_OpenChildren(DtDfNw* pDf)
             BC_IP_SUMINS_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcIpSumIns), TRUE},
         { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_IPSCHED, DT_BC_IPSCHED_NAME,
             BC_IP_SCHED_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pBcIpSched), TRUE},
-        { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_IPFIFO, DT_DF_IPFIFO_NAME,
-            ROLE_RX_HWQ, (DtObjectBcOrDf**)(&pDfIpFifoRxHwq), FALSE},
-        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
-            ROLE_RX_HWP, (DtObjectBcOrDf**)(&pBcCdmaRxRtHwp[0]), TRUE,
-            MAX_NUMBER_RT_HW_PIPES},
-        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_CDMACTO, DT_BC_CDMACTO_NAME,
-            ROLE_TX_HWP, (DtObjectBcOrDf**)(&pBcCdmaTxRtHwp[0]), TRUE,
-            MAX_NUMBER_RT_HW_PIPES},
-        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_BURSTFIFO, DT_BC_BURSTFIFO_NAME,
-            ROLE_TX_HWP, (DtObjectBcOrDf**)(&pBcBurstFifoTxRtHwp[0]), FALSE,
-            MAX_NUMBER_RT_HW_PIPES},
-        { DT_OBJECT_TYPE_BC, DT_BLOCK_TYPE_IPROUT, DT_BC_IPROUT_NAME,
-            ROLE_RX_HWP, (DtObjectBcOrDf**)(&pBcIpRoutRxRtHwp[0]), TRUE,
-            MAX_NUMBER_RT_HW_PIPES},
-        { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_IPFIFO, DT_DF_IPFIFO_NAME,
-            ROLE_TX_HWP, (DtObjectBcOrDf**)(&pDfIpFifoTxRtHwp[0]), FALSE,
-            MAX_NUMBER_RT_HW_PIPES},
         { DT_OBJECT_TYPE_DF, DT_FUNC_TYPE_SFP, DT_DF_SFP_NAME,
             DF_ROLE_NONE, (DtObjectBcOrDf**)(&pDf->m_pDfSfp), FALSE},
-        
     };
 
     DF_NW_DEFAULT_PRECONDITIONS(pDf);
 
     pDf->m_NumStaticPipes = 0;
 
-    for (i=0; i<MAX_NUMBER_RT_HW_PIPES; i++)
-    {
-        pBcCdmaTxRtHwp[i] = NULL; 
-        pBcBurstFifoTxRtHwp[i] = NULL;
-        pBcCdmaRxRtHwp[i] = NULL;
-        pDfIpFifoTxRtHwp[i] = NULL; 
-        pBcIpRoutRxRtHwp[i] = NULL;
-    }
-
-    // Use base function to get all the children
-    Status = DtDf_OpenChildren((DtDf*)pDf, SUPPORTED_CHILDREN,
-                                                     DT_SIZEOF_ARRAY(SUPPORTED_CHILDREN));
-    if (!DT_SUCCESS(Status))
-        return Status;
-
-    Status = DtDfNwInitMacItf(pDf, pBcEMAC10G, pBcEMAC25G);
+    // Use base function to get all the generic children
+    Status = DtDf_OpenChildren((DtDf*)pDf, SUPPORTED_CHILDREN_GEN,
+                                                 DT_SIZEOF_ARRAY(SUPPORTED_CHILDREN_GEN));
+    // First initialize MAC interface before initializing pipes
+    Status = DtDfNw_InitMacItf(pDf, pBcEMAC10G, pBcEMAC25G);
     if (!DT_SUCCESS(Status))
         return Status;
 
@@ -1064,24 +1142,21 @@ DtStatus  DtDfNw_OpenChildren(DtDfNw* pDf)
     if (Status != DT_STATUS_OK)
         return Status;
 
-    Status = DtDfNw_InitPipeTxNrt(pDf, pBcCdmaTxNrtHwq, pBcBurstFifoTxNrt);
+    Status = DtDfNw_InitPipeTxNrt(pDf);
     if (Status != DT_STATUS_OK)
         return Status;
 
-    Status = DtDfNw_InitPipeRxHwq(pDf, pBcCdmaRxHwq, pDfIpFifoRxHwq, pEthIpPadRxHwq, 
-                                                          pDdrFifoRxHwq, pBurstFifoRxHwq);
+    Status = DtDfNw_InitPipeRxHwq(pDf);
     if (Status != DT_STATUS_OK)
         return Status;
     
-    Status = DtDfNw_InitPipeTxRtHwq(pDf, pDf->m_pBcIpSched, pBcCdmaTxRtHwq,
-                                                   pBcBurstFifoTxRtHwq, pDfIpFifoTxRtHwq);
+    Status = DtDfNw_InitPipeTxRtHwq(pDf, pDf->m_pBcIpSched);
     if (Status != DT_STATUS_OK)
         return Status;
-    Status = DtDfNw_InitPipeTxRtHwp(pDf, pDf->m_pBcIpSched, pBcCdmaTxRtHwp, 
-                                                   pBcBurstFifoTxRtHwp, pDfIpFifoTxRtHwp);
+    Status = DtDfNw_InitPipeTxRtHwp(pDf, pDf->m_pBcIpSched);
     if (Status != DT_STATUS_OK)
         return Status;
-    Status = DtDfNw_InitPipeRxRtHwp(pDf, pBcCdmaRxRtHwp, pBcIpRoutRxRtHwp);
+    Status = DtDfNw_InitPipeRxRtHwp(pDf);
     if (Status != DT_STATUS_OK)
         return Status;
     return DT_STATUS_OK;
@@ -1132,7 +1207,7 @@ DtEthIpTod* DtDfNw_GetFirstTxTodPacketPipe(DtPipeTxRtSwp* pPipe, DtEthIpTod* pEn
         return NULL;
     
     pDtEthIp = (DtEthIp*)(pPipe->m_pBuffer + pPipe->m_ReadOffset);
-    DT_ASSERT(pDtEthIp->m_Hdr.m_SyncWord == DT_ETHIP_SYNCWORD);
+    DT_ASSERT(DtEthIp_ISVALID(&pDtEthIp->m_Hdr));
     if (pPipe->m_ReadOffset + sizeof(DtEthIpHeader) < pPipe->m_BufSize)
         pTod = &pDtEthIp->m_Tod;
     else
@@ -1297,12 +1372,12 @@ void DtDfNw_TxRtHwqThread(DtThread* pThread, void* pContext)
                 DtEthIpHeader* pEthIp = (DtEthIpHeader*)(pCurPipe->m_pBuffer + 
                                                                   pCurPipe->m_ReadOffset);
                 Status = DtPipe_CopyData((DtPipe*)pCurPipe, pCurPipe->m_ReadOffset, pPipe,
-                                                        (UInt)pEthIp->m_SizeInQWords * 8);
+                                                              (UInt)DtEthIp_SIZE(pEthIp));
                 if (DT_SUCCESS(Status))
                 {
                     // Packet copied to queue
                     pCurPipe->m_ReadOffset = (pCurPipe->m_ReadOffset + 
-                                        pEthIp->m_SizeInQWords * 8) % pCurPipe->m_BufSize;
+                                              DtEthIp_SIZE(pEthIp)) % pCurPipe->m_BufSize;
                     pCurPipe = NULL;
                 }
                 else if (Status == DT_STATUS_BUFFER_OVERFLOW)
@@ -1422,11 +1497,12 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
 
             // Datapath is minimal 64-bit aligned, so header must fit until end
             pEthIpHeader = (DtEthIpHeader*)pPacket;
-            PacketSize = (Int)pEthIpHeader->m_SizeInQWords * 8;
+            PacketSize = (Int)DtEthIp_SIZE(pEthIpHeader);
 
             if (PacketSize > BufLoad)
             {
-                if (pEthIpHeader->m_SyncWord == DT_ETHIP_SYNCWORD)
+                if (pEthIpHeader->m_SyncWord==DT_ETHIP_SYNCWORD_V1 || 
+                                           pEthIpHeader->m_SyncWord==DT_ETHIP_SYNCWORD_V2)
                 {
                     DtDbgOutDf(AVG, NW, pDf, "Not a complete packet received with DMA. %i"
                          " bytes received. Needs %i bytes. Wait for complete packet (%i)."
@@ -1436,8 +1512,14 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
                     Status = DtPipe_GetRxWriteOffset(pPipe, &WriteOffset);
                     DT_ASSERT(DT_SUCCESS(Status));
                     Retry++;
-                    if (Retry < 10)
+                    if (Retry < 20)
                         continue;
+                    else
+                        DtDbgOutDf(ERR, NW, pDf, "Not a complete packet received with DMA. %i"
+                            " bytes received. Needs %i bytes."
+                            " Timeout waiting for complete packet (%i)."
+                            " ReadOffset:%i WriteOffset:%i",
+                            BufLoad, PacketSize, Retry + 1, ReadOffset, WriteOffset);
                 }
                 else
                     DtDbgOutDf(ERR, NW, pDf, "Not a complete packet received with DMA. %i"
@@ -1447,25 +1529,27 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
             NumBytesToEnd = BufSize - ReadOffset;
 
             // Sanity check
-            DT_ASSERT((pEthIpHeader->m_SyncWord == DT_ETHIP_SYNCWORD
-                          && NumBytesToEnd>=sizeof(DtEthIpHeader) && PacketSize<=BufLoad 
-                          && PacketSize-sizeof(DtEthIp) <= DT_ETH_IP_MAX_PACKETSIZE
-                          && PacketSize>=pEthIpHeader->m_SizeInBytes+sizeof(DtEthIp))
-                          || pPipe->m_OpMode==DT_PIPE_OPMODE_IDLE);
-            if (pEthIpHeader->m_SyncWord!=DT_ETHIP_SYNCWORD
-                          || NumBytesToEnd<sizeof(DtEthIpHeader) || PacketSize>BufLoad
-                          || pEthIpHeader->m_SizeInQWords<2 
-                          || PacketSize-sizeof(DtEthIp)>DT_ETH_IP_MAX_PACKETSIZE
-                          || PacketSize<pEthIpHeader->m_SizeInBytes+sizeof(DtEthIp))
+            DT_ASSERT(DtEthIp_ISVALID(pEthIpHeader) 
+                                                 || pPipe->m_OpMode==DT_PIPE_OPMODE_IDLE);
+            if (!DtEthIp_ISVALID(pEthIpHeader)
+                             || NumBytesToEnd<sizeof(DtEthIpHeader) || PacketSize>BufLoad)
+                          
             {
-                // Fatal error: clear RX buffer and log error.
-                DtDbgOutDf(ERR, NW, pDf, "Packet error RX. Sync word: %xh SizeInQWords:%i"
-                                               "ReadOffset:%i WriteOffset:%i BufSize:%i"
-                                               "BufLoad:%i SizeInBytes:%i",
-                                               (UInt32)pEthIpHeader->m_SyncWord, 
-                                               (UInt32)pEthIpHeader->m_SizeInQWords,
-                                               ReadOffset, WriteOffset, BufSize, BufLoad,
-                                               (UInt32)pEthIpHeader->m_SizeInBytes);
+                // If OpMode is idle, it's not an error and skip the error message
+                if (pPipe->m_OpMode != DT_PIPE_OPMODE_IDLE)
+                {
+                    DtDbgOutDf(ERR, NW, pDf, "Packet error RX."
+                                          " Sync word: %xh SizeInBytes:%i"
+                                          "ReadOffset:%i WriteOffset:%i BufSize:%i"
+                                          "BufLoad:%i PktSizeInBytes:%i NumBytesToEnd:%i",
+                                          (UInt32)pEthIpHeader->m_SyncWord, 
+                                          (UInt32)DtEthIp_SIZE(pEthIpHeader),
+                                          ReadOffset, WriteOffset, BufSize, BufLoad,
+                                          (UInt32)DtEthIp_PKTSIZE(pEthIpHeader),
+                                          NumBytesToEnd);
+                }
+
+                // Always clear RX buffer
                 ReadOffset = WriteOffset;
                 DtPipe_SetRxReadOffset(pPipe, ReadOffset);
                 continue;
@@ -1529,6 +1613,13 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
                         VlanId1 = pVlanTag->m_VId;
                         Flags |= DT_PIPE_IPFLT_FLAG_VLAN1_1AD;
                     }
+                }
+                
+                switch (pEthIpHeader->m_SubStream)
+                {
+                case 0: Flags |= (DT_PIPE_IPFLT_FLAG_EN_SRCPORT0 | DT_PIPE_IPFLT_FLAG_EN_DSTPORT0); break;
+                case 1: Flags |= (DT_PIPE_IPFLT_FLAG_EN_SRCPORT1 | DT_PIPE_IPFLT_FLAG_EN_DSTPORT1); break;
+                case 2: Flags |= (DT_PIPE_IPFLT_FLAG_EN_SRCPORT2 | DT_PIPE_IPFLT_FLAG_EN_DSTPORT2); break;
                 }
 
                 //DtFastMutexAcquire(&pDf->m_PipeRxRtSwpListFMutex);
@@ -1596,7 +1687,7 @@ void  DtDfNw_RxHwqThread(DtThread* pThread, void* pContext)
                 DtFastMutexRelease(&pDf->m_PipeRxNrtFMutex);
             }
 
-            ReadOffset = (ReadOffset + (pEthIpHeader->m_SizeInQWords * 8)) % BufSize;
+            ReadOffset = (ReadOffset + DtEthIp_SIZE(pEthIpHeader)) % BufSize;
             DtPipe_SetRxReadOffset(pPipe, ReadOffset);
         }
     }
@@ -1744,7 +1835,8 @@ DtStatus DtDfNw_PipeOpen(DtDfNw* pDf, const DtFileObject* pFileObject, Int PipeT
         {
             Id++;
             Uuid = pDf->m_Id.m_Uuid | (Id << 20);
-            pPipe = DtPipe_Open(pFileObject, (DtObject*)pDf, PipeType, Id, -1);
+            pPipe = DtPipe_Open(pFileObject, (DtObject*)pDf, PipeType, Id, -1, 
+                                                                      pDf->m_JumboFrames);
             if (pPipe == NULL)
                 Status = DT_STATUS_OUT_OF_MEMORY;
             else
@@ -2736,7 +2828,7 @@ DtStatus  DtIoStubDfNw_OnCmdSetMulticastList(const DtIoStubDfNw* pStub,
     // Get multicast list lock
     if (pInData->m_NumItems > MAX_MULTICAST_ITEMS)
         return DT_STATUS_INVALID_PARAMETER;
-    DtFastMutexAcquire(&STUB_DF->m_MulticastListFastMutex);
+    DtSpinLockAcquire(&STUB_DF->m_MulticastListSpinlock);
     DtMemCopy(STUB_DF->m_MulticastList, &pInData->m_Items[0], pInData->m_NumItems * 6);
     STUB_DF->m_NumMulticasts = pInData->m_NumItems;
     DtDbgOutIoStubDf(AVG, NW, pStub, "New multicast list. #Items: %i", 
@@ -2749,7 +2841,7 @@ DtStatus  DtIoStubDfNw_OnCmdSetMulticastList(const DtIoStubDfNw* pStub,
                   STUB_DF->m_MulticastList[Items][2], STUB_DF->m_MulticastList[Items][3], 
                   STUB_DF->m_MulticastList[Items][4], STUB_DF->m_MulticastList[Items][5]);
     }
-    DtFastMutexRelease(&STUB_DF->m_MulticastListFastMutex);
+    DtSpinLockRelease(&STUB_DF->m_MulticastListSpinlock);
     return DT_STATUS_OK;
 }
 

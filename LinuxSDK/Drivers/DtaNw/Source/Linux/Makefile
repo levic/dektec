@@ -10,9 +10,9 @@ DRIVER_NAME = $(TARGET)
 # Directory / file structure definition
 
 SALDIR := ../../../DtSal
-SALSRCDIR = $(SALDIR)/Source
-SALBUILDDIR = $(SALDIR)/Source/Linux
-DTSAL = $(SALBUILDDIR)/DtSal$(DRIVER_NAME).o
+SALSRCDIR := $(SALDIR)/Source
+SALSRC := $(wildcard $(MYPWD)/$(SALSRCDIR)/*.c)
+SALOBJ := $(patsubst $(MYPWD)/%,%,$(SALSRC:.c=.o))
 
 COMMON_DIR := ../../../../Common/Source
 DTA_COMMON := ../../../Dta/Source
@@ -41,23 +41,24 @@ ifneq ($(KERNELRELEASE),)
 
 # Check for debug
 ifdef DEBUG
-	EXTRA_CFLAGS += -g -Wall -D_DEBUG
+	ccflags-y += -g -Wall -D_DEBUG
 endif
 
 # Check for SMP
-ifdef CONFIG_SMP
-	EXTRA_CFLAGS += -D__SMP__ -DSMP
-endif
+ccflags-$(CONFIG_SMP) += -D__SMP__ -DSMP
+
+# Add default KBUILD module CFLAGS 
+ccflags-y += $(KBUILD_CFLAGS_MODULE)
 
 # Check for 32/64 bit system
-EXTRA_CFLAGS += -DLINBUILD
+ccflags-y += -DLINBUILD
 ifeq ($(NUMLBITS), 32)
-    EXTRA_CFLAGS += -DLIN32
+    ccflags-y += -DLIN32
 else
-    EXTRA_CFLAGS += -DLIN64
+    ccflags-y += -DLIN64
 endif
 
-EXTRA_CFLAGS += -DNW_DRIVER
+ccflags-y += -DNW_DRIVER
 
 # ========================================================================================
 # Include version evironment vars
@@ -68,34 +69,38 @@ include $(MYPWD)/../Version.inc
 # Source definitions
 
 SRCDIR = ..
-SRC    = $(SRCDIR)/Linux/DtaNwIal.o         \
-	$(SRCDIR)/DtaNw.o	\
+SRC    = $(SRCDIR)/Linux/DtaNwIal.o \
+		 $(SRCDIR)/DtaNw.o	        \
 		 Messages.o
 
-EXTRA_CFLAGS += -I$(MYPWD) -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR)
-EXTRA_CFLAGS += -I$(MYPWD)/$(SALSRCDIR)
-EXTRA_CFLAGS += -I$(MYPWD)/$(DTA_LINUX) -I$(MYPWD)/$(DTA_COMMON)
+ccflags-y += -I$(MYPWD) -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR)
+ccflags-y += -I$(MYPWD)/$(SALSRCDIR)
+ccflags-y += -I$(MYPWD)/$(DTA_LINUX) -I$(MYPWD)/$(DTA_COMMON)
 
 # ========================================================================================
 # Preprocessor definitions
 
-EXTRA_CFLAGS += -D_DRIVER_NAME=$(DRIVER_NAME)                  \
-                -DDTANW_VERSION_MAJOR=$(DTANW_VERSION_MAJOR) \
-                -DDTANW_VERSION_MINOR=$(DTANW_VERSION_MINOR) \
-                -DDTANW_VERSION_MICRO=$(DTANW_VERSION_MICRO) \
-                -DDTANW_VERSION_BUILD=$(DTANW_VERSION_BUILD) \
-                -DDTANW_VERSION=$(DTANW_VERSION)
+ccflags-y += -D_DRIVER_NAME=$(DRIVER_NAME)                \
+             -DDTANW_VERSION_MAJOR=$(DTANW_VERSION_MAJOR) \
+             -DDTANW_VERSION_MINOR=$(DTANW_VERSION_MINOR) \
+             -DDTANW_VERSION_MICRO=$(DTANW_VERSION_MICRO) \
+             -DDTANW_VERSION_BUILD=$(DTANW_VERSION_BUILD) \
+             -DDTANW_VERSION=$(DTANW_VERSION)
+
+# ========================================================================================
+# set subdirs flags identical to main flags and add extras for DtSal build
+subdir-ccflags-y := $(ccflags-y) -DSKIP_USB
 
 # ========================================================================================
 # Objects to build
 
 obj-m := $(TARGET).o
-$(TARGET)-objs = $(SRC) $(DTSAL)
+$(TARGET)-objs = $(SRC) $(SALOBJ)
 
 # ========================================================================================
 # Objects to clean
 
-clean-files = $(SRC)
+clean-files = $(SRC) $(SALOBJ)
 
 
 # ========================================================================================
@@ -109,7 +114,7 @@ INSTALLDIR = /lib/modules/$(CURRENT)/kernel/drivers/misc
 # ========================================================================================
 # Default option
 
-all: PREREQ $(DTA_LINUX)/Module.symvers $(DTSAL)
+all: clean PREREQ $(DTA_LINUX)/Module.symvers
 	cp $(DTA_LINUX)/Module.symvers ./Module.symvers
 	$(MAKE) MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) modules
 
@@ -142,8 +147,6 @@ install:
 PREREQ:
 	@if [ -f MakefilePrereq ]; then $(MAKE) -f MakefilePrereq ; fi
 
-$(DTSAL): PREREQ
-	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) CONFIG_PREFIX_SYMBOLS=n
 
 # ========================================================================================
 # Clean all option
@@ -151,7 +154,6 @@ $(DTSAL): PREREQ
 clean:
 	@if [ -f MakefilePrereq ]; then $(MAKE) -f MakefilePrereq clean ; fi
 	$(MAKE) MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
-	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 
 # ========================================================================================
 endif

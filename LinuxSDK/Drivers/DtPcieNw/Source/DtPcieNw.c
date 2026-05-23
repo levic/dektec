@@ -31,8 +31,6 @@
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 // Forward declarations
-static void  DtPcieNwAquireLock(DtPcieNwDeviceData* pDvcData);
-static void  DtPcieNwReleaseLock(DtPcieNwDeviceData* pDvcData);
 static DtStatus  DtPcieNwGetDtPcieDriverVersionIoCtrl(DtPcieNwDeviceData*  pDvcData,
                                                    Int* pMajor, Int* pMinor, Int* pMicro);
 static DtStatus  DtPcieNwGetDeviceInfoIoCtrl(DtPcieNwDeviceData* pDvcData,
@@ -94,7 +92,7 @@ static DtStatus  DtPcieNwOpenPipe(DtPcieNwDeviceData* pDvcData, Int PipeType,
 static DtStatus  DtPcieNwClosePipe(DtPcieNwDeviceData* pDvcData, Int PipeType, 
                                                                            UInt PipeUuid);
 static DtStatus DtPcieNwGetPipePropertiesIoCtrl(DtPcieNwDeviceData* pDvcData,
-                                                      UInt PipeUuid, Int* pDataAlignment);
+                                 UInt PipeUuid, Int* pDataAlignment, UInt* pCapabilities);
 static DtStatus  DtPcieNwSetSharedKBufferIoCtrl(DtPcieNwDeviceData* pDvcData, 
   UInt PipeUuid, UInt ReqbufSize, UInt8** ppBuffer, UInt* pActualBufSize, UInt* pMaxLoad);
 static DtStatus  DtPcieNwGetLinkStatusCB(DtPcieNwDeviceData* pDvcData);
@@ -113,10 +111,14 @@ DtStatus  DtPcieNwDeviceDataInit(DtPcieNwDeviceData* pDvcData)
     pDvcData->m_Supports8021Q_Vlan = TRUE;
     pDvcData->m_NwRcvNoBuffer = 0;
     pDvcData->m_OperMode = DT_FUNC_OPMODE_IDLE;
+    pDvcData->m_TxEnabled = FALSE;
+    pDvcData->m_TxBusy = FALSE;
     DtSpinLockInit(&pDvcData->m_FingerprintLock);
+    DtSpinLockInit(&pDvcData->m_TxLock);
     DtEventInit(&pDvcData->m_RxDataAvailableEvent, TRUE);
     DtWorkItemInit(&pDvcData->m_LinkStatusWorkItem, DtPciNwLinkStatusWi, TRUE,
                                                                      &pDvcData->m_Device);
+    pDvcData->m_CurrentMtuSize = DT_IP_MAX_ETH_PAYLOAD;
     return DT_STATUS_OK;
 }
 
@@ -186,8 +188,7 @@ DtStatus  DtPcieNwDeviceInit(DtPcieNwDeviceData* pDvcData)
     DtStatus  Status = DT_STATUS_OK;
 
     DtDbgOut(MAX, DTPCIENW, "Start");
-    DtSpinLockInit(&pDvcData->m_RxLock);
-
+    
     // Get Device Information
     Status = DtPcieNwGetDeviceInfoIoCtrl(pDvcData, NULL, NULL, NULL, NULL, 
                                          &pDvcData->m_BusNumber, &pDvcData->m_SlotNumber,
@@ -354,11 +355,8 @@ void  DtPcieNwDeviceClose(DtPcieNwDeviceData* pDvcData)
     DtStatus  Status = DT_STATUS_OK;
     DtDbgOut(MAX, DTPCIENW, "Start");
 
-    // Prevent race condition with transmitting packets
-    DtPcieNwAquireLock(pDvcData);
     pDvcData->m_OperMode = DT_FUNC_OPMODE_IDLE;
-    DtPcieNwReleaseLock(pDvcData);
-
+    
     // Unregister opmode callback
     DtPcieNwRegisterOpModeCallbackIoCtrl(pDvcData, NULL);
 
@@ -366,6 +364,9 @@ void  DtPcieNwDeviceClose(DtPcieNwDeviceData* pDvcData)
     DtPcieNwUnregisterCallbackIoCtrl(pDvcData);
 
     DtPcieNwUnregisterRxDataEvent(pDvcData);
+
+    // Stop RX thread and TX function and wait for finish
+    DtPcieNwPowerdown(pDvcData);
 
     // Set modules to IDLE
     Status = DtPcieNwSetOperationalModeIoCtrl(pDvcData, DT_FUNC_OPMODE_IDLE);
@@ -378,9 +379,7 @@ void  DtPcieNwDeviceClose(DtPcieNwDeviceData* pDvcData)
     // Close pipes
     DtPcieNwClosePipe(pDvcData, DT_PIPE_RX_NRT, pDvcData->m_RxUuid);
     DtPcieNwClosePipe(pDvcData, DT_PIPE_TX_NRT, pDvcData->m_TxUuid);
-
-    DtPcieNwPowerdown(pDvcData);
-
+   
     pDvcData->m_DeviceOpened = FALSE;
     DtDbgOut(MAX, DTPCIENW, "Exit");
 }
@@ -402,7 +401,7 @@ void  DtPcieNwDeviceExit(DtPcieNwDeviceData* pDvcData)
     {
         DtDbgOut(ERR, DTPCIENW, "Error releasing exclusive access: 0x%x", Status);
     }
-    DtSpinLockFree(&pDvcData->m_RxLock);
+    DtSpinLockFree(&pDvcData->m_TxLock);
     DtDbgOut(MAX, DTPCIENW, "Exit");
 }
 
@@ -452,7 +451,9 @@ DtStatus  DtPcieNwTxGetPointerNewPacket(
         if (TotalFreeSpace < TotalLength)
         {
             // Not enough room, skip pakket
-            DtDbgOut(MAX, DTPCIENW, "Shared buffer full. Packet discarded");
+            pDvcData->m_TxDropCount++;
+            DtDbgOut(AVG, DTPCIENW, "Shared buffer full. Packet discarded. Drop count:"
+                                                        " %llu", pDvcData->m_TxDropCount);
             return DT_STATUS_BUFFER_OVERFLOW;
         }
     }
@@ -750,6 +751,7 @@ DtStatus  DtPcieNwTransmitPacket(
 {
     UInt8* pDst;
     DtEthIpHeader* pEthIpHeader;
+    UInt SizeInQWords = TotalWriteOffset / 8;
 
     DT_ASSERT(PacketSize + sizeof(DtEthIp) <= TotalWriteOffset);
     DT_ASSERT((TotalWriteOffset % pDvcData->m_DataAlignment) == 0);
@@ -759,9 +761,19 @@ DtStatus  DtPcieNwTransmitPacket(
     // The DtEthIpHeader should fit if at end at buffer.
     pEthIpHeader = (DtEthIpHeader*)pDst;
     DtMemZero(pEthIpHeader, sizeof(DtEthIpHeader));
-    pEthIpHeader->m_SyncWord = DT_ETHIP_SYNCWORD;
-    pEthIpHeader->m_SizeInBytes = PacketSize;
-    pEthIpHeader->m_SizeInQWords = TotalWriteOffset / 8;
+    if (pDvcData->m_JumboFramesFw)
+    {
+        pEthIpHeader->m_SyncWord = DT_ETHIP_SYNCWORD_V2;
+        pEthIpHeader->V2.m_SizeInQWords = SizeInQWords;
+        pEthIpHeader->V2.m_PaddingInBytes = (SizeInQWords*8) - PacketSize - sizeof(DtEthIp);
+    }
+    else
+    {
+        pEthIpHeader->m_SyncWord = DT_ETHIP_SYNCWORD_V1;
+        pEthIpHeader->V1.m_SizeInBytes = PacketSize;
+        pEthIpHeader->V1.m_SizeInQWords = TotalWriteOffset / 8;
+    }
+    
     if ((TxFlags & DTPCIENW_TXFLAGS_GEN_TX_TIMESTAMP) != 0)
     {
         pEthIpHeader->m_TimestampRequest = 1;
@@ -793,7 +805,7 @@ DtStatus  DtPcieNwTransmitPacket(
     
     // Packet data is already copied by calling function
     pDvcData->m_TxWriteOffset = (pDvcData->m_TxWriteOffset +
-                              (pEthIpHeader->m_SizeInQWords * 8)) % pDvcData->m_TxBufSize;
+                                              (SizeInQWords * 8)) % pDvcData->m_TxBufSize;
 
     // Trigger DtPcie driver
     DtPcieNwSetTxWriteOffsetIoCtrl(pDvcData, pDvcData->m_TxWriteOffset);
@@ -955,15 +967,37 @@ DtStatus  DtPcieNwSetMacAddress(DtPcieNwDeviceData* pDvcData, UInt8* pMacAddress
 static DtStatus  DtPcieNwOpenNrtPipes(DtPcieNwDeviceData* pDvcData)
 {
     DtStatus Status = DT_STATUS_OK;
+    UInt Capabilities;
+    UInt ExcludeFromMtu;
     Status = DtPcieNwOpenPipe(pDvcData, DT_PIPE_RX_NRT, &pDvcData->m_RxUuid);
     if (!DT_SUCCESS(Status))
         return Status;
     Status = DtPcieNwOpenPipe(pDvcData, DT_PIPE_TX_NRT, &pDvcData->m_TxUuid);
     if (!DT_SUCCESS(Status))
         return Status;
+    Status = DtPcieNwGetPipePropertiesIoCtrl(pDvcData, pDvcData->m_TxUuid, 
+                                               &pDvcData->m_DataAlignment, &Capabilities);
+    pDvcData->m_JumboFramesFw = (Capabilities & DT_PIPE_CAP_JFRAME) != 0;
+    pDvcData->m_MaxMtuSize = (pDvcData->m_JumboFramesFw ? DT_IP_MAX_JUMBO_BUF : 
+                                                                   DT_IP_MAX_ETH_PAYLOAD);
+    ExcludeFromMtu = (ETHII_HDR_LENGTH + ETH_FCS_LENGTH + sizeof(DtEthIp) +
+                                                                    MAX_ETH_IP_ALIGNMENT);
+    if (pDvcData->m_Support8021P_Priority || pDvcData->m_Supports8021Q_Vlan)
+        ExcludeFromMtu -= sizeof(VlanTag);
+    pDvcData->m_MaxMtuSize -= ExcludeFromMtu;
 
-    return DtPcieNwGetPipePropertiesIoCtrl(pDvcData, pDvcData->m_TxUuid, 
-                                                              &pDvcData->m_DataAlignment);
+    if (pDvcData->m_EnableJumboFrames && !pDvcData->m_JumboFramesFw)
+        DtDbgOut(ERR, DTPCIENW, "Jumbo Frames are enabled, but the firmware does not"
+            " support it. Check if there is a firmware update available");
+
+    if (pDvcData->m_EnableJumboFrames)
+        pDvcData->m_CurrentMtuSize = pDvcData->m_MaxMtuSize;
+    else
+    {
+        pDvcData->m_CurrentMtuSize = DT_IP_MAX_ETH_PAYLOAD - ExcludeFromMtu;
+        pDvcData->m_MaxMtuSize = pDvcData->m_CurrentMtuSize;
+    }
+    return Status;
 }
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwInitSharedBuffers -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -971,14 +1005,20 @@ static DtStatus  DtPcieNwOpenNrtPipes(DtPcieNwDeviceData* pDvcData)
 static DtStatus  DtPcieNwInitSharedBuffers(DtPcieNwDeviceData* pDvcData)
 {
     DtStatus  Status = DT_STATUS_OK;
-
+    UInt  ReqBufSize;
+    ReqBufSize = pDvcData->m_RxBufSize;
     Status = DtPcieNwSetSharedKBufferIoCtrl(pDvcData, pDvcData->m_RxUuid, 
-                RX_NRT_SWQ_BUFSIZE, &pDvcData->m_pRxBuffer, &pDvcData->m_RxBufSize, NULL);
+                        ReqBufSize, &pDvcData->m_pRxBuffer, &pDvcData->m_RxBufSize, NULL);
+    DtDbgOut(AVG, DTPCIENW, "RxQueue ReqBufSize:%i BufSize:%i", ReqBufSize, 
+                                                                   pDvcData->m_RxBufSize);
     if (!DT_SUCCESS(Status))
         return Status;
-    Status = DtPcieNwSetSharedKBufferIoCtrl(pDvcData, pDvcData->m_TxUuid, 
-                                          TX_NRT_SWQ_BUFSIZE, &pDvcData->m_pTxBuffer, 
+    ReqBufSize = pDvcData->m_TxBufSize;
+    Status = DtPcieNwSetSharedKBufferIoCtrl(pDvcData, pDvcData->m_TxUuid,
+                                          ReqBufSize, &pDvcData->m_pTxBuffer,
                                           &pDvcData->m_TxBufSize, &pDvcData->m_TxMaxLoad);
+    DtDbgOut(AVG, DTPCIENW, "TxQueue ReqBufSize:%i BufSize:%i", ReqBufSize, 
+                                                                   pDvcData->m_TxBufSize);
     if (!DT_SUCCESS(Status))
         return Status;
     
@@ -1016,7 +1056,6 @@ DtStatus  DtPcieNwGetFingerprint(DtPcieNwDeviceData* pDvcData, void* pPacket,
         Status = DT_STATUS_FAIL;
     }
     else {
-        
         pDvcData->m_pFingerprintPackets[Fingerprint] = pPacket;
         pDvcData->m_FingerPrintTimestamp[Fingerprint] = DtGetTickCount();
         *pFingerprint = Fingerprint;
@@ -1109,7 +1148,6 @@ DtStatus  DtPcieNwIncomingFingerprint(DtPcieNwDeviceData* pDvcData, UInt8 Finger
     else {
         DtDbgOut(AVG, DTPCIENW, "Timestamp received for fingerprint with ID: %i %is,%ins", 
                                                  Fingerprint, TodSeconds, TodNanoSeconds);
-
         DtPcieNwEvtHwTxTimestampReceived(pDvcData, 
                                              pDvcData->m_pFingerprintPackets[Fingerprint],
                                              TodSeconds, TodNanoSeconds);
@@ -1129,19 +1167,22 @@ void  DtPcieNwRxThread(DtThread* pThread, void* pContext)
     DtStatus  Status = DT_STATUS_OK;
     DtEthIpHeader*  pEthIpHeader = NULL;
     DtEthIpTod*  pTod = NULL;
-    Int  BufLoad;
-    Int  NumBytesToEnd;
+    UInt  BufLoad;
+    UInt  NumBytesToEnd;
     Int  Retry = 0;
-    UInt  RxFlags;
     UInt8*  pPacket;
-    UInt8*  pTmpBuffer = DtMemAllocPool(DtPoolNonPaged, DT_ETH_IP_MAX_PACKETSIZE +
-                                                       sizeof(DtEthIp), DTPCIENW_MEM_TAG);
+    UInt MaxPacketSize = (pDvcData->m_JumboFramesFw ? DT_ETH_IP_MAX_PACKETSIZE_V2 : 
+                                           DT_ETH_IP_MAX_PACKETSIZE_V1 + sizeof(DtEthIp));
+    UInt8* pTmpBuffer = DtMemAllocPool(DtPoolNonPaged, MaxPacketSize, DTPCIENW_MEM_TAG);
     DektecTlvs  DektecTlv;
 
     DtDbgOut(MAX, DTPCIENW, "Start");
     
     while (!StopThread)
     {
+        UInt  TotalSize = 0;
+        UInt  PktSize = 0;
+        
         // Wait for DMA done or stop
         Status = DtThreadWaitForStopOrEvent(pThread, &pDvcData->m_RxDataAvailableEvent);
         if (Status == DT_STATUS_CANCELLED)
@@ -1155,10 +1196,10 @@ void  DtPcieNwRxThread(DtThread* pThread, void* pContext)
         DtPcieNwGetRxWriteOffsetIoCtrl(pDvcData);
         Retry = 0;
         
-        DtSpinLockAcquire(&pDvcData->m_RxLock);
         while ((pDvcData->m_RxReadOffset != pDvcData->m_RxWriteOffsetCache) &&
                                                              !DtThreadShouldStop(pThread))
         {
+            UInt  RxFlags = 0;
             // Sanity check. Check if we are in operational mode and buffer is valid
             if (pDvcData->m_OperMode==DT_FUNC_OPMODE_IDLE ||
                                   pDvcData->m_pRxBuffer==NULL || pDvcData->m_RxBufSize==0)
@@ -1167,22 +1208,22 @@ void  DtPcieNwRxThread(DtThread* pThread, void* pContext)
                pDvcData->m_RxReadOffset = pDvcData->m_RxWriteOffsetCache;
                continue;
             }
-            RxFlags = 0;
             pPacket = pDvcData->m_pRxBuffer + pDvcData->m_RxReadOffset;
-            
             BufLoad = GetRxBufLoad(pDvcData);
 
             // Datapath is minimal 64-bit aligned, so header must fit until end
             NumBytesToEnd = pDvcData->m_RxBufSize - pDvcData->m_RxReadOffset;
 
             pEthIpHeader = (DtEthIpHeader*)pPacket;
-            if (pEthIpHeader->m_SizeInQWords * 8 > BufLoad)
+            TotalSize = DtEthIp_SIZE(pEthIpHeader);
+            if (DtEthIp_SIZE(pEthIpHeader) > BufLoad)
             {
-                if (pEthIpHeader->m_SyncWord == DT_ETHIP_SYNCWORD)
+                if (pEthIpHeader->m_SyncWord == DT_ETHIP_SYNCWORD_V1 
+                                      || pEthIpHeader->m_SyncWord == DT_ETHIP_SYNCWORD_V2)
                 {
                     DtDbgOut(AVG, DTPCIENW, "Not a complete packet received with DMA. %i "
                           "bytes received. Needs %i bytes. Wait for complete packet (%i)", 
-                          BufLoad, pEthIpHeader->m_SizeInQWords * 8, Retry + 1);
+                          BufLoad, TotalSize, Retry + 1);
                     DtSleep(1);
                     DtPcieNwGetRxWriteOffsetIoCtrl(pDvcData);
                     Retry++;
@@ -1195,39 +1236,34 @@ void  DtPcieNwRxThread(DtThread* pThread, void* pContext)
             Retry = 0;
 
             // Sanity check
-            DT_ASSERT(pEthIpHeader->m_SyncWord==DT_ETHIP_SYNCWORD 
-                                              && NumBytesToEnd>= sizeof(DtEthIpHeader)
-                                              && pEthIpHeader->m_SizeInQWords*8<=BufLoad);
-            if (pEthIpHeader->m_SyncWord != DT_ETHIP_SYNCWORD 
-                                                || NumBytesToEnd<sizeof(DtEthIpHeader) 
-                                                || pEthIpHeader->m_SizeInQWords*8>BufLoad 
-                                                || pEthIpHeader->m_SizeInQWords<2)
+            DT_ASSERT(DtEthIp_ISVALID(pEthIpHeader));
+            if (!(DtEthIp_ISVALID(pEthIpHeader)))
             {
                 // Fatal error: clear RX buffer and log error.
                 pDvcData->m_RxReadOffset = pDvcData->m_RxWriteOffsetCache;
                 DtPcieNwSetRxReadOffsetIoCtrl(pDvcData, pDvcData->m_RxReadOffset);
                 DtDbgOut(ERR, DTPCIENW, "Packet error RX. Sync word: %xh SizeInQWords:%i",
-                                                            pEthIpHeader->m_SyncWord,
-                                                            pEthIpHeader->m_SizeInQWords);
+                                                                 pEthIpHeader->m_SyncWord,
+                                                                 TotalSize/8);
 
                 DtEvtLogReport(&pDvcData->m_Device.m_EvtObject, DTPCIENW_LOG_FATAL_ERROR, 
                                                                         NULL, NULL, NULL);
                 DtPcieNwGetRxWriteOffsetIoCtrl(pDvcData);
                 continue;
             }
-            if (pEthIpHeader->m_SizeInQWords * 8 > NumBytesToEnd)
+            if (TotalSize > NumBytesToEnd)
             {
                 // Copy packet to temporarily buffer
-                if (pEthIpHeader->m_SizeInQWords * 8 > DT_IP_MAX_PACKET_SIZE)
+                if (TotalSize > MaxPacketSize)
                 {
                     DtDbgOut(ERR, DTPCIENW, "Packet error RX. Too large: %xh "
                                               "SizeInQWords:%i", pEthIpHeader->m_SyncWord, 
-                                              pEthIpHeader->m_SizeInQWords);
+                                              TotalSize*8);
 
                     DtEvtLogReport(&pDvcData->m_Device.m_EvtObject, 
                                               DTPCIENW_LOG_FATAL_ERROR, NULL, NULL, NULL);
-                    pDvcData->m_RxReadOffset = (pDvcData->m_RxReadOffset +
-                              (pEthIpHeader->m_SizeInQWords * 8)) % pDvcData->m_RxBufSize;
+                    pDvcData->m_RxReadOffset = (pDvcData->m_RxReadOffset + TotalSize)
+                                                                  % pDvcData->m_RxBufSize;
                     DtPcieNwSetRxReadOffsetIoCtrl(pDvcData, pDvcData->m_RxReadOffset);
                     DtPcieNwGetRxWriteOffsetIoCtrl(pDvcData);
                     continue;
@@ -1235,7 +1271,7 @@ void  DtPcieNwRxThread(DtThread* pThread, void* pContext)
                 // Copy first part. It's at least the EthIpHeader
                 DtMemCopy(pTmpBuffer, pPacket, NumBytesToEnd);
                 DtMemCopy(pTmpBuffer+NumBytesToEnd, pDvcData->m_pRxBuffer,(UInt)
-                                          pEthIpHeader->m_SizeInQWords*8 - NumBytesToEnd);
+                                                               TotalSize - NumBytesToEnd);
                 pPacket = pTmpBuffer;
                 pEthIpHeader = (DtEthIpHeader*)pPacket;
             }
@@ -1248,8 +1284,8 @@ void  DtPcieNwRxThread(DtThread* pThread, void* pContext)
                 DtPcieNwIncomingFingerprint(pDvcData, (UInt8)pEthIpHeader->m_Fingerprint,
                               (UInt32)pTod->m_TodSeconds, (UInt32)pTod->m_TodNanoseconds);
 
-                pDvcData->m_RxReadOffset = (pDvcData->m_RxReadOffset +
-                              (pEthIpHeader->m_SizeInQWords * 8)) % pDvcData->m_RxBufSize;
+                pDvcData->m_RxReadOffset = (pDvcData->m_RxReadOffset + TotalSize) % 
+                                                                    pDvcData->m_RxBufSize;
                 DtPcieNwSetRxReadOffsetIoCtrl(pDvcData, pDvcData->m_RxReadOffset);
 
                 // If buffer is empty, check if new data is received in the mean time
@@ -1257,9 +1293,11 @@ void  DtPcieNwRxThread(DtThread* pThread, void* pContext)
                     DtPcieNwGetRxWriteOffsetIoCtrl(pDvcData);
                 continue;
             }
-            
+            PktSize = DtEthIp_PKTSIZE(pEthIpHeader);
             if (!pDvcData->m_FCSEnabled)
-                pEthIpHeader->m_SizeInBytes -= 4; //Strip FCS
+                PktSize -= 4; //Strip FCS
+
+           
 
             //pPacket += sizeof(DtDmaRxHeader);
             if (pEthIpHeader->m_PacketType == DT_ETHIP_PKTTYPE_IPV4 && 
@@ -1290,15 +1328,21 @@ void  DtPcieNwRxThread(DtThread* pThread, void* pContext)
             //ParsePtpPacketDebug((UInt8*)pEthIpHeader, pEthIpHeader->m_SizeInBytes, &PtpTimes);
             //DektecTlv.
 
-            ParsePtpPacketRx((UInt8*)pEthIpHeader, (UInt)pEthIpHeader->m_SizeInQWords*8,
-                                                                              &DektecTlv);
+            ParsePtpPacketRx((UInt8*)pEthIpHeader, TotalSize, &DektecTlv);
 
-            DtPcieNwEvtNewPacketRxCallback(pDvcData, (UInt32)pTod->m_TodSeconds, 
-               (UInt32)pTod->m_TodNanoseconds, pPacket, (UInt)pEthIpHeader->m_SizeInBytes, 
-                                                                     RxFlags, &DektecTlv);
+            pDvcData->m_RxReadOffset = (pDvcData->m_RxReadOffset + TotalSize) %
+                                                                    pDvcData->m_RxBufSize;
 
-            pDvcData->m_RxReadOffset = (pDvcData->m_RxReadOffset + 
-                                 (pEthIpHeader->m_SizeInQWords *8))%pDvcData->m_RxBufSize;
+            // SKIP jumbo frames to network stack if current MtuSize is less than packet size
+            if (PktSize <= pDvcData->m_CurrentMtuSize)
+            {
+                Bool SendImmediately = pDvcData->m_RxReadOffset == 
+                                                           pDvcData->m_RxWriteOffsetCache;
+                DtPcieNwEvtNewPacketRxCallback(pDvcData, (UInt32)pTod->m_TodSeconds,
+                                   (UInt32)pTod->m_TodNanoseconds, pPacket, (UInt)PktSize,
+                                   RxFlags, &DektecTlv, SendImmediately);
+            }
+
             DtPcieNwSetRxReadOffsetIoCtrl(pDvcData, pDvcData->m_RxReadOffset);
             
             // If buffer is empty, check if new data is received in the mean time
@@ -1308,12 +1352,11 @@ void  DtPcieNwRxThread(DtThread* pThread, void* pContext)
                 DtPcieNwCheckFingerprintTimeout(pDvcData, FALSE);
             }
         }
-        DtSpinLockRelease(&pDvcData->m_RxLock);
 
         if (DtThreadShouldStop(pThread))
             StopThread = TRUE;
     }
-
+    
     // Free temp buffer
     DtMemFreePool(pTmpBuffer, DTPCIENW_MEM_TAG);
     DtPcieNwCheckFingerprintTimeout(pDvcData, TRUE);
@@ -1343,6 +1386,7 @@ static DtStatus  DtPcieNwPowerup(DtPcieNwDeviceData* pDvcData)
 {
     DtStatus  Status = DT_STATUS_OK;
     Status = DtThreadStart(&pDvcData->m_RxThread);
+    pDvcData->m_TxEnabled = TRUE;
     return Status;
 }
 
@@ -1350,10 +1394,29 @@ static DtStatus  DtPcieNwPowerup(DtPcieNwDeviceData* pDvcData)
 //
 static void  DtPcieNwPowerdown(DtPcieNwDeviceData* pDvcData)
 {
+    int Timeout = 0;
     DtDbgOut(MIN, DTPCIENW, "Stopping Rx thread");
     DtThreadStop(&pDvcData->m_RxThread);
     DtDbgOut(MIN, DTPCIENW, "Rx thread stopped");
     
+    // Sync with Tx function for TxEnable:TRUE->FALSE and TxBusy-->TRUE safe
+    DtSpinLockAcquire(&pDvcData->m_TxLock);
+    pDvcData->m_TxEnabled = FALSE;
+    DtSpinLockRelease(&pDvcData->m_TxLock);
+    if (pDvcData->m_TxBusy)
+    {
+        Timeout = 0;
+        DtDbgOut(MIN, DTPCIENW, "Wait for Tx function to finish");
+        while (pDvcData->m_TxBusy && Timeout < 20)
+        {
+            DtSleep(500);
+            Timeout++;
+        }
+        if (pDvcData->m_TxBusy)
+            DtDbgOut(ERR, DTPCIENW, "Tx function did not finish within time");
+        else
+            DtDbgOut(MIN, DTPCIENW, "Tx function finished");
+    }
 }
 
 
@@ -1418,10 +1481,7 @@ void  DtPcieNwOpModeCallback(UInt OpMode, void* pContext)
     DtDbgOut(MAX, DTPCIENW, "Start");
     if (OpMode == DT_FUNC_OPMODE_IDLE)
     {
-        // Prevent race condition with transmitting packets
-        DtPcieNwAquireLock(pDvcData);
         pDvcData->m_OperMode = DT_FUNC_OPMODE_IDLE;
-        DtPcieNwReleaseLock(pDvcData);
     }
     DtDbgOut(MAX, DTPCIENW, "Exit");
 }
@@ -1908,7 +1968,7 @@ static DtStatus  DtPcieNwClosePipe(DtPcieNwDeviceData* pDvcData, Int PipeType,
 // -.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwSetSharedKBufferIoCtrl -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 static DtStatus DtPcieNwGetPipePropertiesIoCtrl(DtPcieNwDeviceData* pDvcData,
-                                                       UInt PipeUuid, Int* pDataAlignment)
+                                  UInt PipeUuid, Int* pDataAlignment, UInt* pCapabilities)
 {
     DtStatus Status = DT_STATUS_OK;
     DtIoctlPipeCmdGetPropertiesInput IoCtrlInput;
@@ -1926,9 +1986,11 @@ static DtStatus DtPcieNwGetPipePropertiesIoCtrl(DtPcieNwDeviceData* pDvcData,
     if (DT_SUCCESS(Status))
     {
         *pDataAlignment = IoCtrlOutput.m_PipeDataWidth / 8;
+        *pCapabilities = IoCtrlOutput.m_Capabilities;
     }
     else {
         *pDataAlignment = 16;
+        *pCapabilities = 0;
     }
     return Status;
 }
@@ -2296,20 +2358,3 @@ static DtStatus  DtPcieNwUnregisterRxDataEvent(DtPcieNwDeviceData* pDvcData)
     return DtIoctl(&pDvcData->m_IoCtrlParent, DT_IOCTL_PIPE_CMD, SizeIn, &IoCtrlInput,
                                                                            0, NULL, NULL);
 }
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwAquireLock -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-void  DtPcieNwAquireLock(DtPcieNwDeviceData* pDvcData)
-{
-    DtSpinLockAcquire(&pDvcData->m_RxLock);
-    DtPcieNwAquireLockIal(pDvcData);
-}
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwReleaseLock -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-void  DtPcieNwReleaseLock(DtPcieNwDeviceData* pDvcData)
-{
-    DtPcieNwReleaseLockIal(pDvcData);
-    DtSpinLockRelease(&pDvcData->m_RxLock);
-}
-

@@ -31,6 +31,7 @@
 #include "DtBcEMAC25G.h"
 #include "DtBcEMAC25G_RegAccess.h"
 #include "DtDfSfp.h"
+#include "EthPrtcls.h"
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+ DtBcEMAC25G implementation +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -56,20 +57,21 @@
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.- Forwards of private functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 static DtStatus  DtBcEMAC25G_Init(DtBc*);
+static DtStatus  DtBcEMAC25G_InterruptHandler(DtBc*, Int, Int, void*);
+static void  DtBcEMAC25G_LinkChangeDpc(DtDpcArgs* pArgs);
+static void  DtBcEMAC25G_LinkDetectSetState(DtBcEMAC25G* pBc, LinkDetectStateEmac25G NewState);
+static void  DtBcEMAC25G_LinkDetectStateMachine(DtBcEMAC25G* pBc);
+static DtStatus DtBcEMAC25G_MacInitAfterClkEnable(DtBcEMAC25G* pBc);
 static DtStatus  DtBcEMAC25G_OnCloseFile(DtBc*, const DtFileObject*);
 static DtStatus  DtBcEMAC25G_OnEnable(DtBc*, Bool  Enable);
-static DtStatus  DtBcEMAC25G_RegisterIntHandlers(DtBcEMAC25G*);
-static void  DtBcEMAC25G_LinkChangeDpc(DtDpcArgs* pArgs);
-static DtStatus  DtBcEMAC25G_InterruptHandler(DtBc*, Int, Int, void*);
-static void  DtBcEMAC25G_SetControlRegs(DtBcEMAC25G*, Bool BlkEna, Int OpMode);
-static DtStatus  DtBcEMAC25G_ReadMacAddressFromVPD(DtBcEMAC25G* pBc);
-static DtStatus  DtBcEMAC25G_SetNetworkRate(DtBcEMAC25G* pBc, Int PhySpeed);
-//static DtStatus  DtBcEMAC25G_DetectLinkSpeed(DtBcEMAC25G* pBc);
 static void  DtBcEMAC25G_PeriodicInterruptHandler(DtObject* pObj, DtTodTime Time);
-static void  DtBcEMAC25G_LinkDetectStateMachine(DtBcEMAC25G* pBc);
+static DtStatus  DtBcEMAC25G_ReadMacAddressFromVPD(DtBcEMAC25G* pBc);
+static DtStatus  DtBcEMAC25G_RegisterIntHandlers(DtBcEMAC25G*);
+static void  DtBcEMAC25G_SetControlRegs(DtBcEMAC25G*, Bool BlkEna, Int OpMode);
+static DtStatus  DtBcEMAC25G_SetNetworkRate(DtBcEMAC25G* pBc, Int PhySpeed);
 static void  DtBcEMAC25G_SetNetworkRateDpc(DtDpcArgs* pArgs);
 static Bool  DtBcEMAC25G_SetNewLinkSpeedTry(DtBcEMAC25G* pBc);
-static void  DtBcEMAC25G_LinkDetectSetState(DtBcEMAC25G* pBc, LinkDetectStateEmac25G NewState);
+static void  DtBcEMAC25G_SetTransceiverParameters(DtBcEMAC25G* pBc, Int LinkSpeed);
 static void  DtBcEMAC25G_SfpIntWi(DtWorkItemArgs* pArgs);
 
 // Utility functions for MAC-address conversion (also used in this file)
@@ -1473,5 +1475,37 @@ DtStatus  DtBcEMAC25G_SetNetworkRate(DtBcEMAC25G* pBc, Int LinkSpeed)
     
     pBc->m_LinkSpeedCurr = LinkSpeed;
     DtDbgOutBc(AVG, EMAC25G, pBc, "Link speed set to: %d", pBc->m_LinkSpeedCurr);
+    return DT_STATUS_OK;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcEMAC25G_SupportsJumboFrames -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+Bool DtBcEMAC25G_SupportsJumboFrames(DtBcEMAC25G* pBc)
+{
+    return EMAC25G_Configuration_READ_JumboSupport(pBc) != 0;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcEMAC25G_EnableJumboFrames -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcEMAC25G_EnableJumboFrames(DtBcEMAC25G* pBc, Bool Enable)
+{
+    // TODO Use constants form header or MTU size from network driver to align sizes
+    // with everyone
+    // Firware supports max. 9600
+    const UInt32 JumboSize = DT_IP_MAX_JUMBO_BUF;
+    const UInt32 DefaultSize = DT_IP_MAX_PACKET_SIZE;
+
+    BC_EMAC25G_DEFAULT_PRECONDITIONS(pBc);
+
+    if (Enable)
+    {
+        EMAC25G_EthMac25GS10_RxMacMaxRxSize_WRITE_RxMacMaxRxSize(pBc, JumboSize);
+        EMAC25G_EthMac25GS10_TxMacMaxTxSize_WRITE_TxMacMaxTxSize(pBc, JumboSize);
+    }
+    else
+    {
+        EMAC25G_EthMac25GS10_RxMacMaxRxSize_WRITE_RxMacMaxRxSize(pBc, DefaultSize);
+        EMAC25G_EthMac25GS10_TxMacMaxTxSize_WRITE_TxMacMaxTxSize(pBc, DefaultSize);
+    }
     return DT_STATUS_OK;
 }

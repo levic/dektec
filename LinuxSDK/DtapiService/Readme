@@ -15,16 +15,9 @@
 - 1. Version History
 --------------------------------------------------------------------------------
 
-Date:		Version:	Remarks:
-2013.02.15	2.2.1.22	Refer to "SDK - Revision History.pdf" for details
-2012.10.31	2.1.2.17	Refer to "SDK - Revision History.pdf" for details
-2012.08.17	2.0.9.12	Refer to "SDK - Revision History.pdf" for details
-2012.07.02	2.0.8.10	Refer to "SDK - Revision History.pdf" for details
-2012.06.07	2.0.7.8		Refer to "SDK - Revision History.pdf" for details
-2012.05.14	2.0.6.7	    First release to the field of new V2 service
-						NOTE: requires DTAPI (V5.x) Dta (V4.x) and Dtu (V4.x)
+Refer to "SDK - Revision History.pdf" for details
 
-						        
+
 --------------------------------------------------------------------------------
 - 2. Introduction
 --------------------------------------------------------------------------------
@@ -34,12 +27,19 @@ demodulator boards. The following demodulators are supported:
 - DTU-234	(VSB/QAM-B receiver for USB)
 - DTU-235	(DVB-T measurement receiver for USB)
 - DTU-236	(QAM measurement receiver + ASI input for USB)
-- DTA-2131	(Multi-standard VHF/UHF demodulator for PCI Express)
-- DTA-2135	(Dual DVB-T receiver for PCI Express)
-- DTA-2136	(Dual QAM-A/B/C receiver for PCI Express)
-- DTA-2137	(Dual DVB-S/DVB-S2 receiver for PCI Express)
-- DTA-2138	(DVB C2/T2 receiver for PCI Express)
-- DTA-2139	(Twelve-channel QAM Receiver for PCI Express)
+- DTA-2127  (Quad DVB-S2X Receiver with 3G-SDI/ASI Output for PCIe)
+- DTA-2128  (Octal DVB-S2X Receiver for PCIe)
+- DTA-2131	(Multi-Standard Cable/Terrestrial Receiver for PCIe)
+- DTA-2131B	(Multi-Standard Cable/Terrestrial Receiver for PCIe)
+- DTA-2132  (High-End Satellite Receiver for PCIe)
+- DTA-2135	(Dual DVB-T receiver for PCIe)
+- DTA-2136	(Dual QAM-A/B/C receiver for PCIe)
+- DTA-2137	(Dual DVB-S/DVB-S2 receiver for PCIe)
+- DTA-2138	(DVB C2/T2 receiver for PCIe)
+- DTA-2138B	(Single-Channel Cable/Terrestrial Receiver for PCIe)
+- DTA-2139	(Twelve-Channel Cable Receiver for PCIe)
+- DTA-2139B	(Twelve-Channel Cable/Terrestrial Receiver for PCIe)
+- DTA-2139C	(Twelve-Channel Cable/Terrestrial Receiver for PCIe)
  
 NOTE: this service must be running to be able to use the above boards.
  
@@ -85,6 +85,6 @@ Godelindeweg 4
 1217 HR Hilversum
 The Netherlands
 
-Tel:		+31 (0)35 2030 100
-email: 		support@dektec.com / info@dektec.com
-website:	www.dektec.com
+Tel:     +31 (0)35 2030 100
+Email:   support@dektec.com / info@dektec.com
+Website: www.dektec.com

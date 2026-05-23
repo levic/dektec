@@ -226,6 +226,7 @@ DtStatus  DtBcXPLL_ResetAndCalibrateFPLLPll(DtBcXPLL* pBc)
 
     RegData = XPLL_C10A10_PllCore_Control_READ(pBc);
     RegData = XPLL_C10A10_PllCore_Control_SET_PllPowerdown(RegData, 0);
+    RegData = XPLL_C10A10_PllCore_Control_SET_OverridePllPowerdown(RegData, 0);
     XPLL_C10A10_PllCore_Control_WRITE(pBc, RegData);
 
     // Wait (100ms) until PLL is locked.
@@ -253,13 +254,9 @@ DtStatus  DtBcXPLL_ResetAndCalibrateAtxPll(DtBcXPLL* pBc)
     WaitTimeoutMs = 500;
     WAIT_UNTIL_READ(XPLL_Status_READ_PllCalBusy, 0, WaitTimeoutMs,
                             "ERROR: Waiting for PLL-CalBusy flag to become 0 timed out.");
-    
-    // Reset PLL
-    RegData = XPLL_C10A10_PllCore_Control_READ(pBc);
-    RegData = XPLL_C10A10_PllCore_Control_SET_PllPowerdown(RegData, 1);
-    RegData = XPLL_C10A10_PllCore_Control_SET_OverridePllPowerdown(RegData, 1);
-    XPLL_C10A10_PllCore_Control_WRITE(pBc, RegData);
-    
+
+    // Note: Do NOT reset PLL for the ATX pll (see also XcvrPll data sheet)!
+
     // Request access to the PLL’s configuration bus so that we can start calibration.
     // IMPORTANT NOTE: Register AvMmArbitration may NOT be read to avoid a bus time out.
     // The statement below must be implemented with a write, not with a read-modify-write.
@@ -294,10 +291,6 @@ DtStatus  DtBcXPLL_ResetAndCalibrateAtxPll(DtBcXPLL* pBc)
     WaitTimeoutMs = 100;
     WAIT_UNTIL_READ(XPLL_Status_READ_PllCalBusy, 0, WaitTimeoutMs,
                                              "ERROR: Waiting for PLL-CalBusy timed out.");
-
-    RegData = XPLL_C10A10_PllCore_Control_READ(pBc);
-    RegData = XPLL_C10A10_PllCore_Control_SET_PllPowerdown(RegData, 0);
-    XPLL_C10A10_PllCore_Control_WRITE(pBc, RegData);
 
     // Wait (100ms) until PLL is locked.
     WaitTimeoutMs = 100;

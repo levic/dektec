@@ -185,7 +185,7 @@ DtStatus  DtTableGet(
         // Check if enough space for the table
         if (MaxNumEntries < pTableLinkFound->m_TableEntryCount)
         {
-            if (MaxNumEntries != 0)
+            if (MaxNumEntries>1)
                 DtDbgOut(ERR, TABLE, "Max. number of entries to small. Needed:%i, "
                        "Space for:%i", pTableLinkFound->m_TableEntryCount, MaxNumEntries);
         }

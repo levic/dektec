@@ -159,7 +159,7 @@ typedef struct  _DtDfNw
     DtFastMutex m_RxRtSwpPortMapFMutex;
 
     // Multicast list
-    DtFastMutex m_MulticastListFastMutex;   // Mutex to protect m_MulticastList
+    DtSpinLock m_MulticastListSpinlock; // Lock to protect m_MulticastList
     UInt8 m_MulticastList[MAX_MULTICAST_ITEMS][6];
     UInt m_NumMulticasts;
     UInt m_PacketFilter;
@@ -178,6 +178,7 @@ typedef struct  _DtDfNw
 
     Bool m_ReducedFunctionality;
     Int m_PacketAlignment;
+    Bool m_JumboFrames;
 }DtDfNw;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Public functions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-

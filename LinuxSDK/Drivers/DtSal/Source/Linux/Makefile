@@ -28,34 +28,32 @@ ifneq ($(KERNELRELEASE),)
 
 # Check for debug
 ifdef DEBUG
-	EXTRA_CFLAGS += -g -Wall -D_DEBUG
+	ccflags-y += -g -Wall -D_DEBUG
 endif
 
 # Check for SMP
-ifdef CONFIG_SMP
-	EXTRA_CFLAGS += -D__SMP__ -DSMP
-endif
+ccflags-$(CONFIG_SMP) += -D__SMP__ -DSMP
 
 # Check for 32/64 bit system
-EXTRA_CFLAGS += -DLINBUILD
+ccflags-y += -DLINBUILD
 ifeq ($(NUMLBITS), 32)
-    EXTRA_CFLAGS += -DLIN32
+    ccflags-y += -DLIN32
 else
-    EXTRA_CFLAGS += -DLIN64
+    ccflags-y += -DLIN64
 endif
 
 ifeq ("$(DRIVER_NAME)", "DtPcieNw")
-	EXTRA_CFLAGS += -DNW_DRIVER
+	ccflags-y += -DNW_DRIVER
 endif
 
 ifeq ("$(DRIVER_NAME)", "DtaNw")
-	EXTRA_CFLAGS += -DNW_DRIVER
+	ccflags-y += -DNW_DRIVER
 endif
 
 ifeq ("$(DRIVER_NAME)", "Dtu")
-	EXTRA_CFLAGS += -DUSB_DRIVER -DSKIP_DMA
+	ccflags-y += -DUSB_DRIVER -DSKIP_DMA
 else
-	EXTRA_CFLAGS += -DSKIP_USB
+	ccflags-y += -DSKIP_USB
 endif
 
 # ========================================================================================
@@ -69,7 +67,7 @@ SRC     = $(SRCDIR)/DtDma.o					\
 		  $(SRCDIR)/DtTrigEvt.o				\
 		  $(SRCDIR)/DtNonVolatileSettings.o	\
 		  $(SRCDIR)/DtString.o				\
-		  $(SRCDIR)/DtDpc.o                              \
+		  $(SRCDIR)/DtDpc.o                 \
 		  $(SRCDIR)/DtWorkItem.o			\
 		  $(SRCDIR)/DtThread.o				\
 		  $(SRCDIR)/DtUtility.o				\
@@ -77,7 +75,7 @@ SRC     = $(SRCDIR)/DtDma.o					\
 		  $(SRCDIR)/DtUsb.o
 		  
 
-EXTRA_CFLAGS += -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR)
+ccflags-y += -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR)
 
 # ========================================================================================
 # Preprocessor definitions
@@ -86,7 +84,7 @@ ifndef DRIVER_NAME
 DRIVER_NAME := DtSal
 endif
 
-EXTRA_CFLAGS += -D_DRIVER_NAME=$(DRIVER_NAME)
+ccflags-y += -D_DRIVER_NAME=$(DRIVER_NAME)
 
 # ========================================================================================
 # Objects to build

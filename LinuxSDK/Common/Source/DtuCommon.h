@@ -259,7 +259,7 @@ typedef struct _DtuIoctlVpdCmdWriteItemInput {
     char  m_Keyword[DTU_VPD_MAX_KEY_LENGTH];
     UInt  m_Flags;
     UInt  m_BufLen;
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtuIoctlVpdCmdWriteItemInput;
 ASSERT_SIZE(DtuIoctlVpdCmdWriteItemInput, 32)
 
@@ -283,7 +283,7 @@ ASSERT_SIZE(DtuIoctlVpdCmdReadRawInput, 8)
 typedef struct _DtuIoctlVpdCmdWriteRawInput {
     UInt  m_StartOffset;
     UInt  m_BufLen;
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtuIoctlVpdCmdWriteRawInput;
 ASSERT_SIZE(DtuIoctlVpdCmdWriteRawInput, 8)
 
@@ -303,14 +303,14 @@ ASSERT_SIZE(DtuIoctlVpdCmdInput, 36)
 // DTU VPD read item command output data type
 typedef struct _DtuIoctlVpdCmdReadItemOutput {
     UInt  m_Length;
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtuIoctlVpdCmdReadItemOutput;
 ASSERT_SIZE(DtuIoctlVpdCmdReadItemOutput, 4)
 
 // DTU VPD read raw command output data type
 typedef struct _DtuIoctlVpdCmdReadRawOutput {
     UInt  m_Length;
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtuIoctlVpdCmdReadRawOutput;
 ASSERT_SIZE(DtuIoctlVpdCmdReadRawOutput, 4)
 
@@ -666,7 +666,7 @@ ASSERT_SIZE(DtuIoctlShBufCmdInput, 16)
 // DtuIoctlGetIoConfigInput
 typedef struct _DtuIoctlGetIoConfigInput {
     int  m_IoConfigCount;
-    DtIoctlIoConfigId m_IoCfgId[0];
+    DtIoctlIoConfigId m_IoCfgId[];
 } DtuIoctlGetIoConfigInput;
 ASSERT_SIZE(DtuIoctlGetIoConfigInput, 4)
 
@@ -695,7 +695,7 @@ typedef struct _DtuIoctlGetIoConfigOutput {
 
 typedef struct _DtuIoctlSetIoConfigInput {
     Int  m_IoConfigCount;
-    DtIoctlIoConfig  m_IoConfig[0];
+    DtIoctlIoConfig  m_IoConfig[];
 } DtuIoctlSetIoConfigInput;
 ASSERT_SIZE(DtuIoctlSetIoConfigInput, 8)
 
@@ -894,7 +894,7 @@ ASSERT_SIZE(DtuIoctlGetTable2Input, 88)
 // Ioctl output data type
 typedef struct _DtuIoctlGetTableOutput {
     UInt  m_NumEntries;
-    DtTableEntry  m_TableEntry[0];
+    DtTableEntry  m_TableEntry[];
 } DtuIoctlGetTableOutput;
 ASSERT_SIZE(DtuIoctlGetTableOutput, 8)
 
@@ -1004,13 +1004,13 @@ typedef struct _DtuIoctlVendorRequestInput {
     UInt16  m_Index;
     Int  m_Dir;
     UInt  m_BufLen;
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtuIoctlVendorRequestInput;
 ASSERT_SIZE(DtuIoctlVendorRequestInput, 16)
 
 typedef struct _DtuIoctlVendorRequestOutput {
     Int  m_NumBytesTransferred;
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtuIoctlVendorRequestOutput;
 ASSERT_SIZE(DtuIoctlVendorRequestOutput, 4)
 

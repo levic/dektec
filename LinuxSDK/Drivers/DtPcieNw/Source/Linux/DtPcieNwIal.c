@@ -38,10 +38,20 @@
 // Global variables
 Int  g_DtPcieNwMaxDevices = DTPCIENW_MAX_DEVICES;
 bool  g_DtPcieNwEnableFCS = false;
+Int  g_DtPcieNwRxBatchSize = 32;
+Int  g_DtPcieNwRxQueueSizeMb = 4;
+Int  g_DtPcieNwTxQueueSizeMb = 4;
+bool g_DtPcieNwEnableJumboFrames = false;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Global variables -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 // Load time parameters
 module_param(g_DtPcieNwMaxDevices, int, S_IRUGO);  // Do not change int to Int!
+module_param(g_DtPcieNwRxBatchSize, int, S_IRUGO);  // Do not change int to Int!
+module_param(g_DtPcieNwRxQueueSizeMb, int, S_IRUGO);  // Do not change int to Int!
+module_param(g_DtPcieNwTxQueueSizeMb, int, S_IRUGO);  // Do not change int to Int!
+module_param(g_DtPcieNwEnableJumboFrames, bool, S_IRUGO); // Do not change bool to Bool!
+MODULE_PARM_DESC(g_DtPcieNwEnableJumboFrames,
+                           "Enable Jumbo Frames (0=disable [default], 1=enable)");
 module_param(g_DtPcieNwEnableFCS, bool, S_IRUGO);  // Do not change bool to Bool!
 MODULE_PARM_DESC(g_DtPcieNwEnableFCS, 
                            "Enable Frame Check Sequence (0=disable [default], 1=enable)");
@@ -75,6 +85,7 @@ Int  DtPcieNwEvtOpen(struct net_device* pDevice);
 Int  DtPcieNwEvtClose(struct net_device* pDevice);
 Int  DtPcieNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice);
 void  DtPcieNwEvtSetMulticastList(struct net_device* pDevice);
+static int DtPcieNwChangeMtu(struct net_device* pDevice, int NewMtu);
 static struct net_device_stats*  DtPcieNwEvtGetStats(struct net_device* pDevice);
 static Int  DtPcieNwEvtSetMacAddr(struct net_device* pDevice, void* pAddr);
 #ifdef PERM_ADDR_SUPPORT
@@ -162,6 +173,7 @@ static const struct net_device_ops  NetDevOps =
     .ndo_start_xmit = DtPcieNwEvtStartTx,
     .ndo_stop = DtPcieNwEvtClose,
     .ndo_get_stats = DtPcieNwEvtGetStats,
+    .ndo_change_mtu = DtPcieNwChangeMtu,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0)
     .ndo_set_rx_mode = DtPcieNwEvtSetMulticastList,
 #else
@@ -195,6 +207,9 @@ Int  DtPcieNwEvtOpen(struct net_device* pDevice)
     if (!DT_SUCCESS(DtPcieNwIalSetPacketFilter(pDvcData, pDevice->flags)))
         return -EFAULT;
 
+    // Set MTU sizes in net_device struct
+    pDevice->mtu = pDvcData->m_CurrentMtuSize;
+    pDevice->max_mtu = pDvcData->m_MaxMtuSize;
     netif_start_queue(pDevice);
 
     DtDbgOut(MAX, IAL, "Exit");
@@ -211,26 +226,11 @@ Int  DtPcieNwEvtClose(struct net_device* pDevice)
     DtDbgOut(MAX, IAL, "Start");
 
     netif_stop_queue(pDevice);
-    DtPcieNwDeviceClose(pDvcData);
+    if (pDvcData->m_DeviceOpened)
+        DtPcieNwDeviceClose(pDvcData);
     DtDbgOut(MAX, IAL, "Exit");
     
     return 0;
-}
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwAquireLock -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-//
-void  DtPcieNwAquireLockIal(DtPcieNwDeviceData* pDvcData)
-{
-    // Nothing to do
-    return;
-}
-
-// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwReleaseLock -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-//
-void  DtPcieNwReleaseLockIal(DtPcieNwDeviceData* pDvcData)
-{
-    // Nothing to do
-    return;
 }
 
 #ifdef HAVE_HW_TIME_STAMP
@@ -337,6 +337,18 @@ Int  DtPcieNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
     UInt8  Fingerprint = 0;
     UInt  PortOffset = 0;
     UInt  IpAddrOffset = 0;
+
+    // Check if TX is enabled and we may send packets
+    DT_ASSERT(pDvcData->m_TxBusy == FALSE);
+        
+    pDvcData->m_TxBusy = TRUE;
+    if (!pDvcData->m_TxEnabled)
+    {
+        pDvcData->m_TxBusy = FALSE;
+        pDvcData->m_IalData.m_NetStats.tx_dropped++;
+        return 1;
+    }
+
     // Check if it's our own dummy generated packet
     if (pSkb->len >= (sizeof(EthernetIIHeader)))
     {
@@ -416,6 +428,7 @@ Int  DtPcieNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
             {
                 // It's our own dummy packet. Skip it.
                 dev_kfree_skb(pSkb);
+                pDvcData->m_TxBusy = FALSE;
                 return 0;
             }
             
@@ -438,6 +451,7 @@ Int  DtPcieNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
    if (!DT_SUCCESS(Status))
     {
         pDvcData->m_IalData.m_NetStats.tx_dropped++;
+        pDvcData->m_TxBusy = FALSE;
         return 1;
     }
     DT_ASSERT(PacketSize1 + PacketSize2 >= PacketLength + sizeof(DtEthIp));
@@ -514,6 +528,7 @@ Int  DtPcieNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
 #endif
             DtPcieNwRemoveFingerprint(pDvcData, Fingerprint);
         }
+        pDvcData->m_TxBusy = FALSE;
         return 1;
     }
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
@@ -542,6 +557,7 @@ Int  DtPcieNwEvtStartTx(struct sk_buff* pSkb, struct net_device* pDevice)
 #endif
     if ((TxFlags & DTPCIENW_TXFLAGS_GEN_TX_TIMESTAMP) == 0)
         dev_kfree_skb(pSkb);
+    pDvcData->m_TxBusy = FALSE;
     return 0;
 }
 
@@ -592,6 +608,18 @@ void  DtPcieNwEvtSetMulticastList(struct net_device* pDevice)
     Status = DtPcieNwSetMulticastList(pDvcData, netdev_mc_count(pDevice), &MulticastList);
     DtPcieNwIalSetPacketFilter(pDvcData, pDevice->flags | 
                              (Status == DT_STATUS_MULTICASTLIST_FULL ? IFF_ALLMULTI : 0));
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwChangeMtu -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static int DtPcieNwChangeMtu(struct net_device* pDevice, int NewMtu)
+{
+    DtPcieNwDeviceData* pDvcData = netdev_priv(pDevice);
+    if (NewMtu > pDvcData->m_MaxMtuSize)
+        return -EINVAL;
+    pDvcData->m_CurrentMtuSize = NewMtu;
+    pDevice->mtu = NewMtu;
+    return 0;
 }
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtGetStats -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -751,33 +779,51 @@ static void  DtPcieNwEvtGetDriverInfo(
     DtDbgOut(MAX, IAL, "Exit");
 }
 
-#define ADVERTISED_MASK_10G (ADVERTISED_10000baseT_Full | ADVERTISED_10000baseKX4_Full | \
-                                                              ADVERTISED_10000baseKR_Full)
-#define SUPPORTED_MASK_10G (SUPPORTED_10000baseT_Full | SUPPORTED_10000baseKX4_Full |    \
-                                                               SUPPORTED_10000baseKR_Full)
+#ifdef GS_SETTINGS_SUPPORT
+#define SUPPORTED_MASK_25G 0
 
-#define SUPPORTED_MASK_1G  (SUPPORTED_1000baseT_Full | SUPPORTED_1000baseKX_Full)
-#define ADVERTISED_MASK_1G (ADVERTISED_1000baseT_Full | ADVERTISED_1000baseKX_Full)
+#define SUPPORTED_MASK_10G (SUPPORTED_10000baseT_Full)
+
+#define SUPPORTED_MASK_1G  (SUPPORTED_1000baseT_Full)
+#else
+#define SUPPORTED_MASK_25G (1UL<<ETHTOOL_LINK_MODE_25000baseCR_Full_BIT) |               \
+                                           (1UL << ETHTOOL_LINK_MODE_25000baseSR_Full_BIT)
+#define SUPPORTED_MASK_10G (SUPPORTED_10000baseT_Full)
+
+#define SUPPORTED_MASK_1G  (SUPPORTED_1000baseT_Full)
+#endif 
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwGetSettings -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 static Int  DtPcieNwGetSettings(DtPcieNwDeviceData*  pDvcData, Int* pAutoNeg, Int* pSpeed,
-                                          Int* pDuplex, Int* pAdvertised, Int* pSupported)
+                                    Int* pDuplex, UInt64* pAdvertised, UInt64* pSupported)
 {
     DtStatus  Status;
     UInt  Speed = 0;
-    
-    *pSupported = ADVERTISED_MASK_10G | ADVERTISED_MASK_1G;
+    UInt64 Supported = 0;
+    UInt64 NotSupportedAutoneg = 0;
+    // TODO: Use capabilities CAP_10G, CAP_25G
+    if (pDvcData->m_TypeNumber == 2125)
+    {
+        Supported = SUPPORTED_MASK_10G | SUPPORTED_MASK_25G;
+        NotSupportedAutoneg = 0;
+    }
+    else
+    {
+        Supported = SUPPORTED_MASK_10G | SUPPORTED_MASK_1G;
+        NotSupportedAutoneg = SUPPORTED_MASK_1G;
+    }
+    *pSupported = Supported;
     *pAdvertised = 0;
     
     if (pDvcData->m_IalData.m_AutoNegEn)
     {
-        *pAdvertised |= (ADVERTISED_MASK_10G | ADVERTISED_MASK_1G);
+        *pAdvertised |= Supported & ~NotSupportedAutoneg;
         *pSupported |= SUPPORTED_Autoneg;
     }
     else {
         // check link speed
-        *pAdvertised |= ADVERTISED_MASK_10G;
+        *pAdvertised |= Supported & ~NotSupportedAutoneg;
     }
     
     // Get phy speed
@@ -812,6 +858,10 @@ static Int  DtPcieNwGetSettings(DtPcieNwDeviceData*  pDvcData, Int* pAutoNeg, In
         break;
     case DT_PHY_SPEED_10000:
         *pSpeed = SPEED_10000;
+        *pDuplex = DUPLEX_FULL;
+        break;
+    case DT_PHY_SPEED_25000:
+        *pSpeed = SPEED_25000;
         *pDuplex = DUPLEX_FULL;
         break;
     default:
@@ -864,9 +914,14 @@ static Int DtPcieNwSetSettings(DtPcieNwDeviceData* pDvcData, Int AutoNegSet, Int
     {
         if (DuplexSet == DUPLEX_HALF)
             return -EINVAL;
-        // Note: We set the 1Gb speed select to master here. But MASTER/SLAVE configuration
-        // is automatically detected by phy.
         Speed = DT_PHY_SPEED_10000;
+        pDvcData->m_IalData.m_AutoNegEn = FALSE;
+    }
+    else if (SpeedSet == SPEED_25000)
+    {
+        if (DuplexSet == DUPLEX_HALF)
+            return -EINVAL;
+        Speed = DT_PHY_SPEED_25000;
         pDvcData->m_IalData.m_AutoNegEn = FALSE;
     }
     else
@@ -888,8 +943,8 @@ static Int  DtPcieNwEvtGetSettings(struct net_device* pDevice, struct ethtool_cm
     Int AutoNeg = 0;
     Int Speed = 0;
     Int Duplex = 0;
-    Int Supported = 0;
-    Int Advertised = 0;
+    UInt64 Supported = 0;
+    UInt64 Advertised = 0;
     Int Return;
     DtDbgOut(MAX, IAL, "Start");
 
@@ -900,8 +955,8 @@ static Int  DtPcieNwEvtGetSettings(struct net_device* pDevice, struct ethtool_cm
     
     Return = DtPcieNwGetSettings(pDvcData, &AutoNeg, &Speed, &Duplex, &Advertised,
                                                                               &Supported);
-    pCmd->supported = Supported;
-    pCmd->advertising = Advertised;
+    pCmd->supported = (Int)Supported;
+    pCmd->advertising = (Int)Advertised;
     pCmd->autoneg = AutoNeg;
     pCmd->speed = Speed;
     pCmd->duplex = Duplex;
@@ -931,6 +986,22 @@ static Int  DtPcieNwEvtSetLinkKSettings(struct net_device*pDevice,
     return DtPcieNwSetSettings(pDvcData, AutoNeg, Speed, Duplex);
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEthToolConvertToLinkMode -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static void DtPcieNwEthToolConvertToLinkMode(long unsigned int* LinkMode, UInt64 Value)
+{
+    unsigned int Size = BITS_TO_LONGS(__ETHTOOL_LINK_MODE_MASK_NBITS);
+
+    if (sizeof(long unsigned int) < sizeof(UInt64))
+    {
+        LinkMode[0] = (Value & 0xffffffff);
+        if (Size > 1)
+            LinkMode[1] = (Value >> 32);
+    }
+    else
+        LinkMode[0] = Value;
+}
+
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtGetLinkKSettings -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 static Int  DtPcieNwEvtGetLinkKSettings(struct net_device*pDevice,
@@ -940,8 +1011,8 @@ static Int  DtPcieNwEvtGetLinkKSettings(struct net_device*pDevice,
     Int AutoNeg = 0;
     Int Speed = 0;
     Int Duplex = 0;
-    Int Supported = 0;
-    Int Advertised = 0;
+    UInt64 Supported = 0;
+    UInt64 Advertised = 0;
     Int Return;
     DtDbgOut(MAX, IAL, "Start");
     Return = DtPcieNwGetSettings(pDvcData, &AutoNeg, &Speed, &Duplex, &Advertised,
@@ -951,10 +1022,8 @@ static Int  DtPcieNwEvtGetLinkKSettings(struct net_device*pDevice,
     pLinkKSettings->base.autoneg = AutoNeg;
     pLinkKSettings->base.speed = Speed;
     pLinkKSettings->base.duplex = Duplex;
-    ethtool_convert_legacy_u32_to_link_mode(pLinkKSettings->link_modes.supported,
-                                                                               Supported);
-    ethtool_convert_legacy_u32_to_link_mode(pLinkKSettings->link_modes.advertising,
-                                                                              Advertised);
+    DtPcieNwEthToolConvertToLinkMode(pLinkKSettings->link_modes.supported, Supported);
+    DtPcieNwEthToolConvertToLinkMode(pLinkKSettings->link_modes.advertising, Advertised);
 
     DtDbgOut(MAX, IAL, "Exit");
     return Return;
@@ -1145,7 +1214,8 @@ void  DtPcieNwEvtNewPacketRxCallback(
     UInt8*  pPacket,
     UInt  PacketSize,
     UInt  RxFlags,
-    DektecTlvs* pDektecTlv)
+    DektecTlvs* pDektecTlv,
+    Bool SendImmediately)
 {
     struct sk_buff*  pSkb;
     UInt8*  pData;
@@ -1208,9 +1278,25 @@ void  DtPcieNwEvtNewPacketRxCallback(
                 pSkb->ip_summed = CHECKSUM_UNNECESSARY;
         }
     }
-
+#ifdef SUPPORT_RECEIVE_SKB_LIST
+    list_add_tail (&pSkb ->list, &pDvcData->m_IalData.m_RxPacketList);
+    pDvcData->m_IalData.m_RxPacketBatchCount++;
+    if (SendImmediately || pDvcData->m_IalData.m_RxPacketBatchCount==
+                                                        pDvcData->m_IalData.m_RxBatchSize)
+    {
+        // Give packets to the network layer. Network layer will cleanup the packets
+        // and the list is emptied.
+        local_bh_disable();
+        netif_receive_skb_list(&pDvcData->m_IalData.m_RxPacketList);
+        local_bh_enable();
+        pDvcData->m_IalData.m_RxPacketBatchCount = 0;
+    }
+#else
+    local_bh_disable();
     // Give packet to the network layer. Network layer will cleanup the packet
-    netif_rx(pSkb);
+    netif_receive_skb(pSkb);
+    local_bh_enable();
+#endif
 
 #if defined(RHEL_RELEASE_CODE)
 #if RHEL_RELEASE_CODE>=RHEL_RELEASE_VERSION(7,5)
@@ -1287,7 +1373,21 @@ static Int DtPcieNwEvtProbe(DtDeviceItf* pDevItf, Int Id)
         pDvcData->m_IalData.m_Id = Id;
         pDvcData->m_IalData.m_pDeviceItf = pDevItf;
         pDvcData->m_IalData.m_AutoNegEn = TRUE;
-        
+#ifdef SUPPORT_RECEIVE_SKB_LIST
+        pDvcData->m_IalData.m_RxBatchSize = g_DtPcieNwRxBatchSize;
+        INIT_LIST_HEAD(&pDvcData->m_IalData.m_RxPacketList);
+#endif
+        // Prevent too small buffer
+        if (g_DtPcieNwRxQueueSizeMb < 4)
+            g_DtPcieNwRxQueueSizeMb = 4;
+        if (g_DtPcieNwTxQueueSizeMb < 4)
+            g_DtPcieNwTxQueueSizeMb = 4;
+
+        pDvcData->m_RxBufSize = (UInt)g_DtPcieNwRxQueueSizeMb * 1014 * 1024;
+        pDvcData->m_TxBufSize = (UInt)g_DtPcieNwTxQueueSizeMb * 1014 * 1024;
+
+        pDvcData->m_EnableJumboFrames = g_DtPcieNwEnableJumboFrames;
+
         pDvcData->m_PortIndex = Id;
         
         // Initialize the IoCtrl parent
@@ -1402,7 +1502,7 @@ static Int DtPcieNwEvtProbe(DtDeviceItf* pDevItf, Int Id)
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtRemove -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
-// This function is executed by the Dta driver when the child network device must
+// This function is executed by the DtPcie driver when the child network device must
 // be removed from the system
 //
 static void DtPcieNwEvtRemove(DtDeviceItf* pDevItf, Int Id)
@@ -1418,6 +1518,8 @@ static void DtPcieNwEvtRemove(DtDeviceItf* pDevItf, Int Id)
             if (pIalData->m_pDeviceItf->m_pParentDevice==pDevItf->m_pParentDevice && 
                                                                        pIalData->m_Id==Id)
             {
+                if (g_pDtPcieNwDeviceData[DvcIndex]->m_DeviceOpened)
+                    DtPcieNwDeviceClose(g_pDtPcieNwDeviceData[DvcIndex]);
                 DtPcieNwDeviceExit(g_pDtPcieNwDeviceData[DvcIndex]);
                 unregister_netdev(pIalData->m_pNwDevice);
                 free_netdev(pIalData->m_pNwDevice);
@@ -1503,10 +1605,15 @@ void  DtPcieNwModuleExit(void)
     Int  DvcIndex;
     DtDbgOut(MAX, IAL, "Start");
 
+    // Unregister the child Nw driver from DtPcie.
+    // The DtPcie driver will execute the network driver remove functions for all 
+    // registered devices. When finished, the count should be 0.
+    DtCorePcie_IAL_UnRegisterChildDriver(&g_DtDriverItf);
+
     if (g_DtPcieNwDeviceCount != 0)
     {
-        DtDbgOut(ERR, IAL, "DtPcieNwModuleExit called, but DtPcieNwDeviceCount is not"
-                                                    " 0 but (%u)", g_DtPcieNwDeviceCount);
+        DtDbgOut(ERR, IAL, "DtPcieNwModuleExit called, but g_DtPcieNwDeviceCount is not 0"
+                                                        " but %i", g_DtPcieNwDeviceCount);
 
         for (DvcIndex=0; DvcIndex<g_DtPcieNwMaxDevices; DvcIndex++)
         {
@@ -1514,14 +1621,13 @@ void  DtPcieNwModuleExit(void)
             {
                 DtPcieNwEvtRemove(g_pDtPcieNwDeviceData[DvcIndex]->m_IalData.m_pDeviceItf, 
                                          g_pDtPcieNwDeviceData[DvcIndex]->m_IalData.m_Id);
+                g_DtPcieNwDeviceCount--;
                 if (g_DtPcieNwDeviceCount == 0)
                     break;
                 
             }
         }
     }
-    DtCorePcie_IAL_UnRegisterChildDriver(&g_DtDriverItf);
-
 
     // Call exit in common driver
     DtPcieNwDriverExit();

@@ -31,57 +31,55 @@ ifneq ($(KERNELRELEASE),)
 
 # Check for debug
 ifdef DEBUG
-	EXTRA_CFLAGS += -g -Wall -D_DEBUG
+	ccflags-y += -g -Wall -D_DEBUG
 endif
 
 # Check for SMP
-ifdef CONFIG_SMP
-	EXTRA_CFLAGS += -D__SMP__ -DSMP
-endif
+ccflags-$(CONFIG_SMP) += -D__SMP__ -DSMP
 
 # Check for 32/64 bit system
-EXTRA_CFLAGS += -DLINBUILD
+ccflags-y += -DLINBUILD
 ifeq ($(NUMLBITS), 32)
-    EXTRA_CFLAGS += -DLIN32
+    ccflags-y += -DLIN32
 else
-    EXTRA_CFLAGS += -DLIN64
+    ccflags-y += -DLIN64
 endif
 
 ifeq ("$(DRIVER_NAME)", "DtaNw")
-	EXTRA_CFLAGS += -DNW_DRIVER
+	ccflags-y += -DNW_DRIVER
 endif
 
 ifeq ("$(DRIVER_NAME)", "DtPcieNw")
-	EXTRA_CFLAGS += -DNW_DRIVER
+	ccflags-y += -DNW_DRIVER
 endif
 
 ifeq ("$(DRIVER_NAME)", "Dtu")
-	EXTRA_CFLAGS += -DUSB_DRIVER
+	ccflags-y += -DUSB_DRIVER
 else
-	EXTRA_CFLAGS += -DSKIP_USB
+	ccflags-y += -DSKIP_USB
 endif
 
 ifeq ("$(DRIVER_NAME)", "DtPcie")
-	EXTRA_CFLAGS += -DUSE_DF_EXCL_ACCESS
+	ccflags-y += -DUSE_DF_EXCL_ACCESS
 endif
 
 # ========================================================================================
 # Source definitions
 
 SRCDIR := ..
-SRC     = $(SRCDIR)/DtAudioVideo.o          \
-          $(SRCDIR)/DtObject.o              \
-          $(SRCDIR)/DtProperties.o          \
-          $(SRCDIR)/DtIoCaps.o              \
-          $(SRCDIR)/DtIoConfig.o            \
-          $(SRCDIR)/IoConfigCodes.o         \
-          $(SRCDIR)/DtTables.o              \
-          $(SRCDIR)/DtVector.o              \
-          $(SRCDIR)/VpdCommon.o             \
-          $(SRCDIR)/DtExclAccessObject.o    \
+SRC     = $(SRCDIR)/DtAudioVideo.o       \
+          $(SRCDIR)/DtObject.o           \
+          $(SRCDIR)/DtProperties.o       \
+          $(SRCDIR)/DtIoCaps.o           \
+          $(SRCDIR)/DtIoConfig.o         \
+          $(SRCDIR)/IoConfigCodes.o      \
+          $(SRCDIR)/DtTables.o           \
+          $(SRCDIR)/DtVector.o           \
+          $(SRCDIR)/VpdCommon.o          \
+          $(SRCDIR)/DtExclAccessObject.o \
           $(SRCDIR)/DtUtilities.o
 		  
-EXTRA_CFLAGS += -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR) -I$(MYPWD)/$(SALSRCDIR)
+ccflags-y += -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR) -I$(MYPWD)/$(SALSRCDIR)
 
 # ========================================================================================
 # Preprocessor definitions
@@ -90,7 +88,7 @@ ifndef DRIVER_NAME
 DRIVER_NAME := DtDrvCommon
 endif
 
-EXTRA_CFLAGS += -D_DRIVER_NAME=$(DRIVER_NAME)
+ccflags-y += -D_DRIVER_NAME=$(DRIVER_NAME)
 
 # ========================================================================================
 # Objects to build

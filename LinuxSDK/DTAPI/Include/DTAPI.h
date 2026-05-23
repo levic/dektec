@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        6
-#define DTAPI_VERSION_MINOR        9
+#define DTAPI_VERSION_MINOR        10
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        237
+#define DTAPI_VERSION_BUILD        239
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -575,6 +575,25 @@ private:
 #define DTAPI_CAP_ENC_H264          Dtapi::DtCaps(228) // H.264 video encoder
 #define DTAPI_CAP_ENC_MP2V          Dtapi::DtCaps(229) // MPEG2 video encoder
 
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtComplexFloat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Complex floating point type
+//
+struct DtComplexFloat
+{
+    float  m_Re, m_Im;              // Real, imaginary part
+};
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPolarFloat -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Complex Polar floating point type
+//
+struct DtPolarFloat
+{
+    float  m_Amplitude, m_Phase;    // Amplitude and phase in degrees part
+};
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCmmbPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 // CMMB Modulation Parameters
@@ -644,10 +663,13 @@ struct DtCmPars
 {
     bool  m_EnableAwgn;             // Enable white Gaussian noise (AWGN) injection
     double  m_Snr;                  // Signal-to-noise ratio in dB
-    // Temporary for internal use only!
-    bool m_EnableMimoXpi;           // Enable MIMO Cross-Polarization Interference
-    double m_XpiSir;                // MIMO  Cross-Polarization Interference Signal 
-                                    // Interference Ratio
+    
+    // =+=+=+=+=+=+=+=+=+=+=+=+ Temporary for internal use only! +=+=+=+=+=+=+=+=+=+=+=+=+
+    bool m_EnableMimoXpd;           // Enable MIMO Cross-Polarization Distortion
+    DtPolarFloat m_XpdMatrix[4];    // Cross polarization distortion matrix
+
+    // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
     bool  m_EnablePaths;            // Enable multi-path simulation
     std::vector<DtCmPath>  m_Paths; // Parameters per path
 
@@ -4049,6 +4071,8 @@ private:
 // Reset mode
 #define DTAPI_FIFO_RESET            0
 #define DTAPI_FULL_RESET            1
+#define DTAPI_SFN_RESET             2           // Resets the DTA-2115B SFN circuit
+
 
 // RF PLL lock status
 #define DTAPI_RFPLL_LOCK1           1            // RF PLL #1 is in lock
@@ -5447,12 +5471,6 @@ public:
 #define DTAPI_TP_FORMAT_BIT         1
 #define DTAPI_TP_FORMAT_CFLOAT32    2
 #define DTAPI_TP_FORMAT_INT64       3
-
-// Complex floating point type
-struct DtComplexFloat
-{
-    float  m_Re, m_Im;              // Real, imaginary part
-};
 
 // Function to write test point data
 typedef void  DtTpWriteDataFunc(void* pOpaque, int TpIndex, int StreamIndex,

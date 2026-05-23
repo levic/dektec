@@ -717,6 +717,7 @@ DtStatus  DtIoStubCfIoCfg_OnCmdGet(
     if (DT_SUCCESS(Status))
     {
         // Convert to IOCTL structures
+        pOutData->m_IoConfigCount = pInData->m_IoConfigCount;
         for (i=0; i<pInData->m_IoConfigCount; i++)
         {
             // Convert value to value string
@@ -733,7 +734,6 @@ DtStatus  DtIoStubCfIoCfg_OnCmdGet(
             for (j=0; j<DT_MAX_PARXTRA_COUNT; j++)
                 pOutData->m_IoCfgValue[i].m_ParXtra[j] = pCfgs[i].m_ParXtra[j];
         }
-        pOutData->m_IoConfigCount = pInData->m_IoConfigCount;
     }
 
     // Donot forget to free the io-config list

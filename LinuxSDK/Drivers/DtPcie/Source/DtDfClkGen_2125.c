@@ -119,8 +119,7 @@ DtStatus  DtDfClkGen_2125_OnEnablePostChildren(DtDf* pDfBase, Bool Enable)
     DtStatus  Status = DT_STATUS_OK;
     DtDfClkGen_2125*  pDf = (DtDfClkGen_2125*)pDfBase;
     DtPt* pPt = DtVectorPt_At(pDfBase->m_pCore->m_pPtList, 0);
-    DtBcDDRFIFO* pBcDdrFifo = (DtBcDDRFIFO*)
-                       DtCore_BC_Find(pDfBase->m_pCore, pPt, DT_BLOCK_TYPE_DDRFIFO, NULL);
+    
     DtDbgOutDf(MAX, CLKGEN, pDf, "Enable");
 
     // Sanity checks

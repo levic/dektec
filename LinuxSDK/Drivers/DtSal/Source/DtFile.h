@@ -32,7 +32,7 @@
     #define DT_FILE_INVALID_HANDLE  NULL
 #else
     typedef int  DtFileHandle;
-    #define DT_FILE_INVALID_HANDLE  NULL
+    #define DT_FILE_INVALID_HANDLE  -1
 #endif
 
 #define DT_FILE_MAX_NAME_LENGTH 512

@@ -13,7 +13,6 @@
 // Supported DekTec devices: DTA-2110, DTA-2125
 // Supported A/V standards : SMPTE 2110-20/21/30/40/41/RAW, SMPTE 2022-5/6
 // 
-//
 // Namespaces:
 //   Dtapi::AvFifo             General classes defining the A/V FIFO Interface.
 //   Dtapi::AvFifo::St2022     Classes specific for SMPTE 2022.
@@ -26,10 +25,10 @@
 
 #include "DTAPI.h"                  // C++ API for DekTec PCIe-, USB- and IP devices.
 #include <array>                    // Standard library: Fixed-size array handling.
-#include <stdexcept>                // Standard library: Exception handling.
-#include <vector>                   // Standard library: Dynamic-size array handling.
 #include <optional>                 // Standard library: 'optional' template.
+#include <stdexcept>                // Standard library: Exception handling.
 #include <variant>                  // Standard library: 'variant' type.
+#include <vector>                   // Standard library: Dynamic-size array handling.
 
 // The AvFifo classes are defined in namespace Dtapi::AvFifo.
 namespace Dtapi
@@ -357,7 +356,7 @@ namespace St2110
                                     // prevailing frame rate. Starts at the EPOCH time. 
     };
 
-    // Configures the transmission of SMPTE 2110 video.
+    // Configures the transmission of SMPTE 2110-20 video.
     struct TxConfigVideo
     {
         TxFrameFormat Format{TxFrameFormat::Uyvy422_10b};
@@ -508,7 +507,7 @@ public:
     // Configures for SMPTE 2022-5/6 stream reception.
     void Configure(const St2022::RxConfig&, BlobMetadata Md={});
 
-    // Configures for SMPTE 2110-20 audio stream reception.
+    // Configures for SMPTE 2110-30 audio stream reception.
     // An optional 'Md' parameter allows customization of the alignment and oversizing
     // of received frame BLOBs, using defaults if not specified.    
     void Configure(const St2110::RxConfigAudio&, BlobMetadata Md={});
@@ -517,7 +516,7 @@ public:
     // The raw payload is directly returned to the application without interpretation.
     void Configure(const St2110::RxConfigRaw&, BlobMetadata Md={});
 
-    // Configures for SMPTE 2110-10 video stream reception.
+    // Configures for SMPTE 2110-20 video stream reception.
     void Configure(const St2110::RxConfigVideo&, BlobMetadata Md={});
 
     // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -613,7 +612,7 @@ public:
     // Configures for SMPTE 2022-5/6 stream transmission.
     void Configure(const St2022::TxConfig&, BlobMetadata Md={});
 
-    // Configures for SMPTE 2110-20 audio stream transmission.
+    // Configures for SMPTE 2110-30 audio stream transmission.
     // An optional 'Md' parameter allows customization of the alignment and oversizing
     // of received frame BLOBs, using defaults if not specified.    
     void Configure(const St2110::TxConfigAudio&, BlobMetadata Md={});
@@ -622,11 +621,11 @@ public:
     // The raw payload is directly returned to the application without interpretation.
     void Configure(const St2110::TxConfigRaw&, BlobMetadata Md={});
 
-    // Configures for 'raw' SMPTE 2110-10 video stream transmission.
+    // Configures for 'raw' SMPTE 2110-20 video stream transmission.
     // This overload allows for specifying all video parameters at a low level.
     void Configure(const St2110::TxConfigRawVideo&, BlobMetadata Md={});
 
-    // Configures for SMPTE 2110-10 video stream transmission.
+    // Configures for SMPTE 2110-20 video stream transmission.
     void Configure(const St2110::TxConfigVideo&, BlobMetadata Md={});
 
     // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -698,48 +697,53 @@ private:
     unique_ptr<Impl> Pimpl;
 };
 
-
 namespace St2110
 {
+
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ SMPTE 2110-40 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct AncLocation -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Represents the location of an ANC packet in an SDI video frame.
 //
 struct AncLocation
 {
-    bool IsColorDiff{ false }; // If true, the ANC packet is located in the color 
-    // difference data channel. Otherwise, it is located in the luma data channel, 
-    // originates from an SD signal, or comes from a source without specific luma or
-    // color difference data channels.
+    // True if the ANC packet is located in the color difference channel.
+    // Otherwise, it is located in the luma channel, originates from an SD signal or 
+    // from a source without luma/color channels.
+    bool IsColorDiff{false};
 
-    int LineNumber{ 0x7FF }; // Either the SDI line number or:
-    //   0x7FF: No specific location.
-    //   0x7FE: Any line in the range from the second line after
-    //          the line specified for switching, as defined in
-    //          SMPTE RP 168 [RP168], to the last line before 
-    //          active video,  inclusive.
-    //   0x7FD: A line number larger than can be represented in
-    //          11-bits.
+    // Line number in the SDI frame, or:
+    //   0x7FF: No specific line.
+    //   0x7FE: Any line from the second line after the RP168 switch line to the last 
+    //          line before active video (inclusive).
+    //   0x7FD: Line number exceeds the maximum 11-bit value (2047).
+    int LineNumber{0x7FF};
 
-    int HorizontalOffset{ 0xFFF }; // Either the horizontal offset in 10-bit words
-    // relative to the SAV or:
+    // Horizontal offset from the SAV in 10-bit words, or:
     //   0xFFF: No specific offset.
-    //   0xFFE: Within HANC data space.
-    //   0xFFD: Within VANC data space.
-    //   0xFFC: An offset larger than can be represented in
-    //          12-bits.
+    //   0xFFE: Located in HANC space.
+    //   0xFFD: Located in VANC space.
+    //   0xFFC: Offset exceeds the maximum 12-bit value (4095).
+    int HorizontalOffset{0xFFF};
 };
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct AncId -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
+// Identifies an ANC packet by DID and optional SDID.
+//
 struct AncId
 {
-    uint8_t Did{ 0 };
-    optional<uint8_t> Sdid; // Used when Did < 0x80
+    uint8_t Did{0};
+    optional<uint8_t> Sdid;         // Used when Did < 0x80.
 };
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct RxAncPacket -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+// Represents a received ANC packet, including its location, identity, and optionally 
+// decoded user words, raw 10-bit word data, or both.
 //
 struct RxAncPacket
 {
@@ -754,6 +758,9 @@ struct RxAncPacket
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct TxAncPacket_Sdi -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
+// Represents an ANC packet using the SDI encoding structure: DID, SDID or DBN, and user
+// words. Used as an intermediate format when preparing SMPTE 2110-40 AND data.
+//
 struct TxAncPacket_Sdi
 {
     uint8_t Did{0};
@@ -763,52 +770,69 @@ struct TxAncPacket_Sdi
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct TxAncPacket -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
+// An ANC packet to be transmitted over SMPTE 2110-40, with SDI-style location info.
+// The content is either structured as an SDI packet or provided as raw 10-bit words.
+//
 struct TxAncPacket
 {
     AncLocation Location{};
     optional<int> StreamNumber;
 
-    variant<TxAncPacket_Sdi, vector<uint16_t>> Packet; // Either a simple struct or a
-    // vector with the raw 10-bit
-    // words.
+    variant<TxAncPacket_Sdi, vector<uint16_t>> Packet;
 };
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct RxConfigAnc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
+// Configuration for receiving ANC packets in SMPTE 2110-40 streams.
+//
 struct RxConfigAnc
 {
-    vector<AncId> Filter; // Only receive ANC packets specified in this filter. If the
-    // filter is empty all ANC packets are received.
+    // Only receive ANC packets matching an entry in this filter.
+    // If empty, all ANC packets are received.
+    vector<AncId> Filter;
+
+    // Include decoded user words in the RxAncPacket.
     bool IncludeUserWords{true};
-    bool IncludeRawData{false}; // DID+SDID+count+UDW[count]+checksum
+
+    // Include raw 10-bit data (DID, SDID/DBN, count, user words, checksum).
+    bool IncludeRawData{false};
 };
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct TxConfigAnc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
+// Configuration for transmitting ANC packets in SMPTE 2110-40 streams.
+//
 struct TxConfigAnc
 {
-    St2110::VideoScanning VideoScanning{ St2110::VideoScanning::Progressive };
+    // Video scanning format used for packet layout (Progressive, Interlaced or PsF).
+    St2110::VideoScanning VideoScanning{St2110::VideoScanning::Progressive};
 };
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct RxAncFrame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
+// A frame of received ANC packets with associated timestamps and field information.
+//
 struct RxAncFrame
 {
-    uint32_t RtpTime{0};
-    DtTimeOfDay ToD{};
+    uint32_t RtpTime{};             // RTP timestamp associated with this ANC frame.
+    DtTimeOfDay ToD{};              // Time-of-day timestamp.          
 
+    // Field number: 0 for progressive or first field of interlaced frame, 1 for second.
     int Field{0};
-    vector<RxAncPacket> Packets;
+
+    vector<RxAncPacket> Packets;    // List of received ANC packets.
 };
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class RxFifoAnc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Receive FIFO for SMPTE 2110-40 ANC frames, supporting filtering, buffering, and stats.
 //
 class RxFifoAnc
 {
 public:
     // Attaches an RxFifo object to a specified DekTec device and port.
-    void Attach(const DtDevice&, int Port, HwOrSwPipe Pref = HwOrSwPipe::Auto,
-        RxFifoOverflowStrategy OvfStrategy = RxFifoOverflowStrategy::DropFrame);
+    void Attach(const DtDevice&, int Port, HwOrSwPipe Pref=HwOrSwPipe::Auto,
+                  RxFifoOverflowStrategy OvfStrategy = RxFifoOverflowStrategy::DropFrame);
 
     // Empties the RxFifo.
     void Clear();
@@ -872,94 +896,89 @@ public:
     ~RxFifoAnc();
 
 private:
-    // Use the PIMPL pattern to move implementation details to RxFifoAnc::Impl.
+    // Hides implementation details using the PIMPL pattern.
     class Impl;
     unique_ptr<Impl> Pimpl;
 };
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct TxAncFrame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
+// A frame of ANC data to be transmitted over SMPTE 2110-40.
+// Contains RTP/ToD timestamps, field number, and the ANC packet list.
+//
 struct TxAncFrame
 {
-    uint32_t RtpTime{0};
-    DtTimeOfDay ToD{};
-
-    int Field{0};
-    vector<TxAncPacket> Packets;
+    uint32_t RtpTime{};             // RTP timestamp associated with this ANC frame.
+    DtTimeOfDay ToD{};              // Time-of-day timestamp.
+    int Field{0};                   // 0=progressive/interlaced 1st field; 1=2nd field.
+    vector<TxAncPacket> Packets;    // List of ANC packets to transmit.
 };
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class TxFifoAnc -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
+// Transmit FIFO for SMPTE 2110-40 ANC frames.
+// Manages buffering, memory pooling, and network transmission.
+//
 class TxFifoAnc
 {
 public:
-    // Attaches a TxFifo object to a specified DekTec device and port.
-    void Attach(const DtDevice&, int Port, HwOrSwPipe Pref = HwOrSwPipe::Auto);
+    // Attaches the TxFifo to the specified DekTec device and port.
+    void Attach(const DtDevice&, int Port, HwOrSwPipe Pref=HwOrSwPipe::Auto);
 
-    // Empties the TxFifo and the frame memory pool.
+    // Empties the TxFifo and the internal frame memory pool.
     void Clear();
 
-    // -.-.-.-.-.-.-.-.-.-.-.-.- Configuration of the TxFifoAnc -.-.-.-.-.-.-.-.-.-.-.-.-.
-
-    // Configures for SMPTE 2110-40 anc stream transmission.
+    // Configures the transmitter for SMPTE 2110-40 ANC streaming.
     void Configure(const St2110::TxConfigAnc&);
 
-    // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-
-    // Detaches the TxFifo from the hardware.
+    // Detaches the TxFifo from the device and frees associated resources.
     void Detach();
 
-    // Gets the number of frames currently stored in the TxFifo.
+    // Returns the number of frames currently queued in the TxFifo.
     int GetFifoLoad() const;
 
-    // Gets a TxAncFrame object from the memory pool.
-    // If there are no available frames in the memory pool, a new Frame object will be
-    // allocated.
-    // The application writes frames to the TxFifo, DTAPI will return the frames to the 
-    // memory pool for recycling when it has been transmitted.
-    // NOTE: The application should not attempt to free TxAncFrame objects itself.
+    // Retrieves a TxAncFrame from the memory pool.
+    // If no frames are available, a new one is allocated.
+    // Frames are automatically returned to the pool after transmission.
+    // The application must not delete TxAncFrame objects manually.
     TxAncFrame* GetFrameFromMemPool();
 
-    // Retrieves the maximum number of frames that the TxFifo can store.
+    // Returns the maximum number of frames that can be queued in the FIFO.
     int GetMaxSize() const;
 
-    // Gets the current size of the shared buffer (in bytes) used to pass data from the
-    // TxFifo to the NIC.
+    // Returns the size of the shared buffer (in bytes) used to transfer data to the NIC.
     int GetSharedBufferSize() const;
 
-    // Gets transmit statistics. Statistics will be cleared when Start() is called.
+    // Returns transmission statistics; these are reset on Start().
     TxStatistics GetStatistics() const;
 
-    // Gets the status of the FIFO's IP connection.
+    // Returns the current status of the TxFifo, including connection state.
     FifoStatus GetStatus() const;
 
-    // Indicates whether the TxFifo has been started.
+    // Indicates whether the transmitter has been started.
     bool IsStarted() const;
 
-    // Configures the TxFifo's networking parameters, including the IP address, 
-    // port number, and other related IP settings.
+    // Configures the network settings for 2110-40 transmission (IP address, port, etc.).
     void SetIpPars(const IpPars&);
 
-    // Sets the maximum number of frames that the TxFifo can store (default: 4).
+    // Sets the maximum number of buffered frames (default: 4).
     void SetMaxSize(int Size);
 
-    // Sets the size of the shared buffer (in bytes) used to pass data from the TxFifo to
-    // the NIC.
-    // The size of the shared buffer can only be changed if the TxFifo is not started.
+    // Sets the shared buffer size in bytes.
+    // Can only be changed before the FIFO is started.
     void SetSharedBufferSize(int Size);
 
-    // Starts transmitting frames from the TxFifo.
-    // Returns true if starting is successful, false otherwise.
-    // If false, use TxFifo::GetStatus() to get the reason. 
+    // Starts the transmission of ANC frames.
+    // Returns true if successful; use GetStatus() if false.
     bool Start();
 
-    // Stops transmitting frames.
+    // Stops ANC frame transmission.
     void Stop();
 
-    // Indicates whether a hardware pipe (true) or software pipe (false) is used.
+    // Returns true if a hardware transmission path is used; false if software.
     bool UsesHwPipe() const;
 
-    // Writes a frame to the TxFifo.
+    // Queues a frame for transmission.
     void Write(const TxAncFrame*);
 
     // Constructor/destructor.
@@ -967,7 +986,7 @@ public:
     ~TxFifoAnc();
 
 private:
-    // Use the PIMPL pattern to move implementation details to TxFifoAnc::Impl.
+    // Hides implementation details using the PIMPL pattern.
     class Impl;
     unique_ptr<Impl> Pimpl;
 };
@@ -976,39 +995,70 @@ private:
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ SMPTE 2110-41 +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
+// SMPTE ST 2110-41 defines a method for carrying time-aligned, low-latency metadata
+// streams (Fast Metadata) over IP in professional media workflows.
+//
+// Each 2110-41 frame contains one or more fast metadata items, optionally grouped using
+// Simple Object Segmentation (SOS). The format supports high-throughput data streams
+// synchronized with audio and video.
+//
+// The following structs/classes implement transmission and reception of fast metadata.
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct FastMetadataItem -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Represents a single fast metadata item carried in a 2110-41 frame.
+//
 struct FastMetadataItem
 {
-    uint32_t Type{};
-    bool KBit{false};        // Unused if IsSegmented is set.
-    vector<uint32_t> Data;
+    uint32_t Type{};                // Type identifier of the metadata item.
+    bool KBit{false};               // Key bit used for sorting or grouping; ignored 
+                                    // if IsSegmented is set.
+    vector<uint32_t> Data;          // Item payload as a sequence of 32-bit words.
 };
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct FastMetadataFrame -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// A frame of fast metadata items transmitted or received via SMPTE 2110-41.
+//
 struct FastMetadataFrame
 {
-    uint32_t RtpTime{0};
-    DtTimeOfDay ToD{};
-    bool IsSegmented{false}; // Enable Simple Object Segmentation.
-    vector<FastMetadataItem> Items;
+    uint32_t RtpTime{};             // RTP timestamp associated with this frame.
+    DtTimeOfDay ToD{};              // Time-of-day timestamp.
+    bool IsSegmented{false};        // Enables Simple Object Segmentation for grouping.
+    vector<FastMetadataItem> Items; // List of fast metadata items in the frame.
 };
 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct RxConfigFastMetadata -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Configuration for receiving fast metadata in SMPTE 2110-41 streams.
+//
 struct RxConfigFastMetadata
 {
-    // Only receive fast metadata item types specified in these filters. If both filters
-    // are empty all items are received.
-    vector<uint32_t> Filter;    // Type filter for regular packets
-    vector<uint32_t> SegFilter; // Type filter for segmented packets (using Simple Object
-    // Segmentation)
+    // Filters for selecting received metadata items by type.
+    // If both filters are empty, all items are received.
+    vector<uint32_t> Filter;        // Filter for non-segmented items.
+    vector<uint32_t> SegFilter;     // Filter for segmented items (SOS).
 };
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- struct TxConfigFastMetadata -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Configuration for transmitting fast metadata in SMPTE 2110-41 streams.
+//
 struct TxConfigFastMetadata
 {
+    // (Reserved for future extensions.)
 };
 
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class RxFifoFastMetadata -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Receive FIFO for SMPTE 2110-41 fast metadata frames.
+//
 class RxFifoFastMetadata
 {
 public:
-    // Attaches an RxFifo object to a specified DekTec device and port.
-    void Attach(const DtDevice&, int Port, HwOrSwPipe Pref = HwOrSwPipe::Auto,
+    // Attaches the RxFifo to a specified DekTec device and port.
+    void Attach(const DtDevice&, int Port, HwOrSwPipe Pref=HwOrSwPipe::Auto,
         RxFifoOverflowStrategy OvfStrategy = RxFifoOverflowStrategy::DropFrame);
 
     // Empties the RxFifo.
@@ -1036,13 +1086,11 @@ public:
     // Gets the status of the FIFO's IP connection.
     FifoStatus GetStatus() const;
 
-    // Reads one FastMetadata frame from the RxFifo. 
-    // The RxFifo must not be empty, or an exception will be thrown.
+    // Reads the next FastMetadataFrame from the FIFO.
+    // Throws if the FIFO is empty.
     FastMetadataFrame* Read();
 
-    // Returns a frame to the memory pool.
-    // After processing a frame read from the RxFifo, the frame must be returned to the
-    // memory pool.
+    // Returns a previously read frame to the memory pool for reuse.
     void ReturnToMemPool(FastMetadataFrame*);
 
     // Configures the RxFifo's networking parameters, including the IP address, 
@@ -1057,9 +1105,8 @@ public:
     // The size of the shared buffer can only be changed if the RxFifo is not started.
     void SetSharedBufferSize(int Size);
 
-    // Starts receiving frames in the RxFifo.
-    // Returns true if starting is successful, false otherwise.
-    // If false, use RxFifo::GetStatus() to get the reason. 
+    // Starts receiving fast metadata frames.
+    // Returns true on success; use GetStatus() for diagnostics if false. 
     bool Start();
 
     // Stops receiving frames in the RxFifo.
@@ -1073,26 +1120,26 @@ public:
     ~RxFifoFastMetadata();
 
 private:
-    // Use the PIMPL pattern to move implementation details to RxFifoFastMetadata::Impl.
+    // Hides implementation details using the PIMPL pattern.
     class Impl;
     unique_ptr<Impl> Pimpl;
 };
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- class TxFifoFastMetadata -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Transmit FIFO for SMPTE 2110-41 fast metadata frames.
+//
 class TxFifoFastMetadata
 {
 public:
-    // Attaches a TxFifo object to a specified DekTec device and port.
-    void Attach(const DtDevice&, int Port, HwOrSwPipe Pref = HwOrSwPipe::Auto);
+    // Attaches the TxFifo to a specified DekTec device and port.
+    void Attach(const DtDevice&, int Port, HwOrSwPipe Pref=HwOrSwPipe::Auto);
 
     // Empties the TxFifo and the frame memory pool.
     void Clear();
 
-    // -.-.-.-.-.-.-.-.-.-.-.-.- Configuration of the TxFifoFastMetadata -.-.-.-.-.-.-.-.-.-.-.-.-.
-
     // Configures for SMPTE 2110-41 FastMetadata stream transmission.
     void Configure(const TxConfigFastMetadata&);
-
-    // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 
     // Detaches the TxFifo from the hardware.
     void Detach();
@@ -1100,9 +1147,8 @@ public:
     // Gets the number of frames currently stored in the TxFifo.
     int GetFifoLoad() const;
 
-    // Gets a FastMetadataFrame object from the memory pool.
-    // If there are no available frames in the memory pool, a new Frame object will be
-    // allocated.
+    // Retrieves a FastMetadataFrame from the memory pool.
+    // Allocates a new frame if none are available.
     // The application writes frames to the TxFifo, DTAPI will return the frames to the 
     // memory pool for recycling when it has been transmitted.
     // NOTE: The application should not attempt to free FastMetadataFrame objects itself.
@@ -1154,10 +1200,11 @@ public:
     ~TxFifoFastMetadata();
 
 private:
-    // Use the PIMPL pattern to move implementation details to TxFifoFastMetadata::Impl.
+    // Hides implementation details using the PIMPL pattern.
     class Impl;
     unique_ptr<Impl> Pimpl;
 };
+
 } // namespace St2110
 
 // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+

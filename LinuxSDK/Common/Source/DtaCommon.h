@@ -442,7 +442,7 @@ typedef struct _DtaIoctlVpdCmdWriteItemInput {
     char  m_Keyword[DTA_VPD_MAX_KEY_LENGTH];
     UInt  m_Flags;
     UInt  m_BufLen;
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtaIoctlVpdCmdWriteItemInput;
 ASSERT_SIZE(DtaIoctlVpdCmdWriteItemInput, 32)
 
@@ -466,7 +466,7 @@ ASSERT_SIZE(DtaIoctlVpdCmdReadRawInput, 8)
 typedef struct _DtaIoctlVpdCmdWriteRawInput {
     UInt  m_StartOffset;
     UInt  m_BufLen;
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtaIoctlVpdCmdWriteRawInput;
 ASSERT_SIZE(DtaIoctlVpdCmdWriteRawInput, 8)
 
@@ -486,14 +486,14 @@ ASSERT_SIZE(DtaIoctlVpdCmdInput, 36)
 // DTA VPD read item command output data type
 typedef struct _DtaIoctlVpdCmdReadItemOutput {
     UInt  m_Length;
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtaIoctlVpdCmdReadItemOutput;
 ASSERT_SIZE(DtaIoctlVpdCmdReadItemOutput, 4)
 
 // DTA VPD read raw command output data type
 typedef struct _DtaIoctlVpdCmdReadRawOutput {
     UInt  m_Length;
-    UInt8  m_Buf[0];                // Dynamic sized buffer
+    UInt8  m_Buf[];                // Dynamic sized buffer
 } DtaIoctlVpdCmdReadRawOutput;
 ASSERT_SIZE(DtaIoctlVpdCmdReadRawOutput, 4)
 
@@ -938,7 +938,7 @@ ASSERT_SIZE(DtaIoctlShBufCmdInput, 28)
 typedef struct _DtaIoctlGetIoConfigInput
 {
     Int  m_IoConfigCount;
-    DtIoctlIoConfigId m_IoCfgId[0];
+    DtIoctlIoConfigId m_IoCfgId[];
 
 } DtaIoctlGetIoConfigInput;
 ASSERT_SIZE(DtaIoctlGetIoConfigInput, 4)
@@ -969,7 +969,7 @@ typedef struct _DtaIoctlGetIoConfigOutput
 
 typedef struct _DtaIoctlSetIoConfigInput {
     Int  m_IoConfigCount;
-    DtIoctlIoConfig  m_IoConfig[0];
+    DtIoctlIoConfig  m_IoConfig[];
 } DtaIoctlSetIoConfigInput;
 ASSERT_SIZE(DtaIoctlSetIoConfigInput, 8)
 
@@ -1610,7 +1610,7 @@ ASSERT_SIZE(DtaIoctlIpXxCmdSetControlInput, 8)
 // DTA_IP_TX_CMD_WRITENDISPCKT
 typedef struct _DtaIoctlIpTxCmdWriteNdisPcktInput {
     UInt  m_BufLen;
-    UInt8  m_Buf[0];                 // Dynamic sized buffer
+    UInt8  m_Buf[];                 // Dynamic sized buffer
 } DtaIoctlIpTxCmdWriteNdisPcktInput;
 ASSERT_SIZE(DtaIoctlIpTxCmdWriteNdisPcktInput, 4)
 
@@ -2035,7 +2035,7 @@ ASSERT_SIZE(DtaIoctlPhyMacGetMaxMulticastListOutput, 4)
 // DTA_PHYMAC_CMD_SET_MULTICAST_LIST
 typedef struct _DtaIoctlPhyMacSetMulticastListInput {
     UInt  m_NumItems;
-    UInt8  m_Items[0][8];
+    UInt8  m_Items[][8];
 } DtaIoctlPhyMacSetMulticastListInput;
 ASSERT_SIZE(DtaIoctlPhyMacSetMulticastListInput, 4)
 
@@ -2261,7 +2261,7 @@ ASSERT_SIZE(DtaIoctlGetTable3Input, 92)
 // Ioctl output data type
 typedef struct _DtaIoctlGetTableOutput {
     UInt  m_NumEntries;
-    DtTableEntry  m_TableEntry[0];
+    DtTableEntry  m_TableEntry[];
 } DtaIoctlGetTableOutput;
 ASSERT_SIZE(DtaIoctlGetTableOutput, 8)
 
@@ -3229,12 +3229,12 @@ typedef struct _DtaIoctlD7ProSendCommandInput {
     Int  m_NumBytesToWrite; // Number of bytes in buffer
     Int  m_NumBytesToRead;  // Number of bytes to read
     Int  m_Timeout;         // Maximum time in ms to wait for data
-    UInt8  m_Buf[0];        // Data to be transmitted, dynamic sized buffer
+    UInt8  m_Buf[];        // Data to be transmitted, dynamic sized buffer
 } DtaIoctlD7ProSendCommandInput;
 
 typedef struct _DtaIoctlD7ProSendCommandOutput {
     Int  m_NumBytes;        // Actual number of bytes read
-    UInt8  m_Buf[0];        // Data read back, dynamic sized buffer
+    UInt8  m_Buf[];        // Data read back, dynamic sized buffer
 } DtaIoctlD7ProSendCommandOutput;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_D7PRO_CMD_DEBUG_READ -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -3247,7 +3247,7 @@ ASSERT_SIZE(DtaIoctlD7ProDebugReadInput, 8)
 
 typedef struct _DtaIoctlD7ProDebugReadOutput {
     Int  m_NumBytes;        // Actual number of bytes read
-    UInt8  m_Buf[0];        // Data read back, dynamic sized buffer
+    UInt8  m_Buf[];        // Data read back, dynamic sized buffer
 } DtaIoctlD7ProDebugReadOutput;
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTA_D7PRO_CMD_STATUS_GET -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -3333,7 +3333,7 @@ ASSERT_SIZE(DtaIoctlSpiMfCmdReadInput, 8)
 
 typedef struct _DtaIoctlSpiMfCmdReadOutput {
     Int  m_NumBytes;           // Number of bytes in buffer
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 } DtaIoctlSpiMfCmdReadOutput;
 ASSERT_SIZE(DtaIoctlSpiMfCmdReadOutput, 4)
 
@@ -3366,7 +3366,7 @@ ASSERT_SIZE(DtaIoctlSpiMfCmdGetPropertiesOutput, 20)
 typedef struct _DtaIoctlSpiMfCmdWriteInput {
     Int  m_StartAddress;        // Start address
     Int  m_NumBytesToWrite;     // Number of bytes in buffer to write
-    UInt8  m_Buf[0];            // Dynamic sized buffer
+    UInt8  m_Buf[];            // Dynamic sized buffer
 } DtaIoctlSpiMfCmdWriteInput;
 ASSERT_SIZE(DtaIoctlSpiMfCmdWriteInput, 8)
 

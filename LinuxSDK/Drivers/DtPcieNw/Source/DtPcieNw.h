@@ -135,8 +135,7 @@ struct _DtPcieNwDeviceData
     UInt32  m_RxReadOffset;
     UInt32  m_RxWriteOffsetCache;
     DtEvent  m_RxDataAvailableEvent;
-    DtSpinLock  m_RxLock;
-
+    
     // Shared buffer TX
     UInt  m_TxUuid;
 
@@ -146,6 +145,15 @@ struct _DtPcieNwDeviceData
     UInt32  m_TxWriteOffset;
     UInt32  m_TxReadOffsetCache;
     Int  m_DataAlignment;
+    Bool  m_JumboFramesFw;
+    UInt  m_CurrentMtuSize;
+    UInt  m_MaxMtuSize;
+    Bool  m_EnableJumboFrames;
+
+    Bool  m_TxEnabled;
+    Bool  m_TxBusy;
+    DtSpinLock  m_TxLock;
+    UInt64  m_TxDropCount;
 
     // TX Timestamping
     UInt8  m_Fingerprint;

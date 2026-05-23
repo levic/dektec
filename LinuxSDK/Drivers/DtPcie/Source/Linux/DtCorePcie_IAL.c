@@ -114,6 +114,10 @@ static void  DtCorePcie_IAL_Remove(struct pci_dev* pPciDev);
 Int  DtCorePcie_IAL_Suspend(struct pci_dev* pPciDev, pm_message_t State);
 Int  DtCorePcie_IAL_Resume(struct pci_dev* pPciDev);
 
+// Child devices interface
+static DtStatus  DtCorePcie_IAL_ProbeChildDevices(DtCorePcie* pPcieCore);
+static DtStatus  DtCorePcie_IAL_RemoveChildDevices(DtCorePcie* pPcieCore);
+
 // Notification interface
 static Int  DtCorePcie_IAL_RebootNotify(struct notifier_block *this, unsigned long Code,
                                                                             void *Unused);
@@ -1664,14 +1668,14 @@ void  DtCorePcie_IAL_UnRegisterChildDriver(DtDriverItf* pDriverItf)
     if (g_DtChildNwDriver.m_pDriverItf == NULL)
         return;
 
-    g_DtChildNwDriver.m_pDriverItf = NULL;
-
     for (DvcIndex = 0; DvcIndex < g_DtPcieMaxDevices; DvcIndex++)
     {
         if (g_pDtCorePcie[DvcIndex] == NULL)
             continue;
         DtCorePcie_IAL_RemoveChildDevices(g_pDtCorePcie[DvcIndex]);
     }
+
+    g_DtChildNwDriver.m_pDriverItf = NULL;
 }
 EXPORT_SYMBOL(DtCorePcie_IAL_UnRegisterChildDriver);
 

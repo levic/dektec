@@ -1068,6 +1068,8 @@ void  DtaNwEvtRemove(DtaDeviceItf* pDevItf, Int Id)
             if (pIalData->m_pDeviceItf->m_pParentDevice==pDevItf->m_pParentDevice && 
                                                                        pIalData->m_Id==Id)
             {
+                if (g_pDtaNwDeviceData[DvcIndex]->m_DeviceOpened)
+                    DtaNwDeviceClose(g_pDtaNwDeviceData[DvcIndex]);
                 DtaNwDeviceExit(g_pDtaNwDeviceData[DvcIndex]);
                 unregister_netdev(pIalData->m_pNwDevice);
                 free_netdev(pIalData->m_pNwDevice);

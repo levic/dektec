@@ -133,6 +133,8 @@
 #define FEC_HDR_TYPE_XOR        0x00
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Length definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+#define MAX_ETH_IP_ALIGNMENT    32          // DTA-2110=8, DTA-2125=16
+#define ETH_FCS_LENGTH          4
 #define ETHII_HDR_LENGTH        14          // Ethernet II header length
 #define IPV4_HDR_LENGTH         20          // IPv4 header length (bytes): without 
                                             // options + padding!!!!
@@ -452,11 +454,11 @@ typedef struct _Smpte2110_40_Pl
 
 typedef struct _Smpte2110_41_Pl
 {
-    UInt32 DataItemTypeH:16;
+    UInt32 DataItemTypeH : 16;
     UInt32 LengthH : 1;       // Length: Total number of 32-bit data items. 0 is not allowed
-    UInt32 KBit:1;
-    UInt32 DataItemTypeL:6;
-    UInt32 LengthL:8;
+    UInt32 KBit : 1;
+    UInt32 DataItemTypeL : 6;
+    UInt32 LengthL : 8;
 } Smpte2110_41_Pl;
 
 typedef struct _Smpte2110_41_OSM_Pl
@@ -684,14 +686,16 @@ typedef struct _DtaDmaRxHeader
 #define DT_ETHIP_PROTOCOL_TCP       0       // && m_PortOffset != 0
 #define DT_ETHIP_PROTOCOL_OTHER     0       // && m_PortOffset == 0
 
-#define DT_ETHIP_SYNCWORD           0xEEEE
+#define DT_ETHIP_SYNCWORD_V1        0xEEEE
+#define DT_ETHIP_SYNCWORD_V2        0xEFEF
 
 #define  DT_ETHIP_PKTTYPE_TIMESTAMP  0x0
 #define  DT_ETHIP_PKTTYPE_IPV4       0x1
 #define  DT_ETHIP_PKTTYPE_IPV6       0x2
 #define  DT_ETHIP_PKTTYPE_OTHER      0x3
 
-typedef struct _DtEthIpHeader
+
+typedef struct _DtEthIpHeaderV1
 {
     UInt64  m_SyncWord : 16;        // EEEEh
     UInt64  m_SizeInQWords : 8;     // Unit: 64 bits, 8 bytes
@@ -707,17 +711,91 @@ typedef struct _DtEthIpHeader
     UInt64  m_TimestampRequest : 1;
     UInt64  m_TimestampValid : 1;
     UInt64  m_Fingerprint : 6;
-} DtEthIpHeader;
+} DtEthIpHeaderV1;
+
+typedef struct _DtEthIpHeaderV2
+{
+    UInt64  m_SyncWord : 16;        // EFEFh
+    UInt64  m_SizeInQWords : 11;     // Unit: 64 bits, 8 bytes
+    UInt64  m_PaddingInBytes : 8;    // End of packet padding in bytes
+    UInt64  m_IpAddressOffset : 5;
+    UInt64  m_PortOffset : 8;
+    UInt64  m_Protocol : 1;
+    UInt64  m_PacketType : 2;
+    UInt64  m_SubStream : 2;
+    UInt64  m_IpV4HdrChecksumError : 1;
+    UInt64  m_UdpChecksumError : 1;
+    UInt64  m_TcpChecksumError : 1;
+    UInt64  m_TimestampRequest : 1;
+    UInt64  m_TimestampValid : 1;
+    UInt64  m_Fingerprint : 6;
+} DtEthIpHeaderV2;
 
 typedef struct _DtEthIpTod
 {
     union {
         struct {
-            UInt64  m_TodNanoseconds : 32;
+            UInt64  m_TodNanoseconds : 30;
+            UInt64  m_Reserved : 2;
             UInt64  m_TodSeconds : 32;
         };
     };
 } DtEthIpTod;
+
+typedef struct _DtEthIpHeader
+{
+    union
+    {
+        struct {
+            UInt64  m_SyncWord : 16;        // FFFF/EFEFh
+            UInt64  m_TypeSpecific : 19;    // Depending on sync word
+            UInt64  m_IpAddressOffset : 5;
+            UInt64  m_PortOffset : 8;
+            UInt64  m_Protocol : 1;
+            UInt64  m_PacketType : 2;
+            UInt64  m_SubStream : 2;
+            UInt64  m_IpV4HdrChecksumError : 1;
+            UInt64  m_UdpChecksumError : 1;
+            UInt64  m_TcpChecksumError : 1;
+            UInt64  m_TimestampRequest : 1;
+            UInt64  m_TimestampValid : 1;
+            UInt64  m_Fingerprint : 6;
+        };
+        struct {
+            UInt64  m_SyncWord : 16;        // EEEEh
+            UInt64  m_SizeInQWords : 8;     // Unit: 64 bits, 8 bytes
+            UInt64  m_SizeInBytes : 11;     // Ethernet packet size in #bytes
+            UInt64  m_IpAddressOffset : 5;
+            UInt64  m_PortOffset : 8;
+            UInt64  m_Protocol : 1;
+            UInt64  m_PacketType : 2;
+            UInt64  m_SubStream : 2;
+            UInt64  m_IpV4HdrChecksumError : 1;
+            UInt64  m_UdpChecksumError : 1;
+            UInt64  m_TcpChecksumError : 1;
+            UInt64  m_TimestampRequest : 1;
+            UInt64  m_TimestampValid : 1;
+            UInt64  m_Fingerprint : 6;
+        }V1;
+        struct {
+            UInt64  m_SyncWord : 16;        // EFEFh
+            UInt64  m_SizeInQWords : 11;     // Unit: 64 bits, 8 bytes
+            UInt64  m_PaddingInBytes : 8;    // End of packet padding in bytes
+            UInt64  m_IpAddressOffset : 5;
+            UInt64  m_PortOffset : 8;
+            UInt64  m_Protocol : 1;
+            UInt64  m_PacketType : 2;
+            UInt64  m_SubStream : 2;
+            UInt64  m_IpV4HdrChecksumError : 1;
+            UInt64  m_UdpChecksumError : 1;
+            UInt64  m_TcpChecksumError : 1;
+            UInt64  m_TimestampRequest : 1;
+            UInt64  m_TimestampValid : 1;
+            UInt64  m_Fingerprint : 6;
+        }V2;
+    };
+    
+} DtEthIpHeader;
 
 typedef struct _DtEthIp
 {   
@@ -727,6 +805,20 @@ typedef struct _DtEthIp
     // Payload...
 } DtEthIp;
 
+
+// Defines for V1/V2 size calculations
+#define DtEthIp_HDRSIZE(a) (((a)->m_PacketType==DT_ETHIP_PKTTYPE_TIMESTAMP?sizeof(DtEthIpHeader)+sizeof(DtEthIpTod):sizeof(DtEthIp)))
+
+#define DtEthIp_PKTSIZE_V1(a) ((a)->V1.m_SizeInBytes)
+#define DtEthIp_PKTSIZE_V2(a) (((a)->V2.m_SizeInQWords*8)-DtEthIp_HDRSIZE(a)-(a)->V2.m_PaddingInBytes)
+#define DtEthIp_PKTSIZE(a) ((a)->m_SyncWord==DT_ETHIP_SYNCWORD_V1?(UInt)DtEthIp_PKTSIZE_V1(a):(UInt)DtEthIp_PKTSIZE_V2(a))
+
+#define DtEthIp_SIZE_V1(a) ((a)->V1.m_SizeInQWords*8)
+#define DtEthIp_SIZE_V2(a) ((a)->V2.m_SizeInQWords*8)
+#define DtEthIp_SIZE(a) ((a)->m_SyncWord==DT_ETHIP_SYNCWORD_V1?(UInt)DtEthIp_SIZE_V1(a):(UInt)DtEthIp_SIZE_V2(a))
+#define DtEthIp_ISVALID(a)(((a)->m_SyncWord==DT_ETHIP_SYNCWORD_V1?DtEthIp_SIZE_V1(a)>=(DtEthIp_HDRSIZE(a)+DtEthIp_PKTSIZE_V1(a)): \
+                                             DtEthIp_SIZE_V2(a)>=(DtEthIp_HDRSIZE(a)+(a)->V2.m_PaddingInBytes)))
+
 #pragma pack (pop)
 
 
@@ -734,8 +826,12 @@ typedef struct _DtEthIp
 // Default defines
 #define  DT_IP_MIN_ETH_PAYLOAD  60
 #define  DT_IP_MAX_ETH_PAYLOAD  1600
+#define  DT_IP_MAX_JUMBO_BUF    9600
+
 #define  DT_IP_MAX_PACKET_SIZE  (ETHII_HDR_LENGTH + DT_IP_MAX_ETH_PAYLOAD)
-#define  DT_ETH_IP_MAX_PACKETSIZE 2048  // ETH_IP_HEADER max size: 11 bits
+#define  DT_ETH_IP_MAX_PACKETSIZE_V1 2048                 // ETH_IP_HEADER max packet size 11 bits
+#define  DT_ETH_IP_MAX_PACKETSIZE_V2 16376                // ETH_IP_HEADER Max QWord size 11 bits
+
 #define  DT_IPTX_MAX_PACKET_LENGTH (DT_IP_MAX_PACKET_SIZE + sizeof(DtEthIp))
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DTAPI shared IP definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.

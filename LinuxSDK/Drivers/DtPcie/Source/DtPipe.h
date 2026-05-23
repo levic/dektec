@@ -16,7 +16,6 @@
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPipe definitions -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-
 #define DT_PIPE_CAP_TX_NRT    (DT_PIPE_CAP_TX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_NRT|DT_PIPE_CAP_KBUF)
 #define DT_PIPE_CAP_TX_RT_HWP (DT_PIPE_CAP_TX|DT_PIPE_CAP_HWP|DT_PIPE_CAP_RT)
 #define DT_PIPE_CAP_TX_RT_SWP (DT_PIPE_CAP_TX|DT_PIPE_CAP_SWP|DT_PIPE_CAP_RT)
@@ -187,7 +186,7 @@ typedef struct _DtPipeTxRtHwq
 
 void DtPipe_Close(DtPipe* pPipe);
 DtPipe* DtPipe_Open(const DtFileObject* pFileObject, DtObject* pPipeOwner, 
-                                                  DtPipeType PipeType, Int Id, Int Index);
+                               DtPipeType PipeType, Int Id, Int Index, Bool JumboSupport);
 DtStatus DtPipe_SetSharedBuffer(DtPipe* pPipe, UInt8* pBuffer, Int BufferSize);
 DtStatus DtPipe_SetSharedBufferKernel(DtPipe* pPipe, Int RequestSize, Int* pActualSize,
                                                          Int* pMaxLoad, UInt8** ppBuffer);

@@ -11,14 +11,14 @@ DRIVER_NAME = $(TARGET)
 COMMON_DIR := ../../../../Common/Source
 
 SALDIR := ../../../DtSal
-SALSRCDIR = $(SALDIR)/Source
-SALBUILDDIR = $(SALDIR)/Source/Linux
-DTSAL = $(SALBUILDDIR)/DtSal$(DRIVER_NAME).o
+SALSRCDIR := $(SALDIR)/Source
+SALSRC := $(wildcard $(MYPWD)/$(SALSRCDIR)/*.c)
+SALOBJ := $(patsubst $(MYPWD)/%,%,$(SALSRC:.c=.o))
 
 DRVCOMMONDIR := ../../../DtDrvCommon
-DRVCOMMONSRCDIR = $(DRVCOMMONDIR)/Source
-DRVCOMMONBUILDDIR = $(DRVCOMMONDIR)/Source/Linux
-DTDRVCOMMON = $(DRVCOMMONBUILDDIR)/DtDrvCommon$(DRIVER_NAME).o
+DRVCOMMONSRCDIR := $(DRVCOMMONDIR)/Source
+DRVCOMMONSRC := $(wildcard $(MYPWD)/$(DRVCOMMONSRCDIR)/*.c)
+DRVCOMMONOBJ := $(patsubst $(MYPWD)/%,%,$(DRVCOMMONSRC:.c=.o))
 
 NUMLBITS = $(shell getconf LONG_BIT)
 
@@ -42,27 +42,28 @@ ifneq ($(KERNELRELEASE),)
 
 # Check for debug
 ifdef DEBUG
-	EXTRA_CFLAGS += -g -Wall -D_DEBUG
+	ccflags-y += -g -Wall -D_DEBUG
 endif
 
 # Check for SMP
-ifdef CONFIG_SMP
-	EXTRA_CFLAGS += -D__SMP__ -DSMP
-endif
+ccflags-$(CONFIG_SMP) += -D__SMP__ -DSMP
+
+# Add default KBUILD module CFLAGS 
+ccflags-y += $(KBUILD_CFLAGS_MODULE)
 
 # Check for 32/64 bit system
-EXTRA_CFLAGS += -DLINBUILD -DUSE_DF_EXCL_ACCESS
+ccflags-y += -DLINBUILD -DUSE_DF_EXCL_ACCESS
 ifeq ($(NUMLBITS), 32)
-    EXTRA_CFLAGS += -DLIN32
+    ccflags-y += -DLIN32
 else
-    EXTRA_CFLAGS += -DLIN64
+    ccflags-y += -DLIN64
 endif
 
 # Add EXPORT_SYMTAB to have a Module.symvers file generated, which contains the symbol
 # version information of the exported symbols in the DtPcie driver. These symbols are used
 # by the DtPcieNw driver and version info is required during the modpost of the DtPcieNw
 # driver.
-EXTRA_CFLAGS += -DEXPORT_SYMTAB
+ccflags-y += -DEXPORT_SYMTAB
 
 # ========================================================================================
 # Include version evironment vars
@@ -73,191 +74,195 @@ include $(MYPWD)/../Version.inc
 # Source definitions
 
 SRCDIR = ..
-SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o     \
-         $(SRCDIR)/Linux/DtPcieDeviceTable.o  \
-         $(SRCDIR)/DtCore.o                   \
-         $(SRCDIR)/DtCore_BC.o                \
-         $(SRCDIR)/DtCore_DEBUG.o             \
-         $(SRCDIR)/DtCore_DEVICE.o            \
-         $(SRCDIR)/DtCore_DF.o                \
-         $(SRCDIR)/DtCore_EVENTS.o            \
-         $(SRCDIR)/DtCore_INTERRUPT.o         \
-         $(SRCDIR)/DtCore_IOCONFIG.o          \
-         $(SRCDIR)/DtCore_PROPS.o             \
-         $(SRCDIR)/DtCore_PT.o                \
-         $(SRCDIR)/DtCore_SETTINGS.o          \
-         $(SRCDIR)/DtCore_TOD.o               \
-         $(SRCDIR)/DtCore_VPD.o               \
-         $(SRCDIR)/DtCorePcie.o               \
-         $(SRCDIR)/DtBc.o                     \
-         $(SRCDIR)/DtBcACCUFIFO.o             \
-         $(SRCDIR)/DtBcAD9789ITF.o            \
-         $(SRCDIR)/DtBcASIRXP.o               \
-         $(SRCDIR)/DtBcASITXG.o               \
-         $(SRCDIR)/DtBcASITXSER.o             \
-         $(SRCDIR)/DtBcATTNCTRL_2116.o        \
-         $(SRCDIR)/DtBcBURSTFIFO.o            \
-         $(SRCDIR)/DtBcCDMAC.o                \
-         $(SRCDIR)/DtBcCDMACTO.o              \
-         $(SRCDIR)/DtBcCLKCNT.o               \
-         $(SRCDIR)/DtBcCONSTSINK.o            \
-         $(SRCDIR)/DtBcCONSTSOURCE.o          \
-         $(SRCDIR)/DtBcDATAC.o                \
-         $(SRCDIR)/DtBcDATACDC.o              \
-         $(SRCDIR)/DtBcDATAFIFO.o             \
-         $(SRCDIR)/DtBcDDRFIFO.o              \
-         $(SRCDIR)/DtBcDDRFRONT.o             \
-         $(SRCDIR)/DtBcDISEQC.o               \
-         $(SRCDIR)/DtBcEMAC10G.o              \
-         $(SRCDIR)/DtBcEMAC25G.o              \
-         $(SRCDIR)/DtBcETHIPPAD.o             \
-         $(SRCDIR)/DtBcFANC.o                 \
-         $(SRCDIR)/DtBcFMBC.o                 \
-         $(SRCDIR)/DtBcFPGATEMP.o             \
-         $(SRCDIR)/DtBcGENL.o                 \
-         $(SRCDIR)/DtBcGPIO.o                 \
-         $(SRCDIR)/DtBcGPSTIME.o              \
-         $(SRCDIR)/DtBcGS2988.o               \
-         $(SRCDIR)/DtBcI2CM.o                 \
-         $(SRCDIR)/DtBcIO_2116.o              \
-         $(SRCDIR)/DtBcIOSERIN.o              \
-         $(SRCDIR)/DtBcIOPARIN.o              \
-         $(SRCDIR)/DtBcIPFIFO.o               \
-         $(SRCDIR)/DtBcIPROUT.o               \
-         $(SRCDIR)/DtBcIPSCHED.o              \
-         $(SRCDIR)/DtBcIPSECG.o               \
-         $(SRCDIR)/DtBcIPSUMCHK.o             \
-         $(SRCDIR)/DtBcIPSUMINS.o             \
-         $(SRCDIR)/DtBcIQAGC.o                \
-         $(SRCDIR)/DtBcIQDEMOD.o              \
-         $(SRCDIR)/DtBcIQDOWNSRC.o            \
-         $(SRCDIR)/DtBcIQFIR.o                \
-         $(SRCDIR)/DtBcIQFIR2XCLK.o           \
-         $(SRCDIR)/DtBcIQINV.o                \
-         $(SRCDIR)/DtBcIQNOISE.o              \
-         $(SRCDIR)/DtBcIQMISC.o               \
-         $(SRCDIR)/DtBcIQPWR.o                \
-         $(SRCDIR)/DtBcIQSYNC.o               \
-         $(SRCDIR)/DtBcIQUNPCK.o              \
-         $(SRCDIR)/DtBcIQUP.o                 \
-         $(SRCDIR)/DtBcIQJESD.o               \
-         $(SRCDIR)/DtBcKA.o                   \
-         $(SRCDIR)/DtBcLEDB.o                 \
-         $(SRCDIR)/DtBcLMH1981.o              \
-         $(SRCDIR)/DtBcMSIX.o                 \
-         $(SRCDIR)/DtBcREBOOT.o               \
-         $(SRCDIR)/DtBcS12GTO3G.o             \
-         $(SRCDIR)/DtBcSDIDMX12G.o            \
-         $(SRCDIR)/DtBcSDIMUX12G.o            \
-         $(SRCDIR)/DtBcSDIRXF.o               \
-         $(SRCDIR)/DtBcSDIRXP.o               \
-         $(SRCDIR)/DtBcSDIRXPHY.o             \
-         $(SRCDIR)/DtBcSDITXF.o               \
-         $(SRCDIR)/DtBcSDITXP.o               \
-         $(SRCDIR)/DtBcSDITXPHY.o             \
-         $(SRCDIR)/DtBcSDITXPLL.o             \
-         $(SRCDIR)/DtBcSDIXCFG.o              \
-         $(SRCDIR)/DtBcSI2166ITF.o            \
-         $(SRCDIR)/DtBcSPIM.o                 \
-         $(SRCDIR)/DtBcSPIMF.o                \
-         $(SRCDIR)/DtBcST425LR.o              \
-         $(SRCDIR)/DtBcSWITCH.o               \
-         $(SRCDIR)/DtBcTSRXFMT.o              \
-         $(SRCDIR)/DtBcTOD.o                  \
-         $(SRCDIR)/DtBcVVI.o                  \
-         $(SRCDIR)/DtCfEvt.o                  \
-         $(SRCDIR)/DtCfInt.o                  \
-         $(SRCDIR)/DtCfIoCfg.o                \
-         $(SRCDIR)/DtCfProps.o                \
-         $(SRCDIR)/DtCfTod.o                  \
-         $(SRCDIR)/DtDf.o                     \
-         $(SRCDIR)/DtDfAdf4360Ctrl.o          \
-         $(SRCDIR)/DtDfAsiRx.o                \
-         $(SRCDIR)/DtDfCh.o                   \
-         $(SRCDIR)/DtDfChSdiRx.o              \
-         $(SRCDIR)/DtDfChSdiRxPhyOnly.o       \
-         $(SRCDIR)/DtDfClkCtrl_2116.o         \
-         $(SRCDIR)/DtDfClkGen_2110.o          \
-         $(SRCDIR)/DtDfClkGen_2125.o          \
-         $(SRCDIR)/DtDfDataFifo.o             \
-         $(SRCDIR)/DtDfMbcFlash.o             \
-         $(SRCDIR)/DtDfMbcReboot.o            \
-         $(SRCDIR)/DtDfMbcTemp.o              \
-         $(SRCDIR)/DtDfIpFifo.o               \
-         $(SRCDIR)/DtDfNw.o                   \
-         $(SRCDIR)/DtDfGenLockCtrl.o          \
-         $(SRCDIR)/DtDfMcTc72Temp.o           \
-         $(SRCDIR)/DtDfMxDs75Temp.o           \
-         $(SRCDIR)/DtDfSdiRx.o                \
-         $(SRCDIR)/DtDfSdiTxPhy.o             \
-         $(SRCDIR)/DtDfSdiXCfgMgr.o           \
-         $(SRCDIR)/DtDfSensTemp.o             \
-         $(SRCDIR)/DtDfSfp.o                  \
-         $(SRCDIR)/DtDfSi534X.o               \
-         $(SRCDIR)/DtDfSpiCableDrvEq.o        \
-         $(SRCDIR)/DtDfSpiProm.o              \
-         $(SRCDIR)/DtDfTodClockCtrl.o         \
-         $(SRCDIR)/DtDfTempFanMgr.o           \
-         $(SRCDIR)/DtDfTxPllMgr.o             \
-         $(SRCDIR)/DtDfVirtGenRef.o           \
-         $(SRCDIR)/DtDfVpd.o                  \
-         $(SRCDIR)/DtPt.o                     \
-         $(SRCDIR)/DtPtAsiSdiMon.o            \
-         $(SRCDIR)/DtPtAsiSdiRxTx.o           \
-         $(SRCDIR)/DtPtIp.o                   \
-         $(SRCDIR)/DtPtModOutp.o              \
-         $(SRCDIR)/DtPtSdiPhyOnlyRxTx.o       \
-         $(SRCDIR)/DtPtSdiGenRef.o            \
-         $(SRCDIR)/DtIoStub.o                 \
-         $(SRCDIR)/DtVectorBc.o               \
-         $(SRCDIR)/DtVectorDf.o               \
-         $(SRCDIR)/DtVectorDfChUser.o         \
-         $(SRCDIR)/DtVectorPt.o               \
-         $(SRCDIR)/DtVectorPipe.o             \
-         $(SRCDIR)/DtCorePcie.o               \
-         $(SRCDIR)/DtCorePcie_DEVICE.o        \
-         $(SRCDIR)/DtPciePropertyStore.o      \
-         $(SRCDIR)/DtPcieTableStore.o         \
-         $(SRCDIR)/DtPcieUtility.o            \
-         $(SRCDIR)/DtBcAD5320_2132.o          \
-         $(SRCDIR)/DtBcADS4246_2132.o         \
-         $(SRCDIR)/DtBcDATASTMUX_2132.o       \
-         $(SRCDIR)/DtBcIQCGRAB_2132.o         \
-         $(SRCDIR)/DtBcIQFIR_2132.o           \
-         $(SRCDIR)/DtBcIQPWR_2132.o           \
-         $(SRCDIR)/DtBcIQSRC2132_2132.o       \
-         $(SRCDIR)/DtBcLNBH25_2132.o          \
-         $(SRCDIR)/DtBcS2DEC_2132.o           \
-         $(SRCDIR)/DtBcS2DEMOD_2132.o         \
-         $(SRCDIR)/DtBcS2STATS_2132.o         \
-         $(SRCDIR)/DtDfS2CrDemod_2132.o       \
-         $(SRCDIR)/DtDfTxClkCtrl_2178A.o      \
-         $(SRCDIR)/DtBcXPLL.o                 \
-         $(SRCDIR)/DtPipe.o                   \
+SRC    = $(SRCDIR)/Linux/DtCorePcie_IAL.o    \
+         $(SRCDIR)/Linux/DtPcieDeviceTable.o \
+         $(SRCDIR)/DtCore.o                  \
+         $(SRCDIR)/DtCore_BC.o               \
+         $(SRCDIR)/DtCore_DEBUG.o            \
+         $(SRCDIR)/DtCore_DEVICE.o           \
+         $(SRCDIR)/DtCore_DF.o               \
+         $(SRCDIR)/DtCore_EVENTS.o           \
+         $(SRCDIR)/DtCore_INTERRUPT.o        \
+         $(SRCDIR)/DtCore_IOCONFIG.o         \
+         $(SRCDIR)/DtCore_PROPS.o            \
+         $(SRCDIR)/DtCore_PT.o               \
+         $(SRCDIR)/DtCore_SETTINGS.o         \
+         $(SRCDIR)/DtCore_TOD.o              \
+         $(SRCDIR)/DtCore_VPD.o              \
+         $(SRCDIR)/DtCorePcie.o              \
+         $(SRCDIR)/DtBc.o                    \
+         $(SRCDIR)/DtBcACCUFIFO.o            \
+         $(SRCDIR)/DtBcAD9789ITF.o           \
+         $(SRCDIR)/DtBcASIRXP.o              \
+         $(SRCDIR)/DtBcASITXG.o              \
+         $(SRCDIR)/DtBcASITXSER.o            \
+         $(SRCDIR)/DtBcATTNCTRL_2116.o       \
+         $(SRCDIR)/DtBcBURSTFIFO.o           \
+         $(SRCDIR)/DtBcCDMAC.o               \
+         $(SRCDIR)/DtBcCDMACTO.o             \
+         $(SRCDIR)/DtBcCLKCNT.o              \
+         $(SRCDIR)/DtBcCONSTSINK.o           \
+         $(SRCDIR)/DtBcCONSTSOURCE.o         \
+         $(SRCDIR)/DtBcDATAC.o               \
+         $(SRCDIR)/DtBcDATACDC.o             \
+         $(SRCDIR)/DtBcDATAFIFO.o            \
+         $(SRCDIR)/DtBcDDRFIFO.o             \
+         $(SRCDIR)/DtBcDDRFRONT.o            \
+         $(SRCDIR)/DtBcDISEQC.o              \
+         $(SRCDIR)/DtBcEMAC10G.o             \
+         $(SRCDIR)/DtBcEMAC25G.o             \
+         $(SRCDIR)/DtBcETHIPPAD.o            \
+         $(SRCDIR)/DtBcFANC.o                \
+         $(SRCDIR)/DtBcFMBC.o                \
+         $(SRCDIR)/DtBcFPGATEMP.o            \
+         $(SRCDIR)/DtBcGENL.o                \
+         $(SRCDIR)/DtBcGPIO.o                \
+         $(SRCDIR)/DtBcGPSTIME.o             \
+         $(SRCDIR)/DtBcGS2988.o              \
+         $(SRCDIR)/DtBcI2CM.o                \
+         $(SRCDIR)/DtBcIO_2116.o             \
+         $(SRCDIR)/DtBcIOSERIN.o             \
+         $(SRCDIR)/DtBcIOPARIN.o             \
+         $(SRCDIR)/DtBcIPFIFO.o              \
+         $(SRCDIR)/DtBcIPROUT.o              \
+         $(SRCDIR)/DtBcIPSCHED.o             \
+         $(SRCDIR)/DtBcIPSECG.o              \
+         $(SRCDIR)/DtBcIPSUMCHK.o            \
+         $(SRCDIR)/DtBcIPSUMINS.o            \
+         $(SRCDIR)/DtBcIQAGC.o               \
+         $(SRCDIR)/DtBcIQDEMOD.o             \
+         $(SRCDIR)/DtBcIQDOWNSRC.o           \
+         $(SRCDIR)/DtBcIQFIR.o               \
+         $(SRCDIR)/DtBcIQFIR2XCLK.o          \
+         $(SRCDIR)/DtBcIQINV.o               \
+         $(SRCDIR)/DtBcIQNOISE.o             \
+         $(SRCDIR)/DtBcIQMISC.o              \
+         $(SRCDIR)/DtBcIQPWR.o               \
+         $(SRCDIR)/DtBcIQSYNC.o              \
+         $(SRCDIR)/DtBcIQUNPCK.o             \
+         $(SRCDIR)/DtBcIQUP.o                \
+         $(SRCDIR)/DtBcIQJESD.o              \
+         $(SRCDIR)/DtBcKA.o                  \
+         $(SRCDIR)/DtBcLEDB.o                \
+         $(SRCDIR)/DtBcLMH1981.o             \
+         $(SRCDIR)/DtBcMSIX.o                \
+         $(SRCDIR)/DtBcREBOOT.o              \
+         $(SRCDIR)/DtBcS12GTO3G.o            \
+         $(SRCDIR)/DtBcSDIDMX12G.o           \
+         $(SRCDIR)/DtBcSDIMUX12G.o           \
+         $(SRCDIR)/DtBcSDIRXF.o              \
+         $(SRCDIR)/DtBcSDIRXP.o              \
+         $(SRCDIR)/DtBcSDIRXPHY.o            \
+         $(SRCDIR)/DtBcSDITXF.o              \
+         $(SRCDIR)/DtBcSDITXP.o              \
+         $(SRCDIR)/DtBcSDITXPHY.o            \
+         $(SRCDIR)/DtBcSDITXPLL.o            \
+         $(SRCDIR)/DtBcSDIXCFG.o             \
+         $(SRCDIR)/DtBcSI2166ITF.o           \
+         $(SRCDIR)/DtBcSPIM.o                \
+         $(SRCDIR)/DtBcSPIMF.o               \
+         $(SRCDIR)/DtBcST425LR.o             \
+         $(SRCDIR)/DtBcSWITCH.o              \
+         $(SRCDIR)/DtBcTSRXFMT.o             \
+         $(SRCDIR)/DtBcTOD.o                 \
+         $(SRCDIR)/DtBcVVI.o                 \
+         $(SRCDIR)/DtCfEvt.o                 \
+         $(SRCDIR)/DtCfInt.o                 \
+         $(SRCDIR)/DtCfIoCfg.o               \
+         $(SRCDIR)/DtCfProps.o               \
+         $(SRCDIR)/DtCfTod.o                 \
+         $(SRCDIR)/DtDf.o                    \
+         $(SRCDIR)/DtDfAdf4360Ctrl.o         \
+         $(SRCDIR)/DtDfAsiRx.o               \
+         $(SRCDIR)/DtDfCh.o                  \
+         $(SRCDIR)/DtDfChSdiRx.o             \
+         $(SRCDIR)/DtDfChSdiRxPhyOnly.o      \
+         $(SRCDIR)/DtDfClkCtrl_2116.o        \
+         $(SRCDIR)/DtDfClkGen_2110.o         \
+         $(SRCDIR)/DtDfClkGen_2125.o         \
+         $(SRCDIR)/DtDfDataFifo.o            \
+         $(SRCDIR)/DtDfMbcFlash.o            \
+         $(SRCDIR)/DtDfMbcReboot.o           \
+         $(SRCDIR)/DtDfMbcTemp.o             \
+         $(SRCDIR)/DtDfIpFifo.o              \
+         $(SRCDIR)/DtDfNw.o                  \
+         $(SRCDIR)/DtDfGenLockCtrl.o         \
+         $(SRCDIR)/DtDfMcTc72Temp.o          \
+         $(SRCDIR)/DtDfMxDs75Temp.o          \
+         $(SRCDIR)/DtDfSdiRx.o               \
+         $(SRCDIR)/DtDfSdiTxPhy.o            \
+         $(SRCDIR)/DtDfSdiXCfgMgr.o          \
+         $(SRCDIR)/DtDfSensTemp.o            \
+         $(SRCDIR)/DtDfSfp.o                 \
+         $(SRCDIR)/DtDfSi534X.o              \
+         $(SRCDIR)/DtDfSpiCableDrvEq.o       \
+         $(SRCDIR)/DtDfSpiProm.o             \
+         $(SRCDIR)/DtDfTodClockCtrl.o        \
+         $(SRCDIR)/DtDfTempFanMgr.o          \
+         $(SRCDIR)/DtDfTxPllMgr.o            \
+         $(SRCDIR)/DtDfVirtGenRef.o          \
+         $(SRCDIR)/DtDfVpd.o                 \
+         $(SRCDIR)/DtPt.o                    \
+         $(SRCDIR)/DtPtAsiSdiMon.o           \
+         $(SRCDIR)/DtPtAsiSdiRxTx.o          \
+         $(SRCDIR)/DtPtIp.o                  \
+         $(SRCDIR)/DtPtModOutp.o             \
+         $(SRCDIR)/DtPtSdiPhyOnlyRxTx.o      \
+         $(SRCDIR)/DtPtSdiGenRef.o           \
+         $(SRCDIR)/DtIoStub.o                \
+         $(SRCDIR)/DtVectorBc.o              \
+         $(SRCDIR)/DtVectorDf.o              \
+         $(SRCDIR)/DtVectorDfChUser.o        \
+         $(SRCDIR)/DtVectorPt.o              \
+         $(SRCDIR)/DtVectorPipe.o            \
+         $(SRCDIR)/DtCorePcie.o              \
+         $(SRCDIR)/DtCorePcie_DEVICE.o       \
+         $(SRCDIR)/DtPciePropertyStore.o     \
+         $(SRCDIR)/DtPcieTableStore.o        \
+         $(SRCDIR)/DtPcieUtility.o           \
+         $(SRCDIR)/DtBcAD5320_2132.o         \
+         $(SRCDIR)/DtBcADS4246_2132.o        \
+         $(SRCDIR)/DtBcDATASTMUX_2132.o      \
+         $(SRCDIR)/DtBcIQCGRAB_2132.o        \
+         $(SRCDIR)/DtBcIQFIR_2132.o          \
+         $(SRCDIR)/DtBcIQPWR_2132.o          \
+         $(SRCDIR)/DtBcIQSRC2132_2132.o      \
+         $(SRCDIR)/DtBcLNBH25_2132.o         \
+         $(SRCDIR)/DtBcS2DEC_2132.o          \
+         $(SRCDIR)/DtBcS2DEMOD_2132.o        \
+         $(SRCDIR)/DtBcS2STATS_2132.o        \
+         $(SRCDIR)/DtDfS2CrDemod_2132.o      \
+         $(SRCDIR)/DtDfTxClkCtrl_2178A.o     \
+         $(SRCDIR)/DtBcXPLL.o                \
+         $(SRCDIR)/DtPipe.o                  \
          Messages.o
 
-EXTRA_CFLAGS += -I$(MYPWD) -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR)
-EXTRA_CFLAGS += -I$(MYPWD)/$(SALSRCDIR) -I$(MYPWD)/$(DRVCOMMONSRCDIR)
+ccflags-y += -I$(MYPWD) -I$(MYPWD)/$(SRCDIR) -I$(MYPWD)/$(COMMON_DIR)
+ccflags-y += -I$(MYPWD)/$(SALSRCDIR) -I$(MYPWD)/$(DRVCOMMONSRCDIR)
 
 # ========================================================================================
 # Preprocessor definitions
 
-EXTRA_CFLAGS += -D_DRIVER_NAME=$(DRIVER_NAME)                  \
-                -DDTPCIE_VERSION_MAJOR=$(DTPCIE_VERSION_MAJOR)  \
-                -DDTPCIE_VERSION_MINOR=$(DTPCIE_VERSION_MINOR)  \
-                -DDTPCIE_VERSION_MICRO=$(DTPCIE_VERSION_MICRO)  \
-                -DDTPCIE_VERSION_BUILD=$(DTPCIE_VERSION_BUILD)
+ccflags-y += -D_DRIVER_NAME=$(DRIVER_NAME)                  \
+             -DDTPCIE_VERSION_MAJOR=$(DTPCIE_VERSION_MAJOR) \
+             -DDTPCIE_VERSION_MINOR=$(DTPCIE_VERSION_MINOR) \
+             -DDTPCIE_VERSION_MICRO=$(DTPCIE_VERSION_MICRO) \
+             -DDTPCIE_VERSION_BUILD=$(DTPCIE_VERSION_BUILD)
+
+# ========================================================================================
+# set subdirs flags identical to main flags and add extras for DtSal and DtDrvCommon build
+subdir-ccflags-y := $(ccflags-y) -DSKIP_USB
 
 # ========================================================================================
 # Objects to build
 
 obj-m := $(TARGET).o
-$(TARGET)-objs = $(SRC) $(DTSAL) $(DTDRVCOMMON)
+$(TARGET)-objs = $(SRC) $(SALOBJ) $(DRVCOMMONOBJ)
 
 # ========================================================================================
 # Objects to clean
 
-clean-files = $(SRC)
+clean-files = $(SRC) $(SALOBJ) $(DRVCOMMONOBJ)
 
 
 # ========================================================================================
@@ -271,7 +276,7 @@ INSTALLDIR = /lib/modules/$(CURRENT)/kernel/drivers/misc
 # ========================================================================================
 # Default option
 
-all:	PREREQ $(DTSAL) $(DTDRVCOMMON)
+all:	clean PREREQ
 	$(MAKE) MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) modules
 
 INSTALL_CMD := "/sbin/rmmod $(TARGET) 2>/dev/null || true &&          \
@@ -291,21 +296,12 @@ install:
 PREREQ:
 	@if [ -f MakefilePrereq ]; then $(MAKE) -f MakefilePrereq ; fi
 
-$(DTSAL):
-	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	$(MAKE) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) CONFIG_PREFIX_SYMBOLS=n
-
-$(DTDRVCOMMON): PREREQ
-	$(MAKE) MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	$(MAKE) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) CONFIG_PREFIX_SYMBOLS=n
 # ========================================================================================
 # Clean all option
 
 clean:
 	@if [ -f MakefilePrereq ]; then $(MAKE) -f MakefilePrereq clean ; fi 
 	$(MAKE) MYPWD=$(PWD) -C $(KERNELDIR) M=$(PWD) clean
-	$(MAKE) MYPWD=$(PWD) -C $(SALBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
-	$(MAKE) MYPWD=$(PWD) -C $(DRVCOMMONBUILDDIR) DRIVER_NAME=$(DRIVER_NAME) clean
 
 # ========================================================================================
 endif
