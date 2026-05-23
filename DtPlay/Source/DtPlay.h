@@ -1,4 +1,4 @@
-// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.h *#*#*#*#*#*#*#*#*# (C) 2006-2024 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPlay.h *#*#*#*#*#*#*#*#*# (C) 2006-2025 DekTec
 //
 
 #ifndef __DTPLAY_H
@@ -52,7 +52,7 @@ struct DcpTagLength
     unsigned char m_Length[4];  // Tag length in bits
     unsigned int Length()       // Length in number of bytes
           { return (m_Length[0]<<24 | m_Length[1]<<24 | m_Length[2]<<8 | m_Length[3])/8; }
-    bool  IsTagName(char* Name) { return m_Name[0]==Name[0] && m_Name[1]==Name[1] 
+    bool  IsTagName(const char* Name) { return m_Name[0]==Name[0] && m_Name[1]==Name[1] 
                                             && m_Name[2]==Name[2] && m_Name[3]==Name[3]; }
 };
 

@@ -16,7 +16,7 @@ INCLUDEDIR = /usr/local/include -I$(IMPORT) -I$(DTAPIINCLUDE)
 # ========================================================================================
 # Compile flags
 
-CPPFLAGS = -g -O2 -I$(INCLUDEDIR) -fexceptions \
+CPPFLAGS = -std=c++11 -g -O2 -I$(INCLUDEDIR) -fpermissive -fexceptions \
 	   -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
 # ========================================================================================

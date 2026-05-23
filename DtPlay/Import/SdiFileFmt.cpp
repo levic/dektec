@@ -7,6 +7,7 @@
 #include "DTAPI.h"
 
 #include <algorithm>
+#include <cstring>
 #include <fstream>
 
 using std::min;

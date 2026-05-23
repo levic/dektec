@@ -56,7 +56,7 @@ int  _kbhit()
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPlay Version -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #define DTPLAY_VERSION_MAJOR        4
 #define DTPLAY_VERSION_MINOR        19
-#define DTPLAY_VERSION_BUGFIX       0
+#define DTPLAY_VERSION_BUGFIX       1
 
 const int c_BufSize = 1*1024*1024;      // Data transfer buffer size
 const int c_MinFifoLoad = 3*1024*1024;  // Minimum fifo load before starting DVB transmission
