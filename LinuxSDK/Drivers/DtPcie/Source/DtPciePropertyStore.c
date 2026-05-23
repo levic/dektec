@@ -6010,7 +6010,7 @@ static const DtProperty  DtProperties2128_0_25[] =
                            0, -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_LEDB#1_ADDRESS", 0x030, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
-    { "PCB_LAST_REV", 0, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
+    { "PCB_LAST_REV", 1, NULL, PROPERTY_VALUE_TYPE_INT, -1, -1, 0, 0, -1,
                                   PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2128_0_26[] =
@@ -6641,7 +6641,10 @@ static const DtProperty  DtProperties2128_0_61[] =
     { NULL, DT_PVE, NULL, PROPERTY_VALUE_TYPE_STRING, 6, 0, 0, 0, -1,
                                                           PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
     { "BC_SPIMF#1_TYPE", DT_BLOCK_TYPE_SPIMF, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0,
-                              -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                              -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_BUILD_DATE_0", DT_PVE, "2024.09.18T15:05",
+      PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2128_0_62[] =
 {
@@ -6766,7 +6769,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2128_0[] =
     { NULL, 0 },
     { DtProperties2128_0_59, 8 },
     { DtProperties2128_0_60, 1 },
-    { DtProperties2128_0_61, 6 },
+    { DtProperties2128_0_61, 7 },
     { DtProperties2128_0_62, 18 },
     { DtProperties2128_0_63, 9 }
 };

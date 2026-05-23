@@ -21,17 +21,17 @@
 // TORT, IN NEGLIGENCE, OR OTHERWISE, ARISING FROM THE USE OF, OR INABILITY TO USE THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
-#ifndef __DT_BC_ETHPII1G_H
-#define __DT_BC_ETHPII1G_H
+#ifndef __DT_BC_XPLL_H
+#define __DT_BC_XPLL_H
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Include files -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 #include "DtBc.h"
 
-// Name and short-name of the IqJesd block (must match block ID)
+// Name and short-name of the XcvrPll block (must match block ID)
 #define DT_BC_XPLL_NAME        "XcvrPll"
 #define DT_BC_XPLL_SHORTNAME   "XPLL"
 
-// MACRO: to init an block-controller-ID for the IQJESD-BC
+// MACRO: to init an block-controller-ID for the XPLL-BC
 #define DT_BC_XPLL_INIT_ID(ID, ROLE, INSTANCE, UUID)                                     \
 do                                                                                       \
 {                                                                                        \
@@ -61,4 +61,4 @@ void  DtBcXPLL_Close(DtBc*);
 DtBcXPLL*  DtBcXPLL_Open(Int  Address, DtCore*, DtPt*  pPt, 
                                             const char*  pRole, Int  Instance, Int  Uuid);
 DtStatus  DtBcXPLL_ResetAndCalibratePll(DtBcXPLL* pBc);
-#endif  // #ifndef __DT_BC_ETHPII1G_H
+#endif  // #ifndef __DT_BC_XPLL_H

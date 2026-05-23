@@ -1,11 +1,11 @@
-// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPcieNwIal.c *#*#*#*#*#*#*#* (C) 2021-2022 DekTec
+// #*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtPcieNwIal.c *#*#*#*#*#*#*#* (C) 2021-2024 DekTec
 //
 // DtPcieNw driver - Implementation of the Linux Network interface.
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
-// Copyright (C) 2011-2016 DekTec Digital Video B.V.
+// Copyright (C) 2011-2024 DekTec Digital Video B.V.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
@@ -107,9 +107,14 @@ static int  DtPcieNwEvtSetFeatures(struct net_device* pDevice,
 #ifdef HAVE_HW_TIME_STAMP
 static int DtPcieNwEvtDoIoctl(struct net_device* dev, struct ifreq* ifr, int cmd);
 #endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,11,0)
+typedef struct kernel_ethtool_ts_info EthtoolTsInfo;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
+typedef struct ethtool_ts_info EthtoolTsInfo;
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
-static int DtPcieNwEvtGetTsInfo(struct net_device* netdev, 
-                                                         struct ethtool_ts_info* ts_info);
+static int DtPcieNwEvtGetTsInfo(struct net_device* netdev, EthtoolTsInfo* ts_info);
 #endif
 
 // Kernel module interface
@@ -819,7 +824,7 @@ static Int  DtPcieNwGetSettings(DtPcieNwDeviceData*  pDvcData, Int* pAutoNeg, In
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwSetSettings -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-Int  DtPcieNwSetSettings(DtPcieNwDeviceData* pDvcData, Int AutoNegSet, Int SpeedSet, 
+static Int DtPcieNwSetSettings(DtPcieNwDeviceData* pDvcData, Int AutoNegSet, Int SpeedSet,
                                                                             Int DuplexSet)
 {
     DtStatus  Status = DT_STATUS_OK;
@@ -1032,8 +1037,7 @@ static Int  DtPcieNwEvtSetTxCsum(struct net_device* pDevice, u32 Value)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtPcieNwEvtGetTsInfo -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-static Int DtPcieNwEvtGetTsInfo(struct net_device* pDevice, 
-                                                          struct ethtool_ts_info* ts_info)
+static Int DtPcieNwEvtGetTsInfo(struct net_device* pDevice, EthtoolTsInfo* ts_info)
 {
     DtPcieNwDeviceData*  pDvcData = netdev_priv(pDevice);
     ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
@@ -1229,7 +1233,7 @@ void  DtPcieNwEvtNewPacketRxCallback(
 // This function is executed by the DtPcie driver when a child network device must be
 // created
 //
-Int  DtPcieNwEvtProbe(DtDeviceItf* pDevItf, Int Id)
+static Int DtPcieNwEvtProbe(DtDeviceItf* pDevItf, Int Id)
 {
     Int  Result = 0;
     UInt  DvcIndex;
@@ -1401,7 +1405,7 @@ Int  DtPcieNwEvtProbe(DtDeviceItf* pDevItf, Int Id)
 // This function is executed by the Dta driver when the child network device must
 // be removed from the system
 //
-void  DtPcieNwEvtRemove(DtDeviceItf* pDevItf, Int Id)
+static void DtPcieNwEvtRemove(DtDeviceItf* pDevItf, Int Id)
 {
     UInt  DvcIndex;
 

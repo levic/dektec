@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        6
-#define DTAPI_VERSION_MINOR        6
+#define DTAPI_VERSION_MINOR        7
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        233
+#define DTAPI_VERSION_BUILD        234
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -9801,6 +9801,10 @@ public:
                                 // increase this value by 1.
 
     bool m_InLock;              // Output only: true if output is in sync with genlock
+                                // note: only valid for cards with capability 
+                                // DTAPI_CAP_MATRIX. For cards with DTAPI_CAP_MATRIX2, 
+                                // use DtDevice::GetGenlockState or the 
+                                // DT_EVENT_TYPE_GENLOCK event.
 
     bool m_RawTimestampValid;   // True if m_RawTimestamp is valid
     __int64 m_RawTimestamp;     // 64-bit timestamp of the arrival of the SDI frame.

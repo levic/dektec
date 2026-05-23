@@ -140,7 +140,9 @@ static DEVICE_ATTR(serial, S_IRUGO, DtuShowSerial, NULL);
 struct file_operations  DtuFileOps =
 {
     .owner = THIS_MODULE,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,12,0)
     .llseek = no_llseek,
+#endif
     .read = DtuIalRead,
     .write = DtuIalWrite,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
