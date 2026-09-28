@@ -52,6 +52,7 @@ typedef struct _DmaDirectBuffer
     UInt8*  m_pVirtualAddressUnaligned;      // Virtual kernel start address of the buffer
     DtPhysicalAddress  m_PhysicalAddressUnaligned;
                                              // Physical start address of the buffer
+    UInt m_BufferLengthUnaligned;            // Total length of unaligned buffer
 #endif
 } DmaDirectBuffer;
 
@@ -85,7 +86,7 @@ DtStatus  DtDmaCreateDirectBuffer(DtDvcObject* pDevice, DmaDevice* pDmaDevice,
 DtStatus  DtDmaFreeDirectBuffer(DtDvcObject* pDevice,DmaDirectBuffer* pDmaBuffer);
 DtStatus  DtDmaCreateSgList(DtDvcObject* pDevice, DmaDevice* pDmaDevice, void* pBuffer,
                                       UInt BufSize, UInt Direction, DmaOsSgl* pOsSgl);
-DtStatus  DtDmaFinalSglTransfer(DmaOsSgl* pOsSgl);
+DtStatus  DtDmaFinalSglTransfer(DtDvcObject* pDevice, DmaOsSgl* pOsSgl, UInt Direction);
 DtStatus  DtDmaFlushCacheSglPreDma(DtDvcObject* pDevice, DmaOsSgl* pOsSgl, 
                                                                           UInt Direction);
 DtStatus  DtDmaFreeSgList(DtDvcObject* pDevice, DmaOsSgl* pOsSgl,UInt Direction);

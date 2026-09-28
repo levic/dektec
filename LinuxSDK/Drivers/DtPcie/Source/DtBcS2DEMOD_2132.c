@@ -1,4 +1,4 @@
-//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBcS2DEMOD_2132.c *#*#*#*#*#*#*#*#*# (C) 2017 DekTec
+﻿//#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#*#* DtBcS2DEMOD_2132.c *#*#*#*#*#*#*#*#*# (C) 2017 DekTec
 //
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- License -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -90,6 +90,10 @@ DtStatus DtBcS2DEMOD_2132_DemodReset(DtBcS2DEMOD_2132* pBc)
 
     // Perform other initialization of the DEMOD of registers that stay constant.
     DtBcS2DEMOD_2132_SetConstants(pBc);
+
+    // Set default scrambler start sequence
+    pBc->m_ScramblerStartSeq = 1;
+    S2DEMOD_ScramblerStartSeq_WRITE(pBc, (UInt32)pBc->m_ScramblerStartSeq);
 
     // re-establish previous interrupt handling
     if (pBc->m_OperationalMode == DT_BLOCK_OPMODE_RUN)
@@ -338,6 +342,26 @@ DtStatus DtBcS2DEMOD_2132_GetSymbolRate(DtBcS2DEMOD_2132* pBc, Int* pDecRate,
     return DT_STATUS_OK;
 }
 
+// .-.-.-.-.-.-.-.-.-.-.-.- DtBcS2DEMOD_2132_GetScramblerStartSeq -.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcS2DEMOD_2132_GetScramblerStartSeq(DtBcS2DEMOD_2132* pBc, Int* pStartSeq)
+{
+    // Sanity check
+    BC_S2DEMOD_2132_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check parameters
+    if (pStartSeq == NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_S2DEMOD_2132_MUST_BE_ENABLED(pBc);
+
+    // Return cached value
+    *pStartSeq = pBc->m_ScramblerStartSeq;
+
+    return DT_STATUS_OK;
+}
+
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcS2DEMOD_2132_SetRollOff -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtBcS2DEMOD_2132_SetRollOff(DtBcS2DEMOD_2132* pBc, Int RollOff)
@@ -471,6 +495,30 @@ DtStatus DtBcS2DEMOD_2132_SetSymbolRate(DtBcS2DEMOD_2132* pBc, Int DecRate,
     pBc->m_DecimationRate = DecRate;
     pBc->m_SampleToSymbolRateRatio = SamSymRatio;
     pBc->m_SymbolToSampleRateRatio = SymSamRatio;
+
+    return DT_STATUS_OK;
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.- DtBcS2DEMOD_2132_SetScramblerStartSeq -.-.-.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtBcS2DEMOD_2132_SetScramblerStartSeq(DtBcS2DEMOD_2132* pBc, Int StartSeq)
+{
+    UInt32  RegData=0, FldRollOff=0;
+    // Sanity check
+    BC_S2DEMOD_2132_DEFAULT_PRECONDITIONS(pBc);
+
+    // Check parameters
+    if (StartSeq<0 || StartSeq>=(1<<18))
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Must be enabled
+    BC_S2DEMOD_2132_MUST_BE_ENABLED(pBc);
+    
+    // Set in register
+    S2DEMOD_ScramblerStartSeq_WRITE(pBc, (UInt32)StartSeq);
+
+    // Update cached start sequence
+    pBc->m_ScramblerStartSeq = StartSeq;
 
     return DT_STATUS_OK;
 }
@@ -618,8 +666,9 @@ DtStatus  DtBcS2DEMOD_2132_SoftReset(DtBcS2DEMOD_2132* pBc)
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcS2DEMOD_2132_Init -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-DtStatus  DtBcS2DEMOD_2132_Init(DtBc*  pBc)
+DtStatus  DtBcS2DEMOD_2132_Init(DtBc*  pBcBase)
 {
+    DtBcS2DEMOD_2132* pBc = (DtBcS2DEMOD_2132*)pBcBase;
     DtStatus  Status=DT_STATUS_OK;
     UInt32 RegData;
 
@@ -627,49 +676,51 @@ DtStatus  DtBcS2DEMOD_2132_Init(DtBc*  pBc)
     BC_S2DEMOD_2132_DEFAULT_PRECONDITIONS(pBc);
 
     // Initialize the spin lock
-    DtSpinLockInit(&BC_S2DEMOD_2132->m_Lock);
+    DtSpinLockInit(&pBc->m_Lock);
 
     // Set defaults
-    BC_S2DEMOD_2132->m_BlockEnabled = FALSE;
-    BC_S2DEMOD_2132->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
-    BC_S2DEMOD_2132->m_PlHeaderSync = FALSE;
-    BC_S2DEMOD_2132->m_PlHdrResyncCount= 0;
+    pBc->m_BlockEnabled = FALSE;
+    pBc->m_OperationalMode = DT_BLOCK_OPMODE_IDLE;
+    pBc->m_PlHeaderSync = FALSE;
+    pBc->m_PlHdrResyncCount= 0;
 
     // Set default PL information register
     // DVB-S2: Rate 1/2, QPSK, pilots, short frame (==PLS value 19), ACM
-    BC_S2DEMOD_2132->m_PlMode = 0x00;   // ACM
-    BC_S2DEMOD_2132->m_PlsValue = 0x13; // PLS
+    pBc->m_PlMode = 0x00;   // ACM
+    pBc->m_PlsValue = 0x13; // PLS
     RegData = S2DEMOD_PlInformation_SET_PlsValue(0, 0x13);
     RegData = S2DEMOD_PlInformation_SET_Mode(RegData, 0x00);
-    S2DEMOD_PlInformation_WRITE(BC_S2DEMOD_2132, RegData);
+    S2DEMOD_PlInformation_WRITE(pBc, RegData);
 
     // Set default roll-off
-    BC_S2DEMOD_2132->m_RollOffFactor = DT_BC_S2DEMOD_2132_ROLL_OFF_0_35;
+    pBc->m_RollOffFactor = DT_BC_S2DEMOD_2132_ROLL_OFF_0_35;
     // Set in register
     RegData = S2DEMOD_RollOff_SET_Direct(0, 1);
     RegData = S2DEMOD_RollOff_SET_Factor(RegData, 0);
-    S2DEMOD_RollOff_WRITE(BC_S2DEMOD_2132, RegData);
+    S2DEMOD_RollOff_WRITE(pBc, RegData);
 
     // Set default spectrum inversion
-    BC_S2DEMOD_2132->m_SpectrumInvCtrl= DT_BC_S2DEMOD_2132_SPECINV_AUTO;
+    pBc->m_SpectrumInvCtrl= DT_BC_S2DEMOD_2132_SPECINV_AUTO;
     // Set in registers
     RegData = S2DEMOD_SpectrumInversion_SET_AutoDetect(0, 1);
     RegData = S2DEMOD_SpectrumInversion_SET_InitialValue(RegData, 0);
-    S2DEMOD_SpectrumInversion_WRITE(BC_S2DEMOD_2132, RegData);
+    S2DEMOD_SpectrumInversion_WRITE(pBc, RegData);
 
     // Set default to 8Msps (sample rate is 80Msps)
-    BC_S2DEMOD_2132->m_DecimationRate = 4;   // Gives 20Msps
-    BC_S2DEMOD_2132->m_SampleToSymbolRateRatio = 0x28000; // Ratio 2.5 << 16
-    BC_S2DEMOD_2132->m_SymbolToSampleRateRatio = 0x0CCCD; // Ratio 0.4 << 17
+    pBc->m_DecimationRate = 4;   // Gives 20Msps
+    pBc->m_SampleToSymbolRateRatio = 0x28000; // Ratio 2.5 << 16
+    pBc->m_SymbolToSampleRateRatio = 0x0CCCD; // Ratio 0.4 << 17
+
+    // Set default scrambler start sequence
+    pBc->m_ScramblerStartSeq = 1;
+    S2DEMOD_ScramblerStartSeq_WRITE(pBc, (UInt32)pBc->m_ScramblerStartSeq);
 
     // Set in registers
-    S2DEMOD_DecimationRate_WRITE(BC_S2DEMOD_2132, 
-                                      (UInt32)BC_S2DEMOD_2132->m_DecimationRate);
-    S2DEMOD_InitSampleRateRatio_WRITE(BC_S2DEMOD_2132, 
-                                      (UInt32)BC_S2DEMOD_2132->m_SymbolToSampleRateRatio);
+    S2DEMOD_DecimationRate_WRITE(pBc, (UInt32)pBc->m_DecimationRate);
+    S2DEMOD_InitSampleRateRatio_WRITE(pBc, (UInt32)pBc->m_SymbolToSampleRateRatio);
     RegData = S2DEMOD_InitSymbRateRatio_SET_InitSymbolRateRatio(0, 
-                                      (UInt32)BC_S2DEMOD_2132->m_SampleToSymbolRateRatio);
-    S2DEMOD_InitSymbRateRatio_WRITE(BC_S2DEMOD_2132, RegData);
+                                                  (UInt32)pBc->m_SampleToSymbolRateRatio);
+    S2DEMOD_InitSymbRateRatio_WRITE(pBc, RegData);
 
     // Perform other initialization of the DEMOD of registers that stay constant.
     DtBcS2DEMOD_2132_SetConstants(BC_S2DEMOD_2132);
@@ -679,21 +730,21 @@ DtStatus  DtBcS2DEMOD_2132_Init(DtBc*  pBc)
     RegData = S2DEMOD_InterruptEnable_SET_FrequencyLoop(RegData, 0);
     RegData = S2DEMOD_InterruptEnable_SET_PlHeaderSync(RegData, 0);
     RegData = S2DEMOD_InterruptEnable_SET_TimingLoop(RegData, 0);
-    S2DEMOD_InterruptEnable_WRITE(BC_S2DEMOD_2132, RegData);
+    S2DEMOD_InterruptEnable_WRITE(pBc, RegData);
 
     // Clear interrupt status
     RegData = S2DEMOD_InterruptStatus_SET_Demodulator(0, 1);
     RegData = S2DEMOD_InterruptStatus_SET_FrequencyLoop(RegData, 1);
     RegData = S2DEMOD_InterruptStatus_SET_PlHeaderSync(RegData, 1);
     RegData = S2DEMOD_InterruptStatus_SET_TimingLoop(RegData, 1);
-    S2DEMOD_InterruptStatus_WRITE(BC_S2DEMOD_2132, RegData);
+    S2DEMOD_InterruptStatus_WRITE(pBc, RegData);
 
     // Finalize by doing a softreset
     RegData = S2DEMOD_GlobalControl_SET_SoftReset(0, 1);
-    S2DEMOD_GlobalControl_WRITE(BC_S2DEMOD_2132, RegData);
+    S2DEMOD_GlobalControl_WRITE(pBc, RegData);
 
     // Init interrupt DPC
-    Status = DtDpcInit(&BC_S2DEMOD_2132->m_IntDpc, DtBcS2DEMOD_2132_InterruptDpc, TRUE);
+    Status = DtDpcInit(&pBc->m_IntDpc, DtBcS2DEMOD_2132_InterruptDpc, TRUE);
     if(!DT_SUCCESS(Status))
     {
         DtDbgOutBc(ERR, S2DEMOD_2132, pBc, "ERROR: failed to init DPC (Status=0x%08X)", 
@@ -726,7 +777,6 @@ DtStatus DtBcS2DEMOD_2132_OnEnable(DtBc* pBcBase, Bool Enable)
     { 
         // DISABLE -> ENABLE' set cached values and enable
         DtDbgOutBc(AVG, S2DEMOD_2132, pBc, "Block Enable from disable -> enable");
-
     }
     else
     { 
@@ -889,9 +939,6 @@ void  DtBcS2DEMOD_2132_SetConstants(DtBcS2DEMOD_2132* pBc)
     RegData = S2DEMOD_DcOffsetWeightFactor_SET_WeightFactor(0, 0x14); // a=2.2
     S2DEMOD_DcOffsetWeightFactor_WRITE(pBc, RegData);
 
-    // Scrambling for broadcasting mode
-    RegData = S2DEMOD_ScramblerStartSeq_SET_ScramblerSequence(0, 0x01);
-    S2DEMOD_ScramblerStartSeq_WRITE(pBc, RegData);
     // Timing ACQ, normalized bandwith of 10-4
     RegData = S2DEMOD_TimingLoopFiltCoef0_SET_ACQCoefficientG0(0, 0x01EA1D0E); // 25-bits!
     S2DEMOD_TimingLoopFiltCoef0_WRITE(pBc, RegData);
@@ -938,3 +985,4 @@ void  DtBcS2DEMOD_2132_SetConstants(DtBcS2DEMOD_2132* pBc)
     S2DEMOD_Undocumented94_WRITE(pBc, 0x00000006);
     S2DEMOD_UndocumentedD0_WRITE(pBc, 0x00000080);
 }
+

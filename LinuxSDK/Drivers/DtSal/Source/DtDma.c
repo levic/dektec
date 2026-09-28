@@ -297,6 +297,7 @@ DtStatus  DtDmaCreateDirectBuffer(
         pDmaBuffer->m_PhysicalAddress.QuadPart = 
                                  pDmaBuffer->m_PhysicalAddressUnaligned.QuadPart + Offset;
     }
+    pDmaBuffer->m_BufferLengthUnaligned = BufSizeAligned;
 #endif
     pDmaBuffer->m_BufferLength = BufSize;
     pDmaBuffer->m_Allocated = TRUE;
@@ -314,7 +315,7 @@ DtStatus  DtDmaFreeDirectBuffer(
 #ifdef WINBUILD
     WdfObjectDelete(pDmaBuffer->m_CommonBuffer);
 #else
-    pci_free_consistent_dt(pDevice->m_pPciDev, pDmaBuffer->m_BufferLength,
+    pci_free_consistent_dt(pDevice->m_pPciDev, pDmaBuffer->m_BufferLengthUnaligned,
                                          pDmaBuffer->m_pVirtualAddressUnaligned,
                                          pDmaBuffer->m_PhysicalAddressUnaligned.QuadPart);
 #endif
@@ -446,12 +447,9 @@ DtStatus  DtDmaFlushCacheSglPreDma(
     KeFlushIoBuffers(pOsSgl->m_PageList.m_pMdl, Direction == DT_DMA_DIRECTION_FROM_DEVICE,
                                                                                     TRUE);
 #else
-    if (Direction == DT_DMA_DIRECTION_TO_DEVICE)
-        pci_dma_sync_sg_for_device_dt(pDevice->m_pPciDev, pOsSgl->m_pSgList, 
-                                                  pOsSgl->m_NumSglEntries, DMA_TO_DEVICE);
-    else
-        pci_dma_sync_sg_for_device_dt(pDevice->m_pPciDev, pOsSgl->m_pSgList, 
-                                                pOsSgl->m_NumSglEntries, DMA_FROM_DEVICE);
+    pci_dma_sync_sg_for_device_dt(pDevice->m_pPciDev, pOsSgl->m_pSgList, 
+             pOsSgl->m_NumSglEntries, 
+             (Direction == DT_DMA_DIRECTION_TO_DEVICE ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
 #endif
     return DT_STATUS_OK;
 }
@@ -459,7 +457,9 @@ DtStatus  DtDmaFlushCacheSglPreDma(
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDmaFinalSglTransfer -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtDmaFinalSglTransfer(
-    DmaOsSgl*  pOsSgl)
+    DtDvcObject* pDevice,
+    DmaOsSgl*  pOsSgl,
+    UInt  Direction)
 {
 #ifdef WINBUILD
     NTSTATUS  NtStatus;
@@ -470,6 +470,11 @@ DtStatus  DtDmaFinalSglTransfer(
     if (!NT_SUCCESS(NtStatus))
         return DT_STATUS_FAIL;
 #else
+    // Release the dma_sync_sg_for_device. This releases the domain mapping used by
+    // IOMMU/Intel VT-d DMAR
+    dma_sync_sg_for_cpu(&pDevice->m_pPciDev->dev, pOsSgl->m_pSgList, 
+             pOsSgl->m_NumSglEntries,
+             (Direction == DT_DMA_DIRECTION_TO_DEVICE ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
 #endif
     return DT_STATUS_OK;
 }

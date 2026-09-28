@@ -620,7 +620,8 @@ static DtStatus  DtaDmaInitTransfer(
         if (!pDmaCh->m_ReUseDataBuffer)
         {
             if (!pDmaCh->m_UseDirectBufDma)
-                DtDmaFinalSglTransfer(&pDmaCh->m_Data.m_OsSgList);
+                DtDmaFinalSglTransfer(&pDmaCh->m_pDvcData->m_Device,
+                                      &pDmaCh->m_Data.m_OsSgList, pDmaCh->m_DmaDirection);
             DtaDmaCleanupDataBuffer(pDmaCh);
         }
 
@@ -640,7 +641,8 @@ DtStatus  DtaDmaFinalTransfer(
     if (!pDmaCh->m_UseDirectBufDma)
     {
         if (pDmaCh->m_Data.m_OsSgList.m_Allocated)
-            Status = DtDmaFinalSglTransfer(&pDmaCh->m_Data.m_OsSgList);
+            Status = DtDmaFinalSglTransfer(&pDmaCh->m_pDvcData->m_Device,
+                                      &pDmaCh->m_Data.m_OsSgList, pDmaCh->m_DmaDirection);
     }
 
     return Status;
@@ -1188,7 +1190,8 @@ void DtaDmaCompletedDpc(DtDpcArgs* pArgs)
         if (!pDmaCh->m_ReUseDataBuffer)
         {
             if (!pDmaCh->m_UseDirectBufDma)
-                DtDmaFinalSglTransfer(&pDmaCh->m_Data.m_OsSgList);
+                DtDmaFinalSglTransfer(&pDmaCh->m_pDvcData->m_Device,
+                                      &pDmaCh->m_Data.m_OsSgList, pDmaCh->m_DmaDirection);
             DtaDmaCleanupDataBuffer(pDmaCh);
         }
     }

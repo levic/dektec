@@ -197,6 +197,8 @@ typedef void  (*DtCoreCloseChildrenFunc)(DtCore*);
 typedef DtStatus  (*DtCoreRegisterChildDeviceFunc)(DtCore*, DtObject* pObject);
 typedef DtStatus  (*DtCoreUnregisterChildDeviceFunc)(DtCore*, DtObject* pObject);
 
+typedef DtStatus  (*DtCorePrepareFwRebootFunc)(DtCore*);
+
 
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCore -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 // Common data for core driver services or a function based device
@@ -211,7 +213,8 @@ typedef DtStatus  (*DtCoreUnregisterChildDeviceFunc)(DtCore*, DtObject* pObject)
     DtCoreOpenChildrenFunc  m_OpenChildrenFunc;                                          \
     DtCoreCloseChildrenFunc  m_CloseChildrenFunc;                                        \
     DtCoreRegisterChildDeviceFunc  m_RegisterChildDevice;                                \
-    DtCoreUnregisterChildDeviceFunc  m_UnregisterChildDevice
+    DtCoreUnregisterChildDeviceFunc  m_UnregisterChildDevice;                            \
+    DtCorePrepareFwRebootFunc  m_PrepareFwRebootFunc 
 #define DT_CORE_COMMON_DATA_PRIVATE                                                      \
     /* Driver / Device objects */                                                        \
     DtDrvObject  m_Driver;                                                               \

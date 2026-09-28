@@ -45,6 +45,12 @@ ifdef DEBUG
 	ccflags-y += -g -Wall -D_DEBUG
 endif
 
+ARCH := $(shell uname -m)
+
+ifeq ($(ARCH),aarch64)
+	ccflags-y += -DARMBUILD
+endif
+
 # Check for SMP
 ccflags-$(CONFIG_SMP) += -D__SMP__ -DSMP
 

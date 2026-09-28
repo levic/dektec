@@ -113,7 +113,6 @@ DtStatus  DtBcREBOOT_Init(DtBc*  pBc)
     return DT_STATUS_OK;
 }
 
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtBcREBOOT_OnEnable -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus  DtBcREBOOT_OnEnable(DtBc* pBc, Bool  Enable)
@@ -132,8 +131,10 @@ DtStatus  DtBcREBOOT_CheckRebootRequest(DtBcREBOOT*  pBc)
     // Check whether there is a request for reboot
     if (pBc->m_RebootDelay >= 0)
     {
-        DtDbgOutBc(MIN, REBOOT, pBc, "FPGA reboots after %d ms",  pBc->m_RebootDelay);
- 
+        if (pBc->m_pCore->m_PrepareFwRebootFunc)
+            pBc->m_pCore->m_PrepareFwRebootFunc(pBc->m_pCore);
+
+        DtDbgOutBc(MIN, REBOOT, pBc, "FPGA reboots after %d ms", pBc->m_RebootDelay);
         // Initiate FPGA reboot
         REBOOT_RebootDelay_WRITE(pBc, (UInt32)pBc->m_RebootDelay);
     }

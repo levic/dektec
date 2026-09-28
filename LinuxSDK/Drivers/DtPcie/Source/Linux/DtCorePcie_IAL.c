@@ -48,7 +48,6 @@ Int  g_DtPcieMajor = DTPCIE_MAJOR;
 Int  g_DtPcieMinor = 0;
 
 
-
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- Global variables -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 // Load time parameters
 module_param(g_DtPcieMaxDevices, int, S_IRUGO);  // Do not change int to Int!
@@ -69,6 +68,7 @@ static DtCorePcie**  g_pDtCorePcie = NULL;
 static struct class*  g_pDtPcieClass = NULL;
 static Int  g_DtPcieDeviceCount = 0;
 static DtChildDriver  g_DtChildNwDriver;     // Interface to Child (Network) driver
+static DtFwRebootIalPcie*  g_DtFwRebootIal = NULL;
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Forward declarations +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -84,6 +84,8 @@ static Int  DtCorePcie_IAL_InitDeviceResources(DtCorePcie* pCore);
 static Int  DtCorePcie_IAL_FreeDeviceResources(DtCorePcie* pCore);
 static Int  DtCorePcie_IAL_MapResources(DtCorePcie* pCore);
 static void  DtCorePcie_IAL_UnMapResources(DtCorePcie* pCore);
+static void DtCorePcie_IAL_PostFwReboot(DtCorePcie* pCore);
+
 
 // Interrupt handler
 static irqreturn_t  DtCorePcie_IAL_Interrupt(Int Irq, void* pContext);
@@ -237,7 +239,43 @@ static struct notifier_block  DtPcie_RebootNotifierBlock =
     .priority = 0,
 };
 
-//+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private helper functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private helper functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+// 
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_FreeCore -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static void DtCorePcie_IAL_FreeCore(struct kref* ref)
+{
+    struct _DtCore* pCore = container_of(ref, struct _DtCore, m_IalData.m_UseCount);
+    // Free device data
+    kfree(pCore);
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_Use -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static void DtCorePcie_IAL_IncUseCountCore(DtCore* pCore)
+{
+    kref_get(&pCore->m_IalData.m_UseCount);
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_Unuse -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static void DtCorePcie_IAL_DecUseCountCore(DtCore* pCore)
+{
+    kref_put(&pCore->m_IalData.m_UseCount, DtCorePcie_IAL_FreeCore);
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_FileGetDtCore -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static DtCore* DtCorePcie_IAL_FileGetDtCore(struct file* pFile)
+{
+    if (pFile == NULL || pFile->private_data == NULL)
+        return NULL;
+
+    DtCore* pCore = (DtCore*)pFile->private_data;
+    if (pCore->m_IalData.m_DeviceRemoved)
+        return NULL;
+    return pCore;
+}
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_InitDeviceData -.-.-.-.-.-.-.-.-.-.-.-.-.-.
 //
@@ -345,7 +383,7 @@ static Int  DtCorePcie_IAL_IalRegisterISR(DtCorePcie* pCore)
         return 0;
     
     DtDbgOut(MIN, IAL, "Start");
-    
+
     // Request the MSI-X interrupt vectors
     pCore->m_IalData.m_NumIrqVectors = 0;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
@@ -530,6 +568,7 @@ static Int  DtCorePcie_IAL_DevicePowerUpSeq(DtCorePcie* pCore)
         // Nothing to do, fully powered up
     break;
     }
+
     DtDbgOut(MIN, IAL, "Exit");
     return 0;
 }
@@ -619,6 +658,10 @@ static Int  DtCorePcie_IAL_DeviceStartSeq(DtCorePcie* pCore)
             DtCorePcie_IAL_DeviceStopSeq(pCore);
             return Result;
         }
+
+        // Check if we re-started from a FwReboot.
+        // We can now use the bus, slot and deviceId for device identification. Not yet SN
+        DtCorePcie_IAL_PostFwReboot(pCore);
         
         // Next state in start sequence
         pCore->m_IalData.m_StartSeqState = DEVICE_STARTSEQ_STATE_RES_INITIALIZED;
@@ -708,6 +751,7 @@ static Int  DtCorePcie_IAL_DeviceStartSeq(DtCorePcie* pCore)
         // Start sequence is done
         break;
     }
+
     DtDbgOut(MIN, IAL, "Exit");    
     return 0;
 }
@@ -852,6 +896,7 @@ static int  DtCorePcie_IAL_Ioctl(
     DtIoctlObject  Ioctl;
     DtPcieIoctlInputData  IoctlInputData; 
     DtPcieIoctlOutputData  IoctlOutputData; 
+    DtCore*  pCore = NULL;
 
     char*  pIoctlInputData = NULL;
     char*  pIoctlOutputData = NULL;
@@ -872,7 +917,8 @@ static int  DtCorePcie_IAL_Ioctl(
     if (Result >= 0)
     {
         // Check device context
-        if (pFile->private_data == NULL)
+        pCore = DtCorePcie_IAL_FileGetDtCore(pFile);
+        if (pCore == NULL)
             Result = -EFAULT;
     }
 
@@ -1016,7 +1062,7 @@ static int  DtCorePcie_IAL_Ioctl(
     if (Result >= 0)
     {
         // Call common IOCTRL
-        Status = DtCorePcie_Ioctl(pFile->private_data, &File, &Ioctl);
+        Status = DtCorePcie_Ioctl((DtCorePcie*)pCore, &File, &Ioctl);
         
         if (DT_SUCCESS(Status))
         {
@@ -1106,7 +1152,7 @@ static Int  DtCorePcie_IAL_Open(struct inode* pInode, struct file* pFile)
     DtFileObject  File;
     Int  Result = 0;
     Int  Index;
-
+    
     DtDbgOut(MAX, IAL, "Start");
 
     // Get the device index that is opened (Use minor number without offset)
@@ -1116,15 +1162,16 @@ static Int  DtCorePcie_IAL_Open(struct inode* pInode, struct file* pFile)
     File.m_pFile = pFile;
 
     // Store device data device data
-    pFile->private_data = g_pDtCorePcie[Index];
+    pFile->private_data = NULL;
 
     // Call common open
-    Status = DtCorePcie_Open(pFile->private_data, &File);
+    Status = DtCorePcie_Open(g_pDtCorePcie[Index], &File);
 
     // Convert result
     if (!DT_SUCCESS(Status))
         Result = -EFAULT;
-    
+    pFile->private_data = g_pDtCorePcie[Index];
+    DtCorePcie_IAL_IncUseCountCore((DtCore*)g_pDtCorePcie[Index]);
     DtDbgOut(MAX, IAL, "Exit");
     
     return Result;
@@ -1137,19 +1184,24 @@ static Int  DtCorePcie_IAL_Close(struct inode* pInode, struct file* pFile)
     DtFileObject  File;
 
     DtDbgOut(MAX, IAL, "Start");
-
-    // Check device context
-    if (pFile->private_data == NULL)
-        return -EFAULT;
-
+    
     // Init File object
     File.m_pFile = pFile;
 
-    // Call common close
-    DtCorePcie_Close(pFile->private_data, &File);
+    // Get core pointer direct from private_data
+    DtCore* pCore = (DtCore*)(pFile->private_data);
+    if (pCore->m_IalData.m_DeviceRemoved)
+    {
+        DtDbgOut(AVG, IAL, "Device sn:%llu was removed before application '%s'"
+                             " was closed.!", pCore->m_pDevInfo->m_Serial, current->comm);
+    }
 
+    // Call common close
+    DtCorePcie_Close((DtCorePcie*)pCore, &File);
+    
     // clear private_data
     pFile->private_data = NULL;
+    DtCorePcie_IAL_DecUseCountCore(pCore);
     
     DtDbgOut(MAX, IAL, "Exit");
     
@@ -1162,26 +1214,25 @@ Int DtCorePcie_IAL_Mmap(struct file* pFile, struct vm_area_struct* pVma)
 {
     DtVma Vma;
     DtFileObject  File;
-    DtCorePcie* pCore = NULL;
+    DtCore* pCore = NULL;
     DtPt* pPt = NULL;
     Int PortIndex=0;
     
     DtDbgOut(MAX, IAL, "Start");
 
     // Check device context
-    if (pFile==NULL || pFile->private_data==NULL)
+    pCore = DtCorePcie_IAL_FileGetDtCore(pFile);
+    if (pCore == NULL)
         return -EFAULT;
 
     // Init File object
     File.m_pFile = pFile;
 
-    // Compute port index from the offset. 
-    pCore = (DtCorePcie*)pFile->private_data;
     PortIndex = ((pVma->vm_pgoff<<PAGE_SHIFT)/(DT_MMAP_PORT_MEM_SEGMENT_SIZE)) - 1;
     DtDbgOut(AVG, IAL, "pgoff=%lu => port-index=%d", pVma->vm_pgoff, PortIndex);
 
     // Find the port and pass the mmap request onwards
-    pPt = DtCore_PT_Find((DtCore*)pCore, PortIndex);
+    pPt = DtCore_PT_Find(pCore, PortIndex);
     if (!pPt)
         return -EFAULT; // Port does not exist
 
@@ -1196,7 +1247,9 @@ static UInt  DtCorePcie_IAL_Poll(struct file* pFile, poll_table* pPollTable)
 {
     DtFileObject  File;
     UInt  Mask = 0;
-    DtCorePcie*  pCore = (DtCorePcie*)pFile->private_data;
+    DtCore* pCore = DtCorePcie_IAL_FileGetDtCore(pFile);
+    if (pCore == NULL)
+        return -EFAULT;
 
     // Init File object
     File.m_pFile = pFile;
@@ -1214,7 +1267,8 @@ static UInt  DtCorePcie_IAL_Poll(struct file* pFile, poll_table* pPollTable)
 
 // -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_Read -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-static ssize_t  DtCorePcie_IAL_Read(struct file* pFile, char __user* pBuf, size_t Count, loff_t* pOffp)
+static ssize_t  DtCorePcie_IAL_Read(struct file* pFile, char __user* pBuf, size_t Count, 
+                                                                            loff_t* pOffp)
 {
     // DtCorePcie_IAL_EventGet
     return 0;
@@ -1222,6 +1276,193 @@ static ssize_t  DtCorePcie_IAL_Read(struct file* pFile, char __user* pBuf, size_
 
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ System interface +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_PrepareFwReboot -.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static DtStatus DtCorePcie_IAL_PrepareFwReboot(DtCore* pCore)
+{
+    int i;
+    DtCorePcie* pCorePcie = (DtCorePcie*)pCore;
+
+    // Force PCIe LINK to GEN1 on root port and retrain
+    struct pci_dev* rp = pcie_find_root_port(pCore->m_Device.m_pPciDev);
+    if (rp == NULL)
+    {
+        DtDbgOut(ERR, IAL, "Root port not found for sn:%llu DevId:%x Bus:%i Slot:%i",
+            pCore->m_pDevInfo->m_Serial, pCorePcie->m_DevInfo.m_DeviceId,
+            pCorePcie->m_DevInfo.m_BusNumber, pCorePcie->m_DevInfo.m_SlotNumber);
+        return DT_STATUS_OK;
+    }
+
+    for (i = 0; i < g_DtPcieMaxDevices; i++)
+    {
+        if (g_DtFwRebootIal[i].m_Serial == pCore->m_pDevInfo->m_Serial)
+        {
+            DtDbgOut(ERR, IAL, "Already prepared for sn:%llu DevId:%x Bus:%i Slot:%i",
+                pCore->m_pDevInfo->m_Serial, pCorePcie->m_DevInfo.m_DeviceId,
+                pCorePcie->m_DevInfo.m_BusNumber, pCorePcie->m_DevInfo.m_SlotNumber);
+            return DT_STATUS_OK; // Already prepared, skip this card
+        }
+            
+        if (g_DtFwRebootIal[i].m_Serial == 0)
+        {
+            DtFwRebootIalPcie* pFwReboot = &(g_DtFwRebootIal[i]);
+            pFwReboot->m_Serial = pCorePcie->m_pDevInfo->m_Serial;
+            pFwReboot->m_DeviceId = pCorePcie->m_DevInfo.m_DeviceId;
+            pFwReboot->m_BusNumber = pCorePcie->m_DevInfo.m_BusNumber;
+            pFwReboot->m_SlotNumber = pCorePcie->m_DevInfo.m_SlotNumber;
+            DtDbgOut(AVG, IAL, "Prepare sn:%llu DevId:%x Bus:%i Slot:%i",
+                                    pFwReboot->m_Serial, pFwReboot->m_DeviceId,
+                                    pFwReboot->m_BusNumber, pFwReboot->m_SlotNumber);
+
+            // Read current link speed from root port
+            pci_read_config_word(rp, rp->pcie_cap + PCI_EXP_LNKCTL2, 
+                                                                &(pFwReboot->m_LinkCtl2));
+
+            // Force link speed root port to GEN1
+            pcie_capability_clear_and_set_word(rp, PCI_EXP_LNKCTL2, PCI_EXP_LNKCTL2_TLS,
+                                                               PCI_EXP_LNKCTL2_TLS_2_5GT);
+
+            // Retrain link
+            u16 lnkctl = 0;
+            pci_read_config_word(rp, rp->pcie_cap + PCI_EXP_LNKCTL, &lnkctl);
+            lnkctl |= PCI_EXP_LNKCTL_RL;
+            pci_write_config_word(rp, rp->pcie_cap + PCI_EXP_LNKCTL, lnkctl);
+
+            // Get AER offset
+            int aer = rp->aer_cap;
+            if (aer)
+            {
+                // Store current correctable and uncorrectable error mask
+                pci_read_config_dword(rp, aer + PCI_ERR_COR_MASK, 
+                                                         &(pFwReboot->m_CorrectableMask));
+                pci_read_config_dword(rp, aer + PCI_ERR_UNCOR_MASK, 
+                                                       &(pFwReboot->m_UnCorrectableMask));
+
+                // Mask all errors
+                pci_write_config_dword(rp, aer + PCI_ERR_COR_MASK, 0xffffffff);
+                pci_write_config_dword(rp, aer + PCI_ERR_UNCOR_MASK, 0xffffffff);
+            } else
+                DtDbgOut(ERR, IAL, "AER offset PCIE root port NOT available");
+            return DT_STATUS_OK;
+        }
+    }
+    // No empty space in array to store this device
+    return DT_STATUS_OUT_OF_MEMORY;
+ }
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_WaitPcieLinkReady -.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+// Wait for PCIe link training to complete and link to become stable
+//
+// return: 0: Link stable
+//         1: Error reading link stat
+//         2: Timeout
+// 
+static int DtCorePcie_IAL_WaitPcieLinkReady(struct pci_dev* rp, u8 ExpectedSpeed)
+{
+    u16 LinkStat;
+    int ElapsedTime = 0;
+    int StableCount = 0;
+    const int LINK_WAIT_TIMEOUT_MS = 2000;
+    const int POLL_INTERVAL_MS = 10;
+    
+    while (ElapsedTime < LINK_WAIT_TIMEOUT_MS) 
+    {
+        if (pci_read_config_word(rp, rp->pcie_cap + PCI_EXP_LNKSTA, &LinkStat))
+        {
+            DtDbgOut(ERR, IAL, "Error reading PCIE link status from root port");
+            return 1;
+        }
+
+        // Check: DLL Link Active + Link Training cleared
+        if ((LinkStat & PCI_EXP_LNKSTA_DLLLA) && !(LinkStat & PCI_EXP_LNKSTA_LT))
+        {
+            //  Check negotiated link speed if requested. PCI_EXP_LNKSTA_CLS is bits [3:0]
+            if (ExpectedSpeed && ((LinkStat & PCI_EXP_LNKSTA_CLS) != ExpectedSpeed))
+                StableCount = 0;
+            else
+            {
+                StableCount++;
+                if (StableCount >= 10)
+                {
+                    DtDbgOut(AVG, IAL, "Stable link. Linkstat: %xh ElapsedTime:%i",
+                                                                   LinkStat, ElapsedTime);
+                    return 0;
+                }
+            }
+        }
+        else
+            StableCount = 0;
+
+        msleep(POLL_INTERVAL_MS);
+        ElapsedTime += POLL_INTERVAL_MS;
+    }
+    // Timeout
+    DtDbgOut(ERR, IAL, "Timeout waiting for PCIE link. Linkstat: %xh ExpectedSpeed: %xh", 
+                                                                 LinkStat, ExpectedSpeed);
+    return 2;
+}
+
+// -.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_PostFwReboot -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static void DtCorePcie_IAL_PostFwReboot(DtCorePcie* pCore)
+{
+    int i;
+
+    for (i = 0; i < g_DtPcieMaxDevices; i++)
+    {
+        if (g_DtFwRebootIal[i].m_DeviceId == pCore->m_DevInfo.m_DeviceId &&
+            g_DtFwRebootIal[i].m_BusNumber == pCore->m_DevInfo.m_BusNumber &&
+            g_DtFwRebootIal[i].m_SlotNumber == pCore->m_DevInfo.m_SlotNumber)
+        {
+            DtFwRebootIalPcie* pFwReboot = &(g_DtFwRebootIal[i]);
+            DtDbgOut(AVG, IAL, "Restore GEN speed for sn:%llu DevId:%x Bus:%i Slot:%i",
+                                         pFwReboot->m_Serial, pFwReboot->m_DeviceId,
+                                         pFwReboot->m_BusNumber, pFwReboot->m_SlotNumber);
+
+            pFwReboot->m_Serial = 0;
+            pFwReboot->m_DeviceId = 0;
+            pFwReboot->m_BusNumber = 0;
+            pFwReboot->m_SlotNumber = 0;
+
+            struct pci_dev* rp = pcie_find_root_port(pCore->m_Device.m_pPciDev);
+            if (rp == NULL)
+            {
+                DtDbgOut(ERR, IAL, "Root port not found for sn:%llu DevId:%x Bus:%i"
+                                         " Slot:%i",
+                                         pFwReboot->m_Serial, pFwReboot->m_DeviceId,
+                                         pFwReboot->m_BusNumber, pFwReboot->m_SlotNumber);
+                return;
+            }
+            
+            int aer = rp->aer_cap;
+            if (aer)
+            {
+                // Restore error masks
+                pci_write_config_dword(rp, aer + PCI_ERR_COR_MASK, 
+                                                            pFwReboot->m_CorrectableMask);
+                pci_write_config_dword(rp, aer + PCI_ERR_UNCOR_MASK, 
+                                                          pFwReboot->m_UnCorrectableMask);
+            }
+
+            // Restore link speed
+            u8 StoredLinkSpeed = pFwReboot->m_LinkCtl2 & PCI_EXP_LNKCTL2_TLS;
+            pcie_capability_clear_and_set_word(rp, PCI_EXP_LNKCTL2, PCI_EXP_LNKCTL2_TLS,
+                                                                         StoredLinkSpeed);
+
+            // Retrain link
+            u16 lnkctl = 0;
+            pci_read_config_word(rp, rp->pcie_cap + PCI_EXP_LNKCTL, &lnkctl);
+            lnkctl |= PCI_EXP_LNKCTL_RL;
+            pci_write_config_word(rp, rp->pcie_cap + PCI_EXP_LNKCTL, lnkctl);
+
+            DtCorePcie_IAL_WaitPcieLinkReady(rp, StoredLinkSpeed);
+        }
+    }
+}
+
 
 // .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCorePcie_IAL_Probe -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -1268,6 +1509,8 @@ static Int  DtCorePcie_IAL_Probe(struct pci_dev *pPciDev, const struct pci_devic
             pCore->m_IalData.m_DvcIndex = DvcIndex;
             pCore->m_IalData.m_ISRRegistered = FALSE;
             pCore->m_IalData.m_PtpClockIndex = -1;
+            pCore->m_IalData.m_DeviceRemoved = FALSE;
+            kref_init(&pCore->m_IalData.m_UseCount);
         } else
             Result = -ENOMEM;
     }
@@ -1284,6 +1527,9 @@ static Int  DtCorePcie_IAL_Probe(struct pci_dev *pPciDev, const struct pci_devic
         // Set callback functions for registering child devices
         pCore->m_RegisterChildDevice = DtCorePcie_IAL_RegisterChildDevice;
         pCore->m_UnregisterChildDevice = DtCorePcie_IAL_UnregisterChildDevice;
+
+        // Set callback function for performing special handling for firmware reboot
+        pCore->m_PrepareFwRebootFunc = DtCorePcie_IAL_PrepareFwReboot;
     }
     
     // Only proceed if no errors
@@ -1315,7 +1561,7 @@ static Int  DtCorePcie_IAL_Probe(struct pci_dev *pPciDev, const struct pci_devic
             kfree(pCore);
         }
     }
-    
+
     DtDbgOut(MAX, IAL, "Exit");
     
     return Result;
@@ -1334,6 +1580,9 @@ static void  DtCorePcie_IAL_Remove(struct pci_dev *pPciDev)
     if (pCore == NULL)
         return;
 
+    // Mark device as removed
+    pCore->m_IalData.m_DeviceRemoved = TRUE;
+
     // Clear device driver data
     pci_set_drvdata(pCore->m_Device.m_pPciDev, NULL);
 
@@ -1342,13 +1591,12 @@ static void  DtCorePcie_IAL_Remove(struct pci_dev *pPciDev)
     
     // Free minor by clearing array entry
     g_pDtCorePcie[pCore->m_IalData.m_DvcIndex] = NULL;
-    
-    // Free device data
-    kfree(pCore);
+
+    // Do not delete the pCore immediately. Only after all users are freed
+    DtCorePcie_IAL_DecUseCountCore((DtCore*)pCore);
     
     // Decrement device count
     g_DtPcieDeviceCount--;
-    
     DtDbgOut(AVG, IAL, "New device count: %u", g_DtPcieDeviceCount);
     
     DtDbgOut(MAX, IAL, "Exit");
@@ -1721,6 +1969,16 @@ static Int  DtCorePcie_IAL_ModuleInit(void)
         else
             Result = -EBUSY;
     }
+    if (Result >= 0)
+    {
+        // Allocate memory for device context pointers
+        g_DtFwRebootIal = kmalloc(g_DtPcieMaxDevices * sizeof(DtFwRebootIalPcie), 
+                                                                              GFP_KERNEL);
+        if (g_DtFwRebootIal != NULL)
+            memset(g_DtFwRebootIal, 0, g_DtPcieMaxDevices * sizeof(DtFwRebootIalPcie));
+        else
+            Result = -EBUSY;
+    }
 
     // Only proceed if no errors
     if (Result >= 0)
@@ -1787,8 +2045,9 @@ static void  DtCorePcie_IAL_ModuleExit(void)
     pci_unregister_driver(&DtPciePciOps_ops);
     
     if (g_DtPcieDeviceCount != 0)
-        DtDbgOut(ERR, IAL, "DtCorePcie_IAL_ModuleExit called, but DtCorePcie_IAL_DeviceCount is not 0 after"
-                                           " pci_unregister_driver (%u)", g_DtPcieDeviceCount);
+        DtDbgOut(ERR, IAL, "DtCorePcie_IAL_ModuleExit called, but "
+                  " DtCorePcie_IAL_DeviceCount is not 0 after pci_unregister_driver (%u)", 
+                  g_DtPcieDeviceCount);
 
     // Call exit in common driver
     DtCorePcie_DRIVER_Exit();
@@ -1800,6 +2059,9 @@ static void  DtCorePcie_IAL_ModuleExit(void)
     // Free memory for device context pointers
     if (g_pDtCorePcie != NULL)
         kfree(g_pDtCorePcie);
+
+    if (g_DtFwRebootIal != NULL)
+        kfree(g_DtFwRebootIal);
 
     // Unregister character device region
     DevNum = MKDEV(g_DtPcieMajor, g_DtPcieMinor);

@@ -9968,8 +9968,9 @@ typedef enum _DtIoctlS2CrDemodCmd_2132
     DT_S2CRDEMOD_CMD_2132_GET_FREQ_OFFSET = 11,
     DT_S2CRDEMOD_CMD_2132_DEMOD_RESET = 12,
     DT_S2CRDEMOD_CMD_2132_GET_PL_INFORMATION = 13,
-    DT_S2CRDEMOD_CMD_2132_SET_PL_INFORMATION = 14
-
+    DT_S2CRDEMOD_CMD_2132_SET_PL_INFORMATION = 14,
+    DT_S2CRDEMOD_CMD_2132_GET_SCRAMBLER_START_SEQ = 15,
+    DT_S2CRDEMOD_CMD_2132_SET_SCRAMBLER_START_SEQ = 16
 }  DtIoctlS2CrDemodCmd_2132;
 
 // Roll-off factor
@@ -10101,6 +10102,18 @@ typedef struct _DtIoctlS2CrDemodCmd_2132GetSymbolRateOutput
 }  DtIoctlS2CrDemodCmd_2132GetSymbolRateOutput;
 ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132GetSymbolRateOutput, 16)
 
+
+// .-.-.-.-.-.-.-.- S2CRDEMOD_2132 Command - Get Scrambler Start Sequence -.-.-.-.-.-.-.-.
+//
+typedef DtIoctlInputDataHdr DtIoctlS2CrDemodCmd_2132GetScramblerStartSeqInput;
+ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132GetScramblerStartSeqInput, 16)
+typedef struct _DtIoctlS2CrDemodCmd_2132GetScramblerStartSeqOutput
+{
+    Int  m_StartSeq;        // Scrambler start sequence number
+}  DtIoctlS2CrDemodCmd_2132GetScramblerStartSeqOutput;
+ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132GetScramblerStartSeqOutput, 4)
+
+
 // -.-.-.-.-.-.-.- S2CRDEMOD_2132 Command - Set  Operational Mode Command -.-.-.-.-.-.-.-.
 //
 typedef struct _DtIoctlS2CrDemodCmd_2132SetOpModeInput
@@ -10140,6 +10153,16 @@ typedef struct _DtIoctlS2CrDemodCmd_2132SetSymbolRateInput
 }  DtIoctlS2CrDemodCmd_2132SetSymbolRateInput;
 ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132SetSymbolRateInput, 28)
 
+
+// .-.-.-.-.-.-.-.- S2CRDEMOD_2132 Command - Set Scrambler Start Sequence -.-.-.-.-.-.-.-.
+//
+typedef struct _DtIoctlS2CrDemodCmd_2132SetScramblerStartSeqInput
+{
+    DtIoctlInputDataHdr  m_CmdHdr;
+    Int  m_StartSeq;        // Scrambler start sequence number
+}  DtIoctlS2CrDemodCmd_2132SetScramblerStartSeqInput;
+ASSERT_SIZE(DtIoctlS2CrDemodCmd_2132SetScramblerStartSeqInput, 20)
+
 //-.-.-.-.-.-.-.-.-.-.- S2CRDEMOD_2132 Command - Execute Soft Reset  -.-.-.-.-.-.-.-.-.-.-
 //
 typedef DtIoctlInputDataHdr DtIoctlS2CrDemodCmd_2132SoftResetInput;
@@ -10155,9 +10178,12 @@ typedef union _DtIoctlS2CrDemodCmdInput_2132
     DtIoctlS2CrDemodCmd_2132SetOpModeInput  m_SetOpMode;         // Set operational. mode
     DtIoctlS2CrDemodCmd_2132SetSpectrumInvInput  m_SetSpectrumInv;  // Set spectrum inv
     DtIoctlS2CrDemodCmd_2132SetSymbolRateInput  m_SetSymRate;    // Set symbol rate
+    DtIoctlS2CrDemodCmd_2132SetScramblerStartSeqInput  m_SetScramblerStartSeq;
+                                                           // Set scrambler start sequence
     DtIoctlS2CrDemodCmd_2132SetPlInformationInput  m_SetPlInfo;  // Set Pl information
     DtIoctlS2CrDemodCmd_2132SoftResetInput  m_SoftReset;         // Execute a soft reset
  }  DtIoctlS2CrDemodCmdInput_2132;
+
 // S2CRDEMOD_2132 command - IOCTL output data
 typedef union _DtIoctlS2CrDemodCmdOutput_2132
 {
@@ -10170,6 +10196,8 @@ typedef union _DtIoctlS2CrDemodCmdOutput_2132
     DtIoctlS2CrDemodCmd_2132GetSpectrumInvOutput  m_GetSpectrumInv; // Get spectrum inv
     DtIoctlS2CrDemodCmd_2132GetStatusOutput  m_GetStatus;         // Get status
     DtIoctlS2CrDemodCmd_2132GetSymbolRateOutput  m_GetSymRate;    // Get symbol rate
+    DtIoctlS2CrDemodCmd_2132GetScramblerStartSeqOutput  m_GetScramblerStartSeq; 
+                                                           // Get scrambler start sequence
 }  DtIoctlS2CrDemodCmdOutput_2132;
 #ifdef WINBUILD
     #define DT_IOCTL_S2CRDEMOD_CMD_2132  CTL_CODE(DT_DEVICE_TYPE,                        \

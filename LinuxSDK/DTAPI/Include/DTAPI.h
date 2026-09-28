@@ -8,9 +8,9 @@
 
 // DTAPI version
 #define DTAPI_VERSION_MAJOR        6
-#define DTAPI_VERSION_MINOR        13
+#define DTAPI_VERSION_MINOR        14
 #define DTAPI_VERSION_BUGFIX       0
-#define DTAPI_VERSION_BUILD        242
+#define DTAPI_VERSION_BUILD        243
 
 //-.-.-.-.-.-.-.-.-.-.-.-.- Additional Libraries to be Linked In -.-.-.-.-.-.-.-.-.-.-.-.-
 
@@ -631,31 +631,39 @@ struct DtCmPath
 {
     enum Type
     {
-        CONSTANT_DELAY,             // Constant delay/phase
+        CONSTANT_DELAY,             // Constant delay and phase
         CONSTANT_DOPPLER,           // Constant frequency shift
-        RAYLEIGH_JAKES,             // Rayleigh fading with Jakes power spectral density
-                                    // (mobile path model)
-        RAYLEIGH_GAUSSIAN           // Rayleigh fading with Gaussian power spectral
-                                    // density (ionospheric path model)
+        RAYLEIGH_JAKES,             // Rayleigh fading with Jakes Doppler spectrum
+                                    // (mobile reception model)
+        RAYLEIGH_GAUSSIAN,          // Rayleigh fading with Gaussian Doppler spectrum
+                                    // (ionospheric reception model)
+        DAB_TAP_CLASS,              // DAB fading with CLASS Doppler spectrum
+        DAB_TAP_GAUS1,              // DAB fading with GAUS1 Doppler spectrum
+        DAB_TAP_GAUS2,              // DAB fading with GAUS2 Doppler spectrum
+        DAB_TAP_GAUSDAB,            // DAB fading with GAUSDAB Doppler spectrum
+        DAB_TAP_RICE                // DAB fading with RICE Doppler spectrum
     };
     Type  m_Type;                   // Type of path fading
     double  m_Attenuation;          // Attenuation in dB
     double  m_Delay;                // Delay in us
     double  m_Phase;                // Phase shift in degrees for CONSTANT_DELAY paths
     double  m_Doppler;              // Doppler frequency in Hz
+    double  m_FreqShift;            // Constant frequency shift in Hz for
+                                    // CONSTANT_DOPPLER and RAYLEIGH_* paths 
 
     // Constructor - Gives parameters a default value
     DtCmPath() :
         m_Type(CONSTANT_DELAY),
-        m_Attenuation(0.0), m_Delay(0.0), m_Phase(0.0), m_Doppler(0.0)
+        m_Attenuation(0.0), m_Delay(0.0), m_Phase(0.0), m_Doppler(0.0), m_FreqShift(0.0)
     {}
+    int NumPathsUsed();
     // Operators
     bool  operator == (DtCmPath& Rhs);
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtCmPars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
-// This structure describes channel-modeling parameters. It\92s used to simulate the 
+// This structure describes channel-modeling parameters. Its used to simulate the 
 // transmission distortions that may occur in the channel between a transmitter and
 // a receiver.
 //
@@ -674,6 +682,7 @@ struct DtCmPars
 
     bool  m_EnablePaths;            // Enable multi-path simulation
     std::vector<DtCmPath>  m_Paths; // Parameters per path
+    int GetExpandedPathCount();
 
     // Constructor and operators
     DtCmPars();
@@ -2494,6 +2503,8 @@ struct DtDemodParsDvbS2
     int  m_SpecInv;                 // Spectral inversion (yes/no)
     int  m_FecFrame;                // Long or short FECFRAME
     int  m_SymRate;                 // Symbol rate in baud
+    int  m_ScramblingSeqNr{0};      // PL-scrambling Gold sequence index (n); default: 0
+    int GetScramblerGoldStartSequence() const; // Returns I(n), PL-scrambling start value
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDemodParsDvbS2Adv -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -6053,13 +6064,51 @@ struct DtAtsc3ParamInfo
 //
 class DtAtsc3StltpPars
 {
+    // SISO output mode for mixed MIMO/SISO configurations
+public:
+    enum class SisoOutputMode
+    {
+        TO_BOTH,           // SISO subframes are output to both channels
+        TO_FIRST,          // SISO subframes are output to the first channel only
+    };
+
 public:
     int  m_Bandwidth;           // Bandwidth DTAPI_ATSC3_XMHZ
+    int  m_MimoOutputMode;      // NO-MIMO, MIMO-channel 1, MIMO-channel 2
+                                // see  DTAPI_ATSC3_MIMO_OUT_xx
+    SisoOutputMode  m_SisoOutput; // In case of MIMO, the output of SISO subframes
+
+    bool m_OverrideTxId{false};    // Override Tx-ID in STLTP stream
+    // Tx-ID injection parameters
+    int  m_TxIdInjectLevelCode{0}; // Tx-ID injection level see DTAPI_ATSC3_TXID_INJ_xx
+    int  m_TxIdAddress{0};         // Tx-ID address: 0..8191
+  
+    // Tx-ID injection parameters for second channel (MIMO)
+    int  m_TxIdInjectLevelCodeChan2{0}; // Tx-ID injection level see DTAPI_ATSC3_TXID_INJ_xx
+    int  m_TxIdAddressChan2{0};         // Tx-ID address: 0..8191
 
     DtAtsc3StltpPars();
     DTAPI_RESULT  CheckValidity(void);
     bool  operator == (DtAtsc3StltpPars& Rhs);
     bool  operator != (DtAtsc3StltpPars& Rhs);
+
+public: 
+    struct DtStltpInfo
+    {
+        bool  m_TmDataDetected{false};  // TM data is used
+        bool  m_PreambleDetected{false};  // Preamble is detected
+        bool  m_Mimo{false};            // MIMO is used
+        int  m_Bandwidth;               // Bandwidth DTAPI_ATSC3_XMHZ
+        int64_t  m_FrameCount;          // Number of frames in the STLTP stream
+    };
+    struct PacketView
+    {
+        const uint8_t* Data;
+        size_t Size;
+    };
+
+    static DTAPI_RESULT RetrieveStltpInfoFromPackets(
+                              const std::vector<PacketView>&  Packets, DtStltpInfo& Info);
 };
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ ATSC 3.0 Demodulation  +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
@@ -7151,7 +7200,7 @@ public:
     int  m_ConstelShape;            // Constellation shape:
                                     // DTAPI_MOD_S2_CONST_E_1 (constant energy; default)
                                     // or DTAPI_MOD_S2_CONST_R_1 (constant radius)
-    int  m_ScramblingSeqNr;         // Scrambling sequence number; default 0
+    int  m_ScramblingSeqNr{0};      // PL-scrambling Gold sequence index (n); default: 0
     int  m_DvbS2Modulator;          // Modulator implementation to be used for DVB-S2: 
                                     // DTAPI_MOD_S2_MOD_AUTO (depends on mod/cod; default)
                                     //  or DTAPI_MOD_S2_MOD_S2X (DVB-S2X modulator)
@@ -7867,6 +7916,8 @@ public:
 class DtDvbT2ComponentPars
 {
 public:
+    virtual ~DtDvbT2ComponentPars() {};
+public:
     // General T2 parameters
     int  m_T2Version;               // DVB-T2 spec. version. See DVBT2_VERSION_x
     int  m_T2Profile;               // DVB-T2 profile. See DVBT2_PROFILE_x
@@ -7927,9 +7978,9 @@ public:
     virtual void  Init() { Init(DTAPI_DVBT2_NUM_PLP_MAX); }
     virtual void  Init(int PlpCapacity);
     virtual DTAPI_RESULT SetPlpCapacity(int PlpCapacity);
-    virtual bool  IsEqual(DtDvbT2ComponentPars&, int CompareMode=DTAPI_DVBT2_COMPA_ALL);
-    virtual bool  operator == (DtDvbT2ComponentPars& T2Pars);
-    virtual bool  operator != (DtDvbT2ComponentPars& T2Pars);
+    bool  IsEqual(DtDvbT2ComponentPars&, int CompareMode=DTAPI_DVBT2_COMPA_ALL);
+    bool  operator == (DtDvbT2ComponentPars& T2Pars);
+    bool  operator != (DtDvbT2ComponentPars& T2Pars);
 };
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDvbT2Pars -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -7953,6 +8004,7 @@ public:
       // Constructor
     DtDvbT2Pars() { Init(); }
     DtDvbT2Pars(int PlpCapacity) { Init(PlpCapacity); }
+    virtual ~DtDvbT2Pars() {};
 
     // Methods
     virtual void  Init() { Init(DTAPI_DVBT2_NUM_PLP_MAX); }
@@ -7973,9 +8025,9 @@ public:
     static DTAPI_RESULT  RetrieveT2miParsFromTs(char* pBuffer, int NumBytes,
                                    std::vector<int>& Pids, int&  Bandwidth, int&  TsRate);
     // Operators
-    virtual bool  operator == (DtDvbT2Pars& T2Pars);
-    virtual bool  operator != (DtDvbT2Pars& T2Pars);
-    virtual bool  IsEqual(DtDvbT2Pars& T2Pars, int CompareMode=DTAPI_DVBT2_COMPA_ALL);
+    bool  operator == (DtDvbT2Pars& T2Pars);
+    bool  operator != (DtDvbT2Pars& T2Pars);
+    bool  IsEqual(DtDvbT2Pars& T2Pars, int CompareMode=DTAPI_DVBT2_COMPA_ALL);
 };
 
 //=+=+=+=+=+=+=+=+=+=+=+=+=+ DVB-T2 Demodulation layer 1 data  +=+=+=+=+=+=+=+=+=+=+=+=+=+

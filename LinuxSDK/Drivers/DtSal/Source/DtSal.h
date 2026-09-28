@@ -77,7 +77,11 @@
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
+#ifdef ARMBUILD 
+//#include <asm-generic/segment.h>
+#else
 #include <asm/segment.h>
+#endif
 #include <asm/uaccess.h>
 #include <linux/buffer_head.h>
 #include <linux/time.h>

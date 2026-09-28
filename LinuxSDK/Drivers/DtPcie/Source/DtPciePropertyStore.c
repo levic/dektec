@@ -3424,7 +3424,10 @@ static const DtProperty  DtProperties2116_2_61[] =
     { "BC_SPIM#3_ADDRESS", 0x200, NULL, PROPERTY_VALUE_TYPE_INT, 0, 0, 0, 0, -1,
                                                          PROPERTY_SCOPE_DRIVER, 0, 0, 0 },
     { "BC_SPIMF#1_TYPE", DT_BLOCK_TYPE_SPIMF, NULL, PROPERTY_VALUE_TYPE_INT, -1, 0, 0, 0,
-                              -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
+                              -1, PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 },
+    { "FIRMWARE_RELEASE_BUILD_DATE_0", DT_PVE, "2026.06.11T10:06",
+      PROPERTY_VALUE_TYPE_STRING, -1, -1, 0, 0, -1,
+                                  PROPERTY_SCOPE_DRIVER | PROPERTY_SCOPE_DTAPI, 0, 0, 0 } 
 };
 static const DtProperty  DtProperties2116_2_62[] =
 {
@@ -3507,7 +3510,7 @@ static const DtPropertyHashSet  DtPropertyHashSets2116_2[] =
     { DtProperties2116_2_58, 4 },
     { DtProperties2116_2_59, 8 },
     { DtProperties2116_2_60, 3 },
-    { DtProperties2116_2_61, 5 },
+    { DtProperties2116_2_61, 6 },
     { DtProperties2116_2_62, 2 },
     { DtProperties2116_2_63, 4 }
 };

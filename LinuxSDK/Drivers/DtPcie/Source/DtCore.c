@@ -47,33 +47,42 @@ DtStatus  DtCore_Close(DtCore*  pCore, DtFileObject*  pFile)
     CORE_DEFAULT_PRECONDITIONS(pCore);
 
     // Notify all PT's that the file is closed. 
-    Num = DtVectorPt_Size(pCore->m_pPtList);
-    for (i=0; i<Num; i++)
+    if (pCore->m_pPtList != NULL)
     {
-        DtPt*  pPt = DtVectorPt_At(pCore->m_pPtList, i);
-        if (pPt==NULL || pPt->m_OnCloseFileFunc==NULL)
-            continue;
-        pPt->m_OnCloseFileFunc(pPt, pFile);
+        Num = DtVectorPt_Size(pCore->m_pPtList);
+        for (i = 0; i < Num; i++)
+        {
+            DtPt* pPt = DtVectorPt_At(pCore->m_pPtList, i);
+            if (pPt == NULL || pPt->m_OnCloseFileFunc == NULL)
+                continue;
+            pPt->m_OnCloseFileFunc(pPt, pFile);
+        }
     }
 
     // Notify all DF's and BC's that the file is closed. 
     // NOTE: first notify all DFs, than the BCs
-    Num = DtVectorDf_Size(pCore->m_pDfList);
-    for (i=0; i<Num; i++)
+    if (pCore->m_pDfList != NULL)
     {
-        DtDf*  pDf = DtVectorDf_At(pCore->m_pDfList, i);
-        if (pDf==NULL || pDf->m_OnCloseFileFunc==NULL)
-            continue;
-        pDf->m_OnCloseFileFunc(pDf, pFile);
+        Num = DtVectorDf_Size(pCore->m_pDfList);
+        for (i = 0; i < Num; i++)
+        {
+            DtDf* pDf = DtVectorDf_At(pCore->m_pDfList, i);
+            if (pDf == NULL || pDf->m_OnCloseFileFunc == NULL)
+                continue;
+            pDf->m_OnCloseFileFunc(pDf, pFile);
+        }
     }
 
-    Num = DtVectorBc_Size(pCore->m_pBcList);
-    for (i=0; i<Num; i++)
+    if (pCore->m_pBcList != NULL)
     {
-        DtBc*  pBc = DtVectorBc_At(pCore->m_pBcList, i);
-        if (pBc==NULL || pBc->m_OnCloseFileFunc==NULL)
-            continue;
-        pBc->m_OnCloseFileFunc(pBc, pFile);
+        Num = DtVectorBc_Size(pCore->m_pBcList);
+        for (i = 0; i < Num; i++)
+        {
+            DtBc* pBc = DtVectorBc_At(pCore->m_pBcList, i);
+            if (pBc == NULL || pBc->m_OnCloseFileFunc == NULL)
+                continue;
+            pBc->m_OnCloseFileFunc(pBc, pFile);
+        }
     }
     
     // Remove file handle from the filehandle info array

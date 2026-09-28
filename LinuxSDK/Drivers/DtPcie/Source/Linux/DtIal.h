@@ -106,8 +106,23 @@ typedef struct _DtIalData
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,8,0)
     struct msix_entry  MsixEntry[20];               // IRQ Vector store
 #endif
+    Bool  m_DeviceRemoved;
     Int  m_PtpClockIndex;
+    struct kref m_UseCount;
 } DtIalData;
+
+
+// DtFwRebootIal
+typedef struct _DtFwRebootIalPcie
+{
+    UInt64 m_Serial;
+    UInt16 m_DeviceId;
+    UInt m_BusNumber;
+    UInt m_SlotNumber;
+    UInt16 m_LinkCtl2;
+    UInt32 m_CorrectableMask;
+    UInt32 m_UnCorrectableMask;
+} DtFwRebootIalPcie;
 
 typedef struct _DtIalDataChild
 {

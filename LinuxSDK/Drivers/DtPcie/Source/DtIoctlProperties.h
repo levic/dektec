@@ -6053,6 +6053,15 @@ typedef struct  _DtIoctlProperties
         sizeof(DtIoctlS2CrDemodCmd_2132GetSymbolRateInput),                              \
         sizeof(DtIoctlS2CrDemodCmd_2132GetSymbolRateOutput))
 
+#define DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_SCRAMBLER_START_SEQ                        \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_S2CRDEMOD_CMD_2132_GET_SCRAMBLER_START_SEQ,                                   \
+        "GET_SCRAMBLER_START_SEQ",                                                       \
+        TRUE,                                                                            \
+        FALSE,                                                                           \
+        sizeof(DtIoctlS2CrDemodCmd_2132GetScramblerStartSeqInput),                       \
+        sizeof(DtIoctlS2CrDemodCmd_2132GetScramblerStartSeqOutput))
+
 #define DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_OPERATIONAL_MODE                           \
     INIT_DT_IOCTL_CMD_PROPS(                                                             \
         DT_S2CRDEMOD_CMD_2132_SET_OPERATIONAL_MODE,                                      \
@@ -6087,6 +6096,15 @@ typedef struct  _DtIoctlProperties
         TRUE,                                                                            \
         TRUE,                                                                            \
         sizeof(DtIoctlS2CrDemodCmd_2132SetSymbolRateInput),                              \
+        0)
+
+#define DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_SCRAMBLER_START_SEQ                        \
+    INIT_DT_IOCTL_CMD_PROPS(                                                             \
+        DT_S2CRDEMOD_CMD_2132_SET_SCRAMBLER_START_SEQ,                                   \
+        "SET_SCRAMBLER_START_SEQ",                                                       \
+        TRUE,                                                                            \
+        TRUE,                                                                            \
+        sizeof(DtIoctlS2CrDemodCmd_2132SetScramblerStartSeqInput),                       \
         0)
 
 #define DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SOFT_RESET                                     \
@@ -6127,10 +6145,12 @@ typedef struct  _DtIoctlProperties
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_SPECTRUM_INV,                              \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_STATUS,                                    \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_SYMBOL_RATE,                               \
+        DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_SCRAMBLER_START_SEQ,                       \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_OPERATIONAL_MODE,                          \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_PL_INFORMATION,                            \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_SPECTRUM_INV,                              \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_SYMBOL_RATE,                               \
+        DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SET_SCRAMBLER_START_SEQ,                       \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_SOFT_RESET,                                    \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_COUNTERS,                                  \
         DT_IOCTL_CMD_PROPS_S2CRDEMOD_2132_GET_FREQ_OFFSET                                \

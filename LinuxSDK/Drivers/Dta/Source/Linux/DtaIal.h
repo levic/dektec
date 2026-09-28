@@ -98,7 +98,8 @@ typedef struct _DtaIalData
     DtaIalDeviceStartSeqState  m_StartSeqState;
     DtaIalDevicePowerSeqState  m_PowerSeqState;
     Bool  m_ISRRegistered;
-
+    Bool  m_DeviceRemoved;
+    struct kref m_UseCount;
 } DtaIalData;
 
 typedef struct _DtaIalDataChild

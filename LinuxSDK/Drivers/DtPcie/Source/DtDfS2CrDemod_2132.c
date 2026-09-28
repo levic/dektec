@@ -432,6 +432,29 @@ DtStatus DtDfS2CrDemod_2132_GetSymbolRate(DtDfS2CrDemod_2132* pDf, Int* pDecRate
     return Status;
 }
 
+// -.-.-.-.-.-.-.-.-.-.-.- DtDfS2CrDemod_2132_GetScramblerStartSeq -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtDfS2CrDemod_2132_GetScramblerStartSeq(DtDfS2CrDemod_2132* pDf, Int* pStartSeq)
+{
+    DtStatus  Status = DT_STATUS_OK;
+    // Sanity checks
+    DF_S2CRDEMOD_DEFAULT_PRECONDITIONS(pDf);
+    // Operational state must be enabled
+    DF_S2CRDEMOD_MUST_BE_ENABLED(pDf);
+    // Check parameters
+    if (pStartSeq==NULL)
+        return DT_STATUS_INVALID_PARAMETER;
+
+    // Get the S2Demod scrambler start sequence number
+    Status = DtBcS2DEMOD_2132_GetScramblerStartSeq(pDf->m_pBcS2Demod, pStartSeq);
+    if (!DT_SUCCESS(Status))
+    {
+        DtDbgOutDf(ERR, S2CRDEMOD_2132, pDf, "ERROR: failed to get S2Demod scrambler start seq");
+    }
+    return Status;
+}
+
+
 //.-.-.-.-.-.-.-.-.-.-.-.- DtDfS2CrDemod_2132_SetOperationalMode -.-.-.-.-.-.-.-.-.-.-.-.-
 //
 DtStatus  DtDfS2CrDemod_2132_SetOperationalMode(DtDfS2CrDemod_2132*  pDf, Int  OpMode)
@@ -564,6 +587,23 @@ DtStatus DtDfS2CrDemod_2132_SetSymbolRate(DtDfS2CrDemod_2132* pDf, Int DecRate,
     return DtBcS2DEMOD_2132_SetSymbolRate(pDf->m_pBcS2Demod, DecRate, SamSymRatio, 
                                                                              SymSamRatio);
 }
+
+// -.-.-.-.-.-.-.-.-.-.-.- DtDfS2CrDemod_2132_SetScramblerStartSeq -.-.-.-.-.-.-.-.-.-.-.-
+//
+DtStatus DtDfS2CrDemod_2132_SetScramblerStartSeq(DtDfS2CrDemod_2132* pDf, Int StartSeq)
+{
+    // Sanity checks
+    DF_S2CRDEMOD_DEFAULT_PRECONDITIONS(pDf);
+
+    // Operational state must be enabled
+    DF_S2CRDEMOD_MUST_BE_ENABLED(pDf);
+
+    // Set the S2Demod scrambler start sequence number
+    return DtBcS2DEMOD_2132_SetScramblerStartSeq(pDf->m_pBcS2Demod, StartSeq);
+}
+
+
+
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtDfS2CrDemod_2132_SoftReset -.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
@@ -820,8 +860,12 @@ static DtStatus  DtIoStubDfS2CrDemod_OnCmdGetSpectrumInv(const DtIoStubDfS2CrDem
                                            DtIoctlS2CrDemodCmd_2132GetSpectrumInvOutput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdGetStatus(const DtIoStubDfS2CrDemod_2132*,
                                                 DtIoctlS2CrDemodCmd_2132GetStatusOutput*);
+static DtStatus  DtIoStubDfS2CrDemod_OnCmdGetStatus(const DtIoStubDfS2CrDemod_2132*,
+                                                DtIoctlS2CrDemodCmd_2132GetStatusOutput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdGetSymbolRate(const DtIoStubDfS2CrDemod_2132*,
                                             DtIoctlS2CrDemodCmd_2132GetSymbolRateOutput*);
+static DtStatus  DtIoStubDfS2CrDemod_OnCmdGetScramblerStartSeq(const DtIoStubDfS2CrDemod_2132*,
+                                     DtIoctlS2CrDemodCmd_2132GetScramblerStartSeqOutput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdSetOperationalMode(
           const DtIoStubDfS2CrDemod_2132*, const DtIoctlS2CrDemodCmd_2132SetOpModeInput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdSetPlInformation(
@@ -830,6 +874,8 @@ static DtStatus  DtIoStubDfS2CrDemod_OnCmdSetSpectrumInv(const DtIoStubDfS2CrDem
                                       const DtIoctlS2CrDemodCmd_2132SetSpectrumInvInput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdSetSymbolRate(const DtIoStubDfS2CrDemod_2132*,
                                        const DtIoctlS2CrDemodCmd_2132SetSymbolRateInput*);
+static DtStatus  DtIoStubDfS2CrDemod_OnCmdSetScramblerStartSeq(const DtIoStubDfS2CrDemod_2132*,
+                                const DtIoctlS2CrDemodCmd_2132SetScramblerStartSeqInput*);
 static DtStatus  DtIoStubDfS2CrDemod_OnCmdSoftReset(const DtIoStubDfS2CrDemod_2132*);
 
 //-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- List of supported IOCTL -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
@@ -963,6 +1009,11 @@ DtStatus  DtIoStubDfS2CrDemod_OnCmd(
         Status = DtIoStubDfS2CrDemod_OnCmdGetSymbolRate(STUB_S2CRDEMOD,
                                                                  &pOutData->m_GetSymRate);
         break;
+    case DT_S2CRDEMOD_CMD_2132_GET_SCRAMBLER_START_SEQ:
+        DT_ASSERT(pOutData != NULL);
+        Status = DtIoStubDfS2CrDemod_OnCmdGetScramblerStartSeq(STUB_S2CRDEMOD,
+                                                        &pOutData->m_GetScramblerStartSeq);
+        break;
     case DT_S2CRDEMOD_CMD_2132_SET_OPERATIONAL_MODE:
         Status = DtIoStubDfS2CrDemod_OnCmdSetOperationalMode(STUB_S2CRDEMOD, 
                                                                    &pInData->m_SetOpMode);
@@ -974,6 +1025,10 @@ DtStatus  DtIoStubDfS2CrDemod_OnCmd(
     case DT_S2CRDEMOD_CMD_2132_SET_SYMBOL_RATE:
         Status = DtIoStubDfS2CrDemod_OnCmdSetSymbolRate(STUB_S2CRDEMOD,
                                                                   &pInData->m_SetSymRate);
+        break;
+    case DT_S2CRDEMOD_CMD_2132_SET_SCRAMBLER_START_SEQ:
+        Status = DtIoStubDfS2CrDemod_OnCmdSetScramblerStartSeq(STUB_S2CRDEMOD,
+                                                        &pInData->m_SetScramblerStartSeq);
         break;
     case DT_S2CRDEMOD_CMD_2132_SOFT_RESET:
         Status = DtIoStubDfS2CrDemod_OnCmdSoftReset(STUB_S2CRDEMOD);
@@ -1121,6 +1176,17 @@ DtStatus DtIoStubDfS2CrDemod_OnCmdGetSymbolRate(
                                        &pOutData->m_MeasSamSymRatio);
 }
 
+// .-.-.-.-.-.-.-.-.-.- DtIoStubDfS2CrDemod_OnCmdGetScramblerStartSeq -.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtIoStubDfS2CrDemod_OnCmdGetScramblerStartSeq(
+    const DtIoStubDfS2CrDemod_2132* pStub,
+    DtIoctlS2CrDemodCmd_2132GetScramblerStartSeqOutput* pOutData)
+{
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfS2CrDemod_2132));
+    DT_ASSERT(pOutData != NULL);
+    return DtDfS2CrDemod_2132_GetScramblerStartSeq(STUB_DF, &pOutData->m_StartSeq);
+}
+
 //-.-.-.-.-.-.-.-.-.-.- DtIoStubDfS2CrDemod_OnCmdSetOperationalMode -.-.-.-.-.-.-.-.-.-.-.
 //
 DtStatus DtIoStubDfS2CrDemod_OnCmdSetOperationalMode(
@@ -1165,6 +1231,17 @@ DtStatus DtIoStubDfS2CrDemod_OnCmdSetSymbolRate(
     DT_ASSERT(pInData != NULL);
     return DtDfS2CrDemod_2132_SetSymbolRate(STUB_DF, pInData->m_DecRate, 
                                           pInData->m_SamSymRatio, pInData->m_SymSamRatio);
+}
+
+// .-.-.-.-.-.-.-.-.-.- DtIoStubDfS2CrDemod_OnCmdSetScramblerStartSeq -.-.-.-.-.-.-.-.-.-.
+//
+DtStatus DtIoStubDfS2CrDemod_OnCmdSetScramblerStartSeq(
+    const DtIoStubDfS2CrDemod_2132* pStub,
+    const DtIoctlS2CrDemodCmd_2132SetScramblerStartSeqInput* pInData)
+{
+    DT_ASSERT(pStub!=NULL && pStub->m_Size==sizeof(DtIoStubDfS2CrDemod_2132));
+    DT_ASSERT(pInData != NULL);
+    return DtDfS2CrDemod_2132_SetScramblerStartSeq(STUB_DF, pInData->m_StartSeq);
 }
 
 //.-.-.-.-.-.-.-.-.-.-.-.- DtIoStubDfS2CrDemod_OnCmdSoftReset -.-.-.-.-.-.-.-.-.-.-.-.

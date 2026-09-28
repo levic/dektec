@@ -347,9 +347,12 @@ DtStatus DtBcCDMAC_FreeBuffer(DtBcCDMAC* pBc)
     pBc->m_pDmaBuffer = NULL;
     pBc->m_DmaBufferSize = 0;
 
-    // Delete scatter gather list
     DmaDirection = (pBc->m_Direction==DT_CDMAC_DIR_RX) ? DT_DMA_DIRECTION_FROM_DEVICE
                                                        : DT_DMA_DIRECTION_TO_DEVICE;
+    // Stop transaction before freeing scather gather list
+    DtDmaFinalSglTransfer(&pBc->m_pCore->m_Device, &pBc->m_OsSgList, DmaDirection);
+
+    // Delete scatter gather list
     DtDmaFreeSgList(&pBc->m_pCore->m_Device, &pBc->m_OsSgList, DmaDirection);
 
     DtFastMutexRelease(&pBc->m_DmaMutex);
@@ -1025,7 +1028,16 @@ DtStatus  DtBcCDMAC_PrepareBuffers(
         }
     }
 
-    DT_ASSERT(SglIdx==NumSgls && TblIdx==NumTblEntries);
+    if (SglIdx!=NumSgls || TblIdx!=NumTblEntries)
+    {
+        DtDbgOutBc(ERR, CDMAC, pBc, "ERROR: mismatch in number of SGL entries and pointer table entries");
+        // Failed; Unlock the DMA buffer and clear the pagelist
+        DtUnlockUserBuffer(&pBc->m_DmaBufferPageList);
+        DtDeletePageList(&pBc->m_DmaBufferPageList);
+        pBc->m_pDmaBuffer = NULL;
+        pBc->m_DmaBufferSize = 0;
+        return DT_STATUS_OUT_OF_MEMORY;
+    }
 
     DtDbgOutBc(AVG, CDMAC, pBc, "Successfully prepared DMA buffers");
     return DT_STATUS_OK;

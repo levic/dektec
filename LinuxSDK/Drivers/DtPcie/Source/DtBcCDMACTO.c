@@ -242,12 +242,12 @@ DtStatus DtBcCDMACTO_FreeBuffer(DtBcCDMACTO* pBc, Int BufType)
     pBc->m_pDmaBuffer = NULL;
     pBc->m_DmaBufferSize = 0;
 
+    DmaDirection = (pBc->m_Direction == DT_CDMAC_DIR_RX) ? DT_DMA_DIRECTION_FROM_DEVICE
+                                                             : DT_DMA_DIRECTION_TO_DEVICE;
     // Stop transaction before freeing scather gather list
-    DtDmaFinalSglTransfer(&pBc->m_OsSgList);
+    DtDmaFinalSglTransfer(&pBc->m_pCore->m_Device, &pBc->m_OsSgList, DmaDirection);
 
     // Delete scatter gather list
-    DmaDirection = (pBc->m_Direction==DT_CDMAC_DIR_RX) ? DT_DMA_DIRECTION_FROM_DEVICE
-                                                       : DT_DMA_DIRECTION_TO_DEVICE;
     DtDmaFreeSgList(&pBc->m_pCore->m_Device, &pBc->m_OsSgList, DmaDirection);
 
     DtFastMutexRelease(&pBc->m_DmaMutex);

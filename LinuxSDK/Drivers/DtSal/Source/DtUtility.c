@@ -33,11 +33,13 @@
 // STATEMENT ABOVE).
 #ifdef LINBUILD
 MODULE_LICENSE("GPL");
-#endif
 
-#if defined(RHEL_RELEASE_CODE)
-#if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,6)
-#define BACKPORTED_MAX_PAGE_ORDER
+#if defined(MAX_PAGE_ORDER)
+#define DT_MAX_PAGE_ORDER MAX_PAGE_ORDER
+#elif defined(MAX_ORDER)
+#define DT_MAX_PAGE_ORDER MAX_ORDER
+#else
+#error "neither MAX_PAGE_ORDER nor MAX_ORDER is defined"
 #endif
 #endif
 
@@ -188,11 +190,7 @@ void* DtMemAllocPoolLargeEx(DtPoolType Type, UInt Size, UInt32 Tag,
         return DtMemAllocPool(Type, Size, Tag);
     
     // Check if we can allocate one contiguous piece of memory 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0) || defined(BACKPORTED_MAX_PAGE_ORDER)
-    if (get_order(Size) < MAX_PAGE_ORDER)
-#else
-    if (get_order(Size) < MAX_ORDER)
-#endif
+    if (get_order(Size) < DT_MAX_PAGE_ORDER)
     {   
         *ppPageList = NULL;
         return DtMemAllocPool(Type, Size, Tag);    

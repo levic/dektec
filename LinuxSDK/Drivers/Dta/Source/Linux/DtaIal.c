@@ -217,6 +217,30 @@ static struct pci_driver  DtaPciOps_ops =
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+ Private helper functions +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaFreeDeviceData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+//
+static void DtaFreeDeviceData(struct kref* ref)
+{
+    struct _DtaDeviceData* pDvcData = container_of(ref, struct _DtaDeviceData, 
+                                                                    m_IalData.m_UseCount);
+    // Free device data
+    kfree(pDvcData);
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaIncUseCountDeviceData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static void DtaIncUseCountDeviceData(DtaDeviceData* pDvcData)
+{
+    kref_get(&pDvcData->m_IalData.m_UseCount);
+}
+
+// .-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaDecUseCountDeviceData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+//
+static void DtaDecUseCountDeviceData(DtaDeviceData* pDvcData)
+{
+    kref_put(&pDvcData->m_IalData.m_UseCount, DtaFreeDeviceData);
+}
+
 //.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- DtaInitDeviceData -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
 //
 static void  DtaInitDeviceData(DtaDeviceData* pDvcData)
@@ -842,7 +866,7 @@ DtStatus  DtaReleaseAddressRegsForFileObject(
     DtUserMapping*  pUserMapping;
     
     // Memory should have been mapped in kernel space
-    if (pDvcData->m_DtaRegs.m_pKernel == NULL) 
+    if (pDvcData->m_DtaRegs.m_pKernel==NULL && !pDvcData->m_IalData.m_DeviceRemoved) 
     {   DtDbgOut(ERR, IAL, "Registers not mapped");
         return DT_STATUS_NOT_INITIALISED;
     }
@@ -951,7 +975,7 @@ DtStatus  DtaReleaseAddressRegsForUserspace(
     DtUserMapping*  pUserMapping;
     
     // Memory should have been mapped in kernel space
-    if (pDvcData->m_DtaRegs.m_pKernel == NULL) 
+    if (pDvcData->m_DtaRegs.m_pKernel==NULL && !pDvcData->m_IalData.m_DeviceRemoved) 
     {   DtDbgOut(ERR, IAL, "[%d] Registers not mapped", PortIndex);
         return DT_STATUS_NOT_INITIALISED;
     }
@@ -1098,6 +1122,7 @@ static int  DtaIoctl(
     DtIoctlObject  Ioctl;
     DtaIoctlInputData  IoctlInputData; 
     DtaIoctlOutputData  IoctlOutputData; 
+    DtaDeviceData* pDvcData = pFile->private_data;
 
     char*  pIoctlInputData = NULL;
     char*  pIoctlOutputData = NULL;
@@ -1118,7 +1143,7 @@ static int  DtaIoctl(
     if (Result >= 0)
     {
         // Check device context
-        if (pFile->private_data == NULL)
+        if (pFile->private_data == NULL || pDvcData->m_IalData.m_DeviceRemoved)
             Result = -EFAULT;
     }
 
@@ -1321,6 +1346,8 @@ static Int  DtaOpen(struct inode* pInode, struct file* pFile)
     // Convert result
     if (!DT_SUCCESS(Status))
         Result = -EFAULT;
+
+    DtaIncUseCountDeviceData(g_pDtaDeviceData[Index]);
     
     DtDbgOut(MAX, IAL, "Exit");
     
@@ -1332,33 +1359,37 @@ static Int  DtaOpen(struct inode* pInode, struct file* pFile)
 static Int  DtaClose(struct inode* pInode, struct file* pFile)
 {
     DtFileObject  File;
+    DtaDeviceData* pDvcData = pFile->private_data;
 
     DtDbgOut(MAX, IAL, "Start");
 
     // Check device context
-    if (pFile->private_data == NULL)
+    if (pDvcData == NULL)
         return -EFAULT;
 
     // Init File object
     File.m_pFile = pFile;
 
     // Release mapping to userspace
-    DtaReleaseAddressRegsForFileObject(pFile->private_data, &File);
+    DtaReleaseAddressRegsForFileObject(pDvcData, &File);
 
     // Release Non IP channel specific resources
-    DtaNonIpReleaseResourceFromFileObject(pFile->private_data, &File);
+    DtaNonIpReleaseResourceFromFileObject(pDvcData, &File);
 
     // Release Ip channel specific resources
-    DtaIpReleaseResourceFromFileObject(pFile->private_data, &File);
+    DtaIpReleaseResourceFromFileObject(pDvcData, &File);
 
     // Call common close
-    DtaDeviceClose(pFile->private_data, &File);
+    DtaDeviceClose(pDvcData, &File);
 
     // Check if AdminStatus must be set up
-    DtaIpCheckReleaseAdminStatus(pFile->private_data);
+    DtaIpCheckReleaseAdminStatus(pDvcData);
 
     // clear private_data
     pFile->private_data = NULL;
+
+    // Decrement use count and cleanup if last
+    DtaDecUseCountDeviceData(pDvcData);
     
     DtDbgOut(MAX, IAL, "Exit");
     
@@ -1380,6 +1411,11 @@ static Int  DtaMmap(struct file* pFile, struct vm_area_struct* pVma)
     UInt  RegionSize = 0;
     Int  Result = 0;
     DtaDeviceData*  pDvcData = (DtaDeviceData*)pFile->private_data;
+
+    // Return immediately if device is removed
+    if (pDvcData->m_IalData.m_DeviceRemoved)
+        return -EFAULT;
+
 
     DtDbgOut(MAX, IAL, "Start");
 
@@ -1411,6 +1447,10 @@ static UInt  DtaPoll(struct file* pFile, poll_table* pPollTable)
     DtaEvents*  pDtaEvents = NULL;
     Int  NumPending = 0;
     DtaDeviceData*  pDvcData = (DtaDeviceData*)pFile->private_data;
+
+    // Return immediately if device is removed
+    if (pDvcData->m_IalData.m_DeviceRemoved)
+        return Mask;
 
     DtDbgOut(MAX, IAL, "Start");
 
@@ -1497,6 +1537,8 @@ static Int  DtaProbe(struct pci_dev *pPciDev, const struct pci_device_id *pId)
             // Store DvcIndex in device data IAL data
             pDvcData->m_IalData.m_DvcIndex = DvcIndex;
             pDvcData->m_IalData.m_ISRRegistered = FALSE;
+            pDvcData->m_IalData.m_DeviceRemoved = FALSE;
+            kref_init(&pDvcData->m_IalData.m_UseCount);
         } else
             Result = -ENOMEM;
     }
@@ -1559,6 +1601,9 @@ static void  DtaRemove(struct pci_dev *pPciDev)
     if (pDvcData == NULL)
         return;
     
+    // Mark device as removed
+    pDvcData->m_IalData.m_DeviceRemoved = TRUE;
+
     // Clear device driver data
     pci_set_drvdata(pDvcData->m_Device.m_pPciDev, NULL);
 
@@ -1568,8 +1613,8 @@ static void  DtaRemove(struct pci_dev *pPciDev)
     // Free minor by clearing array entry
     g_pDtaDeviceData[pDvcData->m_IalData.m_DvcIndex] = NULL;
     
-    // Free device data
-    kfree(pDvcData);
+    // Decrement use count and cleanup if last
+    DtaDecUseCountDeviceData(pDvcData);
     
     // Decrement device count
     g_DtaDeviceCount--;

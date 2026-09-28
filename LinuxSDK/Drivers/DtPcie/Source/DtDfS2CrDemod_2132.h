@@ -83,10 +83,12 @@ DtStatus  DtDfS2CrDemod_2132_GetStatus(DtDfS2CrDemod_2132* pBc,  Bool* pSignalDe
                               Bool* pSpecInv,  Bool* pPlHdrSync, UInt* pPlHdrResyncCount);
 DtStatus  DtDfS2CrDemod_2132_GetSymbolRate(DtDfS2CrDemod_2132* pBc, Int* pDecRate, 
                             Int* pSamSymRatio,  Int* pSymSamRatio, Int* pMeasSamSymRatio);
+DtStatus DtDfS2CrDemod_2132_GetScramblerStartSeq(DtDfS2CrDemod_2132*, Int* pStartSeq);
 DtStatus  DtDfS2CrDemod_2132_SetOperationalMode(DtDfS2CrDemod_2132* pBc,  Int OpMode);
 DtStatus  DtDfS2CrDemod_2132_SetSpectrumInv(DtDfS2CrDemod_2132* pBc, Int SpecInvCtrl);
 DtStatus  DtDfS2CrDemod_2132_SetSymbolRate(DtDfS2CrDemod_2132* pBc, Int DecRate, 
                                                        Int SamSymRatio,  Int SymSamRatio);
+DtStatus DtDfS2CrDemod_2132_SetScramblerStartSeq(DtDfS2CrDemod_2132*, Int StartSeq);
 
 //+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 //+=+=+=+=+=+=+=+=+=+=+=+=+ DtIoStubDfS2CrDemod_2132 definitions +=+=+=+=+=+=+=+=+=+=+=+=+

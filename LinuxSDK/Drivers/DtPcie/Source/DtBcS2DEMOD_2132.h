@@ -79,6 +79,7 @@ typedef  struct _DtBcS2DEMOD_2132
     Int  m_DecimationRate;      // Decimation rate for symbolrate setting
     Int  m_SampleToSymbolRateRatio; // Sample to symbol-rate ratio
     Int  m_SymbolToSampleRateRatio; // Symbol to sample-rate ratio
+    Int  m_ScramblerStartSeq;   // Scrambler start sequence
     UInt  m_PlHdrResyncCount;   // PL-header re-sync count
     Bool  m_PlHeaderSync;       // PL-header sync
     Int  m_PlMode;              // PL header mode (ACM/CCM/VCM)
@@ -103,6 +104,8 @@ DtStatus  DtBcS2DEMOD_2132_GetStatus(DtBcS2DEMOD_2132* pBc,  Bool* pSignalDetect
                               Bool* pSpecInv,  Bool* pPlHdrSync, UInt* pPlHdrResyncCount);
 DtStatus  DtBcS2DEMOD_2132_GetSymbolRate(DtBcS2DEMOD_2132* pBc, Int* pDecRate, 
                             Int* pSamSymRatio,  Int* pSymSamRatio, Int* pMeasSamSymRatio);
+DtStatus  DtBcS2DEMOD_2132_GetScramblerStartSeq(DtBcS2DEMOD_2132*, Int* pStartSeq);
+
 DtStatus  DtBcS2DEMOD_2132_SetOperationalMode(DtBcS2DEMOD_2132* pBc,  Int OpMode);
 DtStatus  DtBcS2DEMOD_2132_SetPlInformation(DtBcS2DEMOD_2132* pBc, Int PlMode, 
                                                                             Int PlsValue);
@@ -110,6 +113,7 @@ DtStatus  DtBcS2DEMOD_2132_SetRollOff(DtBcS2DEMOD_2132* pBc, Int RollOff);
 DtStatus  DtBcS2DEMOD_2132_SetSpectrumInv(DtBcS2DEMOD_2132* pBc, Int SpecInvCtrl);
 DtStatus  DtBcS2DEMOD_2132_SetSymbolRate(DtBcS2DEMOD_2132* pBc, Int DecRate, 
                                                        Int SamSymRatio,  Int SymSamRatio);
+DtStatus  DtBcS2DEMOD_2132_SetScramblerStartSeq(DtBcS2DEMOD_2132* pBc, Int StartSeq);
 DtStatus  DtBcS2DEMOD_2132_SoftReset(DtBcS2DEMOD_2132* pBc);
 
 
